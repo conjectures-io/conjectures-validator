@@ -3,7 +3,7 @@ import TaskSupport
 
 namespace Bounty
 
-theorem target : fcPropAnswerTarget% VerifierFixtures.propAnswer := by
+theorem target : fcPropAnswerTargetName% "VerifierFixtures.propAnswer" := by
   sorry
 
 end Bounty

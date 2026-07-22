@@ -9,12 +9,14 @@
     "VerifierFixtures.direct"
   ],
   "generated_target_type_hash": "sha256:62d08efa8f56dbf8afcfd9ec4c98bf31f8445231bb79820cb0afdfd6bfe95220",
-  "max_submission_bytes": 5000000,
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
   "permitted_axioms": [
     "propext",
     "Quot.sound",
     "Classical.choice"
   ],
+  "production_eligible": false,
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "schema_version": 1,
   "solution_module": "Solution",
@@ -30,10 +32,10 @@
   ],
   "timeout_seconds": 3600,
   "trusted_file_hashes": {
-    "Challenge.lean": "sha256:645d39ba7096dddaa53e83092fa1f41d411536891ebc56bea36250ff73282754",
+    "Challenge.lean": "sha256:ca0c3f3a5fb7d33e9e0cab5eed4300d0c7f4a44e544e4689720747f09f1b3c32",
     "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
-    "SolutionHeader.lean.txt": "sha256:4773577d4604c65e11a7f016f08a1ad2752ea04a615bb0182d9b95f7243c8719",
+    "SolutionHeader.lean.txt": "sha256:7c6fe1e8c5e58631c61c3a96c6abba6561b3e754e912dee2f023fedbfe0809bb",
     "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
-    "source-metadata.json": "sha256:e17221a117d217c35c06b3e3853be5c31bac62a66098e39d213499b8afb4d3f3"
+    "source-metadata.json": "sha256:f3b277a29501ab2d22cb74c18b80d43c902682a518ae995b32353e8f55cb8094"
   }
 }

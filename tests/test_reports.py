@@ -7,6 +7,7 @@ from conftest import manifest
 def test_report_has_stable_complete_checks():
     report = build_report(
         manifest=manifest(),
+        task_bundle_sha256="sha256:" + "0" * 64,
         submission_sha256="sha256:x",
         accepted=False,
         stage="STATIC_POLICY_CHECK",

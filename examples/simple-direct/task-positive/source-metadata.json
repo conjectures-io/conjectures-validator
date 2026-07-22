@@ -6,7 +6,9 @@
   "classification": "DIRECT_PROP",
   "contains_answer_annotation": false,
   "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
   "declaration_kind": "theorem",
+  "depends_on_sorry": true,
   "docstring": "Self-contained verifier fixture.",
   "finite_constructors": [],
   "formal_proof_kind": null,
@@ -22,6 +24,9 @@
     "negative"
   ],
   "theorem": "VerifierFixtures.direct",
+  "transitive_axioms": [
+    "sorryAx"
+  ],
   "type_hash": "sha256:3cbc87c7681f34db4617feaa2c8801931bc5e42d8d0f560e756dd4cd92885f18",
   "type_pretty": "fixture"
 }

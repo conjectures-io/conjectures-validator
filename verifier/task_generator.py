@@ -12,15 +12,24 @@ from verifier.classification import is_adapter_required
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import hash_named_files, pretty_json, sha256_text
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
+from verifier.task_policy import production_eligibility, proved_type_collisions
 
 
 PERMITTED_AXIOMS = ("propext", "Quot.sound", "Classical.choice")
+DEFAULT_TIMEOUT_SECONDS = 3600
+MAX_TIMEOUT_SECONDS = 3600
+DEFAULT_MAX_SUBMISSION_BYTES = 1_000_000
+MAX_SUBMISSION_BYTES = 1_000_000
 TRUSTED_NAMES = (
     "Challenge.lean",
     "SolutionHeader.lean.txt",
     "SolutionFooter.lean.txt",
     "comparator-config.json",
     "source-metadata.json",
+)
+LEAN_MODULE_NAME = re.compile(
+    r"(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_']+»)"
+    r"(?:\.(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_']+»))*"
 )
 
 
@@ -38,6 +47,8 @@ def task_id(repository_commit: str, theorem: str, mode: str, adapter_version: in
 
 
 def _imports(declaration: CatalogDeclaration) -> str:
+    if LEAN_MODULE_NAME.fullmatch(declaration.module) is None:
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "source module name is unsafe")
     return f"import {declaration.module}\nimport TaskSupport\n\nnamespace Bounty\n"
 
 
@@ -67,6 +78,39 @@ def _comparator_config(generated: GeneratedLean, enable_nanoda: bool) -> dict[st
     }
 
 
+def trusted_task_payloads(
+    declaration: CatalogDeclaration,
+    mode: str,
+    enable_nanoda: bool,
+    repository_commit: str,
+    adapter_version: int,
+) -> Mapping[str, bytes]:
+    adapter = adapter_for(declaration)
+    if adapter is None or adapter.version != adapter_version:
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "task adapter is unavailable or has a different version",
+        )
+    generated = adapter.generate(
+        declaration,
+        mode,
+        GenerationContext(repository_commit, adapter_version),
+    )
+    source_metadata = {
+        **declaration.to_dict(),
+        "repository_commit": repository_commit,
+        "adapter_version": adapter_version,
+    }
+    texts = {
+        "Challenge.lean": _challenge_text(declaration, generated),
+        "SolutionHeader.lean.txt": _imports(declaration),
+        "SolutionFooter.lean.txt": "\nend Bounty\n",
+        "comparator-config.json": pretty_json(_comparator_config(generated, enable_nanoda)),
+        "source-metadata.json": pretty_json(source_metadata),
+    }
+    return {name: content.encode("utf-8") for name, content in texts.items()}
+
+
 def generate_task(
     *,
     catalog: Catalog,
@@ -74,8 +118,9 @@ def generate_task(
     mode: str,
     output: Path,
     enable_nanoda: bool = False,
-    timeout_seconds: int = 3600,
-    max_submission_bytes: int = 5_000_000,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
+    allow_non_open: bool = False,
     validate_target: Callable[[Path, CatalogDeclaration, GeneratedLean, str], str],
 ) -> TaskManifest:
     if declaration.classification == Classification.POINTER_DECLARATION:
@@ -96,6 +141,7 @@ def generate_task(
             enable_nanoda=enable_nanoda,
             timeout_seconds=timeout_seconds,
             max_submission_bytes=max_submission_bytes,
+            allow_non_open=allow_non_open,
             validate_target=validate_target,
         )
     adapter = adapter_for(declaration)
@@ -107,6 +153,22 @@ def generate_task(
             ReasonCode.INVALID_TASK_MODE,
             f"mode {mode!r} is invalid for {declaration.classification.value}; expected {adapter.modes}",
         )
+    eligible, policy_violations, collisions = production_eligibility(catalog, declaration)
+    if not eligible and not allow_non_open:
+        raise VerifierError(
+            ReasonCode.INELIGIBLE_TASK,
+            f"declaration is not production eligible: {'; '.join(policy_violations)}",
+        )
+    if not 0 < timeout_seconds <= MAX_TIMEOUT_SECONDS:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"timeout must be between 1 and {MAX_TIMEOUT_SECONDS} seconds",
+        )
+    if not 0 < max_submission_bytes <= MAX_SUBMISSION_BYTES:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"submission limit must be between 1 and {MAX_SUBMISSION_BYTES} bytes",
+        )
     if output.exists():
         raise VerifierError(ReasonCode.INVALID_ARGUMENT, f"task output already exists: {output}")
     context = GenerationContext(catalog.repository_commit, adapter.version)
@@ -115,20 +177,31 @@ def generate_task(
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{identifier}.", dir=output.parent))
     try:
-        comparator_config = _comparator_config(generated, enable_nanoda)
-        (temporary / "Challenge.lean").write_text(_challenge_text(declaration, generated), encoding="utf-8")
-        (temporary / "SolutionHeader.lean.txt").write_text(_imports(declaration) + "\n", encoding="utf-8")
-        (temporary / "SolutionFooter.lean.txt").write_text("\nend Bounty\n", encoding="utf-8")
-        (temporary / "comparator-config.json").write_text(pretty_json(comparator_config), encoding="utf-8")
-        source_metadata = {
-            **declaration.to_dict(),
-            "repository_commit": catalog.repository_commit,
-            "adapter_version": adapter.version,
-        }
-        (temporary / "source-metadata.json").write_text(pretty_json(source_metadata), encoding="utf-8")
+        payloads = trusted_task_payloads(
+            declaration,
+            mode,
+            enable_nanoda,
+            catalog.repository_commit,
+            adapter.version,
+        )
+        for name, content in payloads.items():
+            (temporary / name).write_bytes(content)
         generated_hash = validate_target(temporary, declaration, generated, mode)
+        target_collisions = proved_type_collisions(
+            catalog,
+            generated_hash,
+            declaration.theorem,
+        )
+        collisions = tuple(sorted(frozenset(collisions) | frozenset(target_collisions)))
+        if target_collisions and not allow_non_open:
+            raise VerifierError(
+                ReasonCode.INELIGIBLE_TASK,
+                "generated target matches proved declarations: "
+                + ", ".join(target_collisions),
+            )
+        eligible = eligible and not target_collisions
         trusted_hashes = hash_named_files(temporary, TRUSTED_NAMES)
-        definition_names = tuple(comparator_config["definition_names"])
+        definition_names = tuple(_comparator_config(generated, enable_nanoda)["definition_names"])
         manifest = TaskManifest(
             schema_version=1,
             task_id=identifier,
@@ -152,6 +225,8 @@ def generate_task(
             max_submission_bytes=max_submission_bytes,
             adapter_version=adapter.version,
             trusted_file_hashes=trusted_hashes,
+            production_eligible=eligible,
+            known_proof_collisions=collisions,
             answer_policy=generated.answer_policy,
         )
         (temporary / "manifest.json").write_text(pretty_json(manifest.to_dict()), encoding="utf-8")

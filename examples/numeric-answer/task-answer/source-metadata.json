@@ -12,7 +12,9 @@
   "classification": "NAT_ANSWER",
   "contains_answer_annotation": true,
   "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
   "declaration_kind": "theorem",
+  "depends_on_sorry": true,
   "docstring": "Self-contained verifier fixture.",
   "finite_constructors": [],
   "formal_proof_kind": null,
@@ -27,6 +29,9 @@
     "answer"
   ],
   "theorem": "VerifierFixtures.natAnswer",
+  "transitive_axioms": [
+    "sorryAx"
+  ],
   "type_hash": "sha256:4832d96d27c38d192465f21b1e48b9168499b1dea58acff19f6beea3f402d428",
   "type_pretty": "fixture"
 }

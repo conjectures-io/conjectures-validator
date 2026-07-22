@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from pathlib import Path
 from typing import BinaryIO, Callable, Mapping, Sequence
 
@@ -16,13 +17,27 @@ from verifier.models import ProcessResult
 DEFAULT_CAPTURE_BYTES = 8 * 1024 * 1024
 
 
-def _resource_limiter(memory_bytes: int | None, cpu_seconds: int | None) -> Callable[[], None]:
+def _resource_limiter(
+    memory_bytes: int | None,
+    cpu_seconds: int | None,
+    file_bytes: int | None,
+    open_files: int | None,
+    processes: int | None,
+) -> Callable[[], None]:
     def limit() -> None:
         os.setsid()
+        if hasattr(resource, "RLIMIT_CORE"):
+            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         if memory_bytes is not None and sys.platform.startswith("linux") and hasattr(resource, "RLIMIT_AS"):
             resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
         if cpu_seconds is not None and sys.platform.startswith("linux"):
             resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
+        if file_bytes is not None and sys.platform.startswith("linux") and hasattr(resource, "RLIMIT_FSIZE"):
+            resource.setrlimit(resource.RLIMIT_FSIZE, (file_bytes, file_bytes))
+        if open_files is not None and hasattr(resource, "RLIMIT_NOFILE"):
+            resource.setrlimit(resource.RLIMIT_NOFILE, (open_files, open_files))
+        if processes is not None and sys.platform.startswith("linux") and hasattr(resource, "RLIMIT_NPROC"):
+            resource.setrlimit(resource.RLIMIT_NPROC, (processes, processes))
 
     return limit
 
@@ -35,6 +50,9 @@ def run_process(
     env: Mapping[str, str] | None = None,
     memory_bytes: int | None = None,
     cpu_seconds: int | None = None,
+    file_bytes: int | None = None,
+    open_files: int | None = None,
+    processes: int | None = None,
     max_output_bytes: int | None = DEFAULT_CAPTURE_BYTES,
 ) -> ProcessResult:
     command = tuple(str(x) for x in args)
@@ -49,19 +67,25 @@ def run_process(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=False,
-            preexec_fn=_resource_limiter(memory_bytes, cpu_seconds) if os.name == "posix" else None,
+            preexec_fn=(
+                _resource_limiter(memory_bytes, cpu_seconds, file_bytes, open_files, processes)
+                if os.name == "posix"
+                else None
+            ),
         )
-        stdout_buffer = bytearray()
-        stderr_buffer = bytearray()
+        stdout_chunks: deque[bytes] = deque()
+        stderr_chunks: deque[bytes] = deque()
+        stdout_size = [0]
+        stderr_size = [0]
         threads = (
             threading.Thread(
                 target=_drain_pipe,
-                args=(process.stdout, stdout_buffer, max_output_bytes),
+                args=(process.stdout, stdout_chunks, stdout_size, max_output_bytes),
                 daemon=True,
             ),
             threading.Thread(
                 target=_drain_pipe,
-                args=(process.stderr, stderr_buffer, max_output_bytes),
+                args=(process.stderr, stderr_chunks, stderr_size, max_output_bytes),
                 daemon=True,
             ),
         )
@@ -78,9 +102,19 @@ def run_process(
                 process.kill()
             process.wait()
         for thread in threads:
-            thread.join()
-        stdout = stdout_buffer.decode("utf-8", errors="replace")
-        stderr = stderr_buffer.decode("utf-8", errors="replace")
+            thread.join(timeout=2)
+        pipes_held_open = any(thread.is_alive() for thread in threads)
+        if pipes_held_open:
+            timed_out = True
+            if os.name == "posix":
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            for thread in threads:
+                thread.join(timeout=1)
+        stdout = b"".join(stdout_chunks).decode("utf-8", errors="replace")
+        stderr = b"".join(stderr_chunks).decode("utf-8", errors="replace")
         return ProcessResult(
             args=command,
             exit_code=None if timed_out else process.returncode,
@@ -102,12 +136,22 @@ def run_process(
 
 def _drain_pipe(
     stream: BinaryIO | None,
-    destination: bytearray,
+    destination: deque[bytes],
+    size: list[int],
     limit: int | None,
 ) -> None:
     if stream is None:
         return
-    while chunk := stream.read(64 * 1024):
-        destination.extend(chunk)
-        if limit is not None and len(destination) > limit:
-            del destination[: len(destination) - limit]
+    try:
+        while chunk := stream.read(64 * 1024):
+            destination.append(chunk)
+            size[0] += len(chunk)
+            if limit is not None:
+                while destination and size[0] - len(destination[0]) >= limit:
+                    size[0] -= len(destination.popleft())
+                if destination and size[0] > limit:
+                    excess = size[0] - limit
+                    destination[0] = destination[0][excess:]
+                    size[0] = limit
+    except (OSError, ValueError):
+        return

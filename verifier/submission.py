@@ -26,7 +26,12 @@ def load_submission(path: Path, max_bytes: int) -> Submission:
         raise VerifierError(ReasonCode.SUBMISSION_NOT_FOUND, f"submission not found: {path}") from exc
     if path.is_symlink() or not stat.S_ISREG(metadata.st_mode):
         raise VerifierError(ReasonCode.SUBMISSION_POLICY_VIOLATION, "submission must be one regular file, not a symlink")
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+    )
     try:
         descriptor = os.open(path, flags)
     except OSError as exc:

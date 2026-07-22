@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from verifier.classification import catalog_statistics, supported_modes
 from verifier.errors import ReasonCode, VerifierError
+from verifier.environment import tool_path, trusted_environment
 from verifier.hashing import is_sha256, pretty_json, sha256_text
 from verifier.models import CATEGORY_ORDER, Catalog, CatalogDeclaration
 from verifier.process import run_process
@@ -49,10 +49,12 @@ def build_catalog(
     extractor = project_root / "lean" / "CatalogExtractor.lean"
     if not extractor.is_file():
         raise VerifierError(ReasonCode.INTERNAL_ERROR, f"catalog extractor not found: {extractor}")
-    env = dict(os.environ)
+    home = project_root / ".work" / "catalog-home"
+    (home / ".tmp").mkdir(parents=True, exist_ok=True)
+    env = trusted_environment(project_root, home)
     started = time.monotonic_ns()
     source_directory = repo_dir / "FormalConjectures"
-    command = ("lake", "exe", "catalog_extractor", str(source_directory))
+    command = (str(tool_path(project_root, "lake")), "exe", "catalog_extractor", str(source_directory))
     result = command_runner(
         command,
         cwd=project_root,

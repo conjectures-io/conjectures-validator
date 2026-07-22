@@ -1,4 +1,5 @@
 import Lean
+import Lean.Util.CollectAxioms
 import FormalConjecturesUtil.Attributes.Basic
 import FormalConjecturesUtil.Answer
 
@@ -155,7 +156,8 @@ unsafe def withImports (modules : Array Name) (action : CoreM α) : IO α := do
   Lean.enableInitializersExecution
   let imports := modules.map fun moduleName => { module := moduleName }
   let environment ← importModules imports {} (trustLevel := 1024) (loadExts := true)
-  let context : Core.Context := { fileName := "", fileMap := default }
+  let options := ({} : Options).setNat `maxHeartbeats 0
+  let context : Core.Context := { fileName := "", fileMap := default, options }
   let (result, _) ← Lean.Core.CoreM.toIO action context { env := environment }
   return result
 
@@ -193,6 +195,8 @@ unsafe def extractCatalog (modules : Array Name) : CoreM Json := do
       let (initialClassification, constructors) ← MetaM.run' (classify declarationKind info.type info.value?)
       let classification := if pointer.isSome then "POINTER_DECLARATION" else initialClassification
       let answerExpressions := findAnswerExprs info.type
+      let axioms ← collectAxioms name
+      let dependsOnSorry := axioms.contains ``sorryAx
       let answerJson ← MetaM.run' <| answerExpressions.mapM answerDescription
       let formalProof := formalProofs.get? name
       let typePretty ← MetaM.run' (prettyExpression info.type)
@@ -213,6 +217,9 @@ unsafe def extractCatalog (modules : Array Name) : CoreM Json := do
         ("contains_answer_annotation", toJson (!answerExpressions.isEmpty)),
         ("answer_occurrences", toJson answerJson),
         ("contains_sorry_in_type", toJson info.type.hasSorry),
+        ("contains_sorry_in_value", toJson (info.value?.any (·.hasSorry))),
+        ("depends_on_sorry", toJson dependsOnSorry),
+        ("transitive_axioms", toJson (axioms.qsort Name.lt |>.toList.map (·.toString))),
         ("has_parameters", toJson (hasForall info.type)),
         ("is_prop", toJson proposition),
         ("docstring", optionalJson docstring),

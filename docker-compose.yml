@@ -1,6 +1,10 @@
 services:
   verifier:
-    build: .
+    build:
+      context: .
+      args:
+        ENABLE_NANODA: ${ENABLE_NANODA:-0}
+        LEAN_BUILD_THREADS: ${FC_LEAN_BUILD_THREADS:-3}
     image: formal-conjectures-verifier:local
     network_mode: none
     read_only: true
@@ -10,11 +14,15 @@ services:
     cap_drop:
       - ALL
     pids_limit: 512
-    mem_limit: 8g
+    mem_limit: 12g
     cpus: 4
     tmpfs:
       - /tmp:rw,nosuid,nodev,noexec,size=2g
       - /opt/fc-verifier/.work:rw,nosuid,nodev,noexec,size=2g,uid=10001,gid=10001,mode=0700
     volumes:
       - ./tasks:/inputs/tasks:ro
-      - ./submissions:/inputs/submissions:ro
+      - ${FC_SUBMISSION_FILE:-./submissions/Main.lean}:/inputs/submissions/Main.lean:ro
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 1024

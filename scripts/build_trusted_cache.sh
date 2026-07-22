@@ -25,6 +25,9 @@ if [[ "$(uname -s)" = Linux ]]; then
   mkdir -p "$ROOT/vendor/landrun/bin"
   cd "$ROOT/vendor/landrun"
   go build -trimpath -o bin/landrun ./cmd/landrun
+  mkdir -p "$ROOT/.tools"
+  cc -O2 -Wall -Wextra -Werror \
+    -o "$ROOT/.tools/seccomp-launcher" "$ROOT/security/seccomp-launcher.c"
 fi
 
 if [[ "${ENABLE_NANODA:-0}" = 1 ]]; then

@@ -18,6 +18,7 @@ def updated_checks(checks: Mapping[str, bool], **updates: bool) -> dict[str, boo
 def build_report(
     *,
     manifest: TaskManifest,
+    task_bundle_sha256: str,
     submission_sha256: str,
     accepted: bool,
     stage: str,
@@ -36,6 +37,7 @@ def build_report(
         repository_commit=manifest.repository_commit,
         source_theorem=manifest.source_theorem,
         task_mode=manifest.task_mode,
+        task_bundle_sha256=task_bundle_sha256,
         submission_sha256=submission_sha256,
         accepted=accepted,
         stage=stage,

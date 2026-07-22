@@ -57,6 +57,9 @@ class CatalogDeclaration:
     contains_answer_annotation: bool
     answer_occurrences: tuple[Mapping[str, Any], ...]
     contains_sorry_in_type: bool
+    contains_sorry_in_value: bool
+    depends_on_sorry: bool
+    transitive_axioms: tuple[str, ...]
     has_parameters: bool
     is_prop: bool
     docstring: str | None
@@ -82,6 +85,9 @@ class CatalogDeclaration:
                 contains_answer_annotation=bool(value.get("contains_answer_annotation", False)),
                 answer_occurrences=tuple(value.get("answer_occurrences", ())),
                 contains_sorry_in_type=bool(value.get("contains_sorry_in_type", False)),
+                contains_sorry_in_value=bool(value.get("contains_sorry_in_value", False)),
+                depends_on_sorry=bool(value.get("depends_on_sorry", False)),
+                transitive_axioms=tuple(str(x) for x in value.get("transitive_axioms", ())),
                 has_parameters=bool(value.get("has_parameters", False)),
                 is_prop=bool(value.get("is_prop", False)),
                 docstring=value.get("docstring"),
@@ -98,6 +104,7 @@ class CatalogDeclaration:
         result["classification"] = self.classification.value
         result["ams_subjects"] = list(self.ams_subjects)
         result["answer_occurrences"] = [dict(x) for x in self.answer_occurrences]
+        result["transitive_axioms"] = list(self.transitive_axioms)
         result["supported_modes"] = list(self.supported_modes)
         result["finite_constructors"] = list(self.finite_constructors)
         return result
@@ -164,6 +171,8 @@ class TaskManifest:
     max_submission_bytes: int
     adapter_version: int
     trusted_file_hashes: Mapping[str, str]
+    production_eligible: bool = False
+    known_proof_collisions: tuple[str, ...] = ()
     answer_policy: Mapping[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -192,6 +201,8 @@ class TaskManifest:
                 max_submission_bytes=int(value.get("max_submission_bytes", 5_000_000)),
                 adapter_version=int(value.get("adapter_version", 1)),
                 trusted_file_hashes=dict(value["trusted_file_hashes"]),
+                production_eligible=bool(value.get("production_eligible", False)),
+                known_proof_collisions=tuple(str(x) for x in value.get("known_proof_collisions", ())),
                 answer_policy=dict(value.get("answer_policy", {})),
             )
         except (KeyError, TypeError, ValueError) as exc:
@@ -205,6 +216,7 @@ class TaskManifest:
             "definition_names",
             "forbidden_dependencies",
             "permitted_axioms",
+            "known_proof_collisions",
         ):
             result[key] = list(result[key])
         result["trusted_file_hashes"] = dict(sorted(self.trusted_file_hashes.items()))
@@ -232,6 +244,9 @@ class ProcessResult:
 
 DEFAULT_CHECKS: Mapping[str, bool] = {
     "manifest_valid": False,
+    "task_commitment_valid": False,
+    "production_task": False,
+    "production_sandbox": False,
     "source_type_hash_valid": False,
     "trusted_hashes_valid": False,
     "submission_policy_valid": False,
@@ -252,6 +267,7 @@ class VerificationReport:
     repository_commit: str
     source_theorem: str
     task_mode: str
+    task_bundle_sha256: str
     submission_sha256: str
     accepted: bool
     stage: str

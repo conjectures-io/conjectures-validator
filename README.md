@@ -11,9 +11,10 @@ The pinned data flow is:
 ```text
 Formal Conjectures e923379e…
   -> Lean environment catalog extraction
-  -> versioned adapter + hashed task manifest
+  -> open-source eligibility + versioned adapter
+  -> deterministic task payload + externally published SHA-256
   -> static policy scanner + fresh workspace
-  -> Comparator + Lean kernel (+ optional Nanoda)
+  -> Landlock/seccomp + Comparator + Lean kernel (+ optional Nanoda)
   -> stable JSON reason code and verdict
 ```
 
@@ -62,17 +63,56 @@ python -m verifier task generate-all \
   --output tasks/generated
 ```
 
-Verify a submission:
+Generate a production task and save the `task_bundle_sha256` printed by the command. The digest must
+be published through an authenticated operator channel before miners submit proofs.
+
+The direct CLI form is below. It reports a production sandbox only when the live probe confirms an
+equivalent hardened Linux setup, including a non-executable workspace; the Compose profile later in
+this section is the supported deployment path.
+
+```bash
+python -m verifier verify \
+  --task tasks/graceful-positive \
+  --submission submissions/Main.lean \
+  --expected-task-sha256 sha256:<64-lowercase-hex-digits>
+```
+
+The checked-in examples are deliberately admitted test fixtures. On macOS, their explicit
+development-only invocation is:
 
 ```bash
 python -m verifier verify \
   --task examples/simple-direct/task-positive \
-  --submission examples/valid-submission/Main.lean
+  --submission examples/valid-submission/Main.lean \
+  --allow-test-task \
+  --allow-insecure-development
 ```
+
+Never expose `--allow-test-task`, `--allow-uncommitted-task`, or
+`--allow-insecure-development` in a production service.
 
 The exit status is `0` for accepted, `1` for a rejected proof, and `2` for bad verifier/task
 configuration. Reports use sorted JSON keys and stable reason codes. Timing fields are measurements
 and naturally vary.
+
+The production container profile runs the same commands without exposing the host toolchain:
+
+```bash
+docker compose build verifier
+docker compose run --rm verifier doctor
+
+FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
+  --task /inputs/tasks/graceful-positive \
+  --submission /inputs/submissions/Main.lean \
+  --expected-task-sha256 sha256:<64-lowercase-hex-digits>
+```
+
+The image build defaults to three Lean worker threads; set `FC_LEAN_BUILD_THREADS` to match the
+memory and CPU available to the builder.
+
+Compose mounts the task collection read-only and only the selected submission file, then applies
+the network, capability, UID, read-only-root, PID, memory, CPU, file-descriptor, and tmpfs limits in
+`docker-compose.yml`. Deploy a reviewed image by immutable registry digest, not by a mutable tag.
 
 ## Architecture and exact target generation
 
@@ -82,6 +122,9 @@ formal-proof environment extensions. Source text regexes are not used to discove
 For each tagged declaration the extractor inspects the elaborated `ConstantInfo`, answer metadata,
 proof/value shape, proposition status, and fully explicit pretty-printed expression. Python hashes
 that canonical elaborated representation with SHA-256.
+
+Production generation rejects a compiled target whose canonical type hash already belongs to a
+cataloged, non-admitted theorem. This is an exact collision screen, not a general novelty oracle.
 
 The built-in, version-1 adapter table handles:
 
@@ -96,9 +139,11 @@ The built-in, version-1 adapter table handles:
 `GENERAL_VALUE_ANSWER`, `MULTIPLE_ANSWER_HOLES`, and `DEFINITION_HOLE` are cataloged but require a
 versioned operator adapter. `UNSUPPORTED` remains visible and is never silently activated.
 
-Generated `Challenge.lean` files do not reparse a copied pretty string. Direct propositions use
-Lean's `type_of%` against the pinned declaration. `lean/TaskSupport.lean` reconstructs proposition
-answer targets and substitutes value answers by walking the elaborated expression tree. After the
+Generated `Challenge.lean` files do not reparse a copied pretty string. Direct propositions use a
+trusted `fcTypeOfName% "..."` elaborator that resolves the pinned declaration by name. Finite-answer
+types are likewise recovered from the compiled environment rather than splicing catalog text into
+Lean source. `lean/TaskSupport.lean` reconstructs proposition answer targets and substitutes value
+answers by walking the elaborated expression tree. After the
 challenge compiles, `lean/TaskInspector.lean` independently reconstructs the intended type, checks
 definitional equality, and emits canonical source and target types for hashing. Generation fails on
 a missing/moved declaration, a source hash change, classification drift, or target mismatch.
@@ -106,7 +151,17 @@ a missing/moved declaration, a source hash change, classification drift, or targ
 Each task contains `manifest.json`, `Challenge.lean`, trusted solution header/footer,
 `comparator-config.json`, `trusted-hashes.json`, and `source-metadata.json`. The task ID is a pure
 function of the repository commit, source theorem, mode, and adapter version. Every trusted payload
-is hashed; task loading rejects symlinks and changed bytes.
+is hashed; task loading rejects symlinks, duplicate JSON keys, changed bytes, extra files, and files
+that are hashed but do not exactly match output reconstructed by the pinned generator. A separate
+whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted after task
+publication.
+
+Production generation accepts only compiled `research open` theorem declarations whose dependency
+closure contains `sorryAx`, which is how the source repository marks an admitted open conjecture.
+It rejects formal-proof metadata and exact canonical type collisions with cataloged theorems that
+have non-admitted proofs. Verification recomputes the source category, declaration kind, formal
+proof status, axiom closure, and absence of holes in the generated target from the compiled Lean
+environment rather than trusting JSON metadata.
 
 ## Submission policy and verification stages
 
@@ -114,9 +169,14 @@ The only untrusted input is one regular `.lean` UTF-8 file. It is placed between
 and footer. A comment/string-aware Lean token scanner rejects command-form `import`, `prelude`,
 `module`, `axiom`/`constant`, `unsafe`, `extern`, `foreign`, initializers, syntax/elaboration
 extensions, `set_option`, `run_cmd`, and `run_tac` even when commands share a line; it rejects
-qualified or quoted `sorry`, `admit`, and `sorryAx` references. It also enforces literal answer
-syntax before Lean runs. NUL bytes, non-UTF-8, symlinks, non-regular or non-Lean files, and oversized
-files are rejected using a no-follow descriptor and a bounded read.
+`native_decide` (which trusts generated native code), and qualified or quoted `sorry`, `admit`, and
+`sorryAx` references. Instance declarations,
+declaration attributes (including module initializers), meta declarations, syntax/notation
+extensions, and interpolated strings are also rejected so apparently literal
+answers cannot elaborate to attacker-defined values or hide executable elaborator syntax. Token,
+nesting, line, Unicode, numeral-digit, and total-byte limits are applied before Lean runs. NUL
+bytes, non-UTF-8, symlinks, non-regular or non-Lean files, and oversized files are rejected using a
+no-follow descriptor and a bounded read.
 
 Verification executes these logical stages:
 
@@ -135,11 +195,18 @@ identity or axiom closure. A successful `lake build` alone is therefore never an
 
 ## Isolation and trusted computing base
 
-Production verification is the Ubuntu container path. It runs as UID 10001, drops capabilities,
-uses `no-new-privileges`, a read-only root, bounded PID/CPU/memory settings, and `network_mode: none`.
-Comparator invokes Landrun around Lean and `lean4export`; the workspace is fresh and writable while
-the source checkout and prebuilt dependency products are read-only. The workspace is deleted unless
-`--retain-workspace` was explicitly requested for diagnostics.
+Production verification is the Ubuntu container path on a kernel with Landlock ABI 4 or newer. It
+runs as UID 10001, drops capabilities, uses `no-new-privileges`, a read-only root, bounded
+PID/CPU/memory/file settings, a bounded tmpfs, and `network_mode: none`. Comparator invokes a pinned,
+fail-closed wrapper around Landrun: hostile code can read the public verifier tree, write its fresh
+workspace, and access only harmless `/dev` nodes; it cannot read `/proc`, host home directories, or
+unrelated mounts. A seccomp layer denies all socket creation (including the AF_UNIX channel called
+out by Comparator), `io_uring`, pidfds, cross-process memory/limit/signal operations, kernel
+keyrings, legacy IPC, namespace/mount operations, process-group escape, and file metadata mutation
+(which Landlock itself does not mediate). The writable build directory is deliberately non-executable
+at both the Landlock and container-mount layers; anonymous executable memory and executable
+permission upgrades are also denied. The workspace is deleted unless
+`--retain-workspace` was explicitly requested for operator diagnostics.
 
 Direct macOS execution is a development convenience only. Comparator's pinned fake-Landrun shim is
 used there and reports `sandbox_mode: development-fake-landrun`; it is not a hostile-submission
@@ -153,17 +220,24 @@ Denial-of-service protection is bounded but not formally proved. Static scanning
 Comparator and the kernels are authoritative.
 
 For open conjectures, attempting to invoke the imported source theorem brings `sorryAx` into the
-dependency closure and Comparator rejects it. The source identifier is additionally forbidden by
-the scanner. Automatically using already-proved source declarations as bounties is discouraged,
-because an automated tactic could in principle rediscover a globally available proof without
-spelling its name; use a purpose-built source-pruning adapter/image when that distinction matters.
+dependency closure and Comparator rejects it. The same is true for any imported lemma that
+transitively depends on an admitted proof. The source identifier is additionally forbidden by the
+scanner. This proves “no admitted dependency”; it does not prove global novelty. A miner may use a
+legitimate, non-admitted imported lemma that proves the same result, and definitionally equivalent
+restatements are not exhaustively detected. Use a separately reviewed source-pruned environment if
+reward eligibility requires that stronger property. See [SECURITY.md](SECURITY.md) for the precise
+acceptance contract, deployment checklist, and residual risks.
 
 ## Pins, cache, and reproducibility
 
-`pins.lock.json` pins the Elan installer, Formal Conjectures, its Mathlib revision, Lean, Comparator,
-a Lean-4.27 `lean4export` backport, Landrun, and Nanoda. `doctor` checks every available checkout for
-the exact commit and a clean tracked tree. Comparator's own implementation toolchain can differ
-from the target project's Lean version; the exporter is the component that must match the target
+`pins.lock.json` pins each Elan release archive by platform and SHA-256, Formal Conjectures, its
+Mathlib revision, Lean, Comparator, a Lean-4.27 `lean4export` backport, Landrun, and Nanoda. `doctor`
+checks every available checkout for the exact commit and a clean tree, validates the actual Elan and
+Lean binary identities, including Comparator's Lake dependency tree, and reports whether the
+production sandbox is available. Production readiness also requires a live behavioral sandbox
+probe, not only binary presence. Comparator's own
+implementation toolchain can differ from the target project's Lean version; the exporter is the
+component that must match the target
 environment. Normal verification never fetches or updates a branch. Network access is needed only
 while building the trusted image/cache.
 
@@ -200,11 +274,15 @@ An accepted report has this shape:
   "reason_code": "VERIFIED",
   "stage": "COMPLETED",
   "checks": {
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": true,
     "same_statement": true,
     "axioms_permitted": true,
     "lean_kernel_passed": true
   },
-  "sandbox_mode": "landrun"
+  "sandbox_mode": "landrun+seccomp",
+  "task_bundle_sha256": "sha256:..."
 }
 ```
 

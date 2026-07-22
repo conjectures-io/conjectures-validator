@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -13,6 +14,7 @@ from verifier.hashing import pretty_json
 from verifier.models import CATEGORY_ORDER
 from verifier.repository import formal_conjectures_pin
 from verifier.task_generator import generate_all, generate_task
+from verifier.task_loader import load_task_bundle
 from verifier.verification import verify
 from verifier.workspace import target_validator
 
@@ -41,6 +43,7 @@ def _parser() -> argparse.ArgumentParser:
     task_generate.add_argument("--mode", required=True)
     task_generate.add_argument("--output", type=Path, required=True)
     task_generate.add_argument("--enable-nanoda", action="store_true")
+    task_generate.add_argument("--allow-non-open", action="store_true")
 
     task_all = task_commands.add_parser("generate-all")
     task_all.add_argument("--catalog", type=Path, required=True)
@@ -48,12 +51,21 @@ def _parser() -> argparse.ArgumentParser:
     task_all.add_argument("--modes", default="positive,negative")
     task_all.add_argument("--output", type=Path, required=True)
     task_all.add_argument("--enable-nanoda", action="store_true")
+    task_all.add_argument("--allow-non-open", action="store_true")
 
     verification = subcommands.add_parser("verify")
     verification.add_argument("--task", type=Path, required=True)
     verification.add_argument("--submission", type=Path, required=True)
     verification.add_argument("--retain-workspace", action="store_true")
+    verification.add_argument("--expected-task-sha256")
+    verification.add_argument("--allow-uncommitted-task", action="store_true")
+    verification.add_argument("--allow-insecure-development", action="store_true")
+    verification.add_argument("--allow-test-task", action="store_true")
     return parser
+
+
+def _absolute_without_resolving(path: Path) -> Path:
+    return Path(os.path.abspath(path))
 
 
 def _print(value: object) -> None:
@@ -92,9 +104,10 @@ def _run(args: argparse.Namespace) -> int:
             mode=args.mode,
             output=args.output.resolve(),
             enable_nanoda=args.enable_nanoda,
+            allow_non_open=args.allow_non_open,
             validate_target=target_validator(PROJECT_ROOT),
         )
-        _print(manifest.to_dict())
+        _print({**manifest.to_dict(), "task_bundle_sha256": load_task_bundle(args.output.resolve()).sha256})
         return 0
     if args.command == "task" and args.task_command == "generate-all":
         if args.category not in CATEGORY_ORDER:
@@ -110,18 +123,33 @@ def _run(args: argparse.Namespace) -> int:
             modes=tuple(mode.strip() for mode in args.modes.split(",") if mode.strip()),
             output=args.output.resolve(),
             enable_nanoda=args.enable_nanoda,
+            allow_non_open=args.allow_non_open,
             validate_target=target_validator(PROJECT_ROOT),
         )
+        result = {
+            **result,
+            "tasks": [
+                {
+                    **item,
+                    "task_bundle_sha256": load_task_bundle(Path(item["path"])).sha256,
+                }
+                for item in result["tasks"]
+            ],
+        }
         summary_path = args.output.resolve() / "generation-summary.json"
         summary_path.write_text(pretty_json(result), encoding="utf-8")
         _print(result)
         return 0 if result["failed"] == 0 else 2
     if args.command == "verify":
         report = verify(
-            task_dir=args.task.resolve(),
-            submission_path=args.submission.resolve(),
+            task_dir=_absolute_without_resolving(args.task),
+            submission_path=_absolute_without_resolving(args.submission),
             project_root=PROJECT_ROOT,
             retain_workspace=args.retain_workspace,
+            expected_task_sha256=args.expected_task_sha256,
+            allow_uncommitted_task=args.allow_uncommitted_task,
+            allow_insecure_development=args.allow_insecure_development,
+            allow_test_task=args.allow_test_task,
         )
         _print(report.to_dict())
         return exit_code_for(report.reason_code, report.accepted)

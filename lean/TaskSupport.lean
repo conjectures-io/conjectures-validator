@@ -5,6 +5,16 @@ open Lean Elab Meta Term Google
 
 namespace FormalConjecturesVerifier
 
+def constantType (source : TSyntax `str) : TermElabM Expr := do
+  let sourceInfo ← getConstInfo source.getString.toName
+  return sourceInfo.type
+
+def answerType (source : TSyntax `str) : TermElabM Expr := do
+  let answers := Google.findAnswerExprs (← constantType source)
+  unless answers.size == 1 do
+    throwError "expected exactly one answer occurrence, found {answers.size}"
+  inferType answers[0]!
+
 partial def answerCount (expression : Expr) : Nat :=
   Google.findAnswerExprs expression |>.size
 
@@ -63,6 +73,45 @@ partial def replaceAnswer (expression replacement : Expr) : MetaM (Expr × Nat) 
       let (newStructure, count) ← replaceAnswer sourceStructure replacement
       return (.proj typeName index newStructure, count)
   | other => return (other, 0)
+
+syntax (name := fcTypeOfName) "fcTypeOfName% " str : term
+
+@[term_elab fcTypeOfName]
+unsafe def elaborateTypeOfName : TermElab := fun stx _expectedType => do
+  match stx with
+  | `(fcTypeOfName% $source:str) => constantType source
+  | _ => throwUnsupportedSyntax
+
+syntax (name := fcAnswerType) "fcAnswerType% " str : term
+
+@[term_elab fcAnswerType]
+unsafe def elaborateAnswerType : TermElab := fun stx _expectedType => do
+  match stx with
+  | `(fcAnswerType% $source:str) => answerType source
+  | _ => throwUnsupportedSyntax
+
+syntax (name := fcPropAnswerTargetName) "fcPropAnswerTargetName% " str : term
+
+@[term_elab fcPropAnswerTargetName]
+unsafe def elaboratePropAnswerTargetName : TermElab := fun stx _expectedType => do
+  match stx with
+  | `(fcPropAnswerTargetName% $source:str) =>
+      extractPropAnswerTarget (← constantType source)
+  | _ => throwUnsupportedSyntax
+
+syntax (name := fcValueAnswerTargetName)
+  "fcValueAnswerTargetName% " str " using " term : term
+
+@[term_elab fcValueAnswerTargetName]
+unsafe def elaborateValueAnswerTargetName : TermElab := fun stx _expectedType => do
+  match stx with
+  | `(fcValueAnswerTargetName% $source:str using $replacement:term) =>
+      let replacementExpression ← elabTerm replacement none
+      let (target, count) ← replaceAnswer (← constantType source) replacementExpression
+      unless count == 1 do
+        throwError "expected exactly one answer occurrence, found {count}"
+      return target
+  | _ => throwUnsupportedSyntax
 
 syntax (name := fcPropAnswerTarget) "fcPropAnswerTarget% " term : term
 

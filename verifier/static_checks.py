@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Mapping
+import unicodedata
 
 from verifier.models import StaticCheckResult, TaskManifest
 
@@ -54,17 +55,51 @@ ANYWHERE_PROHIBITED = frozenset(
         "declare_syntax_cat",
         "macro",
         "macro_rules",
+        "native_decide",
         "set_option",
         "include_str",
         "include_bytes",
         "implemented_by",
         "run_tac",
         "run_cmd",
+        "attribute",
+        "deriving",
+        "compile_inductive",
+        "init_quot",
+        "docs_to_verso",
+        "add_decl_doc",
+        "register_tactic_tag",
+        "tactic_extension",
+        "recommended_spelling",
+        "gen_injective_theorems",
+        "notation",
+        "infix",
+        "infixl",
+        "infixr",
+        "prefix",
+        "postfix",
+        "mixfix",
+        "meta",
+        "partial",
+        "coinductive",
+        "instance",
         "unsafe",
         "extern",
         "foreign",
     }
 )
+
+MAX_TOKENS = 200_000
+MAX_DELIMITER_DEPTH = 4096
+MAX_LINE_LENGTH = 100_000
+MAX_LITERAL_DIGITS = 4096
+
+
+def _lean_name_parts(value: str) -> tuple[str, ...]:
+    return tuple(
+        part.removeprefix("«").removesuffix("»")
+        for part in value.removeprefix("_root_.").split(".")
+    )
 
 
 def lean_tokens(text: str) -> tuple[Token, ...]:
@@ -107,6 +142,8 @@ def lean_tokens(text: str) -> tuple[Token, ...]:
             index = length if newline < 0 else newline
             continue
         if char in {'"', '\''}:
+            if char == '"' and index > 0 and text[index - 1] == "!":
+                tokens.append(Token("__interpolated_string__", line, column, depth, line_start))
             quote = char
             index += 1
             column += 1
@@ -168,12 +205,28 @@ def _literal_answer(tokens: tuple[Token, ...], policy: Mapping[str, object]) -> 
     syntax = policy.get("syntax")
     if not syntax:
         return None, None
+    declaration_keywords = {
+        "def",
+        "abbrev",
+        "opaque",
+        "theorem",
+        "lemma",
+        "instance",
+        "inductive",
+        "coinductive",
+        "structure",
+        "class",
+    }
+    definitions = tuple(
+        (index, tokens[index].value)
+        for index in range(len(tokens) - 1)
+        if tokens[index].value in declaration_keywords
+        and _lean_name_parts(tokens[index + 1].value)[-1:] == ("submittedAnswer",)
+    )
+    if len(definitions) != 1 or definitions[0][1] != "def":
+        return None, "exactly one regular def submittedAnswer declaration is required"
     try:
-        start = next(
-            index
-            for index in range(len(tokens) - 1)
-            if tokens[index].value == "def" and tokens[index + 1].value == "submittedAnswer"
-        )
+        start = definitions[0][0]
         name = tokens[start + 1].value
         assign = next(index for index in range(start + 2, len(tokens)) if tokens[index].value == ":" and tokens[index + 1].value == "=")
         declaration_starts = {"theorem", "lemma", "def", "example", "namespace", "section", "end"}
@@ -195,6 +248,8 @@ def _literal_answer(tokens: tuple[Token, ...], policy: Mapping[str, object]) -> 
     if syntax == "nat_literal":
         if len(body) != 1 or not body[0].isascii() or not body[0].isdigit():
             return None, "submittedAnswer must be a closed natural-number numeral"
+        if len(body[0]) > MAX_LITERAL_DIGITS:
+            return None, f"submittedAnswer exceeds the {MAX_LITERAL_DIGITS}-digit limit"
     elif syntax == "int_literal":
         valid = (len(body) == 1 and body[0].isascii() and body[0].isdigit()) or (
             len(body) == 2
@@ -204,6 +259,8 @@ def _literal_answer(tokens: tuple[Token, ...], policy: Mapping[str, object]) -> 
         )
         if not valid:
             return None, "submittedAnswer must be a closed signed integer literal"
+        if len(body[-1]) > MAX_LITERAL_DIGITS:
+            return None, f"submittedAnswer exceeds the {MAX_LITERAL_DIGITS}-digit limit"
     elif syntax == "bool_literal":
         if body not in {("true",), ("false",)}:
             return None, "submittedAnswer must be exactly true or false"
@@ -217,17 +274,40 @@ def _literal_answer(tokens: tuple[Token, ...], policy: Mapping[str, object]) -> 
 def check_submission(text: str, manifest: TaskManifest) -> StaticCheckResult:
     tokens = lean_tokens(text)
     violations: list[str] = []
-    for index, token in enumerate(tokens):
-        name_parts = tuple(
-            part.removeprefix("«").removesuffix("»")
-            for part in token.value.removeprefix("_root_.").split(".")
+    if len(tokens) > MAX_TOKENS:
+        violations.append(f"submission exceeds the {MAX_TOKENS}-token policy limit")
+    if tokens and max(token.depth for token in tokens) > MAX_DELIMITER_DEPTH:
+        violations.append(f"submission exceeds the {MAX_DELIMITER_DEPTH}-delimiter nesting limit")
+    if any(len(line) > MAX_LINE_LENGTH for line in text.splitlines()):
+        violations.append(f"submission exceeds the {MAX_LINE_LENGTH}-character line limit")
+    forbidden_unicode = next(
+        (
+            (index, char)
+            for index, char in enumerate(text)
+            if unicodedata.category(char) in {"Cf", "Cs", "Co", "Cn"}
+        ),
+        None,
+    )
+    if forbidden_unicode is not None:
+        index, char = forbidden_unicode
+        violations.append(
+            f"invisible, private-use, or unassigned Unicode is prohibited at character {index}: U+{ord(char):04X}"
         )
-        prohibited = next((name for name in ANYWHERE_PROHIBITED if name in name_parts), None)
+    for index, token in enumerate(tokens):
+        if token.value == "__interpolated_string__":
+            violations.append(
+                f"interpolated strings are prohibited at {token.line}:{token.column}"
+            )
+            continue
+        name_parts = _lean_name_parts(token.value)
+        prohibited = next((name for name in name_parts if name in ANYWHERE_PROHIBITED), None)
         if prohibited is not None:
             violations.append(f"{prohibited} is prohibited at {token.line}:{token.column}")
         if token.depth == 0 and token.line_start and token.value in TOP_LEVEL_PROHIBITED:
             violations.append(f"top-level command {token.value} is prohibited at {token.line}:{token.column}")
         next_value = tokens[index + 1].value if index + 1 < len(tokens) else ""
+        if token.value == "@" and next_value == "[":
+            violations.append(f"declaration attributes are prohibited at {token.line}:{token.column}")
         if token.depth == 0 and token.value == "#" and next_value != "[":
             violations.append(f"top-level hash command is prohibited at {token.line}:{token.column}")
     target_short = manifest.target_theorem.rsplit(".", 1)[-1]
@@ -254,7 +334,7 @@ def check_submission(text: str, manifest: TaskManifest) -> StaticCheckResult:
             for index, token in enumerate(tokens)
             if token.value == dependency
             or token.value == short
-            or short in token.value.removeprefix("_root_.").split(".")
+            or short in _lean_name_parts(token.value)
         )
         if any(not (target_start <= index < target_assign) for index in references):
             violations.append(f"source declaration dependency is prohibited: {dependency}")

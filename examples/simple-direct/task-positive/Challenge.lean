@@ -3,7 +3,7 @@ import TaskSupport
 
 namespace Bounty
 
-theorem target : type_of% VerifierFixtures.direct := by
+theorem target : fcTypeOfName% "VerifierFixtures.direct" := by
   sorry
 
 end Bounty

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Protocol
 
@@ -49,15 +50,19 @@ class AdapterSpec:
         return self.generator(declaration, mode, context)
 
 
+def _lean_string(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
 def _direct(declaration: CatalogDeclaration, mode: str, _context: GenerationContext) -> GeneratedLean:
-    source = declaration.theorem
-    target = f"type_of% {source}" if mode == "positive" else f"¬ (type_of% {source})"
+    source = _lean_string(declaration.theorem)
+    target = f"fcTypeOfName% {source}" if mode == "positive" else f"¬ (fcTypeOfName% {source})"
     return GeneratedLean(target, (), {})
 
 
 def _prop_answer(declaration: CatalogDeclaration, mode: str, _context: GenerationContext) -> GeneratedLean:
-    source = declaration.theorem
-    base = f"fcPropAnswerTarget% {source}"
+    source = _lean_string(declaration.theorem)
+    base = f"fcPropAnswerTargetName% {source}"
     target = base if mode == "positive" else f"¬ ({base})"
     return GeneratedLean(target, (), {})
 
@@ -67,8 +72,9 @@ def _value_answer(
 ) -> Callable[[CatalogDeclaration, str, GenerationContext], GeneratedLean]:
     def generate(declaration: CatalogDeclaration, _mode: str, _context: GenerationContext) -> GeneratedLean:
         answer = "submittedAnswer"
+        source = _lean_string(declaration.theorem)
         return GeneratedLean(
-            f"fcValueAnswerTarget% {declaration.theorem} using {answer}",
+            f"fcValueAnswerTargetName% {source} using {answer}",
             (f"def {answer} : {type_name} := by\n  sorry",),
             {"definition_name": f"Bounty.{answer}", "syntax": syntax},
         )
@@ -77,11 +83,10 @@ def _value_answer(
 
 
 def _finite(declaration: CatalogDeclaration, _mode: str, _context: GenerationContext) -> GeneratedLean:
-    occurrence = declaration.answer_occurrences[0] if declaration.answer_occurrences else {}
-    type_name = str(occurrence.get("type_pretty", "_"))
+    source = _lean_string(declaration.theorem)
     return GeneratedLean(
-        f"fcValueAnswerTarget% {declaration.theorem} using submittedAnswer",
-        (f"def submittedAnswer : {type_name} := by\n  sorry",),
+        f"fcValueAnswerTargetName% {source} using submittedAnswer",
+        (f"def submittedAnswer : fcAnswerType% {source} := by\n  sorry",),
         {
             "definition_name": "Bounty.submittedAnswer",
             "syntax": "finite_constructor",

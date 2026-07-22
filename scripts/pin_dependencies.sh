@@ -27,7 +27,7 @@ pin_repo() {
   git -C "$destination" fetch --no-tags origin "$commit"
   git -C "$destination" checkout --detach "$commit"
   test "$(git -C "$destination" rev-parse HEAD)" = "$commit"
-  test -z "$(git -C "$destination" status --porcelain --untracked-files=no)"
+  test -z "$(git -C "$destination" status --porcelain --untracked-files=all)"
 }
 
 for dependency in formal_conjectures comparator lean4export landrun nanoda; do

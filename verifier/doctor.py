@@ -3,24 +3,51 @@ from __future__ import annotations
 import os
 import platform
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-from verifier.comparator import missing_tools, resolve_tools
-from verifier.repository import dependency_pin_status, formal_conjectures_pin, repository_commit
+from verifier.comparator import (
+    landlock_available,
+    missing_tools,
+    production_sandbox_available,
+    resolve_tools,
+    sandbox_self_test,
+)
+from verifier.environment import tool_path
+from verifier.repository import dependency_pin_status, formal_conjectures_pin, load_pins, repository_commit
+
+
+def _version_output(path: Path) -> str:
+    try:
+        return subprocess.run(
+            (str(path), "--version"),
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            shell=False,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ""
 
 
 def doctor_report(project_root: Path) -> dict[str, Any]:
     repo = project_root / "vendor" / "formal-conjectures"
+    pins = load_pins(project_root)
     expected = formal_conjectures_pin(project_root)
     actual = repository_commit(repo) if repo.is_dir() else None
     dependency_pins = dependency_pin_status(project_root)
     all_pinned = all(status["pinned"] for status in dependency_pins.values())
     tools = resolve_tools(project_root)
+    sandbox_probe = sandbox_self_test(tools, project_root)
     absent = missing_tools(tools, enable_nanoda=False)
     commands = {name: shutil.which(name) for name in ("git", "lean", "lake", "docker")}
-    linux = platform.system() == "Linux"
+    lean_version = _version_output(tool_path(project_root, "lean"))
+    elan_version = _version_output(project_root / ".elan" / "bin" / "elan")
+    lean_identity_valid = str(pins["lean"]["commit"]) in lean_version
+    elan_identity_valid = f"elan {pins['elan']['version']} " in elan_version
     unprivileged = not hasattr(os, "geteuid") or os.geteuid() != 0
     return {
         "schema_version": 1,
@@ -30,6 +57,12 @@ def doctor_report(project_root: Path) -> dict[str, Any]:
         },
         "platform": {"system": platform.system(), "machine": platform.machine()},
         "commands": commands,
+        "toolchain_identity": {
+            "lean_version": lean_version,
+            "lean_commit_valid": lean_identity_valid,
+            "elan_version": elan_version,
+            "elan_version_valid": elan_identity_valid,
+        },
         "formal_conjectures": {
             "path": str(repo),
             "expected_commit": expected,
@@ -41,14 +74,22 @@ def doctor_report(project_root: Path) -> dict[str, Any]:
             "path": str(tools.comparator),
             "lean4export": str(tools.lean4export),
             "landrun": str(tools.landrun),
+            "seccomp_launcher": str(tools.seccomp_launcher) if tools.seccomp_launcher is not None else None,
             "nanoda": str(tools.nanoda) if tools.nanoda is not None else None,
             "nanoda_available": tools.nanoda is not None and tools.nanoda.is_file(),
             "missing": list(absent),
         },
         "sandbox": {
             "mode": tools.sandbox_mode,
-            "production_ready": linux and unprivileged and not absent and tools.sandbox_mode == "landrun",
-            "network_disabled_by_default": linux,
+            "production_ready": unprivileged
+            and production_sandbox_available(
+                tools,
+                project_root,
+                self_test_result=sandbox_probe,
+            ),
+            "landlock_abi_4_or_newer": landlock_available(tools),
+            "behavioral_self_test": sandbox_probe,
+            "network_isolation_required": True,
             "unprivileged": unprivileged,
         },
         "ready": (
@@ -59,5 +100,7 @@ def doctor_report(project_root: Path) -> dict[str, Any]:
             and commands["lean"] is not None
             and commands["lake"] is not None
             and not absent
+            and lean_identity_valid
+            and elan_identity_valid
         ),
     }

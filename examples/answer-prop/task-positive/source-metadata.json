@@ -12,7 +12,9 @@
   "classification": "PROP_ANSWER_WRAPPER",
   "contains_answer_annotation": true,
   "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
   "declaration_kind": "theorem",
+  "depends_on_sorry": true,
   "docstring": "Self-contained verifier fixture.",
   "finite_constructors": [],
   "formal_proof_kind": null,
@@ -28,6 +30,9 @@
     "negative"
   ],
   "theorem": "VerifierFixtures.propAnswer",
+  "transitive_axioms": [
+    "sorryAx"
+  ],
   "type_hash": "sha256:aa864ffefa191707d65db1c275f41698b5e8f66a7982136b577c79c06031215d",
   "type_pretty": "fixture"
 }

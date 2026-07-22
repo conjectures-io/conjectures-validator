@@ -7,10 +7,13 @@
     "manifest_valid": true,
     "nanoda_enabled": false,
     "nanoda_passed": false,
+    "production_sandbox": false,
+    "production_task": false,
     "same_statement": true,
     "solution_built": true,
     "source_type_hash_valid": true,
     "submission_policy_valid": true,
+    "task_commitment_valid": false,
     "trusted_hashes_valid": true
   },
   "comparator_exit_code": 0,
@@ -29,6 +32,7 @@
   "stderr_tail": "",
   "stdout_tail": "Lean default kernel accepts the solution\nYour solution is okay!\n",
   "submission_sha256": "sha256:10fa8afd576461e8693486e862efd2d9e7eb37491c51012f3aa07d5caa2b0316",
+  "task_bundle_sha256": "sha256:61f2353e87bc5f99f2273357bb5b88a83519a3b712491585750fb07b11e36a0f",
   "task_id": "fc-e923379e-verifierfixtures-natanswer-6b81a4e4d8-answer-v1",
   "task_mode": "answer",
   "theorem_names": [

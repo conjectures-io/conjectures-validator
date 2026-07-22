@@ -1,19 +1,24 @@
 from __future__ import annotations
 
-import os
-import platform
 import time
 from pathlib import Path
 from typing import Mapping
 
-from verifier.comparator import rejection_reason, run_comparator
+from verifier.comparator import (
+    production_sandbox_available,
+    rejection_reason,
+    resolve_tools,
+    run_comparator,
+)
+from verifier.environment import tool_path, trusted_environment
 from verifier.errors import ReasonCode, VerifierError
+from verifier.hashing import is_sha256
 from verifier.models import VerificationReport
 from verifier.reports import build_report, updated_checks
 from verifier.repository import assert_dependency_pins, formal_conjectures_pin, repository_commit
 from verifier.static_checks import check_submission
 from verifier.submission import load_submission
-from verifier.task_loader import load_task, verify_trusted_hashes
+from verifier.task_loader import load_task_bundle
 from verifier.workspace import (
     build_challenge,
     cleanup_workspace,
@@ -61,14 +66,27 @@ def verify(
     submission_path: Path,
     project_root: Path,
     retain_workspace: bool = False,
-    env: Mapping[str, str] | None = None,
+    expected_task_sha256: str | None = None,
+    allow_uncommitted_task: bool = False,
+    allow_insecure_development: bool = False,
+    allow_test_task: bool = False,
 ) -> VerificationReport:
     started = time.monotonic_ns()
-    effective_env = dict(os.environ if env is None else env)
-    manifest = load_task(task_dir)
-    checks = updated_checks({}, manifest_valid=True, nanoda_enabled=manifest.enable_nanoda)
+    bundle = load_task_bundle(task_dir)
+    manifest = bundle.manifest
+    deadline = started + manifest.timeout_seconds * 1_000_000_000
+    checks = updated_checks(
+        {},
+        manifest_valid=True,
+        production_task=manifest.production_eligible,
+        nanoda_enabled=manifest.enable_nanoda,
+    )
     submission_hash = ""
     paths = None
+
+    def seconds_remaining(cap: int | None = None) -> int:
+        remaining = max(0, (deadline - time.monotonic_ns() + 999_999_999) // 1_000_000_000)
+        return int(min(remaining, cap) if cap is not None else remaining)
 
     def sanitized(value: str) -> str:
         result = value
@@ -87,6 +105,7 @@ def verify(
     ) -> VerificationReport:
         return build_report(
             manifest=manifest,
+            task_bundle_sha256=bundle.sha256,
             submission_sha256=submission_hash,
             accepted=False,
             stage=stage,
@@ -101,6 +120,26 @@ def verify(
         )
 
     try:
+        if expected_task_sha256 is not None:
+            if not is_sha256(expected_task_sha256) or expected_task_sha256 != bundle.sha256:
+                return rejected(
+                    ReasonCode.TASK_COMMITMENT_MISMATCH,
+                    "LOAD_TASK",
+                    stderr="task bundle does not match the externally committed SHA-256",
+                )
+            checks = updated_checks(checks, task_commitment_valid=True)
+        elif manifest.production_eligible and not allow_uncommitted_task:
+            return rejected(
+                ReasonCode.TASK_COMMITMENT_MISMATCH,
+                "LOAD_TASK",
+                stderr="production verification requires an externally committed task bundle SHA-256",
+            )
+        if not manifest.production_eligible and not allow_test_task:
+            return rejected(
+                ReasonCode.INELIGIBLE_TASK,
+                "LOAD_TASK",
+                stderr="non-production task requires the explicit testing override",
+            )
         try:
             assert_dependency_pins(project_root)
             expected_commit = formal_conjectures_pin(project_root)
@@ -115,11 +154,7 @@ def verify(
                     f"task={manifest.repository_commit}, expected={expected_commit}, repository={actual_commit}"
                 ),
             )
-        try:
-            verify_trusted_hashes(task_dir, manifest)
-            checks = updated_checks(checks, trusted_hashes_valid=True)
-        except VerifierError as exc:
-            return rejected(exc.reason, "VERIFY_TRUSTED_HASHES", stderr=str(exc))
+        checks = updated_checks(checks, trusted_hashes_valid=True)
 
         try:
             submission = load_submission(submission_path, manifest.max_submission_bytes)
@@ -136,23 +171,35 @@ def verify(
             )
         checks = updated_checks(checks, submission_policy_valid=True)
 
-        if platform.system() == "Linux" and hasattr(os, "geteuid") and os.geteuid() == 0:
+        tools = resolve_tools(project_root)
+        production_sandbox = production_sandbox_available(tools, project_root)
+        checks = updated_checks(checks, production_sandbox=production_sandbox)
+        if not production_sandbox and not allow_insecure_development:
             return rejected(
-                ReasonCode.WORKSPACE_ERROR,
+                ReasonCode.INSECURE_SANDBOX,
                 "CREATE_WORKSPACE",
-                stderr="verification must run as an unprivileged user",
+                stderr=(
+                    "production verification requires Linux and the live fail-closed "
+                    "Landrun/seccomp isolation probe"
+                ),
+                sandbox_mode=tools.sandbox_mode,
             )
 
         try:
             paths = create_workspace(
-                task_dir=task_dir,
+                task_files=bundle.files,
                 project_root=project_root,
                 retain=retain_workspace,
             )
         except (OSError, VerifierError) as exc:
             return rejected(ReasonCode.WORKSPACE_ERROR, "CREATE_WORKSPACE", stderr=str(exc))
+        effective_env = trusted_environment(project_root, paths.root / ".home")
+        lake = tool_path(project_root, "lake")
 
-        challenge = build_challenge(paths, effective_env, manifest.timeout_seconds)
+        remaining = seconds_remaining()
+        if remaining <= 0:
+            return rejected(ReasonCode.TIMEOUT, "BUILD_CHALLENGE", sandbox_mode=tools.sandbox_mode)
+        challenge = build_challenge(paths, lake, effective_env, remaining)
         if challenge.timed_out:
             return rejected(ReasonCode.TIMEOUT, "BUILD_CHALLENGE", stdout=challenge.stdout, stderr=challenge.stderr)
         if challenge.exit_code != 0:
@@ -165,34 +212,56 @@ def verify(
         checks = updated_checks(checks, challenge_built=True)
 
         try:
-            source_hash, target_hash, matches = inspect_generated_target(
+            remaining = seconds_remaining(600)
+            if remaining <= 0:
+                return rejected(ReasonCode.TIMEOUT, "BUILD_CHALLENGE", sandbox_mode=tools.sandbox_mode)
+            inspection = inspect_generated_target(
                 paths=paths,
+                lake=lake,
                 project_root=project_root,
                 source_module=manifest.source_module,
                 source_theorem=manifest.source_theorem,
                 classification=manifest.classification.value,
                 mode=manifest.task_mode,
                 env=effective_env,
-                timeout_seconds=min(manifest.timeout_seconds, 600),
+                timeout_seconds=remaining,
             )
         except VerifierError as exc:
             return rejected(exc.reason, "BUILD_CHALLENGE", stderr=str(exc))
-        if source_hash != manifest.source_type_hash:
+        if inspection["source_hash"] != manifest.source_type_hash:
             return rejected(ReasonCode.SOURCE_TYPE_CHANGED, "BUILD_CHALLENGE")
         checks = updated_checks(checks, source_type_hash_valid=True)
-        if target_hash != manifest.generated_target_type_hash or not matches:
+        if inspection["target_hash"] != manifest.generated_target_type_hash or not inspection["matches"]:
             return rejected(ReasonCode.STATEMENT_MISMATCH, "BUILD_CHALLENGE")
+        if manifest.production_eligible and (
+            inspection["source_category"] != "research open"
+            or inspection["source_declaration_kind"] != "theorem"
+            or not inspection["source_depends_on_sorry"]
+            or inspection["source_has_formal_proof"]
+            or inspection["target_contains_sorry"]
+            or inspection["source_axioms"] != tuple(sorted(bundle.source.transitive_axioms))
+        ):
+            return rejected(
+                ReasonCode.INELIGIBLE_TASK,
+                "BUILD_CHALLENGE",
+                stderr="source production policy differs from the compiled Lean environment",
+            )
 
         try:
-            package_solution(paths, task_dir, submission)
+            package_solution(paths, bundle.files, submission)
         except VerifierError as exc:
             return rejected(exc.reason, "CREATE_WORKSPACE", stderr=str(exc))
 
+        remaining = seconds_remaining()
+        if remaining <= 0:
+            return rejected(ReasonCode.TIMEOUT, "RUN_COMPARATOR", sandbox_mode=tools.sandbox_mode)
         comparator, tools = run_comparator(
             paths=paths,
             manifest=manifest,
             project_root=project_root,
+            lake=lake,
             env=effective_env,
+            timeout_seconds=remaining,
         )
         if comparator.exit_code != 0 or comparator.timed_out:
             reason = rejection_reason(comparator, manifest.enable_nanoda)
@@ -215,6 +284,7 @@ def verify(
         )
         return build_report(
             manifest=manifest,
+            task_bundle_sha256=bundle.sha256,
             submission_sha256=submission_hash,
             accepted=True,
             stage="COMPLETED",

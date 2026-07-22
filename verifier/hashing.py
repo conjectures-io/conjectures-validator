@@ -14,6 +14,17 @@ def sha256_text(value: str) -> str:
     return sha256_bytes(value.encode("utf-8"))
 
 
+def sha256_named_bytes(values: Mapping[str, bytes]) -> str:
+    digest = hashlib.sha256()
+    for name, content in sorted(values.items()):
+        encoded_name = name.encode("utf-8")
+        digest.update(len(encoded_name).to_bytes(8, "big"))
+        digest.update(encoded_name)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
+    return f"sha256:{digest.hexdigest()}"
+
+
 def is_sha256(value: object) -> bool:
     return (
         isinstance(value, str)

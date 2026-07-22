@@ -7,10 +7,13 @@
     "manifest_valid": true,
     "nanoda_enabled": false,
     "nanoda_passed": false,
+    "production_sandbox": false,
+    "production_task": false,
     "same_statement": false,
     "solution_built": false,
     "source_type_hash_valid": false,
     "submission_policy_valid": false,
+    "task_commitment_valid": false,
     "trusted_hashes_valid": true
   },
   "comparator_exit_code": null,
@@ -29,6 +32,7 @@
   "stderr_tail": "sorry is prohibited at 2:3",
   "stdout_tail": "",
   "submission_sha256": "sha256:30e7ff99e368584eb06c4c376b7ba653eb45fe39283507279b6b39a8cb703772",
+  "task_bundle_sha256": "sha256:88f5809cca72b33e75a138b5e376b6da412b93014a5e3e34f83020e0bb59adcf",
   "task_id": "fc-e923379e-verifierfixtures-direct-1247cc26d5-positive-v1",
   "task_mode": "positive",
   "theorem_names": [

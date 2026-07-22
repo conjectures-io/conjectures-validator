@@ -1,7 +1,16 @@
 import Lean
+import Lean.Util.CollectAxioms
 import TaskSupport
+import FormalConjecturesUtil.Attributes.Basic
 
-open Lean Meta FormalConjecturesVerifier
+open Lean Meta FormalConjecturesVerifier ProblemAttributes
+
+def categoryString : Category → String
+  | .textbook => "textbook"
+  | .research .open => "research open"
+  | .research .solved => "research solved"
+  | .test => "test"
+  | .API => "API"
 
 def canonicalExpression (expression : Expr) : MetaM String := do
   withOptions (fun options =>
@@ -47,6 +56,20 @@ unsafe def runInspector (arguments : List String) : IO Unit := do
   let action : CoreM Json := do
     let targetInfo ← getConstInfo targetName.toName
     let sourceInfo ← getConstInfo sourceName.toName
+    let sourceAxioms ← collectAxioms sourceName.toName
+    let categoryTags ← getTags
+    let formalProofTags ← getFormalProofTags
+    let category? := categoryTags.find? (fun tag => tag.declName == sourceName.toName)
+    let hasFormalProof := formalProofTags.any (fun tag => tag.declName == sourceName.toName)
+    let declarationKind := match sourceInfo with
+      | .thmInfo _ => "theorem"
+      | .defnInfo _ => "definition"
+      | .opaqueInfo _ => "opaque"
+      | .axiomInfo _ => "axiom"
+      | .quotInfo _ => "quotient"
+      | .inductInfo _ => "inductive"
+      | .ctorInfo _ => "constructor"
+      | .recInfo _ => "recursor"
     MetaM.run' do
       let intended ← intendedType sourceInfo.type classification mode
       let sourceCanonical ← canonicalExpression sourceInfo.type
@@ -55,7 +78,15 @@ unsafe def runInspector (arguments : List String) : IO Unit := do
       return Json.mkObj [
         ("source_type_canonical", toJson sourceCanonical),
         ("target_type_canonical", toJson targetCanonical),
-        ("matches_intended_target", toJson isMatch)
+        ("matches_intended_target", toJson isMatch),
+        ("target_contains_sorry", toJson targetInfo.type.hasSorry),
+        ("source_transitive_axioms", toJson (sourceAxioms.qsort Name.lt |>.toList.map (·.toString))),
+        ("source_depends_on_sorry", toJson (sourceAxioms.contains ``sorryAx)),
+        ("source_category", match category? with
+          | some tag => toJson (categoryString tag.category)
+          | none => Json.null),
+        ("source_has_formal_proof", toJson hasFormalProof),
+        ("source_declaration_kind", toJson declarationKind)
       ]
   let (result, _) ← Lean.Core.CoreM.toIO action context { env := environment }
   IO.println result.compress

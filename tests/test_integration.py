@@ -65,21 +65,29 @@ def test_comparator_accepts_valid_fixture_and_rejects_direct_failures():
         task_dir=ROOT / "examples/simple-direct/task-positive",
         submission_path=ROOT / "examples/valid-submission/Main.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     sorry = verify(
         task_dir=ROOT / "examples/simple-direct/task-positive",
         submission_path=ROOT / "examples/sorry-submission/Main.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     mismatch = verify(
         task_dir=ROOT / "examples/simple-direct/task-positive",
         submission_path=ROOT / "examples/invalid-statement/Main.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     unpermitted = verify(
         task_dir=ROOT / "examples/simple-direct/task-positive",
         submission_path=ROOT / "examples/unpermitted-dependency/Main.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     assert accepted.accepted and accepted.reason_code == ReasonCode.VERIFIED
     assert not sorry.accepted and sorry.reason_code == ReasonCode.SUBMISSION_POLICY_VIOLATION
@@ -94,21 +102,29 @@ def test_prop_and_numeric_answer_fixtures():
         task_dir=ROOT / "examples/answer-prop/task-positive",
         submission_path=ROOT / "examples/answer-prop/Valid.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     numeric = verify(
         task_dir=ROOT / "examples/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/Valid.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     wrong = verify(
         task_dir=ROOT / "examples/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/Wrong.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     nonliteral = verify(
         task_dir=ROOT / "examples/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/NonLiteral.lean",
         project_root=ROOT,
+        allow_insecure_development=True,
+        allow_test_task=True,
     )
     assert prop.accepted and prop.reason_code == ReasonCode.VERIFIED
     assert numeric.accepted and numeric.reason_code == ReasonCode.VERIFIED

@@ -9,5 +9,6 @@
 **/*.pyc
 **/.lake
 vendor
-data/catalog.json
-tasks/generated
+data
+tasks
+submissions
