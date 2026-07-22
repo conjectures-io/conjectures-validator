@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Equidistribution.isEquidistributedModuloOne_three_halves_pow"
+  ],
+  "generated_target_type_hash": "sha256:6d106a1660654d7b6ca1c6a7a7f077def5debc12f045ab46d28b676e5f74922a",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Books.UniformDistributionOfSequences.Equidistribution",
+  "source_path": "FormalConjectures/Books/UniformDistributionOfSequences/Equidistribution.lean",
+  "source_theorem": "Equidistribution.isEquidistributedModuloOne_three_halves_pow",
+  "source_type_hash": "sha256:0535ed106e257637d336763af018e041d8d4d3cb6697846628438c1fdb61af88",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-equidistribution-isequidistributedmoduloone-three-halves-pow-a950749713-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:dcfd2e7c92a4a8984b5c169de0db91a1d10b7dde73a4654970a3428217f3f04b",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:b0383bfa22f709651fea4ab3aa864faad86360348b11dfc8d536cf8108caad13",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:4df6213c27edf3262b831a2573990cdfc7ccf7b6761b5470d7a00e77bee1231a"
+  }
+}

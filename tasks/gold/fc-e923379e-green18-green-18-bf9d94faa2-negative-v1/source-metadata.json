@@ -1,0 +1,45 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11,
+    20
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Suppose that $G$ is a finite group, and let $A \\subset G \\times G$ be a subset of density $\\alpha$.\nIs it true that there are $\\gg_\\alpha |G|^3$ triples $x, y, g$ such that $(x, y), (gx, y), (x, gy)$\nall lie in $A$?\n\nNote: A is taken as $\\alpha$-dense, i.e. $|A| \\ge \\alpha |G|^2$ [Au16, Question 2]\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.GreensOpenProblems.«18»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/GreensOpenProblems/18.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Green18.green_18",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f578e960e76b00da122b776cc79b385ffd0a1b4f3c70166e4871b3954f28a23a",
+  "type_pretty": "sorry ↔\n  ∀ α > 0,\n    ∃ c > 0,\n      ∃ m₀,\n        ∀ (G : Type u_1) [inst : Group G] [inst_1 : Fintype G] [inst_2 : DecidableEq G] (A : Finset (G × G)),\n          Fintype.card G ≥ m₀ →\n            ↑A.card ≥ α * ↑(Fintype.card G) ^ 2 → ↑(Green18.numNaiveCorners A) ≥ c * ↑(Fintype.card G) ^ 3"
+}

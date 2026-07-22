@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Every tree admits a graceful labeling.\n\nA graceful labeling of a tree $T$ with $m$ edges is an injective map $f : V \\to \\{0, \\dots, m\\}$\nsuch that the multiset of absolute differences $|f(u) - f(v)|$ over edges $\\{u,v\\}$ of $T$\nequals $\\{1, \\dots, m\\}$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.GracefulLabeling",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/GracefulLabeling.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "GracefulLabeling.graceful_tree_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:34f13eb5cee24bc493816ff963c1301c8eb6b80592696c6c50564919ee94b1e5",
+  "type_pretty": "∀ {V : Type u_1} [inst : Fintype V] [DecidableEq V] (T : SimpleGraph V) [inst_2 : DecidableRel T.Adj],\n  T.IsTree →\n    have m := T.edgeFinset.card;\n    ∃ f,\n      Function.Injective f ∧\n        (∀ (v : V), f v ≤ m) ∧\n          Finset.image (fun e => Sym2.lift ⟨fun u v => (↑(f u) - ↑(f v)).natAbs, ⋯⟩ e) T.edgeFinset = Finset.Icc 1 m"
+}

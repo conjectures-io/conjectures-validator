@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Green60.green_60"
+  ],
+  "generated_target_type_hash": "sha256:9ed6fc2be03cd85ece6dfb93b32fd8ac4935396054fbb3c4b45122d2edc0656e",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.GreensOpenProblems.«60»",
+  "source_path": "FormalConjectures/GreensOpenProblems/60.lean",
+  "source_theorem": "Green60.green_60",
+  "source_type_hash": "sha256:c8c7361b0b38b62ee17e1f0fc9f1658ad418be64ba4f7eeac3e143a8a308b952",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-green60-green-60-b724b3b235-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:a4e83a90ad87db7f17c7e6c8414273f4aa6a65fb51e9f637db1efb6b8f316e8e",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:465a9ce9e4ca480e9858828b342e6c9ed6c926682652c7ff7aaa73951a9b289f",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:619f6e1f0f86e4b355497f22838b4da536fead805229e77e04de41c7dd4615d2"
+  }
+}

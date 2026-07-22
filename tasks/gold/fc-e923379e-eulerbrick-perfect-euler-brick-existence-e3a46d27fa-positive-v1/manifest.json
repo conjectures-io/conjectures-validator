@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "EulerBrick.perfect_euler_brick_existence"
+  ],
+  "generated_target_type_hash": "sha256:38fe50cff36ad5456c08ab2601bb3d1e2ea225cce11f1d45269ca827c0db0a10",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.EulerBrick",
+  "source_path": "FormalConjectures/Wikipedia/EulerBrick.lean",
+  "source_theorem": "EulerBrick.perfect_euler_brick_existence",
+  "source_type_hash": "sha256:75f6dd5846a7ac6d5dcec5ed47ae2c85cddcbc3c207acd7a27b15bc8f7f21cb0",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-eulerbrick-perfect-euler-brick-existence-e3a46d27fa-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:b749320bbe91c09f44d74d7f44155d363356f5b571f098054353aa2f8e53e6f2",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:3ef3369844ca745630a844cfbfac8bd4a242a61ca32fcabf9805e3fbd339610b",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:c23296dd8ec098ecf6350dd8e6b95f15264b5673ad11c1d9db19b9d1431041ec"
+  }
+}

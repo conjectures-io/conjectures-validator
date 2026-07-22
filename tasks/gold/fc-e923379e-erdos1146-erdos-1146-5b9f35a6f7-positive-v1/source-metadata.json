@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Is $B=\\{2^m3^n : m,n\\geq 0\\}$ an essential component?\n\nIn [Ru99] Ruzsa states \"The simplest set with a chance to be an essential component is the\ncollection of numbers in the form $2^m3^n$ and Erdős often asked whether it is an essential\ncomponent or not; I do not even have a plausible guess.\"\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1146»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1146.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1146.erdos_1146",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:3d0709906a9d7e99cb92545494accd8f17b2948810c80eefdfc42e0526018244",
+  "type_pretty": "sorry ↔ Erdos1146.IsEssentialComponent {k | ∃ m n, k = 2 ^ m * 3 ^ n}"
+}

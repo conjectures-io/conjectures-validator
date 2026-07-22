@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    28,
+    52
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Suppose that $A$ is an open subset of $[0, 1]^2$ with measure $\\alpha$. Are there four points in\n$A$ determining an axis-parallel rectangle with area $\\gt c \\alpha^2$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.GreensOpenProblems.«85»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/GreensOpenProblems/85.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Green85.green_85",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:a129dc038711b043c544a22a0b7dcea8aff89778db4f478df8439ed76718543d",
+  "type_pretty": "sorry ↔\n  ∃ c > 0,\n    ∀ (A : Set (ℝ × ℝ)),\n      IsOpen A →\n        A ⊆ Set.Icc 0 1 ×ˢ Set.Icc 0 1 →\n          A.Nonempty →\n            have α := (MeasureTheory.volume A).toReal;\n            ∃ x₁ x₂ y₁ y₂, {(x₁, y₁), (x₂, y₁), (x₂, y₂), (x₁, y₂)} ⊆ A ∧ c * α ^ 2 ≤ |x₁ - x₂| * |y₁ - y₂|"
+}

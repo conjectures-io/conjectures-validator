@@ -63,6 +63,42 @@ python -m verifier task generate-all \
   --output tasks/generated
 ```
 
+## Gold-standard solver tasks
+
+Use the immutable bundles in [`tasks/gold/`](tasks/gold/) as the standard public targets for
+solver attempts. The collection is pinned to Formal Conjectures commit
+`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 227 positive or negative bundles from 114
+source theorems. Each source passed a deny-by-default audit for current open status, fidelity of the
+Lean statement, proof-level research significance, and absence of an evident elementary or
+definitional shortcut. "Gold" is an admission standard, not a promise that a problem remains open;
+the collection must be re-audited when its sources or bundles change.
+
+The positive Graceful Tree Conjecture bundle is a concrete starting point:
+
+[`tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1/`](tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1/)
+
+Read its `Challenge.lean` and `manifest.json`, then write `submissions/Main.lean` with the same
+`Bounty.target` theorem and replace the `sorry` with a proof. Do not edit the task bundle. Confirm
+that the bundle is byte-for-byte allowlisted before spending solver time:
+
+```bash
+TASK=tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1
+python scripts/check_gold_task.py "$TASK"
+```
+
+Verify a candidate in the production container against the committed bundle digest:
+
+```bash
+FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
+  --task /inputs/tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1 \
+  --submission /inputs/submissions/Main.lean \
+  --expected-task-sha256 sha256:59e350eb60c7c5773203c9631c1c71364047a7cd7ee211fa84092728615e3ba6
+```
+
+The complete machine-readable admission set and bundle commitments are in
+[`gold/allowlist.json`](gold/allowlist.json). Only an allowlisted, verifier-accepted proof should
+advance to human mathematical review.
+
 Generate a production task and save the `task_bundle_sha256` printed by the command. The digest must
 be published through an authenticated operator channel before miners submit proofs.
 

@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Suppose that $A \\subset \\mathbb{F}_2^n$ is a set with an additive complement of size $K$.\nDoes $2A$ contain a coset of codimension $O_K(1)$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.GreensOpenProblems.«52»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/GreensOpenProblems/52.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Green52.green_52",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:05b1782071381e7ed51426b0b1987911254ba263af90530428c77c7214fe96b6",
+  "type_pretty": "sorry ↔\n  ∃ c,\n    ∀ (n K : ℕ) (A : Set (𝔽₂ n)) (S : Finset (𝔽₂ n)),\n      S.card = K → A + ↑S = Set.univ → ∃ V, ↑V ⊆ A + A ∧ n ≤ Module.finrank (ZMod 2) ↥V.direction + c K"
+}

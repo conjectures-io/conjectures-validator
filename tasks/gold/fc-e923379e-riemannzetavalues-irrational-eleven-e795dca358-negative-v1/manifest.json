@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "RiemannZetaValues.irrational_eleven"
+  ],
+  "generated_target_type_hash": "sha256:89390590aecf12aa1300bb3578511c35183f683dc42cf32cd5fd8e3b838c3cbc",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.RiemannZetaValues",
+  "source_path": "FormalConjectures/Wikipedia/RiemannZetaValues.lean",
+  "source_theorem": "RiemannZetaValues.irrational_eleven",
+  "source_type_hash": "sha256:45f3d49f3452f0136673d161ef5b08b38f7ced2447c94b18794349609c5c4789",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-riemannzetavalues-irrational-eleven-e795dca358-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:805dd5c52fb0d5f1cbf51121e79d2128f502c9afba72fb37cf57490a227f7cb8",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:c376b11e6b1571a189f54ae1d06a6126de9fa3ef4f8c1da1ecbf08dbc0be66e2",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:fdfbc86d70c3a9892204cbaaa04054f47d62242a6baa97349c6ac67d033a4004"
+  }
+}

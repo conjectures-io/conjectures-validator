@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Büchi's problem**\nThere exists a positive integer $M$ such that, for all integers $x$ and $a$,\nif $(x+n)^2 + a$ is a square for $M$ consecutive values of $n$, then $a = 0$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.Buchi",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/Buchi.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Buchi.buchi_problem",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:792d9ee584cf78f60a1f473cc4d7e782b1d8f336eb1bb21db4d59d6732888ee7",
+  "type_pretty": "sorry ↔ ∃ M, 1 ≤ M ∧ Buchi.IsBuchi M"
+}

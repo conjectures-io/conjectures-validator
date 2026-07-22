@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Are there $n$ such that $n+2^{2^k}$ is infinitely often a prime?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1209»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1209.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1209.erdos_1209.parts.iii.c",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx"
+  ],
+  "type_hash": "sha256:1391ea3c8c39c683a0c07fff568489d6ac637f6a90773bb7e70b267b014624f0",
+  "type_pretty": "sorry ↔ ∃ n, {k | Nat.Prime (n + 2 ^ 2 ^ k)}.Infinite"
+}

@@ -1,0 +1,42 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Conjecture (A81091)**: There are infinite primes of the form $2^n + 2^i + 1$,\nwith $0 < i < n$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.OEIS.«81091»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/OEIS/81091.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "OeisA81091.conjectureA81091",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:05183d4f9c4efffb79fc35b417d24ee808525836f9b625fe7a351c1976ce600d",
+  "type_pretty": "sorry ↔ {p | OeisA81091.A p}.Infinite"
+}

@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $A \\subset \\mathbb{F}_2^n$ be a set of density $\\alpha > 0$. Does $10A$ contain a coset\nof some subspace of dimension at least $n - O(\\log(1/\\alpha))$?\n\nMore precisely: does there exist an absolute constant $C > 0$ such that for all $n \\geq 1$ and all\nnonempty $A \\subseteq \\mathbb{F}_2^n$ with density $\\alpha > 0$, the sumset $10A$ contains a coset\nof some subspace of dimension at least $n - C \\log_2(1/\\alpha)$?\n\nThe sumset $10A$ is defined as $\\{a_1 + a_2 + \\cdots + a_{10} : a_i \\in A\\}$, using the pointwise\nscalar multiplication notation `10 • A` where `•` denotes the iterated addition of a set.\n\nNote: We model $\\mathbb{F}_2^n$ as `Fin n → ZMod 2`, which is an $n$-dimensional vector space\nover $\\mathbb{F}_2$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.GreensOpenProblems.«50»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/GreensOpenProblems/50.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Green50.green_50",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:273b8b95ccd8090d7ddd996a9cb51ae352b9a3b34300ca742abe99c47b1cf17b",
+  "type_pretty": "sorry ↔\n  ∃ C > 0,\n    ∀ (n : ℕ) (A : Finset (𝔽₂ n)),\n      A.Nonempty →\n        have α := ↑A.dens;\n        ∃ W v, v +ᵥ ↑W ⊆ ↑(10 • A) ∧ ↑n - C * Real.logb 2 (1 / α) ≤ ↑(Module.finrank (ZMod 2) ↥W)"
+}

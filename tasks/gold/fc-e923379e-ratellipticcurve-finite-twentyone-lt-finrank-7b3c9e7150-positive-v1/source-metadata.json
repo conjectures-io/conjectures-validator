@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11,
+    14
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "From [PPVW2016], Section 8.2:\n\"Our heuristic predicts (a) All but finitely many E ∈ ℰ satisfy rk E(ℚ) ≤ 21\".\nIn other words, there are only finitely many elliptic curves over ℚ (up to isomorphism)\nwith rank greater than 21.\nNotice that this contradicts the previous conjecture. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.EllipticCurveRank",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/EllipticCurveRank.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "EllipticCurveRank.RatEllipticCurve.finite_twentyone_lt_finrank",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:5019e2eaa1c236fb1146d1654ac21ed422635a73fa82611065849f4a4ebfc497",
+  "type_pretty": "{E | 21 < E.rank}.Finite"
+}

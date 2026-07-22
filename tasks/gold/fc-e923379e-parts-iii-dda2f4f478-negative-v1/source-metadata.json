@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Similarly, if $P$ is the set of all primes $p$ such that there exists an $m$ with\n$p\\not\\equiv 1\\pmod{m}$ such that $m! + 1 \\equiv 0\\pmod{p}$, then does\n$$\n  \\lim\\frac{|P\\cap[1, x]|}{\\pi(x)}\n$$\nexist? ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1074»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1074.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1074.erdos_1074.parts.iii",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:ee011425808321898cdf6fbbfb763b9eeee9bdf10c475716ec26ba046ba9999b",
+  "type_pretty": "sorry ↔ ∃ c, Erdos1074.PillaiPrimes.HasDensity c {p | Nat.Prime p}"
+}

@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Infinitude of betrothed numbers conjecture.**\nAre there infinitely many betrothed number pairs?\n\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.BetrothedNumbers",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/BetrothedNumbers.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "BetrothedNumbers.infinitely_many_betrothed",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:fd7de626b0c298ceaf81ba7c8157d70f5a6631274a76fa4489decd9c3657390d",
+  "type_pretty": "sorry ↔ {p | p.1 < p.2 ∧ BetrothedNumbers.IsBetrothed p.1 p.2}.Infinite"
+}

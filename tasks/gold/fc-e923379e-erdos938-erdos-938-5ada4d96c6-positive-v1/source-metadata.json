@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $A=\\{n_1 < n_2 < \\cdots\\}$ be the sequence of powerful numbers (if $p\\mid n$ then $p^2\\mid n$).\nAre there only finitely many three-term progressions of consecutive terms $n_k,n_{k+1},n_{k+2}$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«938»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/938.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos938.erdos_938",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:c2ec85c7418595a4c05e28505b14a83c96f97990f071263ceddea1a648edc4d3",
+  "type_pretty": "sorry ↔\n  {P |\n      (↑P).IsAPOfLength 3 ∧\n        ∃ k, P = {Nat.nth Nat.Powerful k, Nat.nth Nat.Powerful (k + 1), Nat.nth Nat.Powerful (k + 2)}}.Finite"
+}

@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    42,
+    46
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Problem 4.3.** Let $\\Omega \\subset \\mathbb{R}$ be a finite union of intervals and $\\nu$\na weak tiling measure for $\\Omega$. Must $\\nu$ be expressible as a convex combination of\nproper tiling measures? ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Paper.WeakTiling",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Paper/WeakTiling.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "WeakTiling.problem_4_3",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:dfb40be1c45a4680ce5fcfd24a5a6acaeb3d185620b1da1f640ef5767a14c21e",
+  "type_pretty": "sorry ↔\n  ∀ (Ω : Set ℝ),\n    WeakTiling.IsFiniteUnionOfIntervals Ω →\n      ∀ (ν : MeasureTheory.Measure ℝ),\n        WeakTiling.IsWeakTilingMeasure Ω ν →\n          ∃ T c,\n            (∀ (i : ℕ), WeakTiling.IsProperTiling Ω (T i)) ∧\n              ∑' (i : ℕ), c i = 1 ∧\n                ν =\n                  MeasureTheory.Measure.sum fun i =>\n                    ↑(c i) • MeasureTheory.Measure.sum fun t => MeasureTheory.Measure.dirac ↑t"
+}

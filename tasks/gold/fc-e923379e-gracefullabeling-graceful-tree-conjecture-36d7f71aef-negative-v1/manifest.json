@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "GracefulLabeling.graceful_tree_conjecture"
+  ],
+  "generated_target_type_hash": "sha256:11597c8dffc1be49a78de9f9c830a8a9c3466f170729d5af928ab5914764bbe3",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.GracefulLabeling",
+  "source_path": "FormalConjectures/Wikipedia/GracefulLabeling.lean",
+  "source_theorem": "GracefulLabeling.graceful_tree_conjecture",
+  "source_type_hash": "sha256:34f13eb5cee24bc493816ff963c1301c8eb6b80592696c6c50564919ee94b1e5",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-gracefullabeling-graceful-tree-conjecture-36d7f71aef-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:3b697f88142bec0a84573784527b11d515c027e2805602077e5ac718a4a5911c",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:c894c610762ab40307f6a6c2cbcc1aacd31732eec8528ddecbec63307e7df5bd",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:6482648794636f42b691b05ece36e5f88a545f2f0e578ace1e237b6c67d2bb18"
+  }
+}

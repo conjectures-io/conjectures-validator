@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Is there a covering system all of whose moduli are of the form $p-1$ for some primes $p \\geq 5$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«273»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/273.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos273.erdos_273",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:fd174aa1504bbe3ee91848663b379f93561af4eeaa2679591a6663c0993d0c14",
+  "type_pretty": "sorry ↔ ∃ c, ∀ (i : c.ι), ∃ p, Nat.Prime p ∧ 5 ≤ p ∧ c.moduli i = Ideal.span {↑(p - 1)}"
+}

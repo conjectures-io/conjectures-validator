@@ -1,0 +1,39 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    20,
+    68
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Babai–Seress Conjecture (Conjecture 1.7)**: There exists an absolute constant $C$ such\nthat every finite simple non-abelian group $G$ satisfies\n$$\\operatorname{diam}(G) \\leq (\\log |G|)^C.$$\n\n*Reference:* [L. Babai and Á. Seress, *On the diameter of permutation groups*,\nEuropean Journal of Combinatorics 13 (1992), Conjecture 1.7](https://doi.org/10.1016/S0195-6698(05)80029-0) ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.DiameterSimpleFiniteGroups",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/DiameterSimpleFiniteGroups.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "BabaiSeressConjectures.babai_seress_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f27898a8425bf3a17ab16050eb7c33af3f2d04fa8d4a75663c43ddcaa524bd27",
+  "type_pretty": "∃ C,\n  ∀ (G : Type) [inst : Group G] [inst_1 : Fintype G] [IsSimpleGroup G],\n    (∃ a b, a * b ≠ b * a) → ↑(BabaiSeressConjectures.groupDiam G) ≤ Real.log ↑(Fintype.card G) ^ C"
+}

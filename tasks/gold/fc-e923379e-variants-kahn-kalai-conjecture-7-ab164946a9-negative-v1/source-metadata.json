@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    60
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Conjecture 7 from Kahn–Kalai 2006: the same statement as the original\nconjecture, but with the additional assumption that $t$ is the critical probability for $F$,\nnamely $\\mu_t(F) = 1/2$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Mathoverflow.«10799»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Mathoverflow/10799.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Mathoverflow10799.mathoverflow_10799.variants.kahn_kalai_conjecture_7",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:ad56cb48967a820663f9841f3bbd762e30bf57ed7eb465ddcdaf309b693f6cd2",
+  "type_pretty": "sorry ↔\n  ∀ (n : ℕ),\n    2 ≤ n →\n      ∀ (F : Finset (Finset (Fin n))),\n        Mathoverflow10799.IsMonotoneIncreasing F →\n          ∀ (s t : ℝ),\n            0 < s →\n              s ≤ t →\n                t < 1 →\n                  Mathoverflow10799.μFamily t F = 1 / 2 →\n                    t / s > 1000 * Real.log ↑n → ∃ p, s ≤ p ∧ p ≤ t ∧ Mathoverflow10799.IsOptimal p F"
+}

@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    40
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The Cookson Hills series summing $sec(n)^2 / n^3$ from $n=1$ to $\\infty$ converges.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.FlintCooksonHills",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/FlintCooksonHills.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "FlintCooksonHills.cookson_hills_series_converges",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:c94ac3aa0508cac991b54eaf50be5935c90c9088efb337fbf793b5cf07044886",
+  "type_pretty": "sorry ↔ Summable fun n => 1 / ((↑n + 1) ^ 3 * Real.cos (↑n + 1) ^ 2)"
+}

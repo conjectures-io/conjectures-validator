@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    46
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The Banach--Mazur rotation problem asks whether every separable Banach space whose group of linear\nisometric equivalences acts transitively on the unit sphere is linearly isometric to a Hilbert\nspace.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Arxiv.«math.0110202».BanachMazurRotation",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Arxiv/math.0110202/BanachMazurRotation.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Arxiv.«math.0110202».banach_mazur_rotation_problem",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:5fad2e36926fc21855307785f9d3e4ff86408789c8cc01b155e1920379f791bd",
+  "type_pretty": "sorry ↔\n  ∀ (E : Type u_1) [inst : NormedAddCommGroup E] [inst_1 : NormedSpace ℝ E] [CompleteSpace E]\n    [TopologicalSpace.SeparableSpace E] [MulAction.IsPretransitive (E ≃ₗᵢ[ℝ] E) ↑(Metric.sphere 0 1)],\n    ∃ H x x_1, Nonempty (E ≃ₗᵢ[ℝ] H)"
+}

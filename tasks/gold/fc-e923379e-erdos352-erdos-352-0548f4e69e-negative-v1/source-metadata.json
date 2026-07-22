@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    51
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Is there some $c > 0$ such that every measurable $A \\subseteq \\mathbb{R}^2$ of measure $\\geq c$\ncontains the vertices of a triangle of area 1?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«352»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/352.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos352.erdos_352",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:eaa243adc78e6c50f2ffa82691f6a1f60f33fd64a34b0efab521868dff5ccd02",
+  "type_pretty": "sorry ↔\n  ∃ c > 0,\n    ∀ (A : Set (EuclideanSpace ℝ (Fin 2))),\n      MeasurableSet A →\n        ↑(MeasureTheory.volume A) ≥ ↑c →\n          ∃ t,\n            (∀ (p : Fin 3), t.points p ∈ A) ∧ EuclideanGeometry.triangle_area (t.points 0) (t.points 1) (t.points 2) = 1"
+}

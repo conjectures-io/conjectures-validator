@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Is there some constant $c>0$ such that for every $n\\geq 1$ there exists some $\\delta_k\\in \\{-1,0,1\\}$ for $1\\leq k\\leq n$ with\n$$0< \\left\\lvert \\sum_{1\\leq k\\leq n}\\frac{\\delta_k}{k}\\right\\rvert < \\frac{c}{2^n}?$$\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«317»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/317.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos317.erdos_317",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:45cf19b2115460de5e7bf64c2aa30d7939c6df4ab36785697b051f8a09b1dbe8",
+  "type_pretty": "sorry ↔\n  ∃ c > 0,\n    ∀ n ≥ 1, ∃ δ, Set.range δ ⊆ {-1, 0, 1} ∧ 0 < |∑ k, ↑(δ k) / (↑↑k + 1)| ∧ |∑ k, ↑(δ k) / (↑↑k + 1)| < c / 2 ^ n"
+}

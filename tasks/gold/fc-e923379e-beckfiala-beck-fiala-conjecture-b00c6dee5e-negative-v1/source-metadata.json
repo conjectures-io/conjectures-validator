@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**The Beck–Fiala conjecture**\n\nThere exists a universal constant $C > 0$ such that every set system\n$S_1, \\dots, S_m \\subseteq [n]$ of degree at most $t$ admits a colouring\n$\\chi \\colon [n] \\to \\{-1, +1\\}$ with\n$\\left|\\sum_{j \\in S_i} \\chi(j)\\right| \\le C \\sqrt{t}$ for every $i$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.BeckFialaConjecture",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/BeckFialaConjecture.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "BeckFiala.beck_fiala_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:6550405d459249907dc1d7db8c7ff9cc9e704af094bf74a0571c767ac8187aae",
+  "type_pretty": "∃ C,\n  0 < C ∧\n    ∀ (n m t : ℕ) (S : Fin m → Finset (Fin n)),\n      (∀ (j : Fin n), {i | j ∈ S i}.card ≤ t) →\n        ∃ χ, (∀ (j : Fin n), χ j = 1 ∨ χ j = -1) ∧ ∀ (i : Fin m), |∑ j ∈ S i, χ j| ≤ C * √↑t"
+}

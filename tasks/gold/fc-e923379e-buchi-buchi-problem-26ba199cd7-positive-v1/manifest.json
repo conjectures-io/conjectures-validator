@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Buchi.buchi_problem"
+  ],
+  "generated_target_type_hash": "sha256:a714f00269610db5bbbeed5dc393f1714a435ac740f0f68b62b6450477bdd241",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.Buchi",
+  "source_path": "FormalConjectures/Wikipedia/Buchi.lean",
+  "source_theorem": "Buchi.buchi_problem",
+  "source_type_hash": "sha256:792d9ee584cf78f60a1f473cc4d7e782b1d8f336eb1bb21db4d59d6732888ee7",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-buchi-buchi-problem-26ba199cd7-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:63928bd56f70d109b78832e1ebf2c87b2a020a67f69f27aa372a6ea1e25a3c4b",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:6f5b9092fd5f27df773aabf841b872d469da8a4d0baf17f158c911b47699140b",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:3a852c472b4009b3226d57e120ec0725fd11be6768103881c1d563db2aa49f33"
+  }
+}

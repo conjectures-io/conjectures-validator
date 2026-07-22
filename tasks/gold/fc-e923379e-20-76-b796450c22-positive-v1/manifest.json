@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Kourovka.«20.76».kourovka.«20.76»"
+  ],
+  "generated_target_type_hash": "sha256:cc1e6d22eb218b9f3ac1dcc620f3fb8204c3f88298243561e7b87963468f909c",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Kourovka.«20_76»",
+  "source_path": "FormalConjectures/Kourovka/20_76.lean",
+  "source_theorem": "Kourovka.«20.76».kourovka.«20.76»",
+  "source_type_hash": "sha256:aac1352d767989c6ee3d6fb8dafc5274bbe28a67158506869bca0da6d1dfec24",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-20-76-b796450c22-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:843810fe57420d3fbaa42975cb7479515fa1932bba03484ef5b8c00c406cd191",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:bbf148f90aed0c4ddd2341a377cb4ec9fbe8d9a7a78e0ca2d76c44a58fd128f0",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:41bcf85945ae7de34f3ae1c5891ff1fd72e8dfa671bdddfc02034162cb70535d"
+  }
+}

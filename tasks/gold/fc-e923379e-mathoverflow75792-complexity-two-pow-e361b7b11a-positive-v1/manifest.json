@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Mathoverflow75792.complexity_two_pow"
+  ],
+  "generated_target_type_hash": "sha256:61423c3a5cef163f50c1ca4af5676f52b1cf51fd819baa3c4240e305dac753a8",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Mathoverflow.«75792»",
+  "source_path": "FormalConjectures/Mathoverflow/75792.lean",
+  "source_theorem": "Mathoverflow75792.complexity_two_pow",
+  "source_type_hash": "sha256:d941ae33eb0ce3d094fe937ef05b4343ee894da32dfee8f2ce98ead795afd5c5",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-mathoverflow75792-complexity-two-pow-e361b7b11a-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:8538d4ae93602d5f16ebfde38bdd08d59ab7d5ea7f248c87c859e5f28b002a35",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:1d62892d3323a8c9cdc10c3012f3a0b0d54075f37b28494dec6e8a2e51859495",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:82d1919539441e3e6abab3dff1c5d689e8865116bf08d6272cf9530600dd9bbc"
+  }
+}

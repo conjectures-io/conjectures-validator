@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Bugeaud07.problem_10_7"
+  ],
+  "generated_target_type_hash": "sha256:5da80f749f1404dbbc91be72870cdde1f56147d3874260e90e4b27cc3141d02d",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Books.BugeaudDistributionModuloOne.Problem10_7",
+  "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_7.lean",
+  "source_theorem": "Bugeaud07.problem_10_7",
+  "source_type_hash": "sha256:d89d4b3190f0eca5525b843efddeda7e93de9c81dd2d3d86c0c86d87cebdf1aa",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-bugeaud07-problem-10-7-1796fac42e-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:5ad790fc285d19780fcf3f4bf2850ba714f394ec1e4b208fdcf0fdf80134d2e6",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:9202671b55b430b93c00569e9522ec75aed917e8817410f4bc3a7902b92e2b34",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:06a172548436053049917e7e72df5eef590cc2eb5b4fc069966f5da69c45760d"
+  }
+}

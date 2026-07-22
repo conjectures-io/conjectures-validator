@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Are there infinitely many primes $p$ such that $p = 2^k * q + 1$\nfor some prime $q$ and $k ≥ 0$?\n\nThis is mentioned as B46\nin [Unsolved Problems in Number Theory](https://doi.org/10.1007/978-0-387-26677-0)\nby *Richard K. Guy*\n ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1065»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1065.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1065.erdos_1065.parts.i",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx"
+  ],
+  "type_hash": "sha256:b03d6381a3787605fe549e0ec98123e98ceaf877b77f74cf6bd4a44181e605f5",
+  "type_pretty": "sorry ↔ {p | ∃ q k, Nat.Prime p ∧ Nat.Prime q ∧ p = 2 ^ k * q + 1}.Infinite"
+}

@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Does there exist a $3 \\times 3$ matrix such that every entry is a distinct square,\nand all rows, columns, and diagonals add up to the same value?\n\n0 is excluded, as a Magic Square of Squares with 0 and 8 distinct squares is know is knownn.\nSee [Magic Square of Squares](https://static.nsta.org/pdfs/QuantumV6N3.pdf)\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.MagicSquares",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/MagicSquares.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "MagicSquares.exists_magic_square_squares",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:5674d1b2948074f151a49dd8df065cc906dfd84d3c8aa2f58e9f9609ad10bbaa",
+  "type_pretty": "sorry ↔\n  ∃ m t,\n    Function.Injective2 m ∧\n      (∀ (i j : Fin 3), 0 < m i j ∧ IsSquare (m i j)) ∧\n        (∀ (i : Fin 3), ∑ j, m i j = t) ∧\n          (∀ (j : Fin 3), ∑ i, m i j = t) ∧ m 0 0 + m 1 1 + m 2 2 = t ∧ m 0 2 + m 1 1 + m 2 0 = t"
+}

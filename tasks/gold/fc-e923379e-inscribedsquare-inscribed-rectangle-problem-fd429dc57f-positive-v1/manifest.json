@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "InscribedSquare.inscribed_rectangle_problem"
+  ],
+  "generated_target_type_hash": "sha256:0069589e98d517aeaeeb4b363e9fc82ab4b49cebf7d60eda0c814fc2b0b1740d",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.InscribedSquare",
+  "source_path": "FormalConjectures/Wikipedia/InscribedSquare.lean",
+  "source_theorem": "InscribedSquare.inscribed_rectangle_problem",
+  "source_type_hash": "sha256:f36011381256258ac66e9fc7aa9ce3b2c66a17f5c01357062baa51b26627994d",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-inscribedsquare-inscribed-rectangle-problem-fd429dc57f-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:df516f549fe7472a0e9540dfb89cf54b51edc1ed375c5548192587ff7bf48560",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:390b4a41a828d90a3faeaa39bd3220672e957363872e6497b1bbbc266731faea",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:48f07e2c6e327ea3b426ef5bd9c2f4fad86236784b99b01a4c80ced3086eb8fe"
+  }
+}

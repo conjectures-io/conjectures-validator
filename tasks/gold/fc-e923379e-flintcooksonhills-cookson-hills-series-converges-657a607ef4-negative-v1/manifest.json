@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "FlintCooksonHills.cookson_hills_series_converges"
+  ],
+  "generated_target_type_hash": "sha256:e2b936590af29b76fbb3103c2cc8d65bea3312566d57fa656cfbb71f52d00b93",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.FlintCooksonHills",
+  "source_path": "FormalConjectures/Wikipedia/FlintCooksonHills.lean",
+  "source_theorem": "FlintCooksonHills.cookson_hills_series_converges",
+  "source_type_hash": "sha256:c94ac3aa0508cac991b54eaf50be5935c90c9088efb337fbf793b5cf07044886",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-flintcooksonhills-cookson-hills-series-converges-657a607ef4-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:2cc7ce1b3e71656f0f5db9c6db0d8be39e3ae630a62ec2089dc453da44cb50bf",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:c53fd9f79e5a31dff170f9b39671e610d8cb91367a9b3db2cc04e33725a413f7",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:4c7768508c0ea90051388e1b432a76de5ab6c53cc90bd1cc2bfa42c9fa36c9c2"
+  }
+}

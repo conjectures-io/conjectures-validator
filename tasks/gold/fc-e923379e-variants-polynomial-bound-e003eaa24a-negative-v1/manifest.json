@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Green41.green_41.variants.polynomial_bound"
+  ],
+  "generated_target_type_hash": "sha256:6e86c753b3488b76ced6874da58d4ef7ccd2f8e2e5eed4dd395bcbabea464dd2",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.GreensOpenProblems.«41»",
+  "source_path": "FormalConjectures/GreensOpenProblems/41.lean",
+  "source_theorem": "Green41.green_41.variants.polynomial_bound",
+  "source_type_hash": "sha256:21149ad672f4d0b23efe441fd7d7975967c668eb6c54b4646d28a75852ecee91",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-polynomial-bound-e003eaa24a-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:e8dd669109bac1fe1b2f39cae2dce36ef0c949546cd00d130d4c722e078a5618",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:14f8970a4634ff7bdcf03a1ddb33b799c2a920046fa505ec927c56fdb9f160ae",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:514ff16e4d3d300e21a61660e71a377cd5ece0bc8235ab40d218723b78c1d922"
+  }
+}

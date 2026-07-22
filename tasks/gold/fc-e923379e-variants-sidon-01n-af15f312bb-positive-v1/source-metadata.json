@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Another very nice old problem is whether there is a Sidon subset of $\\{0, 1\\}^n$ of size $N^{0.51}$,\nwhere $N = 2^n$ [Gr24].\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.GreensOpenProblems.«31»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/GreensOpenProblems/31.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Green31.green_31.variants.sidon_01n",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f2f1310ddd1dc32f0b76c69f3c7e7c7b313a693dced092b8684343009b3f4be6",
+  "type_pretty": "sorry ↔ ∃ S, (∀ (n : ℕ), IsSidon ↑(S n)) ∧ ∀ᶠ (n : ℕ) in Filter.atTop, (2 ^ n) ^ 0.51 ≤ ↑(S n).card"
+}

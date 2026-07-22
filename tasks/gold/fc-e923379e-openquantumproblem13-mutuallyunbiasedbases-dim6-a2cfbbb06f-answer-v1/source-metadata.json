@@ -1,0 +1,45 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    15,
+    81,
+    94
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "value",
+      "type_pretty": "ℕ"
+    }
+  ],
+  "category": "research open",
+  "classification": "NAT_ANSWER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Special case in dimension $6$: determine the maximal number of mutually unbiased\northonormal bases in $\\mathbb{C}^6$. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.OpenQuantumProblems.«13»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/OpenQuantumProblems/13.lean",
+  "supported_modes": [
+    "answer"
+  ],
+  "theorem": "OpenQuantumProblem13.mutuallyUnbiasedBases_dim6",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:fea0656a719537da38ca47b419b0b37418cb143c037186d25caf7fcba4c8d132",
+  "type_pretty": "OpenQuantumProblem13.IsMaxMUBCount 6 sorry"
+}

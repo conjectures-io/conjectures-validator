@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    40
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The Flint Hills series summing $csc(n)^2 / n^3$ from $n=1$ to $\\infty$ converges.\n(Note that we 0-index the series below.)\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.FlintCooksonHills",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/FlintCooksonHills.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "FlintCooksonHills.flint_hills_series_converges",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:881cf5e3a4033f911937a8c02f17f1b3e632fa7cc31f45b2225508c4bd3a5d47",
+  "type_pretty": "sorry ↔ Summable fun n => 1 / ((↑n + 1) ^ 3 * Real.sin (↑n + 1) ^ 2)"
+}

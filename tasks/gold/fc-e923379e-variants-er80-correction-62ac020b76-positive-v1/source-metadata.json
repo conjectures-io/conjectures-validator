@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "In [Er80] he claims he \"did not state this quite correctly\" in [Er77c]. The problem in [Er77c] which\nErdős is presumably referring to states that if $n < q_1 < \\cdots < q_k\\leq m$ is the set of primes\nin $(n,m]$ then $\\sum \\frac{1}{q_i-n} < \\sum_{p < m-n}\\frac{1}{p}+O(1)$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1210»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1210.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1210.erdos_1210.variants.er80_correction",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:6ed26f3af55fe5865c9d1ab9397e2e67b07b794260745ad717628caddbc1d4a8",
+  "type_pretty": "sorry ↔\n  ∃ C,\n    ∀ (n m : ℕ),\n      n < m → ∑ q ∈ Finset.Ioc n m with Prime q, 1 / (↑q - ↑n) < ∑ p ∈ Finset.range (m - n) with Prime p, 1 / ↑p + C"
+}

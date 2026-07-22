@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    42,
+    46
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Problem 4.2.** Let $\\Omega \\subset \\mathbb{R}$ be a finite union of three or more\nintervals. If $\\Omega$ weakly tiles its complement, must it also tile its complement\nproperly? ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Paper.WeakTiling",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Paper/WeakTiling.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "WeakTiling.problem_4_2",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:1b79be2d5ce745f939b196b96545d9cdb327bf90bcf1667f239e428484989c4d",
+  "type_pretty": "sorry ↔\n  ∀ (n : ℕ),\n    3 ≤ n →\n      ∀ (Ω : Set ℝ),\n        WeakTiling.IsUnionOfNIntervals n Ω →\n          ∀ (ν : MeasureTheory.Measure ℝ), WeakTiling.IsWeakTilingMeasure Ω ν → ∃ T, WeakTiling.IsProperTiling Ω T"
+}

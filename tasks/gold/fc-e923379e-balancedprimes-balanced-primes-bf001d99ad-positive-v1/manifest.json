@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "BalancedPrimes.balanced_primes"
+  ],
+  "generated_target_type_hash": "sha256:83b3858f2b6a32f321eaf754e913aecd02d74a5ddf8c3f39eaf425ae2cc5fbf4",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.BalancedPrimes",
+  "source_path": "FormalConjectures/Wikipedia/BalancedPrimes.lean",
+  "source_theorem": "BalancedPrimes.balanced_primes",
+  "source_type_hash": "sha256:0e4a7c8aad84f94228407044d111bb164b50cd19a83e734c81548ffa0c8237d4",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-balancedprimes-balanced-primes-bf001d99ad-positive-v1",
+  "task_mode": "positive",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:e57151b8102baa7b2dc7ffd03a590021a66598123bba96453f3e9209d5bda7d8",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:2f293a3ebc0fb6a07eb2d046c2f3413802d82cba313bab9d6a9c10729dfe64a5",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:7fe41b5b66b4ffdfb7c5c37ea72baa7b4277760af6694be35a707f4edc29adea"
+  }
+}

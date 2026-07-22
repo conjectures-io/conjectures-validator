@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "EllipticCurveRank.RatEllipticCurve.finite_twentyone_lt_finrank"
+  ],
+  "generated_target_type_hash": "sha256:7c195991040652de501c3e08bd935670a708646fb9dd6158b2e2e82f59bafa10",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.EllipticCurveRank",
+  "source_path": "FormalConjectures/Wikipedia/EllipticCurveRank.lean",
+  "source_theorem": "EllipticCurveRank.RatEllipticCurve.finite_twentyone_lt_finrank",
+  "source_type_hash": "sha256:5019e2eaa1c236fb1146d1654ac21ed422635a73fa82611065849f4a4ebfc497",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-ratellipticcurve-finite-twentyone-lt-finrank-275bbc4402-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:2ddc5c7da3aca11e603e851268d3e6ed606eeacb4ec383e8ecb6fca9ec1854f6",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:b8e124fb374e693578b83f7b39619163587f2692174af00ed60447e7c35c8c2f",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:d84e148126d296a4703ea295b4316028ef1fb342339b11a573fb18c6ce26ae46"
+  }
+}

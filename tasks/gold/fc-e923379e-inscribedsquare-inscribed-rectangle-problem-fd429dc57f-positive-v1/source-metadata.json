@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    51
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Inscribed rectangle problem**\nDoes every Jordan curve admit inscribed rectangles of any given aspect ratio?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.InscribedSquare",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/InscribedSquare.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "InscribedSquare.inscribed_rectangle_problem",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f36011381256258ac66e9fc7aa9ce3b2c66a17f5c01357062baa51b26627994d",
+  "type_pretty": "sorry ↔\n  ∀ (γ : Circle → EuclideanSpace ℝ (Fin 2)),\n    Topology.IsEmbedding γ → ∀ r > 0, ∃ t₁ t₂ t₃ t₄, InscribedSquare.IsRectangle (γ t₁) (γ t₂) (γ t₃) (γ t₄) r"
+}

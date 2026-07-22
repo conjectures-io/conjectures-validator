@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "OpenQuantumProblem35.ame_10_6_open"
+  ],
+  "generated_target_type_hash": "sha256:db9ffee0eb6a36117e94bb8055a5971278b05e05f346100bf4ec0b06b5e4184e",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.OpenQuantumProblems.«35»",
+  "source_path": "FormalConjectures/OpenQuantumProblems/35.lean",
+  "source_theorem": "OpenQuantumProblem35.ame_10_6_open",
+  "source_type_hash": "sha256:f3e3c4a84dd1bda8385c19b935f68ac48a36744635250c51793a1efd7030554f",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-openquantumproblem35-ame-10-6-open-ac15ba6789-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:5e2044bac934a9f6c5b4f6a4645aa5abe1c88ccd2221bb4905588c1231bbeba3",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:acef3418a3c3f6b8136d4c15499bfb0eac171800907c22f0f4096ba6de19e18f",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:abf0a77e99e3c31e5baa539846db771c214e4db07106f5a029105f40d38a7dd1"
+  }
+}

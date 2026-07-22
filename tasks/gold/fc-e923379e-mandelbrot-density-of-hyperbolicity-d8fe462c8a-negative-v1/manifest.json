@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Mandelbrot.density_of_hyperbolicity"
+  ],
+  "generated_target_type_hash": "sha256:5c66bdeae4572ceb594f9751bfcdde180ab3775e9f8f85a329bb3075181d7830",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.Mandelbrot",
+  "source_path": "FormalConjectures/Wikipedia/Mandelbrot.lean",
+  "source_theorem": "Mandelbrot.density_of_hyperbolicity",
+  "source_type_hash": "sha256:cf2456bd1262508cc0698b19daa75e5c2e158e00345f5f802e4eb0256375facc",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-mandelbrot-density-of-hyperbolicity-d8fe462c8a-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:315fadbbd6106ee0037f2abf981e9bfd2d79cba1c1a26639ee23ee889b8252b6",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:c0c16f2252dbed525bb679cab4b54c01cda7e4384378d81a16594d985d67d521",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:7121d9ba32c6f9f3d2fcaa7c4c6130897f5969a265dd274ddc68339198c0eeb5"
+  }
+}

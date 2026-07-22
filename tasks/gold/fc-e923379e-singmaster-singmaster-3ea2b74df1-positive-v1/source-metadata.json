@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Singmaster's conjecture: the number of times any number $t > 1$ appears in\nPascal's triangle is bounded.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.Singmaster",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/Singmaster.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Singmaster.singmaster",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:58849bf1d5a8bab6785adaf4cbef1a98fddb67c02b030a0f415d5ae86b2a3099",
+  "type_pretty": "∃ C, ∀ t > 1, (Singmaster.solutions t).Finite ∧ (Singmaster.solutions t).ncard ≤ C"
+}

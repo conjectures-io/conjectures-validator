@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "MagicSquares.exists_magic_square_squares"
+  ],
+  "generated_target_type_hash": "sha256:fe1b2f786fa1ff52492a02a1f7b2e414cf8971b292c089ba45252d637b41c3db",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.MagicSquares",
+  "source_path": "FormalConjectures/Wikipedia/MagicSquares.lean",
+  "source_theorem": "MagicSquares.exists_magic_square_squares",
+  "source_type_hash": "sha256:5674d1b2948074f151a49dd8df065cc906dfd84d3c8aa2f58e9f9609ad10bbaa",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-magicsquares-exists-magic-square-squares-e53de5efa6-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:b131e36e77bdc89e91ea3dc92acd329d26375bbd47c72832adbcf3f895e1e15e",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:b0a8b93d4cf7354f0790913210678eac76f356548a2dc067731cc9c6e3a712bb",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:6e2c03eceb156f501373fde5f2fe95247f5dc4bce878834a9e4e638d3af6aa4d"
+  }
+}

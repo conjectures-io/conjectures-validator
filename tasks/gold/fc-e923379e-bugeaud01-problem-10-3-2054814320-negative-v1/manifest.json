@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Bugeaud01.problem_10_3"
+  ],
+  "generated_target_type_hash": "sha256:5e2cb487073c36d19c9a919035395a8d91d2e8b37ec31e68abfb2eafadd36fb8",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Books.BugeaudDistributionModuloOne.IntDistanceDistribution",
+  "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/IntDistanceDistribution.lean",
+  "source_theorem": "Bugeaud01.problem_10_3",
+  "source_type_hash": "sha256:3dd8408b8af3bc93688990ea49ffcc0057b2047f1cbd0fba3552932e4ab61b37",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-bugeaud01-problem-10-3-2054814320-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:9d013fb59031cec8075b15bd4bcc21c4711af3ee305ce49fdf5c028819f443c6",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:567cbce4aa76ba16d69546e08e22edbb79364f0e67a36ee7b5d014a2dd434352",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:a8de90a17ced39130dac8e0c5b5ec26241b7ea15670dcb1068316f07d0a9e9ee"
+  }
+}

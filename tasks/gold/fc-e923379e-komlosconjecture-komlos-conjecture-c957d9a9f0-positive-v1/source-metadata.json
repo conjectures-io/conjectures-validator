@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**The Komlós conjecture**\n\nThere exists a universal constant $K > 0$ such that for all $n, m \\in \\mathbb{N}$ and\nall vectors $v_1, \\dots, v_n \\in \\mathbb{R}^m$ with $\\|v_i\\|_2 \\le 1$ (encoded here as\n$\\sum_j v_{ij}^2 \\le 1$), there exist signs $\\varepsilon_i \\in \\{-1, +1\\}$ such that\n$\\left\\|\\sum_i \\varepsilon_i v_i\\right\\|_\\infty \\le K$, i.e.\n$\\left|\\sum_i \\varepsilon_i v_{ij}\\right| \\le K$ for every coordinate $j$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.KomlosConjecture",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/KomlosConjecture.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "KomlosConjecture.komlos_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:d28652195dd2b14c77068cab3403e8d615401dcbd43daa073b476ea0a9cea655",
+  "type_pretty": "∃ K,\n  0 < K ∧\n    ∀ (n m : ℕ) (v : Fin n → Fin m → ℝ),\n      (∀ (i : Fin n), ∑ j, v i j ^ 2 ≤ 1) →\n        ∃ ε, (∀ (i : Fin n), ε i = 1 ∨ ε i = -1) ∧ ∀ (j : Fin m), |∑ i, ε i * v i j| ≤ K"
+}

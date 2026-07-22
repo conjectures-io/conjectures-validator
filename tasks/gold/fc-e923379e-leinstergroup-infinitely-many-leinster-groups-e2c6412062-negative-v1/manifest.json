@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "LeinsterGroup.infinitely_many_leinster_groups"
+  ],
+  "generated_target_type_hash": "sha256:4ee6fda7c55dc786f6bb096ec483c26130539cb40db30d15504ba9dd972aef54",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.LeinsterGroup",
+  "source_path": "FormalConjectures/Wikipedia/LeinsterGroup.lean",
+  "source_theorem": "LeinsterGroup.infinitely_many_leinster_groups",
+  "source_type_hash": "sha256:ddacac4608d0cfabf30023102230ff6791503f95f35bbba0e83bcc0f0dbed32f",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-leinstergroup-infinitely-many-leinster-groups-e2c6412062-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:fbdf610a4f3018a9d0825a366053f36159e5c8d7b0a3289948f08e5463d96969",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:193b7f18832c4f34a7eb4c7d81e246327115531d2cb07f6d10a0ade901ec96b3",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:e6df2d2ea19c889a37109d81e21c6f925a56f3dfffdd1bc937e66bda2d0833e6"
+  }
+}

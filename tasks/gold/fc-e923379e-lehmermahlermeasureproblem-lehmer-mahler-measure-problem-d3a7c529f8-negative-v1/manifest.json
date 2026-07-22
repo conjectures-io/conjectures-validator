@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem"
+  ],
+  "generated_target_type_hash": "sha256:040a9b61c4d7269cb285ec243790a207a35c81293d1f375fef06c7466d640b96",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.LehmerMahlerMeasureProblem",
+  "source_path": "FormalConjectures/Wikipedia/LehmerMahlerMeasureProblem.lean",
+  "source_theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem",
+  "source_type_hash": "sha256:ab0bc423aa29d33304fa2763ce2a3f9f1390e9dd3c0aaf99580f19a9b14f52bf",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-lehmermahlermeasureproblem-lehmer-mahler-measure-problem-d3a7c529f8-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:85afb54acf5a77043c8240afaff6e43c19fa0a7821f732fb96be7e0cbe54d086",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:71f2427b426f6f816956c703fb7398bd0a0e1c8c8c2bedef1fcf8955f773f470",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:dd3503994a5cc4981eb11e909825754b1a25868f6fcdacf338665ea4b9bb7675"
+  }
+}

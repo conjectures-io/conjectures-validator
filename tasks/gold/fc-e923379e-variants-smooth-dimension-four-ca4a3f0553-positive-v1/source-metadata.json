@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    54,
+    57
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The four dimensional case of the smooth version of the conjecture is still open.\nSee [Wang2017]. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Millenium.Poincare",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Millenium/Poincare.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "PoincareConjecture.poincare_conjecture.variants.smooth_dimension_four",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:724c43bb84100231ff83a9ef151c772f6d5bec2f1bbc7b6bca09403928aa7e4f",
+  "type_pretty": "PoincareConjecture.SmoothConjectureFor 4"
+}

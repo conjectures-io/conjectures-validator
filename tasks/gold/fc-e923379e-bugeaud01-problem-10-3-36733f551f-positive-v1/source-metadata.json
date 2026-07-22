@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Problem 10.3. To prove that there exists a positive real number~$c$ such\nthat $\\lVert e^n \\rVert > e^{−cn}$, for every~$n \\ge 1$. Posed by Mahler [Mah53].\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Books.BugeaudDistributionModuloOne.IntDistanceDistribution",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/IntDistanceDistribution.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Bugeaud01.problem_10_3",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:3dd8408b8af3bc93688990ea49ffcc0057b2047f1cbd0fba3552932e4ab61b37",
+  "type_pretty": "∃ c, 0 < c ∧ ∀ (n : ℕ), 1 ≤ n → Real.exp (-c * ↑n) < distToNearestInt (Real.exp ↑n)"
+}

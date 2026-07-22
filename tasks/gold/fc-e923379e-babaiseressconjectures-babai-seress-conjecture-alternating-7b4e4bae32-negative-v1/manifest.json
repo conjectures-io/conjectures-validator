@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "BabaiSeressConjectures.babai_seress_conjecture_alternating"
+  ],
+  "generated_target_type_hash": "sha256:b3fb88d2f89de8e4e63b500a87e1f35bbc365e6986f93296230f777775792540",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.DiameterSimpleFiniteGroups",
+  "source_path": "FormalConjectures/Wikipedia/DiameterSimpleFiniteGroups.lean",
+  "source_theorem": "BabaiSeressConjectures.babai_seress_conjecture_alternating",
+  "source_type_hash": "sha256:e38f414e4aa48ef6627be9f22973130ccd35afdfb4ce3dea736bce4a28474d2a",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-babaiseressconjectures-babai-seress-conjecture-alternating-7b4e4bae32-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:229df3f61db787c3e2e2ffe9e1412ba210df227a9f5240050a6d749e9d238149",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:1ed541c77bd3644be64dab48a10443cedaa05897c86b985f1b9a50839ef44026",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:c2ac212314378aecfbf2c869b1fc03593dcfd4182ae514239cf280e768bc489e"
+  }
+}

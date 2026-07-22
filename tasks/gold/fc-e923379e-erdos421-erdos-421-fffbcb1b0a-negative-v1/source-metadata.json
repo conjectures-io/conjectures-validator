@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "Prop",
+      "type_pretty": "Prop"
+    }
+  ],
+  "category": "research open",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Is there a sequence $1 \\le d_1 < d_2 < \\dots$ with density 1 such that all products\n$\\prod_{u \\le i \\le v} d_i$ are distinct? ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«421»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/421.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos421.erdos_421",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:217213dff6edb98084a8913d9efc9f8d2886a2681982b9d00f6ee2d2a14344aa",
+  "type_pretty": "sorry ↔\n  ∃ d,\n    StrictMono d ∧\n      1 ≤ d 0 ∧\n        (Set.range d).HasDensity 1 ∧\n          Set.InjOn\n            (fun x =>\n              match x with\n              | (u, v) => ∏ i ∈ Finset.Icc u v, d i)\n            {(u, v) | u ≤ v}"
+}

@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11,
+    14
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "[PPVW2016] 8.2(c): the number of elliptic curves over ℚ with rank ≥ 21 and naïve height\nat most `H` is asymptotically at most `H ^ o(1)`. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.EllipticCurveRank",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/EllipticCurveRank.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "EllipticCurveRank.RatEllipticCurve.twentyone_le_rank_height_count_asymptotic",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:411dda25cde75d803c557f95c1d4b186954cb6bacf8efaffeaa1d2f6f1fb87f9",
+  "type_pretty": "∃ f,\n  Filter.Tendsto f Filter.atTop (nhds 0) ∧\n    ∀ (H : ℕ), 1 < H → ↑{E | E ∈ EllipticCurveRank.RatEllipticCurve.heightLE H ∧ 21 ≤ E.rank}.ncard ≤ ↑H ^ f H"
+}

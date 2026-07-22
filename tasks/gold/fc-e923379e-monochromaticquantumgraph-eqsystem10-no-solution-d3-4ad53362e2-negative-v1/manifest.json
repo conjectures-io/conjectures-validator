@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "PROP_ANSWER_WRAPPER",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "MonochromaticQuantumGraph.eqSystem10_no_solution_d3"
+  ],
+  "generated_target_type_hash": "sha256:b36c84adf5a2292bba7c24906db504b20df300f7cf0eea429105c8bea01f1d08",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Paper.MonochromaticQuantumGraph",
+  "source_path": "FormalConjectures/Paper/MonochromaticQuantumGraph.lean",
+  "source_theorem": "MonochromaticQuantumGraph.eqSystem10_no_solution_d3",
+  "source_type_hash": "sha256:9080cb5d27b0466d7524f669c0034f116a95d9d09e168be2c168f0ae4492afa2",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-monochromaticquantumgraph-eqsystem10-no-solution-d3-4ad53362e2-negative-v1",
+  "task_mode": "negative",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:c66e79ec9521c9ea43073d4af7f358004b31d3c76a97acda54a0e3fac67f634e",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:6f2c5ed8339bef3a50dda28de4d4d101a55f43c3e973a4717a083244e7966e1a",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:d05219e37ad76db28b8d4c14b0e121ebb2ba8976ab718916580d0c4962ab4e66"
+  }
+}
