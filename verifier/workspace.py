@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping
@@ -40,6 +39,182 @@ def _lakefile(project_root: Path) -> str:
     )
 
 
+PackageSource = tuple[str, Path, str, str, str]
+ROOT_PACKAGE_NAME = "formal_conjectures_verifier"
+MIRROR_EXCLUDED_NAMES = frozenset({".git", ".home", ".lake", ".work"})
+
+
+def _required_string(package: object, key: str) -> str:
+    if not isinstance(package, dict):
+        raise TypeError("package entries must be objects")
+    value = package.get(key)
+    if not isinstance(value, str) or not value:
+        raise TypeError(f"package {key} must be a non-empty string")
+    return value
+
+
+def _safe_filename(value: str, field: str) -> str:
+    if Path(value).name != value or value in {".", ".."}:
+        raise ValueError(f"package {field} must be a filename")
+    return value
+
+
+def _safe_package_name(value: str) -> str:
+    if (
+        value in {".", ".."}
+        or not value[0].isalnum()
+        or not all(character.isalnum() or character in "_-" for character in value)
+    ):
+        raise ValueError(f"unsafe Lake package name: {value!r}")
+    return value
+
+
+def _package_source(project_root: Path, package: object) -> PackageSource:
+    kind = _required_string(package, "type")
+    if kind not in {"git", "path"}:
+        raise ValueError(f"unsupported Lake package type: {kind!r}")
+    name = _safe_package_name(_required_string(package, "name"))
+    if name == ROOT_PACKAGE_NAME:
+        raise ValueError(f"dependency collides with root package: {name}")
+    directory = _required_string(package, "dir") if kind == "path" else name
+    if Path(directory).is_absolute():
+        raise ValueError(f"package path must be relative: {directory!r}")
+    source = (
+        project_root / directory
+        if kind == "path"
+        else project_root / ".lake" / "packages" / directory
+    ).resolve()
+    trusted_root = project_root.resolve()
+    if not source.is_relative_to(trusted_root):
+        raise ValueError(f"package path escapes the trusted project: {directory!r}")
+    scope = package.get("scope", "") if isinstance(package, dict) else ""
+    if not isinstance(scope, str):
+        raise TypeError("package scope must be a string")
+    return (
+        name,
+        source,
+        _safe_filename(_required_string(package, "configFile"), "configFile"),
+        _safe_filename(_required_string(package, "manifestFile"), "manifestFile"),
+        scope,
+    )
+
+
+def _path_package_entry(package: PackageSource, directory: Path, *, inherited: bool = True) -> dict[str, object]:
+    name, _source, config_file, manifest_file, scope = package
+    return {
+        "type": "path",
+        "scope": scope,
+        "name": name,
+        "manifestFile": manifest_file,
+        "inherited": inherited,
+        "dir": str(directory.resolve()),
+        "configFile": config_file,
+    }
+
+
+def _local_package_sources(project_root: Path) -> tuple[PackageSource, ...]:
+    try:
+        manifest = json.loads((project_root / "lake-manifest.json").read_text(encoding="utf-8"))
+        packages = manifest["packages"]
+        if not isinstance(packages, list):
+            raise TypeError("packages must be an array")
+        dependencies = tuple(_package_source(project_root, package) for package in packages)
+        names = tuple(package[0] for package in dependencies)
+        if len(names) != len(set(names)):
+            raise ValueError("Lake package names must be unique")
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise VerifierError(ReasonCode.WORKSPACE_ERROR, f"cannot load local Lake package graph: {exc}") from exc
+    sources: tuple[PackageSource, ...] = (
+        (
+            ROOT_PACKAGE_NAME,
+            project_root.resolve(),
+            "lakefile.toml",
+            "lake-manifest.json",
+            "",
+        ),
+        *dependencies,
+    )
+    missing = tuple(
+        str(source)
+        for _name, source, config, manifest_file, _scope in sources
+        if not source.is_dir()
+        or not (source / config).is_file()
+        or not (source / manifest_file).is_file()
+    )
+    if missing:
+        raise VerifierError(
+            ReasonCode.WORKSPACE_ERROR,
+            "local Lake package checkout is missing: " + ", ".join(missing),
+        )
+    return sources
+
+
+def _workspace_manifest(root_entry: dict[str, object]) -> str:
+    return json.dumps(
+        {
+            "version": "1.1.0",
+            "packagesDir": ".lake/packages",
+            "packages": [root_entry],
+            "name": "fc_verification_workspace",
+            "lakeDir": ".lake",
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        indent=2,
+    ) + "\n"
+
+
+def _package_overrides(entries: tuple[dict[str, object], ...]) -> str:
+    return json.dumps(
+        {
+            "schemaVersion": "1.1.0",
+            "packages": list(entries),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        indent=2,
+    ) + "\n"
+
+
+def _symlink_directory_contents(source: Path, destination: Path, *, excluded: frozenset[str]) -> None:
+    destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+    for child in sorted(source.iterdir(), key=lambda path: path.name):
+        if child.name not in excluded:
+            (destination / child.name).symlink_to(child.resolve(), target_is_directory=child.is_dir())
+
+
+def _materialize_package_mirror(source: Path, destination: Path) -> None:
+    _symlink_directory_contents(
+        source,
+        destination,
+        excluded=MIRROR_EXCLUDED_NAMES,
+    )
+    trusted_lake = source / ".lake"
+    mirror_lake = destination / ".lake"
+    mirror_lake.mkdir(mode=0o700)
+    if trusted_lake.is_dir():
+        _symlink_directory_contents(
+            trusted_lake,
+            mirror_lake,
+            excluded=frozenset({"config"}),
+        )
+        trusted_config = trusted_lake / "config"
+        if trusted_config.is_dir():
+            shutil.copytree(trusted_config, mirror_lake / "config", symlinks=True)
+
+
+def _materialize_package_graph(
+    sources: tuple[PackageSource, ...], packages_dir: Path
+) -> tuple[dict[str, object], ...]:
+    entries = []
+    for index, package in enumerate(sources):
+        name, source, _config, _manifest, _scope = package
+        destination = packages_dir / name
+        _materialize_package_mirror(source.resolve(), destination)
+        entries.append(_path_package_entry(package, destination, inherited=index != 0))
+    return tuple(entries)
+
+
 def create_workspace(
     *,
     task_files: Mapping[str, bytes],
@@ -58,7 +233,20 @@ def create_workspace(
             destination = root / name
             destination.write_bytes(content)
             destination.chmod(0o600)
-        (root / "lakefile.toml").write_text(_lakefile(project_root), encoding="utf-8")
+        lake_dir = root / ".lake"
+        lake_dir.mkdir(mode=0o700)
+        entries = _materialize_package_graph(
+            _local_package_sources(project_root), lake_dir / "packages"
+        )
+        (root / "lakefile.toml").write_text(
+            _lakefile(Path(str(entries[0]["dir"]))), encoding="utf-8"
+        )
+        (root / "lake-manifest.json").write_text(
+            _workspace_manifest(entries[0]), encoding="utf-8"
+        )
+        (lake_dir / "package-overrides.json").write_text(
+            _package_overrides(entries), encoding="utf-8"
+        )
         (root / ".home" / ".tmp").mkdir(parents=True, mode=0o700)
         return WorkspacePaths(
             root=root,
@@ -89,24 +277,16 @@ def cleanup_workspace(paths: WorkspacePaths) -> None:
         shutil.rmtree(paths.root, ignore_errors=True)
 
 
-def _remaining_seconds(deadline: float) -> int:
-    return max(1, int(deadline - time.monotonic() + 0.999))
-
-
 def build_challenge(
     paths: WorkspacePaths,
     lake: Path,
     env: Mapping[str, str],
     timeout_seconds: int,
 ) -> ProcessResult:
-    deadline = time.monotonic() + timeout_seconds
-    update = run_process((str(lake), "update"), cwd=paths.root, timeout_seconds=_remaining_seconds(deadline), env=env)
-    if update.exit_code != 0 or update.timed_out:
-        return update
     return run_process(
         (str(lake), "build", "Challenge"),
         cwd=paths.root,
-        timeout_seconds=_remaining_seconds(deadline),
+        timeout_seconds=timeout_seconds,
         env=env,
     )
 

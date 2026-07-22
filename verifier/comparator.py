@@ -70,6 +70,7 @@ def sandbox_self_test(tools: ComparatorTools, project_root: Path) -> bool:
             root = Path(temporary)
             allowed = root / "allowed"
             denied = root / "denied"
+            readable = project_root / "pins.lock.json"
             allowed.mkdir()
             denied.mkdir()
             (denied / "existing").write_bytes(b"unchanged")
@@ -87,14 +88,16 @@ def sandbox_self_test(tools: ComparatorTools, project_root: Path) -> bool:
                 "-ldd",
                 "-add-exec",
                 "--ro",
-                str(project_root),
+                str(probe),
+                "--ro",
+                str(readable),
                 "--rwx",
                 str(allowed),
                 "/usr/bin/python3",
                 str(probe),
                 str(allowed),
                 str(denied),
-                str(project_root / "pins.lock.json"),
+                str(readable),
             )
             result = subprocess.run(
                 command,

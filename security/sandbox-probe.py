@@ -74,6 +74,7 @@ def main(arguments: list[str]) -> int:
         _allowed(lambda: (allowed / "created").write_bytes(b"ok")),
         _allowed(lambda: readable.read_bytes()),
         _allowed(lambda: Path("/dev/null").read_bytes()),
+        _denied(lambda: denied_file.read_bytes()),
         _denied(lambda: subprocess.run((str(allowed / "executable"),), check=True)),
         _denied(lambda: _map_executable(allowed / "executable")),
         _denied(

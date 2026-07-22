@@ -32,11 +32,19 @@ while (($#)); do
       (($# >= 2)) || { echo "missing value for --ro" >&2; exit 64; }
       if [[ "$2" = / ]]; then
         # Comparator's default exposes the host's entire read-only filesystem.
-        # The generated workspace, toolchain, and all pinned dependencies live
-        # below ROOT. Dynamically linked Lean binaries also need the host's
-        # loader and system libraries, but not home directories, mounts, or
-        # /proc.
-        arguments+=(--ro "$ROOT")
+        # Expose only the immutable project paths needed by Lake and Lean. In
+        # particular, do not expose ROOT/.work: it may contain another miner's
+        # concurrently verified submission.
+        for path in \
+          "$ROOT/.elan" \
+          "$ROOT/.lake" \
+          "$ROOT/lean" \
+          "$ROOT/vendor" \
+          "$ROOT/lakefile.toml" \
+          "$ROOT/lake-manifest.json" \
+          "$ROOT/lean-toolchain"; do
+          [[ -e "$path" ]] && arguments+=(--ro "$path")
+        done
         for path in /usr/lib /usr/lib64; do
           [[ -e "$path" ]] && arguments+=(--rox "$path")
         done

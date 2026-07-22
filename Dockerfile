@@ -71,7 +71,7 @@ RUN mkdir -p .lake/packages \
            git config --system --add safe.directory "/opt/fc-verifier/$package"; \
          done; \
        done \
-    && useradd --create-home --shell /usr/sbin/nologin --uid 10001 verifier \
+    && /usr/sbin/useradd --create-home --shell /usr/sbin/nologin --uid 10001 verifier \
     && mkdir -p .work \
     && chown verifier:verifier .work
 

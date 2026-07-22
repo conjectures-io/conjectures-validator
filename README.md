@@ -193,19 +193,26 @@ Lean kernel. This ordering matters: compiling an attacker-controlled solution wi
 build` before Comparator would contaminate the workspace and would still fail to check statement
 identity or axiom closure. A successful `lake build` alone is therefore never an accepted verdict.
 
+Each fresh workspace contains a minimal Lake manifest and path-only overrides for the already-pinned
+local package graph. Immutable source and build artifacts are linked into per-package mirrors while
+Lake's lock/config metadata is copied into the writable tmpfs. Verification never runs `lake update`
+and cannot clone or refresh dependencies at runtime; manifest paths are validated to remain inside
+the trusted project before any mirror is created.
+
 ## Isolation and trusted computing base
 
 Production verification is the Ubuntu container path on a kernel with Landlock ABI 4 or newer. It
 runs as UID 10001, drops capabilities, uses `no-new-privileges`, a read-only root, bounded
 PID/CPU/memory/file settings, a bounded tmpfs, and `network_mode: none`. Comparator invokes a pinned,
-fail-closed wrapper around Landrun: hostile code can read the public verifier tree, write its fresh
-workspace, and access only harmless `/dev` nodes; it cannot read `/proc`, host home directories, or
-unrelated mounts. A seccomp layer denies all socket creation (including the AF_UNIX channel called
-out by Comparator), `io_uring`, pidfds, cross-process memory/limit/signal operations, kernel
-keyrings, legacy IPC, namespace/mount operations, process-group escape, and file metadata mutation
-(which Landlock itself does not mediate). The writable build directory is deliberately non-executable
-at both the Landlock and container-mount layers; anonymous executable memory and executable
-permission upgrades are also denied. The workspace is deleted unless
+fail-closed wrapper around Landrun: hostile code can read only the immutable Lean toolchain, package
+sources/build cache, and its fresh workspace; it cannot read another concurrent workspace, the rest
+of the verifier tree, `/proc`, host home directories, or unrelated mounts. It can write only its
+workspace and harmless `/dev` nodes. A seccomp layer denies all socket creation (including the
+AF_UNIX channel called out by Comparator), `io_uring`, pidfds, cross-process memory/limit/signal
+operations, kernel keyrings, legacy IPC, namespace/mount operations, process-group escape, and file
+metadata mutation (which Landlock itself does not mediate). The writable build directory is
+deliberately non-executable at both the Landlock and container-mount layers; anonymous executable
+memory and executable permission upgrades are also denied. The workspace is deleted unless
 `--retain-workspace` was explicitly requested for operator diagnostics.
 
 Direct macOS execution is a development convenience only. Comparator's pinned fake-Landrun shim is
