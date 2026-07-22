@@ -62,6 +62,7 @@ def test_verification_environment_does_not_inherit_injection_variables(monkeypat
     (home / ".tmp").mkdir(parents=True)
     environment = trusted_environment(ROOT, home)
     assert str(tmp_path) not in environment["PATH"]
+    assert environment["LEAN_NUM_THREADS"] == "1"
     assert "LEAN_PATH" not in environment
     assert "LD_PRELOAD" not in environment
 

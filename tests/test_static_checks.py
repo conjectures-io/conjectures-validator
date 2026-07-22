@@ -143,3 +143,17 @@ def test_source_declaration_dependency_is_rejected():
         manifest(forbidden=("VerifierFixtures.direct",)),
     )
     assert not quoted.valid
+
+
+def test_rooted_source_dependency_with_dots_inside_quoted_names_is_rejected():
+    source = "Kourovka.«19.25».kourovka.«19.25»"
+    rooted = check_submission(
+        f"theorem target : True := by exact _root_.{source}\n",
+        manifest(forbidden=(source,)),
+    )
+    short = check_submission(
+        "theorem target : True := by exact «19.25»\n",
+        manifest(forbidden=(source,)),
+    )
+    assert not rooted.valid
+    assert not short.valid

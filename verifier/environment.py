@@ -42,5 +42,6 @@ def trusted_environment(project_root: Path, home: Path) -> Mapping[str, str]:
         "LC_ALL": "C",
         "PATH": os.pathsep.join((str(toolchain_bin.resolve()), str(elan_bin.resolve()), *SYSTEM_PATH)),
         "LEAN_ABORT_ON_PANIC": "1",
+        "LEAN_NUM_THREADS": "1",
         "TMPDIR": str((home / ".tmp").resolve()),
     }

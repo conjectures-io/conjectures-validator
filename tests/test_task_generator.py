@@ -177,6 +177,35 @@ def test_unsafe_module_name_is_rejected_before_writing_task(tmp_path):
     assert error.value.reason == ReasonCode.INVALID_MANIFEST
 
 
+def test_quoted_module_segment_with_dots_is_accepted(tmp_path):
+    item = replace(
+        declaration(),
+        module="FormalConjectures.Arxiv.«2303.01089».FurstenbergTimesPTimesQ",
+    )
+    generate_task(
+        catalog=catalog(item),
+        declaration=item,
+        mode="positive",
+        output=tmp_path / "task",
+        validate_target=lambda *_: "sha256:" + "2" * 64,
+    )
+    challenge = (tmp_path / "task" / "Challenge.lean").read_text(encoding="utf-8")
+    assert "import FormalConjectures.Arxiv.«2303.01089».FurstenbergTimesPTimesQ" in challenge
+
+
+def test_quoted_module_segment_cannot_inject_commands(tmp_path):
+    item = replace(declaration(), module="FormalConjectures.«safe»\naxiom.forged")
+    with pytest.raises(VerifierError) as error:
+        generate_task(
+            catalog=catalog(item),
+            declaration=item,
+            mode="positive",
+            output=tmp_path / "task",
+            validate_target=lambda *_: "sha256:" + "2" * 64,
+        )
+    assert error.value.reason == ReasonCode.INVALID_MANIFEST
+
+
 def test_source_name_is_encoded_as_a_lean_string_literal(tmp_path):
     injected = 'Fixture.bad"\naxiom forged : False'
     item = replace(declaration(), theorem=injected)

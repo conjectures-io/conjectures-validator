@@ -14,6 +14,17 @@ from verifier.process import run_process
 from verifier.workspace import WorkspacePaths
 
 
+COMPARATOR_MEMORY_BYTES = 64 * 1024 * 1024 * 1024
+RESOURCE_FAILURE_MARKERS = (
+    "resource exhausted",
+    "resource temporarily unavailable",
+    "failed to create thread",
+    "cannot allocate memory",
+    "out of memory",
+    "std::bad_alloc",
+)
+
+
 @dataclass(frozen=True)
 class ComparatorTools:
     comparator: Path
@@ -45,7 +56,7 @@ def _safe_executable(path: Path | None) -> bool:
     return bool(path is not None and path.is_file() and not path.is_symlink() and os.access(path, os.X_OK))
 
 
-def missing_tools(tools: ComparatorTools, enable_nanoda: bool) -> tuple[str, ...]:
+def missing_tools(tools: ComparatorTools, enable_nanoda: bool = False) -> tuple[str, ...]:
     required = {
         "comparator": tools.comparator,
         "lean4export": tools.lean4export,
@@ -115,13 +126,14 @@ def sandbox_self_test(tools: ComparatorTools, project_root: Path) -> bool:
 
 def production_sandbox_available(
     tools: ComparatorTools,
-    project_root: Path,
+    project_root: Path | None = None,
     *,
     self_test_result: bool | None = None,
 ) -> bool:
+    root = project_root or Path(__file__).resolve().parent.parent
     unprivileged = not hasattr(os, "geteuid") or os.geteuid() != 0
     behavior_valid = (
-        sandbox_self_test(tools, project_root)
+        sandbox_self_test(tools, root)
         if self_test_result is None
         else self_test_result
     )
@@ -192,7 +204,7 @@ def run_comparator(
         cwd=paths.root,
         timeout_seconds=timeout_seconds,
         env=effective_env,
-        memory_bytes=12 * 1024 * 1024 * 1024,
+        memory_bytes=COMPARATOR_MEMORY_BYTES,
         cpu_seconds=timeout_seconds,
         file_bytes=2 * 1024 * 1024 * 1024,
         open_files=1024,
@@ -207,7 +219,7 @@ def rejection_reason(result: ProcessResult, enable_nanoda: bool) -> ReasonCode:
     combined = f"{result.stdout}\n{result.stderr}".lower()
     if result.exit_code == 127 or "missing verification tools" in combined:
         return ReasonCode.INTERNAL_ERROR
-    if result.signal is not None:
+    if result.signal is not None or any(marker in combined for marker in RESOURCE_FAILURE_MARKERS):
         return ReasonCode.RESOURCE_LIMIT
     if combined.rfind("building solution") > combined.rfind("exporting"):
         return ReasonCode.SOLUTION_BUILD_FAILED

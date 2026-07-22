@@ -4,7 +4,7 @@ services:
       context: .
       args:
         ENABLE_NANODA: ${ENABLE_NANODA:-0}
-        LEAN_BUILD_THREADS: ${FC_LEAN_BUILD_THREADS:-3}
+        LEAN_BUILD_THREADS: ${FC_LEAN_BUILD_THREADS:-16}
     image: formal-conjectures-verifier:local
     network_mode: none
     read_only: true
@@ -14,7 +14,7 @@ services:
     cap_drop:
       - ALL
     pids_limit: 512
-    mem_limit: 12g
+    mem_limit: 72g
     cpus: 4
     tmpfs:
       - /tmp:rw,nosuid,nodev,noexec,size=2g

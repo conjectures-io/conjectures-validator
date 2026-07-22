@@ -107,7 +107,7 @@ FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier veri
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
 
-The image build defaults to three Lean worker threads; set `FC_LEAN_BUILD_THREADS` to match the
+The image build defaults to sixteen Lean worker threads; set `FC_LEAN_BUILD_THREADS` to match the
 memory and CPU available to the builder.
 
 Compose mounts the task collection read-only and only the selected submission file, then applies

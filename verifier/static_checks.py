@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Mapping
+import re
 import unicodedata
 
 from verifier.models import StaticCheckResult, TaskManifest
@@ -96,10 +97,9 @@ MAX_LITERAL_DIGITS = 4096
 
 
 def _lean_name_parts(value: str) -> tuple[str, ...]:
-    return tuple(
-        part.removeprefix("«").removesuffix("»")
-        for part in value.removeprefix("_root_.").split(".")
-    )
+    rooted = value.removeprefix("_root_.")
+    segments = re.findall(r"«[^»]*»|[^.]+", rooted)
+    return tuple(part.removeprefix("«").removesuffix("»") for part in segments)
 
 
 def lean_tokens(text: str) -> tuple[Token, ...]:
@@ -328,12 +328,12 @@ def check_submission(text: str, manifest: TaskManifest) -> StaticCheckResult:
         -1,
     )
     for dependency in manifest.forbidden_dependencies:
-        short = dependency.rsplit(".", 1)[-1]
+        dependency_parts = _lean_name_parts(dependency)
+        short = dependency_parts[-1]
         references = tuple(
             index
             for index, token in enumerate(tokens)
-            if token.value == dependency
-            or token.value == short
+            if _lean_name_parts(token.value) == dependency_parts
             or short in _lean_name_parts(token.value)
         )
         if any(not (target_start <= index < target_assign) for index in references):
