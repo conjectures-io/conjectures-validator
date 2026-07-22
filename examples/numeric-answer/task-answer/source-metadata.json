@@ -1,0 +1,32 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [],
+  "answer_occurrences": [
+    {
+      "expression_pretty": "sorry",
+      "kind": "value",
+      "type_pretty": "Nat"
+    }
+  ],
+  "category": "test",
+  "classification": "NAT_ANSWER",
+  "contains_answer_annotation": true,
+  "contains_sorry_in_type": true,
+  "declaration_kind": "theorem",
+  "docstring": "Self-contained verifier fixture.",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "TestFixtures",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "lean/TestFixtures.lean",
+  "supported_modes": [
+    "answer"
+  ],
+  "theorem": "VerifierFixtures.natAnswer",
+  "type_hash": "sha256:4832d96d27c38d192465f21b1e48b9168499b1dea58acff19f6beea3f402d428",
+  "type_pretty": "fixture"
+}

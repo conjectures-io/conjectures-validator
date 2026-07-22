@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "elan": {
+    "repository": "https://github.com/leanprover/elan.git",
+    "commit": "464c9d28395000a2a0128e07081e4956d50eced2"
+  },
+  "formal_conjectures": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+    "commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20"
+  },
+  "lean": {
+    "toolchain": "leanprover/lean4:v4.27.0",
+    "commit": "db93fe1608548721853390a10cd40580fe7d22ae"
+  },
+  "mathlib": {
+    "repository": "https://github.com/leanprover-community/mathlib4.git",
+    "commit": "a3a10db0e9d66acbebf76c5e6a135066525ac900"
+  },
+  "comparator": {
+    "repository": "https://github.com/leanprover/comparator.git",
+    "commit": "68a064109f01c08f47c8edc9f51d6a2bbffaa188"
+  },
+  "lean4export": {
+    "repository": "https://github.com/leanprover/lean4export.git",
+    "commit": "590dec59d93ab6becdf16fdd8aee5abbb99cb856"
+  },
+  "landrun": {
+    "repository": "https://github.com/Zouuup/landrun.git",
+    "commit": "5ed4a3db3a4ad930d577215c6b9abaa19df7f99f"
+  },
+  "nanoda": {
+    "repository": "https://github.com/ammkrn/nanoda_lib.git",
+    "commit": "f58f2f6d535e189a40fcb02ede8eb95f97a92d37",
+    "enabled": false
+  }
+}

@@ -1,0 +1,40 @@
+name = "formal_conjectures_verifier"
+version = "0.1.0"
+defaultTargets = ["VerifierLean", "TaskSupport", "TestFixtures"]
+
+[[require]]
+name = "formal_conjectures"
+path = "vendor/formal-conjectures"
+
+[[lean_lib]]
+name = "VerifierLean"
+srcDir = "lean"
+[lean_lib.leanOptions]
+warn.sorry = false
+weak.google.answer = "postpone"
+
+[[lean_lib]]
+name = "TaskSupport"
+srcDir = "lean"
+[lean_lib.leanOptions]
+warn.sorry = false
+weak.google.answer = "postpone"
+
+[[lean_lib]]
+name = "TestFixtures"
+srcDir = "lean"
+[lean_lib.leanOptions]
+warn.sorry = false
+weak.google.answer = "postpone"
+
+[[lean_exe]]
+name = "catalog_extractor"
+srcDir = "lean"
+root = "CatalogExtractor"
+supportInterpreter = true
+
+[[lean_exe]]
+name = "task_inspector"
+srcDir = "lean"
+root = "TaskInspector"
+supportInterpreter = true

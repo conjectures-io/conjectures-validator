@@ -1,0 +1,15 @@
+.elan/
+.venv/
+.tools/
+.lake/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.olean
+*.ilean
+*.trace
+.work/
+dist/
+build/
+# Recreated at pinned revisions by scripts/pin_dependencies.sh.
+vendor/

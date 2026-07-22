@@ -1,0 +1,20 @@
+services:
+  verifier:
+    build: .
+    image: formal-conjectures-verifier:local
+    network_mode: none
+    read_only: true
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    mem_limit: 8g
+    cpus: 4
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=2g
+      - /opt/fc-verifier/.work:rw,nosuid,nodev,noexec,size=2g,uid=10001,gid=10001,mode=0700
+    volumes:
+      - ./tasks:/inputs/tasks:ro
+      - ./submissions:/inputs/submissions:ro

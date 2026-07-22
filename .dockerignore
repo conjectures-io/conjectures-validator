@@ -1,0 +1,13 @@
+.git
+.elan
+.venv
+.tools
+.lake
+.work
+.pytest_cache
+**/__pycache__
+**/*.pyc
+**/.lake
+vendor
+data/catalog.json
+tasks/generated

@@ -1,0 +1,38 @@
+{
+  "accepted": true,
+  "checks": {
+    "axioms_permitted": true,
+    "challenge_built": true,
+    "lean_kernel_passed": true,
+    "manifest_valid": true,
+    "nanoda_enabled": false,
+    "nanoda_passed": false,
+    "same_statement": true,
+    "solution_built": true,
+    "source_type_hash_valid": true,
+    "submission_policy_valid": true,
+    "trusted_hashes_valid": true
+  },
+  "comparator_exit_code": 0,
+  "duration_ms": 140232,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "reason_code": "VERIFIED",
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "sandbox_mode": "development-fake-landrun",
+  "schema_version": 1,
+  "source_theorem": "VerifierFixtures.natAnswer",
+  "stage": "COMPLETED",
+  "stderr_tail": "",
+  "stdout_tail": "Lean default kernel accepts the solution\nYour solution is okay!\n",
+  "submission_sha256": "sha256:10fa8afd576461e8693486e862efd2d9e7eb37491c51012f3aa07d5caa2b0316",
+  "task_id": "fc-e923379e-verifierfixtures-natanswer-6b81a4e4d8-answer-v1",
+  "task_mode": "answer",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "workspace_retained": false
+}
