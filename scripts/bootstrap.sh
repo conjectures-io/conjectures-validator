@@ -38,6 +38,9 @@ fi
 export PATH="$ELAN_HOME/bin:$PATH"
 
 python3 -m venv "$ROOT/.venv"
-"$ROOT/.venv/bin/pip" install -e '.[dev]'
+"$ROOT/.venv/bin/pip" install \
+  --constraint "$ROOT/requirements-subnet.lock" \
+  -e '.[dev,subnet]'
+"$ROOT/.venv/bin/pip" check
 ./scripts/build_trusted_cache.sh
 "$ROOT/.venv/bin/python" -m verifier doctor

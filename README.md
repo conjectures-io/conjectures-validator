@@ -18,8 +18,9 @@ Formal Conjectures e923379e…
   -> stable JSON reason code and verdict
 ```
 
-No Bittensor networking, miners, validators, emissions, scoring, commit-reveal, novelty analysis,
-frontend, accounts, or remote service is present.
+The verifier remains isolated from networking and wallets. A separate `frontier_subnet` package
+adds the phase 1–3 Bittensor foundation and a submission-only miner; it does not include a solver,
+validator scoring loop, emissions logic, frontend, accounts, or remote submission upload.
 
 ## Quick start
 
@@ -35,7 +36,18 @@ python -m verifier doctor
 The bootstrap script checks out only the commits in `pins.lock.json`, installs the pinned Lean
 toolchains, downloads Mathlib's trusted binary cache, builds Formal Conjectures in `answer`
 postpone mode, and builds Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is
-optional: set `ENABLE_NANODA=1` during bootstrap to build it.
+optional: set `ENABLE_NANODA=1` during bootstrap to build it. It also installs the pinned Bittensor
+v11 subnet dependencies and the `frontier-miner` command.
+
+## Submission-only Bittensor miner
+
+The reference miner stores Lean source that its operator created elsewhere. It has no solver
+integration: `frontier-miner load` safely imports one local, allowlisted task/submission pair, and
+`frontier-miner serve` returns signed, chain-round-bound commitments and timed reveals to
+authorized validators. Runtime state lives outside the Git worktree.
+
+See [`docs/SUBNET.md`](docs/SUBNET.md) for the protocol boundary, localnet setup, container
+deployment, and phase 1–3 verification gates.
 
 Build and inspect the real full-repository catalog:
 

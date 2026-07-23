@@ -1,0 +1,17 @@
+services:
+  subtensor-localnet:
+    image: ghcr.io/raofoundation/subtensor-localnet:sha-89eb75f38fb3121fdd041d642331cc975dd20d94@sha256:9d803c0e632bb76e7dab78dea8c4432f1dd9b33578c9ed3649a3183893df7855
+    command:
+      - "True"
+      - --no-purge
+    ports:
+      - "127.0.0.1:${BT_LOCALNET_WS_PORT:-9944}:9944"
+      - "127.0.0.1:${BT_LOCALNET_EVM_PORT:-9945}:9945"
+    volumes:
+      - type: volume
+        source: subtensor-localnet-state
+        target: /tmp
+    stop_grace_period: 30s
+
+volumes:
+  subtensor-localnet-state:
