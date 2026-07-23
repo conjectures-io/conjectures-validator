@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "WOWII [Conjecture 103](http://cms.dt.uh.edu/faculty/delavinae/research/wowII/)\n\nFor a simple connected graph $G$,\n$\\alpha(G) \\le \\lfloor b(G) - \\ln(\\mathrm{ecc\\_avg}(G)) \\rfloor$\nwhere $\\alpha(G) = G.\\mathrm{indepNum}$ is the independence number,\n$b(G)$ is the largest induced bipartite subgraph size, and\n$\\mathrm{ecc\\_avg}(G) = G.\\mathrm{averageEccentricity}$ is the average\neccentricity of $G$. Uses `Real.log` (natural logarithm).\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.WrittenOnTheWallII.GraphConjecture103",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture103.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "WrittenOnTheWallII.GraphConjecture103.conjecture103",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:4d2054be6531efe09af4a1e14a91b2a4cd61388b16699f9ad417314bad61901f",
+  "type_pretty": "∀ {α : Type u_1} [inst : Fintype α] [DecidableEq α] [Nontrivial α] (G : SimpleGraph α),\n  G.Connected → ↑G.indepNum ≤ ↑⌊G.b - Real.log G.averageEccentricity⌋"
+}

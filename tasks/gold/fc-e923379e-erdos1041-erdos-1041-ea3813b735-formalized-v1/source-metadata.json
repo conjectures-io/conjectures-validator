@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    32
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let\n$$ f(z) = \\prod_{i=1}^{n} (z - z_i) \\in \\mathbb{C}[x] $$\nwith $|z_i| < 1$ for all $i$.\n\nConjecture: Must there always exist a path of length less than 2 in\n$$ \\{ z \\in \\mathbb{C} \\mid |f(z)| < 1 \\} $$\nwhich connects two of the roots of $f$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1041»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1041.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1041.erdos_1041",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:0cb15bb9b616d55f9d8b4992e3b911ec31f1ec5c605fdaf025a249096bc771df",
+  "type_pretty": "∀ (n : ℕ) (f : Polynomial ℂ),\n  n ≥ 2 →\n    f.natDegree = n →\n      f.Monic →\n        f.rootSet ℂ ⊆ Metric.ball 0 1 →\n          ∃ z₁ z₂,\n            ∃ (_ : {z₁, z₂} ≤ f.roots),\n              ∃ γ, Set.range ⇑γ ⊆ {z | ‖Polynomial.eval z f‖ < 1} ∧ Erdos1041.length (Set.range ⇑γ) < 2"
+}

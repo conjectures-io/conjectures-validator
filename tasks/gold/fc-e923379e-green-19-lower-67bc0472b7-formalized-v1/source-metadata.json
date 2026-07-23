@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "[Ma21] showed that $3.13 \\leq C$. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.GreensOpenProblems.«19»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/GreensOpenProblems/19.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Green19.green_19.lower",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:2f7204f5412e11e870de1952fcc099abdc3d565c433db1f0419ffdf61a784696",
+  "type_pretty": "Green19.C ≥ 3.13"
+}

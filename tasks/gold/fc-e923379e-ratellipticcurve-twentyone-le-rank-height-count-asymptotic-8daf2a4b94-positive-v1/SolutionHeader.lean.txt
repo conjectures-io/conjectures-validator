@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.EllipticCurveRank
-import TaskSupport
-
-namespace Bounty

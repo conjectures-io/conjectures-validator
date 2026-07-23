@@ -282,7 +282,7 @@ def test_cli_load_is_local_only_and_copies_submission(tmp_path, capsys):
     task = (
         project_root
         / "tasks/gold"
-        / "fc-e923379e-balancedprimes-balanced-primes-order-45ebef4685-positive-v1"
+        / "fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1"
     )
     source = tmp_path / "Main.lean"
     source.write_text("theorem Bounty.target : True := by\n  trivial\n", encoding="utf-8")
@@ -311,20 +311,49 @@ def test_cli_load_is_local_only_and_copies_submission(tmp_path, capsys):
 
 
 def test_task_registry_rejects_non_deny_or_unknown_schema(tmp_path):
+    source_type = "sha256:" + "c" * 64
     base = {
-        "schema_version": 1,
+        "schema_version": 2,
         "default": "DENY",
         "repository_commit": "a" * 40,
+        "audit_date_utc": "2026-07-23",
+        "pool_policy": {
+            "classification": "DIRECT_PROP",
+            "compiled_target_validation": True,
+            "exact_source_type": True,
+            "mode": "formalized",
+            "one_task_per_source_path": True,
+            "pool_size": 1,
+            "retired_source_theorems_sha256": "sha256:" + "d" * 64,
+            "selection": "balanced-repository-area-v1",
+            "source_category": "research open",
+            "synthetic_negation": False,
+        },
+        "allowed_source_theorems": [
+            {
+                "index": 1,
+                "source_path": "FormalConjectures/Test.lean",
+                "source_type_sha256": source_type,
+                "theorem": "Fixture.test",
+            }
+        ],
         "allowed_task_bundles": [
             {
-                "task_id": "fc-test-positive-v1",
+                "mode": "formalized",
+                "source_index": 1,
+                "source_path": "FormalConjectures/Test.lean",
+                "task_id": "fc-test-formalized-v1",
                 "task_bundle_sha256": "sha256:" + "b" * 64,
-                "target_type_sha256": "sha256:" + "c" * 64,
+                "target_type_sha256": source_type,
+                "theorem": "Fixture.test",
             }
         ],
     }
+    valid = tmp_path / "valid.json"
+    valid.write_text(json.dumps(base), encoding="utf-8")
+    assert len(GoldTaskRegistry.load(valid).tasks) == 1
     for name, update in (
-        ("schema", {"schema_version": 2}),
+        ("schema", {"schema_version": 1}),
         ("boolean-schema", {"schema_version": True}),
         ("default", {"default": "ALLOW"}),
     ):

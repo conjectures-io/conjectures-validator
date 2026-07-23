@@ -56,7 +56,12 @@ def _lean_string(value: str) -> str:
 
 def _direct(declaration: CatalogDeclaration, mode: str, _context: GenerationContext) -> GeneratedLean:
     source = _lean_string(declaration.theorem)
-    target = f"fcTypeOfName% {source}" if mode == "positive" else f"¬ (fcTypeOfName% {source})"
+    if mode in {"formalized", "positive"}:
+        target = f"fcTypeOfName% {source}"
+    elif mode == "negative":
+        target = f"¬ (fcTypeOfName% {source})"
+    else:
+        raise ValueError(f"unsupported direct proposition mode: {mode}")
     return GeneratedLean(target, (), {})
 
 
@@ -96,7 +101,11 @@ def _finite(declaration: CatalogDeclaration, _mode: str, _context: GenerationCon
 
 
 ADAPTERS: Mapping[Classification, AdapterSpec] = {
-    Classification.DIRECT_PROP: AdapterSpec(Classification.DIRECT_PROP, ("positive", "negative"), _direct),
+    Classification.DIRECT_PROP: AdapterSpec(
+        Classification.DIRECT_PROP,
+        ("formalized", "positive", "negative"),
+        _direct,
+    ),
     Classification.PROP_ANSWER_WRAPPER: AdapterSpec(
         Classification.PROP_ANSWER_WRAPPER, ("positive", "negative"), _prop_answer
     ),

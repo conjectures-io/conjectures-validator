@@ -1,4 +1,0 @@
-import FormalConjectures.Mathoverflow.«507128»
-import TaskSupport
-
-namespace Bounty

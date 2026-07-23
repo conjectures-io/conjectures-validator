@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Problem 10.4. Let $\\xi$ be a non-zero real number and $\\alpha > 1$ be a real\nnumber. The spectrum of the sequence $(\\xi \\alpha^n)_{n \\ge 1}$ is at most\ncountable. Posed by Mendès France [Men73].\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Books.BugeaudDistributionModuloOne.Problem10_4",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_4.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Bugeaud04.spectrum_xi_alpha_pow_countable",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:b0d80349c04ae3fc5534315de4696db1ca0928ee664d500b796bda25737b8785",
+  "type_pretty": "∀ (ξ : ℝ), ξ ≠ 0 → ∀ (α : ℝ), 1 < α → (Bugeaud04.Spectrum fun n => ξ * α ^ n).Countable"
+}

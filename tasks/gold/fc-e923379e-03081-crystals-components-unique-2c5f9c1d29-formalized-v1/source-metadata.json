@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11,
+    26
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "If $n = ab$ is a crystal, then there are no other pairs of\npositive integers $c, d > 1$, different from the couple $a, b$, such that $n = cd$ and\n$B(c, d) ∈ ℕ$, i.e., the components of the crystals are unique.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Arxiv.«1601.03081».UniqueCrystalComponents",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Arxiv/1601.03081/UniqueCrystalComponents.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Arxiv.«1601.03081».crystals_components_unique",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:02e9908014142e8004884e800c8b2049bf01c4a26185a865d763ace90c730517",
+  "type_pretty": "∀ (n a b c d : ℕ),\n  Arxiv.«1601.03081».IsCrystalWithComponents n a b → Arxiv.«1601.03081».IsCrystalWithComponents n c d → {a, b} = {c, d}"
+}

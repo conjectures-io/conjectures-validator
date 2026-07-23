@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "AgrawalConjecture.agrawal_conjecture.variants.popovych"
+  ],
+  "generated_target_type_hash": "sha256:bff13f17ab34f2fb67d1a108b4f3332755318fd32a005909776d860cbe01a757",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.Agrawal",
+  "source_path": "FormalConjectures/Wikipedia/Agrawal.lean",
+  "source_theorem": "AgrawalConjecture.agrawal_conjecture.variants.popovych",
+  "source_type_hash": "sha256:bff13f17ab34f2fb67d1a108b4f3332755318fd32a005909776d860cbe01a757",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-popovych-e7710df074-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:9d77211e205ea6d4629602fd73c217218762593c3b78dadb51ac81e4853e49e3",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:94211a9be792c579571e09c85d90261e2537c4464d852f46727c1d3eea6a61bb",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:7730a48d3944dfbf7caf6863cd882c35a20f6f14d24ab2a12c6c3e09d43c8d4e"
+  }
+}

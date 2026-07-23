@@ -55,6 +55,8 @@ RUN mkdir -p .lake/packages \
     && for package in vendor/formal-conjectures/.lake/packages/*; do \
          ln -s "../../$package" ".lake/packages/$(basename "$package")"; \
        done \
+    && chmod 755 gold \
+    && chmod 644 gold/README.md gold/allowlist.json gold/retired-source-theorems.json \
     && lake exe cache get \
     && lake build VerifierLean TaskSupport TestFixtures catalog_extractor task_inspector \
     && cc -O2 -Wall -Wextra -Werror -o .tools/seccomp-launcher security/seccomp-launcher.c \

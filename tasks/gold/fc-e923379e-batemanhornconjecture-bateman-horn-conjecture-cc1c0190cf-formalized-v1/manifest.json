@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "BatemanHornConjecture.bateman_horn_conjecture"
+  ],
+  "generated_target_type_hash": "sha256:ef5a379980532f3f3769800b879242aebed09065e79c9225192f1f6154b4ae5b",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Wikipedia.BatemanHornConjecture",
+  "source_path": "FormalConjectures/Wikipedia/BatemanHornConjecture.lean",
+  "source_theorem": "BatemanHornConjecture.bateman_horn_conjecture",
+  "source_type_hash": "sha256:ef5a379980532f3f3769800b879242aebed09065e79c9225192f1f6154b4ae5b",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-batemanhornconjecture-bateman-horn-conjecture-cc1c0190cf-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:fa37ec134ed81b4c282c8a17b03ad6af5c4bff4a3af4587246c803fa3df6f8aa",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:2ea01bcc87983230c72ee1e8a4eb3a0c79b0aeecf9e216dbfbec7164d4bb4bde",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:2c4c5fc7c4a368e30dc48243121be5bdd4009666b3f518ce0cb2db0db506eb38"
+  }
+}

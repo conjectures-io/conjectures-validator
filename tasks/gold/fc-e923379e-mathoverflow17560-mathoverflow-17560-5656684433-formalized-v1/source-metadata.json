@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11,
+    13
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "If $2^x$ and $3^x$ are integers, then $x$ must be an integer.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Mathoverflow.«17560»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Mathoverflow/17560.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Mathoverflow17560.mathoverflow_17560",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f6b5a333443e3a3a07758ce4bd10ac061e9e1603f53ce9036187f1e719369c29",
+  "type_pretty": "∀ {x : ℝ}, (∃ m, 2 ^ x = ↑m) → (∃ m, 3 ^ x = ↑m) → ∃ m, x = ↑m"
+}

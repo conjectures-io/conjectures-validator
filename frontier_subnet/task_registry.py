@@ -4,12 +4,18 @@ import json
 import os
 import re
 import stat
+from datetime import date
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from verifier.gold_pool import (
+    GOLD_POOL_SCHEMA_VERSION,
+    GOLD_POOL_SELECTION,
+)
 from verifier.hashing import is_sha256
 from verifier.task_loader import TaskBundle
+from verifier.task_policy import GOLD_TASK_MODE
 
 
 MAX_ALLOWLIST_BYTES = 4 * 1024 * 1024
@@ -89,32 +95,148 @@ class GoldTaskRegistry:
     @classmethod
     def load(cls, path: Path) -> "GoldTaskRegistry":
         value = _json_object(_read_regular(path, MAX_ALLOWLIST_BYTES))
-        if type(value.get("schema_version")) is not int or value["schema_version"] != 1:
+        expected_fields = {
+            "allowed_source_theorems",
+            "allowed_task_bundles",
+            "audit_date_utc",
+            "default",
+            "pool_policy",
+            "repository_commit",
+            "schema_version",
+        }
+        if set(value) != expected_fields:
+            raise TaskNotAllowed("task allowlist field set is invalid")
+        if (
+            type(value.get("schema_version")) is not int
+            or value["schema_version"] != GOLD_POOL_SCHEMA_VERSION
+        ):
             raise TaskNotAllowed("task allowlist schema version is invalid")
         if value.get("default") != "DENY":
             raise TaskNotAllowed("task allowlist must be deny-by-default")
+        audit_date = value.get("audit_date_utc")
+        try:
+            if (
+                not isinstance(audit_date, str)
+                or date.fromisoformat(audit_date).isoformat() != audit_date
+            ):
+                raise ValueError
+        except ValueError as exc:
+            raise TaskNotAllowed("task allowlist audit date is invalid") from exc
         repository_commit = value.get("repository_commit")
+        sources = value.get("allowed_source_theorems")
         rows = value.get("allowed_task_bundles")
+        policy = value.get("pool_policy")
         if (
             not isinstance(repository_commit, str)
             or len(repository_commit) != 40
             or any(char not in "0123456789abcdef" for char in repository_commit)
+            or not isinstance(sources, list)
             or not isinstance(rows, list)
+            or not isinstance(policy, dict)
         ):
             raise TaskNotAllowed("task allowlist identity is invalid")
+        expected_policy_fields = {
+            "classification",
+            "compiled_target_validation",
+            "exact_source_type",
+            "mode",
+            "one_task_per_source_path",
+            "pool_size",
+            "retired_source_theorems_sha256",
+            "selection",
+            "source_category",
+            "synthetic_negation",
+        }
+        if (
+            set(policy) != expected_policy_fields
+            or policy.get("classification") != "DIRECT_PROP"
+            or policy.get("compiled_target_validation") is not True
+            or policy.get("exact_source_type") is not True
+            or policy.get("mode") != GOLD_TASK_MODE
+            or policy.get("one_task_per_source_path") is not True
+            or type(policy.get("pool_size")) is not int
+            or policy["pool_size"] <= 0
+            or not is_sha256(policy.get("retired_source_theorems_sha256"))
+            or policy.get("selection") != GOLD_POOL_SELECTION
+            or policy.get("source_category") != "research open"
+            or policy.get("synthetic_negation") is not False
+        ):
+            raise TaskNotAllowed("task allowlist pool policy is invalid")
+
+        source_by_index: dict[int, tuple[str, str, str]] = {}
+        source_theorems: set[str] = set()
+        source_paths: set[str] = set()
+        source_types: set[str] = set()
+        for source in sources:
+            if not isinstance(source, dict) or set(source) != {
+                "index",
+                "source_path",
+                "source_type_sha256",
+                "theorem",
+            }:
+                raise TaskNotAllowed("task allowlist contains an invalid source entry")
+            index = source.get("index")
+            theorem = source.get("theorem")
+            source_path = source.get("source_path")
+            source_type = source.get("source_type_sha256")
+            parsed_path = Path(source_path) if isinstance(source_path, str) else Path()
+            if (
+                type(index) is not int
+                or index < 0
+                or index in source_by_index
+                or not isinstance(theorem, str)
+                or not theorem
+                or theorem in source_theorems
+                or not isinstance(source_path, str)
+                or parsed_path.is_absolute()
+                or ".." in parsed_path.parts
+                or parsed_path.suffix != ".lean"
+                or source_path in source_paths
+                or not is_sha256(source_type)
+                or source_type in source_types
+            ):
+                raise TaskNotAllowed("task allowlist source identity is invalid or duplicate")
+            source_by_index[index] = (theorem, source_path, source_type)
+            source_theorems.add(theorem)
+            source_paths.add(source_path)
+            source_types.add(source_type)
+
         tasks: dict[str, AllowedTask] = {}
+        used_source_indices: set[int] = set()
+        bundle_hashes: set[str] = set()
         for row in rows:
-            if not isinstance(row, dict):
+            if not isinstance(row, dict) or set(row) != {
+                "mode",
+                "source_index",
+                "source_path",
+                "target_type_sha256",
+                "task_bundle_sha256",
+                "task_id",
+                "theorem",
+            }:
                 raise TaskNotAllowed("task allowlist contains a non-object entry")
             task_id = row.get("task_id")
             bundle_hash = row.get("task_bundle_sha256")
             target_hash = row.get("target_type_sha256")
+            source_index = row.get("source_index")
+            source = (
+                source_by_index.get(source_index)
+                if type(source_index) is int
+                else None
+            )
             if (
                 not isinstance(task_id, str)
                 or TASK_ID.fullmatch(task_id) is None
                 or not is_sha256(bundle_hash)
+                or bundle_hash in bundle_hashes
                 or not is_sha256(target_hash)
                 or task_id in tasks
+                or row.get("mode") != GOLD_TASK_MODE
+                or source is None
+                or source_index in used_source_indices
+                or row.get("theorem") != source[0]
+                or row.get("source_path") != source[1]
+                or target_hash != source[2]
             ):
                 raise TaskNotAllowed("task allowlist contains an invalid or duplicate entry")
             tasks[task_id] = AllowedTask(
@@ -122,8 +244,15 @@ class GoldTaskRegistry:
                 task_bundle_sha256=bundle_hash,
                 target_type_sha256=target_hash,
             )
-        if not tasks:
-            raise TaskNotAllowed("task allowlist is empty")
+            used_source_indices.add(source_index)
+            bundle_hashes.add(bundle_hash)
+        if (
+            not tasks
+            or len(tasks) != policy["pool_size"]
+            or len(tasks) != len(source_by_index)
+            or used_source_indices != set(source_by_index)
+        ):
+            raise TaskNotAllowed("task allowlist is empty or not one-to-one")
         return cls(repository_commit=repository_commit, tasks=tasks)
 
     def assert_bundle(self, bundle: TaskBundle) -> AllowedTask:

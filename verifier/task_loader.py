@@ -11,7 +11,7 @@ from typing import Any, Mapping
 from verifier.classification import supported_modes
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import is_sha256, sha256_bytes, sha256_named_bytes
-from verifier.models import CatalogDeclaration, TaskManifest
+from verifier.models import CatalogDeclaration, Classification, TaskManifest
 from verifier.task_generator import (
     MAX_SUBMISSION_BYTES,
     MAX_TIMEOUT_SECONDS,
@@ -20,7 +20,11 @@ from verifier.task_generator import (
     task_id,
     trusted_task_payloads,
 )
-from verifier.task_policy import expected_answer_policy, production_policy_violations
+from verifier.task_policy import (
+    GOLD_TASK_MODE,
+    expected_answer_policy,
+    production_policy_violations,
+)
 
 
 REQUIRED_TRUSTED_FILES = frozenset(
@@ -230,7 +234,11 @@ def _validate_manifest(manifest: TaskManifest) -> None:
     if manifest.forbidden_dependencies != (manifest.source_theorem,):
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "forbidden proof dependencies must contain exactly the source theorem")
     modes = supported_modes(manifest.classification)
-    if modes and manifest.task_mode not in modes:
+    exact_formalized_mode = (
+        manifest.classification == Classification.DIRECT_PROP
+        and manifest.task_mode == GOLD_TASK_MODE
+    )
+    if modes and manifest.task_mode not in modes and not exact_formalized_mode:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "task mode is inconsistent with its classification")
     for label, digest in (
         ("source type", manifest.source_type_hash),
@@ -247,6 +255,17 @@ def _validate_manifest(manifest: TaskManifest) -> None:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "trusted file hash is not SHA-256")
     if manifest.production_eligible and manifest.known_proof_collisions:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "production task records known proof collisions")
+    if (
+        manifest.production_eligible
+        and (
+            manifest.task_mode != GOLD_TASK_MODE
+            or manifest.generated_target_type_hash != manifest.source_type_hash
+        )
+    ):
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "production task must preserve the exact source theorem type",
+        )
 
 
 def _validate_source_metadata(manifest: TaskManifest, source: CatalogDeclaration) -> None:
@@ -266,7 +285,11 @@ def _validate_source_metadata(manifest: TaskManifest, source: CatalogDeclaration
     expected_definitions = ("Bounty.submittedAnswer",) if expected_policy else ()
     if manifest.definition_names != expected_definitions:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "definition targets disagree with source classification")
-    violations = production_policy_violations(source, manifest.known_proof_collisions)
+    violations = production_policy_violations(
+        source,
+        manifest.known_proof_collisions,
+        manifest.task_mode,
+    )
     if manifest.production_eligible != (not violations):
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "production eligibility disagrees with source metadata")
 

@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "DubnerConjecture.dubner_conjecture"
+  ],
+  "generated_target_type_hash": "sha256:ee9172c73eb69675d8b421d5849a8b5c0fcd9a7ae0fdcadd478eac3af39c61fe",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Paper.Dubner",
+  "source_path": "FormalConjectures/Paper/Dubner.lean",
+  "source_theorem": "DubnerConjecture.dubner_conjecture",
+  "source_type_hash": "sha256:ee9172c73eb69675d8b421d5849a8b5c0fcd9a7ae0fdcadd478eac3af39c61fe",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-dubnerconjecture-dubner-conjecture-f6178ed5aa-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:f637882dfb4d4efc534f4d3beb740afb6ae44a49dc690c1d32706791651271ec",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:08945599bbde758f4dbe7687f981323aa39bbe1b3554e350e47e1a02fbebe2a1",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:f8f5c4d797c35b8d3d21d580b53bd3c75d55eca818b044ef7c94de438beef4f8"
+  }
+}

@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.LeinsterGroup
-import TaskSupport
-
-namespace Bounty

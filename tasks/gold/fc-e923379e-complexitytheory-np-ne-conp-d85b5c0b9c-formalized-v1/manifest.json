@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "ComplexityTheory.NP_ne_coNP"
+  ],
+  "generated_target_type_hash": "sha256:a1fe3eb024321bb675841a4cf7dbade463335221c28f8f9dc052fc71efba7438",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Millenium.PvsNP",
+  "source_path": "FormalConjectures/Millenium/PvsNP.lean",
+  "source_theorem": "ComplexityTheory.NP_ne_coNP",
+  "source_type_hash": "sha256:a1fe3eb024321bb675841a4cf7dbade463335221c28f8f9dc052fc71efba7438",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-complexitytheory-np-ne-conp-d85b5c0b9c-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:7b5873c9ebd4fd0ca3a9e127a2fef0fe73d2999eb7ba5895a0d2cf1ee523e142",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:3ea325c7b9a02ee3925f7e8ec777c65d941765df4392676c7aa40d7984358862",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:5edf0f05a9eed9f43432ba3b612a374a1df47837da24fe4163239dce6f4c489c"
+  }
+}

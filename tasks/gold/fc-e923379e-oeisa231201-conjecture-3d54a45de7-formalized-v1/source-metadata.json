@@ -1,0 +1,35 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The conjecture for sequence A231201: for any $n > 1$, there exist $x, y > 0$ such that $n = x + y$ and $2^x + y$ is prime. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.OEIS.«231201»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/OEIS/231201.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "OeisA231201.conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx"
+  ],
+  "type_hash": "sha256:52584152125e06e502c8196baea1206b69a9681e7530d8cd71b2310e4ac6c13c",
+  "type_pretty": "∀ (n : ℕ), 1 < n → OeisA231201.A n"
+}

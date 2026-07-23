@@ -64,37 +64,35 @@ Generate one target or a category batch:
 ```bash
 python -m verifier task generate \
   --catalog data/catalog.json \
-  --theorem GracefulLabeling.graceful_tree_conjecture \
-  --mode positive \
-  --output tasks/graceful-positive
-
-python -m verifier task generate-all \
-  --catalog data/catalog.json \
-  --category "research open" \
-  --modes positive,negative \
-  --output tasks/generated
+  --theorem Arxiv.id2303_01089.conjecture_1_3 \
+  --mode formalized \
+  --output tasks/furstenberg-formalized
 ```
 
 ## Gold-standard solver tasks
 
 Use the immutable bundles in [`tasks/gold/`](tasks/gold/) as the standard public targets for
 solver attempts. The collection is pinned to Formal Conjectures commit
-`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 227 positive or negative bundles from 114
-source theorems. Each source passed a deny-by-default audit for current open status, fidelity of the
-Lean statement, proof-level research significance, and absence of an evident elementary or
-definitional shortcut. "Gold" is an admission standard, not a promise that a problem remains open;
-the collection must be re-audited when its sources or bundles change.
+`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 64 tasks from 64 different source files
+across 13 repository areas. The previous 114 source declarations are explicitly retired and are
+not reused.
 
-The positive Graceful Tree Conjecture bundle is a concrete starting point:
+Every gold task has mode `formalized`. Its generated target is definitionally equal to the source
+theorem's complete Lean type and has the same canonical type hash. The pool admits only direct
+propositions: it does not synthesize `¬P`, extract one side of an answer wrapper, or substitute a
+new answer. A source theorem that is itself a negation remains a negation because that is the
+formalization. The current pool contains no negative target.
 
-[`tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1/`](tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1/)
+The Furstenberg-times-\(p\)-times-\(q\) bundle is a concrete starting point:
+
+[`tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1/`](tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1/)
 
 Read its `Challenge.lean` and `manifest.json`, then write `submissions/Main.lean` with the same
 `Bounty.target` theorem and replace the `sorry` with a proof. Do not edit the task bundle. Confirm
 that the bundle is byte-for-byte allowlisted before spending solver time:
 
 ```bash
-TASK=tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1
+TASK=tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1
 python scripts/check_gold_task.py "$TASK"
 ```
 
@@ -102,17 +100,21 @@ Verify a candidate in the production container against the committed bundle dige
 
 ```bash
 FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
-  --task /inputs/tasks/gold/fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1 \
+  --task /inputs/tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1 \
   --submission /inputs/submissions/Main.lean \
-  --expected-task-sha256 sha256:59e350eb60c7c5773203c9631c1c71364047a7cd7ee211fa84092728615e3ba6
+  --expected-task-sha256 sha256:6c580bb0bf79785d142be9a186cace3fbd4a444598bd7ea499def1f0f0dba5e8
 ```
 
 The complete machine-readable admission set and bundle commitments are in
 [`gold/allowlist.json`](gold/allowlist.json). Only an allowlisted, verifier-accepted proof should
-advance to human mathematical review.
+advance to human mathematical review. Generation compiles and independently inspects every target;
+this proves that the validator has an exact, hole-free target, not that the open conjecture is
+solvable or that its informal statement is correct.
 
-Generate a production task and save the `task_bundle_sha256` printed by the command. The digest must
-be published through an authenticated operator channel before miners submit proofs.
+The deterministic pool selection and compiled validation are implemented by
+`scripts/rebuild_gold_pool.py`. It balances source areas, admits at most one theorem per source
+file and canonical type, and refuses to overwrite an existing pool or allowlist. The complete
+admission contract is in [`gold/README.md`](gold/README.md).
 
 The direct CLI form is below. It reports a production sandbox only when the live probe confirms an
 equivalent hardened Linux setup, including a non-executable workspace; the Compose profile later in
@@ -120,7 +122,7 @@ this section is the supported deployment path.
 
 ```bash
 python -m verifier verify \
-  --task tasks/graceful-positive \
+  --task tasks/furstenberg-formalized \
   --submission submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
@@ -150,7 +152,7 @@ docker compose build verifier
 docker compose run --rm verifier doctor
 
 FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
-  --task /inputs/tasks/graceful-positive \
+  --task /inputs/tasks/furstenberg-formalized \
   --submission /inputs/submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
@@ -174,7 +176,13 @@ that canonical elaborated representation with SHA-256.
 Production generation rejects a compiled target whose canonical type hash already belongs to a
 cataloged, non-admitted theorem. This is an exact collision screen, not a general novelty oracle.
 
-The built-in, version-1 adapter table handles:
+The production gold mode handles:
+
+- `DIRECT_PROP` with mode `formalized`: the exact source theorem type, with no logical
+  transformation.
+
+The version-1 adapter table also retains the following non-gold generation modes for verifier
+fixtures and offline experiments:
 
 - `DIRECT_PROP`: separate positive `P` and negative `¬P` targets;
 - `PROP_ANSWER_WRAPPER`: removes exactly one annotated side from `answer(...) ↔ P`;
@@ -204,12 +212,14 @@ that are hashed but do not exactly match output reconstructed by the pinned gene
 whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted after task
 publication.
 
-Production generation accepts only compiled `research open` theorem declarations whose dependency
-closure contains `sorryAx`, which is how the source repository marks an admitted open conjecture.
-It rejects formal-proof metadata and exact canonical type collisions with cataloged theorems that
-have non-admitted proofs. Verification recomputes the source category, declaration kind, formal
-proof status, axiom closure, and absence of holes in the generated target from the compiled Lean
-environment rather than trusting JSON metadata.
+Production generation accepts only `formalized` tasks from compiled `research open`,
+`DIRECT_PROP` theorem declarations whose dependency closure contains `sorryAx`, which is how the
+source repository marks an admitted open conjecture. The source type itself must contain no
+`sorryAx` term or answer annotation. Production rejects formal-proof metadata and exact canonical
+type collisions with cataloged theorems that have non-admitted proofs. Verification recomputes the
+source category, declaration kind, formal-proof status, axiom closure, exact source/target type
+equality, and absence of holes in the generated target from the compiled Lean environment rather
+than trusting JSON metadata.
 
 ## Submission policy and verification stages
 

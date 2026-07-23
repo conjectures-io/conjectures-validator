@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "BeaverMathOlympiad.beaver_math_olympiad_problem_2_antihydra"
+  ],
+  "generated_target_type_hash": "sha256:7aa676d249659ce65e459a3636d8f892986ffd24d5ca218842d8d872041f0146",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Other.BeaverMathOlympiad",
+  "source_path": "FormalConjectures/Other/BeaverMathOlympiad.lean",
+  "source_theorem": "BeaverMathOlympiad.beaver_math_olympiad_problem_2_antihydra",
+  "source_type_hash": "sha256:7aa676d249659ce65e459a3636d8f892986ffd24d5ca218842d8d872041f0146",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-beavermatholympiad-beaver-math-olympiad-problem-2-antihydra-270461b81a-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:c38f9406e13eefd8d36e1f8c0a8e6f8a558888b9205ccd4b8b77b6964489bb70",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:3644f01af9f23958a65e01625594706c778df33e8c4a584a57abe849ea3a5122",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:22a8dff281dc4bc224cf1859eb17461b2b169ace4a5dafe999428cd49b9678fc"
+  }
+}

@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.Conway99Graph
-import TaskSupport
-
-namespace Bounty

@@ -1,4 +1,0 @@
-import FormalConjectures.Books.UniformDistributionOfSequences.Equidistribution
-import TaskSupport
-
-namespace Bounty

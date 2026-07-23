@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos1084.erdos_1084.variants.triangular_optimal_d2"
+  ],
+  "generated_target_type_hash": "sha256:b412dd1efc91228ef4b2bae29a3c33f227a2210edae347fab024d57fc63083f3",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«1084»",
+  "source_path": "FormalConjectures/ErdosProblems/1084.lean",
+  "source_theorem": "Erdos1084.erdos_1084.variants.triangular_optimal_d2",
+  "source_type_hash": "sha256:b412dd1efc91228ef4b2bae29a3c33f227a2210edae347fab024d57fc63083f3",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-triangular-optimal-d2-26e38210eb-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:f7371240669ddec166ff8d43eaf1ad6439e33543dd30ee8865f9d8cba2189f28",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:babd2f88365bafbab6804e6230fe8fa3bef1928bfca918b3cb7cafd178edb53d",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:0bb0a0b8b5416f7c69f15964e637e8dc0d1e70683b1e32d70f2174e04c803556"
+  }
+}

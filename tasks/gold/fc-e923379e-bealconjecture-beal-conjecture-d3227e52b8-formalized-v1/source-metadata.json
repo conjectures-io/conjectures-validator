@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The **Beal Conjecture**: if we are given positive integers $A, B, C, x, y, z$ such that\n$x, y, z > 2$ and $A^x + B^y = C^z$ then $A, B, C$ have a common divisor.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.BealConjecture",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/BealConjecture.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "BealConjecture.beal_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:4148be37fb231dcac58feedb46ea6d709a630561909236ceb8c44d5928181ddb",
+  "type_pretty": "BealConjecture.bealConjecture"
+}

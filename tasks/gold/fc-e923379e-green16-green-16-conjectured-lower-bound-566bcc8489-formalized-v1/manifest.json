@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Green16.green_16_conjectured_lower_bound"
+  ],
+  "generated_target_type_hash": "sha256:725efcdd34517426f1e0d2d94e5ef7c3a683790fcd1a0caf90b50784ff845d18",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.GreensOpenProblems.«16»",
+  "source_path": "FormalConjectures/GreensOpenProblems/16.lean",
+  "source_theorem": "Green16.green_16_conjectured_lower_bound",
+  "source_type_hash": "sha256:725efcdd34517426f1e0d2d94e5ef7c3a683790fcd1a0caf90b50784ff845d18",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-green16-green-16-conjectured-lower-bound-566bcc8489-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:f9af35210ba565c2f3c51b2fb5e8e51aedce92aabd29e1266b2c62091acf4b81",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:940b5d262d895bddfe099da501c5c7cf102addea7fae0e3a458001221834d97f",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:a343697e870ffed130019f51333500a73005114649e1fc5798aac56d7a994aa2"
+  }
+}

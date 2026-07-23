@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "OeisA239957.conjecture"
+  ],
+  "generated_target_type_hash": "sha256:5d2f941fd46d109cfd237eba164d5b0a85a121f4fdbdfe2fe40621129adcc68b",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.OEIS.«239957»",
+  "source_path": "FormalConjectures/OEIS/239957.lean",
+  "source_theorem": "OeisA239957.conjecture",
+  "source_type_hash": "sha256:5d2f941fd46d109cfd237eba164d5b0a85a121f4fdbdfe2fe40621129adcc68b",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-oeisa239957-conjecture-6f5e7ffcce-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:cab6fec55214682c50ee9488b69eb7e6ebcda8edf99276e62e1550cead0da623",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:97336a33c3b045f928395767860c615cca5e0a0d20ac6a5ccbfba2df80c45ef1",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:5796f2e615f0bd232ddec5aa88da72aa8d10b14e3d6a85f7cf537376f0d6bf97"
+  }
+}

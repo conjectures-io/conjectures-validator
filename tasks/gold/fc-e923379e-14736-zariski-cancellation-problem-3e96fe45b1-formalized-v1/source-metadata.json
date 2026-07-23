@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    13,
+    14
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The **Zariski Cancellation Problem**: every polynomial ring over a field `k` of characteristic\n`0` is cancellative.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Arxiv.«2208.14736».ZariskiCancellation",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Arxiv/2208.14736/ZariskiCancellation.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Arxiv.«2208.14736».zariski_cancellation_problem",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:a57d577ee28fc2be34e3eb0aa86a934ca9a6e15ddd6599f1003bd4d6a9598c82",
+  "type_pretty": "∀ {k : Type u_1} [inst : Field k] [CharZero k] {ι : Type u_2} [inst_2 : Fintype ι],\n  Arxiv.«2208.14736».IsCancellative k (MvPolynomial ι k)"
+}

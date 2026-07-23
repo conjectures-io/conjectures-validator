@@ -1,0 +1,35 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Zhi-Wei Sun's Conjecture (A232174)**: Any integer $n > 1$ can be written as $x + y$ with\n$x, y > 0$ such that both $x + ny$ and $x^2 + ny^2$ are prime.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.OEIS.«232174»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/OEIS/232174.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "OeisA232174.conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx"
+  ],
+  "type_hash": "sha256:37f52c985a09d5b826dca52f220d3050158298025feafacf0120a75bdb582098",
+  "type_pretty": "∀ (n : ℕ), 1 < n → OeisA232174.A n"
+}

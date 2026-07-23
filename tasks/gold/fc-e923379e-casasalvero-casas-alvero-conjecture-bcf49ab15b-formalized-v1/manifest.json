@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "CasasAlvero.casas_alvero_conjecture"
+  ],
+  "generated_target_type_hash": "sha256:dcbb83439fc9101f13291de444af677bc5855b631bbdc937fcb0e6a29fed978b",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Paper.CasasAlvero",
+  "source_path": "FormalConjectures/Paper/CasasAlvero.lean",
+  "source_theorem": "CasasAlvero.casas_alvero_conjecture",
+  "source_type_hash": "sha256:dcbb83439fc9101f13291de444af677bc5855b631bbdc937fcb0e6a29fed978b",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-casasalvero-casas-alvero-conjecture-bcf49ab15b-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:acb7dc0ab39e4493fed0111a31e317717f208314b0c62061fc9bd637b14d5c76",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:cfb1b2aafacd9c1f01ea693613c414555dab59fc781da99584771f5844607ec5",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:7bd1ddb4ddbd9986ee3058c5afe0cb2dbe5807aef44e5f0b62caba8d92990afd"
+  }
+}

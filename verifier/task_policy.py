@@ -5,6 +5,9 @@ from typing import Any
 from verifier.models import Catalog, CatalogDeclaration, Classification
 
 
+GOLD_TASK_MODE = "formalized"
+
+
 def expected_answer_policy(declaration: CatalogDeclaration) -> dict[str, Any]:
     syntax = {
         Classification.BOOL_ANSWER: "bool_literal",
@@ -48,15 +51,27 @@ def known_proof_collisions(
 
 
 def production_policy_violations(
-    declaration: CatalogDeclaration, collisions: tuple[str, ...]
+    declaration: CatalogDeclaration,
+    collisions: tuple[str, ...],
+    mode: str = GOLD_TASK_MODE,
 ) -> tuple[str, ...]:
     checks = (
+        (mode != GOLD_TASK_MODE, "production tasks must use the exact formalized mode"),
+        (
+            declaration.classification != Classification.DIRECT_PROP,
+            "source is not a direct proposition",
+        ),
         (declaration.category != "research open", "source is not categorized as research open"),
         (declaration.declaration_kind != "theorem", "source is not a theorem"),
+        (not declaration.is_prop, "source type is not a proposition"),
         (not declaration.depends_on_sorry, "source already has a proof without sorryAx"),
         (
-            declaration.contains_sorry_in_type and not declaration.contains_answer_annotation,
-            "source proposition contains an unscoped sorryAx term",
+            declaration.contains_sorry_in_type,
+            "source proposition contains a sorryAx term",
+        ),
+        (
+            declaration.contains_answer_annotation,
+            "source uses answer metadata instead of an exact direct proposition",
         ),
         (
             declaration.formal_proof_kind is not None or declaration.formal_proof_link is not None,
@@ -68,8 +83,10 @@ def production_policy_violations(
 
 
 def production_eligibility(
-    catalog: Catalog, declaration: CatalogDeclaration
+    catalog: Catalog,
+    declaration: CatalogDeclaration,
+    mode: str = GOLD_TASK_MODE,
 ) -> tuple[bool, tuple[str, ...], tuple[str, ...]]:
     collisions = known_proof_collisions(catalog, declaration)
-    violations = production_policy_violations(declaration, collisions)
+    violations = production_policy_violations(declaration, collisions, mode)
     return not violations, violations, collisions

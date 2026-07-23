@@ -1,2282 +1,982 @@
 {
   "allowed_source_theorems": [
     {
-      "index": 4,
-      "theorem": "Arxiv.\u00abmath.0110202\u00bb.banach_mazur_rotation_problem"
-    },
-    {
-      "index": 5,
-      "theorem": "BabaiSeressConjectures.babai_seress_conjecture"
-    },
-    {
-      "index": 6,
-      "theorem": "BabaiSeressConjectures.babai_seress_conjecture_alternating"
-    },
-    {
-      "index": 7,
-      "theorem": "BalancedPrimes.balanced_primes"
-    },
-    {
-      "index": 8,
-      "theorem": "BalancedPrimes.balanced_primes_order"
-    },
-    {
-      "index": 11,
-      "theorem": "BeckFiala.beck_fiala_conjecture"
-    },
-    {
-      "index": 12,
-      "theorem": "BetrothedNumbers.infinitely_many_betrothed"
-    },
-    {
-      "index": 14,
-      "theorem": "Buchi.buchi_problem"
-    },
-    {
-      "index": 15,
-      "theorem": "Buchi.buchi_problem_M5"
-    },
-    {
-      "index": 16,
-      "theorem": "Bugeaud01.problem_10_3"
-    },
-    {
-      "index": 17,
-      "theorem": "Bugeaud01.waldschmidt"
-    },
-    {
-      "index": 20,
-      "theorem": "Bugeaud07.problem_10_7"
-    },
-    {
-      "index": 22,
-      "theorem": "CernyConjecture.cerny_conjecture"
-    },
-    {
-      "index": 23,
-      "theorem": "ClaudesCycles.cube_hamiltonian_arc_decomposition_even"
-    },
-    {
-      "index": 24,
-      "theorem": "Conway99Graph.conway99Graph"
-    },
-    {
-      "index": 25,
-      "theorem": "EllipticCurveRank.RatEllipticCurve.finite_twentyone_lt_finrank"
-    },
-    {
-      "index": 26,
-      "theorem": "EllipticCurveRank.RatEllipticCurve.twentyone_le_rank_height_count_asymptotic"
-    },
-    {
-      "index": 29,
-      "theorem": "Equidistribution.isEquidistributedModuloOne_three_halves_pow"
-    },
-    {
-      "index": 30,
-      "theorem": "Erdos1.erdos_1"
-    },
-    {
-      "index": 31,
-      "theorem": "Erdos1.erdos_1.variants.real"
-    },
-    {
-      "index": 33,
-      "theorem": "Erdos1052.erdos_1052"
-    },
-    {
-      "index": 34,
-      "theorem": "Erdos1065.erdos_1065.parts.i"
-    },
-    {
-      "index": 35,
-      "theorem": "Erdos1065.erdos_1065.parts.ii"
-    },
-    {
-      "index": 36,
-      "theorem": "Erdos1074.erdos_1074.parts.i"
-    },
-    {
-      "index": 37,
-      "theorem": "Erdos1074.erdos_1074.parts.iii"
-    },
-    {
-      "index": 38,
-      "theorem": "Erdos1108.erdos_1108.parts.ii"
-    },
-    {
-      "index": 39,
-      "theorem": "Erdos1113.erdos_1113"
-    },
-    {
-      "index": 40,
-      "theorem": "Erdos1146.erdos_1146"
-    },
-    {
-      "index": 41,
-      "theorem": "Erdos1209.erdos_1209.parts.iii.b"
-    },
-    {
-      "index": 42,
-      "theorem": "Erdos1209.erdos_1209.parts.iii.c"
-    },
-    {
       "index": 43,
-      "theorem": "Erdos1210.erdos_1210"
-    },
-    {
-      "index": 44,
-      "theorem": "Erdos1210.erdos_1210.variants.er80_correction"
-    },
-    {
-      "index": 47,
-      "theorem": "Erdos197.erdos_197"
-    },
-    {
-      "index": 48,
-      "theorem": "Erdos20.erdos_20"
-    },
-    {
-      "index": 49,
-      "theorem": "Erdos203.erdos_203"
-    },
-    {
-      "index": 50,
-      "theorem": "Erdos273.erdos_273"
-    },
-    {
-      "index": 51,
-      "theorem": "Erdos276.erdos_276"
-    },
-    {
-      "index": 53,
-      "theorem": "Erdos288.erdos_288"
-    },
-    {
-      "index": 57,
-      "theorem": "Erdos312.erdos_312"
-    },
-    {
-      "index": 58,
-      "theorem": "Erdos317.erdos_317"
-    },
-    {
-      "index": 61,
-      "theorem": "Erdos340.erdos_340.variants.co_density_zero_sub"
-    },
-    {
-      "index": 62,
-      "theorem": "Erdos352.erdos_352"
-    },
-    {
-      "index": 66,
-      "theorem": "Erdos377.erdos_377"
-    },
-    {
-      "index": 68,
-      "theorem": "Erdos409.erdos_409.parts.ii"
-    },
-    {
-      "index": 69,
-      "theorem": "Erdos413.erdos_413.parts.ii"
-    },
-    {
-      "index": 71,
-      "theorem": "Erdos421.erdos_421"
-    },
-    {
-      "index": 74,
-      "theorem": "Erdos595.erdos_595"
-    },
-    {
-      "index": 76,
-      "theorem": "Erdos683.erdos_683"
-    },
-    {
-      "index": 83,
-      "theorem": "Erdos74.erdos_74.variants.sqrt"
-    },
-    {
-      "index": 84,
-      "theorem": "Erdos826.erdos_826"
-    },
-    {
-      "index": 87,
-      "theorem": "Erdos850.erdos_850"
-    },
-    {
-      "index": 88,
-      "theorem": "Erdos887.erdos_887.variants.rosenfeld_4"
-    },
-    {
-      "index": 89,
-      "theorem": "Erdos906.erdos_906"
-    },
-    {
-      "index": 90,
-      "theorem": "Erdos938.erdos_938"
-    },
-    {
-      "index": 91,
-      "theorem": "Erdos940.erdos_940.variants.three_cubes"
-    },
-    {
-      "index": 92,
-      "theorem": "Erdos944.erdos_944.variants.dirac_conjecture.k_eq_four"
-    },
-    {
-      "index": 94,
-      "theorem": "Erdos973.erdos_973"
-    },
-    {
-      "index": 96,
-      "theorem": "EulerBrick.perfect_euler_brick_existence"
-    },
-    {
-      "index": 97,
-      "theorem": "FibonacciPrimes.fib_primes_infinite"
-    },
-    {
-      "index": 98,
-      "theorem": "FlintCooksonHills.cookson_hills_series_converges"
-    },
-    {
-      "index": 99,
-      "theorem": "FlintCooksonHills.flint_hills_series_converges"
-    },
-    {
-      "index": 100,
-      "theorem": "Fuglede.FugledeConjecture.variants.dim_1"
-    },
-    {
-      "index": 101,
-      "theorem": "Fuglede.FugledeConjecture.variants.dim_2"
-    },
-    {
-      "index": 102,
-      "theorem": "GracefulLabeling.graceful_tree_conjecture"
-    },
-    {
-      "index": 104,
-      "theorem": "Green12.green_12"
-    },
-    {
-      "index": 105,
-      "theorem": "Green15.green_15"
-    },
-    {
-      "index": 106,
-      "theorem": "Green18.green_18"
-    },
-    {
-      "index": 107,
-      "theorem": "Green26.green_26.variants.open"
-    },
-    {
-      "index": 108,
-      "theorem": "Green28.green_28"
-    },
-    {
-      "index": 109,
-      "theorem": "Green29.green_29"
-    },
-    {
-      "index": 110,
-      "theorem": "Green31.green_31.variants.sidon_01n"
-    },
-    {
-      "index": 111,
-      "theorem": "Green31.green_31.variants.zmod_p"
-    },
-    {
-      "index": 112,
-      "theorem": "Green32.green_32"
-    },
-    {
-      "index": 113,
-      "theorem": "Green40.green_40.f_two_eq_one"
-    },
-    {
-      "index": 115,
-      "theorem": "Green41.green_41.variants.polynomial_bound"
-    },
-    {
-      "index": 116,
-      "theorem": "Green42.green_42"
-    },
-    {
-      "index": 117,
-      "theorem": "Green50.green_50"
-    },
-    {
-      "index": 118,
-      "theorem": "Green52.green_52"
-    },
-    {
-      "index": 120,
-      "theorem": "Green60.green_60"
-    },
-    {
-      "index": 121,
-      "theorem": "Green61.green_61"
-    },
-    {
-      "index": 122,
-      "theorem": "Green77.green_77"
-    },
-    {
-      "index": 123,
-      "theorem": "Green85.green_85"
-    },
-    {
-      "index": 124,
-      "theorem": "Green9.green_9_iii"
-    },
-    {
-      "index": 128,
-      "theorem": "InscribedSquare.inscribed_rectangle_problem"
-    },
-    {
-      "index": 129,
-      "theorem": "KomlosConjecture.komlos_conjecture"
-    },
-    {
-      "index": 131,
-      "theorem": "Kourovka.\u00ab20.76\u00bb.kourovka.\u00ab20.76\u00bb"
-    },
-    {
-      "index": 134,
-      "theorem": "LatinSquare.numTransversalsZn"
-    },
-    {
-      "index": 135,
-      "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem"
-    },
-    {
-      "index": 136,
-      "theorem": "LehmerTotient.lehmer_totient"
-    },
-    {
-      "index": 137,
-      "theorem": "LeinsterGroup.infinitely_many_leinster_groups"
-    },
-    {
-      "index": 138,
-      "theorem": "MagicSquares.exists_magic_square_squares"
-    },
-    {
-      "index": 140,
-      "theorem": "Mandelbrot.density_of_hyperbolicity"
-    },
-    {
-      "index": 141,
-      "theorem": "Mathoverflow10799.mathoverflow_10799.variants.kahn_kalai_conjecture_7"
-    },
-    {
-      "index": 142,
-      "theorem": "Mathoverflow1973.mathoverflow_1973"
-    },
-    {
-      "index": 143,
-      "theorem": "Mathoverflow21003.mathoverflow_21003"
-    },
-    {
-      "index": 144,
-      "theorem": "Mathoverflow235893.mathoverflow_235893"
-    },
-    {
-      "index": 146,
-      "theorem": "Mathoverflow34145.rectangles_cover_unit_square"
-    },
-    {
-      "index": 149,
-      "theorem": "Mathoverflow507128.exists_isFractionRing_self_ideal_ne_top_invertible"
-    },
-    {
-      "index": 150,
-      "theorem": "Mathoverflow75792.complexity_two_pow"
-    },
-    {
-      "index": 151,
-      "theorem": "MonochromaticQuantumGraph.eqSystem10_no_solution_d3"
-    },
-    {
-      "index": 156,
-      "theorem": "OeisA81091.conjectureA81091"
-    },
-    {
-      "index": 159,
-      "theorem": "OpenQuantumProblem13.mutuallyUnbiasedBases_dim6"
-    },
-    {
-      "index": 160,
-      "theorem": "OpenQuantumProblem35.ame_10_10_open"
-    },
-    {
-      "index": 161,
-      "theorem": "OpenQuantumProblem35.ame_10_6_open"
-    },
-    {
-      "index": 162,
-      "theorem": "PoincareConjecture.poincare_conjecture.variants.smooth_dimension_four"
+      "source_path": "FormalConjectures/Arxiv/2303.01089/FurstenbergTimesPTimesQ.lean",
+      "source_type_sha256": "sha256:7fe402215992817232ba5908f124a44f3b1e869c258b7eafeba4c81c0a7820ae",
+      "theorem": "Arxiv.id2303_01089.conjecture_1_3"
     },
     {
       "index": 163,
-      "theorem": "RationalDistanceProblem.rational_distance_problem"
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_4.lean",
+      "source_type_sha256": "sha256:b0d80349c04ae3fc5534315de4696db1ca0928ee664d500b796bda25737b8785",
+      "theorem": "Bugeaud04.spectrum_xi_alpha_pow_countable"
+    },
+    {
+      "index": 339,
+      "source_path": "FormalConjectures/ErdosProblems/10.lean",
+      "source_type_sha256": "sha256:ac1418bc6fe5724292d47e29dda62e03778631a9f37cf340c3d209b75eb88224",
+      "theorem": "Erdos10.erdos_10.variants.granville_soundararajan_odd"
+    },
+    {
+      "index": 2067,
+      "source_path": "FormalConjectures/GreensOpenProblems/16.lean",
+      "source_type_sha256": "sha256:725efcdd34517426f1e0d2d94e5ef7c3a683790fcd1a0caf90b50784ff845d18",
+      "theorem": "Green16.green_16_conjectured_lower_bound"
+    },
+    {
+      "index": 2260,
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "source_type_sha256": "sha256:51b741431615cb2f30798ab879fa166317d2ff99d246170f8ccb536bd559f578",
+      "theorem": "Hilbert5.hilbert_smith_conjecture"
+    },
+    {
+      "index": 2340,
+      "source_path": "FormalConjectures/LittProblems/1.lean",
+      "source_type_sha256": "sha256:2d7cc3c768114a35bf79d98db5fee99f5dad66afcce287ea31334e362bc7ce29",
+      "theorem": "LamLitt.lam_litt.variants.integrality_implies_algebraicity"
+    },
+    {
+      "index": 2418,
+      "source_path": "FormalConjectures/Mathoverflow/17560.lean",
+      "source_type_sha256": "sha256:f6b5a333443e3a3a07758ce4bd10ac061e9e1603f53ce9036187f1e719369c29",
+      "theorem": "Mathoverflow17560.mathoverflow_17560"
+    },
+    {
+      "index": 212,
+      "source_path": "FormalConjectures/Millenium/PvsNP.lean",
+      "source_type_sha256": "sha256:a1fe3eb024321bb675841a4cf7dbade463335221c28f8f9dc052fc71efba7438",
+      "theorem": "ComplexityTheory.NP_ne_coNP"
+    },
+    {
+      "index": 2563,
+      "source_path": "FormalConjectures/OEIS/228828.lean",
+      "source_type_sha256": "sha256:898ba0d5908262de4f05a646f58af23e4064778ce732a5c8991f638aaa51143a",
+      "theorem": "OeisA228828.a.infinite"
+    },
+    {
+      "index": 115,
+      "source_path": "FormalConjectures/Other/BeaverMathOlympiad.lean",
+      "source_type_sha256": "sha256:7aa676d249659ce65e459a3636d8f892986ffd24d5ca218842d8d872041f0146",
+      "theorem": "BeaverMathOlympiad.beaver_math_olympiad_problem_2_antihydra"
+    },
+    {
+      "index": 187,
+      "source_path": "FormalConjectures/Paper/CardinalityLindelof.lean",
+      "source_type_sha256": "sha256:416b0b43b7264c417c36517095f2256e5681d385ecd84bd8c543ec99b5280ca1",
+      "theorem": "CardinalityLindelof.HasGδSingletons.lindelof_card"
+    },
+    {
+      "index": 0,
+      "source_path": "FormalConjectures/Wikipedia/ABC.lean",
+      "source_type_sha256": "sha256:3b74f0eadd53d77e9af250dc15f0ab94ef3add410b19755a7613ba7b3b383f1c",
+      "theorem": "ABC.abc"
+    },
+    {
+      "index": 3077,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture100.lean",
+      "source_type_sha256": "sha256:f1dbf30a8269791ae169dd5fa5e2c00e6f3f6e1b30516fc38e3ec8ab0cb5bc1c",
+      "theorem": "WrittenOnTheWallII.GraphConjecture100.conjecture100"
+    },
+    {
+      "index": 46,
+      "source_path": "FormalConjectures/Arxiv/0912.2382/CurlingNumberConjecture.lean",
+      "source_type_sha256": "sha256:165b6287e182a243a39d1d98b8d14fb47549a8f153822f1710be64ff63f33182",
+      "theorem": "Arxiv.«0912.2382».curling_number_conjecture"
     },
     {
       "index": 164,
-      "theorem": "ReedOmegaDeltaChi.reed_conjecture_\u0394_6_\u03c9_2"
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_5.lean",
+      "source_type_sha256": "sha256:9494df19b2057e0ca6dd8e1c35af8a7327946b14202e20366d09d19e656ec0b7",
+      "theorem": "Bugeaud05.problem_10_5"
     },
     {
-      "index": 165,
-      "theorem": "RiemannZetaValues.irrational_eleven"
+      "index": 346,
+      "source_path": "FormalConjectures/ErdosProblems/100.lean",
+      "source_type_sha256": "sha256:27e03cab78991296b03fccdacda2939d0a70b547e7af00018690df0eed6653bb",
+      "theorem": "Erdos100.erdos_100.variants.strong"
     },
     {
-      "index": 166,
-      "theorem": "RiemannZetaValues.irrational_five"
+      "index": 2074,
+      "source_path": "FormalConjectures/GreensOpenProblems/19.lean",
+      "source_type_sha256": "sha256:2f7204f5412e11e870de1952fcc099abdc3d565c433db1f0419ffdf61a784696",
+      "theorem": "Green19.green_19.lower"
     },
     {
-      "index": 169,
-      "theorem": "Singmaster.singmaster"
+      "index": 2432,
+      "source_path": "FormalConjectures/Mathoverflow/339137.lean",
+      "source_type_sha256": "sha256:eafd6864b2ba5f9fa6aa870b61e6a297735041dda561ca2f3c5f454c3aeb939d",
+      "theorem": "Mathoverflow339137.mathoverflow_339137"
     },
     {
-      "index": 171,
-      "theorem": "SolitaryNumber.infinite_club_exists"
+      "index": 1997,
+      "source_path": "FormalConjectures/Millenium/RiemannHypothesis.lean",
+      "source_type_sha256": "sha256:19f4c1959e1bdd118d84801a2fbdc6d73ba2a83678e3c90744dba7ee919bb57c",
+      "theorem": "GRH.generalized_riemann_hypothesis"
     },
     {
-      "index": 173,
-      "theorem": "Superperfect.twoFivePerfect"
+      "index": 2573,
+      "source_path": "FormalConjectures/OEIS/231201.lean",
+      "source_type_sha256": "sha256:52584152125e06e502c8196baea1206b69a9681e7530d8cd71b2310e4ac6c13c",
+      "theorem": "OeisA231201.conjecture"
     },
     {
-      "index": 181,
-      "theorem": "WeakTiling.problem_4_2"
+      "index": 322,
+      "source_path": "FormalConjectures/Other/EquationalTheories_677_255.lean",
+      "source_type_sha256": "sha256:9be8dfa0a4694eaa7b4fb0a27e456235f3e8e56632503956b83320f193a2de81",
+      "theorem": "EquationalTheories_677_255.Finite.Equation677_implies_Equation255"
     },
     {
-      "index": 182,
-      "theorem": "WeakTiling.problem_4_3"
+      "index": 197,
+      "source_path": "FormalConjectures/Paper/CasasAlvero.lean",
+      "source_type_sha256": "sha256:dcbb83439fc9101f13291de444af677bc5855b631bbdc937fcb0e6a29fed978b",
+      "theorem": "CasasAlvero.casas_alvero_conjecture"
+    },
+    {
+      "index": 6,
+      "source_path": "FormalConjectures/Wikipedia/AgohGiuga.lean",
+      "source_type_sha256": "sha256:5a613f3f36aabeac9dc56f5fd548dac82ecdde3bbe6435b0e0c5c1e383204a14",
+      "theorem": "AgohGiuga.agoh_giuga"
+    },
+    {
+      "index": 3079,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture103.lean",
+      "source_type_sha256": "sha256:4d2054be6531efe09af4a1e14a91b2a4cd61388b16699f9ad417314bad61901f",
+      "theorem": "WrittenOnTheWallII.GraphConjecture103.conjecture103"
+    },
+    {
+      "index": 49,
+      "source_path": "FormalConjectures/Arxiv/1601.03081/UniqueCrystalComponents.lean",
+      "source_type_sha256": "sha256:02e9908014142e8004884e800c8b2049bf01c4a26185a865d763ace90c730517",
+      "theorem": "Arxiv.«1601.03081».crystals_components_unique"
+    },
+    {
+      "index": 172,
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_6.lean",
+      "source_type_sha256": "sha256:394a5c0c46d55430ccc066ed5a52b92fcd4d5e822ab8888410926c9f92ae1192",
+      "theorem": "Bugeaud06.problem_10_6_variant_1"
+    },
+    {
+      "index": 355,
+      "source_path": "FormalConjectures/ErdosProblems/101.lean",
+      "source_type_sha256": "sha256:d2bba157c2ff76bae7d92dbcd60c9ecdc446429ad0befc31990ffc2900fcdeae",
+      "theorem": "Erdos101.erdos_101"
+    },
+    {
+      "index": 2087,
+      "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
+      "source_type_sha256": "sha256:d9eac933e6ce242245030c7e03c096589f73a436c49d93ddc28b4e3b4561a808",
+      "theorem": "Green24.variants.conjecture"
+    },
+    {
+      "index": 2548,
+      "source_path": "FormalConjectures/Millenium/NavierStokes.lean",
+      "source_type_sha256": "sha256:9d81c68d1336ca2ac3ca8a0e9097269810455adfe72547c4ac0b3cb78fee2d05",
+      "theorem": "NavierStokes.navier_stokes_breakdown_R3"
+    },
+    {
+      "index": 2580,
+      "source_path": "FormalConjectures/OEIS/232174.lean",
+      "source_type_sha256": "sha256:37f52c985a09d5b826dca52f220d3050158298025feafacf0120a75bdb582098",
+      "theorem": "OeisA232174.conjecture"
+    },
+    {
+      "index": 3047,
+      "source_path": "FormalConjectures/Other/VCDimConvex.lean",
+      "source_type_sha256": "sha256:77262f2a5a2971678e88d2035b3afa16318522071d511094acdcdb7c89ecfcf3",
+      "theorem": "VCDimConvex.exists_hasAddVCNDimAtMost_n_of_convex_rn_add_one"
+    },
+    {
+      "index": 202,
+      "source_path": "FormalConjectures/Paper/CatchUpConjecture.lean",
+      "source_type_sha256": "sha256:2f4646b67f5778407ebd48e9e13b481ce4eedc02f99ceed05706fc890e96ec12",
+      "theorem": "CatchUp.value_of_even_mul_succ_self_div_two"
+    },
+    {
+      "index": 22,
+      "source_path": "FormalConjectures/Wikipedia/Agrawal.lean",
+      "source_type_sha256": "sha256:bff13f17ab34f2fb67d1a108b4f3332755318fd32a005909776d860cbe01a757",
+      "theorem": "AgrawalConjecture.agrawal_conjecture.variants.popovych"
+    },
+    {
+      "index": 3082,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture133.lean",
+      "source_type_sha256": "sha256:e9d1ae32e49a7a66434b8e1f17cd466fd3900d7da3099bcc3919dc983cbdf04e",
+      "theorem": "WrittenOnTheWallII.GraphConjecture133.conjecture133"
+    },
+    {
+      "index": 62,
+      "source_path": "FormalConjectures/Arxiv/1609.08688/sIncreasingrTuples.lean",
+      "source_type_sha256": "sha256:af6a7ff1cf997c15ddc1869afb020669a6a0373b00df97ff4e7dbf257c0848ef",
+      "theorem": "Arxiv.«1609.08688».maximalLength_le_strong"
+    },
+    {
+      "index": 176,
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_8.lean",
+      "source_type_sha256": "sha256:986ca5f2860a1aa10ac44d0755593e25e1caab1bee32c4ac46e0b1b7f0c7a74f",
+      "theorem": "Bugeaud08.problem_10_8"
+    },
+    {
+      "index": 360,
+      "source_path": "FormalConjectures/ErdosProblems/1041.lean",
+      "source_type_sha256": "sha256:0cb15bb9b616d55f9d8b4992e3b911ec31f1ec5c605fdaf025a249096bc771df",
+      "theorem": "Erdos1041.erdos_1041"
+    },
+    {
+      "index": 2193,
+      "source_path": "FormalConjectures/GreensOpenProblems/46.lean",
+      "source_type_sha256": "sha256:eaef895eb3e46630e01c7ccd245aea8a4e4c11d459b933bacbda3165c29f4e51",
+      "theorem": "Green46.green_46.improve_upper_conjectured"
+    },
+    {
+      "index": 2582,
+      "source_path": "FormalConjectures/OEIS/239957.lean",
+      "source_type_sha256": "sha256:5d2f941fd46d109cfd237eba164d5b0a85a121f4fdbdfe2fe40621129adcc68b",
+      "theorem": "OeisA239957.conjecture"
+    },
+    {
+      "index": 205,
+      "source_path": "FormalConjectures/Paper/Chvatal.lean",
+      "source_type_sha256": "sha256:9fcbcb1ffd96a48dc0ebe97d1be02571a052f4f2f5efb308aea08b522153009a",
+      "theorem": "Chvatal.exists_maximal_star"
+    },
+    {
+      "index": 31,
+      "source_path": "FormalConjectures/Wikipedia/Andrica.lean",
+      "source_type_sha256": "sha256:9b1908e4ce53deeae36f57fec2a1bacb427027705040122f0a3d690700e310b8",
+      "theorem": "Andrica.andrica_conjecture"
+    },
+    {
+      "index": 3083,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture141.lean",
+      "source_type_sha256": "sha256:9c47e192b481f2f274f8ce0f0bc323462a6e92a3945d176696ebe6d5cbe20362",
+      "theorem": "WrittenOnTheWallII.GraphConjecture141.conjecture141"
+    },
+    {
+      "index": 77,
+      "source_path": "FormalConjectures/Arxiv/2107.00295/IndependentDomination.lean",
+      "source_type_sha256": "sha256:06efe3bf1080131edb446e971df456665acc78f28b4ac995d69c083ec55de671",
+      "theorem": "Arxiv.«2107.00295».independentDominationEven"
+    },
+    {
+      "index": 381,
+      "source_path": "FormalConjectures/ErdosProblems/1055.lean",
+      "source_type_sha256": "sha256:197d36404a131616db73a629a12dc58c7fe292287f77b34fc07f838b150b605f",
+      "theorem": "Erdos1055.erdos_1055"
+    },
+    {
+      "index": 2219,
+      "source_path": "FormalConjectures/GreensOpenProblems/72.lean",
+      "source_type_sha256": "sha256:dd4b672413ddb0c1768f069d56eeec1a12462f6a890c198157df8836073e6d58",
+      "theorem": "Green72.NoKInLine"
+    },
+    {
+      "index": 2590,
+      "source_path": "FormalConjectures/OEIS/280831.lean",
+      "source_type_sha256": "sha256:f80ab1c12b3e9f200dbf2ab9683dfc90d7dc6fe3bd64c75e48f14d4f7764a158",
+      "theorem": "OeisA280831.conjecture"
+    },
+    {
+      "index": 227,
+      "source_path": "FormalConjectures/Paper/ConjugacyClassSizes.lean",
+      "source_type_sha256": "sha256:ba012a4d8c6676e0193f20e1b2eab374817f93ab0d39c92b555dd7d8d04f2154",
+      "theorem": "ConjugacyClassSizes.conjClassSizes_iff_sym_three"
+    },
+    {
+      "index": 33,
+      "source_path": "FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean",
+      "source_type_sha256": "sha256:effd9fde97aa49521a615621554cfd876f17a6c62c8ebd4c76a66a22420713cf",
+      "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i"
+    },
+    {
+      "index": 3084,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture142.lean",
+      "source_type_sha256": "sha256:1c3bd7680bd60af38344a250b31050522049044a17d7191ffd467ca3dcadb115",
+      "theorem": "WrittenOnTheWallII.GraphConjecture142.conjecture142"
+    },
+    {
+      "index": 79,
+      "source_path": "FormalConjectures/Arxiv/2107.12475/CollatzLike.lean",
+      "source_type_sha256": "sha256:1524c29afd51a492a27281b4f8047a248f64b7a17053c4607a0d34f6e3f378c2",
+      "theorem": "Arxiv.«2107.12475».CollatzLike"
+    },
+    {
+      "index": 404,
+      "source_path": "FormalConjectures/ErdosProblems/1060.lean",
+      "source_type_sha256": "sha256:92f3af9d6712fac8bef648cc256bbc8584f99edd8d9d0b6ac3e5a824c99a30cd",
+      "theorem": "Erdos1060.erdos_1060.parts.i"
+    },
+    {
+      "index": 2600,
+      "source_path": "FormalConjectures/OEIS/281976.lean",
+      "source_type_sha256": "sha256:8fd8a1222c0731e2b207fadd5deb45e8d8a1360f13c798c70b34129a2c184836",
+      "theorem": "OeisA281976.conjecture"
+    },
+    {
+      "index": 245,
+      "source_path": "FormalConjectures/Paper/DeGiorgi.lean",
+      "source_type_sha256": "sha256:af1693317a4d471b48ac880345ed73d4a1d5cc3c019e4aba66a1d44071fec1bd",
+      "theorem": "DeGiorgi.DeGiorgi_eight"
+    },
+    {
+      "index": 111,
+      "source_path": "FormalConjectures/Wikipedia/BatemanHornConjecture.lean",
+      "source_type_sha256": "sha256:ef5a379980532f3f3769800b879242aebed09065e79c9225192f1f6154b4ae5b",
+      "theorem": "BatemanHornConjecture.bateman_horn_conjecture"
+    },
+    {
+      "index": 3086,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture144.lean",
+      "source_type_sha256": "sha256:75671e94967fa57417c205bc6a1358ec6faa3f0ca171f1ec5e53cd7e40d8253c",
+      "theorem": "WrittenOnTheWallII.GraphConjecture144.conjecture144"
+    },
+    {
+      "index": 81,
+      "source_path": "FormalConjectures/Arxiv/2208.14736/ZariskiCancellation.lean",
+      "source_type_sha256": "sha256:a57d577ee28fc2be34e3eb0aa86a934ca9a6e15ddd6599f1003bd4d6a9598c82",
+      "theorem": "Arxiv.«2208.14736».zariski_cancellation_problem"
+    },
+    {
+      "index": 435,
+      "source_path": "FormalConjectures/ErdosProblems/1072.lean",
+      "source_type_sha256": "sha256:8eb7adc02fb4410ec81a84706ea24eb847e11b39b21ee7fb8777745a672b3d4c",
+      "theorem": "Erdos1072.erdos_1072.variants.littleo"
+    },
+    {
+      "index": 2606,
+      "source_path": "FormalConjectures/OEIS/287616.lean",
+      "source_type_sha256": "sha256:2e7c9e6ad58638ef6a3be8a9fa45cf3056cf96e1ac3f638516ccc3c62f4f7db0",
+      "theorem": "OeisA287616.conjecture"
+    },
+    {
+      "index": 292,
+      "source_path": "FormalConjectures/Paper/Dubner.lean",
+      "source_type_sha256": "sha256:ee9172c73eb69675d8b421d5849a8b5c0fcd9a7ae0fdcadd478eac3af39c61fe",
+      "theorem": "DubnerConjecture.dubner_conjecture"
+    },
+    {
+      "index": 112,
+      "source_path": "FormalConjectures/Wikipedia/BealConjecture.lean",
+      "source_type_sha256": "sha256:4148be37fb231dcac58feedb46ea6d709a630561909236ceb8c44d5928181ddb",
+      "theorem": "BealConjecture.beal_conjecture"
+    },
+    {
+      "index": 3087,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture145.lean",
+      "source_type_sha256": "sha256:f62ecccd6d162fec1c07bdb084609298f9902acbd6c33d794360c2d46ac6eeab",
+      "theorem": "WrittenOnTheWallII.GraphConjecture145.conjecture145"
+    },
+    {
+      "index": 86,
+      "source_path": "FormalConjectures/Arxiv/2501.03234/ArithmeticSumS.lean",
+      "source_type_sha256": "sha256:03387790236c2632e0d2760fb68d1c09da00b7e2ddac9627196a32d74664d58a",
+      "theorem": "Arxiv.«2501.03234».conjecture_1_1"
+    },
+    {
+      "index": 455,
+      "source_path": "FormalConjectures/ErdosProblems/1084.lean",
+      "source_type_sha256": "sha256:b412dd1efc91228ef4b2bae29a3c33f227a2210edae347fab024d57fc63083f3",
+      "theorem": "Erdos1084.erdos_1084.variants.triangular_optimal_d2"
+    },
+    {
+      "index": 2613,
+      "source_path": "FormalConjectures/OEIS/303656.lean",
+      "source_type_sha256": "sha256:d09912100313c21ee8eb374b6b1c06468b96206a99317beeb512634cbcbaff15",
+      "theorem": "OeisA303656.conjecture"
     }
   ],
   "allowed_task_bundles": [
     {
-      "mode": "negative",
-      "source_index": 4,
-      "target_type_sha256": "sha256:1e083bdb2339976a8415227527383c994d7a651e1d6cb89f76d3d58e3bab778a",
-      "task_bundle_sha256": "sha256:1d6d7c6b518541e71ff4e63fecbb1ffe75f18f95b9e64260df46868b6e8ee86c",
-      "task_id": "fc-e923379e-0110202-banach-mazur-rotation-problem-2767e4f6c0-negative-v1",
-      "theorem": "Arxiv.\u00abmath.0110202\u00bb.banach_mazur_rotation_problem"
-    },
-    {
-      "mode": "positive",
-      "source_index": 4,
-      "target_type_sha256": "sha256:c6578d4ef22da0e5c4c1d3c3e26a3052a8ccc7279b57dc225f1df21d155799bb",
-      "task_bundle_sha256": "sha256:2669b1bb7d52456a6295fa832aa400690debef181b5ba36ce822ba0028181493",
-      "task_id": "fc-e923379e-0110202-banach-mazur-rotation-problem-a01f40be46-positive-v1",
-      "theorem": "Arxiv.\u00abmath.0110202\u00bb.banach_mazur_rotation_problem"
-    },
-    {
-      "mode": "positive",
-      "source_index": 131,
-      "target_type_sha256": "sha256:cc1e6d22eb218b9f3ac1dcc620f3fb8204c3f88298243561e7b87963468f909c",
-      "task_bundle_sha256": "sha256:c97089fead6168812439e06c7adc93bb2260aedd412250c7e2f9cc6ee649b86d",
-      "task_id": "fc-e923379e-20-76-b796450c22-positive-v1",
-      "theorem": "Kourovka.\u00ab20.76\u00bb.kourovka.\u00ab20.76\u00bb"
-    },
-    {
-      "mode": "negative",
-      "source_index": 131,
-      "target_type_sha256": "sha256:ea2803587c6f4fcafb2669c2bd3955e88dcb4d3997f6aca8f1cc59345ea87ba1",
-      "task_bundle_sha256": "sha256:44b4e5ae021b45ca2ab03467fbdb07154a375225d66fb276886a68ecb8d176bb",
-      "task_id": "fc-e923379e-20-76-b89fc0ba20-negative-v1",
-      "theorem": "Kourovka.\u00ab20.76\u00bb.kourovka.\u00ab20.76\u00bb"
-    },
-    {
-      "mode": "negative",
-      "source_index": 5,
-      "target_type_sha256": "sha256:c9b1338dd4911212c3d572ad4581333abde680820cc879943d7082ce4b4b1951",
-      "task_bundle_sha256": "sha256:53a08e2982d4c8aa219911501eb9c6f1a1e522ad8bd6ae1fb3ec76a12d00bd2d",
-      "task_id": "fc-e923379e-babaiseressconjectures-babai-seress-conjecture-1b0d118768-negative-v1",
-      "theorem": "BabaiSeressConjectures.babai_seress_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 6,
-      "target_type_sha256": "sha256:b3fb88d2f89de8e4e63b500a87e1f35bbc365e6986f93296230f777775792540",
-      "task_bundle_sha256": "sha256:d220207ad5f96297d4f4dca461fcd78f5625ce75e64914c838d98afb266b6521",
-      "task_id": "fc-e923379e-babaiseressconjectures-babai-seress-conjecture-alternating-7b4e4bae32-negative-v1",
-      "theorem": "BabaiSeressConjectures.babai_seress_conjecture_alternating"
-    },
-    {
-      "mode": "positive",
-      "source_index": 6,
-      "target_type_sha256": "sha256:e38f414e4aa48ef6627be9f22973130ccd35afdfb4ce3dea736bce4a28474d2a",
-      "task_bundle_sha256": "sha256:0a35ca65a9427c6d9dadcd026eb44d87c23dc73104309236196daa4bbf40f20b",
-      "task_id": "fc-e923379e-babaiseressconjectures-babai-seress-conjecture-alternating-a4c031662c-positive-v1",
-      "theorem": "BabaiSeressConjectures.babai_seress_conjecture_alternating"
-    },
-    {
-      "mode": "positive",
-      "source_index": 5,
-      "target_type_sha256": "sha256:f27898a8425bf3a17ab16050eb7c33af3f2d04fa8d4a75663c43ddcaa524bd27",
-      "task_bundle_sha256": "sha256:10ab8d19ce8be8e804527ad284a03142f8fb7082912dee5e9d8b7684c8c94363",
-      "task_id": "fc-e923379e-babaiseressconjectures-babai-seress-conjecture-b74473895d-positive-v1",
-      "theorem": "BabaiSeressConjectures.babai_seress_conjecture"
-    },
-    {
-      "mode": "positive",
-      "source_index": 7,
-      "target_type_sha256": "sha256:83b3858f2b6a32f321eaf754e913aecd02d74a5ddf8c3f39eaf425ae2cc5fbf4",
-      "task_bundle_sha256": "sha256:d4448d81552dcbfc0381e94cb9f2c03ee3e72babcef14c769b41834915f1767a",
-      "task_id": "fc-e923379e-balancedprimes-balanced-primes-bf001d99ad-positive-v1",
-      "theorem": "BalancedPrimes.balanced_primes"
-    },
-    {
-      "mode": "negative",
-      "source_index": 7,
-      "target_type_sha256": "sha256:aefa5d32c7239b6dc0e0a04e3fabdbb0f2a81c760c3adf8236691655149e8972",
-      "task_bundle_sha256": "sha256:d40e981154a3f2cb8dc47066cabf3e4c1d9dc6648f96bbcd1b0054ff37b0c25b",
-      "task_id": "fc-e923379e-balancedprimes-balanced-primes-caabfd3685-negative-v1",
-      "theorem": "BalancedPrimes.balanced_primes"
-    },
-    {
-      "mode": "negative",
-      "source_index": 8,
-      "target_type_sha256": "sha256:6826af02356c73c40e7e634b2ed1786dc2f7637afbe02c3542ad58de18bdb3fb",
-      "task_bundle_sha256": "sha256:3520b8eeb97eb61714ffa9ea26f05eedfdd7b8518f1a85d473cd4af85e2ae260",
-      "task_id": "fc-e923379e-balancedprimes-balanced-primes-order-246aab0d43-negative-v1",
-      "theorem": "BalancedPrimes.balanced_primes_order"
-    },
-    {
-      "mode": "positive",
-      "source_index": 8,
-      "target_type_sha256": "sha256:2accd2ac16de77b89133a9851901e46c80f45e4a16facfe66742fbe75bb8d291",
-      "task_bundle_sha256": "sha256:73e7049951e4aadba19069718116a24fcec7ccb842b9eced81d24ec1aae15eee",
-      "task_id": "fc-e923379e-balancedprimes-balanced-primes-order-45ebef4685-positive-v1",
-      "theorem": "BalancedPrimes.balanced_primes_order"
-    },
-    {
-      "mode": "positive",
-      "source_index": 11,
-      "target_type_sha256": "sha256:6550405d459249907dc1d7db8c7ff9cc9e704af094bf74a0571c767ac8187aae",
-      "task_bundle_sha256": "sha256:b1e6171567ec963b4fa72509f3ce32f7413ff014f0e78e5a9745925c0ad54c7a",
-      "task_id": "fc-e923379e-beckfiala-beck-fiala-conjecture-315af3d669-positive-v1",
-      "theorem": "BeckFiala.beck_fiala_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 11,
-      "target_type_sha256": "sha256:3fb3ba334a984975413b0553ee2a059ad415f4829cea90c9393b84066e0084cb",
-      "task_bundle_sha256": "sha256:9ba4789fcc9366b602c4a30769ca28ce4ee2982670ca4b50daf66b6d65d95287",
-      "task_id": "fc-e923379e-beckfiala-beck-fiala-conjecture-b00c6dee5e-negative-v1",
-      "theorem": "BeckFiala.beck_fiala_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 12,
-      "target_type_sha256": "sha256:218bb6a8266ec457bfe3f6b1c29bdad3a26936fac4e7c1d0d589400242885b7a",
-      "task_bundle_sha256": "sha256:c2a9f75aaab50d106af2d6f2efcc80f590477b160c18798decaffea0d53bf514",
-      "task_id": "fc-e923379e-betrothednumbers-infinitely-many-betrothed-83e7cc2186-negative-v1",
-      "theorem": "BetrothedNumbers.infinitely_many_betrothed"
-    },
-    {
-      "mode": "positive",
-      "source_index": 12,
-      "target_type_sha256": "sha256:0ab096d8f12597aca063ef24444207917fe65b1f84b1699615114494e76ac5b3",
-      "task_bundle_sha256": "sha256:43dee8a75eb5fe1a9785a96523dc73682f4aaef7e4237a8776746fd699ea08a6",
-      "task_id": "fc-e923379e-betrothednumbers-infinitely-many-betrothed-d829766989-positive-v1",
-      "theorem": "BetrothedNumbers.infinitely_many_betrothed"
-    },
-    {
-      "mode": "positive",
-      "source_index": 14,
-      "target_type_sha256": "sha256:a714f00269610db5bbbeed5dc393f1714a435ac740f0f68b62b6450477bdd241",
-      "task_bundle_sha256": "sha256:7a4b94b9c3d3c3e30975eb5fa46a89c02af24a20d967683000f620eff8f6d182",
-      "task_id": "fc-e923379e-buchi-buchi-problem-26ba199cd7-positive-v1",
-      "theorem": "Buchi.buchi_problem"
-    },
-    {
-      "mode": "negative",
-      "source_index": 14,
-      "target_type_sha256": "sha256:4a9b576920d18bbeb8cd64c62a532d1e913a3ebe53ce6afa61904cd6138c9dda",
-      "task_bundle_sha256": "sha256:e6d8e52ff8001411cffef1b2cb798d7740139658ba5ebcddc077f83a9dc68210",
-      "task_id": "fc-e923379e-buchi-buchi-problem-91f708cbc0-negative-v1",
-      "theorem": "Buchi.buchi_problem"
-    },
-    {
-      "mode": "negative",
-      "source_index": 15,
-      "target_type_sha256": "sha256:c400f5ed13510e8819462fb17ec2986b301b5896e5b64488928e0eef8a0918bf",
-      "task_bundle_sha256": "sha256:3c3cfece815a355ecb4780c109eafa13da1a6007c1a3d60efef0160b4c79e23e",
-      "task_id": "fc-e923379e-buchi-buchi-problem-m5-67c0f2475e-negative-v1",
-      "theorem": "Buchi.buchi_problem_M5"
-    },
-    {
-      "mode": "positive",
-      "source_index": 15,
-      "target_type_sha256": "sha256:f37a4a3eb78f804769bcb25cac1ca9949d48b77e3bc0f45c8c053ef9acbbe6f4",
-      "task_bundle_sha256": "sha256:3dcf6783cda591ea5842f361c8eca5eff51c72ab491dd139344145d7ffcb79f3",
-      "task_id": "fc-e923379e-buchi-buchi-problem-m5-80ccb185dd-positive-v1",
-      "theorem": "Buchi.buchi_problem_M5"
-    },
-    {
-      "mode": "negative",
-      "source_index": 16,
-      "target_type_sha256": "sha256:5e2cb487073c36d19c9a919035395a8d91d2e8b37ec31e68abfb2eafadd36fb8",
-      "task_bundle_sha256": "sha256:8fd6f0f87a6a5d78cd7a3f1a3c04d0abf28b87568a383511581c4100310b5710",
-      "task_id": "fc-e923379e-bugeaud01-problem-10-3-2054814320-negative-v1",
-      "theorem": "Bugeaud01.problem_10_3"
-    },
-    {
-      "mode": "positive",
-      "source_index": 16,
-      "target_type_sha256": "sha256:3dd8408b8af3bc93688990ea49ffcc0057b2047f1cbd0fba3552932e4ab61b37",
-      "task_bundle_sha256": "sha256:d754be12e340b5da86af07bad4382fef8d7a2b3bbeaa68b206153d241ff35109",
-      "task_id": "fc-e923379e-bugeaud01-problem-10-3-36733f551f-positive-v1",
-      "theorem": "Bugeaud01.problem_10_3"
-    },
-    {
-      "mode": "negative",
-      "source_index": 17,
-      "target_type_sha256": "sha256:ad152ad99b4d56d43491a05c078305e0873024537f4c057a2ca787230412545b",
-      "task_bundle_sha256": "sha256:418881fded8b5f928d7be8669b9c5233e1e5be9f5e14402f4c0742d9b6caf802",
-      "task_id": "fc-e923379e-bugeaud01-waldschmidt-6276f90008-negative-v1",
-      "theorem": "Bugeaud01.waldschmidt"
-    },
-    {
-      "mode": "positive",
-      "source_index": 17,
-      "target_type_sha256": "sha256:da1b6fafcef607853a547372e54856108622cc04b99f9b8d915708306f16b249",
-      "task_bundle_sha256": "sha256:c7c027af926185db71603722390b6abdaa386d784d80347631bd2cc12378e5fd",
-      "task_id": "fc-e923379e-bugeaud01-waldschmidt-a35b2b966d-positive-v1",
-      "theorem": "Bugeaud01.waldschmidt"
-    },
-    {
-      "mode": "positive",
-      "source_index": 20,
-      "target_type_sha256": "sha256:5da80f749f1404dbbc91be72870cdde1f56147d3874260e90e4b27cc3141d02d",
-      "task_bundle_sha256": "sha256:0e6a78c67252393637e69364e9570acda898c4ba1091a97e15d531ede781fc6b",
-      "task_id": "fc-e923379e-bugeaud07-problem-10-7-1796fac42e-positive-v1",
-      "theorem": "Bugeaud07.problem_10_7"
-    },
-    {
-      "mode": "negative",
-      "source_index": 20,
-      "target_type_sha256": "sha256:5166268d9cc274b6593a005d9da0d2e659600379520713c289330796d1293f94",
-      "task_bundle_sha256": "sha256:291b86cffcfc60a011f77f73e3dc7d6a930e162e773fba4e70edba38598033ef",
-      "task_id": "fc-e923379e-bugeaud07-problem-10-7-87ec871a5d-negative-v1",
-      "theorem": "Bugeaud07.problem_10_7"
-    },
-    {
-      "mode": "positive",
-      "source_index": 22,
-      "target_type_sha256": "sha256:89e7236d5bc59d13d88ede42ef18f3767e063976a2a811cfb523a3f8dccccf29",
-      "task_bundle_sha256": "sha256:b8ebb7f1837fb1a0d2f3647bee6a77a9304fbf4c6ee83127279b8068818a50a5",
-      "task_id": "fc-e923379e-cernyconjecture-cerny-conjecture-3df3e91602-positive-v1",
-      "theorem": "CernyConjecture.cerny_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 22,
-      "target_type_sha256": "sha256:8407653923dca6775450f7913abbee73d75a3b9191c70a4c8d8b74858f5a0232",
-      "task_bundle_sha256": "sha256:be5b9a3a590a084d8a0da9dcb1681a888da7faeaa5d1a217924a859890f3c10e",
-      "task_id": "fc-e923379e-cernyconjecture-cerny-conjecture-4b1f12a5bb-negative-v1",
-      "theorem": "CernyConjecture.cerny_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 23,
-      "target_type_sha256": "sha256:6004c3ad0558812defa5952a8b21181346d9f921570a3fd3beac9eb9fc7c07c7",
-      "task_bundle_sha256": "sha256:d28bab6c8bf342a0c29a5b3179c0ff1e7cdfad0f7b90c47a589f87ce5344d6d6",
-      "task_id": "fc-e923379e-claudescycles-cube-hamiltonian-arc-decomposition-even-91c86d7f7d-negative-v1",
-      "theorem": "ClaudesCycles.cube_hamiltonian_arc_decomposition_even"
-    },
-    {
-      "mode": "positive",
-      "source_index": 23,
-      "target_type_sha256": "sha256:8f7e386f7825593593e34552b450dd8c72a81546a82c87d2f69af7e1f5fd4b08",
-      "task_bundle_sha256": "sha256:913f5915e7beda5b0bbc2c623163e46fe607b319f7a6327779e74bee2efd4152",
-      "task_id": "fc-e923379e-claudescycles-cube-hamiltonian-arc-decomposition-even-bff1fbbf75-positive-v1",
-      "theorem": "ClaudesCycles.cube_hamiltonian_arc_decomposition_even"
-    },
-    {
-      "mode": "negative",
-      "source_index": 24,
-      "target_type_sha256": "sha256:cf5f6b26b0f467c2a80d10a27dcc10674111d5a2dc5611e15ea105d481f15f16",
-      "task_bundle_sha256": "sha256:e913d7485cf4a52a21c67d5a65974b0c7681810a2558012787c727a20cb60fb6",
-      "task_id": "fc-e923379e-conway99graph-conway99graph-041b880ebd-negative-v1",
-      "theorem": "Conway99Graph.conway99Graph"
-    },
-    {
-      "mode": "positive",
-      "source_index": 24,
-      "target_type_sha256": "sha256:e6755a29e0785c915dd25fb04098c33cfa09e920b1c8c747aa71ad6ebeefc601",
-      "task_bundle_sha256": "sha256:72c2ee8cfb08c83656801861f773f8553f56cc22f4f4850ed82a287ad907760b",
-      "task_id": "fc-e923379e-conway99graph-conway99graph-a38b89d80f-positive-v1",
-      "theorem": "Conway99Graph.conway99Graph"
-    },
-    {
-      "mode": "negative",
-      "source_index": 92,
-      "target_type_sha256": "sha256:c701ef0bdb567d025a6255a92d08b6c22fd795d4b6b9412df47c9a798eb2ced8",
-      "task_bundle_sha256": "sha256:6e4b7b00bf2d6e09830cc75be4fbba52cf308746f20fc6984cc111872f8f20d8",
-      "task_id": "fc-e923379e-dirac-conjecture-k-eq-four-d3f7f1a8e7-negative-v1",
-      "theorem": "Erdos944.erdos_944.variants.dirac_conjecture.k_eq_four"
-    },
-    {
-      "mode": "positive",
-      "source_index": 92,
-      "target_type_sha256": "sha256:77181edd8e837ab756abdde5e4455614716ecd231bc50a259780520f7b148329",
-      "task_bundle_sha256": "sha256:c77ad4742a64e562649315766b890e0b4d7c5f90119f616d84032d1120fec0d5",
-      "task_id": "fc-e923379e-dirac-conjecture-k-eq-four-f1c946a884-positive-v1",
-      "theorem": "Erdos944.erdos_944.variants.dirac_conjecture.k_eq_four"
-    },
-    {
-      "mode": "positive",
-      "source_index": 29,
-      "target_type_sha256": "sha256:0535ed106e257637d336763af018e041d8d4d3cb6697846628438c1fdb61af88",
-      "task_bundle_sha256": "sha256:9fa3bf451a858be80aa19a114409709c4606303fe23bf21a6abac2e694d2288a",
-      "task_id": "fc-e923379e-equidistribution-isequidistributedmoduloone-three-halves-pow-12b1b32c13-positive-v1",
-      "theorem": "Equidistribution.isEquidistributedModuloOne_three_halves_pow"
-    },
-    {
-      "mode": "negative",
-      "source_index": 29,
-      "target_type_sha256": "sha256:6d106a1660654d7b6ca1c6a7a7f077def5debc12f045ab46d28b676e5f74922a",
-      "task_bundle_sha256": "sha256:867b6157a73580cc5ecf135a7959160219f49ef202ce6cb6b60a84d2e385d683",
-      "task_id": "fc-e923379e-equidistribution-isequidistributedmoduloone-three-halves-pow-a950749713-negative-v1",
-      "theorem": "Equidistribution.isEquidistributedModuloOne_three_halves_pow"
-    },
-    {
-      "mode": "positive",
-      "source_index": 30,
-      "target_type_sha256": "sha256:9f75e4379b18dcc2d4cfb3e9479f9f9ce98fb0f9f3aab2e2f3cbd228ab899403",
-      "task_bundle_sha256": "sha256:593fa3f461f08ffc2c859917d0e65a92635da70540ef2a3d523994408792c598",
-      "task_id": "fc-e923379e-erdos1-erdos-1-908bf4ae5c-positive-v1",
-      "theorem": "Erdos1.erdos_1"
-    },
-    {
-      "mode": "negative",
-      "source_index": 30,
-      "target_type_sha256": "sha256:c814afeb1e6d6b23d1f6742d80bccfc971c3e26b9b743e219bd00a6551d18471",
-      "task_bundle_sha256": "sha256:16c79bf849e77850c1a572fc1bb08f7c3b8f341994e95a32ed8bf2daeb22e861",
-      "task_id": "fc-e923379e-erdos1-erdos-1-918c97dda7-negative-v1",
-      "theorem": "Erdos1.erdos_1"
-    },
-    {
-      "mode": "positive",
-      "source_index": 33,
-      "target_type_sha256": "sha256:468f4729d082144723bee6b8953b870639103b6f6f047789b593c9cdee919a46",
-      "task_bundle_sha256": "sha256:aa44624519c266e4f3452b44e0cb6a1ef2024c157e78a4ab6c4aa645e24babc5",
-      "task_id": "fc-e923379e-erdos1052-erdos-1052-237216f217-positive-v1",
-      "theorem": "Erdos1052.erdos_1052"
-    },
-    {
-      "mode": "negative",
-      "source_index": 33,
-      "target_type_sha256": "sha256:df6bd20862f356a4c8e030767ceaba14cb9c0390fc9a32a30f06aef2143bcf23",
-      "task_bundle_sha256": "sha256:d5794a233f131fd807f9c49ed8fe5b56f5c49395664d4f3e566320e94e3e3411",
-      "task_id": "fc-e923379e-erdos1052-erdos-1052-42a670f165-negative-v1",
-      "theorem": "Erdos1052.erdos_1052"
-    },
-    {
-      "mode": "negative",
-      "source_index": 39,
-      "target_type_sha256": "sha256:b18cb1a81eb96e320766a69826605d88028fac41277f564db8983b70adc779a9",
-      "task_bundle_sha256": "sha256:0a7b73deef64540ef4ab886d41af607a53a9e6aa057890b28c88a35d1fb5cde4",
-      "task_id": "fc-e923379e-erdos1113-erdos-1113-27e9578a3d-negative-v1",
-      "theorem": "Erdos1113.erdos_1113"
-    },
-    {
-      "mode": "positive",
-      "source_index": 39,
-      "target_type_sha256": "sha256:f24948996dba823e85edf3c14cd2c6eb5dc5c7a9230a569f13922c38d69de096",
-      "task_bundle_sha256": "sha256:960e6a48f8b5e864dacd99c02bbeae1b47ea68f3f2a6c9b367b5d4cf10dd9de6",
-      "task_id": "fc-e923379e-erdos1113-erdos-1113-ed76d134bf-positive-v1",
-      "theorem": "Erdos1113.erdos_1113"
-    },
-    {
-      "mode": "negative",
-      "source_index": 40,
-      "target_type_sha256": "sha256:e1e8931fd05f1fd441402d2b17e8eba081d8a0d52f9463c0362d3b3a901705c4",
-      "task_bundle_sha256": "sha256:7b5482a83742be11b2cf065d0fa50f0607fb136639f60336a13feeefe5af310b",
-      "task_id": "fc-e923379e-erdos1146-erdos-1146-3556e1e9a2-negative-v1",
-      "theorem": "Erdos1146.erdos_1146"
-    },
-    {
-      "mode": "positive",
-      "source_index": 40,
-      "target_type_sha256": "sha256:ec11411819d3f1aa53b0c5a5094600757d3af69d5e67755f5ad64c3941284d4a",
-      "task_bundle_sha256": "sha256:240cf12a281e67d1753bc30467e4285ef83774a8ee84a534e79080868a296148",
-      "task_id": "fc-e923379e-erdos1146-erdos-1146-5b9f35a6f7-positive-v1",
-      "theorem": "Erdos1146.erdos_1146"
-    },
-    {
-      "mode": "negative",
+      "mode": "formalized",
       "source_index": 43,
-      "target_type_sha256": "sha256:ce1e853865fd6c981876fd549dd0df386dd7d16189bc0e40154e56dc54d0f37c",
-      "task_bundle_sha256": "sha256:fd64a24f1e3f7ff4836e42820a1ffd3582d7830143b223d96aaf1bce6b260816",
-      "task_id": "fc-e923379e-erdos1210-erdos-1210-2473d9f957-negative-v1",
-      "theorem": "Erdos1210.erdos_1210"
+      "source_path": "FormalConjectures/Arxiv/2303.01089/FurstenbergTimesPTimesQ.lean",
+      "target_type_sha256": "sha256:7fe402215992817232ba5908f124a44f3b1e869c258b7eafeba4c81c0a7820ae",
+      "task_bundle_sha256": "sha256:6c580bb0bf79785d142be9a186cace3fbd4a444598bd7ea499def1f0f0dba5e8",
+      "task_id": "fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1",
+      "theorem": "Arxiv.id2303_01089.conjecture_1_3"
     },
     {
-      "mode": "positive",
-      "source_index": 43,
-      "target_type_sha256": "sha256:1434a66e23862956bd8c29cf1b8d52c9747942228f3ff02236617e8a7d1c951f",
-      "task_bundle_sha256": "sha256:b3dbdb07c2a8922d50c69e3c26676275dfc3f899bab2d0a77f02913fa5b76260",
-      "task_id": "fc-e923379e-erdos1210-erdos-1210-b7a952eb4c-positive-v1",
-      "theorem": "Erdos1210.erdos_1210"
-    },
-    {
-      "mode": "positive",
-      "source_index": 47,
-      "target_type_sha256": "sha256:5aba40dcbad446212f2f2b3b9bae019541db2d1d12d20c840b732f4e76179875",
-      "task_bundle_sha256": "sha256:02dabcb8020c580fb69f9a67e2495a24ea7094f49f79907a21a1d4bd0a25f28f",
-      "task_id": "fc-e923379e-erdos197-erdos-197-4876af17d1-positive-v1",
-      "theorem": "Erdos197.erdos_197"
-    },
-    {
-      "mode": "negative",
-      "source_index": 47,
-      "target_type_sha256": "sha256:937ab5e189d0524ee55b64ab5032aa728fcb8eb0f901982d3c3cd5096c9d0b2c",
-      "task_bundle_sha256": "sha256:e2ec23e488b35b9e50fffe8adfa54a75ea1164a708bf5dcb5332cf1b5840412b",
-      "task_id": "fc-e923379e-erdos197-erdos-197-7492795863-negative-v1",
-      "theorem": "Erdos197.erdos_197"
-    },
-    {
-      "mode": "positive",
-      "source_index": 48,
-      "target_type_sha256": "sha256:ad511e67cea0bee5af43192a177c393a15527a080476eb5bdfd687eeb00f21f7",
-      "task_bundle_sha256": "sha256:82d38092df9ab853bf93db718b0daade2fb5ea65988aaa8e8d23d48fe68c9828",
-      "task_id": "fc-e923379e-erdos20-erdos-20-3300487bc9-positive-v1",
-      "theorem": "Erdos20.erdos_20"
-    },
-    {
-      "mode": "negative",
-      "source_index": 48,
-      "target_type_sha256": "sha256:1b8292109d4d9b817942944fe21b88213a073901f921bf8aa54090ffaf0eab92",
-      "task_bundle_sha256": "sha256:b626acb68d377c8af66f13e9899a001967097fce613c4e16e36f8713fec4a8e2",
-      "task_id": "fc-e923379e-erdos20-erdos-20-c931779186-negative-v1",
-      "theorem": "Erdos20.erdos_20"
-    },
-    {
-      "mode": "positive",
-      "source_index": 49,
-      "target_type_sha256": "sha256:b914b72075d5bfc280aaa098cb7541b79f49c117b1aa45ce19ff473a5bd6719c",
-      "task_bundle_sha256": "sha256:083b35f265bf789137ebd7462a8390d691644838b6dc6445fd7a7d019d7be506",
-      "task_id": "fc-e923379e-erdos203-erdos-203-1e61bf0b1e-positive-v1",
-      "theorem": "Erdos203.erdos_203"
-    },
-    {
-      "mode": "negative",
-      "source_index": 49,
-      "target_type_sha256": "sha256:d375624f42e3b17af19f524496b113629fd9446405c18fbc5bc12c7de711ac59",
-      "task_bundle_sha256": "sha256:3c21eb8eb5be1616a36b3d22753a4aa91d71f4bad0a05f98a1c8c4454f710f8c",
-      "task_id": "fc-e923379e-erdos203-erdos-203-330bc22746-negative-v1",
-      "theorem": "Erdos203.erdos_203"
-    },
-    {
-      "mode": "negative",
-      "source_index": 50,
-      "target_type_sha256": "sha256:05dd014868b96fabd4dfcbb1bddb6e0fdeaf475ccd6934459aaae3ab9d6dce43",
-      "task_bundle_sha256": "sha256:0f2996195105d7ec4cecfe309af7f245d11fa38a9788abd75c5dda6a005204b9",
-      "task_id": "fc-e923379e-erdos273-erdos-273-545407c51d-negative-v1",
-      "theorem": "Erdos273.erdos_273"
-    },
-    {
-      "mode": "positive",
-      "source_index": 50,
-      "target_type_sha256": "sha256:8d5b103454a8f1fe86f75706b673248916ce83671ffeecd29c2696833aa223fd",
-      "task_bundle_sha256": "sha256:b7347672d41fff846ef9e2912bd6a32cc5254ea8d39f7d0a5e3562c226ab2aeb",
-      "task_id": "fc-e923379e-erdos273-erdos-273-73b8745c82-positive-v1",
-      "theorem": "Erdos273.erdos_273"
-    },
-    {
-      "mode": "positive",
-      "source_index": 51,
-      "target_type_sha256": "sha256:70b6beb79fef624b687832bcfa0689881269be9f3fdfb6fb5217dacc18a32c45",
-      "task_bundle_sha256": "sha256:d9543516c37821040a3027146e3f5a218f76acacd29c434778bb1be65f8d94d3",
-      "task_id": "fc-e923379e-erdos276-erdos-276-589cce98b4-positive-v1",
-      "theorem": "Erdos276.erdos_276"
-    },
-    {
-      "mode": "negative",
-      "source_index": 51,
-      "target_type_sha256": "sha256:0e08bcc3111877a0c5264fff84ceeac349c627031742d77f868c21b705aec66d",
-      "task_bundle_sha256": "sha256:87aa91e34f8fa176e365b905d777b8e734b561fa4dd25c2824710e645e2ed822",
-      "task_id": "fc-e923379e-erdos276-erdos-276-a8c9078307-negative-v1",
-      "theorem": "Erdos276.erdos_276"
-    },
-    {
-      "mode": "negative",
-      "source_index": 53,
-      "target_type_sha256": "sha256:bfcc6b93a195e09af8cd5a69be9e1945bf323322a6a33d12b92a38b91ff68766",
-      "task_bundle_sha256": "sha256:abb898ce925b5ca19c6ad7a04489b05be8376ccd2705cc2fd232b7c089f5afc2",
-      "task_id": "fc-e923379e-erdos288-erdos-288-7355c84b9a-negative-v1",
-      "theorem": "Erdos288.erdos_288"
-    },
-    {
-      "mode": "positive",
-      "source_index": 53,
-      "target_type_sha256": "sha256:640e5715dfc0fd4fe1a4f8d9aefe90d8ecefeda73c2ad4f90046f8694e98bc2c",
-      "task_bundle_sha256": "sha256:a961b4e3bf4faf5ed8b5240abbf622182facf26cd54cef19e705787effbcd8fc",
-      "task_id": "fc-e923379e-erdos288-erdos-288-dbafcc405c-positive-v1",
-      "theorem": "Erdos288.erdos_288"
-    },
-    {
-      "mode": "negative",
-      "source_index": 57,
-      "target_type_sha256": "sha256:51e52f0f60b515061d60b2aafce2cdba3dda3e98f925f98c29b41e0cfcef0df5",
-      "task_bundle_sha256": "sha256:3ca9f728667a4ae3a8363fbb822ba1af859c68c85b79a23d74c71b794691d089",
-      "task_id": "fc-e923379e-erdos312-erdos-312-a7d74d6834-negative-v1",
-      "theorem": "Erdos312.erdos_312"
-    },
-    {
-      "mode": "positive",
-      "source_index": 57,
-      "target_type_sha256": "sha256:58b9e812dd9c5d896720b31bd83011bbe9da964b8dcb7e31d74a13677471175a",
-      "task_bundle_sha256": "sha256:2b5dd0a84430c685dd78fd76e9348ef079de22c8e6a41f7a21117927787d7ece",
-      "task_id": "fc-e923379e-erdos312-erdos-312-fc783be0e5-positive-v1",
-      "theorem": "Erdos312.erdos_312"
-    },
-    {
-      "mode": "negative",
-      "source_index": 58,
-      "target_type_sha256": "sha256:4677583538c9a0967f15855bb90e4365fcc58c57b70cec1cfc8798a812924ab2",
-      "task_bundle_sha256": "sha256:d62f83adaf78d356d4fdaf045c2b7bf1670601ac8da99ca41b2ebbbd24587f6e",
-      "task_id": "fc-e923379e-erdos317-erdos-317-8cd3fc2d01-negative-v1",
-      "theorem": "Erdos317.erdos_317"
-    },
-    {
-      "mode": "positive",
-      "source_index": 58,
-      "target_type_sha256": "sha256:190ba05ec6334831fc6af32f723302000c2b8603c612fe84e65c5254e8056631",
-      "task_bundle_sha256": "sha256:b942a842614db70df9b98caa2cb876d0849b509886fcb6d8686e270df1ce010a",
-      "task_id": "fc-e923379e-erdos317-erdos-317-bb0bf3b5f0-positive-v1",
-      "theorem": "Erdos317.erdos_317"
-    },
-    {
-      "mode": "negative",
-      "source_index": 62,
-      "target_type_sha256": "sha256:ade2c44f739064a2271519000f6ec8e72c427e3ede3808d8d583af1f5e500f4e",
-      "task_bundle_sha256": "sha256:17f14c4d84982a5bb1200ef326bee8d4b046aaa30640584c00ff0417eaca44cc",
-      "task_id": "fc-e923379e-erdos352-erdos-352-0548f4e69e-negative-v1",
-      "theorem": "Erdos352.erdos_352"
-    },
-    {
-      "mode": "positive",
-      "source_index": 62,
-      "target_type_sha256": "sha256:2d8595d26fc4081f4e03a46831816b565f44945e5914de9fffa181d7ae10d6f2",
-      "task_bundle_sha256": "sha256:0fe881484573e34e89933080bc89dfc62a6384f5ee7ba1888e0a2cf8478ee922",
-      "task_id": "fc-e923379e-erdos352-erdos-352-8e073ea5e3-positive-v1",
-      "theorem": "Erdos352.erdos_352"
-    },
-    {
-      "mode": "negative",
-      "source_index": 66,
-      "target_type_sha256": "sha256:33a525c1130ecf7bd4aa704ccbc08a0432f0740a3de153fefbdf6d7795f8651d",
-      "task_bundle_sha256": "sha256:72ebb40d992df0f737d4be378d037d7ce72173780e79589fe74cf2b15aa34864",
-      "task_id": "fc-e923379e-erdos377-erdos-377-2c7366dd71-negative-v1",
-      "theorem": "Erdos377.erdos_377"
-    },
-    {
-      "mode": "positive",
-      "source_index": 66,
-      "target_type_sha256": "sha256:02d26cba81fe833fcab881843c3e394433a8356075b343c091920055f4cfc6c4",
-      "task_bundle_sha256": "sha256:1ec171b1685b11ef87b1bf1eaeaab6b643fcd38e2554c449c12d7c607d842551",
-      "task_id": "fc-e923379e-erdos377-erdos-377-ac77b104fc-positive-v1",
-      "theorem": "Erdos377.erdos_377"
-    },
-    {
-      "mode": "positive",
-      "source_index": 71,
-      "target_type_sha256": "sha256:d5199f30ee4dc4de49ad84be3e2124cca5d36b1a6e56c5b6a4a8faacee02fbc1",
-      "task_bundle_sha256": "sha256:7b1aff1ba1d7faa9f393b28bae5f62dd9eda09fd9cc1f2981190fb60bba0cbcd",
-      "task_id": "fc-e923379e-erdos421-erdos-421-17309a75a4-positive-v1",
-      "theorem": "Erdos421.erdos_421"
-    },
-    {
-      "mode": "negative",
-      "source_index": 71,
-      "target_type_sha256": "sha256:3a5828051dec8bd01498acdde19cb8a6213a14e2c00cf1d38be88bc90ba0df36",
-      "task_bundle_sha256": "sha256:014ee5b2a535fc92b1c4eecf3a3c573aa088090d30d105d44ed4a2acb923e9fc",
-      "task_id": "fc-e923379e-erdos421-erdos-421-fffbcb1b0a-negative-v1",
-      "theorem": "Erdos421.erdos_421"
-    },
-    {
-      "mode": "positive",
-      "source_index": 74,
-      "target_type_sha256": "sha256:ca4ed4cc805a8cc2d729cd92458fd62d506e06dce58efd40bac2bd420955e866",
-      "task_bundle_sha256": "sha256:968a770cecf2861ea82f8782ec0f667d166300efe043ee1d307c6f84ea1134fc",
-      "task_id": "fc-e923379e-erdos595-erdos-595-7365288307-positive-v1",
-      "theorem": "Erdos595.erdos_595"
-    },
-    {
-      "mode": "negative",
-      "source_index": 74,
-      "target_type_sha256": "sha256:7ede7f09dabc1462a0a600cf820a83197ad2471eb2238ddf63145ad83ec90b75",
-      "task_bundle_sha256": "sha256:a1c8c9ae3b41ea0aa9cff5f8979c4b20fa552c9b336fea6bc49fc1f17c00da12",
-      "task_id": "fc-e923379e-erdos595-erdos-595-90394cb353-negative-v1",
-      "theorem": "Erdos595.erdos_595"
-    },
-    {
-      "mode": "positive",
-      "source_index": 76,
-      "target_type_sha256": "sha256:6a4e01e079ff8920059979fede24451a88757d182c913fd493c8ac8493da42dc",
-      "task_bundle_sha256": "sha256:966f6b2b53a412662f4b8bb44facb10a5c8722f11ffb2a9b8afe062c582ea381",
-      "task_id": "fc-e923379e-erdos683-erdos-683-0c475f348e-positive-v1",
-      "theorem": "Erdos683.erdos_683"
-    },
-    {
-      "mode": "negative",
-      "source_index": 76,
-      "target_type_sha256": "sha256:0e50159008d52c962b407a82d95d312eb5f55ae95b27708fb64b323ff3ed6407",
-      "task_bundle_sha256": "sha256:a3de844fce4be800a719bf27fba85fdfb2f3935e398af316678c7ae989062c8e",
-      "task_id": "fc-e923379e-erdos683-erdos-683-144a18de8b-negative-v1",
-      "theorem": "Erdos683.erdos_683"
-    },
-    {
-      "mode": "positive",
-      "source_index": 84,
-      "target_type_sha256": "sha256:517ca6557c34b1628c420a87ba5f844215311106fd3e4f44a8fecdb2bb60e355",
-      "task_bundle_sha256": "sha256:f6ee7c3c7fcd4b578cce982a9fab506af12e62b32f7be2a0bba40b582161e2e9",
-      "task_id": "fc-e923379e-erdos826-erdos-826-b86fab12d4-positive-v1",
-      "theorem": "Erdos826.erdos_826"
-    },
-    {
-      "mode": "negative",
-      "source_index": 84,
-      "target_type_sha256": "sha256:66b1ed76d6ac21f6fb1c14c93450ab94e3dd5a166013f01d7461c66454880c9b",
-      "task_bundle_sha256": "sha256:f81215b562028c5c0d40c2b475d511f401775aa9629a40f33860307420bf2850",
-      "task_id": "fc-e923379e-erdos826-erdos-826-deeedc8543-negative-v1",
-      "theorem": "Erdos826.erdos_826"
-    },
-    {
-      "mode": "negative",
-      "source_index": 87,
-      "target_type_sha256": "sha256:99d12ea707f4f81b4260c5d373f1896ce42adee374a4d41c061e254ccc2fcb2b",
-      "task_bundle_sha256": "sha256:7756cffd6d757f9ffa866f816ee4ad9c36eae02d65a9fcbfc3745c4c7e2d6b28",
-      "task_id": "fc-e923379e-erdos850-erdos-850-3d6ce0d8a0-negative-v1",
-      "theorem": "Erdos850.erdos_850"
-    },
-    {
-      "mode": "positive",
-      "source_index": 87,
-      "target_type_sha256": "sha256:ccccf9c0c16bb6bfa026182714417b534e3e5e156c73b47fdee5e55f8e8baaac",
-      "task_bundle_sha256": "sha256:d8ed196a8d57d025a49d34fd22588ab23d4b2c8c8f9d8df91d4402ff9e58bc37",
-      "task_id": "fc-e923379e-erdos850-erdos-850-eb8f137f6a-positive-v1",
-      "theorem": "Erdos850.erdos_850"
-    },
-    {
-      "mode": "positive",
-      "source_index": 89,
-      "target_type_sha256": "sha256:304755c235d06ab1de7889ea5e973aa579ac829769f5d6fb2991a361aad1be86",
-      "task_bundle_sha256": "sha256:a48885a977aa8fddf914397cf47153eb40d8c65bd07eff25b1ef4f9eeccf10ce",
-      "task_id": "fc-e923379e-erdos906-erdos-906-45d89e969c-positive-v1",
-      "theorem": "Erdos906.erdos_906"
-    },
-    {
-      "mode": "negative",
-      "source_index": 89,
-      "target_type_sha256": "sha256:3ca4aaa4322ed124542419e029b67bd7064ae1ffadf9d6dd6a9ed779c7ade1e1",
-      "task_bundle_sha256": "sha256:20e7d38c40e16b39f0bf2b7ba2ba2ae4cb53cf0d3fb6442407a7dff2e2e6f71f",
-      "task_id": "fc-e923379e-erdos906-erdos-906-792de44d66-negative-v1",
-      "theorem": "Erdos906.erdos_906"
-    },
-    {
-      "mode": "positive",
-      "source_index": 90,
-      "target_type_sha256": "sha256:bb00c93243afa11d84a24b64a020804153227d55846c4000f4a1e3c7b45c27af",
-      "task_bundle_sha256": "sha256:c18e47478b6240b4da053a7021bd1b5e9024a75dc091f377aad62587fed64a31",
-      "task_id": "fc-e923379e-erdos938-erdos-938-5ada4d96c6-positive-v1",
-      "theorem": "Erdos938.erdos_938"
-    },
-    {
-      "mode": "negative",
-      "source_index": 90,
-      "target_type_sha256": "sha256:7443e2937a297eb3d99644e0224897d3d715d7b2e3c83160cba2fc6b4a4ddee0",
-      "task_bundle_sha256": "sha256:2ad7858e8ed74ceeb5e89102c680932b03c4d6688cc7060beba3dc975145422e",
-      "task_id": "fc-e923379e-erdos938-erdos-938-cc0bec6452-negative-v1",
-      "theorem": "Erdos938.erdos_938"
-    },
-    {
-      "mode": "positive",
-      "source_index": 94,
-      "target_type_sha256": "sha256:2bfa1441402da923f859f0e9c25fe31fd3bc41754457c9e5d24f641ba20f9e47",
-      "task_bundle_sha256": "sha256:ee954ff7d704c25da30afe2a87d7629dfb5f85b2202fa489c59bffd657dbf41b",
-      "task_id": "fc-e923379e-erdos973-erdos-973-879e727294-positive-v1",
-      "theorem": "Erdos973.erdos_973"
-    },
-    {
-      "mode": "negative",
-      "source_index": 94,
-      "target_type_sha256": "sha256:df6288c2aef647cdbf8e984c45d4175b8544b706258dbd2059827dfb9a0d423f",
-      "task_bundle_sha256": "sha256:4131695c1b2540bc36c3cbc1f860ba87a979e568396eff6895b3b9f33425b036",
-      "task_id": "fc-e923379e-erdos973-erdos-973-a917cd4d5e-negative-v1",
-      "theorem": "Erdos973.erdos_973"
-    },
-    {
-      "mode": "positive",
-      "source_index": 96,
-      "target_type_sha256": "sha256:38fe50cff36ad5456c08ab2601bb3d1e2ea225cce11f1d45269ca827c0db0a10",
-      "task_bundle_sha256": "sha256:4b74c1f47ddcf01de58eb401bc631b2f9ec64c46e13b699450c41590e5067362",
-      "task_id": "fc-e923379e-eulerbrick-perfect-euler-brick-existence-e3a46d27fa-positive-v1",
-      "theorem": "EulerBrick.perfect_euler_brick_existence"
-    },
-    {
-      "mode": "negative",
-      "source_index": 96,
-      "target_type_sha256": "sha256:734ac97b35c0101c731c9def0a45f4b39a433e2669d26f6466f20e20125c3005",
-      "task_bundle_sha256": "sha256:11bf83e23bb8964dc3500c365bd61a6c1d702c308eb00997acbf5aefa153069a",
-      "task_id": "fc-e923379e-eulerbrick-perfect-euler-brick-existence-fd475d9435-negative-v1",
-      "theorem": "EulerBrick.perfect_euler_brick_existence"
-    },
-    {
-      "mode": "negative",
-      "source_index": 97,
-      "target_type_sha256": "sha256:a560524363db0cfa914a0ac3067940afa462ddfd0b5e9e67aaf6edf3e8f1ee46",
-      "task_bundle_sha256": "sha256:d68bc72dc283df935e11b12e6feb3e71960803cd49ded2f372026a0c12cc966f",
-      "task_id": "fc-e923379e-fibonacciprimes-fib-primes-infinite-064aac17a0-negative-v1",
-      "theorem": "FibonacciPrimes.fib_primes_infinite"
-    },
-    {
-      "mode": "positive",
-      "source_index": 97,
-      "target_type_sha256": "sha256:b72cd700f9814e0241d4a9e948fbcfe89421e63e90760fb9b5b37920117dd175",
-      "task_bundle_sha256": "sha256:38f457799af4b90e59365d38188aacf952500e26bc2069774ec40663cd867be3",
-      "task_id": "fc-e923379e-fibonacciprimes-fib-primes-infinite-06de9894f2-positive-v1",
-      "theorem": "FibonacciPrimes.fib_primes_infinite"
-    },
-    {
-      "mode": "negative",
-      "source_index": 98,
-      "target_type_sha256": "sha256:e2b936590af29b76fbb3103c2cc8d65bea3312566d57fa656cfbb71f52d00b93",
-      "task_bundle_sha256": "sha256:b605d3e708279dce0955d1c9df57b1e73cc453cd0b6fadf1f4ab2cffc1869e42",
-      "task_id": "fc-e923379e-flintcooksonhills-cookson-hills-series-converges-657a607ef4-negative-v1",
-      "theorem": "FlintCooksonHills.cookson_hills_series_converges"
-    },
-    {
-      "mode": "positive",
-      "source_index": 98,
-      "target_type_sha256": "sha256:969868303b9b51b9aa03f2cbc64fbf968738ebb03523984a145c9002ca9d0817",
-      "task_bundle_sha256": "sha256:6fc580fa7151a1bd22d538894dcb6cdf5cd52b70482344cff2290949433168e4",
-      "task_id": "fc-e923379e-flintcooksonhills-cookson-hills-series-converges-ac1c533a81-positive-v1",
-      "theorem": "FlintCooksonHills.cookson_hills_series_converges"
-    },
-    {
-      "mode": "negative",
-      "source_index": 99,
-      "target_type_sha256": "sha256:3fec84af5292d8593d201df989116d00c2ddb92c653df1373bc341ce8b181d8a",
-      "task_bundle_sha256": "sha256:4128d74b6a932e907829be07a736847ea36db09e958da31c2db839503e65a3d0",
-      "task_id": "fc-e923379e-flintcooksonhills-flint-hills-series-converges-706acced35-negative-v1",
-      "theorem": "FlintCooksonHills.flint_hills_series_converges"
-    },
-    {
-      "mode": "positive",
-      "source_index": 99,
-      "target_type_sha256": "sha256:f7503c98c24b768d630bf612b167152a5013fe6559542dd8128827cd52e397c1",
-      "task_bundle_sha256": "sha256:37ff1addde8baa351cf6a9127c197cf4aba8301b0015361e20f6f06cc8e81ee2",
-      "task_id": "fc-e923379e-flintcooksonhills-flint-hills-series-converges-788ad1d6e4-positive-v1",
-      "theorem": "FlintCooksonHills.flint_hills_series_converges"
-    },
-    {
-      "mode": "negative",
-      "source_index": 102,
-      "target_type_sha256": "sha256:11597c8dffc1be49a78de9f9c830a8a9c3466f170729d5af928ab5914764bbe3",
-      "task_bundle_sha256": "sha256:178401694809fa214bf665ccdcd3f826723d2cb518cb6885bb53f05f007c1f79",
-      "task_id": "fc-e923379e-gracefullabeling-graceful-tree-conjecture-36d7f71aef-negative-v1",
-      "theorem": "GracefulLabeling.graceful_tree_conjecture"
-    },
-    {
-      "mode": "positive",
-      "source_index": 102,
-      "target_type_sha256": "sha256:34f13eb5cee24bc493816ff963c1301c8eb6b80592696c6c50564919ee94b1e5",
-      "task_bundle_sha256": "sha256:59e350eb60c7c5773203c9631c1c71364047a7cd7ee211fa84092728615e3ba6",
-      "task_id": "fc-e923379e-gracefullabeling-graceful-tree-conjecture-6de09defc1-positive-v1",
-      "theorem": "GracefulLabeling.graceful_tree_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 113,
-      "target_type_sha256": "sha256:383695b1087b912a36d522afd9196be370bf9d3552fe05bb9bf3c4291116e99d",
-      "task_bundle_sha256": "sha256:a420b9556f8050d62a3669e4b4fbe6260d7c9dd544b436df95a03336363dda76",
-      "task_id": "fc-e923379e-green-40-f-two-eq-one-27bb5c698c-negative-v1",
-      "theorem": "Green40.green_40.f_two_eq_one"
-    },
-    {
-      "mode": "positive",
-      "source_index": 113,
-      "target_type_sha256": "sha256:9797ae5e85f2db539a54acc63a9d4528867ed9e01f409a180f7af807c5b16343",
-      "task_bundle_sha256": "sha256:a2f1751967d114331219d9784fd07763148d99f658cfb3cc977e15c98899f24f",
-      "task_id": "fc-e923379e-green-40-f-two-eq-one-b4c8bf3e5a-positive-v1",
-      "theorem": "Green40.green_40.f_two_eq_one"
-    },
-    {
-      "mode": "negative",
-      "source_index": 104,
-      "target_type_sha256": "sha256:cb42b8bbddc9f8d50d9a3efca2f504d1ffd214d52d55ea1bc37a0ef7ecd2f0d7",
-      "task_bundle_sha256": "sha256:43d79f2aeda3699c898662ce91df4ed09fb28ac3aa12316221a76b522ba3f0cb",
-      "task_id": "fc-e923379e-green12-green-12-c672e42fbb-negative-v1",
-      "theorem": "Green12.green_12"
-    },
-    {
-      "mode": "positive",
-      "source_index": 104,
-      "target_type_sha256": "sha256:5c1630bbef940caef422cf3d8ea7d91c044f2c28348a215782d2c74fbd21144b",
-      "task_bundle_sha256": "sha256:2cd129663247d4b190e060d037bb1c6e49e2fb682bb31d0ad9b72edaf4de91c1",
-      "task_id": "fc-e923379e-green12-green-12-e797a1f8e5-positive-v1",
-      "theorem": "Green12.green_12"
-    },
-    {
-      "mode": "positive",
-      "source_index": 105,
-      "target_type_sha256": "sha256:76ffc9508198222f65b9cc09bf2efdf66640aa00043f0fb898c22b91380a47d0",
-      "task_bundle_sha256": "sha256:5c51ab3a940b631ed7242ce8d5b2a4bf6bb4b93ac571859cc8d66225aca73d04",
-      "task_id": "fc-e923379e-green15-green-15-b4834d0e60-positive-v1",
-      "theorem": "Green15.green_15"
-    },
-    {
-      "mode": "negative",
-      "source_index": 105,
-      "target_type_sha256": "sha256:a768f9420dfcec5f5190d8decb2721d5a95339eebf01afddf8a13a61e761caf7",
-      "task_bundle_sha256": "sha256:725a326cae55663c81b96778a62428a2a26967aa26da0e8259e62e1e90f7b8eb",
-      "task_id": "fc-e923379e-green15-green-15-f6fa6d931b-negative-v1",
-      "theorem": "Green15.green_15"
-    },
-    {
-      "mode": "positive",
-      "source_index": 106,
-      "target_type_sha256": "sha256:a86d289b3eba76ea378f36fc995703e8489f437498b288b9a2d08ca44517ca8f",
-      "task_bundle_sha256": "sha256:4723ec73bbaca2ee8d5dea34a70b3719ed9bd4d1fbfcb75c7c1437fd15970ad9",
-      "task_id": "fc-e923379e-green18-green-18-9a0402c1c0-positive-v1",
-      "theorem": "Green18.green_18"
-    },
-    {
-      "mode": "negative",
-      "source_index": 106,
-      "target_type_sha256": "sha256:4e29447e089852a0fc670fff6538961ec64edd4989bf579ffe6134773b5148bf",
-      "task_bundle_sha256": "sha256:661499153d504e3d5fd4c4932287ebba8ecd7e1dbe31173e724e8c2b60685801",
-      "task_id": "fc-e923379e-green18-green-18-bf9d94faa2-negative-v1",
-      "theorem": "Green18.green_18"
-    },
-    {
-      "mode": "positive",
-      "source_index": 108,
-      "target_type_sha256": "sha256:5fe1f370a6437576f7b06fe95c3341f2e78310aab0b8ef7611b14463ab9f38cd",
-      "task_bundle_sha256": "sha256:d4bb12120990a4d861b770adeef5e5e67189c66337c2c49e2071bbdd149ec616",
-      "task_id": "fc-e923379e-green28-green-28-3dc6b972da-positive-v1",
-      "theorem": "Green28.green_28"
-    },
-    {
-      "mode": "negative",
-      "source_index": 108,
-      "target_type_sha256": "sha256:76fe5563a46bff66393105ad98bc11fd5a2ea8790faf2be668d68ae0bf5dbf11",
-      "task_bundle_sha256": "sha256:1a73a8b31e3feee4cc5934c9378787f061826b35506df18fc64905e66f34229b",
-      "task_id": "fc-e923379e-green28-green-28-8c2536620d-negative-v1",
-      "theorem": "Green28.green_28"
-    },
-    {
-      "mode": "positive",
-      "source_index": 109,
-      "target_type_sha256": "sha256:401d8141a371e20a57d964fc75c585e887e2a879484e7da2d15e7e7a7b2aa62c",
-      "task_bundle_sha256": "sha256:6966e0efd2a47d3aa31b8e21f53d42f466b8eeee6e22b96169ee36a3996c67b1",
-      "task_id": "fc-e923379e-green29-green-29-bf40f8fcdd-positive-v1",
-      "theorem": "Green29.green_29"
-    },
-    {
-      "mode": "negative",
-      "source_index": 109,
-      "target_type_sha256": "sha256:d823b2fa8d5d25cb237e57e4b4806e8abbe87de41e436267bf560530dd8cd7b7",
-      "task_bundle_sha256": "sha256:36c9db1f9a48d1917331e2b87caa8aa59d9e80f43539174d8d061ca43dcab584",
-      "task_id": "fc-e923379e-green29-green-29-eae034607b-negative-v1",
-      "theorem": "Green29.green_29"
-    },
-    {
-      "mode": "positive",
-      "source_index": 112,
-      "target_type_sha256": "sha256:5dc21267976468089962444845120f5a6b6b621be1a5a957041d369c75f8da57",
-      "task_bundle_sha256": "sha256:6d818bf96f8f0de5428397ec472d7a9d7800ed70b2bcd3d2768404b50d3830e7",
-      "task_id": "fc-e923379e-green32-green-32-4898476483-positive-v1",
-      "theorem": "Green32.green_32"
-    },
-    {
-      "mode": "negative",
-      "source_index": 112,
-      "target_type_sha256": "sha256:b4650fe250d5e0c41cfa234126af5e1e0d17860493511b90301519f9e7c4db53",
-      "task_bundle_sha256": "sha256:e4ac94fa879c9fc1fbe204af075922b46e48a738c77617b1e00e0b3e62b9cbb8",
-      "task_id": "fc-e923379e-green32-green-32-82c1fdd58f-negative-v1",
-      "theorem": "Green32.green_32"
-    },
-    {
-      "mode": "positive",
-      "source_index": 116,
-      "target_type_sha256": "sha256:90281eaef5431d9407c24af6776cf5bb6cdcfa52c70dafe0f98e21398ec735fe",
-      "task_bundle_sha256": "sha256:76293fe1a433f87f7c42519393603cce95cf1ee48323e50b5341622e21a1936e",
-      "task_id": "fc-e923379e-green42-green-42-7befa10e5b-positive-v1",
-      "theorem": "Green42.green_42"
-    },
-    {
-      "mode": "negative",
-      "source_index": 116,
-      "target_type_sha256": "sha256:ca0c88004d1eb6736ee38ddf724355d7029df1fd2fe50c58262527b931119b16",
-      "task_bundle_sha256": "sha256:beaf8a39878d069de39e1ef4460fcbe096f11e4b48ff98c4cd370cc09cd4fb31",
-      "task_id": "fc-e923379e-green42-green-42-a368d2c356-negative-v1",
-      "theorem": "Green42.green_42"
-    },
-    {
-      "mode": "positive",
-      "source_index": 117,
-      "target_type_sha256": "sha256:9b21b4a0c642406922960b1c169ff374a2a86dbfe564f30abf90a621cd60f83b",
-      "task_bundle_sha256": "sha256:d8879b69fd7afc1e1dea19f5772c55f2673045a2dc140a205fd4a91562d736d5",
-      "task_id": "fc-e923379e-green50-green-50-8f84e7aaae-positive-v1",
-      "theorem": "Green50.green_50"
-    },
-    {
-      "mode": "negative",
-      "source_index": 117,
-      "target_type_sha256": "sha256:32f032115f923ea9b15941e06486deb06afbe3bb5e09d8eeecaf06c6a2a2dd9c",
-      "task_bundle_sha256": "sha256:10d090b5eed618aa165b153b0690448d0daea0e9abb5a7854fb0bdd0d54adc4f",
-      "task_id": "fc-e923379e-green50-green-50-bd8cd7ee46-negative-v1",
-      "theorem": "Green50.green_50"
-    },
-    {
-      "mode": "negative",
-      "source_index": 118,
-      "target_type_sha256": "sha256:660af93f3d821a3db729e359b501b9631cc2c39c60c767b672af7f902e7da207",
-      "task_bundle_sha256": "sha256:1a6cd59290abc5ceb81797f6aa7479234e808565d1031ca3409147f016b064d4",
-      "task_id": "fc-e923379e-green52-green-52-175dfaeefa-negative-v1",
-      "theorem": "Green52.green_52"
-    },
-    {
-      "mode": "positive",
-      "source_index": 118,
-      "target_type_sha256": "sha256:db45914ba6cf18b8206df54e427a74e54b28a570fca333aa9f5886bd1b45422b",
-      "task_bundle_sha256": "sha256:9498dc9b3d249fee7d01b8ee10506ee825ff66471e50353f33afe3430949c3c4",
-      "task_id": "fc-e923379e-green52-green-52-988dd846d3-positive-v1",
-      "theorem": "Green52.green_52"
-    },
-    {
-      "mode": "negative",
-      "source_index": 120,
-      "target_type_sha256": "sha256:6e1e9f60c150eb4175233bfdaec7ec52df6869437d7eaf3b4439e6cb35f6b593",
-      "task_bundle_sha256": "sha256:84e46cb8a0785c7c9b0fecce9f5c86258502beec77b92a6c9465b26d5fb26e5b",
-      "task_id": "fc-e923379e-green60-green-60-b32507c907-negative-v1",
-      "theorem": "Green60.green_60"
-    },
-    {
-      "mode": "positive",
-      "source_index": 120,
-      "target_type_sha256": "sha256:9ed6fc2be03cd85ece6dfb93b32fd8ac4935396054fbb3c4b45122d2edc0656e",
-      "task_bundle_sha256": "sha256:d53f148b05c2cac12018b0a216959ece4762b62dbf556829f93bb6158870efd4",
-      "task_id": "fc-e923379e-green60-green-60-b724b3b235-positive-v1",
-      "theorem": "Green60.green_60"
-    },
-    {
-      "mode": "positive",
-      "source_index": 121,
-      "target_type_sha256": "sha256:10d6d7ff253a73b500eb5d2824492727ac495ed355d11daf36bd7288601d3d4a",
-      "task_bundle_sha256": "sha256:44760b8da334977997612851c1c423005fef2494c5659fb46d8bb66d20bc43b1",
-      "task_id": "fc-e923379e-green61-green-61-1f7ca1ccc6-positive-v1",
-      "theorem": "Green61.green_61"
-    },
-    {
-      "mode": "negative",
-      "source_index": 121,
-      "target_type_sha256": "sha256:aa6e59f88a8cdd938439ac07eed1cf897d7c54b2a6520bfab103ce40e6389241",
-      "task_bundle_sha256": "sha256:336825c65403141074c3faa0ef2e6a0c1326610075fe07a9f9de60d4a7d2d6bd",
-      "task_id": "fc-e923379e-green61-green-61-4da1cf1058-negative-v1",
-      "theorem": "Green61.green_61"
-    },
-    {
-      "mode": "negative",
-      "source_index": 122,
-      "target_type_sha256": "sha256:d0a894159dd4778d6a659c8cc8c1095b2dfdf9ec2ccabe1837c288de120d52b0",
-      "task_bundle_sha256": "sha256:65cbdcf97df2d6cbb8633454f4135edd5ca3adf8cad21c330dbf3c2993e191f4",
-      "task_id": "fc-e923379e-green77-green-77-1378307b30-negative-v1",
-      "theorem": "Green77.green_77"
-    },
-    {
-      "mode": "positive",
-      "source_index": 122,
-      "target_type_sha256": "sha256:79a51a5ff4af6ce7186b6fb1d50808242af10bfc9ce8673fcacae013f34d0970",
-      "task_bundle_sha256": "sha256:221de827778c6de277eb8e66f8db54b4ab1933ce0e500446409ecf42f3d8c17b",
-      "task_id": "fc-e923379e-green77-green-77-92671ba4fc-positive-v1",
-      "theorem": "Green77.green_77"
-    },
-    {
-      "mode": "negative",
-      "source_index": 123,
-      "target_type_sha256": "sha256:678148a3a371363c681f1f83850066f39b798e2c4264269667309f60e2cda0dd",
-      "task_bundle_sha256": "sha256:09025ec5d59354b9b37a59024e9a62105d227b385ccca5ccead982794cf0f515",
-      "task_id": "fc-e923379e-green85-green-85-39f256f413-negative-v1",
-      "theorem": "Green85.green_85"
-    },
-    {
-      "mode": "positive",
-      "source_index": 123,
-      "target_type_sha256": "sha256:a7816af3dba7f412184ac28f4c9d714a64deffecdb383b22c313c330836c4b3a",
-      "task_bundle_sha256": "sha256:fff914b50bd2ee1cb7701e8c38041a77c9c7bdd7e5cd65ebea6a7c5e29d52fb8",
-      "task_id": "fc-e923379e-green85-green-85-fa72806be0-positive-v1",
-      "theorem": "Green85.green_85"
-    },
-    {
-      "mode": "positive",
-      "source_index": 124,
-      "target_type_sha256": "sha256:7d1fce6febf28c5abe0d0c0860ef69bb15f9c55c554ab840994b1fdb60956f12",
-      "task_bundle_sha256": "sha256:e38dbeaf38afa14bb9a5f44d9706576edcbd17e783692da8ef2ef9ce081201a8",
-      "task_id": "fc-e923379e-green9-green-9-iii-1e34463f35-positive-v1",
-      "theorem": "Green9.green_9_iii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 124,
-      "target_type_sha256": "sha256:82cd2194aeec41c6327efbf60088b68009d7598108ea9176eefc4561776bfd6a",
-      "task_bundle_sha256": "sha256:830dfe1c5fe782a876151bbdc96e7bd06f480dac6810c5cc4c375016ee0d5ed5",
-      "task_id": "fc-e923379e-green9-green-9-iii-b5d55aaaf9-negative-v1",
-      "theorem": "Green9.green_9_iii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 41,
-      "target_type_sha256": "sha256:0c234043184c08636d794a12b4021e8c3579a4279a5cb39e40a9dd3700ed59f1",
-      "task_bundle_sha256": "sha256:fa42533eee90f0c5d0c703d64175e1fa48b9c843c270377ddc7dda4619d6b735",
-      "task_id": "fc-e923379e-iii-b-92370cd19a-negative-v1",
-      "theorem": "Erdos1209.erdos_1209.parts.iii.b"
-    },
-    {
-      "mode": "positive",
-      "source_index": 41,
-      "target_type_sha256": "sha256:f114fc1f01e2def424c7573a007a3c6a5e040d49e35416051da601d24c3522e8",
-      "task_bundle_sha256": "sha256:ded858d80001a4eeccf912e91e71a23399516d7ca4af8cf0e4416db1b14fdb53",
-      "task_id": "fc-e923379e-iii-b-eacf9f3f47-positive-v1",
-      "theorem": "Erdos1209.erdos_1209.parts.iii.b"
-    },
-    {
-      "mode": "positive",
-      "source_index": 42,
-      "target_type_sha256": "sha256:b431295ec03ad1ff76cd5d652f473f3782ab0dc54444536c317b248df3456e41",
-      "task_bundle_sha256": "sha256:f708225d57db4a12fd27be524d5df4212284f707cb97bf8fb0204b4995ece05f",
-      "task_id": "fc-e923379e-iii-c-17c089d104-positive-v1",
-      "theorem": "Erdos1209.erdos_1209.parts.iii.c"
-    },
-    {
-      "mode": "negative",
-      "source_index": 42,
-      "target_type_sha256": "sha256:f6377a83ee06deb190292c9af4631f8920bea5ebf17825b0ca2858c7154fe729",
-      "task_bundle_sha256": "sha256:73e6a8c39335e2bbc2616e7002434ea0832cefe9e953180f6a303a5592dc37a5",
-      "task_id": "fc-e923379e-iii-c-2f238cb3e2-negative-v1",
-      "theorem": "Erdos1209.erdos_1209.parts.iii.c"
-    },
-    {
-      "mode": "negative",
-      "source_index": 128,
-      "target_type_sha256": "sha256:1ade0535f7c058b602f6964e4e24d23bb8a159e9428683acc334992d758e8dc2",
-      "task_bundle_sha256": "sha256:7de60afb69ca2c7112020667810bb14e8b59aa49cf2cb04d05fceeb93d50de70",
-      "task_id": "fc-e923379e-inscribedsquare-inscribed-rectangle-problem-20597e5dd2-negative-v1",
-      "theorem": "InscribedSquare.inscribed_rectangle_problem"
-    },
-    {
-      "mode": "positive",
-      "source_index": 128,
-      "target_type_sha256": "sha256:0069589e98d517aeaeeb4b363e9fc82ab4b49cebf7d60eda0c814fc2b0b1740d",
-      "task_bundle_sha256": "sha256:5c53ec7cfecc1550b478308e3cf2937ce70ebd3ddce5c379bd2ca9cd48727557",
-      "task_id": "fc-e923379e-inscribedsquare-inscribed-rectangle-problem-fd429dc57f-positive-v1",
-      "theorem": "InscribedSquare.inscribed_rectangle_problem"
-    },
-    {
-      "mode": "positive",
-      "source_index": 129,
-      "target_type_sha256": "sha256:d28652195dd2b14c77068cab3403e8d615401dcbd43daa073b476ea0a9cea655",
-      "task_bundle_sha256": "sha256:4fe2307efa5c35267670ece3017115d5ef008d1adc8a7f70d05dca9cf7a91b39",
-      "task_id": "fc-e923379e-komlosconjecture-komlos-conjecture-c957d9a9f0-positive-v1",
-      "theorem": "KomlosConjecture.komlos_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 129,
-      "target_type_sha256": "sha256:0226e7b0ff2c248fe6d3d3cd9b56e4d1755cc0f74bbfd1f041559d5798301e00",
-      "task_bundle_sha256": "sha256:4ea549abf8fcf2d6bd7e6c69d8393fb0f649285e53227fae7b6d45fb8793f205",
-      "task_id": "fc-e923379e-komlosconjecture-komlos-conjecture-cd79998e0a-negative-v1",
-      "theorem": "KomlosConjecture.komlos_conjecture"
-    },
-    {
-      "mode": "negative",
-      "source_index": 134,
-      "target_type_sha256": "sha256:b14d25067f01428613f116c533804812d6a014034e0dd208c1f0efd4b3f0e49f",
-      "task_bundle_sha256": "sha256:14787312dacf65a4b7ba1ab2862dcac7ea89b1f12cb1d6d1c037e2111413c5f5",
-      "task_id": "fc-e923379e-latinsquare-numtransversalszn-085831cc3d-negative-v1",
-      "theorem": "LatinSquare.numTransversalsZn"
-    },
-    {
-      "mode": "positive",
-      "source_index": 134,
-      "target_type_sha256": "sha256:7a29f5b7433e567556138b554fc3d146edb58bce150948648e82ac57ab090a4c",
-      "task_bundle_sha256": "sha256:461bb4d5b6d55e665c788be5be11988107c3bb70be839de0d6207cff9ce0f7fe",
-      "task_id": "fc-e923379e-latinsquare-numtransversalszn-939fb9e571-positive-v1",
-      "theorem": "LatinSquare.numTransversalsZn"
-    },
-    {
-      "mode": "negative",
-      "source_index": 135,
-      "target_type_sha256": "sha256:040a9b61c4d7269cb285ec243790a207a35c81293d1f375fef06c7466d640b96",
-      "task_bundle_sha256": "sha256:8823db184dfc627a9da90901fdf2b2002579dd9788a3daee6bc7870d09a3965b",
-      "task_id": "fc-e923379e-lehmermahlermeasureproblem-lehmer-mahler-measure-problem-d3a7c529f8-negative-v1",
-      "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem"
-    },
-    {
-      "mode": "positive",
-      "source_index": 135,
-      "target_type_sha256": "sha256:ab0bc423aa29d33304fa2763ce2a3f9f1390e9dd3c0aaf99580f19a9b14f52bf",
-      "task_bundle_sha256": "sha256:6e44a5913cdcc22a7c7c86885947aa895be283026bfb1ce7868ce346941c6c82",
-      "task_id": "fc-e923379e-lehmermahlermeasureproblem-lehmer-mahler-measure-problem-ed5d8823a3-positive-v1",
-      "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem"
-    },
-    {
-      "mode": "positive",
-      "source_index": 136,
-      "target_type_sha256": "sha256:5a24ede8ce465898e85e5c5f0155d60fbc53ef9fd937a2bc3a0dbe7c099693cb",
-      "task_bundle_sha256": "sha256:ccd06baf9c5ae4fa4d2ed18dd8d0b831ae7d6967803a8bdd5b33eec8e998b04f",
-      "task_id": "fc-e923379e-lehmertotient-lehmer-totient-68e46e431c-positive-v1",
-      "theorem": "LehmerTotient.lehmer_totient"
-    },
-    {
-      "mode": "negative",
-      "source_index": 136,
-      "target_type_sha256": "sha256:cbc8abf5a3b483c320fe8f717458c53c832ae1a7f71d997adbab192291089cd7",
-      "task_bundle_sha256": "sha256:cbf3a97c55f26a57716d5ffcf9e2a0d8b37f3b52ec7aa74b1b1e66da0949a84a",
-      "task_id": "fc-e923379e-lehmertotient-lehmer-totient-950f977cda-negative-v1",
-      "theorem": "LehmerTotient.lehmer_totient"
-    },
-    {
-      "mode": "positive",
-      "source_index": 137,
-      "target_type_sha256": "sha256:a3e441bc0cb826387436f9c50e5d37c23ea7912778d1daf1279485ff036ac029",
-      "task_bundle_sha256": "sha256:43eedd5f8cfd90b77d1dccfe429085fe4440b37141d7854ad8fdf4f4d8183577",
-      "task_id": "fc-e923379e-leinstergroup-infinitely-many-leinster-groups-a12efee506-positive-v1",
-      "theorem": "LeinsterGroup.infinitely_many_leinster_groups"
-    },
-    {
-      "mode": "negative",
-      "source_index": 137,
-      "target_type_sha256": "sha256:4ee6fda7c55dc786f6bb096ec483c26130539cb40db30d15504ba9dd972aef54",
-      "task_bundle_sha256": "sha256:4c1e13ee5c3fa280ecf6a1f5e354c7370fdd90366dfd6db298f4d6745b94d36e",
-      "task_id": "fc-e923379e-leinstergroup-infinitely-many-leinster-groups-e2c6412062-negative-v1",
-      "theorem": "LeinsterGroup.infinitely_many_leinster_groups"
-    },
-    {
-      "mode": "positive",
-      "source_index": 138,
-      "target_type_sha256": "sha256:e8647e999824d82e50d50343f71124c2ceabc254a985322637004503ff726f68",
-      "task_bundle_sha256": "sha256:e2242035fe8ceec0745fceaaab2d304fba25f3ff19f2ed914ed9db9e63e40810",
-      "task_id": "fc-e923379e-magicsquares-exists-magic-square-squares-c421867e45-positive-v1",
-      "theorem": "MagicSquares.exists_magic_square_squares"
-    },
-    {
-      "mode": "negative",
-      "source_index": 138,
-      "target_type_sha256": "sha256:fe1b2f786fa1ff52492a02a1f7b2e414cf8971b292c089ba45252d637b41c3db",
-      "task_bundle_sha256": "sha256:4e81ed05935095c053aa1ecbef7a13fb46e9fb2ee49d0a901c677152ee58fbe7",
-      "task_id": "fc-e923379e-magicsquares-exists-magic-square-squares-e53de5efa6-negative-v1",
-      "theorem": "MagicSquares.exists_magic_square_squares"
-    },
-    {
-      "mode": "negative",
-      "source_index": 140,
-      "target_type_sha256": "sha256:5c66bdeae4572ceb594f9751bfcdde180ab3775e9f8f85a329bb3075181d7830",
-      "task_bundle_sha256": "sha256:7e3a0707e0d3ddfbfa8e3aa904d0610c572ec28c29a6f7c2a30dc51a1eaa44cd",
-      "task_id": "fc-e923379e-mandelbrot-density-of-hyperbolicity-d8fe462c8a-negative-v1",
-      "theorem": "Mandelbrot.density_of_hyperbolicity"
-    },
-    {
-      "mode": "positive",
-      "source_index": 140,
-      "target_type_sha256": "sha256:cf2456bd1262508cc0698b19daa75e5c2e158e00345f5f802e4eb0256375facc",
-      "task_bundle_sha256": "sha256:457ca126a83a40b60baa577a04f748310a688d4f77324e096e6c13933c9862b2",
-      "task_id": "fc-e923379e-mandelbrot-density-of-hyperbolicity-fc7b70c5f2-positive-v1",
-      "theorem": "Mandelbrot.density_of_hyperbolicity"
-    },
-    {
-      "mode": "positive",
-      "source_index": 142,
-      "target_type_sha256": "sha256:01eeed4acbec3cd3d0ce8c04b32a18eaed20653d557dd2c49a016b310fbe6a93",
-      "task_bundle_sha256": "sha256:d0e0e4009d467ed2e057abd1f25ac36f9092509890f3f8b60d11e5047d5aba7d",
-      "task_id": "fc-e923379e-mathoverflow1973-mathoverflow-1973-50129094a3-positive-v1",
-      "theorem": "Mathoverflow1973.mathoverflow_1973"
-    },
-    {
-      "mode": "negative",
-      "source_index": 142,
-      "target_type_sha256": "sha256:0acde586de290e891b61f870e2e90161c29922635a37ef6fc76db19b501dcde2",
-      "task_bundle_sha256": "sha256:7a0869a9369aea3fcd892bf3d3e654cceecb8e818536658b969078beb4c16478",
-      "task_id": "fc-e923379e-mathoverflow1973-mathoverflow-1973-74d1ce96f6-negative-v1",
-      "theorem": "Mathoverflow1973.mathoverflow_1973"
-    },
-    {
-      "mode": "negative",
-      "source_index": 143,
-      "target_type_sha256": "sha256:697e9ec0e0a3808e3074e4f0b58f485cbc3eb7aa9e8a13b8b2454acc15554daa",
-      "task_bundle_sha256": "sha256:8598c0803487362eb154c308f26ce6e765585788c3b3a5cc4debcad237337435",
-      "task_id": "fc-e923379e-mathoverflow21003-mathoverflow-21003-10275bfafa-negative-v1",
-      "theorem": "Mathoverflow21003.mathoverflow_21003"
-    },
-    {
-      "mode": "positive",
-      "source_index": 143,
-      "target_type_sha256": "sha256:94e1116945ce67f1a7072476d81c8ea09f87c985ebd644fabeea0bacfd1c626c",
-      "task_bundle_sha256": "sha256:a2a02cad205e746628b1998b51354547172ff13b596fea4ffc795de1b4b42eae",
-      "task_id": "fc-e923379e-mathoverflow21003-mathoverflow-21003-9658f7d94f-positive-v1",
-      "theorem": "Mathoverflow21003.mathoverflow_21003"
-    },
-    {
-      "mode": "negative",
-      "source_index": 144,
-      "target_type_sha256": "sha256:ac39e88a1f636276fcde13df6988bf25d95862c2fee7a054f0b7b186a141820a",
-      "task_bundle_sha256": "sha256:016fb2fddf0ae41ab4aceb97fd732c1ffff524bfca0c8359c3f1995c944d9915",
-      "task_id": "fc-e923379e-mathoverflow235893-mathoverflow-235893-83b12af1a2-negative-v1",
-      "theorem": "Mathoverflow235893.mathoverflow_235893"
-    },
-    {
-      "mode": "positive",
-      "source_index": 144,
-      "target_type_sha256": "sha256:39926951524fcd5e10443ccef6afa290ed7829589fd59df5976819b60a253ce9",
-      "task_bundle_sha256": "sha256:7931aab0a90dab6103b4241765d71b81ce2daa6b4ac58d76c2e4f18515053f71",
-      "task_id": "fc-e923379e-mathoverflow235893-mathoverflow-235893-d293f5497e-positive-v1",
-      "theorem": "Mathoverflow235893.mathoverflow_235893"
-    },
-    {
-      "mode": "positive",
-      "source_index": 146,
-      "target_type_sha256": "sha256:a5eb58c7833c313ee2ad29349ed96e2962152ee569918e3e0d0907d204e080f4",
-      "task_bundle_sha256": "sha256:8ebd98ed97cc4fb6e9a6bbe102a12e3a124b2b4202b3296cacf1b97a87cd7054",
-      "task_id": "fc-e923379e-mathoverflow34145-rectangles-cover-unit-square-875988ef0d-positive-v1",
-      "theorem": "Mathoverflow34145.rectangles_cover_unit_square"
-    },
-    {
-      "mode": "negative",
-      "source_index": 146,
-      "target_type_sha256": "sha256:ebec64888c11d82e61f4f24528fc8544e5b06360edb5c7dfb41be4cc7ed086b8",
-      "task_bundle_sha256": "sha256:95837d2762141f3fd4f55903bc4b61d8066bcc8336cdebdf56aabf2a325a66bf",
-      "task_id": "fc-e923379e-mathoverflow34145-rectangles-cover-unit-square-cb68b1f0bf-negative-v1",
-      "theorem": "Mathoverflow34145.rectangles_cover_unit_square"
-    },
-    {
-      "mode": "negative",
-      "source_index": 149,
-      "target_type_sha256": "sha256:608bd0edb7148afe807957dc49ea6419b19f7310e9118c9ae8e0dcc269de3d2d",
-      "task_bundle_sha256": "sha256:660f7531ffba1e038de9484c7e22dbdd231c58de3a031533576270e30154f21e",
-      "task_id": "fc-e923379e-mathoverflow507128-exists-isfractionring-self-ideal-ne-top-invertible-047e734e44-negative-v1",
-      "theorem": "Mathoverflow507128.exists_isFractionRing_self_ideal_ne_top_invertible"
-    },
-    {
-      "mode": "positive",
-      "source_index": 149,
-      "target_type_sha256": "sha256:30d93c23e63051404f716fd496f4338b1757ae920575fe696faca28fd1dc5020",
-      "task_bundle_sha256": "sha256:23343c3bea63138ef4054b31b27af261d052c04b3f9961b88d4c9063129d071e",
-      "task_id": "fc-e923379e-mathoverflow507128-exists-isfractionring-self-ideal-ne-top-invertible-cc159941cf-positive-v1",
-      "theorem": "Mathoverflow507128.exists_isFractionRing_self_ideal_ne_top_invertible"
-    },
-    {
-      "mode": "negative",
-      "source_index": 150,
-      "target_type_sha256": "sha256:dc507cce6aa97a25de56e7d68523cf816cd9858379ecb8b8cc256f21b019863f",
-      "task_bundle_sha256": "sha256:52fc52f01af0cc7fb9ce2bd61494606c6fa0f2fa39b6a71e600247867361f452",
-      "task_id": "fc-e923379e-mathoverflow75792-complexity-two-pow-cc98d7fe07-negative-v1",
-      "theorem": "Mathoverflow75792.complexity_two_pow"
-    },
-    {
-      "mode": "positive",
-      "source_index": 150,
-      "target_type_sha256": "sha256:61423c3a5cef163f50c1ca4af5676f52b1cf51fd819baa3c4240e305dac753a8",
-      "task_bundle_sha256": "sha256:d0608939b9090c369d8406177a0d4cebf03698c1211b9ee3fc0b61e52669c244",
-      "task_id": "fc-e923379e-mathoverflow75792-complexity-two-pow-e361b7b11a-positive-v1",
-      "theorem": "Mathoverflow75792.complexity_two_pow"
-    },
-    {
-      "mode": "negative",
-      "source_index": 151,
-      "target_type_sha256": "sha256:b36c84adf5a2292bba7c24906db504b20df300f7cf0eea429105c8bea01f1d08",
-      "task_bundle_sha256": "sha256:10c8a6ce85385d9720f1dd8fddae235304192e9611278245b2277aae7ac18adf",
-      "task_id": "fc-e923379e-monochromaticquantumgraph-eqsystem10-no-solution-d3-4ad53362e2-negative-v1",
-      "theorem": "MonochromaticQuantumGraph.eqSystem10_no_solution_d3"
-    },
-    {
-      "mode": "positive",
-      "source_index": 151,
-      "target_type_sha256": "sha256:f5cdd57a02285ba6fa265a0059698e916c6fa87e758c9651f917c77d80c205fb",
-      "task_bundle_sha256": "sha256:b592d10d8e6ef8c607f4ac22071717c7919e1b713298886181873bbbd531257c",
-      "task_id": "fc-e923379e-monochromaticquantumgraph-eqsystem10-no-solution-d3-eb183d6abe-positive-v1",
-      "theorem": "MonochromaticQuantumGraph.eqSystem10_no_solution_d3"
-    },
-    {
-      "mode": "negative",
-      "source_index": 156,
-      "target_type_sha256": "sha256:4ba9b16f50a24d386f41fc7894b5a5b84420b8524ffd3374fe442859de0640f0",
-      "task_bundle_sha256": "sha256:558fc33d8a99441bec85c3763d305c0b8d50e5f3a22f698a43c45abaffdd6e38",
-      "task_id": "fc-e923379e-oeisa81091-conjecturea81091-c445f9e341-negative-v1",
-      "theorem": "OeisA81091.conjectureA81091"
-    },
-    {
-      "mode": "positive",
-      "source_index": 156,
-      "target_type_sha256": "sha256:c05154d4d6b539695fbcbd08db995fdea3d736152470629c853f278e6c18180a",
-      "task_bundle_sha256": "sha256:2a9a3848b4aa6946ec955f7a99d448192a384f551ca128f6f5d1cf7c3118256f",
-      "task_id": "fc-e923379e-oeisa81091-conjecturea81091-dfb18ba457-positive-v1",
-      "theorem": "OeisA81091.conjectureA81091"
-    },
-    {
-      "mode": "answer",
-      "source_index": 159,
-      "target_type_sha256": "sha256:aa9d64d2d7f78d85f4f233f29f8e6e4545f4e4eab921fe05573ca50a000006b4",
-      "task_bundle_sha256": "sha256:92d3e9824402241d85d2c9573c3b431df05eb13ecc01f2daa29a3bc51dd74d65",
-      "task_id": "fc-e923379e-openquantumproblem13-mutuallyunbiasedbases-dim6-a2cfbbb06f-answer-v1",
-      "theorem": "OpenQuantumProblem13.mutuallyUnbiasedBases_dim6"
-    },
-    {
-      "mode": "negative",
-      "source_index": 160,
-      "target_type_sha256": "sha256:73e1e9ea74d90faded2be5012b4af5822dacf8967c68de2bc3f798250f692769",
-      "task_bundle_sha256": "sha256:ec1dd0bb85908d0b2195b81262a47b8d0f75ce642d272281eb010e1602cae2ce",
-      "task_id": "fc-e923379e-openquantumproblem35-ame-10-10-open-5d81e13ea5-negative-v1",
-      "theorem": "OpenQuantumProblem35.ame_10_10_open"
-    },
-    {
-      "mode": "positive",
-      "source_index": 160,
-      "target_type_sha256": "sha256:3f354c0f6e93f7b2b73a91e0f7c53cb02938171d155d5e7d9fdfcc6c7e6ea3c4",
-      "task_bundle_sha256": "sha256:c2e7247c821343fa8ecf075a841d9f0a06f454423df284ddf5a21d309468edae",
-      "task_id": "fc-e923379e-openquantumproblem35-ame-10-10-open-eb98434479-positive-v1",
-      "theorem": "OpenQuantumProblem35.ame_10_10_open"
-    },
-    {
-      "mode": "positive",
-      "source_index": 161,
-      "target_type_sha256": "sha256:4c62ac6d6a63588123338afaad3baca8abb587d74e3a55ede26d469181ca566e",
-      "task_bundle_sha256": "sha256:0cc29c449bac360dcc4bc86aa206f598b5479e6835e5e9c638a602e7717a0daa",
-      "task_id": "fc-e923379e-openquantumproblem35-ame-10-6-open-8b58145229-positive-v1",
-      "theorem": "OpenQuantumProblem35.ame_10_6_open"
-    },
-    {
-      "mode": "negative",
-      "source_index": 161,
-      "target_type_sha256": "sha256:db9ffee0eb6a36117e94bb8055a5971278b05e05f346100bf4ec0b06b5e4184e",
-      "task_bundle_sha256": "sha256:1e100c420e504fe0c54dbe9e2bebdfc39bc86172c502d84207f8b2d7584acc7e",
-      "task_id": "fc-e923379e-openquantumproblem35-ame-10-6-open-ac15ba6789-negative-v1",
-      "theorem": "OpenQuantumProblem35.ame_10_6_open"
-    },
-    {
-      "mode": "negative",
-      "source_index": 36,
-      "target_type_sha256": "sha256:76daad35d3a8776fe1d89dc90d2339b96b3ae4aeef374ad8e0a49cfdfdf325e0",
-      "task_bundle_sha256": "sha256:203cc1946bc3d2d6b69e4bfa1d6fd3300fb2b890952e7766038fbf9a6ed7b4ce",
-      "task_id": "fc-e923379e-parts-i-01792f97d7-negative-v1",
-      "theorem": "Erdos1074.erdos_1074.parts.i"
-    },
-    {
-      "mode": "negative",
-      "source_index": 34,
-      "target_type_sha256": "sha256:e3cc3aef8964844e8d11e871116e1b302d705541a069d41e6693923be44958ec",
-      "task_bundle_sha256": "sha256:742352b1ed26cb12f522f436c19a66b667b6864f71fa4a308f453233dde15db7",
-      "task_id": "fc-e923379e-parts-i-16e1fc3281-negative-v1",
-      "theorem": "Erdos1065.erdos_1065.parts.i"
-    },
-    {
-      "mode": "positive",
-      "source_index": 36,
-      "target_type_sha256": "sha256:8c51accdf99d94cb5d106035cadc348f4ff7de62a44896c2cf317a267f797a1e",
-      "task_bundle_sha256": "sha256:6efb6d256d5f4eb48f7b29de598ff5f954c8716f1c964a77857ac3038c5a39a4",
-      "task_id": "fc-e923379e-parts-i-5609fcc5dd-positive-v1",
-      "theorem": "Erdos1074.erdos_1074.parts.i"
-    },
-    {
-      "mode": "positive",
-      "source_index": 34,
-      "target_type_sha256": "sha256:e209e5d46c2410a8d0c1c70bc27ec0b228489146efb262674fcadbc292c2ef96",
-      "task_bundle_sha256": "sha256:971c22c164e0f2fc360c265fe4bd8c7cb3e7b8187c86041540dfca60429e2ef9",
-      "task_id": "fc-e923379e-parts-i-5b2ceac32e-positive-v1",
-      "theorem": "Erdos1065.erdos_1065.parts.i"
-    },
-    {
-      "mode": "positive",
-      "source_index": 69,
-      "target_type_sha256": "sha256:f9d3e6d93b592e8f9893708b9892be0c09bf48f300edd6817204f5bd7d2d7c7a",
-      "task_bundle_sha256": "sha256:0bb5698e81625cee637ef6e11408bc67a32d2052ab9a5407454ff95b89a3d8dc",
-      "task_id": "fc-e923379e-parts-ii-2bc67d55b4-positive-v1",
-      "theorem": "Erdos413.erdos_413.parts.ii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 38,
-      "target_type_sha256": "sha256:be33c6a6d55dc91acf16fa5557cb961c1d9afad248b7c3a99201d080586492fe",
-      "task_bundle_sha256": "sha256:8287cb6f5450457669da79be702b6921d6a67faca52416909485c74e96388b3f",
-      "task_id": "fc-e923379e-parts-ii-41f1527da6-negative-v1",
-      "theorem": "Erdos1108.erdos_1108.parts.ii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 35,
-      "target_type_sha256": "sha256:ae790f387800855823d6f237032efd8fcb2b0820c44f5eed295fa64071408639",
-      "task_bundle_sha256": "sha256:e2fe5d73882f1c89f89cf402dd3e638ab2b9f6bdc916ee12d88b8d34fa37c78b",
-      "task_id": "fc-e923379e-parts-ii-48113d3c84-negative-v1",
-      "theorem": "Erdos1065.erdos_1065.parts.ii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 68,
-      "target_type_sha256": "sha256:e91028cb2e31c62380e738d0b26c2f31eae24610d7149eb658bf732040b421a3",
-      "task_bundle_sha256": "sha256:7b94784c71da6d34e4f92d1f886b651d118229b3b57a897513e2728b86b399c1",
-      "task_id": "fc-e923379e-parts-ii-51f3eba657-negative-v1",
-      "theorem": "Erdos409.erdos_409.parts.ii"
-    },
-    {
-      "mode": "positive",
-      "source_index": 38,
-      "target_type_sha256": "sha256:be2fc545f41ea6932a2479103f363a7a4e51f54aa1fa4e1296030f7912959a0a",
-      "task_bundle_sha256": "sha256:fc141a4f08d67304a28665b621311400d71fe86553661e4b03cb86a51efd961a",
-      "task_id": "fc-e923379e-parts-ii-b6d6bd8c06-positive-v1",
-      "theorem": "Erdos1108.erdos_1108.parts.ii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 69,
-      "target_type_sha256": "sha256:50580c8fb7f6ecd31cc01e0f5fcac23d8c0856db8b8faf38f21622cde1adc34f",
-      "task_bundle_sha256": "sha256:3a20d1aa23e904cde9b7d7e6db8b901d259cb17655047da4aafe074f987deb19",
-      "task_id": "fc-e923379e-parts-ii-c570d4dac0-negative-v1",
-      "theorem": "Erdos413.erdos_413.parts.ii"
-    },
-    {
-      "mode": "positive",
-      "source_index": 68,
-      "target_type_sha256": "sha256:c3cdb12bfa9c832f3bbceb3294f87e63375316828470aa6cb2e868616e4d0dc1",
-      "task_bundle_sha256": "sha256:db4f45e2e68c399251f28140d63e39068522a33e8d58dd767d66995711f740b3",
-      "task_id": "fc-e923379e-parts-ii-c5891dd648-positive-v1",
-      "theorem": "Erdos409.erdos_409.parts.ii"
-    },
-    {
-      "mode": "positive",
-      "source_index": 35,
-      "target_type_sha256": "sha256:fc95fc55e64bdd77c316fc2292fd3764134524af13efa9e3c1b80e80afed3074",
-      "task_bundle_sha256": "sha256:c5582db9fb1a951c9e91fa4dd70f33df9343beb46c02ea9b5ab1030d9609170a",
-      "task_id": "fc-e923379e-parts-ii-f58695a72c-positive-v1",
-      "theorem": "Erdos1065.erdos_1065.parts.ii"
-    },
-    {
-      "mode": "positive",
-      "source_index": 37,
-      "target_type_sha256": "sha256:bb0f47ff15a7adc2caea7cd9fada3cfd238e90b119ae8e626a49610ee0e91dcc",
-      "task_bundle_sha256": "sha256:4cd8e936450361f0a6749fc2fa09b3ba2570d538a8d59311483d0dff7df3e4a5",
-      "task_id": "fc-e923379e-parts-iii-cc983ba40d-positive-v1",
-      "theorem": "Erdos1074.erdos_1074.parts.iii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 37,
-      "target_type_sha256": "sha256:50d49a59173a99401aac7ccedf95b67e4133ee5335e318a35c2d6fe3bd1e8dad",
-      "task_bundle_sha256": "sha256:d2d79fcc580d0e8f389ab9f0abc4728b333054f09e694a2fc8aa0c831e070e89",
-      "task_id": "fc-e923379e-parts-iii-dda2f4f478-negative-v1",
-      "theorem": "Erdos1074.erdos_1074.parts.iii"
-    },
-    {
-      "mode": "negative",
-      "source_index": 25,
-      "target_type_sha256": "sha256:7c195991040652de501c3e08bd935670a708646fb9dd6158b2e2e82f59bafa10",
-      "task_bundle_sha256": "sha256:fed88e78d99a60f87379280debf3e012dd4ac0c1035ad4142fe5dcfc442b35ce",
-      "task_id": "fc-e923379e-ratellipticcurve-finite-twentyone-lt-finrank-275bbc4402-negative-v1",
-      "theorem": "EllipticCurveRank.RatEllipticCurve.finite_twentyone_lt_finrank"
-    },
-    {
-      "mode": "positive",
-      "source_index": 25,
-      "target_type_sha256": "sha256:5019e2eaa1c236fb1146d1654ac21ed422635a73fa82611065849f4a4ebfc497",
-      "task_bundle_sha256": "sha256:f000b21f873a8754f98b8cb1021198e2980c5d8a09063aaf4108ebd92aa76657",
-      "task_id": "fc-e923379e-ratellipticcurve-finite-twentyone-lt-finrank-7b3c9e7150-positive-v1",
-      "theorem": "EllipticCurveRank.RatEllipticCurve.finite_twentyone_lt_finrank"
-    },
-    {
-      "mode": "positive",
-      "source_index": 26,
-      "target_type_sha256": "sha256:411dda25cde75d803c557f95c1d4b186954cb6bacf8efaffeaa1d2f6f1fb87f9",
-      "task_bundle_sha256": "sha256:9161a10db2519dfad357f091d9ccb49fb6c6a60dc7388cb434b95d39cff0e688",
-      "task_id": "fc-e923379e-ratellipticcurve-twentyone-le-rank-height-count-asymptotic-8daf2a4b94-positive-v1",
-      "theorem": "EllipticCurveRank.RatEllipticCurve.twentyone_le_rank_height_count_asymptotic"
-    },
-    {
-      "mode": "negative",
-      "source_index": 26,
-      "target_type_sha256": "sha256:48c96057c4337a3bb4a348e1e6f8b474730b3cb6c552f3a036d5a6abc59618c6",
-      "task_bundle_sha256": "sha256:97582eeb8a977c6a638ff5ffae0147542740f8cf223b7b9391cd8f3f9a3512a9",
-      "task_id": "fc-e923379e-ratellipticcurve-twentyone-le-rank-height-count-asymptotic-9500337691-negative-v1",
-      "theorem": "EllipticCurveRank.RatEllipticCurve.twentyone_le_rank_height_count_asymptotic"
-    },
-    {
-      "mode": "positive",
+      "mode": "formalized",
       "source_index": 163,
-      "target_type_sha256": "sha256:3d77bb3de705b019e06fe429389ec47529b61f2211e4ea4323fd0f2e1e7f9d00",
-      "task_bundle_sha256": "sha256:fabd272bb820dc167a8d4bf3c9556e108e20136dd0055f27a9c0836c0a833d3b",
-      "task_id": "fc-e923379e-rationaldistanceproblem-rational-distance-problem-b634924be6-positive-v1",
-      "theorem": "RationalDistanceProblem.rational_distance_problem"
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_4.lean",
+      "target_type_sha256": "sha256:b0d80349c04ae3fc5534315de4696db1ca0928ee664d500b796bda25737b8785",
+      "task_bundle_sha256": "sha256:2381a47e82a7577462c57ecf072ebcd748fcd775b3c5a3decd0ae622d066dd54",
+      "task_id": "fc-e923379e-bugeaud04-spectrum-xi-alpha-pow-countable-ca81802e1a-formalized-v1",
+      "theorem": "Bugeaud04.spectrum_xi_alpha_pow_countable"
     },
     {
-      "mode": "negative",
-      "source_index": 163,
-      "target_type_sha256": "sha256:368fc3e0097fcbecf5a74629f4d3b3372f454e163b2e501a1a313c12b7a1154c",
-      "task_bundle_sha256": "sha256:4c7980dd0f390c9fbb4794585439d1d0e056d30f65a5db6ddb8dbba59d6e82c4",
-      "task_id": "fc-e923379e-rationaldistanceproblem-rational-distance-problem-fbe2669e1c-negative-v1",
-      "theorem": "RationalDistanceProblem.rational_distance_problem"
+      "mode": "formalized",
+      "source_index": 339,
+      "source_path": "FormalConjectures/ErdosProblems/10.lean",
+      "target_type_sha256": "sha256:ac1418bc6fe5724292d47e29dda62e03778631a9f37cf340c3d209b75eb88224",
+      "task_bundle_sha256": "sha256:122c50fd179eb9bd822b33721b414944f204540dd5dd328849c06844137a5474",
+      "task_id": "fc-e923379e-variants-granville-soundararajan-odd-51abd017f9-formalized-v1",
+      "theorem": "Erdos10.erdos_10.variants.granville_soundararajan_odd"
     },
     {
-      "mode": "positive",
-      "source_index": 164,
-      "target_type_sha256": "sha256:f289198dfae04ec3b369d60d0314e1b036512440a4a94b924bb2ea20a669a9d3",
-      "task_bundle_sha256": "sha256:f0d0ea49dadc4ad5843e63994a3f61c30a33a41403735fea0adf8fc9bd01a9e2",
-      "task_id": "fc-e923379e-reedomegadeltachi-reed-conjecture-6-2-81a2015055-positive-v1",
-      "theorem": "ReedOmegaDeltaChi.reed_conjecture_\u0394_6_\u03c9_2"
+      "mode": "formalized",
+      "source_index": 2067,
+      "source_path": "FormalConjectures/GreensOpenProblems/16.lean",
+      "target_type_sha256": "sha256:725efcdd34517426f1e0d2d94e5ef7c3a683790fcd1a0caf90b50784ff845d18",
+      "task_bundle_sha256": "sha256:96a050132a7fd6e7430daacaf0253d68c1566dc2cbc0a1cb5a39b0d5540c6b40",
+      "task_id": "fc-e923379e-green16-green-16-conjectured-lower-bound-566bcc8489-formalized-v1",
+      "theorem": "Green16.green_16_conjectured_lower_bound"
     },
     {
-      "mode": "negative",
-      "source_index": 164,
-      "target_type_sha256": "sha256:03a77f234b7cf8cb5bb4e5d58c19bbe1f04c13f5e29741b89aa13f3c582b4c77",
-      "task_bundle_sha256": "sha256:f0221b1860c99dd197d172bb53ca32da3b714c34641b877e3f2649bac9e19b0e",
-      "task_id": "fc-e923379e-reedomegadeltachi-reed-conjecture-6-2-b8ee3ab3da-negative-v1",
-      "theorem": "ReedOmegaDeltaChi.reed_conjecture_\u0394_6_\u03c9_2"
+      "mode": "formalized",
+      "source_index": 2260,
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "target_type_sha256": "sha256:51b741431615cb2f30798ab879fa166317d2ff99d246170f8ccb536bd559f578",
+      "task_bundle_sha256": "sha256:c6b801ec8e7ceb7ac16a4e7ed3aaeed54f1763bd8da7fe7c39eb78dbb5236838",
+      "task_id": "fc-e923379e-hilbert5-hilbert-smith-conjecture-535ec0ecf8-formalized-v1",
+      "theorem": "Hilbert5.hilbert_smith_conjecture"
     },
     {
-      "mode": "positive",
-      "source_index": 165,
-      "target_type_sha256": "sha256:45f3d49f3452f0136673d161ef5b08b38f7ced2447c94b18794349609c5c4789",
-      "task_bundle_sha256": "sha256:4ad535a87cc6326e9d44822488c5963d41e0a7c817d89154fec49ed66cfc029c",
-      "task_id": "fc-e923379e-riemannzetavalues-irrational-eleven-32c598c4b1-positive-v1",
-      "theorem": "RiemannZetaValues.irrational_eleven"
+      "mode": "formalized",
+      "source_index": 2340,
+      "source_path": "FormalConjectures/LittProblems/1.lean",
+      "target_type_sha256": "sha256:2d7cc3c768114a35bf79d98db5fee99f5dad66afcce287ea31334e362bc7ce29",
+      "task_bundle_sha256": "sha256:fe74af9f1c822bd03a005ec94866e6f31b07bd201dc01116423a492485d7d77b",
+      "task_id": "fc-e923379e-variants-integrality-implies-algebraicity-f3051ba255-formalized-v1",
+      "theorem": "LamLitt.lam_litt.variants.integrality_implies_algebraicity"
     },
     {
-      "mode": "negative",
-      "source_index": 165,
-      "target_type_sha256": "sha256:89390590aecf12aa1300bb3578511c35183f683dc42cf32cd5fd8e3b838c3cbc",
-      "task_bundle_sha256": "sha256:ba841e5a9e2874ea733563769442198bcd94cb21215b258de7d6e092fd2339f8",
-      "task_id": "fc-e923379e-riemannzetavalues-irrational-eleven-e795dca358-negative-v1",
-      "theorem": "RiemannZetaValues.irrational_eleven"
+      "mode": "formalized",
+      "source_index": 2418,
+      "source_path": "FormalConjectures/Mathoverflow/17560.lean",
+      "target_type_sha256": "sha256:f6b5a333443e3a3a07758ce4bd10ac061e9e1603f53ce9036187f1e719369c29",
+      "task_bundle_sha256": "sha256:df7e4b65147cf47ac899a45ab9171f18b0f05e1bb7d9532fdbf4b730aef6689a",
+      "task_id": "fc-e923379e-mathoverflow17560-mathoverflow-17560-5656684433-formalized-v1",
+      "theorem": "Mathoverflow17560.mathoverflow_17560"
     },
     {
-      "mode": "positive",
-      "source_index": 166,
-      "target_type_sha256": "sha256:b0bca5683f02b2c1d681d1bf4a27a1347e5e9d0dcce5c55b31b25809d47f4580",
-      "task_bundle_sha256": "sha256:6afe19dd6e175eb70ae3eb4b43f5231882aac2b8bbb835f44ad2e0657e42a784",
-      "task_id": "fc-e923379e-riemannzetavalues-irrational-five-1c151c4661-positive-v1",
-      "theorem": "RiemannZetaValues.irrational_five"
+      "mode": "formalized",
+      "source_index": 212,
+      "source_path": "FormalConjectures/Millenium/PvsNP.lean",
+      "target_type_sha256": "sha256:a1fe3eb024321bb675841a4cf7dbade463335221c28f8f9dc052fc71efba7438",
+      "task_bundle_sha256": "sha256:1e3545509ece4a21f3e694430eb2c8a4a7efa64962f42076d77d79a4e883ec6f",
+      "task_id": "fc-e923379e-complexitytheory-np-ne-conp-d85b5c0b9c-formalized-v1",
+      "theorem": "ComplexityTheory.NP_ne_coNP"
     },
     {
-      "mode": "negative",
-      "source_index": 166,
-      "target_type_sha256": "sha256:3f72112936eef2f3c08cdf38ad76155828bec6b6340988711b8b7e447b45a6ba",
-      "task_bundle_sha256": "sha256:9a728628d8ae3686f9b5e45b85d76bf4bff1a83320089fb7f4d8e79fe0dd93a8",
-      "task_id": "fc-e923379e-riemannzetavalues-irrational-five-e0dc5d8966-negative-v1",
-      "theorem": "RiemannZetaValues.irrational_five"
+      "mode": "formalized",
+      "source_index": 2563,
+      "source_path": "FormalConjectures/OEIS/228828.lean",
+      "target_type_sha256": "sha256:898ba0d5908262de4f05a646f58af23e4064778ce732a5c8991f638aaa51143a",
+      "task_bundle_sha256": "sha256:891907ca77860f5e5a4d5984308128aee15fdfa881a1fd9d4f47a8d39f7863b7",
+      "task_id": "fc-e923379e-a-infinite-b909e4bfe8-formalized-v1",
+      "theorem": "OeisA228828.a.infinite"
     },
     {
-      "mode": "negative",
-      "source_index": 169,
-      "target_type_sha256": "sha256:afdc281ed5e33e736b9deaae46c75cabab069c7b899a419c6e073e2966a743f0",
-      "task_bundle_sha256": "sha256:ba3092b5d517c76b02c39070f2ff38cf3b8d73d3179ca314f3bcff1193981ebf",
-      "task_id": "fc-e923379e-singmaster-singmaster-09ee78842f-negative-v1",
-      "theorem": "Singmaster.singmaster"
-    },
-    {
-      "mode": "positive",
-      "source_index": 169,
-      "target_type_sha256": "sha256:58849bf1d5a8bab6785adaf4cbef1a98fddb67c02b030a0f415d5ae86b2a3099",
-      "task_bundle_sha256": "sha256:3c33305833c1235cc019a56c095c5c71e498eea3e90b94f9b6b39f89d53d99fa",
-      "task_id": "fc-e923379e-singmaster-singmaster-3ea2b74df1-positive-v1",
-      "theorem": "Singmaster.singmaster"
-    },
-    {
-      "mode": "negative",
-      "source_index": 171,
-      "target_type_sha256": "sha256:c077f7069c00a4eb32554f0fceb7ce939e2d1072862aa3ab2bbc99afbec97969",
-      "task_bundle_sha256": "sha256:1040bd914f4c978c46d7cc737eda756f705200679a3d56d0c0acc913c7d4a00c",
-      "task_id": "fc-e923379e-solitarynumber-infinite-club-exists-23fd93cd3d-negative-v1",
-      "theorem": "SolitaryNumber.infinite_club_exists"
-    },
-    {
-      "mode": "positive",
-      "source_index": 171,
-      "target_type_sha256": "sha256:e05fa66bff5f85593f38c6a6c615198883243cc5fcf95b59162d9bad2a7f2afa",
-      "task_bundle_sha256": "sha256:70d9a472084c20ba4e8c5b03798800cca694064a4fb2447d0a2443be8d8b6eb0",
-      "task_id": "fc-e923379e-solitarynumber-infinite-club-exists-d1c1b092a9-positive-v1",
-      "theorem": "SolitaryNumber.infinite_club_exists"
-    },
-    {
-      "mode": "positive",
-      "source_index": 173,
-      "target_type_sha256": "sha256:61502ec393ecb0f86f7cf8cbd9291c60da7f91d8d1145373100c0baa269c1fd5",
-      "task_bundle_sha256": "sha256:42a9bc91f3f36845f9afa78dbc38b17c09fd9aed26dc2c939a00f509666bf4be",
-      "task_id": "fc-e923379e-superperfect-twofiveperfect-1790a919d8-positive-v1",
-      "theorem": "Superperfect.twoFivePerfect"
-    },
-    {
-      "mode": "negative",
-      "source_index": 173,
-      "target_type_sha256": "sha256:c7274ac850b2f1056842cc8275e1f63fb7fe5ab8771c1975a501f056acea9876",
-      "task_bundle_sha256": "sha256:d75b4963ca01408220bf8a6d89d8a3d4a82472c3b0a6e16ae200ddc16af4b9f6",
-      "task_id": "fc-e923379e-superperfect-twofiveperfect-8e0cccd2ef-negative-v1",
-      "theorem": "Superperfect.twoFivePerfect"
-    },
-    {
-      "mode": "negative",
-      "source_index": 61,
-      "target_type_sha256": "sha256:5280a15b39f506d0f2900f037d0fb9ae84bea4e188d727e0e64e9796fbb23d20",
-      "task_bundle_sha256": "sha256:ee48a85525ff5daab59eadda00a62064cca668ef241868fbb212572dbdc4b64f",
-      "task_id": "fc-e923379e-variants-co-density-zero-sub-04950cbcc6-negative-v1",
-      "theorem": "Erdos340.erdos_340.variants.co_density_zero_sub"
-    },
-    {
-      "mode": "positive",
-      "source_index": 61,
-      "target_type_sha256": "sha256:d4472dfc0e4f4284f72baa7012aaf34677045a9aab62796bd785672bfbd42ce2",
-      "task_bundle_sha256": "sha256:4ac8b4b89b3407b642e17c7f94843d6543f18177ecd22519ecda9b1ce537836a",
-      "task_id": "fc-e923379e-variants-co-density-zero-sub-1bfe75c9e3-positive-v1",
-      "theorem": "Erdos340.erdos_340.variants.co_density_zero_sub"
-    },
-    {
-      "mode": "negative",
-      "source_index": 100,
-      "target_type_sha256": "sha256:a4eb41b8750f4c4f1e3b79f8ae080cfcf2099a444ec22fe61fd93768114c4858",
-      "task_bundle_sha256": "sha256:654db27bad67d748d95bf2fec633af692a3a8ec04eb638c8981b871ba8747727",
-      "task_id": "fc-e923379e-variants-dim-1-1921fc6a64-negative-v1",
-      "theorem": "Fuglede.FugledeConjecture.variants.dim_1"
-    },
-    {
-      "mode": "positive",
-      "source_index": 100,
-      "target_type_sha256": "sha256:60fc107abcdc675f46d4490f5d10e48867b3ffcaac5a724ee6c01bb5512957c3",
-      "task_bundle_sha256": "sha256:ea9b7f12529b480e030cb7abea13adc4647e7c2c4a2a11710a251d1915df6916",
-      "task_id": "fc-e923379e-variants-dim-1-df30d2bee7-positive-v1",
-      "theorem": "Fuglede.FugledeConjecture.variants.dim_1"
-    },
-    {
-      "mode": "positive",
-      "source_index": 101,
-      "target_type_sha256": "sha256:e2c6fc13fbe1fa504b9a5c5e6f56297ca6551c1ac7f36f64782fe3f8e6b5c1f4",
-      "task_bundle_sha256": "sha256:5d9ea612579e86e0aee006e4bbd48ca1d07e399fa115d9085b7bd50ee6d251a1",
-      "task_id": "fc-e923379e-variants-dim-2-1538e44ce9-positive-v1",
-      "theorem": "Fuglede.FugledeConjecture.variants.dim_2"
-    },
-    {
-      "mode": "negative",
-      "source_index": 101,
-      "target_type_sha256": "sha256:7d399938eb5c9be60836b867047d1e3e573bd8508a140219262fbde8b9ce2271",
-      "task_bundle_sha256": "sha256:a3734fe668e2112ee7eefa3896a141e2fde79f5c1fc14d7f21e97df44164ca24",
-      "task_id": "fc-e923379e-variants-dim-2-704649b323-negative-v1",
-      "theorem": "Fuglede.FugledeConjecture.variants.dim_2"
-    },
-    {
-      "mode": "positive",
-      "source_index": 44,
-      "target_type_sha256": "sha256:4ea31fb4dfeb277f24ec03a863ee4201afe6c4d6ca7085a0ee95ec2e0eaa1190",
-      "task_bundle_sha256": "sha256:0900cf13c2c9e82642fa453f37481527c6a33ecd213b1727c9d5c43c639e8ecd",
-      "task_id": "fc-e923379e-variants-er80-correction-62ac020b76-positive-v1",
-      "theorem": "Erdos1210.erdos_1210.variants.er80_correction"
-    },
-    {
-      "mode": "negative",
-      "source_index": 44,
-      "target_type_sha256": "sha256:fc4a8fc5b065520a45d1ba1f72789ab4fae8d3a885c25489cb3b4347da473adf",
-      "task_bundle_sha256": "sha256:d72332c1b1181dccb5462ab71b4a8b02d3fe0ac535cf894c1f6c88388aee96c8",
-      "task_id": "fc-e923379e-variants-er80-correction-ee2965d9b8-negative-v1",
-      "theorem": "Erdos1210.erdos_1210.variants.er80_correction"
-    },
-    {
-      "mode": "positive",
-      "source_index": 141,
-      "target_type_sha256": "sha256:c3142758556a07ff731e34fb4e358cf6ad61d7f34728bf2263fc9b891c720da2",
-      "task_bundle_sha256": "sha256:b15318229c032fbaa7fcee6e04f8eb4adc63de46f2967e4c23c04f469275075c",
-      "task_id": "fc-e923379e-variants-kahn-kalai-conjecture-7-a3dd291738-positive-v1",
-      "theorem": "Mathoverflow10799.mathoverflow_10799.variants.kahn_kalai_conjecture_7"
-    },
-    {
-      "mode": "negative",
-      "source_index": 141,
-      "target_type_sha256": "sha256:ee51ca7b768dd447bada15022461f439b8e019d908a3520f248e23d011003e9e",
-      "task_bundle_sha256": "sha256:8288b1089b6601d9e68af9939c7e7b13f7fe5dd5235279400415e205903572e7",
-      "task_id": "fc-e923379e-variants-kahn-kalai-conjecture-7-ab164946a9-negative-v1",
-      "theorem": "Mathoverflow10799.mathoverflow_10799.variants.kahn_kalai_conjecture_7"
-    },
-    {
-      "mode": "positive",
-      "source_index": 107,
-      "target_type_sha256": "sha256:43f9c1c769b6c67d4a3d560af3c768de912e407849f3f4ec94abe1b34641db77",
-      "task_bundle_sha256": "sha256:ae9e8787ea7176f56fa6f200d7ccb15ec33fa0b7143e68cd5385889c8a462434",
-      "task_id": "fc-e923379e-variants-open-57f9ed7885-positive-v1",
-      "theorem": "Green26.green_26.variants.open"
-    },
-    {
-      "mode": "negative",
-      "source_index": 107,
-      "target_type_sha256": "sha256:f0f5449c8b6427f2246ee37523d69085762daad85e17eaf9bad1b0e7164b3a16",
-      "task_bundle_sha256": "sha256:37e3f9702529b16af20aeaed2a24ad02cf20454112b5c3629435b00031366e9a",
-      "task_id": "fc-e923379e-variants-open-7cb8d70e68-negative-v1",
-      "theorem": "Green26.green_26.variants.open"
-    },
-    {
-      "mode": "positive",
+      "mode": "formalized",
       "source_index": 115,
-      "target_type_sha256": "sha256:a394fd6d77adf16e839950e59b0acdab0c636c9822b84b0ad43e7f445761947b",
-      "task_bundle_sha256": "sha256:2b80b521e8dab1b32d98e98ca4f0e1a1277fb8535702437ac9b5cc69ff4dc032",
-      "task_id": "fc-e923379e-variants-polynomial-bound-284ac1c692-positive-v1",
-      "theorem": "Green41.green_41.variants.polynomial_bound"
+      "source_path": "FormalConjectures/Other/BeaverMathOlympiad.lean",
+      "target_type_sha256": "sha256:7aa676d249659ce65e459a3636d8f892986ffd24d5ca218842d8d872041f0146",
+      "task_bundle_sha256": "sha256:e1274e5daf4f4fbaaab8464c4b4e8b20b5cec90318fbd600ae1ea0fa88a6ebff",
+      "task_id": "fc-e923379e-beavermatholympiad-beaver-math-olympiad-problem-2-antihydra-270461b81a-formalized-v1",
+      "theorem": "BeaverMathOlympiad.beaver_math_olympiad_problem_2_antihydra"
     },
     {
-      "mode": "negative",
-      "source_index": 115,
-      "target_type_sha256": "sha256:6e86c753b3488b76ced6874da58d4ef7ccd2f8e2e5eed4dd395bcbabea464dd2",
-      "task_bundle_sha256": "sha256:428b977c8445aab1ab1d9dbf19123a139d7c1303396d7fb87d96aa553a319673",
-      "task_id": "fc-e923379e-variants-polynomial-bound-e003eaa24a-negative-v1",
-      "theorem": "Green41.green_41.variants.polynomial_bound"
+      "mode": "formalized",
+      "source_index": 187,
+      "source_path": "FormalConjectures/Paper/CardinalityLindelof.lean",
+      "target_type_sha256": "sha256:416b0b43b7264c417c36517095f2256e5681d385ecd84bd8c543ec99b5280ca1",
+      "task_bundle_sha256": "sha256:53810bc6bad744443e03e9e36b50abb5345dd97ee3d4fed4b8a6fdd661c620e2",
+      "task_id": "fc-e923379e-hasg-singletons-lindelof-card-c14fe56401-formalized-v1",
+      "theorem": "CardinalityLindelof.HasGδSingletons.lindelof_card"
     },
     {
-      "mode": "negative",
+      "mode": "formalized",
+      "source_index": 0,
+      "source_path": "FormalConjectures/Wikipedia/ABC.lean",
+      "target_type_sha256": "sha256:3b74f0eadd53d77e9af250dc15f0ab94ef3add410b19755a7613ba7b3b383f1c",
+      "task_bundle_sha256": "sha256:ecab109b1d84ed21787816e600373944ba03e2e04375c0d40efea7944a3fc2b2",
+      "task_id": "fc-e923379e-abc-abc-56cb19f65c-formalized-v1",
+      "theorem": "ABC.abc"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 3077,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture100.lean",
+      "target_type_sha256": "sha256:f1dbf30a8269791ae169dd5fa5e2c00e6f3f6e1b30516fc38e3ec8ab0cb5bc1c",
+      "task_bundle_sha256": "sha256:ab9b6d6b254479869a56598dc3795a9fffed9a6f8dfed1ad270a98ebdfd7e2a7",
+      "task_id": "fc-e923379e-graphconjecture100-conjecture100-ff85f433b5-formalized-v1",
+      "theorem": "WrittenOnTheWallII.GraphConjecture100.conjecture100"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 46,
+      "source_path": "FormalConjectures/Arxiv/0912.2382/CurlingNumberConjecture.lean",
+      "target_type_sha256": "sha256:165b6287e182a243a39d1d98b8d14fb47549a8f153822f1710be64ff63f33182",
+      "task_bundle_sha256": "sha256:92b8dcfa001de047f3c8f63b408c6dfcc80a0829bc974da21e91637aa87cc7e2",
+      "task_id": "fc-e923379e-2382-curling-number-conjecture-4353b9342b-formalized-v1",
+      "theorem": "Arxiv.«0912.2382».curling_number_conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 164,
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_5.lean",
+      "target_type_sha256": "sha256:9494df19b2057e0ca6dd8e1c35af8a7327946b14202e20366d09d19e656ec0b7",
+      "task_bundle_sha256": "sha256:49c88f65b461096b292b639198ec5516bf46c941b8f50dab60bc0ea327e49a8d",
+      "task_id": "fc-e923379e-bugeaud05-problem-10-5-6d8d61e8f3-formalized-v1",
+      "theorem": "Bugeaud05.problem_10_5"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 346,
+      "source_path": "FormalConjectures/ErdosProblems/100.lean",
+      "target_type_sha256": "sha256:27e03cab78991296b03fccdacda2939d0a70b547e7af00018690df0eed6653bb",
+      "task_bundle_sha256": "sha256:896a3280c759a773f9bc2eb1416d8e1200b5130ae23523e83768d80d9b308f25",
+      "task_id": "fc-e923379e-variants-strong-641447f336-formalized-v1",
+      "theorem": "Erdos100.erdos_100.variants.strong"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2074,
+      "source_path": "FormalConjectures/GreensOpenProblems/19.lean",
+      "target_type_sha256": "sha256:2f7204f5412e11e870de1952fcc099abdc3d565c433db1f0419ffdf61a784696",
+      "task_bundle_sha256": "sha256:927113602c0697337f8578c8f335a6fb2bc51cb0b7bd7c094772f9c84bebab63",
+      "task_id": "fc-e923379e-green-19-lower-67bc0472b7-formalized-v1",
+      "theorem": "Green19.green_19.lower"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2432,
+      "source_path": "FormalConjectures/Mathoverflow/339137.lean",
+      "target_type_sha256": "sha256:eafd6864b2ba5f9fa6aa870b61e6a297735041dda561ca2f3c5f454c3aeb939d",
+      "task_bundle_sha256": "sha256:4a6f1dc5bc3958cef543aaf9635fa94243d4dd1dd1d37d7995305f871c55043a",
+      "task_id": "fc-e923379e-mathoverflow339137-mathoverflow-339137-bbe0b1c879-formalized-v1",
+      "theorem": "Mathoverflow339137.mathoverflow_339137"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 1997,
+      "source_path": "FormalConjectures/Millenium/RiemannHypothesis.lean",
+      "target_type_sha256": "sha256:19f4c1959e1bdd118d84801a2fbdc6d73ba2a83678e3c90744dba7ee919bb57c",
+      "task_bundle_sha256": "sha256:f034c637a0804be833fd59ef4de70f879541ce58b9b8103dad078d273d09a2d2",
+      "task_id": "fc-e923379e-grh-generalized-riemann-hypothesis-d1b89dbc88-formalized-v1",
+      "theorem": "GRH.generalized_riemann_hypothesis"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2573,
+      "source_path": "FormalConjectures/OEIS/231201.lean",
+      "target_type_sha256": "sha256:52584152125e06e502c8196baea1206b69a9681e7530d8cd71b2310e4ac6c13c",
+      "task_bundle_sha256": "sha256:834a587b8056a97846802f30275a3571d8478bde9ddf1eb4a83e49136683bf21",
+      "task_id": "fc-e923379e-oeisa231201-conjecture-3d54a45de7-formalized-v1",
+      "theorem": "OeisA231201.conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 322,
+      "source_path": "FormalConjectures/Other/EquationalTheories_677_255.lean",
+      "target_type_sha256": "sha256:9be8dfa0a4694eaa7b4fb0a27e456235f3e8e56632503956b83320f193a2de81",
+      "task_bundle_sha256": "sha256:5bb2511019d5b3147a619e890d92b0a5f3d8f9f80d5a272da48260566396be78",
+      "task_id": "fc-e923379e-finite-equation677-implies-equation255-aed1f56c4a-formalized-v1",
+      "theorem": "EquationalTheories_677_255.Finite.Equation677_implies_Equation255"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 197,
+      "source_path": "FormalConjectures/Paper/CasasAlvero.lean",
+      "target_type_sha256": "sha256:dcbb83439fc9101f13291de444af677bc5855b631bbdc937fcb0e6a29fed978b",
+      "task_bundle_sha256": "sha256:2fb5ac6b7add8e42b8379bb613009e5a0225f3a43916c3a54e1f18703141d1fc",
+      "task_id": "fc-e923379e-casasalvero-casas-alvero-conjecture-bcf49ab15b-formalized-v1",
+      "theorem": "CasasAlvero.casas_alvero_conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 6,
+      "source_path": "FormalConjectures/Wikipedia/AgohGiuga.lean",
+      "target_type_sha256": "sha256:5a613f3f36aabeac9dc56f5fd548dac82ecdde3bbe6435b0e0c5c1e383204a14",
+      "task_bundle_sha256": "sha256:d9ca6670b3f8a574748903d00953e43b1f1b7eae831bd178f8da282a3238ed2a",
+      "task_id": "fc-e923379e-agohgiuga-agoh-giuga-e8554d6956-formalized-v1",
+      "theorem": "AgohGiuga.agoh_giuga"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 3079,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture103.lean",
+      "target_type_sha256": "sha256:4d2054be6531efe09af4a1e14a91b2a4cd61388b16699f9ad417314bad61901f",
+      "task_bundle_sha256": "sha256:00756e6b826d7c869b598671d62f58d6c093f2bacba8aa7ca58b7da0c0287ebe",
+      "task_id": "fc-e923379e-graphconjecture103-conjecture103-073f1a0c6c-formalized-v1",
+      "theorem": "WrittenOnTheWallII.GraphConjecture103.conjecture103"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 49,
+      "source_path": "FormalConjectures/Arxiv/1601.03081/UniqueCrystalComponents.lean",
+      "target_type_sha256": "sha256:02e9908014142e8004884e800c8b2049bf01c4a26185a865d763ace90c730517",
+      "task_bundle_sha256": "sha256:1504beea57c5bec36a98aff7e6ebb9f256e082eaccc7c2707b748756bee4f637",
+      "task_id": "fc-e923379e-03081-crystals-components-unique-2c5f9c1d29-formalized-v1",
+      "theorem": "Arxiv.«1601.03081».crystals_components_unique"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 172,
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_6.lean",
+      "target_type_sha256": "sha256:394a5c0c46d55430ccc066ed5a52b92fcd4d5e822ab8888410926c9f92ae1192",
+      "task_bundle_sha256": "sha256:39905d5bb675a28f9f0d7dddd1263a3b2007f99f2eb3747b988f7e6a7d00a98b",
+      "task_id": "fc-e923379e-bugeaud06-problem-10-6-variant-1-df4ecc315a-formalized-v1",
+      "theorem": "Bugeaud06.problem_10_6_variant_1"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 355,
+      "source_path": "FormalConjectures/ErdosProblems/101.lean",
+      "target_type_sha256": "sha256:d2bba157c2ff76bae7d92dbcd60c9ecdc446429ad0befc31990ffc2900fcdeae",
+      "task_bundle_sha256": "sha256:1d368b48cd3414a3ce8e6a3c10fd0bac751c00aad49791daaeebebb2409b0821",
+      "task_id": "fc-e923379e-erdos101-erdos-101-c8c4be1d5a-formalized-v1",
+      "theorem": "Erdos101.erdos_101"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2087,
+      "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
+      "target_type_sha256": "sha256:d9eac933e6ce242245030c7e03c096589f73a436c49d93ddc28b4e3b4561a808",
+      "task_bundle_sha256": "sha256:89fcd4263be54e3741ea174f87d73a3d59df485870bbac3854c0723da1653355",
+      "task_id": "fc-e923379e-variants-conjecture-180fd01daa-formalized-v1",
+      "theorem": "Green24.variants.conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2548,
+      "source_path": "FormalConjectures/Millenium/NavierStokes.lean",
+      "target_type_sha256": "sha256:9d81c68d1336ca2ac3ca8a0e9097269810455adfe72547c4ac0b3cb78fee2d05",
+      "task_bundle_sha256": "sha256:e6e4a091330885cf24f62f1c945ea4e4c88d09ce639083876394c237fe4f2976",
+      "task_id": "fc-e923379e-navierstokes-navier-stokes-breakdown-r3-89a261b990-formalized-v1",
+      "theorem": "NavierStokes.navier_stokes_breakdown_R3"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2580,
+      "source_path": "FormalConjectures/OEIS/232174.lean",
+      "target_type_sha256": "sha256:37f52c985a09d5b826dca52f220d3050158298025feafacf0120a75bdb582098",
+      "task_bundle_sha256": "sha256:af988680f51e5b70f12d05a05cb52776f0d5800fd928b18d8c35c1c6aa232ac9",
+      "task_id": "fc-e923379e-oeisa232174-conjecture-37c64dba8b-formalized-v1",
+      "theorem": "OeisA232174.conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 3047,
+      "source_path": "FormalConjectures/Other/VCDimConvex.lean",
+      "target_type_sha256": "sha256:77262f2a5a2971678e88d2035b3afa16318522071d511094acdcdb7c89ecfcf3",
+      "task_bundle_sha256": "sha256:f2955f119a8b9bb562d41fde598da7ae1b7ade3cc599dcad033a23490339e097",
+      "task_id": "fc-e923379e-vcdimconvex-exists-hasaddvcndimatmost-n-of-convex-rn-add-one-c793935fa0-formalized-v1",
+      "theorem": "VCDimConvex.exists_hasAddVCNDimAtMost_n_of_convex_rn_add_one"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 202,
+      "source_path": "FormalConjectures/Paper/CatchUpConjecture.lean",
+      "target_type_sha256": "sha256:2f4646b67f5778407ebd48e9e13b481ce4eedc02f99ceed05706fc890e96ec12",
+      "task_bundle_sha256": "sha256:b8ca7e65444c194a9744ee706d52d07ba56961d67b59b9be3c7acef3b8186631",
+      "task_id": "fc-e923379e-catchup-value-of-even-mul-succ-self-div-two-2dcf5b762e-formalized-v1",
+      "theorem": "CatchUp.value_of_even_mul_succ_self_div_two"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 22,
+      "source_path": "FormalConjectures/Wikipedia/Agrawal.lean",
+      "target_type_sha256": "sha256:bff13f17ab34f2fb67d1a108b4f3332755318fd32a005909776d860cbe01a757",
+      "task_bundle_sha256": "sha256:9569d3f38ae66e481b79a0aab7e2edc287bb98281ea8ea585840750a3fbe9a2b",
+      "task_id": "fc-e923379e-variants-popovych-e7710df074-formalized-v1",
+      "theorem": "AgrawalConjecture.agrawal_conjecture.variants.popovych"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 3082,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture133.lean",
+      "target_type_sha256": "sha256:e9d1ae32e49a7a66434b8e1f17cd466fd3900d7da3099bcc3919dc983cbdf04e",
+      "task_bundle_sha256": "sha256:aef415da5b032254ebf9b1b48a86185dd21c9b24b637400da921fff1c280e04b",
+      "task_id": "fc-e923379e-graphconjecture133-conjecture133-6d4acc766f-formalized-v1",
+      "theorem": "WrittenOnTheWallII.GraphConjecture133.conjecture133"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 62,
+      "source_path": "FormalConjectures/Arxiv/1609.08688/sIncreasingrTuples.lean",
+      "target_type_sha256": "sha256:af6a7ff1cf997c15ddc1869afb020669a6a0373b00df97ff4e7dbf257c0848ef",
+      "task_bundle_sha256": "sha256:97e638ab22ebb3eaf792aa8b0b212c73afd728726d44947d894d777ea071f3ce",
+      "task_id": "fc-e923379e-08688-maximallength-le-strong-1773a77063-formalized-v1",
+      "theorem": "Arxiv.«1609.08688».maximalLength_le_strong"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 176,
+      "source_path": "FormalConjectures/Books/BugeaudDistributionModuloOne/Problem10_8.lean",
+      "target_type_sha256": "sha256:986ca5f2860a1aa10ac44d0755593e25e1caab1bee32c4ac46e0b1b7f0c7a74f",
+      "task_bundle_sha256": "sha256:4cb3fcf5dfd56b783af3ecb9f4708e21e52e0d975c6eadf8e36d94f8faf98527",
+      "task_id": "fc-e923379e-bugeaud08-problem-10-8-3ef8d74591-formalized-v1",
+      "theorem": "Bugeaud08.problem_10_8"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 360,
+      "source_path": "FormalConjectures/ErdosProblems/1041.lean",
+      "target_type_sha256": "sha256:0cb15bb9b616d55f9d8b4992e3b911ec31f1ec5c605fdaf025a249096bc771df",
+      "task_bundle_sha256": "sha256:05007c7d6dc83347b524925b69963eb65400db62723535ebaa32c3468eeed929",
+      "task_id": "fc-e923379e-erdos1041-erdos-1041-ea3813b735-formalized-v1",
+      "theorem": "Erdos1041.erdos_1041"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2193,
+      "source_path": "FormalConjectures/GreensOpenProblems/46.lean",
+      "target_type_sha256": "sha256:eaef895eb3e46630e01c7ccd245aea8a4e4c11d459b933bacbda3165c29f4e51",
+      "task_bundle_sha256": "sha256:f8a287ee5ce48e0e71515bc787486fd4ab4451be8030be72d36eb0efc2347aff",
+      "task_id": "fc-e923379e-green-46-improve-upper-conjectured-5c2583500c-formalized-v1",
+      "theorem": "Green46.green_46.improve_upper_conjectured"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2582,
+      "source_path": "FormalConjectures/OEIS/239957.lean",
+      "target_type_sha256": "sha256:5d2f941fd46d109cfd237eba164d5b0a85a121f4fdbdfe2fe40621129adcc68b",
+      "task_bundle_sha256": "sha256:49fc52826df164cd054e0619a206f2c538b3df0601394161d15f14fd7f36178a",
+      "task_id": "fc-e923379e-oeisa239957-conjecture-6f5e7ffcce-formalized-v1",
+      "theorem": "OeisA239957.conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 205,
+      "source_path": "FormalConjectures/Paper/Chvatal.lean",
+      "target_type_sha256": "sha256:9fcbcb1ffd96a48dc0ebe97d1be02571a052f4f2f5efb308aea08b522153009a",
+      "task_bundle_sha256": "sha256:6fea88e96a5606261cdc61f9b918390a7642354c9965307352b14c72c675e484",
+      "task_id": "fc-e923379e-chvatal-exists-maximal-star-9310f79c21-formalized-v1",
+      "theorem": "Chvatal.exists_maximal_star"
+    },
+    {
+      "mode": "formalized",
       "source_index": 31,
-      "target_type_sha256": "sha256:319daeafe838ca23a41c9b10a8b670a37f8cb286b42373aa6f173df3f7df13c7",
-      "task_bundle_sha256": "sha256:5b7e8de288d7874b3ac630470f7bf1e899256560ad1349239a2315eb21f7d305",
-      "task_id": "fc-e923379e-variants-real-6180d1e41c-negative-v1",
-      "theorem": "Erdos1.erdos_1.variants.real"
+      "source_path": "FormalConjectures/Wikipedia/Andrica.lean",
+      "target_type_sha256": "sha256:9b1908e4ce53deeae36f57fec2a1bacb427027705040122f0a3d690700e310b8",
+      "task_bundle_sha256": "sha256:a6513a40cb344e71367a3bb9df40d02ef2d3c4adc966df5bc98d2cc0268744d7",
+      "task_id": "fc-e923379e-andrica-andrica-conjecture-061900ac14-formalized-v1",
+      "theorem": "Andrica.andrica_conjecture"
     },
     {
-      "mode": "positive",
-      "source_index": 31,
-      "target_type_sha256": "sha256:f7cb289f3986478e4799e86a5cc2de8183340c1754d54a612c866f7e0df88b59",
-      "task_bundle_sha256": "sha256:00ae999678f9121446c47d02dc4936b7e340da8af77fed9707f4cc6ed75a064b",
-      "task_id": "fc-e923379e-variants-real-8903893c20-positive-v1",
-      "theorem": "Erdos1.erdos_1.variants.real"
+      "mode": "formalized",
+      "source_index": 3083,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture141.lean",
+      "target_type_sha256": "sha256:9c47e192b481f2f274f8ce0f0bc323462a6e92a3945d176696ebe6d5cbe20362",
+      "task_bundle_sha256": "sha256:be9ac9b87bf19630aa47b1b9cd3fc0b180b1a5c21d4f712ee966300f401adddb",
+      "task_id": "fc-e923379e-graphconjecture141-conjecture141-7674e1474a-formalized-v1",
+      "theorem": "WrittenOnTheWallII.GraphConjecture141.conjecture141"
     },
     {
-      "mode": "positive",
-      "source_index": 88,
-      "target_type_sha256": "sha256:14aa6aa687628d99bf64ea7d88fc06ec12ae12f9e328d8172f6f029e7d7da88e",
-      "task_bundle_sha256": "sha256:ef078c98e7ed2509547d764b04921678afa0909c8120a590862bc67e24ec7974",
-      "task_id": "fc-e923379e-variants-rosenfeld-4-49bbdfd47f-positive-v1",
-      "theorem": "Erdos887.erdos_887.variants.rosenfeld_4"
+      "mode": "formalized",
+      "source_index": 77,
+      "source_path": "FormalConjectures/Arxiv/2107.00295/IndependentDomination.lean",
+      "target_type_sha256": "sha256:06efe3bf1080131edb446e971df456665acc78f28b4ac995d69c083ec55de671",
+      "task_bundle_sha256": "sha256:321cd4579d375bfc8620ac27a335c57446dec583674867349a6130c93628fcc3",
+      "task_id": "fc-e923379e-00295-independentdominationeven-54d7d8b0a9-formalized-v1",
+      "theorem": "Arxiv.«2107.00295».independentDominationEven"
     },
     {
-      "mode": "negative",
-      "source_index": 88,
-      "target_type_sha256": "sha256:653c0896b46611058bee6de76df7e15b36d0b1fd863c1ca68c89825b6c2ea661",
-      "task_bundle_sha256": "sha256:a4049a72d8cab35475f32fb539a14c53ea8f681a2bddb88dee6f5efdaa566b45",
-      "task_id": "fc-e923379e-variants-rosenfeld-4-80432ae2b4-negative-v1",
-      "theorem": "Erdos887.erdos_887.variants.rosenfeld_4"
+      "mode": "formalized",
+      "source_index": 381,
+      "source_path": "FormalConjectures/ErdosProblems/1055.lean",
+      "target_type_sha256": "sha256:197d36404a131616db73a629a12dc58c7fe292287f77b34fc07f838b150b605f",
+      "task_bundle_sha256": "sha256:f6b8b877e8ae41810191b7189a35e640030206348657722275917332d48a6a32",
+      "task_id": "fc-e923379e-erdos1055-erdos-1055-85d935d892-formalized-v1",
+      "theorem": "Erdos1055.erdos_1055"
     },
     {
-      "mode": "positive",
-      "source_index": 110,
-      "target_type_sha256": "sha256:a82198f5ec6664bc262917d97631ef1074e1e6fa36225835e603dad0fdd6c897",
-      "task_bundle_sha256": "sha256:5ba748d1ac6c538d7ec58a4935d9bd8b667e81d7ebd44f21c905863550753d0d",
-      "task_id": "fc-e923379e-variants-sidon-01n-af15f312bb-positive-v1",
-      "theorem": "Green31.green_31.variants.sidon_01n"
+      "mode": "formalized",
+      "source_index": 2219,
+      "source_path": "FormalConjectures/GreensOpenProblems/72.lean",
+      "target_type_sha256": "sha256:dd4b672413ddb0c1768f069d56eeec1a12462f6a890c198157df8836073e6d58",
+      "task_bundle_sha256": "sha256:21019b84e4b0e3379667fcd2ceda9dcba7bff15c95e0d41579e9e79a71ec2771",
+      "task_id": "fc-e923379e-green72-nokinline-88c36a097f-formalized-v1",
+      "theorem": "Green72.NoKInLine"
     },
     {
-      "mode": "negative",
-      "source_index": 110,
-      "target_type_sha256": "sha256:b383c14acf5e98a8f42b82a30fdb1d5a73389bcd7d97a3b09d804b9e02d4dd2b",
-      "task_bundle_sha256": "sha256:1652ac67b413db4621f200c79f6b09eb447f3ccfac29e051e1964a20c4fb8f3e",
-      "task_id": "fc-e923379e-variants-sidon-01n-b58ed161f6-negative-v1",
-      "theorem": "Green31.green_31.variants.sidon_01n"
+      "mode": "formalized",
+      "source_index": 2590,
+      "source_path": "FormalConjectures/OEIS/280831.lean",
+      "target_type_sha256": "sha256:f80ab1c12b3e9f200dbf2ab9683dfc90d7dc6fe3bd64c75e48f14d4f7764a158",
+      "task_bundle_sha256": "sha256:346738662ac220b4f4a016eb5050649777d4ca78762ea4e024ab18096c8b55d8",
+      "task_id": "fc-e923379e-oeisa280831-conjecture-79d1e531ca-formalized-v1",
+      "theorem": "OeisA280831.conjecture"
     },
     {
-      "mode": "negative",
-      "source_index": 162,
-      "target_type_sha256": "sha256:ae891fec57e02d3038d31b06b4e6ca4384164c40a6bd7915ac52320fbc37e9c4",
-      "task_bundle_sha256": "sha256:74986ea809ab6302bccf070eebf62e87155af46f473363035dc77a898ad201f6",
-      "task_id": "fc-e923379e-variants-smooth-dimension-four-c1e010e269-negative-v1",
-      "theorem": "PoincareConjecture.poincare_conjecture.variants.smooth_dimension_four"
+      "mode": "formalized",
+      "source_index": 227,
+      "source_path": "FormalConjectures/Paper/ConjugacyClassSizes.lean",
+      "target_type_sha256": "sha256:ba012a4d8c6676e0193f20e1b2eab374817f93ab0d39c92b555dd7d8d04f2154",
+      "task_bundle_sha256": "sha256:3ce57a68866b7789695b3f577e25e9ab193d4275c5a5d301c76054159073c575",
+      "task_id": "fc-e923379e-conjugacyclasssizes-conjclasssizes-iff-sym-three-9f2628f27f-formalized-v1",
+      "theorem": "ConjugacyClassSizes.conjClassSizes_iff_sym_three"
     },
     {
-      "mode": "positive",
-      "source_index": 162,
-      "target_type_sha256": "sha256:724c43bb84100231ff83a9ef151c772f6d5bec2f1bbc7b6bca09403928aa7e4f",
-      "task_bundle_sha256": "sha256:10392bac15105e063c72c696b81982f8e2a733f49155e602497df73115ce7efe",
-      "task_id": "fc-e923379e-variants-smooth-dimension-four-ca4a3f0553-positive-v1",
-      "theorem": "PoincareConjecture.poincare_conjecture.variants.smooth_dimension_four"
+      "mode": "formalized",
+      "source_index": 33,
+      "source_path": "FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean",
+      "target_type_sha256": "sha256:effd9fde97aa49521a615621554cfd876f17a6c62c8ebd4c76a66a22420713cf",
+      "task_bundle_sha256": "sha256:7527dfcb2014873c1169de777c0b8a25de18aeb12e3c8a7980aaf0034cc7a6fc",
+      "task_id": "fc-e923379e-parts-i-a4990fefc5-formalized-v1",
+      "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i"
     },
     {
-      "mode": "positive",
-      "source_index": 83,
-      "target_type_sha256": "sha256:086916909dda3f76c68763c33e97ab27c5dfedbf4d3d6af99f73c01bd3cfa1a9",
-      "task_bundle_sha256": "sha256:e6ed7f71b4ff763ce0294eba830e0e61e8aab7ad4d7d895a44505c0162bf1962",
-      "task_id": "fc-e923379e-variants-sqrt-0b3b6380e7-positive-v1",
-      "theorem": "Erdos74.erdos_74.variants.sqrt"
+      "mode": "formalized",
+      "source_index": 3084,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture142.lean",
+      "target_type_sha256": "sha256:1c3bd7680bd60af38344a250b31050522049044a17d7191ffd467ca3dcadb115",
+      "task_bundle_sha256": "sha256:0855a3e112c85499bc81d9dc1883d7cba10d59d620fac8a6a928ec869c49a3d2",
+      "task_id": "fc-e923379e-graphconjecture142-conjecture142-126280006f-formalized-v1",
+      "theorem": "WrittenOnTheWallII.GraphConjecture142.conjecture142"
     },
     {
-      "mode": "negative",
-      "source_index": 83,
-      "target_type_sha256": "sha256:3c6d7f2b38d07711aaf84a6ba4b0998e314380573850a5fe364e6528ab23111e",
-      "task_bundle_sha256": "sha256:9a33b78a5967ac8a4c2ad819d92a4b7ddbe12b0b6126d74c8ca7c3c52a02b6e7",
-      "task_id": "fc-e923379e-variants-sqrt-dfd410dd8b-negative-v1",
-      "theorem": "Erdos74.erdos_74.variants.sqrt"
+      "mode": "formalized",
+      "source_index": 79,
+      "source_path": "FormalConjectures/Arxiv/2107.12475/CollatzLike.lean",
+      "target_type_sha256": "sha256:1524c29afd51a492a27281b4f8047a248f64b7a17053c4607a0d34f6e3f378c2",
+      "task_bundle_sha256": "sha256:359420cbfe4a869e5cd9326a14cd7d30cea93592c61c4e0c6471c094e6233da0",
+      "task_id": "fc-e923379e-12475-collatzlike-07a408d832-formalized-v1",
+      "theorem": "Arxiv.«2107.12475».CollatzLike"
     },
     {
-      "mode": "positive",
-      "source_index": 91,
-      "target_type_sha256": "sha256:65e5458eba32a694822b0d5f966ee06d1cb8a7e769e95f848f088c4fb97afb42",
-      "task_bundle_sha256": "sha256:9f77c7ab2d41a4f47a69f2048280149e9580eca91590e3fdd6d0950d96a006f7",
-      "task_id": "fc-e923379e-variants-three-cubes-a26a686f4d-positive-v1",
-      "theorem": "Erdos940.erdos_940.variants.three_cubes"
+      "mode": "formalized",
+      "source_index": 404,
+      "source_path": "FormalConjectures/ErdosProblems/1060.lean",
+      "target_type_sha256": "sha256:92f3af9d6712fac8bef648cc256bbc8584f99edd8d9d0b6ac3e5a824c99a30cd",
+      "task_bundle_sha256": "sha256:29f6ef29e21e44b8dd6fc16bec5d9d418c2664e9d6f6a112108d91e59fb18ae8",
+      "task_id": "fc-e923379e-parts-i-07e8c8a1ca-formalized-v1",
+      "theorem": "Erdos1060.erdos_1060.parts.i"
     },
     {
-      "mode": "negative",
-      "source_index": 91,
-      "target_type_sha256": "sha256:094d639f902ef898637703b3b20593d91df2121a4b466ff8df74c711bbb98576",
-      "task_bundle_sha256": "sha256:1eb406d19e87f23891b5665059941dba1561a7dd0781fc90cf8b1c36f705a69f",
-      "task_id": "fc-e923379e-variants-three-cubes-d3e68e8d9d-negative-v1",
-      "theorem": "Erdos940.erdos_940.variants.three_cubes"
+      "mode": "formalized",
+      "source_index": 2600,
+      "source_path": "FormalConjectures/OEIS/281976.lean",
+      "target_type_sha256": "sha256:8fd8a1222c0731e2b207fadd5deb45e8d8a1360f13c798c70b34129a2c184836",
+      "task_bundle_sha256": "sha256:714dd730b11a47bce5e550afb398b3e2110313238da0dabd9f13f64b84652a2f",
+      "task_id": "fc-e923379e-oeisa281976-conjecture-bc22022113-formalized-v1",
+      "theorem": "OeisA281976.conjecture"
     },
     {
-      "mode": "positive",
+      "mode": "formalized",
+      "source_index": 245,
+      "source_path": "FormalConjectures/Paper/DeGiorgi.lean",
+      "target_type_sha256": "sha256:af1693317a4d471b48ac880345ed73d4a1d5cc3c019e4aba66a1d44071fec1bd",
+      "task_bundle_sha256": "sha256:eb521cb5951e985fda6be95d0d48091883319fa71deece0837a31f9a1b3c6b30",
+      "task_id": "fc-e923379e-degiorgi-degiorgi-eight-73ba16b0de-formalized-v1",
+      "theorem": "DeGiorgi.DeGiorgi_eight"
+    },
+    {
+      "mode": "formalized",
       "source_index": 111,
-      "target_type_sha256": "sha256:c63d9d2e7fb7e0c91fdab4e92e8896528afba23a7b2e0651c2821132c0692ce7",
-      "task_bundle_sha256": "sha256:4f440d4e833c3265e339ea77cffee59ab8988af8ea3f6657034da024b8324115",
-      "task_id": "fc-e923379e-variants-zmod-p-30b0c9ca55-positive-v1",
-      "theorem": "Green31.green_31.variants.zmod_p"
+      "source_path": "FormalConjectures/Wikipedia/BatemanHornConjecture.lean",
+      "target_type_sha256": "sha256:ef5a379980532f3f3769800b879242aebed09065e79c9225192f1f6154b4ae5b",
+      "task_bundle_sha256": "sha256:d66f63fd35fc134375cd68a2b5c2b489aaf32fa406f3cad93fc106bbdc505da5",
+      "task_id": "fc-e923379e-batemanhornconjecture-bateman-horn-conjecture-cc1c0190cf-formalized-v1",
+      "theorem": "BatemanHornConjecture.bateman_horn_conjecture"
     },
     {
-      "mode": "negative",
-      "source_index": 111,
-      "target_type_sha256": "sha256:676486cdf36770a7373707777f97e070eb6a3f17cedca04e9b777b862480c44f",
-      "task_bundle_sha256": "sha256:138cea74ef9a43dacae1b809fd032b0443bbfe494c02d4493394b617b99aca9d",
-      "task_id": "fc-e923379e-variants-zmod-p-c51ed2ac8b-negative-v1",
-      "theorem": "Green31.green_31.variants.zmod_p"
+      "mode": "formalized",
+      "source_index": 3086,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture144.lean",
+      "target_type_sha256": "sha256:75671e94967fa57417c205bc6a1358ec6faa3f0ca171f1ec5e53cd7e40d8253c",
+      "task_bundle_sha256": "sha256:2ea296b4457dc78bda0c4b5761d7913b5c597004e930ec48e826410234633c8f",
+      "task_id": "fc-e923379e-graphconjecture144-conjecture144-ee5fb7073e-formalized-v1",
+      "theorem": "WrittenOnTheWallII.GraphConjecture144.conjecture144"
     },
     {
-      "mode": "negative",
-      "source_index": 181,
-      "target_type_sha256": "sha256:f23c3e5d6ab8cbb3666365141591d6d86575bbf33f8fdc1df53699aa2dce4641",
-      "task_bundle_sha256": "sha256:384fdcddf8e221710c6dff8c9358509d57330e4f3ec5ca34c96dcb02d70c01ea",
-      "task_id": "fc-e923379e-weaktiling-problem-4-2-61dde10980-negative-v1",
-      "theorem": "WeakTiling.problem_4_2"
+      "mode": "formalized",
+      "source_index": 81,
+      "source_path": "FormalConjectures/Arxiv/2208.14736/ZariskiCancellation.lean",
+      "target_type_sha256": "sha256:a57d577ee28fc2be34e3eb0aa86a934ca9a6e15ddd6599f1003bd4d6a9598c82",
+      "task_bundle_sha256": "sha256:34d00c32f41c672effb869ab471bd4c956a96785ae907281f35e790b05210ee9",
+      "task_id": "fc-e923379e-14736-zariski-cancellation-problem-3e96fe45b1-formalized-v1",
+      "theorem": "Arxiv.«2208.14736».zariski_cancellation_problem"
     },
     {
-      "mode": "positive",
-      "source_index": 181,
-      "target_type_sha256": "sha256:a5121e380416dc9f8296d5dc2f3971fb4524d1417dda9ab71512a5f89de59ca0",
-      "task_bundle_sha256": "sha256:cf20654f30c0433ac0c67b8e5f3d63f68d26643a6c71c09ef8613f8cd9c4a934",
-      "task_id": "fc-e923379e-weaktiling-problem-4-2-780bad4a1b-positive-v1",
-      "theorem": "WeakTiling.problem_4_2"
+      "mode": "formalized",
+      "source_index": 435,
+      "source_path": "FormalConjectures/ErdosProblems/1072.lean",
+      "target_type_sha256": "sha256:8eb7adc02fb4410ec81a84706ea24eb847e11b39b21ee7fb8777745a672b3d4c",
+      "task_bundle_sha256": "sha256:31335cca85718a9a2ef65a8bfb6439583246611c01b3f5422eaeb1ac2a5454e1",
+      "task_id": "fc-e923379e-variants-littleo-5cb7667341-formalized-v1",
+      "theorem": "Erdos1072.erdos_1072.variants.littleo"
     },
     {
-      "mode": "positive",
-      "source_index": 182,
-      "target_type_sha256": "sha256:73fc0cf3f71dcd08debcb72c7fa71aba461eeeaf0625f871431ff2cb06c2f8fb",
-      "task_bundle_sha256": "sha256:8ec098a1c5588c54f11202d037451cd9f622d3c396457fac0e168d849cbb4170",
-      "task_id": "fc-e923379e-weaktiling-problem-4-3-3d58a933ad-positive-v1",
-      "theorem": "WeakTiling.problem_4_3"
+      "mode": "formalized",
+      "source_index": 2606,
+      "source_path": "FormalConjectures/OEIS/287616.lean",
+      "target_type_sha256": "sha256:2e7c9e6ad58638ef6a3be8a9fa45cf3056cf96e1ac3f638516ccc3c62f4f7db0",
+      "task_bundle_sha256": "sha256:59089f8f04203a44cc962855595e7c2b8919c60c8930cc37a110ad0d6ad1a89e",
+      "task_id": "fc-e923379e-oeisa287616-conjecture-69d640ac7d-formalized-v1",
+      "theorem": "OeisA287616.conjecture"
     },
     {
-      "mode": "negative",
-      "source_index": 182,
-      "target_type_sha256": "sha256:08d945689db161054a325d61f6b2f93ff1ecc58cf423d106351598808daea110",
-      "task_bundle_sha256": "sha256:9bf63ce5fc5c6376f145462eee051948891582247419e03f9691cebf8fe26ebb",
-      "task_id": "fc-e923379e-weaktiling-problem-4-3-7df5e45ac9-negative-v1",
-      "theorem": "WeakTiling.problem_4_3"
+      "mode": "formalized",
+      "source_index": 292,
+      "source_path": "FormalConjectures/Paper/Dubner.lean",
+      "target_type_sha256": "sha256:ee9172c73eb69675d8b421d5849a8b5c0fcd9a7ae0fdcadd478eac3af39c61fe",
+      "task_bundle_sha256": "sha256:4e2223473e952b842a239b7aa79548b8bdb9518a4afedb0e069b90cde06dd90e",
+      "task_id": "fc-e923379e-dubnerconjecture-dubner-conjecture-f6178ed5aa-formalized-v1",
+      "theorem": "DubnerConjecture.dubner_conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 112,
+      "source_path": "FormalConjectures/Wikipedia/BealConjecture.lean",
+      "target_type_sha256": "sha256:4148be37fb231dcac58feedb46ea6d709a630561909236ceb8c44d5928181ddb",
+      "task_bundle_sha256": "sha256:5c3be4f3499613f7dbe6b52d9ecc611760d721077eebf653d06e1fe169b07c3a",
+      "task_id": "fc-e923379e-bealconjecture-beal-conjecture-d3227e52b8-formalized-v1",
+      "theorem": "BealConjecture.beal_conjecture"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 3087,
+      "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture145.lean",
+      "target_type_sha256": "sha256:f62ecccd6d162fec1c07bdb084609298f9902acbd6c33d794360c2d46ac6eeab",
+      "task_bundle_sha256": "sha256:06217adce931cc8d8e2447a96d9f4e6bda68e502be246b743484614a32acefaa",
+      "task_id": "fc-e923379e-graphconjecture145-conjecture145-2ae4924ab4-formalized-v1",
+      "theorem": "WrittenOnTheWallII.GraphConjecture145.conjecture145"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 86,
+      "source_path": "FormalConjectures/Arxiv/2501.03234/ArithmeticSumS.lean",
+      "target_type_sha256": "sha256:03387790236c2632e0d2760fb68d1c09da00b7e2ddac9627196a32d74664d58a",
+      "task_bundle_sha256": "sha256:b526028af5f7aab5fb3de38d6b465b852d6e8e1eaba4784c46e13bdaa645ea36",
+      "task_id": "fc-e923379e-03234-conjecture-1-1-a3e4a5b695-formalized-v1",
+      "theorem": "Arxiv.«2501.03234».conjecture_1_1"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 455,
+      "source_path": "FormalConjectures/ErdosProblems/1084.lean",
+      "target_type_sha256": "sha256:b412dd1efc91228ef4b2bae29a3c33f227a2210edae347fab024d57fc63083f3",
+      "task_bundle_sha256": "sha256:a347467f5bd1eb2cebe0027081fb3eabac855f6024dec20852bb80d3a0891c9e",
+      "task_id": "fc-e923379e-variants-triangular-optimal-d2-26e38210eb-formalized-v1",
+      "theorem": "Erdos1084.erdos_1084.variants.triangular_optimal_d2"
+    },
+    {
+      "mode": "formalized",
+      "source_index": 2613,
+      "source_path": "FormalConjectures/OEIS/303656.lean",
+      "target_type_sha256": "sha256:d09912100313c21ee8eb374b6b1c06468b96206a99317beeb512634cbcbaff15",
+      "task_bundle_sha256": "sha256:3f7504910c76a25e99229b44f07a57514a32f1d7dbc8eed29c89884afa4989d6",
+      "task_id": "fc-e923379e-oeisa303656-conjecture-24cf754c7c-formalized-v1",
+      "theorem": "OeisA303656.conjecture"
     }
   ],
-  "audit_date_utc": "2026-07-22",
+  "audit_date_utc": "2026-07-23",
   "default": "DENY",
+  "pool_policy": {
+    "classification": "DIRECT_PROP",
+    "compiled_target_validation": true,
+    "exact_source_type": true,
+    "mode": "formalized",
+    "one_task_per_source_path": true,
+    "pool_size": 64,
+    "retired_source_theorems_sha256": "sha256:b23b4f97984fefa5d4af3a99dba089d0db16caefd761604c2239e1f3cd7c3b3a",
+    "selection": "balanced-repository-area-v1",
+    "source_category": "research open",
+    "synthetic_negation": false
+  },
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
-  "schema_version": 1
+  "schema_version": 2
 }

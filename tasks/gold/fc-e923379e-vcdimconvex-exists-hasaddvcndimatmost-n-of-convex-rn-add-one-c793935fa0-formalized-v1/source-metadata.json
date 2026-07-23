@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    52
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "For every $n$ there exists some $d$ such that every convex set in $\\mathbb R^{n + 1}$ has\n$\\mathrm{VC}_n$ dimension at most $d$. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Other.VCDimConvex",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Other/VCDimConvex.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "VCDimConvex.exists_hasAddVCNDimAtMost_n_of_convex_rn_add_one",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:77262f2a5a2971678e88d2035b3afa16318522071d511094acdcdb7c89ecfcf3",
+  "type_pretty": "∀ (n : ℕ), ∃ d, ∀ (C : Set (Fin (n + 1) → ℝ)), Convex ℝ C → HasAddVCNDimAtMost C n d"
+}

@@ -40,7 +40,9 @@ def intendedType
       throwError "unsupported inspector classification: {classification}"
   if mode == "negative" then
     return mkApp (.const ``Not []) positive
-  return positive
+  if mode == "positive" || mode == "formalized" || mode == "answer" then
+    return positive
+  throwError "unsupported inspector task mode: {mode}"
 
 unsafe def runInspector (arguments : List String) : IO Unit := do
   let [challengeModule, targetName, sourceModule, sourceName, classification, mode] := arguments

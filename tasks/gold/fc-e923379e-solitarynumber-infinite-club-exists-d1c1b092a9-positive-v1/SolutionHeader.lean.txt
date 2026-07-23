@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.SolitaryNumber
-import TaskSupport
-
-namespace Bounty

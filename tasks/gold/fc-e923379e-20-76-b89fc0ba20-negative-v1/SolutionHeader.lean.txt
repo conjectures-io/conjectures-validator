@@ -1,4 +1,0 @@
-import FormalConjectures.Kourovka.«20_76»
-import TaskSupport
-
-namespace Bounty

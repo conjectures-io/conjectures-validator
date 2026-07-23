@@ -51,6 +51,7 @@ def test_generate_ten_real_challenges_from_distinct_areas(tmp_path):
             declaration=item,
             mode="positive",
             output=tmp_path / f"task-{index}",
+            allow_non_open=True,
             validate_target=validator,
         )
         for index, item in enumerate(selected)

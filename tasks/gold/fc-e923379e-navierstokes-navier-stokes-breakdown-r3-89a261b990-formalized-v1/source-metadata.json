@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    35
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "(C) Breakdown of Navier–Stokes solutions on ℝ³. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Millenium.NavierStokes",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Millenium/NavierStokes.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "NavierStokes.navier_stokes_breakdown_R3",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:9d81c68d1336ca2ac3ca8a0e9097269810455adfe72547c4ac0b3cb78fee2d05",
+  "type_pretty": "∀ nu > 0,\n  ∃ u₀ f,\n    NavierStokes.InitialVelocityConditionDecay u₀ ∧\n      NavierStokes.ForceConditionDecay f ∧ ¬∃ v p, NavierStokes.NavierStokesExistenceAndSmoothnessRn nu u₀ f v p"
+}

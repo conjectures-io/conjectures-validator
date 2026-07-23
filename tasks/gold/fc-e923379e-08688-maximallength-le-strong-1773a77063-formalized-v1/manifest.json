@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Arxiv.«1609.08688».maximalLength_le_strong"
+  ],
+  "generated_target_type_hash": "sha256:af6a7ff1cf997c15ddc1869afb020669a6a0373b00df97ff4e7dbf257c0848ef",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Arxiv.«1609.08688».sIncreasingrTuples",
+  "source_path": "FormalConjectures/Arxiv/1609.08688/sIncreasingrTuples.lean",
+  "source_theorem": "Arxiv.«1609.08688».maximalLength_le_strong",
+  "source_type_hash": "sha256:af6a7ff1cf997c15ddc1869afb020669a6a0373b00df97ff4e7dbf257c0848ef",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-08688-maximallength-le-strong-1773a77063-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:9e08c79658fce151db6f8aa31ee8f448e5213cf193fcda16e3a31727e89f3070",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:d050f44f0856d13a915eacb517d297e6ad4539a2f9b698687c4bef74b2cac085",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:1970b30b0a27f4cd7777a138fb73db52fb57cc7ea0950e7a4a41f4f7611eed58"
+  }
+}

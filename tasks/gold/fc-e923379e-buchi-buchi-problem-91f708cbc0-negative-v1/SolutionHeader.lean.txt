@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.Buchi
-import TaskSupport
-
-namespace Bounty

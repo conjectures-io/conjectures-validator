@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11,
+    14
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "2) implies 1): if the coefficients of $f$ are in $\\mathbb{Z}[1/N]$ for some $N$, then $f$ is algebraic over $\\mathbb{Q}[z]$.\nAlso the version of conjecture of Litt's problem 1 on his website.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.LittProblems.«1»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/LittProblems/1.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "LamLitt.lam_litt.variants.integrality_implies_algebraicity",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:2d7cc3c768114a35bf79d98db5fee99f5dad66afcce287ea31334e362bc7ce29",
+  "type_pretty": "∀ {n : ℕ} (f : PowerSeries ℚ) (g : MvRatFunc (Fin (n + 1)) ℚ),\n  LamLitt.IsSolutionOfAlgebraicODE n f g →\n    ∀ (N : ℕ), LamLitt.IsCoeffIntegralAdjointInvNat f N → IsAlgebraic (Polynomial ℚ) f"
+}

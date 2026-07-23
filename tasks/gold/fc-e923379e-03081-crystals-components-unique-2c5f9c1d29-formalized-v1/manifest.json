@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Arxiv.«1601.03081».crystals_components_unique"
+  ],
+  "generated_target_type_hash": "sha256:02e9908014142e8004884e800c8b2049bf01c4a26185a865d763ace90c730517",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Arxiv.«1601.03081».UniqueCrystalComponents",
+  "source_path": "FormalConjectures/Arxiv/1601.03081/UniqueCrystalComponents.lean",
+  "source_theorem": "Arxiv.«1601.03081».crystals_components_unique",
+  "source_type_hash": "sha256:02e9908014142e8004884e800c8b2049bf01c4a26185a865d763ace90c730517",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-03081-crystals-components-unique-2c5f9c1d29-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:d8fdb4aa9cd831d946e43bb3d5b742534195acfa3e39949e7ca90c48c81deae9",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:9a18d4fc8a1765d0501533a8e955c54c2228330f4858cdb063d75e1c3110c8ee",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:5f72fa817b6b874e0cc1b34a9b2e74a1f08743b14a07278fa0280aab32368ff5"
+  }
+}

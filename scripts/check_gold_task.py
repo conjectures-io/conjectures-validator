@@ -26,12 +26,21 @@ def main() -> None:
 
     sys.path.insert(0, str(ROOT))
     from verifier.task_loader import load_task_bundle
+    from verifier.task_policy import GOLD_TASK_MODE
 
-    policy = json.loads(ALLOWLIST.read_text(encoding="utf-8"))
     try:
+        policy = json.loads(ALLOWLIST.read_text(encoding="utf-8"))
         bundle = load_task_bundle(task_dir)
     except Exception as error:
         fail(f"task bundle failed immutable-bundle validation: {error}")
+    if (
+        policy.get("schema_version") != 2
+        or policy.get("default") != "DENY"
+        or policy.get("pool_policy", {}).get("mode") != GOLD_TASK_MODE
+        or policy.get("pool_policy", {}).get("exact_source_type") is not True
+        or policy.get("pool_policy", {}).get("synthetic_negation") is not False
+    ):
+        fail("gold allowlist policy is invalid")
     allowed = {row["task_id"]: row for row in policy["allowed_task_bundles"]}
     row = allowed.get(bundle.manifest.task_id)
     if row is None:
@@ -42,6 +51,11 @@ def main() -> None:
         fail("task-bundle digest does not match the audited digest")
     if bundle.manifest.generated_target_type_hash != row["target_type_sha256"]:
         fail("generated target-type digest does not match the audited digest")
+    if (
+        bundle.manifest.task_mode != GOLD_TASK_MODE
+        or bundle.manifest.generated_target_type_hash != bundle.manifest.source_type_hash
+    ):
+        fail("task is not the exact source formalization")
     print(
         json.dumps(
             {

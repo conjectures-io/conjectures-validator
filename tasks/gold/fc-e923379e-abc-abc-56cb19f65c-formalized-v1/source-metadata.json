@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "For every positive real number `ε`, there exist only finitely many triples `(a, b, c)` of coprime positive integers, with `a + b = c`, such that `c > rad(abc)^(1+ε)`\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.ABC",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/ABC.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "ABC.abc",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:3b74f0eadd53d77e9af250dc15f0ab94ef3add410b19755a7613ba7b3b383f1c",
+  "type_pretty": "∀ (ε : ℝ),\n  0 < ε →\n    {(a, b, c) |\n        0 < a ∧\n          0 < b ∧ 0 < c ∧ {a, b, c}.Pairwise Nat.Coprime ∧ a + b = c ∧ ↑(ABC.radical (a * b * c)) ^ (1 + ε) < ↑c}.Finite"
+}

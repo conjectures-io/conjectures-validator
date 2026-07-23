@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.DiameterSimpleFiniteGroups
-import TaskSupport
-
-namespace Bounty

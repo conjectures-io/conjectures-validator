@@ -24,6 +24,9 @@ Miner operators build their solvers independently.
 - `frontier-miner load` is the only submission-ingress path. It accepts one local regular `.lean`
   file and one audited gold task bundle, verifies both against `gold/allowlist.json`, and stores the
   immutable source bytes by digest.
+- Gold allowlist v2 admits one exact `formalized` task per selected Formal Conjectures source file.
+  It rejects transformed positive/negative pairs, answer-wrapper extraction, duplicate source
+  paths, duplicate target types, and every retired v1 task.
 - `frontier-miner serve` exposes unauthenticated `GET /healthz` and receiver-bound, hotkey-signed
   `GET /v1/capabilities`, `POST /v1/commitments`, and `POST /v1/reveals`.
 - The miner signs commitment and reveal envelopes with its hotkey. A persisted random salt binds

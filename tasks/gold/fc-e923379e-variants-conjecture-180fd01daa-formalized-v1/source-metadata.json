@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Conjecture p.579 in [Aa19]: $\\left({1}{3} + o(1)\\right) n^2$. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.GreensOpenProblems.«24»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Green24.variants.conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:d9eac933e6ce242245030c7e03c096589f73a436c49d93ddc28b4e3b4561a808",
+  "type_pretty": "Green24.variants.gamma = 1 / 3"
+}

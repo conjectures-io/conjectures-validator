@@ -5,8 +5,5 @@ cd "$ROOT"
 export ELAN_HOME="${ELAN_HOME:-$ROOT/.elan}"
 export PATH="$ROOT/.venv/bin:$ELAN_HOME/bin:$PATH"
 "$ROOT/.venv/bin/python" -m verifier task generate --catalog data/catalog.json \
-  --theorem GracefulLabeling.graceful_tree_conjecture --mode positive \
-  --output tasks/graceful-positive
-"$ROOT/.venv/bin/python" -m verifier task generate --catalog data/catalog.json \
-  --theorem GracefulLabeling.graceful_tree_conjecture --mode negative \
-  --output tasks/graceful-negative
+  --theorem Arxiv.id2303_01089.conjecture_1_3 --mode formalized \
+  --output tasks/furstenberg-formalized

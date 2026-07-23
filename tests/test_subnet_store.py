@@ -130,7 +130,7 @@ def test_gold_import_survives_source_file_edit_and_delete(tmp_path):
     task_dir = (
         project_root
         / "tasks/gold"
-        / "fc-e923379e-balancedprimes-balanced-primes-order-45ebef4685-positive-v1"
+        / "fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1"
     )
     submission_path = tmp_path / "Main.lean"
     original = b"theorem Bounty.target : True := by\n  trivial\n"

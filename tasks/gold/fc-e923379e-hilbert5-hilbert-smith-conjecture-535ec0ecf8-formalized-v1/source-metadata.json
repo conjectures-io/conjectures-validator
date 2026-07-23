@@ -1,0 +1,39 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    22,
+    57,
+    58
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Hilbert–Smith conjecture**: every locally compact topological group acting continuously\nand faithfully on a connected finite-dimensional topological manifold is a Lie group. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.HilbertProblems.«5»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/HilbertProblems/5.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Hilbert5.hilbert_smith_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:51b741431615cb2f30798ab879fa166317d2ff99d246170f8ccb536bd559f578",
+  "type_pretty": "∀ {G : Type u_1} [inst : Group G] [inst_1 : TopologicalSpace G] {X : Type u_2} [inst_2 : TopologicalSpace X] [T2Space X]\n  [ConnectedSpace X] [IsTopologicalGroup G] [LocallyCompactSpace G] [inst_7 : MulAction G X] [ContinuousSMul G X]\n  [FaithfulSMul G X], Hilbert5.AdmitsLieGroupStructure G"
+}

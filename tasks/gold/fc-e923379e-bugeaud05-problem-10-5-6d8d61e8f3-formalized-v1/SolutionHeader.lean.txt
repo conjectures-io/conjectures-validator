@@ -1,0 +1,4 @@
+import FormalConjectures.Books.BugeaudDistributionModuloOne.Problem10_5
+import TaskSupport
+
+namespace Bounty

@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.MagicSquares
-import TaskSupport
-
-namespace Bounty

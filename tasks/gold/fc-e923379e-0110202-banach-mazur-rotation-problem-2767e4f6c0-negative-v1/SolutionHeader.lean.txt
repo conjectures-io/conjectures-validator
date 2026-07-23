@@ -1,4 +1,0 @@
-import FormalConjectures.Arxiv.«math.0110202».BanachMazurRotation
-import TaskSupport
-
-namespace Bounty

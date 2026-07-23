@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11,
+    12
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**The Bateman-Horn Conjecture**\nGiven a finite collection of distinct irreducible polynomials non-constant $f_1, f_2, \\dots, f_k \\in \\mathbb{Z}[x]$\nwith positive leading coefficients that satisfy the Schinzel condition, the number\nof positive integers n ≤ x for which all polynomials $f_i$ are simultaneously prime is asymptotic to:\n$$C(f_1, f_2, \\dots, f_k) x / (log x)^k$$\nwhere $C$ is the Bateman-Horn constant given by the convergent infinite product:\n$$C = \\frac{1}{D}\\prod_{p\\in\\mathbb{P}} (1 - 1/p)^(-k) · (1 - \\omega_p/p)$$\nHere $\\omega_p/p$ is the number of residue classes modulo $p$ for which at least one polynomial vanishes.\n\nThe Schinzel condition ensures that for each prime $p$, there exists some integer $n$\nsuch that $p$ does not divide the product $f_(n) f_2(n) \\dotsb f_(n)$, which guarantees the\ninfinite product converges to a positive value.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.BatemanHornConjecture",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/BatemanHornConjecture.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "BatemanHornConjecture.bateman_horn_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:ef5a379980532f3f3769800b879242aebed09065e79c9225192f1f6154b4ae5b",
+  "type_pretty": "∀ (polys : Finset (Polynomial ℤ)),\n  polys.Nonempty →\n    (∀ f ∈ polys, BunyakovskyCondition f) →\n      SchinzelCondition polys →\n        Asymptotics.IsEquivalent Filter.atTop (fun x => ↑(BatemanHornConjecture.CountSimultaneousPrimes polys x))\n          fun x => BatemanHornConjecture.BatemanHornConstant polys * x / Real.log x ^ polys.card"
+}

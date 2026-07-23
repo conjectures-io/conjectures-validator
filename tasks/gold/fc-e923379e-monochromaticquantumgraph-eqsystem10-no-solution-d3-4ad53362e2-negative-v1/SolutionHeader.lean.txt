@@ -1,4 +1,0 @@
-import FormalConjectures.Paper.MonochromaticQuantumGraph
-import TaskSupport
-
-namespace Bounty

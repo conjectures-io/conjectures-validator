@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.Singmaster
-import TaskSupport
-
-namespace Bounty

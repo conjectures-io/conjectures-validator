@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Arxiv.«2107.00295».independentDominationEven"
+  ],
+  "generated_target_type_hash": "sha256:06efe3bf1080131edb446e971df456665acc78f28b4ac995d69c083ec55de671",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Arxiv.«2107.00295».IndependentDomination",
+  "source_path": "FormalConjectures/Arxiv/2107.00295/IndependentDomination.lean",
+  "source_theorem": "Arxiv.«2107.00295».independentDominationEven",
+  "source_type_hash": "sha256:06efe3bf1080131edb446e971df456665acc78f28b4ac995d69c083ec55de671",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-00295-independentdominationeven-54d7d8b0a9-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:a53f7879dcb9a330504c19937cb86d2db576d32aae3cc56c4eb9977c6ee43d26",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:f0997b08d50365ad8da51def296d09205e1bdfbda4445b291e3f40b581ecc670",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:9f9e786acb3a1bbaad46f4d6384aec8af5694cda32a3c7c785cc90acadd0700f"
+  }
+}

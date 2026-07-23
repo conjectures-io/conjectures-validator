@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "$F(n) \\leq n^{3/2}$. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Arxiv.«1609.08688».sIncreasingrTuples",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Arxiv/1609.08688/sIncreasingrTuples.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Arxiv.«1609.08688».maximalLength_le_strong",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:af6a7ff1cf997c15ddc1869afb020669a6a0373b00df97ff4e7dbf257c0848ef",
+  "type_pretty": "∀ (n : ℕ), ↑(Arxiv.«1609.08688».maximalLength n) ≤ √↑n ^ 3"
+}

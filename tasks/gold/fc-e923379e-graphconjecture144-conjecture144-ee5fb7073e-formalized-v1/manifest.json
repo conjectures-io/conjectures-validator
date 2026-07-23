@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "WrittenOnTheWallII.GraphConjecture144.conjecture144"
+  ],
+  "generated_target_type_hash": "sha256:75671e94967fa57417c205bc6a1358ec6faa3f0ca171f1ec5e53cd7e40d8253c",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.WrittenOnTheWallII.GraphConjecture144",
+  "source_path": "FormalConjectures/WrittenOnTheWallII/GraphConjecture144.lean",
+  "source_theorem": "WrittenOnTheWallII.GraphConjecture144.conjecture144",
+  "source_type_hash": "sha256:75671e94967fa57417c205bc6a1358ec6faa3f0ca171f1ec5e53cd7e40d8253c",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-graphconjecture144-conjecture144-ee5fb7073e-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:055376470d32b5b2f07cd990f626264f9875ded0f244ba4eab3933eb01d8a2f6",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:df4951972f0bfe506e7482d576744fec8c73142c244771d7d6aa221dc76e90e2",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:600a68032b060b3cb050297c4672beb647f14cbd2859a8bd709eda1e0565c42c"
+  }
+}

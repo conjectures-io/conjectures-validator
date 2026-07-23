@@ -1,0 +1,34 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    8
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The negation of `Finite.Equation677_not_implies_Equation255`.\n\nProbably this is false. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Other.EquationalTheories_677_255",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Other/EquationalTheories_677_255.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "EquationalTheories_677_255.Finite.Equation677_implies_Equation255",
+  "transitive_axioms": [
+    "sorryAx"
+  ],
+  "type_hash": "sha256:9be8dfa0a4694eaa7b4fb0a27e456235f3e8e56632503956b83320f193a2de81",
+  "type_pretty": "∀ (G : Type) [inst : EquationalTheories_677_255.Magma G] [Finite G],\n  EquationalTheories_677_255.Equation677 G → EquationalTheories_677_255.Equation255 G"
+}

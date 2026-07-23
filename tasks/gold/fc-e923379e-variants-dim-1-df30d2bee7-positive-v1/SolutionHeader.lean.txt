@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.Fuglede
-import TaskSupport
-
-namespace Bounty

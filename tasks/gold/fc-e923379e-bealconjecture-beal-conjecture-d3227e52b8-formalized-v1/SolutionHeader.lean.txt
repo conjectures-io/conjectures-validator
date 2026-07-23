@@ -1,0 +1,4 @@
+import FormalConjectures.Wikipedia.BealConjecture
+import TaskSupport
+
+namespace Bounty

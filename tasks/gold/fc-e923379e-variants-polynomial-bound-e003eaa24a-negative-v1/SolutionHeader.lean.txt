@@ -1,4 +1,0 @@
-import FormalConjectures.GreensOpenProblems.«41»
-import TaskSupport
-
-namespace Bounty

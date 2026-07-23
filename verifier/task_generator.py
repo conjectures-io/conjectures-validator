@@ -12,7 +12,11 @@ from verifier.classification import is_adapter_required
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import hash_named_files, pretty_json, sha256_text
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
-from verifier.task_policy import production_eligibility, proved_type_collisions
+from verifier.task_policy import (
+    GOLD_TASK_MODE,
+    production_eligibility,
+    proved_type_collisions,
+)
 
 
 PERMITTED_AXIOMS = ("propext", "Quot.sound", "Classical.choice")
@@ -153,7 +157,11 @@ def generate_task(
             ReasonCode.INVALID_TASK_MODE,
             f"mode {mode!r} is invalid for {declaration.classification.value}; expected {adapter.modes}",
         )
-    eligible, policy_violations, collisions = production_eligibility(catalog, declaration)
+    eligible, policy_violations, collisions = production_eligibility(
+        catalog,
+        declaration,
+        mode,
+    )
     if not eligible and not allow_non_open:
         raise VerifierError(
             ReasonCode.INELIGIBLE_TASK,
@@ -187,6 +195,11 @@ def generate_task(
         for name, content in payloads.items():
             (temporary / name).write_bytes(content)
         generated_hash = validate_target(temporary, declaration, generated, mode)
+        if mode == GOLD_TASK_MODE and generated_hash != declaration.type_hash:
+            raise VerifierError(
+                ReasonCode.STATEMENT_MISMATCH,
+                "formalized task target is not the exact source theorem type",
+            )
         target_collisions = proved_type_collisions(
             catalog,
             generated_hash,

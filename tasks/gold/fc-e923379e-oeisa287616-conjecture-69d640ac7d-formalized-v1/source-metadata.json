@@ -1,0 +1,34 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Zhi-Wei Sun's Conjecture (A287616)**: Any nonnegative integer can be written as the sum of\na triangular number $x(x+1)/2$, a generalized pentagonal number $y(3y+1)/2$, and a generalized\nheptagonal number $z(5z+1)/2$, where $x, y, z$ are nonnegative integers.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.OEIS.«287616»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/OEIS/287616.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "OeisA287616.conjecture",
+  "transitive_axioms": [
+    "sorryAx"
+  ],
+  "type_hash": "sha256:2e7c9e6ad58638ef6a3be8a9fa45cf3056cf96e1ac3f638516ccc3c62f4f7db0",
+  "type_pretty": "∀ (n : ℕ), OeisA287616.A n"
+}

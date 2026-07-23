@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Mathoverflow339137.mathoverflow_339137"
+  ],
+  "generated_target_type_hash": "sha256:eafd6864b2ba5f9fa6aa870b61e6a297735041dda561ca2f3c5f454c3aeb939d",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Mathoverflow.«339137»",
+  "source_path": "FormalConjectures/Mathoverflow/339137.lean",
+  "source_theorem": "Mathoverflow339137.mathoverflow_339137",
+  "source_type_hash": "sha256:eafd6864b2ba5f9fa6aa870b61e6a297735041dda561ca2f3c5f454c3aeb939d",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-mathoverflow339137-mathoverflow-339137-bbe0b1c879-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:db6da01362768296586b72447425e92c54f8aa55b3ff13d6bb61131780ea2cce",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:6e911357f3d43daf811fed176479638402c5cbd5c167306d5aa845a63088afbb",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:dbf26d2b0ac01c1dbbc99892588ac6aaa44ade24ad116bded5c218aa735e2d83"
+  }
+}

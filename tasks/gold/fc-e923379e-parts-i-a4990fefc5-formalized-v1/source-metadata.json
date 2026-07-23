@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Artin's Conjecture on Primitive Roots**, first half.\nLet $a$ be an integer that is not a square number and not $−1$. Then the set $S(a)$\nof primes $p$ such that $a$ is a primitive root modulo $p$ has a positive asymptotic\ndensity inside the set of primes. In particular, $S(a)$ is infinite.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Wikipedia.ArtinPrimitiveRootsConjecture",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:effd9fde97aa49521a615621554cfd876f17a6c62c8ebd4c76a66a22420713cf",
+  "type_pretty": "∀ (a : ℤ), ¬IsSquare a → a ≠ -1 → ∃ x > 0, (ArtinPrimitiveRootsConjecture.S a).HasDensity x {p | Nat.Prime p}"
+}

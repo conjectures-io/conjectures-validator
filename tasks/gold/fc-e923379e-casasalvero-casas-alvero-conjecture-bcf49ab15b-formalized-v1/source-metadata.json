@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    12
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The Casas-Alvero conjecture states that in characteristic zero, if a monic polynomial `P`\nhas the Casas-Alvero property, then `P = (X - α)ᵈ` for some `α`.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Paper.CasasAlvero",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Paper/CasasAlvero.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "CasasAlvero.casas_alvero_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:dcbb83439fc9101f13291de444af677bc5855b631bbdc937fcb0e6a29fed978b",
+  "type_pretty": "∀ {K : Type u_1} [inst : Field K] [CharZero K] (P : Polynomial K),\n  P.Monic → CasasAlvero.HasCasasAlveroProp P → ∃ α, P = (Polynomial.X - Polynomial.C α) ^ P.natDegree"
+}

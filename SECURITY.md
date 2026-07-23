@@ -46,8 +46,12 @@ a miner-facing API.
 
 Formal Conjectures represents an open conjecture as a theorem whose repository proof transitively
 contains Lean's `sorryAx`. Production task generation intentionally requires that marker, the
-`research open` category, theorem declaration kind, and absence of formal-proof metadata. Those
-facts are independently recomputed from the compiled Lean environment during verification.
+`research open` category, `DIRECT_PROP` classification, theorem declaration kind, and absence of
+formal-proof metadata. The task must use `formalized` mode: its complete target type is
+definitionally equal to the source theorem type and its canonical target hash equals the canonical
+source hash. Answer extraction and synthetic positive/negative pairing are not admitted to the
+gold pool. Those facts are independently recomputed from the compiled Lean environment during
+verification.
 
 The admitted source theorem is used only to identify and reconstruct its type. It is placed on the
 forbidden-dependency list, and `sorryAx` is not a permitted axiom. Consequently, invoking that
@@ -66,7 +70,7 @@ The permitted production axioms are exactly:
 | Miner strategy | Enforcement |
 | --- | --- |
 | Change or swap task files | No-follow bounded reads, exact file set, per-file hashes, deterministic payload regeneration, and external whole-bundle SHA-256 |
-| Supply a solved or test task | Compiled category, declaration kind, formal-proof tag, `sorryAx` dependency, and target-hole checks |
+| Supply a solved, transformed, paired-negative, answer-wrapper, or test task | Exact `formalized` mode, source/target type-hash equality, compiled classification/category/declaration kind, formal-proof tag, `sorryAx` dependency, and target-hole checks |
 | Submit `sorry`, `admit`, an axiom, a module initializer, or the admitted source theorem | Token policy plus Comparator's transitive axiom closure |
 | Hide an answer behind a decoy namespace or alternate declaration kind | Exactly one ordinary `Bounty.submittedAnswer` definition is required |
 | Make numeral text elaborate to a different value | Instance declarations and syntax/notation extensions are prohibited; the definition type/value is still kernel checked |

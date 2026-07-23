@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Hilbert5.hilbert_smith_conjecture"
+  ],
+  "generated_target_type_hash": "sha256:51b741431615cb2f30798ab879fa166317d2ff99d246170f8ccb536bd559f578",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.HilbertProblems.«5»",
+  "source_path": "FormalConjectures/HilbertProblems/5.lean",
+  "source_theorem": "Hilbert5.hilbert_smith_conjecture",
+  "source_type_hash": "sha256:51b741431615cb2f30798ab879fa166317d2ff99d246170f8ccb536bd559f578",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-hilbert5-hilbert-smith-conjecture-535ec0ecf8-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:ab7efc8cc05f9377b50d832e91f93c5f1c2e96434ec956c52e670d67f70a889f",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:7700957c3f3b69625641329168800c4946ed6b47fdb456aa1a80ca0ce1c984d2",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:b8eed95b5b70b4df698370bb15c9f1c1b54f7e0cdc30caa8b72ed0c488e31b43"
+  }
+}

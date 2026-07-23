@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.FlintCooksonHills
-import TaskSupport
-
-namespace Bounty

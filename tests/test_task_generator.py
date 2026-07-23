@@ -19,6 +19,7 @@ def test_generates_immutable_task_files(tmp_path):
         declaration=item,
         mode="positive",
         output=destination,
+        allow_non_open=True,
         validate_target=lambda *_: "sha256:" + "2" * 64,
     )
     assert result.task_id.startswith("fc-e923379e-")
@@ -26,6 +27,24 @@ def test_generates_immutable_task_files(tmp_path):
     assert 'fcTypeOfName% "VerifierFixtures.direct"' in (destination / "Challenge.lean").read_text()
     manifest = json.loads((destination / "manifest.json").read_text())
     assert manifest["trusted_file_hashes"]["Challenge.lean"].startswith("sha256:")
+    assert load_task(destination) == result
+
+
+def test_formalized_mode_is_the_exact_production_source_type(tmp_path):
+    item = declaration()
+    destination = tmp_path / "task-formalized"
+    result = generate_task(
+        catalog=catalog(item),
+        declaration=item,
+        mode="formalized",
+        output=destination,
+        validate_target=lambda *_: item.type_hash,
+    )
+    challenge = (destination / "Challenge.lean").read_text(encoding="utf-8")
+    assert result.production_eligible
+    assert result.generated_target_type_hash == result.source_type_hash
+    assert 'theorem target : fcTypeOfName% "VerifierFixtures.direct"' in challenge
+    assert "¬" not in challenge
     assert load_task(destination) == result
 
 
@@ -50,6 +69,7 @@ def test_generate_all_records_every_skip(tmp_path):
         declarations=(direct, general),
         modes=("positive",),
         output=tmp_path / "tasks",
+        allow_non_open=True,
         validate_target=lambda *_: "sha256:" + "2" * 64,
     )
     assert result["generated"] == 1
@@ -66,6 +86,7 @@ def test_explicit_pointer_resolves_to_original(tmp_path):
         declaration=pointer,
         mode="positive",
         output=tmp_path / "pointer-task",
+        allow_non_open=True,
         validate_target=lambda *_: "sha256:" + "2" * 64,
     )
     assert result.source_theorem == original.theorem
@@ -85,9 +106,9 @@ def test_production_generation_rejects_solved_and_already_proved_sources(tmp_pat
             generate_task(
                 catalog=catalog(item),
                 declaration=item,
-                mode="positive",
+                mode="formalized",
                 output=tmp_path / f"task-{index}",
-                validate_target=lambda *_: "sha256:" + "2" * 64,
+                validate_target=lambda *_: item.type_hash,
             )
         assert error.value.reason == ReasonCode.INELIGIBLE_TASK
 
@@ -104,31 +125,24 @@ def test_production_generation_rejects_matching_proved_declaration(tmp_path):
         generate_task(
             catalog=catalog(open_source, proved),
             declaration=open_source,
-            mode="positive",
+            mode="formalized",
             output=tmp_path / "task",
-            validate_target=lambda *_: "sha256:" + "2" * 64,
+            validate_target=lambda *_: open_source.type_hash,
         )
     assert error.value.reason == ReasonCode.INELIGIBLE_TASK
 
 
-def test_production_generation_rejects_matching_compiled_target(tmp_path):
+def test_formalized_generation_rejects_a_transformed_compiled_target(tmp_path):
     open_source = declaration()
-    proved_target = replace(
-        declaration(theorem="Fixture.provedTarget"),
-        type_hash="sha256:" + "2" * 64,
-        contains_sorry_in_value=False,
-        depends_on_sorry=False,
-        transitive_axioms=(),
-    )
     with pytest.raises(VerifierError) as error:
         generate_task(
-            catalog=catalog(open_source, proved_target),
+            catalog=catalog(open_source),
             declaration=open_source,
-            mode="negative",
+            mode="formalized",
             output=tmp_path / "task",
             validate_target=lambda *_: "sha256:" + "2" * 64,
         )
-    assert error.value.reason == ReasonCode.INELIGIBLE_TASK
+    assert error.value.reason == ReasonCode.STATEMENT_MISMATCH
 
 
 def test_non_open_override_marks_task_as_testing_only(tmp_path):
@@ -157,6 +171,7 @@ def test_finite_answer_pretty_type_is_never_spliced_into_lean(tmp_path):
         declaration=item,
         mode="answer",
         output=tmp_path / "task",
+        allow_non_open=True,
         validate_target=lambda *_: "sha256:" + "2" * 64,
     )
     challenge = (tmp_path / "task" / "Challenge.lean").read_text(encoding="utf-8")
@@ -172,6 +187,7 @@ def test_unsafe_module_name_is_rejected_before_writing_task(tmp_path):
             declaration=item,
             mode="positive",
             output=tmp_path / "task",
+            allow_non_open=True,
             validate_target=lambda *_: "sha256:" + "2" * 64,
         )
     assert error.value.reason == ReasonCode.INVALID_MANIFEST
@@ -187,6 +203,7 @@ def test_quoted_module_segment_with_dots_is_accepted(tmp_path):
         declaration=item,
         mode="positive",
         output=tmp_path / "task",
+        allow_non_open=True,
         validate_target=lambda *_: "sha256:" + "2" * 64,
     )
     challenge = (tmp_path / "task" / "Challenge.lean").read_text(encoding="utf-8")
@@ -201,6 +218,7 @@ def test_quoted_module_segment_cannot_inject_commands(tmp_path):
             declaration=item,
             mode="positive",
             output=tmp_path / "task",
+            allow_non_open=True,
             validate_target=lambda *_: "sha256:" + "2" * 64,
         )
     assert error.value.reason == ReasonCode.INVALID_MANIFEST
@@ -214,6 +232,7 @@ def test_source_name_is_encoded_as_a_lean_string_literal(tmp_path):
         declaration=item,
         mode="positive",
         output=tmp_path / "task",
+        allow_non_open=True,
         validate_target=lambda *_: "sha256:" + "2" * 64,
     )
     challenge = (tmp_path / "task" / "Challenge.lean").read_text(encoding="utf-8")

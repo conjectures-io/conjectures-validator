@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "**Conjecture 1.6 (Even case).**\nFor a nonempty isolate-free graph $G$ on $n$ vertices,\nif $D$ is even, then $(D + 2)^2 \\cdot i(G) \\leq (D^2 + 4) \\cdot n$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.Arxiv.«2107.00295».IndependentDomination",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/Arxiv/2107.00295/IndependentDomination.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Arxiv.«2107.00295».independentDominationEven",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:06efe3bf1080131edb446e971df456665acc78f28b4ac995d69c083ec55de671",
+  "type_pretty": "∀ {V : Type u_1} [inst : Fintype V] [DecidableEq V] (G : SimpleGraph V) [inst_2 : DecidableRel G.Adj],\n  0 < G.minDegree →\n    Even G.maxDegree →\n      have D := G.maxDegree;\n      have i := G.indepDominationNumber;\n      have n := Fintype.card V;\n      (D + 2) ^ 2 * i ≤ (D ^ 2 + 4) * n"
+}

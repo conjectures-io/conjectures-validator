@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Arxiv.«2501.03234».conjecture_1_1"
+  ],
+  "generated_target_type_hash": "sha256:03387790236c2632e0d2760fb68d1c09da00b7e2ddac9627196a32d74664d58a",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.Arxiv.«2501.03234».ArithmeticSumS",
+  "source_path": "FormalConjectures/Arxiv/2501.03234/ArithmeticSumS.lean",
+  "source_theorem": "Arxiv.«2501.03234».conjecture_1_1",
+  "source_type_hash": "sha256:03387790236c2632e0d2760fb68d1c09da00b7e2ddac9627196a32d74664d58a",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-03234-conjecture-1-1-a3e4a5b695-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:162b2701f56f87f8adb48d33b0bd7f96faa0beae72cf6de800c39c257c01d9cb",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:28fc437ddc17c508f6d400866ae166ec6fb46b742ff49a282a8886326850a4c4",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:7dcfee5e5f1fc317fbfaac42d5d3cc1cea967c40d1abd6fa97c44f259e1e55d9"
+  }
+}

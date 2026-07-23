@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.LehmerTotient
-import TaskSupport
-
-namespace Bounty
