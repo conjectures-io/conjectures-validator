@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $h(n)$ be maximal such that, for any set $A\\subseteq \\mathbb{N}$ of size $n$, the\nset$$\\left\\{ \\frac{a}{(a,b)}: a,b\\in A\\right\\}$$has size at least $h(n)$.\nIs $h(n) = \\Theta(\\sqrt{n})$? ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«539»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/539.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos539.erdos_539.variants.sq",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:2cb9972604e9f514454ec63b863a795b17e70842ee5890c734106ec52723028c",
+  "type_pretty": "(fun n => ↑(Erdos539.cofactorThreshold n)) =Θ[Filter.atTop] fun n => √↑n"
+}

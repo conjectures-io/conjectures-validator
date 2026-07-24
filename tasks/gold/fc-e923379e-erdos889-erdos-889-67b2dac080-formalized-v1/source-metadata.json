@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $v(n,k)$ count the prime factors of $n+k$ which\ndo not divide $n+i$ for $0\\leq i < k$. Is it true that\n$v_0(n)=\\max_{k\\geq 0}v(n,k)\\to \\infty$ as $n\\to \\infty$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«889»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/889.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos889.erdos_889",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f226cfb184f5af0bae007b9b98986ae3cbfa840c57e651080c93214f44e01a58",
+  "type_pretty": "Filter.Tendsto Erdos889.v₀ Filter.atTop (nhds ⊤)"
+}

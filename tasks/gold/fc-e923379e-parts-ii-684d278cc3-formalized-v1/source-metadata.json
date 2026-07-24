@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $d_n = p_{n+1} - p_n$, where $p_n$ is the $n$th prime. Let $r(x)$ be the smallest even\ninteger $t$ such that $d_n = t$ has no solutions for $n \\le x$.\n\nIs it true that $r(x) / \\log x \\to \\infty$? ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«853»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/853.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos853.erdos_853.parts.ii",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:35cc28a6d3947513cdcb0d0cfa66afc02eae6c01da68156231c9c953f980b5b9",
+  "type_pretty": "Filter.Tendsto (fun n => ↑(Erdos853.r n) / Real.log ↑n) Filter.atTop Filter.atTop"
+}

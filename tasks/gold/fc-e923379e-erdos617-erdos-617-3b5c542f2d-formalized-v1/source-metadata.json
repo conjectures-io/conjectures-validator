@@ -1,0 +1,36 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $r\\geq 3$. If the edges of $K_{r^2+1}$ are $r$-coloured then there exist $r+1$ vertices with at\nleast one colour missing on the edges of the induced $K_{r+1}$.\n\nIn other words, there is no balanced colouring.\n\nA conjecture of Erdős and Gyárfás [ErGy99].\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«617»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/617.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos617.erdos_617",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:21890d8a7a194e61d643ac6026bd6c04481a9503619752d21f1a4b1160032eb8",
+  "type_pretty": "∀ r ≥ 3,\n  ∀ {V : Type} [inst : Fintype V] [DecidableEq V],\n    Fintype.card V = r ^ 2 + 1 →\n      ∀ (coloring : Sym2 V → Fin r), ∃ S k, S.card = r + 1 ∧ ∀ u ∈ S, ∀ v ∈ S, u ≠ v → coloring s(u, v) ≠ k"
+}

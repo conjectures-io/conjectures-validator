@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Erdős says that $f(n) = o(\\frac{n}{\\log n})$ has never been proved.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«126»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/126.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos126.erdos_126.variants.isLittleO",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:e51da61bab02dff3343888e4508dfbd1cb0dcede06e43085d132d5f8a50b05e1",
+  "type_pretty": "∀ (f : ℕ → ℕ), Erdos126.IsMaximalAddFactorsCard f → (fun n => ↑(f n)) =o[Filter.atTop] fun n => ↑n / Real.log ↑n"
+}

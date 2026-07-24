@@ -1,4 +1,0 @@
-import FormalConjectures.Paper.DeGiorgi
-import TaskSupport
-
-namespace Bounty

@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos359.erdos_359.variants.isGoodFor_1_asymptotic"
+  ],
+  "generated_target_type_hash": "sha256:e8d3274560c69189522bcba232b7c4eed67b4ba51c1bfeb8843d7ee8293f764f",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«359»",
+  "source_path": "FormalConjectures/ErdosProblems/359.lean",
+  "source_theorem": "Erdos359.erdos_359.variants.isGoodFor_1_asymptotic",
+  "source_type_hash": "sha256:e8d3274560c69189522bcba232b7c4eed67b4ba51c1bfeb8843d7ee8293f764f",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-isgoodfor-1-asymptotic-fd5e0d6c23-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:53d15554f964f9425487d37364ca68742de28540801f30168ea4f46502869ce8",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:c9ef6fad257875e9928fa9b7c216f210ccf51743da137546bdb1895b9ff608d4",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:bff76a29c4da96e643c5b3905613d4288d6890bd8845d83b322836c38b85a9ad"
+  }
+}

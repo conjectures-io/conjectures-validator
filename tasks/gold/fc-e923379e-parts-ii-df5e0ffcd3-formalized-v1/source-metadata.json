@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Or\n$$\n\\sum_{x \\in A} \\frac{1}{x \\log x} < \\infty,\n$$\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«143»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/143.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos143.erdos_143.parts.ii",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:d67e6578eee8f3a70ba0d0b5c0035e56073ee6d2505bee0c99f768e41e21e73d",
+  "type_pretty": "∀ (A : Set ℝ), Erdos143.WellSeparatedSet A → Summable fun x => 1 / (↑x * Real.log ↑x)"
+}

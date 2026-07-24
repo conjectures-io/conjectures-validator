@@ -25,6 +25,7 @@ def main() -> None:
         fail(f"not a task directory: {task_dir}")
 
     sys.path.insert(0, str(ROOT))
+    from verifier.gold_pool import GOLD_POOL_SCHEMA_VERSION
     from verifier.task_loader import load_task_bundle
     from verifier.task_policy import GOLD_TASK_MODE
 
@@ -34,7 +35,7 @@ def main() -> None:
     except Exception as error:
         fail(f"task bundle failed immutable-bundle validation: {error}")
     if (
-        policy.get("schema_version") != 2
+        policy.get("schema_version") != GOLD_POOL_SCHEMA_VERSION
         or policy.get("default") != "DENY"
         or policy.get("pool_policy", {}).get("mode") != GOLD_TASK_MODE
         or policy.get("pool_policy", {}).get("exact_source_type") is not True

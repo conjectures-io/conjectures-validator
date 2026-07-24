@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "In [Er79] Erdős says perhaps $s_{n+1} - s_n \\ll \\log s_n$, but he is 'very doubtful'.\n\n[Er79] Erdős, Paul, __Some unconventional problems in number theory__. Math. Mag. (1979), 67-70.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«208»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/208.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos208.erdos_208.variants.log_bound",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f934595c12d4ec6e259b6f51b8f416436bdd092e9e2ce1d85daaa0c54f295023",
+  "type_pretty": "(fun n => ↑(Erdos208.erdos208.s (n + 1)) - ↑(Erdos208.erdos208.s n)) =O[Filter.atTop] fun n =>\n  Real.log ↑(Erdos208.erdos208.s n)"
+}

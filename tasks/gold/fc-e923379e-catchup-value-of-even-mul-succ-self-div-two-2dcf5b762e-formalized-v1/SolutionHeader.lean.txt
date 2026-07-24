@@ -1,4 +1,0 @@
-import FormalConjectures.Paper.CatchUpConjecture
-import TaskSupport
-
-namespace Bounty

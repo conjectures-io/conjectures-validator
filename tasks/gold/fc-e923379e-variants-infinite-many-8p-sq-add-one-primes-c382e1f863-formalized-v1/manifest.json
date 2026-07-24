@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos913.erdos_913.variants.infinite_many_8p_sq_add_one_primes"
+  ],
+  "generated_target_type_hash": "sha256:9238757bf05c18a87aa8fb76bc1cdfaffce9c8331144a35da36765f6bbb3dea5",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«913»",
+  "source_path": "FormalConjectures/ErdosProblems/913.lean",
+  "source_theorem": "Erdos913.erdos_913.variants.infinite_many_8p_sq_add_one_primes",
+  "source_type_hash": "sha256:9238757bf05c18a87aa8fb76bc1cdfaffce9c8331144a35da36765f6bbb3dea5",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-infinite-many-8p-sq-add-one-primes-c382e1f863-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:5ee2e767dcbdc058ecce99d3fe420db47c95930fd9e114a60125c097203340ac",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:b4aeafb1f51800362a9fc510818ba7df2ce2e5582570733ac8ceb490b4c92150",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:76f0a4b7c2a5e5becb157d90bb246356b62980ee22c75184056ee738a21d74ce"
+  }
+}

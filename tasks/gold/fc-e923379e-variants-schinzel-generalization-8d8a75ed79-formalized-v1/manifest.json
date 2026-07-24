@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos242.erdos_242.variants.schinzel_generalization"
+  ],
+  "generated_target_type_hash": "sha256:b141d6fbf1dbb8c97357e6826fd853a1f6d34d12832fa021225f8b1a4afcb6b5",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«242»",
+  "source_path": "FormalConjectures/ErdosProblems/242.lean",
+  "source_theorem": "Erdos242.erdos_242.variants.schinzel_generalization",
+  "source_type_hash": "sha256:b141d6fbf1dbb8c97357e6826fd853a1f6d34d12832fa021225f8b1a4afcb6b5",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-schinzel-generalization-8d8a75ed79-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:d048e10e827f6e6f468b755cbd44289a18381097b6ff3edd0f4e151a1826a85c",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:9eb6848157d5de6d38a114963cad28af006affac9407f1a8955c36b12b8465ee",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:4f5bb6150af8965dcdfed815bf623a84b642377b1484f32eea2f6c52435c60a9"
+  }
+}

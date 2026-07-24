@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The density of the divisor sum set is asymptotically equivalent to $c_1 / \\log(t)^{c_2}$. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«859»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/859.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos859.erdos_859",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:8c497b4f2a8504f2d06c6ffd6524c4773fa037d7c99a539a3efbd9809e173f99",
+  "type_pretty": "∃ c₁ > 0,\n  ∃ c₂ > 0,\n    ∃ d,\n      (∀ t > 0, (Erdos859.DivisorSumSet t).HasDensity (d t)) ∧\n        Asymptotics.IsEquivalent Filter.atTop (fun t => d t) fun t => c₁ / Real.log ↑t ^ c₂"
+}

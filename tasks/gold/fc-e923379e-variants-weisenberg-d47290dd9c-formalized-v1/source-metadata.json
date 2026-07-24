@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Weisenberg has observed that Dickson's conjecture implies the answer is no if we replace\n$p_1\\cdots p_k$ with $p_1\\cdots p_k-1$. Indeed, let $L_k$ be the lowest common multiple of all\nintegers at most $p_1\\cdots p_k$. By Dickson's conjecture [Wikipedia], there are infinitely many\n$n'$ such that $\\frac{L_k}{m}n'+1$ is prime for all $1\\leq m < p_1\\cdots p_k$. It follows that,\nif $n=L_kn'+1$, then all integers in $[n,n+p_1\\cdots p_k-1)$ have at most $k$ prime factors.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«891»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/891.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos891.erdos_891.variants.weisenberg",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:9a76f9d56915a592832916fa5d1de11ad22429a7828e38f3658b3afb9edf10da",
+  "type_pretty": "∀ k ≥ 2,\n  ∃ᶠ (n : ℕ) in Filter.atTop,\n    ∀ m ∈ Finset.Ico n (n + ∏ i ∈ Finset.range k, Nat.nth Nat.Prime i - 1), ArithmeticFunction.cardDistinctFactors m ≤ k"
+}

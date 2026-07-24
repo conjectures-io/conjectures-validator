@@ -1,4 +1,0 @@
-import FormalConjectures.Arxiv.«2501.03234».ArithmeticSumS
-import TaskSupport
-
-namespace Bounty

@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Is there an infinite sequence of distinct Gaussian primes $x_1,x_2,\\ldots$\nsuch that $\\lvert x_{n+1}-x_n\\rvert \\ll 1$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«952»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/952.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos952.erdos_952",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:cef5aee910f965dda18f7dcdb5b300bd9c7b6adf8457ea2a6efb14c5fb973633",
+  "type_pretty": "∃ x C, Function.Injective x ∧ ∀ (n : ℕ), Prime (x n) ∧ Zsqrtd.norm (x (n + 1) - x n) < C"
+}

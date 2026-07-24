@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "If $A ⊆ \\mathbb{N}$ is such that $A + A$ contains all but finitely many integers then\n$\\limsup 1_A ∗ 1_A(n) = \\infty$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«28»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/28.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos28.erdos_28",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:a28f567d8f0f1da4236a0de6e96e62d7d1654c78f23f83a429661f3e5234db98",
+  "type_pretty": "∀ (A : Set ℕ), (A + A)ᶜ.Finite → Filter.limsup (fun n => ↑(AdditiveCombinatorics.sumRep A n)) Filter.atTop = ⊤"
+}

@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos1113.erdos_1113.variants.filaseta_finch_kozek"
+  ],
+  "generated_target_type_hash": "sha256:be47c529de84a4d1a48c3834d4522a99e658a19e737f1f79b0f1e66bcff35bea",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«1113»",
+  "source_path": "FormalConjectures/ErdosProblems/1113.lean",
+  "source_theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek",
+  "source_type_hash": "sha256:be47c529de84a4d1a48c3834d4522a99e658a19e737f1f79b0f1e66bcff35bea",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-filaseta-finch-kozek-02244e683d-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:79518d1b49ac314162f4c02ba1cc6ad1dd2560ac4156b1d54b7cbe1f27082ec0",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:fe122ffe396231b892c59d72f266f5783fd25527191c7f27d21f22fae5df1c83",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:c5ee91c3a892fa4e453a09c4cd81662ca15d1f97f8cd9310f6b499eaf577906f"
+  }
+}

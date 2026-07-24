@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $h(n)$ be maximal such that if $A\\subseteq \\mathbb{Z}$ with $\\lvert A\\rvert=n$\nthen there is $B\\subseteq A$ with $\\lvert B\\rvert \\geq h(n)$ such that if\n$a_1+\\cdots+a_r=b_1+\\cdots+b_s$ with $a_i,b_i\\in B$ then $r=s$.\n\nIs $h(n) = \\Theta((n\\log(n)))^{1/3})$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«789»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/789.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos789.erdos_789.variants.cube_root_linearithmic",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:8f8f944bd8d46527b880ab93e8005622fd4ff767b826ee0134dbea1c85e5fb67",
+  "type_pretty": "(fun n => ↑(Erdos789.subsetSumThreshold n)) =Θ[Filter.atTop] fun n => (↑n * Real.log ↑n) ^ (1 / 3)"
+}

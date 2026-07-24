@@ -1,4 +1,0 @@
-import FormalConjectures.Arxiv.«2107.12475».CollatzLike
-import TaskSupport
-
-namespace Bounty

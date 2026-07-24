@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Ecklund, Erdős, and Selfridge [EES74] conjectured $g(k)\\leq \\exp((1+o(1))k)$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1095»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1095.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1095.erdos_1095.variants.upper_conjecture",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:506e944d4104c033b512582f06b2215096d3fd9fe3487dc4db1e58cbf6dae3e4",
+  "type_pretty": "∃ f, Filter.Tendsto f Filter.atTop (nhds 0) ∧ ∀ᶠ (k : ℕ) in Filter.atTop, ↑(Erdos1095.g k) ≤ Real.exp (↑k * (1 + f k))"
+}

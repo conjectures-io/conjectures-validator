@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Erdős was unable to prove that if the two products have the same factors\nthen there must exist a prime between $n_1$ and $n_2$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«931»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/931.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos931.erdos_931.variants.exists_prime",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:a47aa8f91fba96ab21e2834f8f3953b502dd4059079f6d0acb4ae8127bb1c569",
+  "type_pretty": "∀ (k₁ k₂ n₁ n₂ : ℕ),\n  k₂ ≤ k₁ →\n    3 ≤ k₂ →\n      n₁ + k₁ ≤ n₂ →\n        (∏ i ∈ Finset.Icc 1 k₁, (n₁ + i)).primeFactors = (∏ j ∈ Finset.Icc 1 k₂, (n₂ + j)).primeFactors →\n          ∃ p, Nat.Prime p ∧ n₁ ≤ p ∧ p ≤ n₂"
+}

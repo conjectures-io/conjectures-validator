@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.ArtinPrimitiveRootsConjecture
-import TaskSupport
-
-namespace Bounty

@@ -1,4 +1,0 @@
-import FormalConjectures.WrittenOnTheWallII.GraphConjecture142
-import TaskSupport
-
-namespace Bounty

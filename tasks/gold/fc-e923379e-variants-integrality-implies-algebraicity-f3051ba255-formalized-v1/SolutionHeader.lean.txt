@@ -1,4 +1,0 @@
-import FormalConjectures.LittProblems.«1»
-import TaskSupport
-
-namespace Bounty

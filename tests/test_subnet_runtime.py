@@ -17,6 +17,12 @@ from frontier_subnet.miner_cli import main
 from frontier_subnet.protocol import TaskReference
 from frontier_subnet.task_registry import GoldTaskRegistry, TaskNotAllowed
 from frontier_subnet.verifier_adapter import ProductionVerifierAdapter
+from verifier.gold_pool import (
+    EXCLUDED_SOURCE_PREFIXES,
+    GOLD_POOL_SCHEMA_VERSION,
+    GOLD_POOL_SELECTION,
+    MINIMUM_ERDOS_TASKS,
+)
 from verifier.hashing import sha256_bytes
 
 
@@ -279,10 +285,10 @@ def test_production_verifier_adapter_passes_only_safe_arguments(
 
 def test_cli_load_is_local_only_and_copies_submission(tmp_path, capsys):
     project_root = Path(__file__).resolve().parents[1]
-    task = (
-        project_root
-        / "tasks/gold"
-        / "fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1"
+    task = next(
+        path
+        for path in sorted((project_root / "tasks/gold").iterdir())
+        if path.is_dir()
     )
     source = tmp_path / "Main.lean"
     source.write_text("theorem Bounty.target : True := by\n  trivial\n", encoding="utf-8")
@@ -313,7 +319,7 @@ def test_cli_load_is_local_only_and_copies_submission(tmp_path, capsys):
 def test_task_registry_rejects_non_deny_or_unknown_schema(tmp_path):
     source_type = "sha256:" + "c" * 64
     base = {
-        "schema_version": 2,
+        "schema_version": GOLD_POOL_SCHEMA_VERSION,
         "default": "DENY",
         "repository_commit": "a" * 40,
         "audit_date_utc": "2026-07-23",
@@ -321,18 +327,21 @@ def test_task_registry_rejects_non_deny_or_unknown_schema(tmp_path):
             "classification": "DIRECT_PROP",
             "compiled_target_validation": True,
             "exact_source_type": True,
+            "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
+            "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
             "mode": "formalized",
-            "one_task_per_source_path": True,
+            "one_task_per_source_path": False,
             "pool_size": 1,
             "retired_source_theorems_sha256": "sha256:" + "d" * 64,
-            "selection": "balanced-repository-area-v1",
+            "selection": GOLD_POOL_SELECTION,
+            "selection_audit_sha256": "sha256:" + "e" * 64,
             "source_category": "research open",
             "synthetic_negation": False,
         },
         "allowed_source_theorems": [
             {
                 "index": 1,
-                "source_path": "FormalConjectures/Test.lean",
+                "source_path": "FormalConjectures/ErdosProblems/9999.lean",
                 "source_type_sha256": source_type,
                 "theorem": "Fixture.test",
             }
@@ -341,7 +350,7 @@ def test_task_registry_rejects_non_deny_or_unknown_schema(tmp_path):
             {
                 "mode": "formalized",
                 "source_index": 1,
-                "source_path": "FormalConjectures/Test.lean",
+                "source_path": "FormalConjectures/ErdosProblems/9999.lean",
                 "task_id": "fc-test-formalized-v1",
                 "task_bundle_sha256": "sha256:" + "b" * 64,
                 "target_type_sha256": source_type,

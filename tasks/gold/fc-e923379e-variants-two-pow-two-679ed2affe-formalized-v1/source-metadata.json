@@ -1,0 +1,35 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Is every odd $n > 1$ the sum of a squarefree number and two powers of 2?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«11»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/11.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos11.erdos_11.variants.two_pow_two",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx"
+  ],
+  "type_hash": "sha256:991e2441732134868f92b21c59f9752492aa338df1762bc16b140a21956a13bd",
+  "type_pretty": "∀ (n : ℕ), Odd n → 1 < n → ∃ k l m, Squarefree k ∧ n = k + 2 ^ l + 2 ^ m"
+}

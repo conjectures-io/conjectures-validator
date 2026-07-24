@@ -10,8 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from verifier.gold_pool import (
+    ERDOS_SOURCE_PREFIX,
+    EXCLUDED_SOURCE_PREFIXES,
     GOLD_POOL_SCHEMA_VERSION,
     GOLD_POOL_SELECTION,
+    MINIMUM_ERDOS_TASKS,
 )
 from verifier.hashing import is_sha256
 from verifier.task_loader import TaskBundle
@@ -139,11 +142,14 @@ class GoldTaskRegistry:
             "classification",
             "compiled_target_validation",
             "exact_source_type",
+            "excluded_source_prefixes",
+            "minimum_erdos_tasks",
             "mode",
             "one_task_per_source_path",
             "pool_size",
             "retired_source_theorems_sha256",
             "selection",
+            "selection_audit_sha256",
             "source_category",
             "synthetic_negation",
         }
@@ -152,12 +158,15 @@ class GoldTaskRegistry:
             or policy.get("classification") != "DIRECT_PROP"
             or policy.get("compiled_target_validation") is not True
             or policy.get("exact_source_type") is not True
+            or policy.get("excluded_source_prefixes") != list(EXCLUDED_SOURCE_PREFIXES)
+            or policy.get("minimum_erdos_tasks") != MINIMUM_ERDOS_TASKS
             or policy.get("mode") != GOLD_TASK_MODE
-            or policy.get("one_task_per_source_path") is not True
+            or policy.get("one_task_per_source_path") is not False
             or type(policy.get("pool_size")) is not int
             or policy["pool_size"] <= 0
             or not is_sha256(policy.get("retired_source_theorems_sha256"))
             or policy.get("selection") != GOLD_POOL_SELECTION
+            or not is_sha256(policy.get("selection_audit_sha256"))
             or policy.get("source_category") != "research open"
             or policy.get("synthetic_negation") is not False
         ):
@@ -165,7 +174,6 @@ class GoldTaskRegistry:
 
         source_by_index: dict[int, tuple[str, str, str]] = {}
         source_theorems: set[str] = set()
-        source_paths: set[str] = set()
         source_types: set[str] = set()
         for source in sources:
             if not isinstance(source, dict) or set(source) != {
@@ -188,17 +196,16 @@ class GoldTaskRegistry:
                 or not theorem
                 or theorem in source_theorems
                 or not isinstance(source_path, str)
+                or not source_path.startswith(ERDOS_SOURCE_PREFIX)
                 or parsed_path.is_absolute()
                 or ".." in parsed_path.parts
                 or parsed_path.suffix != ".lean"
-                or source_path in source_paths
                 or not is_sha256(source_type)
                 or source_type in source_types
             ):
                 raise TaskNotAllowed("task allowlist source identity is invalid or duplicate")
             source_by_index[index] = (theorem, source_path, source_type)
             source_theorems.add(theorem)
-            source_paths.add(source_path)
             source_types.add(source_type)
 
         tasks: dict[str, AllowedTask] = {}

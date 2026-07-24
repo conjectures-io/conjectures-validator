@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "A heuristic of Tao using the Cramér model for the primes suggests this is true with\n$c=\\sqrt{2\\pi}$. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«912»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/912.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos912.erdos_912.variants.tao",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:86a7121b84ed886e77186ebb259080e1fc8e9c8a77a4ae9f5d848c02ac9838db",
+  "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos912.h n)) fun n => √(2 * Real.pi) * (↑n / Real.log ↑n) ^ (1 / 2)"
+}

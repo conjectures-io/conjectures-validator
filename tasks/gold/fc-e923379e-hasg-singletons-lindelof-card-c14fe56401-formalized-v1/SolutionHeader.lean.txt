@@ -1,4 +1,0 @@
-import FormalConjectures.Paper.CardinalityLindelof
-import TaskSupport
-
-namespace Bounty

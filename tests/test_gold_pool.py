@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
 from pathlib import Path
 
 from frontier_subnet.task_registry import GoldTaskRegistry
 from verifier.catalog import load_catalog
 from verifier.gold_pool import (
     DEFAULT_GOLD_POOL_SIZE,
+    ERDOS_SOURCE_PREFIX,
+    EXCLUDED_SOURCE_PREFIXES,
+    GOLD_POOL_SCHEMA_VERSION,
+    MINIMUM_ERDOS_TASKS,
+    UNSOLVED_ERDOS_STATUSES,
     load_retired_sources,
-    repository_area,
+    load_selection_audit,
     select_gold_declarations,
 )
 from verifier.task_loader import load_task_bundle
@@ -19,32 +23,35 @@ from verifier.task_policy import GOLD_TASK_MODE
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_gold_selection_is_new_balanced_and_one_per_source_file():
+def test_gold_selection_is_new_and_audited_erdos_only():
     catalog = load_catalog(ROOT / "data/catalog.json")
     retired = load_retired_sources(ROOT / "gold/retired-source-theorems.json")
-    selected = select_gold_declarations(catalog=catalog, retired=retired)
-    by_theorem = {item.theorem: item for item in catalog.declarations}
-    retired_paths = {
-        by_theorem[theorem].source_path
-        for theorem in retired.theorems
-    }
-    retired_types = {
-        by_theorem[theorem].type_hash
-        for theorem in retired.theorems
-    }
-
+    audit = load_selection_audit(ROOT / "gold/selection-audit.json")
+    selected = select_gold_declarations(
+        catalog=catalog,
+        retired=retired,
+        selection_audit=audit,
+    )
     assert len(selected) == DEFAULT_GOLD_POOL_SIZE
     assert not ({item.theorem for item in selected} & retired.theorems)
-    assert not ({item.source_path for item in selected} & retired_paths)
-    assert not ({item.type_hash for item in selected} & retired_types)
-    assert len({item.source_path for item in selected}) == len(selected)
+    assert not ({item.type_hash for item in selected} & retired.type_hashes)
     assert len({item.type_hash for item in selected}) == len(selected)
     assert all(item.category == "research open" for item in selected)
     assert all(item.classification.value == "DIRECT_PROP" for item in selected)
     assert all(not item.contains_sorry_in_type for item in selected)
-    areas = Counter(repository_area(item) for item in selected)
-    assert len(areas) == 13
-    assert max(areas.values()) - min(areas.values()) <= 7
+    assert sum(
+        item.source_path.startswith(ERDOS_SOURCE_PREFIX)
+        for item in selected
+    ) >= MINIMUM_ERDOS_TASKS
+    assert all(
+        not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
+        for item in selected
+    )
+    assert tuple(item.theorem for item in selected) == audit.theorems
+    assert all(
+        entry.problem_tracker_status in UNSOLVED_ERDOS_STATUSES
+        for entry in audit.entries
+    )
 
 
 def test_checked_in_gold_pool_is_exact_and_one_to_one():
@@ -58,15 +65,20 @@ def test_checked_in_gold_pool_is_exact_and_one_to_one():
         )
     )
 
-    assert policy["schema_version"] == 2
+    audit = load_selection_audit(ROOT / "gold/selection-audit.json")
+    assert policy["schema_version"] == GOLD_POOL_SCHEMA_VERSION
     assert policy["pool_policy"]["mode"] == GOLD_TASK_MODE
     assert policy["pool_policy"]["synthetic_negation"] is False
+    assert policy["pool_policy"]["selection_audit_sha256"] == audit.sha256
+    assert policy["pool_policy"]["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
+    assert policy["pool_policy"]["excluded_source_prefixes"] == list(
+        EXCLUDED_SOURCE_PREFIXES
+    )
     assert len(registry.tasks) == DEFAULT_GOLD_POOL_SIZE
     assert len(task_directories) == DEFAULT_GOLD_POOL_SIZE
     assert (ROOT / "gold").stat().st_mode & 0o005 == 0o005
     assert (ROOT / "gold/allowlist.json").stat().st_mode & 0o004 == 0o004
 
-    source_paths = set()
     source_types = set()
     task_hashes = set()
     for task_directory in task_directories:
@@ -86,9 +98,8 @@ def test_checked_in_gold_pool_is_exact_and_one_to_one():
         challenge = (task_directory / "Challenge.lean").read_text(encoding="utf-8")
         assert "theorem target : fcTypeOfName%" in challenge
         assert "theorem target : ¬" not in challenge
-        assert manifest.source_path not in source_paths
         assert manifest.source_type_hash not in source_types
         assert bundle.sha256 not in task_hashes
-        source_paths.add(manifest.source_path)
+        assert not manifest.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         source_types.add(manifest.source_type_hash)
         task_hashes.add(bundle.sha256)

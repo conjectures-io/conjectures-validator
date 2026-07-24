@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos137.erdos_137.variants.multiple_powerful_factors"
+  ],
+  "generated_target_type_hash": "sha256:4cb0b4ef8d308cf51ce6bd0c005b5a36ed571e1248b905826e01fd8e9f75208f",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«137»",
+  "source_path": "FormalConjectures/ErdosProblems/137.lean",
+  "source_theorem": "Erdos137.erdos_137.variants.multiple_powerful_factors",
+  "source_type_hash": "sha256:4cb0b4ef8d308cf51ce6bd0c005b5a36ed571e1248b905826e01fd8e9f75208f",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-multiple-powerful-factors-7943f23862-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:fd9f6cd28fdf85b89f0e06f4c7b33fa7b35cef704a6b9cc0e92a89a235f7c22c",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:dfad2d0efacbb49bba0c17cca4cc07a1a7f98eacac8c5bc43bb8b363be98869a",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:c1720a967e4d1808c5e59fc4824ff67314416d2341c1ce5aef04bad25224bd01"
+  }
+}

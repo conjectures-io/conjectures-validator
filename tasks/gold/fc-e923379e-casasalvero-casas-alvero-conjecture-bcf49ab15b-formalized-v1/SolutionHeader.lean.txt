@@ -1,4 +1,0 @@
-import FormalConjectures.Paper.CasasAlvero
-import TaskSupport
-
-namespace Bounty

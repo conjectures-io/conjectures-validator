@@ -1,4 +1,0 @@
-import FormalConjectures.OEIS.«232174»
-import TaskSupport
-
-namespace Bounty

@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "A prime $p$ is in class $1$ if the only prime divisors of $p+1$ are\n$2$ or $3$. In general, a prime $p$ is in class $r$ if every prime factor\nof $p+1$ is in some class $\\leq r-1$, with equality for at least one prime factor.\nIf $p_r$ is the least prime in class $r$, then how does $p_r^{1/r}$ behave?\nSelfridge conjectured that this is bounded. ",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«1055»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/1055.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos1055.erdos_1055.variants.selfridge_limit",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f7b1d731b04e15c137e6a01d29894372e52cb1ecdc7f8035bde494e9ac638c72",
+  "type_pretty": "∃ M, ∀ (r : ℕ+), ↑(Erdos1055.p r) ^ (1 / ↑↑r) ≤ M"
+}

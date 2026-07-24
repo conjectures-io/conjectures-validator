@@ -127,10 +127,10 @@ def test_round_locks_immutable_bytes_even_after_a_new_submission_is_imported(tmp
 
 def test_gold_import_survives_source_file_edit_and_delete(tmp_path):
     project_root = Path(__file__).resolve().parents[1]
-    task_dir = (
-        project_root
-        / "tasks/gold"
-        / "fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1"
+    task_dir = next(
+        path
+        for path in sorted((project_root / "tasks/gold").iterdir())
+        if path.is_dir()
     )
     submission_path = tmp_path / "Main.lean"
     original = b"theorem Bounty.target : True := by\n  trivial\n"

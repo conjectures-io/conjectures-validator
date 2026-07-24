@@ -1,4 +1,0 @@
-import FormalConjectures.Other.BeaverMathOlympiad
-import TaskSupport
-
-namespace Bounty

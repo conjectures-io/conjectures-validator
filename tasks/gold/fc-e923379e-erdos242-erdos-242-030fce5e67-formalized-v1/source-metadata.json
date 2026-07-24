@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "For every $n>2$ there exist distinct integers $1 ≤ x < y < z$\nsuch that $\\frac 4 n = \\frac 1 x + \\frac 1 y + \\frac 1 z$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«242»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/242.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos242.erdos_242",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:1f082e9c277ceb30a17952f2bd0fbc63c9ad95f17f0d08632975bf2daf926d31",
+  "type_pretty": "∀ (n : ℕ), 2 < n → ∃ x y z, 1 ≤ x ∧ x < y ∧ y < z ∧ 4 / ↑n = 1 / ↑x + 1 / ↑y + 1 / ↑z"
+}

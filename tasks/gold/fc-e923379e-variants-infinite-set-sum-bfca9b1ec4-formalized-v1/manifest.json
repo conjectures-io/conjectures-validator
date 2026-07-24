@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos357.erdos_357.variants.infinite_set_sum"
+  ],
+  "generated_target_type_hash": "sha256:873d61e456eb854ca539c5c628143c137e5fca4a744f800836ee63bdd7f3d19d",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«357»",
+  "source_path": "FormalConjectures/ErdosProblems/357.lean",
+  "source_theorem": "Erdos357.erdos_357.variants.infinite_set_sum",
+  "source_type_hash": "sha256:873d61e456eb854ca539c5c628143c137e5fca4a744f800836ee63bdd7f3d19d",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-infinite-set-sum-bfca9b1ec4-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:ca740a994f002f50f43c16fddbb7569fa8a1ea9c3a1006c837bb3fd4ff00e6e3",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:e8994427ea9ff6dd4631afcef7f9c3550930b461296ea87aeee3f4db1e0bfec9",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:388bb6690666c3d1626b97c54d62d422ec79da8c8898fc4524716515d64cf9fa"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "Erdos329.erdos_329.variants.converse_implication"
+  ],
+  "generated_target_type_hash": "sha256:4a2196439df2b2de3010185822ca4a177ed247461b424a353495d515e9531744",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 1000000,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "FormalConjectures.ErdosProblems.«329»",
+  "source_path": "FormalConjectures/ErdosProblems/329.lean",
+  "source_theorem": "Erdos329.erdos_329.variants.converse_implication",
+  "source_type_hash": "sha256:4a2196439df2b2de3010185822ca4a177ed247461b424a353495d515e9531744",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-e923379e-variants-converse-implication-cfae92f3d1-formalized-v1",
+  "task_mode": "formalized",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 3600,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:2a44d214867528d4ef1010a790cc4cbda9b11384df69da9f0b269cfc297b1096",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:b283639d9c68aed57c27897d023875fe6d5d263497856374a510d4a7835fbcea",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:1922e014cdbb159ff3ac9199b2f4a88bd8e6c3aa0180d00305844342752d49e2"
+  }
+}

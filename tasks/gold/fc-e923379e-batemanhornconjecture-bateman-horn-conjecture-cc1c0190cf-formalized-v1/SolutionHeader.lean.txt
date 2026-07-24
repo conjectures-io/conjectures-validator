@@ -1,4 +1,0 @@
-import FormalConjectures.Wikipedia.BatemanHornConjecture
-import TaskSupport
-
-namespace Bounty

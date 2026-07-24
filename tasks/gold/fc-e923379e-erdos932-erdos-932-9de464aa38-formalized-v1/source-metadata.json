@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $p_k$ denote the $k$th prime. For infinitely many $r$ there are at least two\nintegers $p_r < n < p_{r+1}$ all of whose prime factors are $< p_{r + 1} - p_r$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«932»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/932.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos932.erdos_932",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:e2a1c8b5584f53f4aea241e1cf8d49ba4c980f27759bde1203b81a23be81854c",
+  "type_pretty": "{r |\n    2 ≤\n      {m ∈ Finset.Ioo (Nat.nth Nat.Prime r) (Nat.nth Nat.Prime r.succ) |\n          m.maxPrimeFac < Nat.nth Nat.Prime r.succ - Nat.nth Nat.Prime r}.card}.Infinite"
+}

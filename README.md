@@ -73,48 +73,40 @@ python -m verifier task generate \
 
 Use the immutable bundles in [`tasks/gold/`](tasks/gold/) as the standard public targets for
 solver attempts. The collection is pinned to Formal Conjectures commit
-`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 64 tasks from 64 different source files
-across 13 repository areas. The previous 114 source declarations are explicitly retired and are
-not reused.
+`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 100 audited Erdős tasks from 67
+source files. Written on the Wall II is hard-excluded. The 178 source declarations and canonical
+types used by the two previous pools are explicitly retired and are not reused.
 
 Every gold task has mode `formalized`. Its generated target is definitionally equal to the source
 theorem's complete Lean type and has the same canonical type hash. The pool admits only direct
 propositions: it does not synthesize `¬P`, extract one side of an answer wrapper, or substitute a
 new answer. A source theorem that is itself a negation remains a negation because that is the
-formalization. The current pool contains no negative target.
+formalization; the generator never synthesizes one.
 
-The Furstenberg-times-\(p\)-times-\(q\) bundle is a concrete starting point:
-
-[`tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1/`](tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1/)
-
-Read its `Challenge.lean` and `manifest.json`, then write `submissions/Main.lean` with the same
-`Bounty.target` theorem and replace the `sorry` with a proof. Do not edit the task bundle. Confirm
-that the bundle is byte-for-byte allowlisted before spending solver time:
+Choose a bundle, read its `Challenge.lean` and `manifest.json`, then write
+`submissions/Main.lean` with the same `Bounty.target` theorem and replace the `sorry` with a proof.
+Do not edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted before spending
+solver time:
 
 ```bash
-TASK=tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1
+TASK="$(find tasks/gold -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
 python scripts/check_gold_task.py "$TASK"
-```
-
-Verify a candidate in the production container against the committed bundle digest:
-
-```bash
-FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
-  --task /inputs/tasks/gold/fc-e923379e-id2303-01089-conjecture-1-3-d3295420ea-formalized-v1 \
-  --submission /inputs/submissions/Main.lean \
-  --expected-task-sha256 sha256:6c580bb0bf79785d142be9a186cace3fbd4a444598bd7ea499def1f0f0dba5e8
 ```
 
 The complete machine-readable admission set and bundle commitments are in
 [`gold/allowlist.json`](gold/allowlist.json). Only an allowlisted, verifier-accepted proof should
 advance to human mathematical review. Generation compiles and independently inspects every target;
-this proves that the validator has an exact, hole-free target, not that the open conjecture is
-solvable or that its informal statement is correct.
+this proves that the validator has an exact, hole-free target. The separate
+[`gold/selection-audit.json`](gold/selection-audit.json) records the Formal Conjectures status,
+Erdős Problems tracker status, pull-request review, and formal-surface screen. “Plausibly
+attackable” is not a guarantee of solvability and does not prove that the informal statement is
+correct.
 
 The deterministic pool selection and compiled validation are implemented by
-`scripts/rebuild_gold_pool.py`. It balances source areas, admits at most one theorem per source
-file and canonical type, and refuses to overwrite an existing pool or allowlist. The complete
-admission contract is in [`gold/README.md`](gold/README.md).
+`scripts/rebuild_gold_pool.py`. It loads the exact audited selection, admits at most one theorem per
+canonical type, enforces the Erdős minimum and WOWII exclusion, and refuses to overwrite an
+existing pool or allowlist. The complete admission contract is in
+[`gold/README.md`](gold/README.md).
 
 The direct CLI form is below. It reports a production sandbox only when the live probe confirms an
 equivalent hardened Linux setup, including a non-executable workspace; the Compose profile later in

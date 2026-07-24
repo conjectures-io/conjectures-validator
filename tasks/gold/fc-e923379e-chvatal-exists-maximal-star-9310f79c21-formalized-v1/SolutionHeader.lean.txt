@@ -1,4 +1,0 @@
-import FormalConjectures.Paper.Chvatal
-import TaskSupport
-
-namespace Bounty

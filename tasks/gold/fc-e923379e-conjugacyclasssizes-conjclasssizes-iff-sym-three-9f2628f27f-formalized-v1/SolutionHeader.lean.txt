@@ -1,4 +1,0 @@
-import FormalConjectures.Paper.ConjugacyClassSizes
-import TaskSupport
-
-namespace Bounty

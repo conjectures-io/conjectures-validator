@@ -1,0 +1,38 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5,
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "The first open case of Erdős Problem 535 is $r = 3$: there should exist $c > 0$ such that\n$f_3(N) \\leq N^{c/\\log\\log N}$ for all sufficiently large $N$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«535»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/535.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos535.erdos_535.variants.first_open_case",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:4940f37b482af2f8dde043c96224ee6c7df8b9909463615304905090c881a800",
+  "type_pretty": "∃ c > 0, ∀ᶠ (N : ℕ) in Filter.atTop, ↑(Erdos535.f 3 N) ≤ ↑N ^ (c / Real.log (Real.log ↑N))"
+}

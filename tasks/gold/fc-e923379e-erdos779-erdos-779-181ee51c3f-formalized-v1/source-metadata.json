@@ -1,0 +1,37 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "A Conjecture of Marian Deaconescu, see p.120 in https://doi.org/10.2307/2975810\n\n[Needed to index shift in order to avoid trivial case $n = 0$,\nwhere the conjecture is trivially false.]\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«779»",
+  "pointer_target": null,
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/779.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos779.erdos_779",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:f13a12045cd1f1888471e8756e655df3bac90224417103255c7625d7410d5669",
+  "type_pretty": "∀ n ≥ 1,\n  have P := ∏ i ∈ Finset.range (n + 1), Nat.nth Nat.Prime i;\n  ∃ p, Nat.Prime p ∧ Nat.Prime (P + p) ∧ Nat.nth Nat.Prime n < p ∧ p < P"
+}

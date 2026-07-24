@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 
 from verifier.catalog import load_catalog
@@ -16,6 +16,7 @@ from verifier.gold_pool import (
     DEFAULT_GOLD_POOL_SIZE,
     build_gold_allowlist,
     load_retired_sources,
+    load_selection_audit,
     select_gold_declarations,
 )
 from verifier.task_generator import generate_task
@@ -42,11 +43,19 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         default=ROOT / "gold/retired-source-theorems.json",
     )
+    result.add_argument(
+        "--selection-audit",
+        type=Path,
+        default=ROOT / "gold/selection-audit.json",
+    )
     result.add_argument("--output", type=Path, default=ROOT / "tasks/gold")
     result.add_argument("--allowlist", type=Path, default=ROOT / "gold/allowlist.json")
     result.add_argument("--pool-size", type=int, default=DEFAULT_GOLD_POOL_SIZE)
     result.add_argument("--jobs", type=int, default=4)
-    result.add_argument("--audit-date", default=date.today().isoformat())
+    result.add_argument(
+        "--audit-date",
+        default=datetime.now(timezone.utc).date().isoformat(),
+    )
     return result
 
 
@@ -63,9 +72,11 @@ def main() -> int:
 
     catalog = load_catalog(arguments.catalog)
     retired = load_retired_sources(arguments.retired_sources)
+    selection_audit = load_selection_audit(arguments.selection_audit)
     selected = select_gold_declarations(
         catalog=catalog,
         retired=retired,
+        selection_audit=selection_audit,
         pool_size=arguments.pool_size,
     )
     validate_target = target_validator(ROOT)
@@ -95,6 +106,7 @@ def main() -> int:
         allowlist_content = build_gold_allowlist(
             catalog=catalog,
             retired=retired,
+            selection_audit=selection_audit,
             selected=selected,
             bundles=bundles,
             audit_date_utc=arguments.audit_date,
