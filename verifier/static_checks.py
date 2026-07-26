@@ -310,23 +310,28 @@ def check_submission(text: str, manifest: TaskManifest) -> StaticCheckResult:
             violations.append(f"declaration attributes are prohibited at {token.line}:{token.column}")
         if token.depth == 0 and token.value == "#" and next_value != "[":
             violations.append(f"top-level hash command is prohibited at {token.line}:{token.column}")
-    target_short = manifest.target_theorem.rsplit(".", 1)[-1]
-    target_start = next(
-        (
-            index
-            for index in range(len(tokens) - 1)
-            if tokens[index].value in {"theorem", "lemma"} and tokens[index + 1].value == target_short
-        ),
-        -1,
-    )
-    target_assign = next(
-        (
-            index
-            for index in range(max(target_start, 0), len(tokens) - 1)
-            if tokens[index].value == ":" and tokens[index + 1].value == "="
-        ),
-        -1,
-    )
+    target_type_ranges = []
+    for target_theorem in manifest.theorem_names:
+        target_short = target_theorem.rsplit(".", 1)[-1]
+        target_start = next(
+            (
+                index
+                for index in range(len(tokens) - 1)
+                if tokens[index].value in {"theorem", "lemma"}
+                and tokens[index + 1].value == target_short
+            ),
+            -1,
+        )
+        target_assign = next(
+            (
+                index
+                for index in range(max(target_start, 0), len(tokens) - 1)
+                if tokens[index].value == ":" and tokens[index + 1].value == "="
+            ),
+            -1,
+        )
+        if target_start >= 0 and target_assign >= 0:
+            target_type_ranges.append((target_start, target_assign))
     for dependency in manifest.forbidden_dependencies:
         dependency_parts = _lean_name_parts(dependency)
         short = dependency_parts[-1]
@@ -336,7 +341,10 @@ def check_submission(text: str, manifest: TaskManifest) -> StaticCheckResult:
             if _lean_name_parts(token.value) == dependency_parts
             or short in _lean_name_parts(token.value)
         )
-        if any(not (target_start <= index < target_assign) for index in references):
+        if any(
+            not any(start <= index < assign for start, assign in target_type_ranges)
+            for index in references
+        ):
             violations.append(f"source declaration dependency is prohibited: {dependency}")
     submitted_answer, answer_error = _literal_answer(tokens, manifest.answer_policy)
     if answer_error:

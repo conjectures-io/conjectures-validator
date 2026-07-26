@@ -13,7 +13,9 @@ from verifier.gold_pool import (
     ERDOS_SOURCE_PREFIX,
     EXCLUDED_SOURCE_PREFIXES,
     GOLD_POOL_SCHEMA_VERSION,
+    GOLD_POOL_GROUPING,
     GOLD_POOL_SELECTION,
+    GOLD_POOL_TASK_SCOPE,
     MINIMUM_ERDOS_TASKS,
 )
 from verifier.hashing import is_sha256
@@ -87,7 +89,7 @@ def _json_object(content: bytes) -> dict[str, Any]:
 class AllowedTask:
     task_id: str
     task_bundle_sha256: str
-    target_type_sha256: str
+    target_type_sha256s: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -143,15 +145,21 @@ class GoldTaskRegistry:
             "compiled_target_validation",
             "exact_source_type",
             "excluded_source_prefixes",
+            "grouping",
             "minimum_erdos_tasks",
             "mode",
+            "multi_target_tasks",
             "one_task_per_source_path",
             "pool_size",
             "retired_source_theorems_sha256",
             "selection",
             "selection_audit_sha256",
             "source_category",
+            "source_theorem_count",
             "synthetic_negation",
+            "task_scope",
+            "task_groups_sha256",
+            "whole_problem_targets_sha256",
         }
         if (
             set(policy) != expected_policy_fields
@@ -159,16 +167,23 @@ class GoldTaskRegistry:
             or policy.get("compiled_target_validation") is not True
             or policy.get("exact_source_type") is not True
             or policy.get("excluded_source_prefixes") != list(EXCLUDED_SOURCE_PREFIXES)
+            or policy.get("grouping") != GOLD_POOL_GROUPING
             or policy.get("minimum_erdos_tasks") != MINIMUM_ERDOS_TASKS
             or policy.get("mode") != GOLD_TASK_MODE
-            or policy.get("one_task_per_source_path") is not False
+            or policy.get("multi_target_tasks") != 0
+            or policy.get("one_task_per_source_path") is not True
             or type(policy.get("pool_size")) is not int
             or policy["pool_size"] <= 0
             or not is_sha256(policy.get("retired_source_theorems_sha256"))
             or policy.get("selection") != GOLD_POOL_SELECTION
             or not is_sha256(policy.get("selection_audit_sha256"))
             or policy.get("source_category") != "research open"
+            or type(policy.get("source_theorem_count")) is not int
+            or policy["source_theorem_count"] <= 0
             or policy.get("synthetic_negation") is not False
+            or policy.get("task_scope") != GOLD_POOL_TASK_SCOPE
+            or not is_sha256(policy.get("task_groups_sha256"))
+            or not is_sha256(policy.get("whole_problem_targets_sha256"))
         ):
             raise TaskNotAllowed("task allowlist pool policy is invalid")
 
@@ -213,50 +228,66 @@ class GoldTaskRegistry:
         bundle_hashes: set[str] = set()
         for row in rows:
             if not isinstance(row, dict) or set(row) != {
+                "completion_policy",
                 "mode",
-                "source_index",
+                "source_indices",
                 "source_path",
-                "target_type_sha256",
+                "target_type_sha256s",
                 "task_bundle_sha256",
                 "task_id",
-                "theorem",
+                "theorems",
             }:
                 raise TaskNotAllowed("task allowlist contains a non-object entry")
             task_id = row.get("task_id")
             bundle_hash = row.get("task_bundle_sha256")
-            target_hash = row.get("target_type_sha256")
-            source_index = row.get("source_index")
-            source = (
-                source_by_index.get(source_index)
-                if type(source_index) is int
-                else None
+            target_hashes = row.get("target_type_sha256s")
+            source_indices = row.get("source_indices")
+            theorems = row.get("theorems")
+            sources_for_task = (
+                tuple(source_by_index.get(index) for index in source_indices)
+                if isinstance(source_indices, list)
+                and all(type(index) is int for index in source_indices)
+                else ()
             )
             if (
                 not isinstance(task_id, str)
                 or TASK_ID.fullmatch(task_id) is None
                 or not is_sha256(bundle_hash)
                 or bundle_hash in bundle_hashes
-                or not is_sha256(target_hash)
                 or task_id in tasks
+                or row.get("completion_policy") != "all_of"
                 or row.get("mode") != GOLD_TASK_MODE
-                or source is None
-                or source_index in used_source_indices
-                or row.get("theorem") != source[0]
-                or row.get("source_path") != source[1]
-                or target_hash != source[2]
+                or not sources_for_task
+                or any(source is None for source in sources_for_task)
+                or len(set(source_indices)) != len(source_indices)
+                or any(index in used_source_indices for index in source_indices)
+                or not isinstance(theorems, list)
+                or tuple(theorems)
+                != tuple(source[0] for source in sources_for_task)
+                or not isinstance(target_hashes, list)
+                or tuple(target_hashes)
+                != tuple(source[2] for source in sources_for_task)
+                or row.get("source_path") != sources_for_task[0][1]
+                or any(source[1] != row.get("source_path") for source in sources_for_task)
             ):
                 raise TaskNotAllowed("task allowlist contains an invalid or duplicate entry")
             tasks[task_id] = AllowedTask(
                 task_id=task_id,
                 task_bundle_sha256=bundle_hash,
-                target_type_sha256=target_hash,
+                target_type_sha256s=tuple(target_hashes),
             )
-            used_source_indices.add(source_index)
+            used_source_indices.update(source_indices)
             bundle_hashes.add(bundle_hash)
         if (
             not tasks
             or len(tasks) != policy["pool_size"]
-            or len(tasks) != len(source_by_index)
+            or len(source_by_index) != policy["source_theorem_count"]
+            or len(source_by_index) != len(tasks)
+            or len({source[1] for source in source_by_index.values()})
+            != len(source_by_index)
+            or len(source_by_index) < policy["minimum_erdos_tasks"]
+            or sum(len(task.target_type_sha256s) > 1 for task in tasks.values())
+            != policy["multi_target_tasks"]
             or used_source_indices != set(source_by_index)
         ):
             raise TaskNotAllowed("task allowlist is empty or not one-to-one")
@@ -270,6 +301,6 @@ class GoldTaskRegistry:
             raise TaskNotAllowed("task repository commit does not match the allowlist")
         if bundle.sha256 != allowed.task_bundle_sha256:
             raise TaskNotAllowed("task bundle digest does not match the allowlist")
-        if bundle.manifest.generated_target_type_hash != allowed.target_type_sha256:
-            raise TaskNotAllowed("task target digest does not match the allowlist")
+        if tuple(source.type_hash for source in bundle.sources) != allowed.target_type_sha256s:
+            raise TaskNotAllowed("task target digests do not match the allowlist")
         return allowed

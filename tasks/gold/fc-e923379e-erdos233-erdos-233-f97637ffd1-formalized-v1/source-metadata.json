@@ -19,6 +19,11 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«233»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/233](https://www.erdosproblems.com/233)",
+    "[A74741](https://oeis.org/A74741)",
+    "[Wikipedia](https://en.wikipedia.org/wiki/Cram%C3%A9r%27s_conjecture)"
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/233.lean",
   "supported_modes": [

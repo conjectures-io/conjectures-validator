@@ -50,21 +50,28 @@ def main() -> None:
         fail("repository commit does not match the audited commit")
     if bundle.sha256 != row["task_bundle_sha256"]:
         fail("task-bundle digest does not match the audited digest")
-    if bundle.manifest.generated_target_type_hash != row["target_type_sha256"]:
-        fail("generated target-type digest does not match the audited digest")
+    if [source.type_hash for source in bundle.sources] != row["target_type_sha256s"]:
+        fail("generated target-type digests do not match the audited digests")
     if (
         bundle.manifest.task_mode != GOLD_TASK_MODE
-        or bundle.manifest.generated_target_type_hash != bundle.manifest.source_type_hash
+        or any(
+            source.type_hash != target_hash
+            for source, target_hash in zip(
+                bundle.sources,
+                row["target_type_sha256s"],
+                strict=True,
+            )
+        )
     ):
         fail("task is not the exact source formalization")
     print(
         json.dumps(
             {
                 "allowed": True,
-                "source_index": row["source_index"],
+                "source_indices": row["source_indices"],
                 "task_id": row["task_id"],
                 "task_bundle_sha256": row["task_bundle_sha256"],
-                "theorem": row["theorem"],
+                "theorems": row["theorems"],
             },
             indent=2,
             sort_keys=True,

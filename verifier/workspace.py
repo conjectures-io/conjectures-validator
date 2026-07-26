@@ -303,6 +303,7 @@ def inspect_generated_target(
     mode: str,
     env: Mapping[str, str],
     timeout_seconds: int,
+    target_theorem: str = "Bounty.target",
 ) -> dict[str, object]:
     inspector = project_root / ".lake" / "build" / "bin" / "task_inspector"
     args = (
@@ -310,7 +311,7 @@ def inspect_generated_target(
         "env",
         str(inspector),
         "Challenge",
-        "Bounty.target",
+        target_theorem,
         source_module,
         source_theorem,
         classification,
@@ -351,7 +352,13 @@ def target_validator(
 ) -> Callable[[Path, CatalogDeclaration, object, str], str]:
     lake = tool_path(project_root, "lake")
 
-    def validate(task_dir: Path, declaration: CatalogDeclaration, _generated: object, mode: str) -> str:
+    def validate(
+        task_dir: Path,
+        declaration: CatalogDeclaration,
+        _generated: object,
+        mode: str,
+        target_theorem: str = "Bounty.target",
+    ) -> str:
         task_files = {
             name: (task_dir / name).read_bytes()
             for name in ("Challenge.lean", "comparator-config.json")
@@ -376,6 +383,7 @@ def target_validator(
                 mode=mode,
                 env=effective_env,
                 timeout_seconds=600,
+                target_theorem=target_theorem,
             )
             if inspection["source_hash"] != declaration.type_hash:
                 raise VerifierError(ReasonCode.SOURCE_TYPE_CHANGED, "source type differs during task generation")

@@ -11,6 +11,7 @@ from verifier.environment import tool_path, trusted_environment
 from verifier.hashing import is_sha256, pretty_json, sha256_text
 from verifier.models import CATEGORY_ORDER, Catalog, CatalogDeclaration
 from verifier.process import run_process
+from verifier.references import extract_module_references
 from verifier.repository import assert_repository_commit, lean_toolchain, mathlib_pin
 
 
@@ -30,10 +31,17 @@ def _extract_json(stdout: str) -> Mapping[str, Any]:
     return value
 
 
-def _normalize_declaration(value: Mapping[str, Any]) -> CatalogDeclaration:
+def _normalize_declaration(
+    value: Mapping[str, Any],
+    references: tuple[str, ...] = (),
+) -> CatalogDeclaration:
     canonical = str(value["type_canonical"])
     merged = {key: item for key, item in value.items() if key != "type_canonical"}
-    merged = {**merged, "type_hash": sha256_text(canonical)}
+    merged = {
+        **merged,
+        "references": list(references),
+        "type_hash": sha256_text(canonical),
+    }
     return CatalogDeclaration.from_dict(merged)
 
 
@@ -71,8 +79,25 @@ def build_catalog(
     raw_declarations = raw.get("declarations")
     if not isinstance(raw_declarations, list):
         raise VerifierError(ReasonCode.INTERNAL_ERROR, "catalog extractor output has no declarations array")
+    references_by_path = {
+        source_path: extract_module_references(repo_dir / source_path)
+        for source_path in {
+            str(item["source_path"])
+            for item in raw_declarations
+            if isinstance(item, Mapping) and "source_path" in item
+        }
+    }
     declarations = tuple(
-        sorted((_normalize_declaration(dict(item)) for item in raw_declarations), key=lambda item: item.theorem)
+        sorted(
+            (
+                _normalize_declaration(
+                    dict(item),
+                    references_by_path.get(str(item.get("source_path")), ()),
+                )
+                for item in raw_declarations
+            ),
+            key=lambda item: item.theorem,
+        )
     )
     catalog = Catalog(
         schema_version=1,

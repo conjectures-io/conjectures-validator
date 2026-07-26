@@ -13,11 +13,15 @@ from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import is_sha256, sha256_bytes, sha256_named_bytes
 from verifier.models import CatalogDeclaration, Classification, TaskManifest
 from verifier.task_generator import (
+    GROUP_METADATA_NAME,
+    GROUP_TRUSTED_NAMES,
     MAX_SUBMISSION_BYTES,
     MAX_TIMEOUT_SECONDS,
     PERMITTED_AXIOMS,
     LEAN_MODULE_NAME,
+    group_task_id,
     task_id,
+    trusted_group_task_payloads,
     trusted_task_payloads,
 )
 from verifier.task_policy import (
@@ -36,7 +40,12 @@ REQUIRED_TRUSTED_FILES = frozenset(
         "source-metadata.json",
     }
 )
+GROUP_REQUIRED_TRUSTED_FILES = frozenset(GROUP_TRUSTED_NAMES)
 TASK_FILE_NAMES = REQUIRED_TRUSTED_FILES | {"manifest.json", "trusted-hashes.json"}
+GROUP_TASK_FILE_NAMES = GROUP_REQUIRED_TRUSTED_FILES | {
+    "manifest.json",
+    "trusted-hashes.json",
+}
 MAX_TASK_FILE_BYTES = 8 * 1024 * 1024
 MANIFEST_FIELDS = frozenset(
     {
@@ -73,6 +82,7 @@ MANIFEST_FIELDS = frozenset(
 class TaskBundle:
     manifest: TaskManifest
     source: CatalogDeclaration
+    sources: tuple[CatalogDeclaration, ...]
     files: Mapping[str, bytes]
     sha256: str
 
@@ -184,10 +194,19 @@ def _validate_source_json(value: Mapping[str, Any]) -> None:
     axioms = value.get("transitive_axioms")
     if not isinstance(axioms, list) or not all(isinstance(item, str) for item in axioms):
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "source transitive axioms must be a string array")
+    references = value.get("references", [])
+    if (
+        not isinstance(references, list)
+        or not all(isinstance(item, str) and item.strip() for item in references)
+    ):
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "source references must be an array of non-empty Markdown strings",
+        )
 
 
 def _validate_manifest(manifest: TaskManifest) -> None:
-    if manifest.schema_version != 1:
+    if manifest.schema_version not in {1, 2}:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "unsupported manifest schema")
     if len(manifest.repository_commit) != 40 or any(
         char not in "0123456789abcdef" for char in manifest.repository_commit
@@ -210,29 +229,62 @@ def _validate_manifest(manifest: TaskManifest) -> None:
         or source_path.suffix != ".lean"
     ):
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest source identity or path is invalid")
-    expected_id = task_id(
-        manifest.repository_commit,
-        manifest.source_theorem,
-        manifest.task_mode,
-        manifest.adapter_version,
-    )
     if (
-        manifest.task_id != expected_id
-        or not manifest.task_mode
+        not manifest.task_mode
         or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789-" for char in manifest.task_mode)
     ):
-        raise VerifierError(ReasonCode.INVALID_MANIFEST, "task ID is not the deterministic ID for this manifest")
-    if (
-        manifest.challenge_module != "Challenge"
-        or manifest.solution_module != "Solution"
-        or manifest.target_theorem != "Bounty.target"
-        or manifest.theorem_names != ("Bounty.target",)
-    ):
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "task mode is invalid")
+    if manifest.challenge_module != "Challenge" or manifest.solution_module != "Solution":
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest module or target names are inconsistent")
+    if manifest.schema_version == 1:
+        expected_id = task_id(
+            manifest.repository_commit,
+            manifest.source_theorem,
+            manifest.task_mode,
+            manifest.adapter_version,
+        )
+        if (
+            manifest.task_id != expected_id
+            or manifest.target_theorem != "Bounty.target"
+            or manifest.theorem_names != ("Bounty.target",)
+        ):
+            raise VerifierError(
+                ReasonCode.INVALID_MANIFEST,
+                "single-target manifest identity is inconsistent",
+            )
+    else:
+        expected_names = tuple(
+            f"Bounty.target_{index}"
+            for index in range(1, len(manifest.theorem_names) + 1)
+        )
+        if (
+            len(manifest.theorem_names) < 2
+            or manifest.theorem_names != expected_names
+            or manifest.target_theorem != expected_names[0]
+            or manifest.definition_names
+            or manifest.answer_policy
+        ):
+            raise VerifierError(
+                ReasonCode.INVALID_MANIFEST,
+                "all-of manifest targets are inconsistent",
+            )
     if manifest.permitted_axioms != PERMITTED_AXIOMS:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest permitted axioms differ from verifier policy")
-    if manifest.forbidden_dependencies != (manifest.source_theorem,):
-        raise VerifierError(ReasonCode.INVALID_MANIFEST, "forbidden proof dependencies must contain exactly the source theorem")
+    if manifest.schema_version == 1:
+        if manifest.forbidden_dependencies != (manifest.source_theorem,):
+            raise VerifierError(
+                ReasonCode.INVALID_MANIFEST,
+                "forbidden proof dependencies must contain exactly the source theorem",
+            )
+    elif (
+        len(manifest.forbidden_dependencies) != len(manifest.theorem_names)
+        or len(set(manifest.forbidden_dependencies)) != len(manifest.forbidden_dependencies)
+        or manifest.forbidden_dependencies[0] != manifest.source_theorem
+    ):
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "all-of forbidden proof dependencies are inconsistent",
+        )
     modes = supported_modes(manifest.classification)
     exact_formalized_mode = (
         manifest.classification == Classification.DIRECT_PROP
@@ -247,7 +299,12 @@ def _validate_manifest(manifest: TaskManifest) -> None:
         if not is_sha256(digest):
             raise VerifierError(ReasonCode.INVALID_MANIFEST, f"{label} hash is not SHA-256")
     names = frozenset(manifest.trusted_file_hashes)
-    if names != REQUIRED_TRUSTED_FILES:
+    expected_trusted = (
+        REQUIRED_TRUSTED_FILES
+        if manifest.schema_version == 1
+        else GROUP_REQUIRED_TRUSTED_FILES
+    )
+    if names != expected_trusted:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest trusted file set is incomplete or unexpected")
     if any(Path(name).name != name or Path(name).is_absolute() for name in names):
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "trusted file names must be local basenames")
@@ -294,6 +351,70 @@ def _validate_source_metadata(manifest: TaskManifest, source: CatalogDeclaration
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "production eligibility disagrees with source metadata")
 
 
+def _load_group_sources(
+    content: bytes,
+    manifest: TaskManifest,
+    primary: CatalogDeclaration,
+) -> tuple[CatalogDeclaration, ...]:
+    value = _json_object(content, GROUP_METADATA_NAME)
+    if set(value) != {"completion_policy", "schema_version", "sources"}:
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "group metadata field set is invalid")
+    source_values = value.get("sources")
+    if (
+        value.get("schema_version") != 1
+        or value.get("completion_policy") != "all_of"
+        or not isinstance(source_values, list)
+        or len(source_values) < 2
+        or not all(isinstance(item, dict) for item in source_values)
+    ):
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "all-of group metadata is invalid")
+
+    sources = []
+    for source_value in source_values:
+        _validate_source_json(source_value)
+        if (
+            source_value.get("repository_commit") != manifest.repository_commit
+            or source_value.get("adapter_version") != manifest.adapter_version
+        ):
+            raise VerifierError(
+                ReasonCode.INVALID_MANIFEST,
+                "group source pin or adapter is inconsistent",
+            )
+        sources.append(CatalogDeclaration.from_dict(source_value))
+    result = tuple(sources)
+    if (
+        result[0] != primary
+        or len({item.theorem for item in result}) != len(result)
+        or len({item.type_hash for item in result}) != len(result)
+        or len({(item.module, item.source_path) for item in result}) != 1
+        or any(item.classification != Classification.DIRECT_PROP for item in result)
+        or tuple(item.theorem for item in result) != manifest.forbidden_dependencies
+        or group_task_id(
+            manifest.repository_commit,
+            tuple(item.theorem for item in result),
+            manifest.task_mode,
+            manifest.adapter_version,
+        )
+        != manifest.task_id
+    ):
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "all-of group identity is invalid")
+    violations = tuple(
+        violation
+        for item in result
+        for violation in production_policy_violations(
+            item,
+            manifest.known_proof_collisions,
+            manifest.task_mode,
+        )
+    )
+    if manifest.production_eligible != (not violations):
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "all-of production eligibility disagrees with source metadata",
+        )
+    return result
+
+
 def load_task_bundle(task_dir: Path) -> TaskBundle:
     if not task_dir.is_dir() or task_dir.is_symlink():
         raise VerifierError(ReasonCode.INVALID_MANIFEST, f"task directory not found or unsafe: {task_dir}")
@@ -302,18 +423,28 @@ def load_task_bundle(task_dir: Path) -> TaskBundle:
             entry_names = frozenset(entry.name for entry in entries)
     except OSError as exc:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, f"cannot list task directory: {exc}") from exc
-    if entry_names != TASK_FILE_NAMES:
-        extra = sorted(entry_names - TASK_FILE_NAMES)
+    if entry_names not in {TASK_FILE_NAMES, GROUP_TASK_FILE_NAMES}:
+        extra = sorted(entry_names - (TASK_FILE_NAMES | GROUP_TASK_FILE_NAMES))
         missing = sorted(TASK_FILE_NAMES - entry_names)
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
             f"task file set is not exact; missing={missing}, unexpected={extra}",
         )
-    files = {name: _read_regular_file(task_dir / name) for name in sorted(TASK_FILE_NAMES)}
+    files = {name: _read_regular_file(task_dir / name) for name in sorted(entry_names)}
     manifest_json = _json_object(files["manifest.json"], "manifest.json")
     _validate_manifest_json(manifest_json)
     manifest = TaskManifest.from_dict(manifest_json)
     _validate_manifest(manifest)
+    expected_files = (
+        TASK_FILE_NAMES
+        if manifest.schema_version == 1
+        else GROUP_TASK_FILE_NAMES
+    )
+    if entry_names != expected_files:
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "task file set does not match the manifest schema",
+        )
     recorded = _json_object(files["trusted-hashes.json"], "trusted-hashes.json")
     if recorded != dict(manifest.trusted_file_hashes):
         raise VerifierError(ReasonCode.TRUSTED_FILE_MODIFIED, "trusted-hashes.json disagrees with manifest")
@@ -339,13 +470,28 @@ def load_task_bundle(task_dir: Path) -> TaskBundle:
     _validate_source_json(source_json)
     source = CatalogDeclaration.from_dict(source_json)
     _validate_source_metadata(manifest, source)
-    expected_payloads = trusted_task_payloads(
-        source,
-        manifest.task_mode,
-        manifest.enable_nanoda,
-        manifest.repository_commit,
-        manifest.adapter_version,
-    )
+    if manifest.schema_version == 1:
+        sources = (source,)
+        expected_payloads = trusted_task_payloads(
+            source,
+            manifest.task_mode,
+            manifest.enable_nanoda,
+            manifest.repository_commit,
+            manifest.adapter_version,
+        )
+    else:
+        sources = _load_group_sources(
+            files[GROUP_METADATA_NAME],
+            manifest,
+            source,
+        )
+        expected_payloads = trusted_group_task_payloads(
+            sources,
+            manifest.task_mode,
+            manifest.enable_nanoda,
+            manifest.repository_commit,
+            manifest.adapter_version,
+        )
     regenerated_mismatches = tuple(
         name for name, expected in sorted(expected_payloads.items()) if files[name] != expected
     )
@@ -356,7 +502,13 @@ def load_task_bundle(task_dir: Path) -> TaskBundle:
             + ", ".join(regenerated_mismatches),
         )
     frozen_files = MappingProxyType(files)
-    return TaskBundle(manifest, source, frozen_files, sha256_named_bytes(frozen_files))
+    return TaskBundle(
+        manifest,
+        source,
+        sources,
+        frozen_files,
+        sha256_named_bytes(frozen_files),
+    )
 
 
 def load_task(task_dir: Path) -> TaskManifest:

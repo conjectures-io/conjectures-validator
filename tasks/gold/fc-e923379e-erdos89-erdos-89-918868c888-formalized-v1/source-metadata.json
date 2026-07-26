@@ -19,6 +19,12 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«89»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/89](https://www.erdosproblems.com/89)",
+    "[Er46](https://doi.org/10.2307/2305092) Erdős, Paul. On sets of distances of $n$ points. Amer. Math. Monthly 53 (1946), 248--250.",
+    "[GuKa15](https://doi.org/10.4007/annals.2015.181.1.2) Guth, Larry and Katz, Nets Hawk. On the Erdős distinct distances problem in the plane. Ann. of Math. (2) 181 (2015), 155--190.",
+    "[Mo52](https://doi.org/10.2307/2307105) Moser, Leo. On the different distances determined by $n$ points. Amer. Math. Monthly 59 (1952), 85--91."
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/89.lean",
   "supported_modes": [

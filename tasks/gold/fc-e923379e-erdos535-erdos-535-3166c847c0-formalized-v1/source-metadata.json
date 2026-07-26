@@ -20,6 +20,12 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«535»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/535](https://www.erdosproblems.com/535)",
+    "[Er64](https://users.renyi.hu/~p_erdos/1964-10.pdf) P. Erdős, _On a problem in elementary number theory and a combinatorial problem_. Math. Comp. (1964), 644–646.",
+    "[AbHa70](https://doi.org/10.1112/blms/2.3.324) H. L. Abbott and D. Hanson, _An extremal problem in number theory_. Bull. London Math. Soc. (1970), 324–326.",
+    "[Er73](https://users.renyi.hu/~p_erdos/1973-21.pdf) P. Erdős, _Problems and results on combinatorial number theory_, in *A Survey of Combinatorial Theory*, North-Holland, 1973."
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/535.lean",
   "supported_modes": [

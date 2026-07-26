@@ -19,6 +19,9 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«364»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/364](https://www.erdosproblems.com/364)"
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/364.lean",
   "supported_modes": [

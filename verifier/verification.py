@@ -212,29 +212,57 @@ def verify(
             )
         checks = updated_checks(checks, challenge_built=True)
 
+        inspections = []
         try:
-            remaining = seconds_remaining(600)
-            if remaining <= 0:
-                return rejected(ReasonCode.TIMEOUT, "BUILD_CHALLENGE", sandbox_mode=tools.sandbox_mode)
-            inspection = inspect_generated_target(
-                paths=paths,
-                lake=lake,
-                project_root=project_root,
-                source_module=manifest.source_module,
-                source_theorem=manifest.source_theorem,
-                classification=manifest.classification.value,
-                mode=manifest.task_mode,
-                env=effective_env,
-                timeout_seconds=remaining,
-            )
+            for source, target_theorem in zip(
+                bundle.sources,
+                manifest.theorem_names,
+                strict=True,
+            ):
+                remaining = seconds_remaining(600)
+                if remaining <= 0:
+                    return rejected(
+                        ReasonCode.TIMEOUT,
+                        "BUILD_CHALLENGE",
+                        sandbox_mode=tools.sandbox_mode,
+                    )
+                inspections.append(
+                    inspect_generated_target(
+                        paths=paths,
+                        lake=lake,
+                        project_root=project_root,
+                        source_module=source.module,
+                        source_theorem=source.theorem,
+                        classification=source.classification.value,
+                        mode=manifest.task_mode,
+                        env=effective_env,
+                        timeout_seconds=remaining,
+                        target_theorem=target_theorem,
+                    )
+                )
         except VerifierError as exc:
             return rejected(exc.reason, "BUILD_CHALLENGE", stderr=str(exc))
-        if inspection["source_hash"] != manifest.source_type_hash:
+        if any(
+            inspection["source_hash"] != source.type_hash
+            for source, inspection in zip(bundle.sources, inspections, strict=True)
+        ):
             return rejected(ReasonCode.SOURCE_TYPE_CHANGED, "BUILD_CHALLENGE")
         checks = updated_checks(checks, source_type_hash_valid=True)
-        if inspection["target_hash"] != manifest.generated_target_type_hash or not inspection["matches"]:
+        if (
+            inspections[0]["source_hash"] != manifest.source_type_hash
+            or inspections[0]["target_hash"] != manifest.generated_target_type_hash
+            or any(
+                inspection["target_hash"] != source.type_hash
+                or not inspection["matches"]
+                for source, inspection in zip(
+                    bundle.sources,
+                    inspections,
+                    strict=True,
+                )
+            )
+        ):
             return rejected(ReasonCode.STATEMENT_MISMATCH, "BUILD_CHALLENGE")
-        if manifest.production_eligible and (
+        if manifest.production_eligible and any(
             inspection["source_category"] != "research open"
             or inspection["source_declaration_kind"] != "theorem"
             or not inspection["source_depends_on_sorry"]
@@ -242,7 +270,12 @@ def verify(
             or inspection["target_contains_sorry"]
             or manifest.task_mode != GOLD_TASK_MODE
             or inspection["target_hash"] != inspection["source_hash"]
-            or inspection["source_axioms"] != tuple(sorted(bundle.source.transitive_axioms))
+            or inspection["source_axioms"] != tuple(sorted(source.transitive_axioms))
+            for source, inspection in zip(
+                bundle.sources,
+                inspections,
+                strict=True,
+            )
         ):
             return rejected(
                 ReasonCode.INELIGIBLE_TASK,

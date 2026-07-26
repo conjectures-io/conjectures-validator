@@ -13,11 +13,16 @@ from verifier.task_loader import TaskBundle
 from verifier.task_policy import GOLD_TASK_MODE, production_eligibility
 
 
-GOLD_POOL_SCHEMA_VERSION = 3
+GOLD_POOL_SCHEMA_VERSION = 4
 GOLD_SELECTION_AUDIT_SCHEMA_VERSION = 1
-DEFAULT_GOLD_POOL_SIZE = 100
+GOLD_TASK_GROUP_SCHEMA_VERSION = 1
+GOLD_WHOLE_PROBLEM_SCHEMA_VERSION = 1
+DEFAULT_GOLD_POOL_SIZE = 29
+DEFAULT_GOLD_TASK_COUNT = 29
 MINIMUM_ERDOS_TASKS = DEFAULT_GOLD_POOL_SIZE
-GOLD_POOL_SELECTION = "audited-erdos-v3"
+GOLD_POOL_SELECTION = "audited-erdos-whole-problem-v1"
+GOLD_POOL_GROUPING = "none-single-target-v1"
+GOLD_POOL_TASK_SCOPE = "whole_problem"
 ERDOS_SOURCE_PREFIX = "FormalConjectures/ErdosProblems/"
 EXCLUDED_SOURCE_PREFIXES = ("FormalConjectures/WrittenOnTheWallII/",)
 FEASIBILITY_SIGNALS = frozenset(
@@ -74,6 +79,37 @@ class SelectionAudit:
     @property
     def theorems(self) -> tuple[str, ...]:
         return tuple(entry.theorem for entry in self.entries)
+
+
+@dataclass(frozen=True)
+class AuditedTaskGroup:
+    identifier: str
+    source_path: str
+    theorems: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TaskGrouping:
+    groups: tuple[AuditedTaskGroup, ...]
+    sha256: str
+
+
+@dataclass(frozen=True)
+class WholeProblemTarget:
+    theorem: str
+    source_path: str
+    erdos_problem_number: int
+
+
+@dataclass(frozen=True)
+class WholeProblemTargets:
+    repository_commit: str
+    targets: tuple[WholeProblemTarget, ...]
+    sha256: str
+
+    @property
+    def theorems(self) -> tuple[str, ...]:
+        return tuple(target.theorem for target in self.targets)
 
 
 def _is_commit(value: object) -> bool:
@@ -193,6 +229,127 @@ def load_selection_audit(path: Path) -> SelectionAudit:
     )
 
 
+def load_whole_problem_targets(path: Path) -> WholeProblemTargets:
+    try:
+        content = path.read_bytes()
+        value = json.loads(content.decode("utf-8", errors="strict"))
+        targets = value.get("targets") if isinstance(value, dict) else None
+        if (
+            not isinstance(value, dict)
+            or set(value)
+            != {"policy", "repository_commit", "schema_version", "targets"}
+            or value.get("schema_version") != GOLD_WHOLE_PROBLEM_SCHEMA_VERSION
+            or value.get("policy") != "one_task_one_complete_problem"
+            or not _is_commit(value.get("repository_commit"))
+            or not isinstance(targets, list)
+            or not targets
+        ):
+            raise ValueError("whole-problem target metadata is invalid")
+        parsed = tuple(
+            WholeProblemTarget(
+                theorem=item["theorem"],
+                source_path=item["source_path"],
+                erdos_problem_number=item["erdos_problem_number"],
+            )
+            for item in targets
+            if isinstance(item, dict)
+            and set(item) == {"erdos_problem_number", "source_path", "theorem"}
+            and type(item.get("erdos_problem_number")) is int
+            and item["erdos_problem_number"] > 0
+            and isinstance(item.get("source_path"), str)
+            and item["source_path"]
+            == f"{ERDOS_SOURCE_PREFIX}{item['erdos_problem_number']}.lean"
+            and isinstance(item.get("theorem"), str)
+            and item["theorem"]
+            in {
+                (
+                    f"Erdos{item['erdos_problem_number']}."
+                    f"erdos_{item['erdos_problem_number']}"
+                ),
+                "Erdos274.herzog_schonheim",
+            }
+        )
+        if (
+            len(parsed) != len(targets)
+            or tuple(target.theorem for target in parsed)
+            != tuple(sorted(target.theorem for target in parsed))
+            or len({target.theorem for target in parsed}) != len(parsed)
+            or len({target.source_path for target in parsed}) != len(parsed)
+            or len({target.erdos_problem_number for target in parsed}) != len(parsed)
+        ):
+            raise ValueError(
+                "whole-problem targets must be sorted, canonical, and one per problem"
+            )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"cannot load whole-problem targets: {exc}",
+        ) from exc
+    return WholeProblemTargets(
+        repository_commit=value["repository_commit"],
+        targets=parsed,
+        sha256=sha256_bytes(content),
+    )
+
+
+def load_task_grouping(path: Path) -> TaskGrouping:
+    try:
+        content = path.read_bytes()
+        value = json.loads(content.decode("utf-8", errors="strict"))
+        groups = value.get("groups") if isinstance(value, dict) else None
+        if (
+            not isinstance(value, dict)
+            or set(value)
+            != {"completion_policy", "groups", "schema_version"}
+            or value.get("schema_version") != GOLD_TASK_GROUP_SCHEMA_VERSION
+            or value.get("completion_policy") != "all_of"
+            or not isinstance(groups, list)
+        ):
+            raise ValueError("task grouping metadata is invalid")
+        parsed = tuple(
+            AuditedTaskGroup(
+                identifier=item["id"],
+                source_path=item["source_path"],
+                theorems=tuple(item["theorems"]),
+            )
+            for item in groups
+            if isinstance(item, dict)
+            and set(item) == {"id", "source_path", "theorems"}
+            and isinstance(item.get("id"), str)
+            and item["id"]
+            and all(
+                character in "abcdefghijklmnopqrstuvwxyz0123456789-"
+                for character in item["id"]
+            )
+            and isinstance(item.get("source_path"), str)
+            and item["source_path"].startswith(ERDOS_SOURCE_PREFIX)
+            and item["source_path"].endswith(".lean")
+            and isinstance(item.get("theorems"), list)
+            and len(item["theorems"]) >= 2
+            and all(isinstance(theorem, str) and theorem for theorem in item["theorems"])
+            and len(item["theorems"]) == len(set(item["theorems"]))
+        )
+        theorem_names = tuple(
+            theorem
+            for group in parsed
+            for theorem in group.theorems
+        )
+        if (
+            len(parsed) != len(groups)
+            or tuple(group.identifier for group in parsed)
+            != tuple(sorted(group.identifier for group in parsed))
+            or len({group.identifier for group in parsed}) != len(parsed)
+            or len(theorem_names) != len(set(theorem_names))
+        ):
+            raise ValueError("task grouping entries are invalid or duplicate")
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"cannot load gold task grouping: {exc}",
+        ) from exc
+    return TaskGrouping(groups=parsed, sha256=sha256_bytes(content))
+
+
 def load_retired_sources(path: Path) -> RetiredSources:
     try:
         content = path.read_bytes()
@@ -249,11 +406,13 @@ def select_gold_declarations(
     catalog: Catalog,
     retired: RetiredSources,
     selection_audit: SelectionAudit,
+    whole_problem_targets: WholeProblemTargets,
     pool_size: int = DEFAULT_GOLD_POOL_SIZE,
 ) -> tuple[CatalogDeclaration, ...]:
     if (
         retired.repository_commit != catalog.repository_commit
         or selection_audit.repository_commit != catalog.repository_commit
+        or whole_problem_targets.repository_commit != catalog.repository_commit
     ):
         raise VerifierError(
             ReasonCode.REPOSITORY_COMMIT_MISMATCH,
@@ -261,17 +420,34 @@ def select_gold_declarations(
         )
     if pool_size <= 0:
         raise VerifierError(ReasonCode.INVALID_ARGUMENT, "gold pool size must be positive")
-    if len(selection_audit.entries) != pool_size:
+    if len(whole_problem_targets.targets) != pool_size:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            f"selection audit contains {len(selection_audit.entries)} tasks, expected {pool_size}",
+            (
+                "whole-problem target policy contains "
+                f"{len(whole_problem_targets.targets)} tasks, expected {pool_size}"
+            ),
         )
 
     by_theorem = {declaration.theorem: declaration for declaration in catalog.declarations}
+    audited_by_theorem = {
+        entry.theorem: entry
+        for entry in selection_audit.entries
+    }
     selected: list[CatalogDeclaration] = []
     used_types: set[str] = set()
-    for entry in selection_audit.entries:
-        declaration = by_theorem.get(entry.theorem)
+    for target in whole_problem_targets.targets:
+        entry = audited_by_theorem.get(target.theorem)
+        if (
+            entry is None
+            or entry.source_path != target.source_path
+            or entry.erdos_problem_number != target.erdos_problem_number
+        ):
+            raise VerifierError(
+                ReasonCode.INVALID_ARGUMENT,
+                f"whole-problem target is not in the audited selection: {target.theorem}",
+            )
+        declaration = by_theorem.get(target.theorem)
         if declaration is None:
             raise VerifierError(
                 ReasonCode.THEOREM_NOT_FOUND,
@@ -309,26 +485,98 @@ def select_gold_declarations(
     return tuple(selected)
 
 
+def group_gold_declarations(
+    declarations: Iterable[CatalogDeclaration],
+    grouping: TaskGrouping,
+) -> tuple[tuple[CatalogDeclaration, ...], ...]:
+    selected = tuple(declarations)
+    by_theorem = {item.theorem: item for item in selected}
+    grouped_theorems = {
+        theorem
+        for group in grouping.groups
+        for theorem in group.theorems
+    }
+    if not grouped_theorems <= set(by_theorem):
+        missing = sorted(grouped_theorems - set(by_theorem))
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "task grouping contains unselected theorems: " + ", ".join(missing),
+        )
+    group_by_theorem = {
+        theorem: group
+        for group in grouping.groups
+        for theorem in group.theorems
+    }
+    emitted: set[str] = set()
+    result = []
+    for declaration in selected:
+        group = group_by_theorem.get(declaration.theorem)
+        if group is None:
+            result.append((declaration,))
+            continue
+        if group.identifier in emitted:
+            continue
+        members = tuple(by_theorem[theorem] for theorem in group.theorems)
+        if (
+            any(item.source_path != group.source_path for item in members)
+            or len({item.module for item in members}) != 1
+            or len({item.type_hash for item in members}) != len(members)
+        ):
+            raise VerifierError(
+                ReasonCode.INVALID_ARGUMENT,
+                f"task group is not a coherent exact-source group: {group.identifier}",
+            )
+        result.append(members)
+        emitted.add(group.identifier)
+    if (
+        emitted != {group.identifier for group in grouping.groups}
+        or sum(len(group) for group in result) != len(selected)
+        or {
+            item.theorem
+            for group in result
+            for item in group
+        }
+        != set(by_theorem)
+    ):
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "task grouping does not cover the selected theorem set exactly once",
+        )
+    return tuple(result)
+
+
 def build_gold_allowlist(
     *,
     catalog: Catalog,
     retired: RetiredSources,
     selection_audit: SelectionAudit,
-    selected: Iterable[CatalogDeclaration],
+    whole_problem_targets: WholeProblemTargets,
+    grouping: TaskGrouping,
+    selected: Iterable[tuple[CatalogDeclaration, ...]],
     bundles: Iterable[TaskBundle],
     audit_date_utc: str,
 ) -> bytes:
-    declarations = tuple(selected)
+    declaration_groups = tuple(selected)
     task_bundles = tuple(bundles)
-    if len(declarations) != len(task_bundles) or not declarations:
+    if len(declaration_groups) != len(task_bundles) or not declaration_groups:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            "gold declarations and generated bundles must be non-empty and one-to-one",
+            "gold task groups and generated bundles must be non-empty and one-to-one",
         )
-    if tuple(declaration.theorem for declaration in declarations) != selection_audit.theorems:
+    declarations = tuple(
+        declaration
+        for group in declaration_groups
+        for declaration in group
+    )
+    if (
+        {declaration.theorem for declaration in declarations}
+        != set(whole_problem_targets.theorems)
+        or not set(whole_problem_targets.theorems) <= set(selection_audit.theorems)
+        or any(len(group) != 1 for group in declaration_groups)
+    ):
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            "generated gold declarations do not match the audited selection",
+            "generated gold declarations are not one-target whole-problem tasks",
         )
     catalog_indices = {
         declaration.theorem: index
@@ -336,37 +584,56 @@ def build_gold_allowlist(
     }
     sources = []
     tasks = []
-    for declaration, bundle in zip(declarations, task_bundles, strict=True):
+    for declarations_for_task, bundle in zip(
+        declaration_groups,
+        task_bundles,
+        strict=True,
+    ):
         manifest: TaskManifest = bundle.manifest
+        primary = declarations_for_task[0]
         if (
-            manifest.source_theorem != declaration.theorem
+            manifest.source_theorem != primary.theorem
             or manifest.task_mode != GOLD_TASK_MODE
             or not manifest.production_eligible
-            or manifest.source_type_hash != declaration.type_hash
-            or manifest.generated_target_type_hash != declaration.type_hash
+            or manifest.source_type_hash != primary.type_hash
+            or manifest.generated_target_type_hash != primary.type_hash
+            or tuple(item.theorem for item in bundle.sources)
+            != tuple(item.theorem for item in declarations_for_task)
+            or tuple(item.type_hash for item in bundle.sources)
+            != tuple(item.type_hash for item in declarations_for_task)
         ):
             raise VerifierError(
                 ReasonCode.INVALID_MANIFEST,
-                f"generated gold task is not the exact source formalization: {declaration.theorem}",
+                f"generated gold task is not the exact source group: {primary.theorem}",
             )
-        source_index = catalog_indices[declaration.theorem]
-        sources.append(
-            {
-                "index": source_index,
-                "source_path": declaration.source_path,
-                "source_type_sha256": declaration.type_hash,
-                "theorem": declaration.theorem,
-            }
-        )
+        source_indices = []
+        for declaration in declarations_for_task:
+            source_index = catalog_indices[declaration.theorem]
+            source_indices.append(source_index)
+            sources.append(
+                {
+                    "index": source_index,
+                    "source_path": declaration.source_path,
+                    "source_type_sha256": declaration.type_hash,
+                    "theorem": declaration.theorem,
+                }
+            )
         tasks.append(
             {
+                "completion_policy": "all_of",
                 "mode": GOLD_TASK_MODE,
-                "source_index": source_index,
-                "source_path": declaration.source_path,
-                "target_type_sha256": manifest.generated_target_type_hash,
+                "source_indices": source_indices,
+                "source_path": primary.source_path,
+                "target_type_sha256s": [
+                    declaration.type_hash
+                    for declaration in declarations_for_task
+                ],
                 "task_bundle_sha256": bundle.sha256,
                 "task_id": manifest.task_id,
-                "theorem": declaration.theorem,
+                "theorems": [
+                    declaration.theorem
+                    for declaration in declarations_for_task
+                ],
             }
         )
     value = {
@@ -379,15 +646,24 @@ def build_gold_allowlist(
             "compiled_target_validation": True,
             "exact_source_type": True,
             "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
+            "grouping": GOLD_POOL_GROUPING,
             "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
             "mode": GOLD_TASK_MODE,
-            "one_task_per_source_path": False,
-            "pool_size": len(declarations),
+            "multi_target_tasks": sum(
+                len(group) > 1
+                for group in declaration_groups
+            ),
+            "one_task_per_source_path": True,
+            "pool_size": len(declaration_groups),
             "retired_source_theorems_sha256": retired.sha256,
             "selection": GOLD_POOL_SELECTION,
             "selection_audit_sha256": selection_audit.sha256,
             "source_category": "research open",
+            "source_theorem_count": len(declarations),
             "synthetic_negation": False,
+            "task_scope": GOLD_POOL_TASK_SCOPE,
+            "task_groups_sha256": grouping.sha256,
+            "whole_problem_targets_sha256": whole_problem_targets.sha256,
         },
         "repository_commit": catalog.repository_commit,
         "schema_version": GOLD_POOL_SCHEMA_VERSION,

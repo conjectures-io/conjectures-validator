@@ -19,6 +19,10 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«912»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/912](https://www.erdosproblems.com/912)",
+    "[Er82c](https://users.renyi.hu/~p_erdos/1982-08.pdf) Erdős, P., Miscellaneous problems in number theory. Congr. Numer. (1982), 25-45."
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/912.lean",
   "supported_modes": [

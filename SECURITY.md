@@ -5,10 +5,11 @@ submission-transport miner and its signed commit/reveal protocol are documented 
 [`docs/SUBNET.md`](docs/SUBNET.md); networking and wallets never enter the verifier container.
 
 This verifier treats a miner's submitted Lean file as hostile. A production acceptance means that
-the pinned Comparator found the submitted `Bounty.target` to have the same statement as the
-committed challenge, found no transitive axiom outside the explicit allow-list, and replayed the
-exported environment through the Lean kernel. It does not mean that the informal conjecture was
-formalized correctly or that the proof is mathematically novel.
+the pinned Comparator found every theorem named by the task (`Bounty.target` for a single target or
+`Bounty.target_1`, `Bounty.target_2`, and so on for an all-of group) to have the same statement as
+the committed challenge, found no transitive axiom outside the explicit allow-list, and replayed
+the exported environment through the Lean kernel. It does not mean that the informal conjecture
+was formalized correctly or that the proof is mathematically novel.
 
 ## Production acceptance contract
 
@@ -47,11 +48,11 @@ a miner-facing API.
 Formal Conjectures represents an open conjecture as a theorem whose repository proof transitively
 contains Lean's `sorryAx`. Production task generation intentionally requires that marker, the
 `research open` category, `DIRECT_PROP` classification, theorem declaration kind, and absence of
-formal-proof metadata. The task must use `formalized` mode: its complete target type is
-definitionally equal to the source theorem type and its canonical target hash equals the canonical
-source hash. Answer extraction and synthetic positive/negative pairing are not admitted to the
-gold pool. Those facts are independently recomputed from the compiled Lean environment during
-verification.
+formal-proof metadata. The task must use `formalized` mode: every complete target type is
+definitionally equal to its corresponding source theorem type and has the same canonical hash.
+Answer extraction and synthetic positive/negative pairing are not admitted to the gold pool.
+Those facts are independently recomputed for every target from the compiled Lean environment
+during verification.
 
 The admitted source theorem is used only to identify and reconstruct its type. It is placed on the
 forbidden-dependency list, and `sorryAx` is not a permitted axiom. Consequently, invoking that

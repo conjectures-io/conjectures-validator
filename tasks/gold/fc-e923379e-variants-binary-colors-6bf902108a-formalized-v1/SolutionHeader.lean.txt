@@ -1,4 +1,0 @@
-import FormalConjectures.ErdosProblems.«1167»
-import TaskSupport
-
-namespace Bounty

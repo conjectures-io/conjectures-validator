@@ -19,6 +19,10 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«617»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/617](https://www.erdosproblems.com/617)",
+    "[ErGy99](https://doi.org/10.1016/S0012-365X(98)00323-9) Erdős, Paul and Gyárfás, András, Split and balanced colorings of complete graphs. Discrete Math. (1999), 79-86."
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/617.lean",
   "supported_modes": [

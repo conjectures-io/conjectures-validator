@@ -1,0 +1,152 @@
+{
+  "policy": "one_task_one_complete_problem",
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "schema_version": 1,
+  "targets": [
+    {
+      "erdos_problem_number": 1094,
+      "source_path": "FormalConjectures/ErdosProblems/1094.lean",
+      "theorem": "Erdos1094.erdos_1094"
+    },
+    {
+      "erdos_problem_number": 11,
+      "source_path": "FormalConjectures/ErdosProblems/11.lean",
+      "theorem": "Erdos11.erdos_11"
+    },
+    {
+      "erdos_problem_number": 1107,
+      "source_path": "FormalConjectures/ErdosProblems/1107.lean",
+      "theorem": "Erdos1107.erdos_1107"
+    },
+    {
+      "erdos_problem_number": 184,
+      "source_path": "FormalConjectures/ErdosProblems/184.lean",
+      "theorem": "Erdos184.erdos_184"
+    },
+    {
+      "erdos_problem_number": 233,
+      "source_path": "FormalConjectures/ErdosProblems/233.lean",
+      "theorem": "Erdos233.erdos_233"
+    },
+    {
+      "erdos_problem_number": 236,
+      "source_path": "FormalConjectures/ErdosProblems/236.lean",
+      "theorem": "Erdos236.erdos_236"
+    },
+    {
+      "erdos_problem_number": 242,
+      "source_path": "FormalConjectures/ErdosProblems/242.lean",
+      "theorem": "Erdos242.erdos_242"
+    },
+    {
+      "erdos_problem_number": 243,
+      "source_path": "FormalConjectures/ErdosProblems/243.lean",
+      "theorem": "Erdos243.erdos_243"
+    },
+    {
+      "erdos_problem_number": 274,
+      "source_path": "FormalConjectures/ErdosProblems/274.lean",
+      "theorem": "Erdos274.herzog_schonheim"
+    },
+    {
+      "erdos_problem_number": 28,
+      "source_path": "FormalConjectures/ErdosProblems/28.lean",
+      "theorem": "Erdos28.erdos_28"
+    },
+    {
+      "erdos_problem_number": 282,
+      "source_path": "FormalConjectures/ErdosProblems/282.lean",
+      "theorem": "Erdos282.erdos_282"
+    },
+    {
+      "erdos_problem_number": 340,
+      "source_path": "FormalConjectures/ErdosProblems/340.lean",
+      "theorem": "Erdos340.erdos_340"
+    },
+    {
+      "erdos_problem_number": 364,
+      "source_path": "FormalConjectures/ErdosProblems/364.lean",
+      "theorem": "Erdos364.erdos_364"
+    },
+    {
+      "erdos_problem_number": 371,
+      "source_path": "FormalConjectures/ErdosProblems/371.lean",
+      "theorem": "Erdos371.erdos_371"
+    },
+    {
+      "erdos_problem_number": 373,
+      "source_path": "FormalConjectures/ErdosProblems/373.lean",
+      "theorem": "Erdos373.erdos_373"
+    },
+    {
+      "erdos_problem_number": 41,
+      "source_path": "FormalConjectures/ErdosProblems/41.lean",
+      "theorem": "Erdos41.erdos_41"
+    },
+    {
+      "erdos_problem_number": 535,
+      "source_path": "FormalConjectures/ErdosProblems/535.lean",
+      "theorem": "Erdos535.erdos_535"
+    },
+    {
+      "erdos_problem_number": 617,
+      "source_path": "FormalConjectures/ErdosProblems/617.lean",
+      "theorem": "Erdos617.erdos_617"
+    },
+    {
+      "erdos_problem_number": 624,
+      "source_path": "FormalConjectures/ErdosProblems/624.lean",
+      "theorem": "Erdos624.erdos_624"
+    },
+    {
+      "erdos_problem_number": 677,
+      "source_path": "FormalConjectures/ErdosProblems/677.lean",
+      "theorem": "Erdos677.erdos_677"
+    },
+    {
+      "erdos_problem_number": 779,
+      "source_path": "FormalConjectures/ErdosProblems/779.lean",
+      "theorem": "Erdos779.erdos_779"
+    },
+    {
+      "erdos_problem_number": 82,
+      "source_path": "FormalConjectures/ErdosProblems/82.lean",
+      "theorem": "Erdos82.erdos_82"
+    },
+    {
+      "erdos_problem_number": 859,
+      "source_path": "FormalConjectures/ErdosProblems/859.lean",
+      "theorem": "Erdos859.erdos_859"
+    },
+    {
+      "erdos_problem_number": 889,
+      "source_path": "FormalConjectures/ErdosProblems/889.lean",
+      "theorem": "Erdos889.erdos_889"
+    },
+    {
+      "erdos_problem_number": 89,
+      "source_path": "FormalConjectures/ErdosProblems/89.lean",
+      "theorem": "Erdos89.erdos_89"
+    },
+    {
+      "erdos_problem_number": 912,
+      "source_path": "FormalConjectures/ErdosProblems/912.lean",
+      "theorem": "Erdos912.erdos_912"
+    },
+    {
+      "erdos_problem_number": 932,
+      "source_path": "FormalConjectures/ErdosProblems/932.lean",
+      "theorem": "Erdos932.erdos_932"
+    },
+    {
+      "erdos_problem_number": 952,
+      "source_path": "FormalConjectures/ErdosProblems/952.lean",
+      "theorem": "Erdos952.erdos_952"
+    },
+    {
+      "erdos_problem_number": 982,
+      "source_path": "FormalConjectures/ErdosProblems/982.lean",
+      "theorem": "Erdos982.erdos_982"
+    }
+  ]
+}

@@ -19,6 +19,13 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«184»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/184](https://www.erdosproblems.com/184)",
+    "[BM22](https://arxiv.org/abs/2211.07689) Bucić, M. and Montgomery, R., Towards the Erdős-Gallai Cycle Decomposition Conjecture. arXiv:2211.07689 (2022).",
+    "[CFS14](https://arxiv.org/abs/1310.0632) Conlon, David and Fox, Jacob and Sudakov, Benny, Cycle packing. Random Structures Algorithms (2014), 608-626.",
+    "[EGP66](https://doi.org/10.4153/CJM-1966-014-3) Erdős, Paul and Goodman, A. W. and Pósa, Lajos, The representation of a graph by set intersections. Canadian J. Math. (1966), 106-112.",
+    "[Er71](https://users.renyi.hu/~p_erdos/1971-25.pdf) Erdős, P., Some unsolved problems in graph theory and combinatorial analysis. Combinatorial Mathematics and its Applications (Proc. Conf., Oxford, 1969) (1971), 97-109."
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/184.lean",
   "supported_modes": [

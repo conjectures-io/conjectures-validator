@@ -19,8 +19,10 @@ from frontier_subnet.task_registry import GoldTaskRegistry, TaskNotAllowed
 from frontier_subnet.verifier_adapter import ProductionVerifierAdapter
 from verifier.gold_pool import (
     EXCLUDED_SOURCE_PREFIXES,
+    GOLD_POOL_GROUPING,
     GOLD_POOL_SCHEMA_VERSION,
     GOLD_POOL_SELECTION,
+    GOLD_POOL_TASK_SCOPE,
     MINIMUM_ERDOS_TASKS,
 )
 from verifier.hashing import sha256_bytes
@@ -317,7 +319,28 @@ def test_cli_load_is_local_only_and_copies_submission(tmp_path, capsys):
 
 
 def test_task_registry_rejects_non_deny_or_unknown_schema(tmp_path):
-    source_type = "sha256:" + "c" * 64
+    source_rows = [
+        {
+            "index": index,
+            "source_path": f"FormalConjectures/ErdosProblems/{index + 1}.lean",
+            "source_type_sha256": f"sha256:{index + 1:064x}",
+            "theorem": f"Fixture.test_{index + 1}",
+        }
+        for index in range(MINIMUM_ERDOS_TASKS)
+    ]
+    task_rows = [
+        {
+            "completion_policy": "all_of",
+            "mode": "formalized",
+            "source_indices": [source["index"]],
+            "source_path": source["source_path"],
+            "task_id": f"fc-test-{source['index'] + 1}-formalized-v1",
+            "task_bundle_sha256": f"sha256:{source['index'] + 1001:064x}",
+            "target_type_sha256s": [source["source_type_sha256"]],
+            "theorems": [source["theorem"]],
+        }
+        for source in source_rows
+    ]
     base = {
         "schema_version": GOLD_POOL_SCHEMA_VERSION,
         "default": "DENY",
@@ -328,39 +351,37 @@ def test_task_registry_rejects_non_deny_or_unknown_schema(tmp_path):
             "compiled_target_validation": True,
             "exact_source_type": True,
             "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
+            "grouping": GOLD_POOL_GROUPING,
             "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
             "mode": "formalized",
-            "one_task_per_source_path": False,
-            "pool_size": 1,
+            "multi_target_tasks": 0,
+            "one_task_per_source_path": True,
+            "pool_size": MINIMUM_ERDOS_TASKS,
             "retired_source_theorems_sha256": "sha256:" + "d" * 64,
             "selection": GOLD_POOL_SELECTION,
             "selection_audit_sha256": "sha256:" + "e" * 64,
             "source_category": "research open",
+            "source_theorem_count": MINIMUM_ERDOS_TASKS,
             "synthetic_negation": False,
+            "task_scope": GOLD_POOL_TASK_SCOPE,
+            "task_groups_sha256": "sha256:" + "f" * 64,
+            "whole_problem_targets_sha256": "sha256:" + "1" * 64,
         },
-        "allowed_source_theorems": [
-            {
-                "index": 1,
-                "source_path": "FormalConjectures/ErdosProblems/9999.lean",
-                "source_type_sha256": source_type,
-                "theorem": "Fixture.test",
-            }
-        ],
-        "allowed_task_bundles": [
-            {
-                "mode": "formalized",
-                "source_index": 1,
-                "source_path": "FormalConjectures/ErdosProblems/9999.lean",
-                "task_id": "fc-test-formalized-v1",
-                "task_bundle_sha256": "sha256:" + "b" * 64,
-                "target_type_sha256": source_type,
-                "theorem": "Fixture.test",
-            }
-        ],
+        "allowed_source_theorems": source_rows,
+        "allowed_task_bundles": task_rows,
     }
     valid = tmp_path / "valid.json"
     valid.write_text(json.dumps(base), encoding="utf-8")
-    assert len(GoldTaskRegistry.load(valid).tasks) == 1
+    assert len(GoldTaskRegistry.load(valid).tasks) == MINIMUM_ERDOS_TASKS
+    incorrect_multi_target_count = json.loads(json.dumps(base))
+    incorrect_multi_target_count["pool_policy"]["multi_target_tasks"] = 1
+    incorrect_count = tmp_path / "incorrect-multi-target-count.json"
+    incorrect_count.write_text(
+        json.dumps(incorrect_multi_target_count),
+        encoding="utf-8",
+    )
+    with pytest.raises(TaskNotAllowed):
+        GoldTaskRegistry.load(incorrect_count)
     for name, update in (
         ("schema", {"schema_version": 1}),
         ("boolean-schema", {"schema_version": True}),

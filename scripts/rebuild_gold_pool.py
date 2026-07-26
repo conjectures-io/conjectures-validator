@@ -15,11 +15,14 @@ from verifier.catalog import load_catalog
 from verifier.gold_pool import (
     DEFAULT_GOLD_POOL_SIZE,
     build_gold_allowlist,
+    group_gold_declarations,
     load_retired_sources,
     load_selection_audit,
+    load_task_grouping,
+    load_whole_problem_targets,
     select_gold_declarations,
 )
-from verifier.task_generator import generate_task
+from verifier.task_generator import generate_group_task, generate_task
 from verifier.task_loader import load_task_bundle
 from verifier.task_policy import GOLD_TASK_MODE
 from verifier.workspace import target_validator
@@ -48,6 +51,16 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         default=ROOT / "gold/selection-audit.json",
     )
+    result.add_argument(
+        "--task-groups",
+        type=Path,
+        default=ROOT / "gold/task-groups.json",
+    )
+    result.add_argument(
+        "--whole-problem-targets",
+        type=Path,
+        default=ROOT / "gold/whole-problem-targets.json",
+    )
     result.add_argument("--output", type=Path, default=ROOT / "tasks/gold")
     result.add_argument("--allowlist", type=Path, default=ROOT / "gold/allowlist.json")
     result.add_argument("--pool-size", type=int, default=DEFAULT_GOLD_POOL_SIZE)
@@ -73,12 +86,18 @@ def main() -> int:
     catalog = load_catalog(arguments.catalog)
     retired = load_retired_sources(arguments.retired_sources)
     selection_audit = load_selection_audit(arguments.selection_audit)
-    selected = select_gold_declarations(
+    whole_problem_targets = load_whole_problem_targets(
+        arguments.whole_problem_targets
+    )
+    selected_declarations = select_gold_declarations(
         catalog=catalog,
         retired=retired,
         selection_audit=selection_audit,
+        whole_problem_targets=whole_problem_targets,
         pool_size=arguments.pool_size,
     )
+    grouping = load_task_grouping(arguments.task_groups)
+    selected = group_gold_declarations(selected_declarations, grouping)
     validate_target = target_validator(ROOT)
     temporary = Path(tempfile.mkdtemp(prefix=".gold-pool-", dir=output.parent))
     generated = temporary / "gold"
@@ -86,15 +105,25 @@ def main() -> int:
     bundles = []
     try:
         def generate_one(item):
-            index, declaration = item
-            print(f"[{index}/{len(selected)}] {declaration.theorem}", flush=True)
-            manifest = generate_task(
-                catalog=catalog,
-                declaration=declaration,
-                mode=GOLD_TASK_MODE,
-                output=generated / f"pending-{index:03d}",
-                validate_target=validate_target,
-            )
+            index, declarations = item
+            names = ", ".join(declaration.theorem for declaration in declarations)
+            print(f"[{index}/{len(selected)}] {names}", flush=True)
+            if len(declarations) == 1:
+                manifest = generate_task(
+                    catalog=catalog,
+                    declaration=declarations[0],
+                    mode=GOLD_TASK_MODE,
+                    output=generated / f"pending-{index:03d}",
+                    validate_target=validate_target,
+                )
+            else:
+                manifest = generate_group_task(
+                    catalog=catalog,
+                    declarations=declarations,
+                    mode=GOLD_TASK_MODE,
+                    output=generated / f"pending-{index:03d}",
+                    validate_target=validate_target,
+                )
             destination = generated / manifest.task_id
             os.replace(generated / f"pending-{index:03d}", destination)
             return load_task_bundle(destination)
@@ -107,6 +136,8 @@ def main() -> int:
             catalog=catalog,
             retired=retired,
             selection_audit=selection_audit,
+            whole_problem_targets=whole_problem_targets,
+            grouping=grouping,
             selected=selected,
             bundles=bundles,
             audit_date_utc=arguments.audit_date,

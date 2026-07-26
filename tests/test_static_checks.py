@@ -1,5 +1,7 @@
 from verifier.static_checks import check_submission, lean_tokens
 
+from dataclasses import replace
+
 from conftest import manifest
 
 
@@ -143,6 +145,25 @@ def test_source_declaration_dependency_is_rejected():
         manifest(forbidden=("VerifierFixtures.direct",)),
     )
     assert not quoted.valid
+
+
+def test_group_source_dependencies_are_only_allowed_in_target_types():
+    grouped = replace(
+        manifest(forbidden=("Fixture.parts.i", "Fixture.parts.ii")),
+        schema_version=2,
+        target_theorem="Bounty.target_1",
+        theorem_names=("Bounty.target_1", "Bounty.target_2"),
+    )
+    valid = (
+        "theorem target_1 : fcTypeOfName% \"Fixture.parts.i\" := by trivial\n"
+        "theorem target_2 : fcTypeOfName% \"Fixture.parts.ii\" := by trivial\n"
+    )
+    invalid = (
+        "theorem target_1 : True := by exact Fixture.parts.i\n"
+        "theorem target_2 : True := by trivial\n"
+    )
+    assert check_submission(valid, grouped).valid
+    assert not check_submission(invalid, grouped).valid
 
 
 def test_rooted_source_dependency_with_dots_inside_quoted_names_is_rejected():

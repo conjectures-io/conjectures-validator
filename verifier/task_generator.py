@@ -31,6 +31,8 @@ TRUSTED_NAMES = (
     "comparator-config.json",
     "source-metadata.json",
 )
+GROUP_METADATA_NAME = "group-metadata.json"
+GROUP_TRUSTED_NAMES = (*TRUSTED_NAMES, GROUP_METADATA_NAME)
 LEAN_MODULE_NAME = re.compile(
     r"(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»)"
     r"(?:\.(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»))*"
@@ -48,6 +50,18 @@ def task_id(repository_commit: str, theorem: str, mode: str, adapter_version: in
     seed = f"{repository_commit}\0{theorem}\0{mode}\0{adapter_version}"
     digest = sha256_text(seed)[7:17]
     return f"fc-{repository_commit[:8]}-{task_slug(theorem)}-{digest}-{mode}-v{adapter_version}"
+
+
+def group_task_id(
+    repository_commit: str,
+    theorems: tuple[str, ...],
+    mode: str,
+    adapter_version: int,
+) -> str:
+    seed = f"{repository_commit}\0{mode}\0{adapter_version}\0" + "\0".join(theorems)
+    digest = sha256_text(seed)[7:17]
+    slug = f"{task_slug(theorems[0])}-all-{len(theorems)}"
+    return f"fc-{repository_commit[:8]}-{slug}-{digest}-{mode}-v{adapter_version}"
 
 
 def _imports(declaration: CatalogDeclaration) -> str:
@@ -68,14 +82,29 @@ def _challenge_text(declaration: CatalogDeclaration, generated: GeneratedLean) -
     )
 
 
-def _comparator_config(generated: GeneratedLean, enable_nanoda: bool) -> dict[str, Any]:
+def _group_challenge_text(
+    declaration: CatalogDeclaration,
+    generated: tuple[GeneratedLean, ...],
+) -> str:
+    targets = "\n\n".join(
+        f"theorem target_{index} : {item.target_type} := by\n  sorry"
+        for index, item in enumerate(generated, start=1)
+    )
+    return f"{_imports(declaration)}\n{targets}\n\nend Bounty\n"
+
+
+def _comparator_config(
+    generated: GeneratedLean,
+    enable_nanoda: bool,
+    theorem_names: tuple[str, ...] = ("Bounty.target",),
+) -> dict[str, Any]:
     definitions = tuple(
         f"Bounty.{line.split()[1]}" for line in generated.definition_declarations if line.startswith("def ")
     )
     return {
         "challenge_module": "Challenge",
         "solution_module": "Solution",
-        "theorem_names": ["Bounty.target"],
+        "theorem_names": list(theorem_names),
         "definition_names": list(definitions),
         "permitted_axioms": list(PERMITTED_AXIOMS),
         "enable_nanoda": enable_nanoda,
@@ -111,6 +140,72 @@ def trusted_task_payloads(
         "SolutionFooter.lean.txt": "\nend Bounty\n",
         "comparator-config.json": pretty_json(_comparator_config(generated, enable_nanoda)),
         "source-metadata.json": pretty_json(source_metadata),
+    }
+    return {name: content.encode("utf-8") for name, content in texts.items()}
+
+
+def trusted_group_task_payloads(
+    declarations: tuple[CatalogDeclaration, ...],
+    mode: str,
+    enable_nanoda: bool,
+    repository_commit: str,
+    adapter_version: int,
+) -> Mapping[str, bytes]:
+    if len(declarations) < 2:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "an all-of task group must contain at least two declarations",
+        )
+    generated = []
+    source_metadata = []
+    for declaration in declarations:
+        adapter = adapter_for(declaration)
+        if adapter is None or adapter.version != adapter_version:
+            raise VerifierError(
+                ReasonCode.INVALID_MANIFEST,
+                "task adapter is unavailable or has a different version",
+            )
+        generated.append(
+            adapter.generate(
+                declaration,
+                mode,
+                GenerationContext(repository_commit, adapter_version),
+            )
+        )
+        source_metadata.append(
+            {
+                **declaration.to_dict(),
+                "repository_commit": repository_commit,
+                "adapter_version": adapter_version,
+            }
+        )
+    generated_items = tuple(generated)
+    theorem_names = tuple(
+        f"Bounty.target_{index}"
+        for index in range(1, len(declarations) + 1)
+    )
+    texts = {
+        "Challenge.lean": _group_challenge_text(declarations[0], generated_items),
+        "SolutionHeader.lean.txt": _imports(declarations[0]),
+        "SolutionFooter.lean.txt": "\nend Bounty\n",
+        "comparator-config.json": pretty_json(
+            {
+                **_comparator_config(
+                    generated_items[0],
+                    enable_nanoda,
+                    theorem_names,
+                ),
+                "definition_names": [],
+            }
+        ),
+        "source-metadata.json": pretty_json(source_metadata[0]),
+        GROUP_METADATA_NAME: pretty_json(
+            {
+                "completion_policy": "all_of",
+                "schema_version": 1,
+                "sources": source_metadata,
+            }
+        ),
     }
     return {name: content.encode("utf-8") for name, content in texts.items()}
 
@@ -244,6 +339,186 @@ def generate_task(
         )
         (temporary / "manifest.json").write_text(pretty_json(manifest.to_dict()), encoding="utf-8")
         (temporary / "trusted-hashes.json").write_text(pretty_json(trusted_hashes), encoding="utf-8")
+        os.replace(temporary, output)
+        return manifest
+    except Exception:
+        shutil.rmtree(temporary, ignore_errors=True)
+        raise
+
+
+def generate_group_task(
+    *,
+    catalog: Catalog,
+    declarations: tuple[CatalogDeclaration, ...],
+    mode: str,
+    output: Path,
+    enable_nanoda: bool = False,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
+    validate_target: Callable[..., str],
+) -> TaskManifest:
+    if len(declarations) < 2:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "an all-of task group must contain at least two declarations",
+        )
+    if len({item.theorem for item in declarations}) != len(declarations):
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "task group contains duplicate theorems")
+    if len({item.type_hash for item in declarations}) != len(declarations):
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "task group contains duplicate target types")
+    if len({(item.module, item.source_path) for item in declarations}) != 1:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "all-of task declarations must come from one source module",
+        )
+    if mode != GOLD_TASK_MODE:
+        raise VerifierError(
+            ReasonCode.INVALID_TASK_MODE,
+            "all-of production tasks require formalized mode",
+        )
+    if not 0 < timeout_seconds <= MAX_TIMEOUT_SECONDS:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"timeout must be between 1 and {MAX_TIMEOUT_SECONDS} seconds",
+        )
+    if not 0 < max_submission_bytes <= MAX_SUBMISSION_BYTES:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"submission limit must be between 1 and {MAX_SUBMISSION_BYTES} bytes",
+        )
+
+    generated: list[GeneratedLean] = []
+    known_collisions: set[str] = set()
+    adapter_version: int | None = None
+    for declaration in declarations:
+        adapter = adapter_for(declaration)
+        if adapter is None or declaration.classification != Classification.DIRECT_PROP:
+            raise VerifierError(
+                ReasonCode.UNSUPPORTED_DECLARATION,
+                "all-of production tasks require direct propositions",
+            )
+        if adapter_version is None:
+            adapter_version = adapter.version
+        elif adapter.version != adapter_version:
+            raise VerifierError(
+                ReasonCode.INVALID_ARGUMENT,
+                "all-of task declarations must use the same adapter version",
+            )
+        eligible, violations, collisions = production_eligibility(
+            catalog,
+            declaration,
+            mode,
+        )
+        if not eligible:
+            raise VerifierError(
+                ReasonCode.INELIGIBLE_TASK,
+                f"declaration is not production eligible: {'; '.join(violations)}",
+            )
+        known_collisions.update(collisions)
+        generated.append(
+            adapter.generate(
+                declaration,
+                mode,
+                GenerationContext(catalog.repository_commit, adapter.version),
+            )
+        )
+    assert adapter_version is not None
+
+    theorem_names = tuple(
+        f"Bounty.target_{index}"
+        for index in range(1, len(declarations) + 1)
+    )
+    identifier = group_task_id(
+        catalog.repository_commit,
+        tuple(item.theorem for item in declarations),
+        mode,
+        adapter_version,
+    )
+    if output.exists():
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, f"task output already exists: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = Path(tempfile.mkdtemp(prefix=f".{identifier}.", dir=output.parent))
+    try:
+        payloads = trusted_group_task_payloads(
+            declarations,
+            mode,
+            enable_nanoda,
+            catalog.repository_commit,
+            adapter_version,
+        )
+        for name, content in payloads.items():
+            (temporary / name).write_bytes(content)
+
+        generated_hashes = []
+        for declaration, generated_item, target_name in zip(
+            declarations,
+            generated,
+            theorem_names,
+            strict=True,
+        ):
+            generated_hash = validate_target(
+                temporary,
+                declaration,
+                generated_item,
+                mode,
+                target_name,
+            )
+            if generated_hash != declaration.type_hash:
+                raise VerifierError(
+                    ReasonCode.STATEMENT_MISMATCH,
+                    "grouped task target is not the exact source theorem type",
+                )
+            target_collisions = proved_type_collisions(
+                catalog,
+                generated_hash,
+                declaration.theorem,
+            )
+            if target_collisions:
+                raise VerifierError(
+                    ReasonCode.INELIGIBLE_TASK,
+                    "generated target matches proved declarations: "
+                    + ", ".join(target_collisions),
+                )
+            known_collisions.update(target_collisions)
+            generated_hashes.append(generated_hash)
+
+        trusted_hashes = hash_named_files(temporary, GROUP_TRUSTED_NAMES)
+        primary = declarations[0]
+        manifest = TaskManifest(
+            schema_version=2,
+            task_id=identifier,
+            repository_commit=catalog.repository_commit,
+            source_theorem=primary.theorem,
+            source_module=primary.module,
+            source_path=primary.source_path,
+            source_type_hash=primary.type_hash,
+            generated_target_type_hash=generated_hashes[0],
+            classification=Classification.DIRECT_PROP,
+            task_mode=mode,
+            challenge_module="Challenge",
+            solution_module="Solution",
+            target_theorem=theorem_names[0],
+            theorem_names=theorem_names,
+            definition_names=(),
+            forbidden_dependencies=tuple(item.theorem for item in declarations),
+            permitted_axioms=PERMITTED_AXIOMS,
+            enable_nanoda=enable_nanoda,
+            timeout_seconds=timeout_seconds,
+            max_submission_bytes=max_submission_bytes,
+            adapter_version=adapter_version,
+            trusted_file_hashes=trusted_hashes,
+            production_eligible=True,
+            known_proof_collisions=tuple(sorted(known_collisions)),
+            answer_policy={},
+        )
+        (temporary / "manifest.json").write_text(
+            pretty_json(manifest.to_dict()),
+            encoding="utf-8",
+        )
+        (temporary / "trusted-hashes.json").write_text(
+            pretty_json(trusted_hashes),
+            encoding="utf-8",
+        )
         os.replace(temporary, output)
         return manifest
     except Exception:

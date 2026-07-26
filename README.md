@@ -73,9 +73,12 @@ python -m verifier task generate \
 
 Use the immutable bundles in [`tasks/gold/`](tasks/gold/) as the standard public targets for
 solver attempts. The collection is pinned to Formal Conjectures commit
-`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 100 audited Erdős tasks from 67
-source files. Written on the Wall II is hard-excluded. The 178 source declarations and canonical
-types used by the two previous pools are explicitly retired and are not reused.
+`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 29 reward tasks covering 29
+audited Erdős problems from 29 source files. Each task has one exact canonical theorem whose proof
+closes the whole source problem. Partial results, numbered parts, variants, candidate bounds, and
+multi-target bundles are excluded. Written on the Wall II is hard-excluded. The 178 source
+declarations and canonical types used by the two previous pools are explicitly retired and are not
+reused.
 
 Every gold task has mode `formalized`. Its generated target is definitionally equal to the source
 theorem's complete Lean type and has the same canonical type hash. The pool admits only direct
@@ -83,10 +86,10 @@ propositions: it does not synthesize `¬P`, extract one side of an answer wrappe
 new answer. A source theorem that is itself a negation remains a negation because that is the
 formalization; the generator never synthesizes one.
 
-Choose a bundle, read its `Challenge.lean` and `manifest.json`, then write
-`submissions/Main.lean` with the same `Bounty.target` theorem and replace the `sorry` with a proof.
-Do not edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted before spending
-solver time:
+Choose a task, read its `Challenge.lean` and `manifest.json`, then write
+`submissions/Main.lean` with a proof of the single `Bounty.target`, replacing its `sorry`. Do not
+edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted before spending solver
+time:
 
 ```bash
 TASK="$(find tasks/gold -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
@@ -103,9 +106,10 @@ attackable” is not a guarantee of solvability and does not prove that the info
 correct.
 
 The deterministic pool selection and compiled validation are implemented by
-`scripts/rebuild_gold_pool.py`. It loads the exact audited selection, admits at most one theorem per
-canonical type, enforces the Erdős minimum and WOWII exclusion, and refuses to overwrite an
-existing pool or allowlist. The complete admission contract is in
+`scripts/rebuild_gold_pool.py`. It loads the exact audited selection and
+[`gold/whole-problem-targets.json`](gold/whole-problem-targets.json), admits exactly one canonical
+whole-problem theorem per task and source file, enforces the Erdős minimum and WOWII exclusion, and
+refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`gold/README.md`](gold/README.md).
 
 The direct CLI form is below. It reports a production sandbox only when the live probe confirms an
@@ -197,12 +201,19 @@ definitional equality, and emits canonical source and target types for hashing. 
 a missing/moved declaration, a source hash change, classification drift, or target mismatch.
 
 Each task contains `manifest.json`, `Challenge.lean`, trusted solution header/footer,
-`comparator-config.json`, `trusted-hashes.json`, and `source-metadata.json`. The task ID is a pure
-function of the repository commit, source theorem, mode, and adapter version. Every trusted payload
-is hashed; task loading rejects symlinks, duplicate JSON keys, changed bytes, extra files, and files
-that are hashed but do not exactly match output reconstructed by the pinned generator. A separate
-whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted after task
-publication.
+`comparator-config.json`, `trusted-hashes.json`, and `source-metadata.json`. An all-of task also
+contains `group-metadata.json` with every exact source declaration and an explicit `all_of`
+completion policy. Single-target task IDs are derived from the repository commit, source theorem,
+mode, and adapter version; grouped IDs commit to the ordered theorem list as well. Every trusted
+payload is hashed; task loading rejects symlinks, duplicate JSON keys, changed bytes, extra files,
+and files that are hashed but do not exactly match output reconstructed by the pinned generator. A
+separate whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted
+after task publication.
+
+`source-metadata.json` includes a `references` array when the Formal Conjectures module docstring
+has a `*Reference:*` or `*References:*` section. Each entry preserves the source Markdown so clients
+can render linked and unlinked citations without parsing Lean source. Grouped task metadata carries
+the same field for every member.
 
 Production generation accepts only `formalized` tasks from compiled `research open`,
 `DIRECT_PROP` theorem declarations whose dependency closure contains `sorryAx`, which is how the

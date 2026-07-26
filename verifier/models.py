@@ -65,6 +65,7 @@ class CatalogDeclaration:
     docstring: str | None
     supported_modes: tuple[str, ...]
     classification: Classification
+    references: tuple[str, ...] = ()
     pointer_target: str | None = None
     finite_constructors: tuple[str, ...] = ()
 
@@ -93,6 +94,7 @@ class CatalogDeclaration:
                 docstring=value.get("docstring"),
                 supported_modes=tuple(str(x) for x in value.get("supported_modes", ())),
                 classification=Classification(str(value["classification"])),
+                references=tuple(str(x) for x in value.get("references", ())),
                 pointer_target=value.get("pointer_target"),
                 finite_constructors=tuple(str(x) for x in value.get("finite_constructors", ())),
             )
@@ -107,6 +109,10 @@ class CatalogDeclaration:
         result["transitive_axioms"] = list(self.transitive_axioms)
         result["supported_modes"] = list(self.supported_modes)
         result["finite_constructors"] = list(self.finite_constructors)
+        if self.references:
+            result["references"] = list(self.references)
+        else:
+            result.pop("references")
         return result
 
 

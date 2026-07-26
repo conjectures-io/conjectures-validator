@@ -19,6 +19,10 @@
   "is_prop": true,
   "module": "FormalConjectures.ErdosProblems.«952»",
   "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/952](https://www.erdosproblems.com/952)",
+    "[Wikipedia](https://wikipedia.org/wiki/Gaussian_moat)"
+  ],
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "source_path": "FormalConjectures/ErdosProblems/952.lean",
   "supported_modes": [
