@@ -1,53 +1,100 @@
-# conjectures.io — Bittensor Subnet 66
+# conjectures.io — Bittensor Subnet 66 Validator
 
-**conjectures.io** is the pay-to-submit API for **Bittensor Subnet 66**. A client pays to submit a
-conjecture, the service turns an eligible submission into an immutable proof task, miners compete to
-produce a Lean proof, and validators reward results that pass deterministic kernel-level
-verification.
+This is the complete validator repository for **conjectures.io**, **Bittensor Subnet 66**. Its
+product is a paid proof-submission API: a miner pays **0.5 TAO**, submits a candidate Lean proof for
+an eligible task, and receives a durable submission ID. The validator confirms the payment, checks
+the proof with Lean, optionally holds a valid proof for manual reward review, and passes every
+reward-eligible proof into the Subnet 66 reward pipeline.
 
-Payment buys admission to the task pipeline; it must never buy a favorable verification result.
-Every accepted proof is checked against the same committed statement and verifier policy.
+Payment buys one proof-verification attempt. It never changes Lean's verdict and does not guarantee
+a reward.
 
-This repository contains the task-generation and hardened-verification foundation. It does not yet
-contain the public submission API, payment confirmation and reconciliation, the complete paid-task
-lifecycle, or the validator scoring and weight-setting loop required for the finished service.
+This repository is the system boundary for the entire validator, including:
 
-| Area | Status |
+- the miner-facing paid submission and status API;
+- payment confirmation, idempotency, and reconciliation;
+- durable submission, verification, review, and reward records;
+- immutable proof artifacts and audit history;
+- asynchronous verification workers and the hardened Lean verifier;
+- the optional manual reward-review queue;
+- reward eligibility, scoring, and Subnet 66 weight submission; and
+- deployment, monitoring, backup, and recovery configuration.
+
+Some of those validator components still need to be implemented. The current checkout already
+contains the audited task pool, exact task commitments, service adapter, and hardened Lean
+verification core.
+
+| Validator component | Status |
 | --- | --- |
 | Audited Lean task generation and immutable task commitments | Implemented |
 | Hostile-proof verification in an isolated container | Implemented |
-| Paid-service proof handoff with exact task digest | Implemented |
-| Public conjecture submission API | Required |
-| Payment confirmation, idempotency, reconciliation, and refunds | Required |
-| Paid submission state and status API | Required |
-| Validator challenge, verification, scoring, and weight-setting loop | Required |
-| Subnet 66 production launch and operating runbooks | Required/needs confirmation |
+| API-neutral proof handoff with exact task digest | Implemented |
+| Miner-facing paid submission and status API | To build |
+| Finalized 0.5 TAO payment confirmation and reconciliation | To build |
+| Durable database, artifact storage, and append-only event history | To build |
+| Asynchronous verification job lifecycle | To build |
+| Configurable manual reward-review gate | To build |
+| Reward eligibility, scoring, and Subnet 66 weight-setting loop | To build |
+| Production launch and operating runbooks | To build |
 
-See [`docs/SUBNET.md`](docs/SUBNET.md) for the intended network flow, the exact implementation
-boundary, the draft pay-to-submit contract, the work required to operate Subnet 66, and the
-remaining product decisions.
+See [`docs/SUBNET.md`](docs/SUBNET.md) for the service contract, durable data model, state machine,
+trust boundaries, and remaining implementation work.
 
-## What the subnet is trying to do
+## Validator flow
 
-The subnet turns paid conjecture submissions into mathematical work with independently verifiable
-results:
+1. A miner chooses an eligible committed task and prepares one candidate Lean proof.
+2. The miner pays exactly **0.5 TAO** and submits the proof through the validator API with its task
+   ID and digest, payment reference, miner identity, and idempotency key.
+3. The API durably records the request and proof artifact before returning a submission ID.
+4. A payment worker confirms that the transfer is finalized, is for the configured recipient and
+   amount, and has not funded another submission.
+5. A verification worker passes the exact proof bytes and task digest to the isolated verifier.
+6. A proof rejected by policy, Comparator, or the Lean kernel is recorded as rejected and never
+   reaches rewards.
+7. A Lean-valid proof and its immutable verification report are durably recorded.
+8. If manual reward review is enabled, the valid submission remains held until a reviewer approves
+   or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
+9. If manual reward review is disabled, or if a held proof is approved, the submission becomes
+   reward-eligible and is passed to the reward pipeline.
+10. The reward processor applies the versioned scoring policy, submits the corresponding Subnet 66
+    weights, and records the resulting reward decision and chain evidence.
 
-1. A client obtains a price or payment instruction from conjectures.io.
-2. The client pays and submits a conjecture with an idempotency key and payment reference.
-3. The API confirms the payment exactly once, validates the submission, and returns a durable
-   submission ID and status.
-4. An eligible submission is formalized or matched to one exact Lean proposition and published as
-   an immutable task bundle.
-5. Miners use any solver or research workflow they choose to produce a candidate Lean proof.
-6. Validators run candidate proofs in the isolated verifier.
-7. A deterministic scoring policy converts valid results into Bittensor weights for netuid 66.
+```text
+miner pays 0.5 TAO
+        |
+        v
+POST proof to validator API
+        |
+        v
+durable submission + payment record
+        |
+        v
+payment confirmed
+        |
+        v
+isolated Lean verification
+        |
+        +-------------------- rejected --------------------> no reward
+        |
+        v
+Lean valid
+        |
+        +-- manual review enabled --> held --> approve/reject
+        |                                      |
+        +-- manual review disabled ------------+
+                                               |
+                                               v
+                                      reward-eligible
+                                               |
+                                               v
+                                    Subnet 66 reward pipeline
+```
 
-The verifier checks the exact formal proposition. It does **not** decide whether the Lean statement
-faithfully represents the informal mathematics, whether a proof is globally novel, or how much a
-valid proof should be rewarded. Payment handling, formalization review, and incentive design sit
-outside the verifier's acceptance boundary.
+The manual-review switch controls only whether a Lean-valid submission is held before reward
+eligibility. It must not make an invalid proof valid, mutate the submitted artifact, or replace the
+deterministic verifier result.
 
-## Verification foundation
+## Lean verification
 
 The task pipeline turns one immutable revision of the complete
 [`google-deepmind/formal-conjectures`](https://github.com/google-deepmind/formal-conjectures)
@@ -66,10 +113,11 @@ Formal Conjectures e923379e…
   -> stable JSON reason code and verdict
 ```
 
-The verifier remains isolated from networking, payment credentials, and wallets. The public API,
-payment service, subnet processes, and proof verifier must run as separate trust domains.
-[`verifier/service_adapter.py`](verifier/service_adapter.py) is the narrow handoff for proof bytes
-from the future paid service into this unchanged verification contract.
+The verifier remains isolated from networking, payment credentials, wallets, and the validator
+database. The API, payment watcher, reward process, and proof verifier are parts of this repository
+but must run as separate trust domains. [`verifier/service_adapter.py`](verifier/service_adapter.py)
+is the narrow handoff from the validator's verification worker into this unchanged verification
+contract.
 
 ## Quick start
 
