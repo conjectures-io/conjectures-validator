@@ -1,284 +1,276 @@
-# Frontier Math subnet: phases 1–3
+# conjectures.io — Bittensor Subnet 66
 
-This repository now contains the Bittensor v11 foundation, signed HTTP protocol, and a
-submission-only reference miner. The miner is deliberately small: an operator imports an existing
-Lean file from local disk, and the miner commits and reveals those exact bytes. It has no solver,
-solver adapter, remote upload endpoint, task downloader, validator scoring loop, or emissions logic.
-Miner operators build their solvers independently.
+**conjectures.io** is the pay-to-submit API for Bittensor Subnet 66. A customer pays to submit a
+conjecture, the service admits eligible submissions into a formal proof-task pipeline, miners work
+on those tasks, and validators reward proofs that pass deterministic Lean verification.
 
-## Delivered phases
+The customer product is the submission API. Customers do not interact with Bittensor
+infrastructure; any subnet operation required by the final service stays behind the conjectures.io
+service boundary.
 
-1. **Foundation:** Bittensor v11 and web dependencies, Python compatibility, localnet, a separate
-   miner image, and runtime state outside the repository.
-2. **Protocol and trust boundary:** strict versioned records, canonical task and submission
-   commitments, miner-signed response envelopes, authenticated validator requests, exact verifier
-   handoff, replay/rate limits, and durable immutable round state.
-3. **Submission-only miner:** one local import command plus health, capabilities, commitment, and
-   reveal endpoints. There are no solve, job, challenge-download, or upload routes.
+Payment controls admission to the pipeline. It never changes the verifier's answer and never makes
+an invalid proof acceptable.
 
-## Components and trust boundaries
+## What is being submitted
 
-- `frontier_subnet/` contains strict protocol records, `btauth/1` request authentication,
-  domain-separated proof commitments, chain endpoint publication, the SQLite submission store, and
-  the miner API.
-- `frontier-miner load` is the only submission-ingress path. It accepts one local regular `.lean`
-  file and one audited gold task bundle, verifies both against `gold/allowlist.json`, and stores the
-  immutable source bytes by digest.
-- Gold allowlist v2 admits one exact `formalized` task per selected Formal Conjectures source file.
-  It rejects transformed positive/negative pairs, answer-wrapper extraction, duplicate source
-  paths, duplicate target types, and every retired v1 task.
-- `frontier-miner serve` exposes unauthenticated `GET /healthz` and receiver-bound, hotkey-signed
-  `GET /v1/capabilities`, `POST /v1/commitments`, and `POST /v1/reveals`.
-- The miner signs commitment and reveal envelopes with its hotkey. A persisted random salt binds
-  the exact chain, subnet, round, task digest, and submission digest.
-- One global commitment is created per miner, task, and chain round. Every authorized validator
-  receives the same immutable envelope; `request_id` is correlation metadata, not part of that
-  globally reusable proof.
-- The miner process never verifies a proof. Validators must pass revealed source to the existing
-  one-shot, networkless verifier container with the exact published task digest.
+There are two different submissions in the system and the API must name them clearly:
 
-Never mount a wallet, miner database, Docker socket, or network interface into the verifier
-container. Never add the verifier's development override flags to a network service.
+- A **conjecture submission** comes from a paying conjectures.io customer. It contains the problem
+  to be admitted, its metadata, and a payment reference.
+- A **proof submission** comes from a subnet miner or solver. It contains candidate Lean source for
+  one exact task.
 
-## Host installation
+The pay-to-submit API described here is for conjecture submissions. The hardened verifier consumes
+proof submissions later in the workflow.
 
-Python 3.11–3.13 is supported. Install the subnet extra into the existing development environment:
+## Current status
 
-```bash
-.venv/bin/pip install \
-  --constraint requirements-subnet.lock \
-  -e '.[dev,subnet]'
-.venv/bin/frontier-miner --help
-```
+This repository is the verification foundation for the service, not yet the finished paid API or
+complete subnet.
 
-The runtime dependency closure is pinned in `requirements-subnet.lock`. Bittensor 11 does not
-provide the old Axon, Dendrite, or Synapse server stack; this subnet uses ordinary FastAPI/httpx
-traffic with `bittensor.http_auth`.
+| Component | Status | What is here |
+| --- | --- | --- |
+| Audited task pipeline | Implemented | Pinned Formal Conjectures source, 29-task gold pool, deterministic bundles, and SHA-256 commitments |
+| Proof verifier | Implemented | Static policy, Comparator, Lean kernel replay, and hardened networkless container execution |
+| Production proof handoff | Implemented | Bounded proof bytes, exact task digest, and the same production verifier entry point |
+| Public conjecture submission API | Not implemented | No quote, paid submission, status, or result endpoints |
+| Payment service | Not implemented | No price calculation, confirmation, idempotency, reconciliation, credit, or refund handling |
+| Formalization intake | Not implemented | No path from an arbitrary customer conjecture to an audited Lean task |
+| Subnet validator loop | Not implemented | No task scheduling, proof queue, deterministic scoring, or weight submission |
+| Production service | Not implemented | No deployed control plane, customer support flow, monitoring, or incident runbook |
 
-Runtime state defaults to `$XDG_STATE_HOME/frontier-math/miner.sqlite3`, or
-`~/.local/state/frontier-math/miner.sqlite3` when `XDG_STATE_HOME` is unset. It is intentionally
-outside the repository. The Docker deployment uses a named volume for the same reason.
+## Intended product flow
 
-## Start an immutable local chain
-
-The localnet compose file pins Rao Foundation Subtensor commit
-`89eb75f38fb3121fdd041d642331cc975dd20d94` by its multi-architecture OCI digest. It exposes RPC
-only on host loopback and persists chain state in a named volume:
-
-```bash
-docker compose -f docker-compose.localnet.yml up -d
-.venv/bin/btcli query is-fast-blocks --network local
-BT_SUBNET_INTEGRATION=1 .venv/bin/pytest tests/test_subnet_localnet.py
-```
-
-`True` enables 250 ms development blocks. To use 12-second blocks, change the localnet command's
-first argument to `False`. Removing the local development chain and its state is explicit and
-destructive:
-
-```bash
-docker compose -f docker-compose.localnet.yml down -v
-```
-
-On a fresh localnet, netuids 0 and 1 already exist. The following creates disposable local-only
-wallets and a custom subnet. The Alice seed is a public development seed; never use it on a public
-network.
-
-```bash
-.venv/bin/btcli wallet regen-coldkey -w alice --no-password \
-  --seed 0xe5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a
-.venv/bin/btcli wallet create -w owner -H default --no-password
-.venv/bin/btcli wallet create -w validator -H default --no-password
-.venv/bin/btcli wallet create -w miner -H default --no-password
-
-.venv/bin/btcli tx transfer --dest owner --amount-tao 2000 -w alice --network local -y
-.venv/bin/btcli tx transfer --dest validator --amount-tao 100 -w alice --network local -y
-.venv/bin/btcli tx transfer --dest miner --amount-tao 100 -w alice --network local -y
-
-.venv/bin/btcli tx register-subnet -w owner --network local
-```
-
-The last command prints the assigned netuid; a fresh chain normally assigns `2`. Substitute the
-actual value below:
-
-```bash
-NETUID=2
-.venv/bin/btcli tx start-call --netuid "$NETUID" -w owner --network local
-.venv/bin/btcli tx burned-register --netuid "$NETUID" -w validator --network local
-.venv/bin/btcli tx burned-register --netuid "$NETUID" -w miner --network local
-.venv/bin/btcli query metagraph --netuid "$NETUID" --network local --json
-```
-
-The production miner authorization policy admits only registered hotkeys with validator permits
-and the configured minimum TAO stake. During isolated local protocol testing, an operator may pass
-one or more explicit `--allow-hotkey 5...` values instead. Do not use
-`--allow-any-authenticated` outside a disposable localnet.
-
-## Prepare the miner wallet mount
-
-The miner signs only with its hotkey. Do not expose its coldkey to the container. Create a dedicated
-wallet root containing only the selected private hotkey and its public companion:
+1. A client requests a price or payment instruction.
+2. The client pays and creates a conjecture submission using an idempotency key and payment
+   reference.
+3. The API verifies that the payment is final and unused, then records it exactly once.
+4. The service validates the conjecture's format, eligibility, safety, and duplication status.
+5. The conjecture is either rejected/refunded, sent for formalization or review, or converted into
+   one immutable Lean task bundle.
+6. Validators make the task available as subnet work.
+7. Miners produce candidate Lean proofs using any solver or research workflow they choose.
+8. Validators run eligible proofs in fresh, isolated verifier containers.
+9. A versioned scoring policy converts verification results into Bittensor weights.
+10. The API exposes the task status, accepted proof, and verification report to the customer.
 
 ```text
-/var/lib/frontier-miner-wallets/
-└── miner/
-    └── hotkeys/
-        ├── default
-        └── defaultpub.txt
+customer
+   |
+   v
+quote/payment -> conjectures.io submission API -> durable submission record
+                                              |
+                                              v
+                                  admission and formalization
+                                              |
+                                              v
+                                    immutable Lean task
+                                              |
+                                              v
+                                  Subnet 66 proof market
+                                     |             |
+                                     v             v
+                                   miners      validators
+                                     |             |
+                                     +-- proof ----+
+                                                   |
+                                                   v
+                                      isolated Lean verifier
+                                                   |
+                                      +------------+------------+
+                                      v                         v
+                              Bittensor weights          customer result
 ```
 
-Copy those two files from the Bittensor wallet created on the host. Do not copy `coldkey` or any
-other wallet. The container runs as UID/GID 10001, so the dedicated directory must be readable by
-that identity and not by unrelated users. The compose file mounts it read-only at `/wallets`.
+Today the repository primarily implements the immutable-task and isolated-verifier portions of
+this flow.
 
-Set the deployment inputs:
+## Draft submission API
 
-```bash
-export FRONTIER_MINER_WALLET_DIR=/var/lib/frontier-miner-wallets
-export FRONTIER_MINER_WALLET_NAME=miner
-export FRONTIER_MINER_HOTKEY=default
-export FRONTIER_NETUID=2
-export BT_NETWORK=finney
+The exact URL and schema are still product decisions, but the minimum useful API surface is:
+
+| Operation | Purpose |
+| --- | --- |
+| `POST /v1/quotes` | Fix the amount, asset, expiry, and payment instructions for one submission |
+| `POST /v1/submissions` | Create one paid conjecture submission idempotently |
+| `GET /v1/submissions/{id}` | Return payment, admission, task, solving, and result status |
+| `GET /v1/submissions/{id}/result` | Return the accepted proof and verifier report when available |
+
+An initial submission record should contain:
+
+- a client-supplied idempotency key;
+- the quote ID and payment reference;
+- the conjecture payload and declared payload type;
+- title, description, references, and optional contact or callback information;
+- terms/policy version accepted by the client;
+- a server-generated submission ID, timestamps, content digest, and current state.
+
+The API should use an explicit state machine such as:
+
+```text
+AWAITING_PAYMENT
+  -> PAYMENT_CONFIRMED
+  -> VALIDATING
+  -> NEEDS_REVIEW | FORMALIZING
+  -> QUEUED
+  -> ACTIVE
+  -> SOLVED | EXHAUSTED
+
+Any pre-activation state may instead become REJECTED, CREDITED, or REFUNDED.
 ```
 
-For a miner joined to the localnet compose network, use
-`BT_NETWORK=ws://subtensor-localnet:9944` and invoke Compose with both files:
+Terminal and retryable failures must be distinguishable. Status changes should be append-only and
+auditable even when a worker or API process restarts.
 
-```bash
-docker compose \
-  -f docker-compose.localnet.yml \
-  -f docker-compose.subnet.yml \
-  build miner
+## Payment requirements
 
-docker compose \
-  -f docker-compose.localnet.yml \
-  -f docker-compose.subnet.yml \
-  up -d subtensor-localnet miner
-```
+The payment layer needs stronger guarantees than a simple “paid” Boolean:
 
-## Import a submission
+- A quote fixes the amount, asset, network or provider, purpose, and expiry.
+- One confirmed payment can fund at most one accepted submission.
+- Repeating `POST /v1/submissions` with the same idempotency key returns the same result.
+- Reusing a payment reference with a different payload is rejected.
+- Webhooks or on-chain notifications are authenticated, replay-safe, and reconciled against the
+  payment provider or chain.
+- Required confirmation depth or provider finality is explicit.
+- Underpayments, overpayments, expired quotes, duplicate payments, chargebacks, and reorgs have
+  defined outcomes.
+- Invalid or unsupported conjectures follow a published refund or account-credit policy.
+- Payment secrets, signing keys, and provider credentials never enter the task builder or proof
+  verifier.
+- The API persists a financial audit trail without logging credentials or unnecessary personal
+  data.
 
-The container image does not contain repository tasks, proof files, or an allowlist. Mount exactly
-one of each read-only for the one-shot import command. This loader does not require the serving
-wallet or netuid environment variables:
+Payment confirmation and submission creation should be one idempotent workflow backed by durable
+storage. A client timeout must not cause a second charge or a duplicate task.
 
-```bash
-TASK_DIR="$PWD/tasks/gold/<exact-task-directory>"
-SUBMISSION_FILE="$PWD/submissions/Main.lean"
+## Admission and formalization requirements
 
-docker compose -f docker-compose.subnet.yml run --rm --no-deps \
-  -v "$TASK_DIR:/inputs/task:ro" \
-  -v "$SUBMISSION_FILE:/inputs/Main.lean:ro" \
-  -v "$PWD/gold/allowlist.json:/inputs/allowlist.json:ro" \
-  miner-load load \
-    --database /state/frontier-math/miner.sqlite3 \
-    --task-dir /inputs/task \
-    --submission /inputs/Main.lean \
-    --allowlist /inputs/allowlist.json
-```
+The current verifier accepts exact, audited Lean task bundles. A customer may instead arrive with
+informal mathematics, a paper reference, a Lean theorem statement, or a complete task bundle. The
+service needs an explicit contract for which of these it accepts.
 
-The command prints the task bundle and submission SHA-256 commitments. Importing a replacement for
-the same exact task updates the local selection intentionally; it does not execute the proof.
-The one-shot loader has no network and no wallet mount. There is no HTTP upload route.
+Before a paid submission becomes subnet work, the admission pipeline must:
 
-## Run and publish the miner
+- validate size, encoding, media type, schema, references, and required metadata;
+- screen spam, malicious content, duplicate conjectures, already-solved claims, and unsupported
+  subject matter;
+- determine whether the customer supplied an informal statement or an exact formal target;
+- formalize and independently review informal statements before attaching rewards;
+- compile and inspect the target in the pinned Lean environment;
+- create the immutable task bundle and externally publish or sign its digest;
+- record the relationship between the customer's original text and the exact formal statement;
+- provide a dispute and retirement process for incorrect formalizations.
 
-Start the service:
+The verifier proves only the Lean proposition. Human or separately governed review remains
+responsible for saying that the Lean proposition faithfully represents the paid conjecture.
 
-```bash
-docker compose -f docker-compose.subnet.yml up -d miner
-curl --fail http://127.0.0.1:8091/healthz
-docker compose -f docker-compose.subnet.yml logs --tail=100 miner
-```
+## What remains for a complete Subnet 66
 
-The Compose service:
+### 1. Finalize the commercial contract
 
-- runs as UID/GID 10001 with a read-only root, all capabilities dropped, no new privileges, bounded
-  CPU/memory/PIDs/files, and a small non-executable `/tmp`;
-- mounts the wallet read-only and keeps SQLite state in the `miner-state` named volume;
-- binds to host loopback unless `FRONTIER_MINER_LISTEN_IP` is explicitly changed;
-- starts exactly one Uvicorn worker, which is required by the in-memory replay cache and rate
-  limiter.
+- Decide exactly what the customer submits and what the fee buys.
+- Choose the payment asset/provider, pricing model, finality rule, refund policy, and treasury
+  destination.
+- Decide whether the fee is only an intake fee, directly funds a solver bounty, or does both.
+- Publish service limits, expected timelines, unsupported content, and terms for unsolved tasks.
 
-Do not scale this service above one process. A multi-process or multi-host deployment first needs a
-shared atomic nonce store and shared admission controls.
+### 2. Build the paid submission control plane
 
-Endpoint publication is a separate, explicit chain mutation. After registration and after a TLS
-reverse proxy is reachable at the public address:
+- Implement quote, submission, status, and result endpoints with strict versioned schemas.
+- Add durable relational state, idempotency constraints, payment reconciliation, and an append-only
+  event log.
+- Store submitted artifacts by content digest outside the web process.
+- Add bounded asynchronous queues for validation, formalization, task building, solving, and result
+  delivery.
+- Add API authentication or an explicit accountless access model, rate limits, abuse controls, and
+  safe callback/webhook delivery.
 
-```bash
-.venv/bin/btcli axon set \
-  --netuid "$FRONTIER_NETUID" \
-  --ip <public-ip> \
-  --port <public-tls-port> \
-  -w "$FRONTIER_MINER_WALLET_NAME" \
-  -H "$FRONTIER_MINER_HOTKEY" \
-  --network "$BT_NETWORK" \
-  -y
-```
+### 3. Build the admission and formalization workflow
 
-`btauth/1` supplies identity, integrity, freshness, receiver binding, and replay protection; it
-does not encrypt traffic. Terminate TLS before exposing the API publicly. Keep system time
-synchronized because signed requests use a short freshness window.
+- Define automatic eligibility checks and the human-review boundary.
+- Add a formalization queue and a review interface for mapping customer text to exact Lean.
+- Expand beyond the current fixed 29-task pool without weakening deterministic task generation.
+- Version and sign task releases, admission policy, formalization decisions, and retirements.
 
-## Configuration
+### 4. Connect accepted tasks to the subnet
 
-The supplied Compose service recognizes:
+- Define deterministic task selection and availability rules for paid tasks.
+- Collect candidate proofs without exposing the verifier as a network service.
+- Specify scoring for valid proofs, duplicate proofs, copied work, timeouts, and no-solution rounds.
+- Submit normalized weights for netuid 66 and make each weight decision reproducible from stored
+  inputs.
+- Decide how customer payments relate to subnet incentives and avoid promising rewards the service
+  cannot fund.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `FRONTIER_MINER_WALLET_DIR` | required | Dedicated hotkey-only wallet root mounted read-only |
-| `FRONTIER_NETUID` | required | Bittensor subnet UID |
-| `BT_NETWORK` | `finney` | Network name or exact `ws://`/`wss://` endpoint |
-| `FRONTIER_MINER_WALLET_NAME` | `miner` | Wallet directory name |
-| `FRONTIER_MINER_HOTKEY` | `default` | Hotkey filename |
-| `FRONTIER_MINER_LISTEN_IP` | `127.0.0.1` | Host interface receiving mapped port 8091 |
-| `FRONTIER_MINER_PORT` | `8091` | Host-side mapped port |
-| `FRONTIER_MIN_VALIDATOR_TAO` | `0` | Minimum root TAO stake for permitted validators |
-| `FRONTIER_METAGRAPH_REFRESH_SECONDS` | `30` | Validator authorization cache lifetime |
-| `FRONTIER_REQUESTS_PER_MINUTE` | `60` | Per-hotkey, per-route request limit |
-| `FRONTIER_MAX_CONCURRENT_REQUESTS` | `16` | In-process bounded request concurrency |
-| `FRONTIER_MINER_LOG_LEVEL` | `info` | Uvicorn log level |
+### 5. Return useful customer results
 
-The serving process fails closed when the required wallet directory or netuid is omitted: the
-default wallet path does not exist and the default netuid is invalid. The networkless
-`miner-load` service does not consume either value.
+- Expose clear admission, formalization, queue, active, solved, exhausted, refund, and error states.
+- Return the exact formal statement before or when a task becomes active.
+- Publish an accepted proof only after its task digest and verifier report match.
+- Define privacy and publication defaults for customer conjectures, proofs, and contact data.
+- Support disputes when the formalization or result does not match the submitted conjecture.
 
-Round defaults are 360 blocks total, 120 blocks to commit, and 360 blocks until expiry. The miner
-enforces those windows against the finalized chain head, never the reorgable best head. Override
-them with direct `frontier-miner serve` arguments only after validators agree on the same protocol
-schedule.
+### 6. Productionize
 
-## Operations and recovery
+- Isolate the public API, payment service, task builder, subnet processes, proof queue, and
+  networkless verifier into separate trust domains.
+- Add metrics, tracing, capacity limits, alerts, backups, restoration tests, key rotation, upgrades,
+  rollbacks, and incident response.
+- Exercise retries and crash recovery across every payment and submission state.
+- Run an end-to-end staging test from payment through a verified proof and customer result.
+- Deploy reviewed images by immutable digest and keep payment and wallet credentials out of build
+  artifacts.
 
-- The SQLite database contains imported source, proof commitments, unrevealed salts, and signed
-  reveals. Loss before reveal makes outstanding commitments unusable. Back up the named volume
-  while the miner is stopped, and test restoration before relying on it.
-- Hotkey rotation changes proof attribution. Register and publish the new hotkey before serving
-  from it; do not copy coldkeys into the miner.
-- A chain read failure fails closed. A caller whose hotkey lacks a current validator permit or
-  configured stake is denied even when its HTTP signature is valid.
-- Rebuild and identify the miner image by digest for deployment. Review changes to the pinned
-  Bittensor/web dependencies and protocol version before upgrading.
-- Keep the verifier image, miner image, wallet, database, and public TLS endpoint as separate
-  operational units.
+## Existing repository boundary
+
+The current repository already provides:
+
+- deterministic extraction and generation of exact Lean tasks from a pinned Formal Conjectures
+  revision;
+- an audited allowlist of 29 whole-problem Erdős tasks;
+- immutable task-bundle and proof-source commitments;
+- hostile-submission checks, statement comparison, axiom-closure checks, and Lean kernel replay;
+- a hardened, one-shot, networkless verifier container;
+- an API-neutral production adapter that accepts bounded proof bytes and requires the exact task
+  bundle digest;
+- pinned service/Subnet 66 dependencies, a finalized-chain reader, and local Subtensor testing.
+
+Never put payment credentials, payment webhooks, customer databases, wallets, or network access
+inside the verifier container. The API should write a bounded artifact to a queue; a separate worker
+should invoke one fresh verifier container for each proof.
+
+The removed legacy miner submission protocol is intentionally not part of this foundation. There
+are no commitment, reveal, miner upload, or miner-serving routes in the current codebase.
+
+## Decisions needed
+
+1. What does a customer submit: informal text, a Lean theorem statement, a complete task bundle, or
+   more than one of these?
+2. Which payment rail and asset should the first version support?
+3. Is pricing fixed, complexity-based, auction-based, or manually quoted?
+4. Does the payment fund a solver reward, pay only for intake/formalization, or get split between
+   both?
+5. What is refunded when a conjecture is invalid, already solved, cannot be formalized, or receives
+   no valid proof?
+6. Are submissions public immediately, public only after admission, or private by default?
+7. Who approves the formalization before the task becomes reward-eligible?
+8. Do clients need accounts/API keys, or should payment receipts be sufficient for access?
+9. How long does a task remain active, and what result does the customer receive if it is not
+   solved?
 
 ## Verification gates
 
-Before shipping a miner image:
+Documentation and verifier changes should continue to pass:
 
 ```bash
 .venv/bin/pytest
-.venv/bin/pip check
-docker compose config --quiet
-FRONTIER_MINER_WALLET_DIR=/tmp/frontier-wallets FRONTIER_NETUID=2 \
-  docker compose -f docker-compose.subnet.yml config --quiet
-docker compose -f docker-compose.localnet.yml config --quiet
-docker build -f docker/miner.Dockerfile -t frontier-math-miner:local .
+./scripts/run_integration_tests.sh
 docker compose build verifier
 docker compose run --rm verifier doctor
 git diff --check
 git status --short
 ```
 
-The first three subnet phases do not include validator challenge selection, proof verification
-queues, deterministic scoring, weight submission, novelty rewards, or mainnet launch procedures.
+The API, payment lifecycle, formalization workflow, validator scoring loop, and customer result
+delivery described above remain to be implemented.

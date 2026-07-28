@@ -1,8 +1,9 @@
 # Security model
 
-This document defines the isolated proof verifier's acceptance boundary. The separate
-submission-transport miner and its signed commit/reveal protocol are documented in
-[`docs/SUBNET.md`](docs/SUBNET.md); networking and wallets never enter the verifier container.
+This document defines the isolated proof verifier's acceptance boundary for conjectures.io and
+Bittensor Subnet 66. The pay-to-submit API, payment boundary, and complete service architecture are
+documented in [`docs/SUBNET.md`](docs/SUBNET.md); networking, payment credentials, customer data,
+and wallets never enter the verifier container.
 
 This verifier treats a miner's submitted Lean file as hostile. A production acceptance means that
 the pinned Comparator found every theorem named by the task (`Bounty.target` for a single target or
@@ -111,7 +112,7 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
 6. Never compile a miner submission outside Comparator or reuse a container/workspace between
    miners.
 7. Treat timeouts and resource-limit results as rejections, and apply queue limits and rate limits
-   outside this POC.
+   in the validator service outside the one-shot verifier.
 
 ## Residual risks and non-goals
 
@@ -125,9 +126,9 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
   unrelated imported lemmas are not a complete novelty check. If rewards require global proof
   novelty, use a separately reviewed source-pruned environment and an explicit novelty policy.
 - Correctness of the informal-to-Lean formalization remains a human review obligation.
-- Resource bounds reduce single-submission denial of service. Validator replication, scoring,
-  consensus, weight submission, and reward logic are outside phases 1–3. The separate miner
-  transport supplies proof commit/reveal only; it does not change the verifier acceptance contract.
+- Resource bounds reduce single-submission denial of service. The paid API, payment reconciliation,
+  validator replication, scoring, consensus, weight submission, and reward logic remain outside the
+  one-shot verifier.
 - Compiler, kernel, microarchitectural, and hardware side channels are not claimed to be eliminated.
 
 Security issues should include the verifier commit, image digest, task digest, report, host kernel
