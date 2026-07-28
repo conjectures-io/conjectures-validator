@@ -77,3 +77,11 @@ metadata for site rendering.
 whole-problem target policy, builds every target, and inspects the resulting pool. It refuses to
 overwrite an existing task directory or allowlist. Generate into fresh staging paths, review the
 selection and hashes, and only then replace the published pool.
+
+Production operates one active pinned pool. Once a week, pause admissions and wait until no
+submission is queued, running, retryable, awaiting review, or awaiting reward processing. Then
+update the Formal Conjectures, Lean, Mathlib, and verifier dependency pins together, regenerate and
+audit the pool and commitments, run the full test suite, and atomically activate the rebuilt pool
+and verifier image before reopening admissions. A failed update leaves the existing pins active.
+Historical pin values, task digests, and reports remain in the audit database even though only one
+verifier version is active.

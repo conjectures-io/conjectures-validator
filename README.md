@@ -396,6 +396,19 @@ component that must match the target
 environment. Normal verification never fetches or updates a branch. Network access is needed only
 while building the trusted image/cache.
 
+Production has exactly one active pin set and never follows a floating branch, tag, or dependency
+range. Once a week, operators pause new submissions and wait until every accepted submission has
+reached a terminal payment, verification, review, and reward state. No pin update may begin while
+any submission is queued, leased, running, retryable, or awaiting review or reward processing.
+
+With the system drained, update the compatible Formal Conjectures, Mathlib, Lean, Comparator, and
+`lean4export` pins together; rebuild the trusted cache, catalog, task bundles, allowlist,
+commitments, and immutable verifier image; and run the complete integration and security suite.
+Activate the new pin set atomically, then reopen submissions. If any build, audit, or test fails,
+keep the existing pin set active and leave submissions paused until it is safe to resume. Preserve
+the old pin values, task digests, and reports in durable audit history, but operate only the new
+active verifier after the cutover.
+
 Full-catalog statistics are written to `data/catalog-summary.json` from the actual extracted
 catalog. No estimated counts are committed. Batch generation writes `generation-summary.json` with
 every generated task, adapter-required skip, unsupported skip, and failure.
