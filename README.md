@@ -1,10 +1,58 @@
-# Formal Conjectures Verifier POC
+# conjectures.io — Bittensor Subnet 66
 
-This project turns one immutable revision of the complete
+**conjectures.io** is the pay-to-submit API for **Bittensor Subnet 66**. A client pays to submit a
+conjecture, the service turns an eligible submission into an immutable proof task, miners compete to
+produce a Lean proof, and validators reward results that pass deterministic kernel-level
+verification.
+
+Payment buys admission to the task pipeline; it must never buy a favorable verification result.
+Every accepted proof is checked against the same committed statement and verifier policy.
+
+This repository contains the task-generation and hardened-verification foundation. It does not yet
+contain the public submission API, payment confirmation and reconciliation, the complete paid-task
+lifecycle, or the validator scoring and weight-setting loop required for the finished service.
+
+| Area | Status |
+| --- | --- |
+| Audited Lean task generation and immutable task commitments | Implemented |
+| Hostile-proof verification in an isolated container | Implemented |
+| Paid-service proof handoff with exact task digest | Implemented |
+| Public conjecture submission API | Required |
+| Payment confirmation, idempotency, reconciliation, and refunds | Required |
+| Paid submission state and status API | Required |
+| Validator challenge, verification, scoring, and weight-setting loop | Required |
+| Subnet 66 production launch and operating runbooks | Required/needs confirmation |
+
+See [`docs/SUBNET.md`](docs/SUBNET.md) for the intended network flow, the exact implementation
+boundary, the draft pay-to-submit contract, the work required to operate Subnet 66, and the
+remaining product decisions.
+
+## What the subnet is trying to do
+
+The subnet turns paid conjecture submissions into mathematical work with independently verifiable
+results:
+
+1. A client obtains a price or payment instruction from conjectures.io.
+2. The client pays and submits a conjecture with an idempotency key and payment reference.
+3. The API confirms the payment exactly once, validates the submission, and returns a durable
+   submission ID and status.
+4. An eligible submission is formalized or matched to one exact Lean proposition and published as
+   an immutable task bundle.
+5. Miners use any solver or research workflow they choose to produce a candidate Lean proof.
+6. Validators run candidate proofs in the isolated verifier.
+7. A deterministic scoring policy converts valid results into Bittensor weights for netuid 66.
+
+The verifier checks the exact formal proposition. It does **not** decide whether the Lean statement
+faithfully represents the informal mathematics, whether a proof is globally novel, or how much a
+valid proof should be rewarded. Payment handling, formalization review, and incentive design sit
+outside the verifier's acceptance boundary.
+
+## Verification foundation
+
+The task pipeline turns one immutable revision of the complete
 [`google-deepmind/formal-conjectures`](https://github.com/google-deepmind/formal-conjectures)
 repository into cataloged Lean targets and verifies hostile single-file submissions against those
-targets. It checks the exact formal proposition. It does **not** decide whether that proposition is a
-faithful formalization of the informal mathematics.
+targets.
 
 The pinned data flow is:
 
@@ -18,9 +66,10 @@ Formal Conjectures e923379e…
   -> stable JSON reason code and verdict
 ```
 
-The verifier remains isolated from networking and wallets. A separate `frontier_subnet` package
-adds the phase 1–3 Bittensor foundation and a submission-only miner; it does not include a solver,
-validator scoring loop, emissions logic, frontend, accounts, or remote submission upload.
+The verifier remains isolated from networking, payment credentials, and wallets. The public API,
+payment service, subnet processes, and proof verifier must run as separate trust domains.
+[`verifier/service_adapter.py`](verifier/service_adapter.py) is the narrow handoff for proof bytes
+from the future paid service into this unchanged verification contract.
 
 ## Quick start
 
@@ -36,18 +85,8 @@ python -m verifier doctor
 The bootstrap script checks out only the commits in `pins.lock.json`, installs the pinned Lean
 toolchains, downloads Mathlib's trusted binary cache, builds Formal Conjectures in `answer`
 postpone mode, and builds Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is
-optional: set `ENABLE_NANODA=1` during bootstrap to build it. It also installs the pinned Bittensor
-v11 subnet dependencies and the `frontier-miner` command.
-
-## Submission-only Bittensor miner
-
-The reference miner stores Lean source that its operator created elsewhere. It has no solver
-integration: `frontier-miner load` safely imports one local, allowlisted task/submission pair, and
-`frontier-miner serve` returns signed, chain-round-bound commitments and timed reveals to
-authorized validators. Runtime state lives outside the Git worktree.
-
-See [`docs/SUBNET.md`](docs/SUBNET.md) for the protocol boundary, localnet setup, container
-deployment, and phase 1–3 verification gates.
+optional: set `ENABLE_NANODA=1` during bootstrap to build it. Bootstrap also installs the pinned
+service and Subnet 66 dependencies; it does not install the removed legacy miner transport.
 
 Build and inspect the real full-repository catalog:
 

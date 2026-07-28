@@ -5,16 +5,15 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from frontier_subnet.commitments import verify_proof_reveal
-from frontier_subnet.protocol import ProofReveal
 from verifier.hashing import is_sha256
 from verifier.models import VerificationReport
+from verifier.task_generator import MAX_SUBMISSION_BYTES
 from verifier.verification import verify
 
 
 @dataclass(frozen=True)
 class ProductionVerifierAdapter:
-    """The only subnet-facing in-process seam into the production verifier."""
+    """Narrow service-facing handoff into the production proof verifier."""
 
     project_root: Path
 
@@ -34,11 +33,18 @@ class ProductionVerifierAdapter:
             expected_task_sha256=expected_task_sha256,
         )
 
-    def verify_reveal(self, *, task_dir: Path, reveal: ProofReveal) -> VerificationReport:
-        if not verify_proof_reveal(reveal):
-            raise ValueError("proof reveal signature, hash, or commitment is invalid")
-        source = reveal.submission_bytes()
-        with tempfile.TemporaryDirectory(prefix="frontier-submission-") as temporary:
+    def verify_bytes(
+        self,
+        *,
+        task_dir: Path,
+        submission: bytes,
+        expected_task_sha256: str,
+    ) -> VerificationReport:
+        if not isinstance(submission, bytes):
+            raise TypeError("proof submission must be bytes")
+        if len(submission) > MAX_SUBMISSION_BYTES:
+            raise ValueError("proof submission exceeds verifier policy")
+        with tempfile.TemporaryDirectory(prefix="conjectures-proof-") as temporary:
             path = Path(temporary) / "Main.lean"
             descriptor = os.open(
                 path,
@@ -47,7 +53,7 @@ class ProductionVerifierAdapter:
             )
             try:
                 with os.fdopen(descriptor, "wb", closefd=False) as handle:
-                    handle.write(source)
+                    handle.write(submission)
                     handle.flush()
                     os.fsync(handle.fileno())
             finally:
@@ -55,5 +61,5 @@ class ProductionVerifierAdapter:
             return self.verify_file(
                 task_dir=task_dir,
                 submission_path=path,
-                expected_task_sha256=reveal.commitment.task.task_bundle_sha256,
+                expected_task_sha256=expected_task_sha256,
             )

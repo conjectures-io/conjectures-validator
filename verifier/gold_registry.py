@@ -28,7 +28,7 @@ TASK_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,254}$")
 
 
 class TaskNotAllowed(ValueError):
-    """The selected task is not the exact audited public task."""
+    """The selected task is not the exact audited public gold task."""
 
 
 def _read_regular(path: Path, maximum: int) -> bytes:

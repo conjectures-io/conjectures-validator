@@ -6,7 +6,7 @@ import os
 import bittensor as bt
 import pytest
 
-from frontier_subnet.chain import BittensorChainView
+from conjectures_subnet.chain import BittensorChainView
 
 
 pytestmark = [

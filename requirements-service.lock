@@ -1,6 +1,6 @@
-# Exact runtime dependency set for the Bittensor v11 miner image.
-# Refresh deliberately after reviewing the upstream release notes and rerunning
-# the subnet protocol, container, and localnet verification gates.
+# Exact runtime dependency set for the conjectures.io service and Subnet 66 foundation.
+# Refresh deliberately after reviewing upstream release notes and rerunning the
+# verifier, API, container, and localnet verification gates.
 annotated-doc==0.0.4
 annotated-types==0.8.0
 anyio==4.14.2

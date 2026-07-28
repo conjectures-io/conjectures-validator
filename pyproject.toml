@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "formal-conjectures-verifier"
 version = "0.1.0"
-description = "Pinned full-repository Lean proof verification proof of concept"
+description = "Pinned Lean proof verification foundation for conjectures.io"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = { text = "Apache-2.0" }
@@ -13,17 +13,16 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.2", "pytest-cov>=5"]
-subnet = [
-    "bittensor==11.0.0",
+service = [
     "fastapi==0.139.2",
     "httpx==0.28.1",
     "pydantic==2.13.4",
     "uvicorn==0.51.0",
 ]
+subnet = ["bittensor==11.0.0"]
 
 [project.scripts]
 fc-verifier = "verifier.cli:main"
-frontier-miner = "frontier_subnet.miner_cli:main"
 
 [tool.pytest.ini_options]
 addopts = "-q"
@@ -34,4 +33,4 @@ markers = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["verifier", "frontier_subnet"]
+packages = ["verifier", "conjectures_subnet"]
