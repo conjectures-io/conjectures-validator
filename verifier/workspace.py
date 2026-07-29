@@ -13,7 +13,7 @@ from verifier.hashing import sha256_text
 from verifier.models import CatalogDeclaration, ProcessResult
 from verifier.process import run_process
 from verifier.submission import Submission
-from verifier.task_policy import GOLD_TASK_MODE
+from verifier.task_policy import EXACT_TASK_MODE
 
 
 @dataclass(frozen=True)
@@ -389,7 +389,7 @@ def target_validator(
                 raise VerifierError(ReasonCode.SOURCE_TYPE_CHANGED, "source type differs during task generation")
             if not inspection["matches"]:
                 raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "generated challenge is not the intended target")
-            if mode == GOLD_TASK_MODE and (
+            if mode == EXACT_TASK_MODE and (
                 inspection["source_category"] != "research open"
                 or inspection["source_declaration_kind"] != "theorem"
                 or not inspection["source_depends_on_sorry"]

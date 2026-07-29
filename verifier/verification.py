@@ -19,7 +19,7 @@ from verifier.repository import assert_dependency_pins, formal_conjectures_pin, 
 from verifier.static_checks import check_submission
 from verifier.submission import load_submission
 from verifier.task_loader import load_task_bundle
-from verifier.task_policy import GOLD_TASK_MODE
+from verifier.task_policy import EXACT_TASK_MODE
 from verifier.workspace import (
     build_challenge,
     cleanup_workspace,
@@ -268,7 +268,7 @@ def verify(
             or not inspection["source_depends_on_sorry"]
             or inspection["source_has_formal_proof"]
             or inspection["target_contains_sorry"]
-            or manifest.task_mode != GOLD_TASK_MODE
+            or manifest.task_mode != EXACT_TASK_MODE
             or inspection["target_hash"] != inspection["source_hash"]
             or inspection["source_axioms"] != tuple(sorted(source.transitive_axioms))
             for source, inspection in zip(

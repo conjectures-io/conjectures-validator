@@ -13,7 +13,7 @@ from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import hash_named_files, pretty_json, sha256_text
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
 from verifier.task_policy import (
-    GOLD_TASK_MODE,
+    EXACT_TASK_MODE,
     production_eligibility,
     proved_type_collisions,
 )
@@ -290,7 +290,7 @@ def generate_task(
         for name, content in payloads.items():
             (temporary / name).write_bytes(content)
         generated_hash = validate_target(temporary, declaration, generated, mode)
-        if mode == GOLD_TASK_MODE and generated_hash != declaration.type_hash:
+        if mode == EXACT_TASK_MODE and generated_hash != declaration.type_hash:
             raise VerifierError(
                 ReasonCode.STATEMENT_MISMATCH,
                 "formalized task target is not the exact source theorem type",
@@ -371,7 +371,7 @@ def generate_group_task(
             ReasonCode.INVALID_ARGUMENT,
             "all-of task declarations must come from one source module",
         )
-    if mode != GOLD_TASK_MODE:
+    if mode != EXACT_TASK_MODE:
         raise VerifierError(
             ReasonCode.INVALID_TASK_MODE,
             "all-of production tasks require formalized mode",

@@ -1,34 +1,36 @@
 #!/usr/bin/env python3
-"""Build the exact-formalization gold pool from the pinned catalog."""
+"""Build a tier of the exact-formalization task pool from the pinned catalog."""
 
 from __future__ import annotations
 
 import argparse
 import os
 import shutil
+import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
 from verifier.catalog import load_catalog
-from verifier.gold_pool import (
-    DEFAULT_GOLD_POOL_SIZE,
-    build_gold_allowlist,
-    group_gold_declarations,
+from verifier.task_pool import (
+    DEFAULT_TASK_TIER,
+    DEFAULT_TIER_SIZE,
+    build_task_allowlist,
+    group_task_declarations,
     load_retired_sources,
     load_selection_audit,
     load_task_grouping,
     load_whole_problem_targets,
-    select_gold_declarations,
+    select_task_declarations,
 )
 from verifier.task_generator import generate_group_task, generate_task
 from verifier.task_loader import load_task_bundle
-from verifier.task_policy import GOLD_TASK_MODE
+from verifier.task_policy import EXACT_TASK_MODE
 from verifier.workspace import target_validator
-
-
-ROOT = Path(__file__).resolve().parent.parent
 
 
 def make_pool_readable(pool: Path) -> None:
@@ -44,26 +46,39 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--retired-sources",
         type=Path,
-        default=ROOT / "gold/retired-source-theorems.json",
+        default=ROOT / "task_pool/tiers/tier-1/retired-source-theorems.json",
     )
     result.add_argument(
         "--selection-audit",
         type=Path,
-        default=ROOT / "gold/selection-audit.json",
+        default=ROOT / "task_pool/tiers/tier-1/selection-audit.json",
     )
     result.add_argument(
         "--task-groups",
         type=Path,
-        default=ROOT / "gold/task-groups.json",
+        default=ROOT / "task_pool/tiers/tier-1/task-groups.json",
     )
     result.add_argument(
         "--whole-problem-targets",
         type=Path,
-        default=ROOT / "gold/whole-problem-targets.json",
+        default=ROOT / "task_pool/tiers/tier-1/whole-problem-targets.json",
     )
-    result.add_argument("--output", type=Path, default=ROOT / "tasks/gold")
-    result.add_argument("--allowlist", type=Path, default=ROOT / "gold/allowlist.json")
-    result.add_argument("--pool-size", type=int, default=DEFAULT_GOLD_POOL_SIZE)
+    result.add_argument(
+        "--tier",
+        default=DEFAULT_TASK_TIER,
+        help="tier identifier committed into the allowlist",
+    )
+    result.add_argument(
+        "--output",
+        type=Path,
+        default=ROOT / "tasks/pool/tier-1",
+    )
+    result.add_argument(
+        "--allowlist",
+        type=Path,
+        default=ROOT / "task_pool/allowlist.json",
+    )
+    result.add_argument("--pool-size", type=int, default=DEFAULT_TIER_SIZE)
     result.add_argument("--jobs", type=int, default=4)
     result.add_argument(
         "--audit-date",
@@ -89,7 +104,7 @@ def main() -> int:
     whole_problem_targets = load_whole_problem_targets(
         arguments.whole_problem_targets
     )
-    selected_declarations = select_gold_declarations(
+    selected_declarations = select_task_declarations(
         catalog=catalog,
         retired=retired,
         selection_audit=selection_audit,
@@ -97,10 +112,10 @@ def main() -> int:
         pool_size=arguments.pool_size,
     )
     grouping = load_task_grouping(arguments.task_groups)
-    selected = group_gold_declarations(selected_declarations, grouping)
+    selected = group_task_declarations(selected_declarations, grouping)
     validate_target = target_validator(ROOT)
-    temporary = Path(tempfile.mkdtemp(prefix=".gold-pool-", dir=output.parent))
-    generated = temporary / "gold"
+    temporary = Path(tempfile.mkdtemp(prefix=".task-pool-", dir=output.parent))
+    generated = temporary / arguments.tier
     generated.mkdir()
     bundles = []
     try:
@@ -112,7 +127,7 @@ def main() -> int:
                 manifest = generate_task(
                     catalog=catalog,
                     declaration=declarations[0],
-                    mode=GOLD_TASK_MODE,
+                    mode=EXACT_TASK_MODE,
                     output=generated / f"pending-{index:03d}",
                     validate_target=validate_target,
                 )
@@ -120,7 +135,7 @@ def main() -> int:
                 manifest = generate_group_task(
                     catalog=catalog,
                     declarations=declarations,
-                    mode=GOLD_TASK_MODE,
+                    mode=EXACT_TASK_MODE,
                     output=generated / f"pending-{index:03d}",
                     validate_target=validate_target,
                 )
@@ -132,7 +147,7 @@ def main() -> int:
             bundles = list(
                 executor.map(generate_one, enumerate(selected, start=1))
             )
-        allowlist_content = build_gold_allowlist(
+        allowlist_content = build_task_allowlist(
             catalog=catalog,
             retired=retired,
             selection_audit=selection_audit,
@@ -141,6 +156,7 @@ def main() -> int:
             selected=selected,
             bundles=bundles,
             audit_date_utc=arguments.audit_date,
+            tier=arguments.tier,
         )
         make_pool_readable(generated)
         temporary_allowlist = temporary / "allowlist.json"

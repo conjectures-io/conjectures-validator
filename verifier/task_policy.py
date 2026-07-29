@@ -5,7 +5,7 @@ from typing import Any
 from verifier.models import Catalog, CatalogDeclaration, Classification
 
 
-GOLD_TASK_MODE = "formalized"
+EXACT_TASK_MODE = "formalized"
 
 
 def expected_answer_policy(declaration: CatalogDeclaration) -> dict[str, Any]:
@@ -53,10 +53,10 @@ def known_proof_collisions(
 def production_policy_violations(
     declaration: CatalogDeclaration,
     collisions: tuple[str, ...],
-    mode: str = GOLD_TASK_MODE,
+    mode: str = EXACT_TASK_MODE,
 ) -> tuple[str, ...]:
     checks = (
-        (mode != GOLD_TASK_MODE, "production tasks must use the exact formalized mode"),
+        (mode != EXACT_TASK_MODE, "production tasks must use the exact formalized mode"),
         (
             declaration.classification != Classification.DIRECT_PROP,
             "source is not a direct proposition",
@@ -85,7 +85,7 @@ def production_policy_violations(
 def production_eligibility(
     catalog: Catalog,
     declaration: CatalogDeclaration,
-    mode: str = GOLD_TASK_MODE,
+    mode: str = EXACT_TASK_MODE,
 ) -> tuple[bool, tuple[str, ...], tuple[str, ...]]:
     collisions = known_proof_collisions(catalog, declaration)
     violations = production_policy_violations(declaration, collisions, mode)

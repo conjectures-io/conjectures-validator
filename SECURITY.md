@@ -51,7 +51,7 @@ contains Lean's `sorryAx`. Production task generation intentionally requires tha
 `research open` category, `DIRECT_PROP` classification, theorem declaration kind, and absence of
 formal-proof metadata. The task must use `formalized` mode: every complete target type is
 definitionally equal to its corresponding source theorem type and has the same canonical hash.
-Answer extraction and synthetic positive/negative pairing are not admitted to the gold pool.
+Answer extraction and synthetic positive/negative pairing are not admitted to the task pool.
 Those facts are independently recomputed for every target from the compiled Lean environment
 during verification.
 
