@@ -11,5 +11,6 @@ __pycache__/
 .work/
 dist/
 build/
+.env
 # Recreated at pinned revisions by scripts/pin_dependencies.sh.
 vendor/
