@@ -40,7 +40,7 @@ export PATH="$ELAN_HOME/bin:$PATH"
 python3 -m venv "$ROOT/.venv"
 "$ROOT/.venv/bin/pip" install \
   --constraint "$ROOT/requirements-service.lock" \
-  -e '.[dev,service,subnet]'
+  -e '.[dev,service,subnet,db]'
 "$ROOT/.venv/bin/pip" check
 ./scripts/build_trusted_cache.sh
 "$ROOT/.venv/bin/python" -m verifier doctor

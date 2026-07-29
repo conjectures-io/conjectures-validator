@@ -20,6 +20,12 @@ service = [
     "uvicorn==0.51.0",
 ]
 subnet = ["bittensor==11.0.0"]
+# Database access only. Migrations are plain SQL applied by Flyway
+# (deploy/migrate/sql), so no migration tool belongs in this extra.
+db = [
+    "SQLAlchemy==2.0.51",
+    "psycopg[binary]==3.3.4",
+]
 
 [project.scripts]
 fc-verifier = "verifier.cli:main"
