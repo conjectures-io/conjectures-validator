@@ -17,6 +17,31 @@ class Submission:
     sha256: str
 
 
+def load_submission_bytes(raw: bytes, max_bytes: int, path: Path | None = None) -> Submission:
+    """Apply the byte-level submission policy to already-read proof bytes.
+
+    Shared by the on-disk reader below and the archive reader in verifier.bundle so the
+    two intake routes cannot drift apart.
+    """
+    if len(raw) > max_bytes:
+        raise VerifierError(
+            ReasonCode.SUBMISSION_TOO_LARGE,
+            f"submission exceeds the {max_bytes}-byte maximum",
+        )
+    if b"\x00" in raw:
+        raise VerifierError(ReasonCode.SUBMISSION_POLICY_VIOLATION, "submission contains a NUL byte")
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise VerifierError(ReasonCode.SUBMISSION_NOT_UTF8, "submission is not valid UTF-8") from exc
+    return Submission(
+        path=Path("Main.lean") if path is None else path,
+        text=text,
+        raw=raw,
+        sha256=sha256_bytes(raw),
+    )
+
+
 def load_submission(path: Path, max_bytes: int) -> Submission:
     if path.suffix != ".lean":
         raise VerifierError(ReasonCode.SUBMISSION_POLICY_VIOLATION, "submission must be one .lean source file")
@@ -44,15 +69,4 @@ def load_submission(path: Path, max_bytes: int) -> Submission:
             raw = handle.read(max_bytes + 1)
     finally:
         os.close(descriptor)
-    if len(raw) > max_bytes:
-        raise VerifierError(
-            ReasonCode.SUBMISSION_TOO_LARGE,
-            f"submission exceeds the {max_bytes}-byte maximum",
-        )
-    if b"\x00" in raw:
-        raise VerifierError(ReasonCode.SUBMISSION_POLICY_VIOLATION, "submission contains a NUL byte")
-    try:
-        text = raw.decode("utf-8", errors="strict")
-    except UnicodeDecodeError as exc:
-        raise VerifierError(ReasonCode.SUBMISSION_NOT_UTF8, "submission is not valid UTF-8") from exc
-    return Submission(path=path, text=text, raw=raw, sha256=sha256_bytes(raw))
+    return load_submission_bytes(raw, max_bytes, path)
