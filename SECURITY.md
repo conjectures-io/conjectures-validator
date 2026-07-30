@@ -34,11 +34,26 @@ through an unauthenticated channel does not make the task authentic.
 
 ## What miners control
 
-The miner controls exactly one regular UTF-8 `.lean` file, up to 1,000,000 bytes. The threat model
-assumes the miner knows the entire public task, verifier source, imported Formal Conjectures tree,
-and Mathlib environment. It also assumes the miner will try parser ambiguities, name shadowing,
-custom instances, elaborator side effects, resource exhaustion, filesystem reads, process attacks,
-and dependency reuse.
+The miner submits one `conjectures-submission/v1` ZIP bundle, up to 2 MiB, described in
+[`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md). The bundle is admitted by the
+exact-shape scanner in [`verifier/bundle.py`](verifier/bundle.py), which permits exactly two
+entries: a bounded strict-JSON manifest and one regular UTF-8 `.lean` file of up to 1,000,000
+bytes. Everything downstream of admission is unchanged: the verifier still receives exactly one
+bounded UTF-8 `.lean` file, one read-only task, an expected task digest, and a fresh disposable
+workspace.
+
+The archive is never extracted. Entry names are compared against a two-name allowlist and are
+never used as filesystem paths; entry bytes are decompressed into bounded memory, and the proof
+is written by the validator under a name it chooses, through the same `O_EXCL` no-follow path
+used for a proof supplied on disk. Path traversal, symlink, hardlink, and special-file entries
+are therefore not filtered but unrepresentable. The manifest is metadata only: it never reaches
+Lean, and its task binding is checked against the operator-supplied commitment rather than
+trusted.
+
+The threat model assumes the miner knows the entire public task, verifier source, imported
+Formal Conjectures tree, and Mathlib environment. It also assumes the miner will try parser
+ambiguities, name shadowing, custom instances, elaborator side effects, resource exhaustion,
+filesystem reads, process attacks, dependency reuse, and hostile archive structure.
 
 The miner does not control the task commitment, verifier command-line overrides, container image,
 dependency cache, or host/container configuration. Do not expose the development override flags in
@@ -70,6 +85,16 @@ The permitted production axioms are exactly:
 
 | Miner strategy | Enforcement |
 | --- | --- |
+| Escape the workspace through an archive path (`../`, absolute, backslash, drive letter) | The archive is never extracted; names are only compared against a two-name allowlist and are never used as filesystem paths |
+| Smuggle a symlink, hardlink, device node, FIFO, socket, or executable entry | Entry type and mode bits are checked from the central directory, and only a regular non-executable file is admitted |
+| Hide extra content in a third entry, a directory entry, a nested archive, or a duplicate name | Exactly two entries with exact byte-equal names in a fixed order |
+| Exhaust memory or disk with a decompression bomb | A bounded read that never trusts the declared size, a per-entry cap, a total cap, and a 200:1 ratio limit |
+| Lie about an entry's size or CRC | Decompressed length and CRC-32 are both recomputed and compared |
+| Make two ZIP readers see different archives | Each local header is cross-checked against the central directory on name, method, flags, CRC, and both sizes; a disagreement is refused rather than resolved |
+| Prepend a self-extracting stub, append a second archive, or build a polyglot file | The first local header must be at offset zero and the end-of-central-directory record must be the final 22 bytes, with no comment |
+| Encrypt an entry, defer sizes to a data descriptor, or mask header values | Only the UTF-8 name flag and deflate level hints are permitted; every other general-purpose flag is refused |
+| Use an exotic compression method or a split archive | Only `stored` and `deflate`; multi-disk and spanned archives are refused |
+| Claim a different task or another miner's identity in the manifest | The manifest's task id, task digest, and hotkey must equal the operator-supplied commitment and the authenticated hotkey |
 | Change or swap task files | No-follow bounded reads, exact file set, per-file hashes, deterministic payload regeneration, and external whole-bundle SHA-256 |
 | Supply a solved, incorrectly transformed, answer-wrapper, or test task | Allowlisted mode, independent compiled `P`/`Not P` target reconstruction, source and target hashes, compiled classification/category/declaration kind, formal-proof tag, `sorryAx` dependency, and target-hole checks |
 | Submit `sorry`, `admit`, an axiom, a module initializer, or the admitted source theorem | Token policy plus Comparator's transitive axiom closure |
@@ -87,6 +112,18 @@ The permitted production axioms are exactly:
 
 Static checks are defense in depth. The authoritative correctness checks are Comparator's statement
 comparison and axiom closure followed by kernel replay.
+
+Bundle admission is parsed with `struct` and `zlib` rather than `zipfile`, so the decision depends
+on one explicit reading of the format instead of on a general-purpose parser's tolerance for
+ambiguous archives. It is also available out of process as `python -m verifier bundle scan`, which
+the API can run under the existing `RLIMIT_AS`/`RLIMIT_CPU` harness in
+[`verifier/process.py`](verifier/process.py), since `zlib` is C code operating on hostile bytes.
+
+There is deliberately no antivirus or signature-scanning step. The admitted content is one UTF-8
+Lean source file and one small JSON object; neither is executed by the API, and the proof is only
+ever compiled inside the one-shot Landlock/seccomp container. A signature scanner would add a
+network-updating dependency to a deliberately pinned, offline trust base while detecting nothing
+the allowlist above does not already exclude.
 
 The wrapper specifically compensates for Landrun's documented
 [AF_UNIX escape](https://github.com/Zouuup/landrun/issues/43) and

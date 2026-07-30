@@ -69,7 +69,19 @@ schema depends on may live there.
 `conjectures_subnet/db/models.py` mirrors the migrations for runtime queries and
 typing. It is not the source of truth and nothing creates the production schema
 from it. Because no tool diffs plain SQL against ORM metadata, the mirror has to
-be updated by hand and checked by comparison: build one database from
-`deploy/migrate/sql` and another from `Base.metadata.create_all()`, then compare
-`pg_catalog` — columns, constraints, indexes, identity, triggers, domains and
-enums. As of `V001` the two agree on all 189 objects.
+be updated by hand and checked by comparison.
+
+`scripts/check_schema_drift.py` does that comparison: it builds one scratch
+database from `deploy/migrate/sql` and another from `Base.metadata.create_all()`,
+compares `pg_catalog` — columns, constraints, indexes, domains, enum labels,
+triggers and trigger-function bodies — then drops both. It exits non-zero on any
+difference, so it works as a gate.
+
+```bash
+python3 scripts/check_schema_drift.py \
+  --dsn postgresql://conjectures:<password>@127.0.0.1:5432/postgres
+```
+
+As of `V001` the two agree on all 199 compared objects. Run it after editing
+either side; a mirror that has silently drifted is worse than no mirror, because
+tests built from the metadata would pass against a schema production never has.
