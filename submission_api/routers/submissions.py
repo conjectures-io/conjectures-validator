@@ -156,6 +156,10 @@ def _status(view: store.SubmissionView) -> schemas.SubmissionStatus:
             amount_rao=submission.payment_amount_rao,
             block=submission.payment_block,
         ),
+        bounty=schemas.BountyQuote(
+            amount_rao=submission.bounty_amount_rao,
+            policy_version=submission.bounty_policy_version,
+        ),
         verification=_verification(view.verification, submission),
         created_at=_utc(submission.created_at),
         updated_at=_utc(submission.updated_at),
@@ -284,6 +288,11 @@ async def create_submission(
             reference=payment_reference, hotkey=miner
         )
 
+        # Quoted after the payment is confirmed, so a request that never becomes a submission
+        # never consumes a quote, and frozen on the row below: this is the amount the response
+        # promises, and nothing downstream may reprice it.
+        quote = await services.pricing.quote(session, task_id=task_id)
+
         view = await store.create_submission(
             session,
             store.NewSubmission(
@@ -301,6 +310,9 @@ async def create_submission(
                 hotkey_signature=normalise_signature(signature),
                 manual_review_required=settings.manual_review_enabled,
                 review_policy_version=settings.review_policy_version,
+                bounty_amount_rao=quote.amount_rao,
+                bounty_policy_version=quote.policy_version,
+                bounty_inputs=quote.inputs,
             ),
         )
         if view.replayed:

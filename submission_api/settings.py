@@ -46,6 +46,12 @@ DISPATCHERS = (QUEUE_DISPATCH, IN_PROCESS_DISPATCH)
 RAO_PER_TAO = 1_000_000_000
 DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 
+# The bounty a verified submission is owed, in alpha base units. There is no defensible
+# default for money owed, so production must state it; development gets one so a local run
+# needs no extra variable.
+DEVELOPMENT_BOUNTY_RAO = RAO_PER_TAO
+DEFAULT_BOUNTY_POLICY_VERSION = "flat-v1"
+
 POLICY_VERSION = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
 
 
@@ -135,6 +141,8 @@ class Settings:
     max_bundle_bytes: int
     manual_review_enabled: bool
     review_policy_version: str
+    bounty_amount_rao: int
+    bounty_policy_version: str
 
     @property
     def production(self) -> bool:
@@ -185,6 +193,24 @@ class Settings:
                 "REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
             )
 
+        # Every accepted submission is quoted a bounty it is then owed, so a production
+        # deployment states the amount rather than inheriting one.
+        if production and not env.get("BOUNTY_AMOUNT_RAO", "").strip():
+            raise SettingsError(
+                "BOUNTY_AMOUNT_RAO is required in production; it is what a verified "
+                "submission is owed and must not fall back to a default"
+            )
+        bounty_amount_rao = _positive_int(
+            env, "BOUNTY_AMOUNT_RAO", DEVELOPMENT_BOUNTY_RAO
+        )
+        bounty_policy_version = env.get(
+            "BOUNTY_POLICY_VERSION", DEFAULT_BOUNTY_POLICY_VERSION
+        ).strip()
+        if POLICY_VERSION.fullmatch(bounty_policy_version) is None:
+            raise SettingsError(
+                "BOUNTY_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
+            )
+
         development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
         invalid = tuple(
             item for item in development_hotkeys if SS58_ADDRESS.fullmatch(item) is None
@@ -233,4 +259,6 @@ class Settings:
             ),
             manual_review_enabled=_flag(env, "MANUAL_REWARD_REVIEW_ENABLED", True),
             review_policy_version=review_policy_version,
+            bounty_amount_rao=bounty_amount_rao,
+            bounty_policy_version=bounty_policy_version,
         )

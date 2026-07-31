@@ -9,6 +9,7 @@ Gated on `FC_POSTGRES_DSN`, because the schema is PostgreSQL-only. Start one wit
 from __future__ import annotations
 
 import asyncio
+import uuid
 
 import pytest
 
@@ -110,6 +111,40 @@ def test_a_paid_submission_is_recorded_and_queued():
                 assert proof is not None
                 assert bytes(proof.content) == VALID_PROOF
                 assert proof.byte_length == len(VALID_PROOF)
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_bounty_is_quoted_at_intake_and_then_frozen():
+    async def scenario():
+        kit = await harness(
+            BOUNTY_AMOUNT_RAO="4200000000", BOUNTY_POLICY_VERSION="flat-v1"
+        ).setup()
+        try:
+            bundle = valid_bundle()
+            key = new_key()
+            first = await _post(kit, bundle, idempotency_key=key)
+            assert first.status_code == 201, first.text
+            # The miner learns what the proof is worth together with the submission id.
+            assert first.json()["bounty"] == {
+                "amount_rao": 4_200_000_000,
+                "policy_version": "flat-v1",
+            }
+
+            # Frozen on the row, so nothing downstream has to re-derive the amount, and a
+            # replay quotes the original rather than pricing the request again.
+            async with kit.session() as session:
+                submission = await session.get(
+                    Submission, uuid.UUID(first.json()["submission_id"])
+                )
+                assert submission is not None
+                assert submission.bounty_amount_rao == 4_200_000_000
+                assert submission.bounty_policy_version == "flat-v1"
+            replay = await _post(kit, bundle, idempotency_key=key)
+            assert replay.status_code == 200
+            assert replay.json()["bounty"] == first.json()["bounty"]
         finally:
             await kit.teardown()
 

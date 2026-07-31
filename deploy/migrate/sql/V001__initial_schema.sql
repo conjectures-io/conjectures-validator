@@ -59,6 +59,12 @@ CREATE TABLE submissions (
     review_policy_version   TEXT NOT NULL
         CONSTRAINT review_policy_version_nonempty CHECK (length(review_policy_version) BETWEEN 1 AND 64),
 
+    bounty_amount_rao       BIGINT NOT NULL                                -- alpha base units, NOT the TAO rao of payment_amount_rao above
+        CONSTRAINT bounty_amount_positive CHECK (bounty_amount_rao > 0),
+    bounty_policy_version   TEXT NOT NULL                                  -- the pricing rule that produced the amount, as review_policy_version is for review
+        CONSTRAINT bounty_policy_version_nonempty CHECK (length(bounty_policy_version) BETWEEN 1 AND 64),
+    bounty_inputs           JSONB,                                         -- what the rule read: pool balance, task age, any rate. Makes the quote reproducible instead of asserted.
+
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -135,12 +141,8 @@ CREATE TABLE reward_events (
 
     eligibility_reason      TEXT NOT NULL,                   -- 'REVIEW_APPROVED' or 'AUTO_REVIEW_DISABLED' (SUBNET.md:206)
 
-    -- The bounty in force when this submission was accepted, captured so repricing
-    -- tasks/bounties.json later cannot change what an in-flight miner is owed.
-    bounty_amount_rao       BIGINT NOT NULL                  -- alpha base units (1e-9); integer only, as SUBNET.md:168 requires of TAO
-        CONSTRAINT bounty_amount_positive CHECK (bounty_amount_rao > 0),
-    bounty_commit           TEXT NOT NULL                    -- repo commit the bounty was read from; makes the amount defensible after the fact
-        CONSTRAINT bounty_commit_nonempty CHECK (length(bounty_commit) BETWEEN 7 AND 64),
+    amount_rao              BIGINT NOT NULL                  -- alpha base units (1e-9); integer only, as SUBNET.md:168 requires of TAO
+        CONSTRAINT reward_amount_positive CHECK (amount_rao > 0),
 
     -- Captured, not derived from submissions: this is where the money actually went,
     -- an external fact. Alpha is held as stake, so a transfer needs both keys.

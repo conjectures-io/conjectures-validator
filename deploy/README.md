@@ -82,6 +82,6 @@ python3 scripts/check_schema_drift.py \
   --dsn postgresql://conjectures:<password>@127.0.0.1:5432/postgres
 ```
 
-As of `V001` the two agree on all 199 compared objects. Run it after editing
+As of `V001` the two agree on all 173 compared objects. Run it after editing
 either side; a mirror that has silently drifted is worse than no mirror, because
 tests built from the metadata would pass against a schema production never has.

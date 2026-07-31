@@ -211,6 +211,10 @@ class Submission(Base):
     )
     review_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
 
+    bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
+    bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
+
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -232,6 +236,11 @@ class Submission(Base):
         CheckConstraint(
             "length(review_policy_version) BETWEEN 1 AND 64",
             name="review_policy_version_nonempty",
+        ),
+        CheckConstraint("bounty_amount_rao > 0", name="bounty_amount_positive"),
+        CheckConstraint(
+            "length(bounty_policy_version) BETWEEN 1 AND 64",
+            name="bounty_policy_version_nonempty",
         ),
         UniqueConstraint(
             "hotkey", "idempotency_key", name="submissions_idempotency_unique"
@@ -355,10 +364,11 @@ class VerificationRun(Base):
 
 
 class RewardEvent(Base):
-    """One payout attempt: a flat per-task bounty paid as a direct alpha transfer.
+    """One payout attempt, paid as a direct alpha transfer.
 
     Weights go to a fixed treasury uid that funds these, so no per-submission
-    weight exists and nothing here is scored.
+    weight exists and nothing here is scored. The amount is not decided here: it was
+    quoted and frozen on the submission at intake.
 
     The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
     then its chain fields fill in as it progresses. Inserting after the transfer
@@ -381,10 +391,7 @@ class RewardEvent(Base):
 
     eligibility_reason: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # The bounty in force when this submission was accepted, captured so
-    # repricing bounties later cannot change what an in-flight miner is owed.
-    bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    bounty_commit: Mapped[str] = mapped_column(Text, nullable=False)
+    amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     # Captured, not derived from submissions: this is where the money actually
     # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
@@ -408,10 +415,7 @@ class RewardEvent(Base):
     confirmed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
-        CheckConstraint("bounty_amount_rao > 0", name="bounty_amount_positive"),
-        CheckConstraint(
-            "length(bounty_commit) BETWEEN 7 AND 64", name="bounty_commit_nonempty"
-        ),
+        CheckConstraint("amount_rao > 0", name="reward_amount_positive"),
         # PENDING means exactly "no extrinsic exists yet", so status and reference
         # must not drift apart. FAILED is exempt: an attempt can die before broadcast.
         CheckConstraint(

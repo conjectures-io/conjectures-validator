@@ -57,7 +57,8 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    against finalized chain state. Intake is payment-gated: a refused request creates no
    submission and is recorded in `api_rejection_log` instead.
 4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
-   submission ID. The submission is queued for verification by being `UNVERIFIED`.
+   submission ID together with the bounty the submission is owed if it verifies, frozen at that
+   moment. The submission is queued for verification by being `UNVERIFIED`.
 5. A verification worker claims it and passes the exact proof bytes and task digest to the
    isolated verifier.
 6. A proof rejected by policy, Comparator, or the Lean kernel is recorded as rejected and never
@@ -67,7 +68,8 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
 9. If manual reward review is not required, or if a held proof is approved, the submission becomes
    reward-eligible and is passed to the reward pipeline.
-10. The reward processor pays the captured per-task bounty and records the chain evidence.
+10. The reward processor pays the amount frozen at intake and records the chain evidence. It
+    never reprices; a payout that disagrees with the frozen amount is a bug, not a repricing.
 
 ```text
 miner pays 0.5 TAO

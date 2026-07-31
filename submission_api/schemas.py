@@ -32,6 +32,23 @@ class PaymentRecord(Model):
     block: int = Field(description="Finalized block the transfer was observed in")
 
 
+class BountyQuote(Model):
+    """What this submission is owed if it verifies, frozen when it was accepted.
+
+    Present unconditionally: a submission is quoted at intake, so the miner learns the amount
+    with the submission id rather than at payout. It does not move afterwards — a later change
+    to the pricing rule prices later submissions, not this one.
+
+    `bounty_inputs` is deliberately not exposed: the amount is what the miner is owed, while the
+    inputs describe treasury state.
+    """
+
+    amount_rao: int = Field(
+        description="Frozen bounty in alpha base units; not the TAO rao of `payment.amount_rao`"
+    )
+    policy_version: str
+
+
 class VerificationStatus(Model):
     status: str
     attempt: int | None = None
@@ -61,6 +78,7 @@ class SubmissionStatus(Model):
     review_policy_version: str
 
     payment: PaymentRecord
+    bounty: BountyQuote
     verification: VerificationStatus | None = None
 
     created_at: datetime

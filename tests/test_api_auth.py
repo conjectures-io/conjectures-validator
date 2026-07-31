@@ -173,14 +173,31 @@ def test_production_refuses_development_components(override, message):
         Settings.from_env(environ)
 
 
+def production_env(**overrides: str) -> dict[str, str]:
+    environ = {
+        "APP_MODE": "PROD",
+        "PAYMENT_RECIPIENT_SS58": RECIPIENT,
+        "BOUNTY_AMOUNT_RAO": "1000000000",
+    }
+    environ.update(overrides)
+    return environ
+
+
 def test_production_defaults_are_all_hardened():
-    settings = Settings.from_env(
-        {"APP_MODE": "PROD", "PAYMENT_RECIPIENT_SS58": RECIPIENT}
-    )
+    settings = Settings.from_env(production_env())
     assert isinstance(build_authenticator(settings), HotkeySignatureAuthenticator)
     assert isinstance(build_payment_verifier(settings), ChainPaymentVerifier)
     assert settings.expose_docs is False
     assert settings.production is True
+
+
+def test_production_refuses_to_inherit_a_default_bounty():
+    # The amount is what a verified submission is owed. A default would silently promise
+    # money the operator never chose to promise.
+    environ = production_env()
+    del environ["BOUNTY_AMOUNT_RAO"]
+    with pytest.raises(SettingsError, match="BOUNTY_AMOUNT_RAO"):
+        Settings.from_env(environ)
 
 
 def test_development_defaults_are_convenient():

@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
+from conjectures_subnet.bounty import FlatBountyPricer
 from conjectures_subnet.db import (
     async_session_factory,
     create_async_db_engine,
@@ -57,6 +58,10 @@ def build_services(
         authenticator=build_authenticator(settings),
         payments=build_payment_verifier(settings),
         dispatcher=build_dispatcher(settings),
+        pricing=FlatBountyPricer(
+            amount_rao=settings.bounty_amount_rao,
+            policy_version=settings.bounty_policy_version,
+        ),
     )
 
 

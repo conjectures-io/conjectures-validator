@@ -77,6 +77,9 @@ class NewSubmission:
     hotkey_signature: bytes  # 64 bytes over request_digest
     manual_review_required: bool
     review_policy_version: str
+    bounty_amount_rao: int
+    bounty_policy_version: str
+    bounty_inputs: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -216,6 +219,11 @@ async def create_submission(
         reward_status=RewardState.INELIGIBLE,
         manual_review_required=request.manual_review_required,
         review_policy_version=request.review_policy_version,
+        bounty_amount_rao=request.bounty_amount_rao,
+        bounty_policy_version=request.bounty_policy_version,
+        bounty_inputs=dict(request.bounty_inputs)
+        if request.bounty_inputs is not None
+        else None,
     )
     session.add(submission)
     try:

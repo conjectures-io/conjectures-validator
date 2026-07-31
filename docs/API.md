@@ -82,11 +82,21 @@ X-Conjectures-Payment-Ref: 0x8b21…
     "amount_rao": 500000000,
     "block": 4210031
   },
+  "bounty": {
+    "amount_rao": 1000000000,
+    "policy_version": "flat-v1"
+  },
   "verification": { "status": "UNVERIFIED", "report_available": false },
   "created_at": "2026-07-30T15:20:11.025465Z",
   "updated_at": "2026-07-30T15:20:11.025465Z"
 }
 ```
+
+`bounty` is what this submission is owed if it verifies, quoted at intake and frozen on the row.
+It is in **alpha** base units, unlike `payment.amount_rao`, which is the TAO rao the miner paid.
+A later change to the pricing rule prices later submissions; it never reprices this one, and a
+replay returns the same quote. The inputs the rule read are recorded in the database but not
+returned — the amount is the miner's business, the treasury state behind it is not.
 
 The three statuses are independent axes, not one lifecycle. A submission always has a
 verification status **and** a review status **and** a reward status; collapsing them would imply
@@ -237,12 +247,16 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `MAX_BUNDLE_BYTES` | `2097152` | Cannot exceed the verifier policy |
 | `MANUAL_REWARD_REVIEW_ENABLED` | `true` | Captured per submission at creation |
 | `REVIEW_POLICY_VERSION` | `v1` | |
+| `BOUNTY_AMOUNT_RAO` | `1000000000` in `DEV`, required in `PROD` | Alpha base units. Frozen per submission at intake |
+| `BOUNTY_POLICY_VERSION` | `flat-v1` | The pricing rule the amount came from |
 
 Every value is validated at startup, so a misconfigured deployment refuses to boot instead of
-failing on the first miner request. Three refusals are deliberate fail-closed guardrails:
+failing on the first miner request. Four refusals are deliberate fail-closed guardrails:
 production will not start with the development authenticator, the development payment verifier,
 or the in-process dispatcher — each would otherwise weaken the boundary
-[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe.
+[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe — and it will not start
+without an explicit `BOUNTY_AMOUNT_RAO`, because inheriting a default there promises money the
+operator never chose to promise.
 
 ## Running it
 
