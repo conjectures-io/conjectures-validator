@@ -235,8 +235,8 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `POSTGRES_USER` / `PASSWORD` / `HOST` / `PORT` / `DB` | `conjectures`, `conjectures`, `localhost`, `5432`, `conjectures` | Used when `DATABASE_URL` is unset |
 | `PAYMENT_RECIPIENT_SS58` | required | The address that must receive the transfer |
 | `PAYMENT_AMOUNT_RAO` | `500000000` | 0.5 TAO |
-| `GOLD_ALLOWLIST_PATH` | `./gold/allowlist.json` | |
-| `GOLD_POOL_ROOT` | `./tasks/gold` | |
+| `TASK_ALLOWLIST_PATH` | `./task_pool/allowlist.json` | |
+| `TASK_POOL_ROOT` | `./tasks/pool` | Bundles live under `<root>/<tier>/<task_id>` |
 | `SUBMISSION_AUTHENTICATOR` | `hotkey-signature` in `PROD` | `development-static-key` refused in `PROD` |
 | `SUBMISSION_PAYMENT_VERIFIER` | `chain` in `PROD` | `development` refused in `PROD` |
 | `SUBMISSION_DISPATCHER` | `queue` | `in-process` refused in `PROD` |
@@ -270,7 +270,7 @@ uvicorn submission_api.asgi:app --host 127.0.0.1 --port 8080
 ```
 
 The task pool is loaded once at startup and every entry is checked against the audited
-allowlist with `GoldTaskRegistry.assert_bundle`, so a task directory whose bytes have drifted
+allowlist with `TaskPoolRegistry.assert_bundle`, so a task directory whose bytes have drifted
 from the published commitment stops the process from starting rather than quietly admitting
 submissions against an unaudited task.
 

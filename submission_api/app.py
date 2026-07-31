@@ -44,8 +44,8 @@ def build_services(
 ) -> Services:
     """Assemble the service graph. Tests inject a catalog directly."""
     resolved_catalog = catalog or TaskCatalog.load(
-        allowlist_path=settings.gold_allowlist_path,
-        pool_root=settings.gold_pool_root,
+        allowlist_path=settings.task_allowlist_path,
+        pool_root=settings.task_pool_root,
     )
     # The URL comes from conjectures_subnet.db, so the API, the workers and Flyway can never
     # disagree about which database they are talking to.

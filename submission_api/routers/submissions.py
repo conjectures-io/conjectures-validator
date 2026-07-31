@@ -54,8 +54,8 @@ from submission_api.errors import (
 )
 from verifier.bundle import BUNDLE_MEDIA_TYPE, ProofBundle, admit_proof_bundle
 from verifier.errors import VerifierError
-from verifier.gold_registry import TaskNotAllowed
 from verifier.hashing import is_sha256, sha256_bytes
+from verifier.task_registry import TaskNotAllowed
 
 router = APIRouter(prefix="/v1/submissions", tags=["submissions"])
 

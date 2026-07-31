@@ -55,7 +55,7 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
 Keep the `task_id` and its `task_bundle_sha256`: both go into your submission, and the
 validator refuses anything that does not match the published commitment.
 
-The task itself is in this repository, at `tasks/gold/<task_id>/`. `Challenge.lean` is the
+The task itself is in this repository, at `tasks/pool/<tier>/<task_id>/`. `Challenge.lean` is the
 statement you must prove; `SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your
 file gets wrapped in.
 
@@ -95,7 +95,7 @@ runs:
 
 ```bash
 python3 -m verifier verify \
-  --task tasks/gold/<task_id> \
+  --task tasks/pool/<tier>/<task_id> \
   --submission Main.lean \
   --expected-task-sha256 <task_bundle_sha256>
 ```

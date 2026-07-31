@@ -3,7 +3,7 @@
 How data moves through the validator, what each stage consumes, what it produces, and which values
 are load-bearing for trust. Every number here was computed from the pinned repository state at
 `e923379e609b9d5987011a1d1f06ec22ea25cd20`; the commands are reproducible from `data/catalog.json`
-and `gold/*.json`.
+and `task_pool/**/*.json`.
 
 Companion documents: [`SUBNET.md`](SUBNET.md) for the service contract,
 [`../SECURITY.md`](../SECURITY.md) for the isolation boundary.
@@ -47,13 +47,13 @@ flowchart TD
         EX["CatalogExtractor.lean<br/>Lean environment introspection"]
         CAT["data/catalog.json<br/>3236 records × 24 fields"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
-        AUD["HUMAN AUDIT<br/>gold/selection-audit.json · 100 candidates"]
-        PICK["gold/whole-problem-targets.json<br/>29 asserted picks"]
-        SEL["select_gold_declarations<br/>re-verifies every pick mechanically"]
+        AUD["HUMAN AUDIT<br/>task_pool/tiers/tier-1/selection-audit.json · 100 candidates"]
+        PICK["task_pool/tiers/tier-1/whole-problem-targets.json<br/>29 asserted picks"]
+        SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
-        BUN["tasks/gold/TASK_ID/<br/>7 frozen files"]
-        ALLOW["gold/allowlist.json<br/>29 bundle digests · default DENY"]
+        BUN["tasks/pool/tier-1/TASK_ID/<br/>7 frozen files"]
+        ALLOW["task_pool/allowlist.json<br/>29 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -191,15 +191,15 @@ one of them starts firing is the day upstream changed something that matters.
 
 ### The 178 retired theorems
 
-`gold/retired-source-theorems.json` names 178 source theorems that must never be offered again,
+`task_pool/tiers/tier-1/retired-source-theorems.json` names 178 source theorems that must never be offered again,
 committed by both `theorem` name **and** `source_type_sha256` — so retiring survives a rename. Of
 those, 88 intersect the eligible pool and 11 intersect the Erdős-eligible 121. Retirement is checked
-by name *or* type hash at selection time (`gold_pool.py:464-465`).
+by name *or* type hash at selection time (`task_pool.py:467-468`).
 
 ### Human picks, machine proves the pick is legal
 
 The 29 are **not computed** from the 121. They are asserted by hand in
-`gold/whole-problem-targets.json`, and `select_gold_declarations` (`gold_pool.py:404-485`) then
+`task_pool/tiers/tier-1/whole-problem-targets.json`, and `select_task_declarations` (`task_pool.py:407-489`) then
 refuses to accept any pick that is not simultaneously:
 
 - present in the audited selection with matching `source_path` and `erdos_problem_number`;
@@ -234,7 +234,7 @@ The central mechanism, and the thing that makes statement drift structurally imp
 generated `Challenge.lean` **never copies the statement text**. It asks Lean to splice the source
 theorem's type in by name, via the custom elaborator `fcTypeOfName%` in `lean/TaskSupport.lean`.
 
-A complete real bundle — `tasks/gold/fc-e923379e-erdos11-erdos-11-7c0303029e-formalized-v1/`:
+A complete real bundle — `tasks/pool/tier-1/fc-e923379e-erdos11-erdos-11-7c0303029e-formalized-v1/`:
 
 ```lean
 -- Challenge.lean, 160 bytes, the entire task
@@ -270,12 +270,12 @@ The statement the miner must prove — never stored as text anywhere in the bund
 | Field | Value in this bundle | Purpose |
 | --- | --- | --- |
 | `source_type_hash` | `sha256:7e9596e7…a19ea738` | The upstream statement's identity |
-| `generated_target_type_hash` | `sha256:7e9596e7…a19ea738` | The generated target's identity — **must be equal in gold mode** |
+| `generated_target_type_hash` | `sha256:7e9596e7…a19ea738` | The generated target's identity — **must be equal in formalized mode** |
 | `forbidden_dependencies` | `["Erdos11.erdos_11"]` | The proof may not cite the source theorem |
 | `permitted_axioms` | `propext`, `Quot.sound`, `Classical.choice` | Whitelist; `sorryAx` is absent |
 | `theorem_names` | `["Bounty.target"]` | What must be proved and exported |
 | `production_eligible` | `true` | Gates the strict path |
-| `task_mode` | `formalized` | The only gold mode |
+| `task_mode` | `formalized` | The only mode |
 | `timeout_seconds` | `3600` | Wall-clock cap |
 | `max_submission_bytes` | `1000000` | Size cap |
 | `trusted_file_hashes` | 5 entries | Must equal `trusted-hashes.json` |
@@ -284,7 +284,7 @@ Generation writes to a temp directory, validates, then publishes with `os.replac
 overwrite an existing bundle.
 
 Note: `TaskManifest.max_submission_bytes` falls back to `5_000_000` when the key is absent
-(`models.py:207`), while the generator's own default is `1_000_000`. Every gold manifest sets the
+(`models.py:207`), while the generator's own default is `1_000_000`. Every pool manifest sets the
 value explicitly, so nothing is currently affected — but a hand-written manifest that omits the key
 gets a 5× larger cap than the generator would ever produce.
 
@@ -294,7 +294,7 @@ gets a 5× larger cap than the generator would ever produce.
 
 Before a bundle is allowed to exist, the generated Challenge is compiled and inspected. The task is
 rejected unless the source hash is unchanged, the generated target is `isDefEq` to the source type,
-and for gold mode: `source_category == "research open"`, `declaration_kind == "theorem"`,
+and for formalized mode: `source_category == "research open"`, `declaration_kind == "theorem"`,
 `depends_on_sorry` is true, `has_formal_proof` is false, the target contains no `sorry`, and the
 axiom sets match.
 
@@ -303,8 +303,8 @@ against a real Lean compile, not against JSON.
 
 ## 6. Commitment — **BUILT**
 
-`gold/allowlist.json`, schema version 4, `default: "DENY"`, enforced by
-`gold_registry.py` `assert_bundle`.
+`task_pool/allowlist.json`, schema version 5, `default: "DENY"`, enforced by
+`task_registry.py` `assert_bundle`.
 
 29 `allowed_source_theorems` and 29 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
@@ -502,7 +502,7 @@ Lean elaborated type of Erdos11.erdos_11
   │  CatalogExtractor.lean
   ▼
 catalog.type_hash ─────────────── sha256:7e9596e7…a19ea738
-  │  task_generator (gold mode requires equality, task_generator.py:293)
+  │  task_generator (formalized mode requires equality, task_generator.py:293)
   ▼
 manifest.source_type_hash == manifest.generated_target_type_hash
   │  sha256_named_bytes over 7 length-prefixed files
@@ -541,7 +541,7 @@ Ordered by how much they matter, not by where they appear above.
    well-formed. This blocks the whole right-hand side.
 3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets
    `generated_target_type_hash` from `generated_hashes[0]`, so a multi-source task would not commit
-   its secondary targets. Currently latent: `gold/task-groups.json` has 0 groups and
+   its secondary targets. Currently latent: `task_pool/tiers/tier-1/task-groups.json` has 0 groups and
    `pool_policy.multi_target_tasks` is 0. Closing it needs a manifest schema bump.
 4. **`nanoda` is pinned but disabled.** The second independent kernel is one config flag away and is
    the cheapest available increase in kernel-level assurance.
@@ -552,7 +552,7 @@ Ordered by how much they matter, not by where they appear above.
 
 # Reproducing the numbers
 
-Every count above comes from `data/catalog.json` and `gold/*.json` at the pinned commit. The funnel
+Every count above comes from `data/catalog.json` and `task_pool/**/*.json` at the pinned commit. The funnel
 is `category == "research open"` then `classification == "DIRECT_PROP"`, then the remaining
 `production_policy_violations` rules from `verifier/task_policy.py:53-82`, then the prefix and
 audit-set intersections. Set membership for retirement is by `theorem` **or** `source_type_sha256`.

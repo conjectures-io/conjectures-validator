@@ -4,13 +4,13 @@ flowchart TD
         EX["CatalogExtractor.lean<br/>Lean environment introspection"]
         CAT["data/catalog.json<br/>3236 records × 24 fields"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
-        AUD["HUMAN AUDIT<br/>gold/selection-audit.json · 100 candidates"]
-        PICK["gold/whole-problem-targets.json<br/>29 asserted picks"]
-        SEL["select_gold_declarations<br/>re-verifies every pick mechanically"]
+        AUD["HUMAN AUDIT<br/>task_pool/tiers/tier-1/selection-audit.json · 100 candidates"]
+        PICK["task_pool/tiers/tier-1/whole-problem-targets.json<br/>29 asserted picks"]
+        SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
-        BUN["tasks/gold/TASK_ID/<br/>7 frozen files"]
-        ALLOW["gold/allowlist.json<br/>29 bundle digests · default DENY"]
+        BUN["tasks/pool/tier-1/TASK_ID/<br/>7 frozen files"]
+        ALLOW["task_pool/allowlist.json<br/>29 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]

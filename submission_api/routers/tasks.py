@@ -15,7 +15,7 @@ from submission_api import schemas
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import NotFound
 from verifier.bundle import BUNDLE_FORMAT
-from verifier.gold_registry import TaskNotAllowed
+from verifier.task_registry import TaskNotAllowed
 
 router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
 

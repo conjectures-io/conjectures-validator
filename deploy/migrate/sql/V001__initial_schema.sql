@@ -33,7 +33,7 @@ CREATE TABLE submissions (
     hotkey                  ss58 NOT NULL,                                 -- submitting miner
     idempotency_key         UUID NOT NULL,                                 -- SUBNET.md:128, client-generated, one attempt
     request_digest          sha256 NOT NULL,                               -- canonical request; tells replay from conflict
-    task_id                 TEXT NOT NULL                                  -- dir under tasks/gold/; no FK, the repo is the task source of truth
+    task_id                 TEXT NOT NULL                                  -- dir under tasks/pool/<tier>/; no FK, the repo is the task source of truth
         CONSTRAINT task_id_nonempty CHECK (length(task_id) BETWEEN 1 AND 255),
     task_bundle_sha256      sha256 NOT NULL,                               -- exact bundle this proof was written against
 

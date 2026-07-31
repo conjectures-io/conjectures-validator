@@ -126,8 +126,8 @@ class Settings:
     # Empty means "whatever conjectures_subnet.db resolves". The API does not own the
     # database; it reuses the validator's shared store.
     database_url: str
-    gold_allowlist_path: Path
-    gold_pool_root: Path
+    task_allowlist_path: Path
+    task_pool_root: Path
     verifier_project_root: Path
     payment_recipient: str
     payment_amount_rao: int
@@ -232,11 +232,15 @@ class Settings:
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
-            gold_allowlist_path=_directory(
-                env, "GOLD_ALLOWLIST_PATH", PROJECT_ROOT / "gold" / "allowlist.json"
+            # Renamed with the pool itself: neither gold/allowlist.json nor tasks/gold exists
+            # any more, so the old names could only ever have resolved to nothing.
+            task_allowlist_path=_directory(
+                env,
+                "TASK_ALLOWLIST_PATH",
+                PROJECT_ROOT / "task_pool" / "allowlist.json",
             ),
-            gold_pool_root=_directory(
-                env, "GOLD_POOL_ROOT", PROJECT_ROOT / "tasks" / "gold"
+            task_pool_root=_directory(
+                env, "TASK_POOL_ROOT", PROJECT_ROOT / "tasks" / "pool"
             ),
             verifier_project_root=_directory(
                 env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT
