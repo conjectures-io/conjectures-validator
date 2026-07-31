@@ -89,6 +89,14 @@ class SubmissionView:
     replayed: bool = False
 
 
+@dataclass(frozen=True)
+class RecordedVerdict:
+    """One recorded run, and whether it decided the submission."""
+
+    run: VerificationRun
+    applied: bool
+
+
 def canonical_request_digest(
     *,
     hotkey: str,
@@ -267,7 +275,7 @@ async def record_verification_result(
     report: bytes | None,
     started_at: datetime,
     finished_at: datetime,
-) -> VerificationRun:
+) -> RecordedVerdict:
     """Record one completed verifier run and advance the affected status axes.
 
     The run row is inserted once, on completion: every column the schema requires is only
@@ -296,17 +304,22 @@ async def record_verification_result(
     session.add(run)
     await session.flush()
 
-    verdict = VerificationState.VERIFIED if accepted else VerificationState.REJECTED
-    submission.verification_status = verdict
-    if not accepted:
-        submission.failure_reason = reason_code
+    already_ruled = submission.verification_status != VerificationState.UNVERIFIED
+    if not already_ruled:
+        verdict = VerificationState.VERIFIED if accepted else VerificationState.REJECTED
+        submission.verification_status = verdict
+        if not accepted:
+            submission.failure_reason = reason_code
 
-    if accepted and not submission.manual_review_required:
-        # Manual review is disabled for this submission, so eligibility is automatic — but it
-        # is still recorded as a policy decision rather than left implicit.
-        await approve_automatically(session, submission)
+        if accepted and not submission.manual_review_required:
+            # Manual review is disabled for this submission, so eligibility is automatic — but
+            # it is still recorded as a policy decision rather than left implicit.
+            await approve_automatically(session, submission)
+
+    submission.verification_lease_until = None
+    submission.verification_lease_owner = None
     await session.flush()
-    return run
+    return RecordedVerdict(run=run, applied=not already_ruled)
 
 
 async def approve_automatically(

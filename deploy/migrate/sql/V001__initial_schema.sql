@@ -65,8 +65,18 @@ CREATE TABLE submissions (
         CONSTRAINT bounty_policy_version_nonempty CHECK (length(bounty_policy_version) BETWEEN 1 AND 64),
     bounty_inputs           JSONB,                                         -- what the rule read: pool balance, task age, any rate. Makes the quote reproducible instead of asserted.
 
+    verification_lease_until  TIMESTAMPTZ,                                 -- NULL when unclaimed
+    verification_lease_owner  TEXT,                                        -- which worker holds it, so an operator can find the process
+    verification_attempts     INTEGER NOT NULL DEFAULT 0,                  -- claims, not verdicts: an infrastructure failure spends one on purpose
+
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT verification_attempts_nonneg CHECK (verification_attempts >= 0),
+    CONSTRAINT verification_lease_paired
+        CHECK ((verification_lease_until IS NULL) = (verification_lease_owner IS NULL)),
+    CONSTRAINT verification_lease_owner_len
+        CHECK (verification_lease_owner IS NULL OR length(verification_lease_owner) BETWEEN 1 AND 128),
 
     CONSTRAINT submissions_idempotency_unique UNIQUE (hotkey, idempotency_key),  -- SUBNET.md:154, per miner, not global
     CONSTRAINT submissions_payment_reference_unique UNIQUE (payment_reference),  -- SUBNET.md:155, one transfer backs one submission
