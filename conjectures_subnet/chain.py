@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from typing import cast
 
 import bittensor as bt
 
@@ -22,7 +24,12 @@ class BittensorChainView:
 
     async def snapshot(self) -> ChainSnapshot:
         async with self._lock, bt.Subtensor(self.network) as client:
-            finalized_blocks = client.blocks(finalized=True)
+            # bittensor declares blocks() as AsyncIterator, but it is an async generator
+            # function, so the object does have aclose(). Closing it is what cancels the
+            # block subscription deterministically instead of at collection time.
+            finalized_blocks = cast(
+                AsyncGenerator[bt.BlockHeader, None], client.blocks(finalized=True)
+            )
             try:
                 block = (await anext(finalized_blocks)).number
             finally:

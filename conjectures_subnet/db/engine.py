@@ -9,8 +9,8 @@ PostgreSQL only, deliberately. The schema uses domains, native enums, JSONB, INE
 indexes and a plpgsql trigger; there is no portable subset to fall back to, and pretending
 otherwise would let a test pass against a database the service will never run on.
 
-Neither variant uses AUTOCOMMIT: idempotency, payment claiming, and the append-only event
-history all depend on real transactions plus the unique constraints in the migration.
+Neither variant uses AUTOCOMMIT: idempotency, payment claiming, and multi-row verdict
+recording all depend on real transactions plus the unique constraints in the migration.
 """
 
 from __future__ import annotations

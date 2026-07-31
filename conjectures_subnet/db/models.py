@@ -12,10 +12,10 @@ updated_at trigger. Confirm that with the schema-drift check rather than
 assuming it: build one database from the migrations and one from this metadata,
 then compare their catalogs.
 
-No ``relationship()`` definitions on purpose. ``submission_events`` carries four
-foreign keys that all include ``submission_id``, so every join path would need
-an explicit ``primaryjoin`` to be unambiguous. Write the joins in the query
-instead, where the intent is visible.
+No ``relationship()`` definitions on purpose. Several tables carry composite
+foreign keys that repeat ``submission_id``, so a join path is only unambiguous
+with an explicit ``primaryjoin``. Write the joins in the query instead, where
+the intent is visible.
 """
 
 from __future__ import annotations
@@ -118,13 +118,6 @@ class ReviewerKind(enum.StrEnum):
     ADVISORY = "ADVISORY"  # an LLM pre-check; evidence, never binding
 
 
-class SubmissionStatusField(enum.StrEnum):
-    CREATED = "CREATED"  # the intake itself; from_status is NULL
-    VERIFICATION = "VERIFICATION"
-    MANUAL_REVIEW = "MANUAL_REVIEW"
-    REWARD = "REWARD"
-
-
 def _pg_enum(python_enum: type[enum.StrEnum], name: str) -> ENUM:
     """A native PostgreSQL enum storing the member values, not their names."""
     return ENUM(
@@ -141,7 +134,6 @@ REWARD_STATE = _pg_enum(RewardState, "reward_state")
 PAYOUT_STATE = _pg_enum(PayoutState, "payout_state")
 REVIEW_OUTCOME = _pg_enum(ReviewOutcome, "review_outcome")
 REVIEWER_KIND = _pg_enum(ReviewerKind, "reviewer_kind")
-SUBMISSION_STATUS_FIELD = _pg_enum(SubmissionStatusField, "submission_status_field")
 
 
 class Proof(Base):
@@ -354,9 +346,9 @@ class VerificationRun(Base):
         CheckConstraint(
             "finished_at >= started_at", name="runs_finished_after_started"
         ),
-        # UNIQUE is free (id is already the primary key) and makes the pair a
-        # foreign-key target, so submission_events can only cite a run belonging
-        # to the same submission.
+        # One submission's attempts, in order. UNIQUE is free — id is already the
+        # primary key — and leaves the pair available as a composite foreign-key
+        # target.
         Index("verification_runs_submission_idx", "submission_id", "id", unique=True),
         Index("verification_runs_reason_idx", "reason_code", text("finished_at DESC")),
     )
@@ -517,9 +509,8 @@ class ReviewDecision(Base):
     __table_args__ = (
         CheckConstraint("length(reviewer) BETWEEN 1 AND 255", name="reviewer_nonempty"),
         # Free (id is already the primary key). Needed as a foreign-key target by
-        # the self-reference below and by submission_events, and it doubles as the
-        # per-submission history index — btree scans backwards, so latest-first
-        # needs no DESC index.
+        # the self-reference below, and it doubles as the per-submission history
+        # index — btree scans backwards, so latest-first needs no DESC index.
         UniqueConstraint(
             "submission_id", "id", name="review_decisions_submission_unique"
         ),
@@ -534,90 +525,6 @@ class ReviewDecision(Base):
         Index("review_decisions_reviewer_idx", "reviewer", text("created_at DESC")),
         Index("review_decisions_reason_idx", "reason_code", text("created_at DESC")),
     )
-
-
-class SubmissionEvent(Base):
-    """Append-only audit history.
-
-    Current state stays in submissions, so this table is never read to answer
-    "what state is this in" — only "how did it get here". Every write that
-    changes a status column must insert here in the SAME transaction, or the
-    history silently develops holes and stops being usable for recovery.
-    """
-
-    __tablename__ = "submission_events"
-
-    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
-    submission_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("submissions.id"), nullable=False
-    )
-
-    status_field: Mapped[SubmissionStatusField] = mapped_column(
-        SUBMISSION_STATUS_FIELD, nullable=False
-    )
-    # TEXT, not an enum: these come from three different enums and one typed
-    # column cannot hold all of them.
-    from_status: Mapped[str | None] = mapped_column(Text)
-    to_status: Mapped[str] = mapped_column(Text, nullable=False)
-
-    # Worker name, operator identity, or 'api'.
-    actor: Mapped[str] = mapped_column(Text, nullable=False)
-    # Ties every event from one request or job run together.
-    causation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-
-    # What justified the transition. Three typed FKs rather than one (table, id)
-    # pair, so a reward event cannot be recorded as the cause of a verification
-    # change.
-    verification_run_id: Mapped[int | None] = mapped_column(BigInteger)
-    review_decision_id: Mapped[int | None] = mapped_column(BigInteger)
-    reward_event_id: Mapped[int | None] = mapped_column(BigInteger)
-
-    detail: Mapped[dict | None] = mapped_column(JSONB)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-
-    __table_args__ = (
-        # Composite on purpose: pairing each id with submission_id makes it
-        # impossible to cite another submission's run, decision or payout as the
-        # cause of this one's transition. MATCH SIMPLE, so a NULL cause id skips
-        # the check rather than requiring a match.
-        ForeignKeyConstraint(
-            ["submission_id", "verification_run_id"],
-            ["verification_runs.submission_id", "verification_runs.id"],
-            name="events_cause_run_same_submission",
-        ),
-        ForeignKeyConstraint(
-            ["submission_id", "review_decision_id"],
-            ["review_decisions.submission_id", "review_decisions.id"],
-            name="events_cause_review_same_submission",
-        ),
-        ForeignKeyConstraint(
-            ["submission_id", "reward_event_id"],
-            ["reward_events.submission_id", "reward_events.id"],
-            name="events_cause_reward_same_submission",
-        ),
-        CheckConstraint("length(actor) BETWEEN 1 AND 255", name="actor_nonempty"),
-        CheckConstraint(
-            "num_nonnulls(verification_run_id, review_decision_id, reward_event_id) <= 1",
-            name="events_single_cause",
-        ),
-        CheckConstraint(
-            "(status_field = 'CREATED') = (from_status IS NULL)",
-            name="events_created_has_no_from",
-        ),
-        CheckConstraint(
-            "to_status IS DISTINCT FROM from_status", name="events_status_changed"
-        ),
-        Index("submission_events_submission_idx", "submission_id", "id"),
-        Index(
-            "submission_events_causation_idx",
-            "causation_id",
-            postgresql_where=text("causation_id IS NOT NULL"),
-        ),
-        Index("submission_events_recent_idx", text("created_at DESC")),
-    )
-
 
 class ApiRejectionLog(Base):
     """Telemetry, not source of truth.
@@ -690,8 +597,6 @@ __all__ = [
     "RewardEvent",
     "RewardState",
     "Submission",
-    "SubmissionEvent",
-    "SubmissionStatusField",
     "VerificationRun",
     "VerificationState",
 ]

@@ -17,6 +17,8 @@ pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra
 pytest.importorskip("httpx", reason="submission API tests need the service extra")
 pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
+from datetime import UTC
+
 from conftest_api import (
     COLDKEY,
     HOTKEY,
@@ -32,6 +34,7 @@ from conftest_api import (
     submission_headers,
     valid_bundle,
 )
+
 from conjectures_subnet.db import digests
 from conjectures_subnet.db.models import (
     ApiRejectionLog,
@@ -39,13 +42,10 @@ from conjectures_subnet.db.models import (
     Proof,
     RewardState,
     Submission,
-    SubmissionEvent,
-    SubmissionStatusField,
     VerificationState,
 )
 from verifier.errors import ReasonCode
 from verifier.hashing import sha256_bytes
-
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None, reason="set FC_POSTGRES_DSN to run the database tests"
@@ -110,30 +110,6 @@ def test_a_paid_submission_is_recorded_and_queued():
                 assert proof is not None
                 assert bytes(proof.content) == VALID_PROOF
                 assert proof.byte_length == len(VALID_PROOF)
-        finally:
-            await kit.teardown()
-
-    run(scenario())
-
-
-def test_intake_records_a_created_event():
-    async def scenario():
-        kit = await harness().setup()
-        try:
-            created = (await _post(kit, valid_bundle())).json()
-            from sqlalchemy import select
-
-            async with kit.session() as session:
-                events = (
-                    await session.execute(select(SubmissionEvent).order_by(SubmissionEvent.id))
-                ).scalars().all()
-            assert len(events) == 1
-            event = events[0]
-            assert event.status_field == SubmissionStatusField.CREATED
-            # CREATED has no from_status, enforced by events_created_has_no_from.
-            assert event.from_status is None
-            assert event.actor == "api"
-            assert str(event.submission_id) == created["submission_id"]
         finally:
             await kit.teardown()
 
@@ -594,7 +570,7 @@ def test_report_is_a_conflict_until_verification_finishes():
 
 async def _record_verdict(kit, submission_id, *, accepted: bool):
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from conjectures_subnet.db import submissions as store
 
@@ -612,8 +588,8 @@ async def _record_verdict(kit, submission_id, *, accepted: bool):
             sandbox_mode="landrun+seccomp",
             checks={"lean_kernel_passed": accepted},
             report=payload,
-            started_at=datetime.now(timezone.utc),
-            finished_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
         )
         await session.commit()
 
@@ -677,35 +653,6 @@ def test_a_rejected_proof_never_becomes_eligible():
                 assert submission.verification_status == VerificationState.REJECTED
                 assert submission.reward_status == RewardState.INELIGIBLE
                 assert submission.failure_reason == "LEAN_KERNEL_REJECTED"
-        finally:
-            await kit.teardown()
-
-    run(scenario())
-
-
-def test_the_event_history_covers_every_status_change():
-    async def scenario():
-        kit = await harness(MANUAL_REWARD_REVIEW_ENABLED="false").setup()
-        try:
-            created = (await _post(kit, valid_bundle())).json()
-            await _record_verdict(kit, created["submission_id"], accepted=True)
-            from sqlalchemy import select
-
-            async with kit.session() as session:
-                events = (
-                    await session.execute(select(SubmissionEvent).order_by(SubmissionEvent.id))
-                ).scalars().all()
-            assert [event.status_field for event in events] == [
-                SubmissionStatusField.CREATED,
-                SubmissionStatusField.VERIFICATION,
-                SubmissionStatusField.MANUAL_REVIEW,
-                SubmissionStatusField.REWARD,
-            ]
-            # Exactly one typed cause per event, enforced by events_single_cause.
-            verification = events[1]
-            assert verification.verification_run_id is not None
-            assert verification.review_decision_id is None
-            assert verification.reward_event_id is None
         finally:
             await kit.teardown()
 

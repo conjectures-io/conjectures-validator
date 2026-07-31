@@ -188,7 +188,8 @@ CREATE TABLE reward_events (
 CREATE UNIQUE INDEX reward_events_extrinsic_idx ON reward_events (extrinsic_reference)
     WHERE extrinsic_reference IS NOT NULL;                   -- partial, so unpaid rows don't collide on NULL
 
--- UNIQUE is free (id is already the primary key) and makes the pair a foreign-key target.
+-- UNIQUE is free (id is already the primary key) and leaves the pair available as a
+-- composite foreign-key target.
 CREATE UNIQUE INDEX reward_events_submission_idx ON reward_events (submission_id, id);   -- the CLI's pre-flight check, and attempt order
 CREATE INDEX reward_events_pending_idx ON reward_events (created_at)
     WHERE status IN ('PENDING', 'SUBMITTED');                -- queue: pay, then poll for finality
@@ -227,8 +228,8 @@ CREATE TABLE review_decisions (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     -- Free (id is already the primary key). Declared in-table because the self-reference below
-    -- and submission_events both need the pair as a foreign-key target, and it doubles as the
-    -- per-submission history index — btree scans backwards, so latest-first needs no DESC index.
+    -- needs the pair as a foreign-key target, and it doubles as the per-submission history
+    -- index — btree scans backwards, so latest-first needs no DESC index.
     CONSTRAINT review_decisions_submission_unique UNIQUE (submission_id, id),
 
     CONSTRAINT review_supersedes_not_self CHECK (supersedes_id IS DISTINCT FROM id),
@@ -237,55 +238,6 @@ CREATE TABLE review_decisions (
 );
 CREATE INDEX review_decisions_reviewer_idx ON review_decisions (reviewer, created_at DESC);
 CREATE INDEX review_decisions_reason_idx ON review_decisions (reason_code, created_at DESC);   -- what reviewers actually reject for
-
-
-CREATE TYPE submission_status_field AS ENUM (
-    'CREATED',          -- the intake itself; from_status is NULL
-    'VERIFICATION',
-    'MANUAL_REVIEW',
-    'REWARD'
-);
-
-
-CREATE TABLE submission_events (
-    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,   -- monotonic, so replay order is derivable
-    submission_id       UUID NOT NULL REFERENCES submissions (id),
-
-    status_field        submission_status_field NOT NULL,     -- which of the four statuses moved
-    from_status         TEXT,                                 -- TEXT, not an enum: these come from three different enums
-    to_status           TEXT NOT NULL,                        -- and one typed column cannot hold all of them
-
-    actor               TEXT NOT NULL                         -- worker name, operator identity, or 'api'
-        CONSTRAINT actor_nonempty CHECK (length(actor) BETWEEN 1 AND 255),
-    causation_id        UUID,                                 -- SUBNET.md:216; ties every event from one request or job run together
-
-    -- What justified the transition. Three typed FKs rather than one (table, id) pair, so
-    -- a reward event cannot be recorded as the cause of a verification change.
-    verification_run_id BIGINT,
-    review_decision_id  BIGINT,
-    reward_event_id     BIGINT,
-
-    detail              JSONB,                                -- reason codes, error text, whatever the transition needs to be explicable later
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CONSTRAINT events_cause_run_same_submission
-        FOREIGN KEY (submission_id, verification_run_id) REFERENCES verification_runs (submission_id, id),
-    CONSTRAINT events_cause_review_same_submission
-        FOREIGN KEY (submission_id, review_decision_id) REFERENCES review_decisions (submission_id, id),
-    CONSTRAINT events_cause_reward_same_submission
-        FOREIGN KEY (submission_id, reward_event_id) REFERENCES reward_events (submission_id, id),
-
-    CONSTRAINT events_single_cause
-        CHECK (num_nonnulls(verification_run_id, review_decision_id, reward_event_id) <= 1),
-    CONSTRAINT events_created_has_no_from
-        CHECK ((status_field = 'CREATED') = (from_status IS NULL)),
-    CONSTRAINT events_status_changed CHECK (to_status IS DISTINCT FROM from_status)
-);
-
-CREATE INDEX submission_events_submission_idx ON submission_events (submission_id, id);   -- one submission's full history, in order
-CREATE INDEX submission_events_causation_idx ON submission_events (causation_id)
-    WHERE causation_id IS NOT NULL;                           -- everything one request or job run did
-CREATE INDEX submission_events_recent_idx ON submission_events (created_at DESC);          -- operational tail: what is the system doing now
 
 
 CREATE TABLE api_rejection_log (

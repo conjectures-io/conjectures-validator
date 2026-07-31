@@ -7,7 +7,7 @@ that schema, not its source of truth:
 * ``models`` — the tables, mirroring the migrations by hand;
 * ``engine`` — URL resolution, sync and async engines, sessions, unit-of-work scopes;
 * ``submissions`` — the submission seam: payment-gated intake, verdict recording,
-  the append-only event history, and the API rejection log;
+  reward eligibility, and the API rejection log;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 

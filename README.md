@@ -14,7 +14,7 @@ This repository is the system boundary for the entire validator, including:
 - the miner-facing paid submission and status API;
 - payment confirmation, idempotency, and reconciliation;
 - durable submission, verification, review, and reward records;
-- immutable proof artifacts and audit history;
+- immutable proof artifacts and verifier reports;
 - asynchronous verification workers and the hardened Lean verifier;
 - the optional manual reward-review queue;
 - reward eligibility, scoring, and Subnet 66 weight submission; and
@@ -31,7 +31,7 @@ verification core.
 | API-neutral proof handoff with exact task digest | Implemented |
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
-| Shared durable schema, migrations, and append-only event history | Implemented |
+| Shared durable schema and migrations | Implemented |
 | Finalized 0.5 TAO transfer reader for payment-gated intake | To build |
 | Asynchronous verification worker | To build |
 | Manual reward-review decision service | To build |
@@ -469,7 +469,7 @@ With the system drained, update the compatible Formal Conjectures, Mathlib, Lean
 commitments, and immutable verifier image; and run the complete integration and security suite.
 Activate the new pin set atomically, then reopen submissions. If any build, audit, or test fails,
 keep the existing pin set active and leave submissions paused until it is safe to resume. Preserve
-the old pin values, task digests, and reports in durable audit history, but operate only the new
+the old pin values, task digests, and reports in the durable records, but operate only the new
 active verifier after the cutover.
 
 Full-catalog statistics are written to `data/catalog-summary.json` from the actual extracted

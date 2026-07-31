@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timezone
-from typing import Annotated
+from datetime import UTC, datetime
+from typing import Annotated, Literal, Self
 
 from fastapi import APIRouter, Header, Path, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +42,7 @@ from submission_api.auth import (
 )
 from submission_api.dependencies import Services, ServicesDep, SessionDep
 from submission_api.errors import (
+    REASON_TASK_NOT_ALLOWED,
     ApiError,
     BadRequest,
     Conflict,
@@ -51,12 +52,10 @@ from submission_api.errors import (
     from_database_error,
     from_verifier_error,
 )
-from submission_api.errors import REASON_TASK_NOT_ALLOWED
 from verifier.bundle import BUNDLE_MEDIA_TYPE, ProofBundle, admit_proof_bundle
 from verifier.errors import VerifierError
 from verifier.gold_registry import TaskNotAllowed
 from verifier.hashing import is_sha256, sha256_bytes
-
 
 router = APIRouter(prefix="/v1/submissions", tags=["submissions"])
 
@@ -114,10 +113,8 @@ async def _read_body(request: Request, declared_length: int, limit: int) -> byte
 # --- response shaping ----------------------------------------------------------------
 
 
-def _utc(value: datetime | None) -> datetime | None:
-    if value is None:
-        return None
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+def _utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def _verification(
@@ -368,10 +365,13 @@ class _Audit:
     def disarm(self) -> None:
         self._armed = False
 
-    async def __aenter__(self) -> "_Audit":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, exc_type, exc, _traceback) -> bool:
+    # Literal[False], not bool: a plain `bool` means "may suppress the exception", which
+    # makes every `raise` inside the block look like it falls through to the end of the
+    # handler. This context manager records and re-raises, never swallows.
+    async def __aexit__(self, exc_type, exc, _traceback) -> Literal[False]:
         if exc is None or not self._armed:
             return False
         problem = exc if isinstance(exc, ApiError) else None
@@ -410,7 +410,7 @@ def _bare_hex(value: str | None) -> str | None:
     """The rejection log stores digests as unvalidated text, so keep whatever arrived."""
     if value is None:
         return None
-    return value[len("sha256:") :] if value.startswith("sha256:") else value
+    return value.removeprefix("sha256:")
 
 
 # --- reads ---------------------------------------------------------------------------
@@ -426,7 +426,7 @@ def _read_authentication(
     """
     miner = assert_valid_hotkey(hotkey)
     digest = sha256_bytes(
-        f"conjectures-read-v1:{miner}:{submission_id}".encode("utf-8")
+        f"conjectures-read-v1:{miner}:{submission_id}".encode()
     )
     assert_fresh_nonce(
         _require_nonce(timestamp), services.settings.nonce_window_seconds

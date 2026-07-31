@@ -13,7 +13,6 @@ from submission_api import __version__, schemas
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import ServiceUnavailable
 
-
 router = APIRouter(tags=["operations"])
 
 

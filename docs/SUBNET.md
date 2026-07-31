@@ -45,7 +45,7 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
    - if manual review is enabled, the proof enters `MANUAL_REVIEW_PENDING`;
    - if manual review is disabled, it immediately becomes `REWARD_ELIGIBLE`.
 9. A reviewer may approve or reject a held proof for rewards. The decision, reviewer, reason,
-   timestamp, and policy version are appended to the audit history.
+   timestamp, and policy version are recorded as a `review_decisions` row.
 10. Approved proofs and automatically eligible proofs enter the same reward pipeline.
 11. The reward process applies a versioned scoring policy, builds the Subnet 66 weight decision,
     submits it to Bittensor, and records the chain result.
@@ -85,7 +85,7 @@ All validator source and operational configuration belongs in this repository:
 | --- | --- |
 | Submission API | Authenticate miners, enforce schemas and limits, accept paid proof submissions, expose status |
 | Payment watcher | Confirm finalized 0.5 TAO transfers and reconcile chain state |
-| Durable database | Store the authoritative lifecycle, references, decisions, and audit history |
+| Durable database | Store the authoritative lifecycle, references, decisions, and payout records |
 | Artifact store | Store immutable proof bytes and verifier reports by content digest |
 | Job workers | Advance payment, verification, review, and reward jobs idempotently |
 | Lean verifier | Decide whether the exact submitted proof proves the exact committed task |
@@ -148,8 +148,9 @@ retained; only the proof it contained.
 **Four independent status axes, not one lifecycle.** `verification_status`,
 `manual_review_status` and `reward_status` each move on their own, which is what makes it
 structurally impossible for a response to imply that payment acceptance, Lean validity, manual
-approval and reward issuance are the same event. `submission_events` records every transition with
-a typed foreign key to whichever run, decision or payout justified it.
+approval and reward issuance are the same event. What justified a given status is recoverable from
+the row that caused it: `verification_runs` for a verdict, `review_decisions` for an approval,
+`reward_events` for a payout, each carrying its own timestamps.
 
 **The queue is an index, not a table.** A submission is queued for verification by being
 `UNVERIFIED`; workers claim from the partial index `submissions_verification_queue_idx` with

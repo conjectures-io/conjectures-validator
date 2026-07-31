@@ -10,8 +10,8 @@ Two properties of the schema shape everything below:
   is no payment state, so a row exists only once a finalized transfer has been confirmed.
   A refused request creates no submission and is recorded in `api_rejection_log` instead.
 * **The four statuses are independent axes, not one lifecycle.** A submission always has a
-  verification status AND a review status AND a reward status. Every status write inserts a
-  `submission_events` row in the same transaction, or the history develops holes.
+  verification status AND a review status AND a reward status. Each moves on its own, so
+  reading one says nothing about the others.
 
 Concurrency safety comes from the unique constraints in the migration — `(hotkey,
 idempotency_key)`, `payment_reference`, and `proof_digest` — not from read-then-write checks,
@@ -47,15 +47,10 @@ from conjectures_subnet.db.models import (
     ReviewOutcome,
     RewardState,
     Submission,
-    SubmissionEvent,
-    SubmissionStatusField,
     VerificationRun,
     VerificationState,
 )
 from verifier.hashing import canonical_json_bytes, sha256_bytes
-
-ACTOR_API = "api"
-CREATED_STATUS = "CREATED"
 
 # Constraint names from deploy/migrate/sql/V001__initial_schema.sql. Matching on the name is
 # what lets one IntegrityError be reported as the specific conflict the miner caused.
@@ -123,34 +118,6 @@ def canonical_request_digest(
 def _violates(exc: IntegrityError, constraint: str) -> bool:
     return constraint in str(getattr(exc, "orig", exc))
 
-
-async def _record_event(
-    session: AsyncSession,
-    submission_id: uuid.UUID,
-    *,
-    status_field: SubmissionStatusField,
-    to_status: str,
-    from_status: str | None = None,
-    causation_id: uuid.UUID | None = None,
-    verification_run_id: int | None = None,
-    review_decision_id: int | None = None,
-    reward_event_id: int | None = None,
-    detail: Mapping[str, Any] | None = None,
-) -> None:
-    session.add(
-        SubmissionEvent(
-            submission_id=submission_id,
-            status_field=status_field,
-            from_status=from_status,
-            to_status=to_status,
-            actor=ACTOR_API,
-            causation_id=causation_id,
-            verification_run_id=verification_run_id,
-            review_decision_id=review_decision_id,
-            reward_event_id=reward_event_id,
-            detail=dict(detail) if detail else None,
-        )
-    )
 
 
 async def find_by_idempotency_key(
@@ -274,20 +241,6 @@ async def create_submission(
             ) from exc
         raise
 
-    await _record_event(
-        session,
-        submission.id,
-        status_field=SubmissionStatusField.CREATED,
-        to_status=CREATED_STATUS,
-        causation_id=request.idempotency_key,
-        detail={
-            "task_id": request.task_id,
-            "proof_sha256": request.proof_sha256,
-            "payment_reference": request.payment_reference,
-            "payment_amount_rao": request.payment_amount_rao,
-            "payment_block": request.payment_block,
-        },
-    )
     await session.flush()
     return SubmissionView(submission=submission, verification=None)
 
@@ -335,20 +288,10 @@ async def record_verification_result(
     session.add(run)
     await session.flush()
 
-    previous = VerificationState(submission.verification_status).value
     verdict = VerificationState.VERIFIED if accepted else VerificationState.REJECTED
     submission.verification_status = verdict
     if not accepted:
         submission.failure_reason = reason_code
-    await _record_event(
-        session,
-        submission.id,
-        status_field=SubmissionStatusField.VERIFICATION,
-        from_status=previous,
-        to_status=verdict.value,
-        verification_run_id=run.id,
-        detail={"reason_code": reason_code, "stage": stage, "accepted": accepted},
-    )
 
     if accepted and not submission.manual_review_required:
         # Manual review is disabled for this submission, so eligibility is automatic — but it
@@ -373,28 +316,9 @@ async def approve_automatically(
     session.add(decision)
     await session.flush()
 
-    review_previous = ManualReviewState(submission.manual_review_status).value
     submission.manual_review_status = ManualReviewState.APPROVED
-    await _record_event(
-        session,
-        submission.id,
-        status_field=SubmissionStatusField.MANUAL_REVIEW,
-        from_status=review_previous,
-        to_status=ManualReviewState.APPROVED.value,
-        review_decision_id=decision.id,
-        detail={"automatic": True, "policy_version": submission.review_policy_version},
-    )
-
-    reward_previous = RewardState(submission.reward_status).value
     submission.reward_status = RewardState.ELIGIBLE
-    await _record_event(
-        session,
-        submission.id,
-        status_field=SubmissionStatusField.REWARD,
-        from_status=reward_previous,
-        to_status=RewardState.ELIGIBLE.value,
-        detail={"eligibility_reason": "AUTO_REVIEW_DISABLED"},
-    )
+
     await session.flush()
     return decision
 

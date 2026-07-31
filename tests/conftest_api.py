@@ -22,9 +22,10 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy.ext.asyncio import AsyncEngine
-
 from conftest import manifest as task_manifest
+from sqlalchemy.ext.asyncio import AsyncEngine
+from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
+
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import Base
@@ -35,8 +36,6 @@ from submission_api.payments import build_payment_verifier
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
 from submission_api.verification import QueueDispatcher
-from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
-
 
 TASK_ID = "fixture"
 RECIPIENT = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
@@ -56,8 +55,8 @@ __all__ = [
     "harness",
     "manifest_json",
     "new_key",
-    "read_headers",
     "postgres_dsn",
+    "read_headers",
     "submission_headers",
     "valid_bundle",
 ]
@@ -105,7 +104,7 @@ class Harness:
     engine: AsyncEngine
     settings: Settings
 
-    async def setup(self) -> "Harness":
+    async def setup(self) -> Harness:
         async with self.engine.begin() as connection:
             # The server is reused across tests, so start from a clean schema each time.
             await connection.run_sync(Base.metadata.drop_all)

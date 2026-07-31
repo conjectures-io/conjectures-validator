@@ -364,7 +364,7 @@ Lean-invalid proof consumes the payment or is refundable.
 `task_bundle_sha256`, payment reference, and the candidate `Main.lean`.
 
 **Produces:** proof bytes in the object store keyed by content digest, plus one transaction writing
-`artifacts`, `submissions`, `submission_events`, and an outbox job.
+`artifacts`, `submissions`, and an outbox job.
 
 **Write order matters and is not optional:** blob first, then the database transaction. A crash
 between them leaves an orphan blob, which a reaper sweeps. Reversed, a crash leaves a paid
