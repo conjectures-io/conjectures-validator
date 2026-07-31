@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -10,21 +11,23 @@ from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import pretty_json, sha256_bytes
 from verifier.models import Catalog, CatalogDeclaration, TaskManifest
 from verifier.task_loader import TaskBundle
-from verifier.task_policy import GOLD_TASK_MODE, production_eligibility
+from verifier.task_policy import EXACT_TASK_MODE, production_eligibility
 
 
-GOLD_POOL_SCHEMA_VERSION = 4
-GOLD_SELECTION_AUDIT_SCHEMA_VERSION = 1
-GOLD_TASK_GROUP_SCHEMA_VERSION = 1
-GOLD_WHOLE_PROBLEM_SCHEMA_VERSION = 1
-DEFAULT_GOLD_POOL_SIZE = 29
-DEFAULT_GOLD_TASK_COUNT = 29
-MINIMUM_ERDOS_TASKS = DEFAULT_GOLD_POOL_SIZE
-GOLD_POOL_SELECTION = "audited-erdos-whole-problem-v1"
-GOLD_POOL_GROUPING = "none-single-target-v1"
-GOLD_POOL_TASK_SCOPE = "whole_problem"
+TASK_POOL_SCHEMA_VERSION = 5
+SELECTION_AUDIT_SCHEMA_VERSION = 1
+TASK_GROUP_SCHEMA_VERSION = 1
+WHOLE_PROBLEM_SCHEMA_VERSION = 1
+DEFAULT_TASK_TIER = "tier-1"
+TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
+DEFAULT_TIER_SIZE = 29
+DEFAULT_TIER_TASK_COUNT = 29
+MINIMUM_ERDOS_TASKS = DEFAULT_TIER_SIZE
+TASK_POOL_SELECTION = "audited-erdos-whole-problem-v1"
+TASK_POOL_GROUPING = "none-single-target-v1"
+TASK_POOL_TASK_SCOPE = "whole_problem"
 ERDOS_SOURCE_PREFIX = "FormalConjectures/ErdosProblems/"
-EXCLUDED_SOURCE_PREFIXES = ("FormalConjectures/WrittenOnTheWallII/",)
+EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
 FEASIBILITY_SIGNALS = frozenset(
     {
         "compact-formal-target",
@@ -141,7 +144,7 @@ def load_selection_audit(path: Path) -> SelectionAudit:
         selected = value["selected"]
         if (
             type(value["schema_version"]) is not int
-            or value["schema_version"] != GOLD_SELECTION_AUDIT_SCHEMA_VERSION
+            or value["schema_version"] != SELECTION_AUDIT_SCHEMA_VERSION
             or not _is_commit(value["repository_commit"])
             or not _is_commit(value["source_main_commit"])
             or not _is_commit(value["problem_tracker_commit"])
@@ -216,7 +219,7 @@ def load_selection_audit(path: Path) -> SelectionAudit:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            f"cannot load gold selection audit: {exc}",
+            f"cannot load task-pool selection audit: {exc}",
         ) from exc
     return SelectionAudit(
         repository_commit=value["repository_commit"],
@@ -238,7 +241,7 @@ def load_whole_problem_targets(path: Path) -> WholeProblemTargets:
             not isinstance(value, dict)
             or set(value)
             != {"policy", "repository_commit", "schema_version", "targets"}
-            or value.get("schema_version") != GOLD_WHOLE_PROBLEM_SCHEMA_VERSION
+            or value.get("schema_version") != WHOLE_PROBLEM_SCHEMA_VERSION
             or value.get("policy") != "one_task_one_complete_problem"
             or not _is_commit(value.get("repository_commit"))
             or not isinstance(targets, list)
@@ -301,7 +304,7 @@ def load_task_grouping(path: Path) -> TaskGrouping:
             not isinstance(value, dict)
             or set(value)
             != {"completion_policy", "groups", "schema_version"}
-            or value.get("schema_version") != GOLD_TASK_GROUP_SCHEMA_VERSION
+            or value.get("schema_version") != TASK_GROUP_SCHEMA_VERSION
             or value.get("completion_policy") != "all_of"
             or not isinstance(groups, list)
         ):
@@ -345,7 +348,7 @@ def load_task_grouping(path: Path) -> TaskGrouping:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            f"cannot load gold task grouping: {exc}",
+            f"cannot load task-pool grouping: {exc}",
         ) from exc
     return TaskGrouping(groups=parsed, sha256=sha256_bytes(content))
 
@@ -391,7 +394,7 @@ def load_retired_sources(path: Path) -> RetiredSources:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            f"cannot load retired gold sources: {exc}",
+            f"cannot load retired task-pool sources: {exc}",
         ) from exc
     return RetiredSources(
         repository_commit=repository_commit,
@@ -401,13 +404,13 @@ def load_retired_sources(path: Path) -> RetiredSources:
     )
 
 
-def select_gold_declarations(
+def select_task_declarations(
     *,
     catalog: Catalog,
     retired: RetiredSources,
     selection_audit: SelectionAudit,
     whole_problem_targets: WholeProblemTargets,
-    pool_size: int = DEFAULT_GOLD_POOL_SIZE,
+    pool_size: int = DEFAULT_TIER_SIZE,
 ) -> tuple[CatalogDeclaration, ...]:
     if (
         retired.repository_commit != catalog.repository_commit
@@ -416,10 +419,10 @@ def select_gold_declarations(
     ):
         raise VerifierError(
             ReasonCode.REPOSITORY_COMMIT_MISMATCH,
-            "gold audit inputs and catalog use different repository commits",
+            "task-pool audit inputs and catalog use different repository commits",
         )
     if pool_size <= 0:
-        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "gold pool size must be positive")
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "task tier size must be positive")
     if len(whole_problem_targets.targets) != pool_size:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
@@ -451,12 +454,12 @@ def select_gold_declarations(
         if declaration is None:
             raise VerifierError(
                 ReasonCode.THEOREM_NOT_FOUND,
-                f"audited gold theorem is missing from the pinned catalog: {entry.theorem}",
+                f"audited task theorem is missing from the pinned catalog: {entry.theorem}",
             )
         eligible, violations, _collisions = production_eligibility(
             catalog,
             declaration,
-            GOLD_TASK_MODE,
+            EXACT_TASK_MODE,
         )
         if (
             not eligible
@@ -469,7 +472,7 @@ def select_gold_declarations(
             detail = "; ".join(violations) if violations else "freshness or source policy failed"
             raise VerifierError(
                 ReasonCode.INVALID_ARGUMENT,
-                f"audited gold theorem is ineligible: {entry.theorem}: {detail}",
+                f"audited task theorem is ineligible: {entry.theorem}: {detail}",
             )
         used_types.add(declaration.type_hash)
         selected.append(declaration)
@@ -480,12 +483,12 @@ def select_gold_declarations(
     if erdos_count < MINIMUM_ERDOS_TASKS:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            f"gold pool has {erdos_count} Erdős tasks, expected at least {MINIMUM_ERDOS_TASKS}",
+            f"task tier has {erdos_count} Erdős tasks, expected at least {MINIMUM_ERDOS_TASKS}",
         )
     return tuple(selected)
 
 
-def group_gold_declarations(
+def group_task_declarations(
     declarations: Iterable[CatalogDeclaration],
     grouping: TaskGrouping,
 ) -> tuple[tuple[CatalogDeclaration, ...], ...]:
@@ -545,7 +548,7 @@ def group_gold_declarations(
     return tuple(result)
 
 
-def build_gold_allowlist(
+def build_task_allowlist(
     *,
     catalog: Catalog,
     retired: RetiredSources,
@@ -555,13 +558,19 @@ def build_gold_allowlist(
     selected: Iterable[tuple[CatalogDeclaration, ...]],
     bundles: Iterable[TaskBundle],
     audit_date_utc: str,
+    tier: str = DEFAULT_TASK_TIER,
 ) -> bytes:
+    if not isinstance(tier, str) or TASK_TIER.fullmatch(tier) is None:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"unsupported task-pool tier: {tier}",
+        )
     declaration_groups = tuple(selected)
     task_bundles = tuple(bundles)
     if len(declaration_groups) != len(task_bundles) or not declaration_groups:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            "gold task groups and generated bundles must be non-empty and one-to-one",
+            "task groups and generated bundles must be non-empty and one-to-one",
         )
     declarations = tuple(
         declaration
@@ -576,7 +585,7 @@ def build_gold_allowlist(
     ):
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            "generated gold declarations are not one-target whole-problem tasks",
+            "generated declarations are not one-target whole-problem tasks",
         )
     catalog_indices = {
         declaration.theorem: index
@@ -593,7 +602,7 @@ def build_gold_allowlist(
         primary = declarations_for_task[0]
         if (
             manifest.source_theorem != primary.theorem
-            or manifest.task_mode != GOLD_TASK_MODE
+            or manifest.task_mode != EXACT_TASK_MODE
             or not manifest.production_eligible
             or manifest.source_type_hash != primary.type_hash
             or manifest.generated_target_type_hash != primary.type_hash
@@ -604,7 +613,7 @@ def build_gold_allowlist(
         ):
             raise VerifierError(
                 ReasonCode.INVALID_MANIFEST,
-                f"generated gold task is not the exact source group: {primary.theorem}",
+                f"generated task is not the exact source group: {primary.theorem}",
             )
         source_indices = []
         for declaration in declarations_for_task:
@@ -616,12 +625,13 @@ def build_gold_allowlist(
                     "source_path": declaration.source_path,
                     "source_type_sha256": declaration.type_hash,
                     "theorem": declaration.theorem,
+                    "tier": tier,
                 }
             )
         tasks.append(
             {
                 "completion_policy": "all_of",
-                "mode": GOLD_TASK_MODE,
+                "mode": EXACT_TASK_MODE,
                 "source_indices": source_indices,
                 "source_path": primary.source_path,
                 "target_type_sha256s": [
@@ -634,6 +644,7 @@ def build_gold_allowlist(
                     declaration.theorem
                     for declaration in declarations_for_task
                 ],
+                "tier": tier,
             }
         )
     value = {
@@ -641,31 +652,34 @@ def build_gold_allowlist(
         "allowed_task_bundles": tasks,
         "audit_date_utc": audit_date_utc,
         "default": "DENY",
-        "pool_policy": {
-            "classification": "DIRECT_PROP",
-            "compiled_target_validation": True,
-            "exact_source_type": True,
-            "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
-            "grouping": GOLD_POOL_GROUPING,
-            "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
-            "mode": GOLD_TASK_MODE,
-            "multi_target_tasks": sum(
-                len(group) > 1
-                for group in declaration_groups
-            ),
-            "one_task_per_source_path": True,
-            "pool_size": len(declaration_groups),
-            "retired_source_theorems_sha256": retired.sha256,
-            "selection": GOLD_POOL_SELECTION,
-            "selection_audit_sha256": selection_audit.sha256,
-            "source_category": "research open",
-            "source_theorem_count": len(declarations),
-            "synthetic_negation": False,
-            "task_scope": GOLD_POOL_TASK_SCOPE,
-            "task_groups_sha256": grouping.sha256,
-            "whole_problem_targets_sha256": whole_problem_targets.sha256,
+        "tier_order": [tier],
+        "tier_policies": {
+            tier: {
+                "classification": "DIRECT_PROP",
+                "compiled_target_validation": True,
+                "exact_source_type": True,
+                "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
+                "grouping": TASK_POOL_GROUPING,
+                "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
+                "mode": EXACT_TASK_MODE,
+                "multi_target_tasks": sum(
+                    len(group) > 1
+                    for group in declaration_groups
+                ),
+                "one_task_per_source_path": True,
+                "pool_size": len(declaration_groups),
+                "retired_source_theorems_sha256": retired.sha256,
+                "selection": TASK_POOL_SELECTION,
+                "selection_audit_sha256": selection_audit.sha256,
+                "source_category": "research open",
+                "source_theorem_count": len(declarations),
+                "synthetic_negation": False,
+                "task_scope": TASK_POOL_TASK_SCOPE,
+                "task_groups_sha256": grouping.sha256,
+                "whole_problem_targets_sha256": whole_problem_targets.sha256,
+            }
         },
         "repository_commit": catalog.repository_commit,
-        "schema_version": GOLD_POOL_SCHEMA_VERSION,
+        "schema_version": TASK_POOL_SCHEMA_VERSION,
     }
     return pretty_json(value).encode("utf-8")

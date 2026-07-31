@@ -25,7 +25,7 @@ from verifier.task_generator import (
     trusted_task_payloads,
 )
 from verifier.task_policy import (
-    GOLD_TASK_MODE,
+    EXACT_TASK_MODE,
     expected_answer_policy,
     production_policy_violations,
 )
@@ -288,7 +288,7 @@ def _validate_manifest(manifest: TaskManifest) -> None:
     modes = supported_modes(manifest.classification)
     exact_formalized_mode = (
         manifest.classification == Classification.DIRECT_PROP
-        and manifest.task_mode == GOLD_TASK_MODE
+        and manifest.task_mode == EXACT_TASK_MODE
     )
     if modes and manifest.task_mode not in modes and not exact_formalized_mode:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "task mode is inconsistent with its classification")
@@ -315,7 +315,7 @@ def _validate_manifest(manifest: TaskManifest) -> None:
     if (
         manifest.production_eligible
         and (
-            manifest.task_mode != GOLD_TASK_MODE
+            manifest.task_mode != EXACT_TASK_MODE
             or manifest.generated_target_type_hash != manifest.source_type_hash
         )
     ):

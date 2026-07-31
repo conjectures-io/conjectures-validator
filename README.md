@@ -213,18 +213,19 @@ python -m verifier task generate \
   --output tasks/furstenberg-formalized
 ```
 
-## Gold-standard solver tasks
+## Solver task pool
 
-Use the immutable bundles in [`tasks/gold/`](tasks/gold/) as the standard public targets for
-solver attempts. The collection is pinned to Formal Conjectures commit
+Use the immutable bundles in [`tasks/pool/`](tasks/pool/) as the public targets for solver
+attempts. The task pool is divided into explicit tiers; the current audited set is
+[`tier-1`](tasks/pool/tier-1/). It is pinned to Formal Conjectures commit
 `e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 29 reward tasks covering 29
 audited Erdős problems from 29 source files. Each task has one exact canonical theorem whose proof
 closes the whole source problem. Partial results, numbered parts, variants, candidate bounds, and
-multi-target bundles are excluded. Written on the Wall II is hard-excluded. The 178 source
-declarations and canonical types used by the two previous pools are explicitly retired and are not
-reused.
+multi-target bundles are excluded from this tier. The 178 source declarations and canonical types
+used by the two previous releases are explicitly retired and are not reused. Source families such
+as Written on the Wall II are not globally excluded and may be admitted by a future audited tier.
 
-Every gold task has mode `formalized`. Its generated target is definitionally equal to the source
+Every pooled task has mode `formalized`. Its generated target is definitionally equal to the source
 theorem's complete Lean type and has the same canonical type hash. The pool admits only direct
 propositions: it does not synthesize `¬P`, extract one side of an answer wrapper, or substitute a
 new answer. A source theorem that is itself a negation remains a negation because that is the
@@ -236,25 +237,27 @@ edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted befor
 time:
 
 ```bash
-TASK="$(find tasks/gold -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
-python scripts/check_gold_task.py "$TASK"
+TASK="$(find tasks/pool/tier-1 -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
+python scripts/check_task.py "$TASK"
 ```
 
 The complete machine-readable admission set and bundle commitments are in
-[`gold/allowlist.json`](gold/allowlist.json). Only an allowlisted, verifier-accepted proof should
+[`task_pool/allowlist.json`](task_pool/allowlist.json). It records a tier for every source and task
+bundle. Only an allowlisted, verifier-accepted proof should
 advance to human mathematical review. Generation compiles and independently inspects every target;
 this proves that the validator has an exact, hole-free target. The separate
-[`gold/selection-audit.json`](gold/selection-audit.json) records the Formal Conjectures status,
+[`tier-1 selection audit`](task_pool/tiers/tier-1/selection-audit.json) records the Formal
+Conjectures status,
 Erdős Problems tracker status, pull-request review, and formal-surface screen. “Plausibly
 attackable” is not a guarantee of solvability and does not prove that the informal statement is
 correct.
 
 The deterministic pool selection and compiled validation are implemented by
-`scripts/rebuild_gold_pool.py`. It loads the exact audited selection and
-[`gold/whole-problem-targets.json`](gold/whole-problem-targets.json), admits exactly one canonical
-whole-problem theorem per task and source file, enforces the Erdős minimum and WOWII exclusion, and
+`scripts/rebuild_task_pool.py`. It loads the exact audited selection and
+[`tier-1 whole-problem targets`](task_pool/tiers/tier-1/whole-problem-targets.json), admits exactly
+one canonical whole-problem theorem per task and source file, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
-[`gold/README.md`](gold/README.md).
+[`task_pool/README.md`](task_pool/README.md).
 
 The direct CLI form is below. It reports a production sandbox only when the live probe confirms an
 equivalent hardened Linux setup, including a non-executable workspace; the Compose profile later in
@@ -316,12 +319,12 @@ that canonical elaborated representation with SHA-256.
 Production generation rejects a compiled target whose canonical type hash already belongs to a
 cataloged, non-admitted theorem. This is an exact collision screen, not a general novelty oracle.
 
-The production gold mode handles:
+The exact production task mode handles:
 
 - `DIRECT_PROP` with mode `formalized`: the exact source theorem type, with no logical
   transformation.
 
-The version-1 adapter table also retains the following non-gold generation modes for verifier
+The version-1 adapter table also retains the following non-pool generation modes for verifier
 fixtures and offline experiments:
 
 - `DIRECT_PROP`: separate positive `P` and negative `¬P` targets;
