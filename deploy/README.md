@@ -36,7 +36,25 @@ docker compose -f docker-compose.db.yml logs migrate
 
 `POSTGRES_PORT` in `.env` sets the host port. Only loopback is published — the
 database is never on a routable interface, and other compose services reach it
-as `db:5432` regardless.
+as `db:5432` regardless. That last word matters: pointing Flyway at the
+published host port instead makes the `migrate` container retry with exponential
+backoff for twenty minutes rather than fail.
+
+## The pytest database
+
+The test suite has its own stack, on host port 5440, so a run that drops and
+recreates the schema cannot reach development data:
+
+```bash
+docker compose -f docker-compose.pytest-db.yml up -d
+```
+
+Every credential in `docker-compose.pytest-db.yml` is fixed and duplicated in
+`tests/conftest_api.py`, which probes the server and skips the database tests
+when it is not up. The tests therefore need no `.env` and no `FC_POSTGRES_DSN`;
+`FC_POSTGRES_DSN` remains an override for pointing them at another server. Do
+not parameterise those credentials — the duplication is what stops the two sides
+from drifting apart silently.
 
 ## Writing a migration
 

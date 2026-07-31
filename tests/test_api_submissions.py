@@ -1,9 +1,10 @@
 """Intake and read behaviour against a real PostgreSQL database.
 
-Gated on `FC_POSTGRES_DSN`, because the schema is PostgreSQL-only. Start one with:
+Skipped unless a PostgreSQL server is reachable, because the schema is PostgreSQL-only. Start
+the fixed test stack — its credentials are hardcoded on both sides, so there is nothing to
+export:
 
-    cp .env.example .env && docker compose -f docker-compose.db.yml up -d
-    export FC_POSTGRES_DSN=postgresql+psycopg://conjectures:<pw>@127.0.0.1:<port>/conjectures
+    docker compose -f docker-compose.pytest-db.yml up -d
 """
 
 from __future__ import annotations
@@ -49,7 +50,8 @@ from verifier.errors import ReasonCode
 from verifier.hashing import sha256_bytes
 
 pytestmark = pytest.mark.skipif(
-    postgres_dsn() is None, reason="set FC_POSTGRES_DSN to run the database tests"
+    postgres_dsn() is None,
+    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
 )
 
 
