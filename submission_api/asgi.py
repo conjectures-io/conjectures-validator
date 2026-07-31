@@ -4,5 +4,4 @@ from __future__ import annotations
 
 from submission_api.app import create_app
 
-
 app = create_app()

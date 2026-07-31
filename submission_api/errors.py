@@ -11,7 +11,8 @@ request leaves, since payment-gated intake creates no submission.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -25,7 +26,6 @@ from conjectures_subnet.db.errors import (
     RecordNotFound,
 )
 from verifier.errors import CONFIGURATION_REASONS, ReasonCode, VerifierError
-
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 
@@ -145,7 +145,10 @@ class ServiceUnavailable(ApiError):
 
 def from_verifier_error(exc: VerifierError) -> ApiError:
     """Translate a verifier rejection into a miner-facing problem response."""
-    if exc.reason in CONFIGURATION_REASONS and exc.reason is not ReasonCode.INVALID_ARGUMENT:
+    if (
+        exc.reason in CONFIGURATION_REASONS
+        and exc.reason is not ReasonCode.INVALID_ARGUMENT
+    ):
         # The validator is misconfigured; do not tell the miner their bundle was wrong.
         return ServiceUnavailable(
             "the validator cannot process submissions right now",
@@ -167,10 +170,13 @@ def from_database_error(exc: DatabaseError) -> ApiError:
     details = dict(exc.details)
     if isinstance(exc, RecordNotFound):
         return NotFound(exc.message, reason_code=exc.reason_code, extra=details)
-    if isinstance(exc, (DuplicateProof, DuplicatePayment, IdempotencyConflict, RecordConflict)):
+    if isinstance(
+        exc, (DuplicateProof, DuplicatePayment, IdempotencyConflict, RecordConflict)
+    ):
         return Conflict(exc.message, reason_code=exc.reason_code, extra=details)
     return ServiceUnavailable(
-        "the validator cannot process submissions right now", reason_code=exc.reason_code
+        "the validator cannot process submissions right now",
+        reason_code=exc.reason_code,
     )
 
 
@@ -204,7 +210,7 @@ async def validation_error_handler(_request: Request, exc: Exception) -> JSONRes
     handler that raised it, which must not reach a miner.
     """
     errors: list[dict[str, Any]] = []
-    for item in getattr(exc, "errors", lambda: [])():
+    for item in getattr(exc, "errors", list)():
         location = item.get("loc") or ()
         errors.append(
             {

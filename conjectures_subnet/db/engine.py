@@ -28,7 +28,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import Session, sessionmaker
 
-
 DRIVER = "postgresql+psycopg"
 
 
@@ -51,12 +50,16 @@ def database_url() -> str:
 
 def create_db_engine(url: str | None = None, *, echo: bool = False) -> Engine:
     """A sync Engine with a pre-ping pool, for workers and operator tooling."""
-    return create_engine(url or database_url(), pool_pre_ping=True, echo=echo, future=True)
+    return create_engine(
+        url or database_url(), pool_pre_ping=True, echo=echo, future=True
+    )
 
 
 def session_factory(engine: Engine) -> sessionmaker[Session]:
     """`expire_on_commit=False` keeps returned rows readable after the unit of work closes."""
-    return sessionmaker(bind=engine, expire_on_commit=False, autoflush=False, future=True)
+    return sessionmaker(
+        bind=engine, expire_on_commit=False, autoflush=False, future=True
+    )
 
 
 @contextmanager
@@ -73,7 +76,9 @@ def session_scope(factory: sessionmaker[Session]) -> Iterator[Session]:
         session.close()
 
 
-def create_async_db_engine(url: str | None = None, *, echo: bool = False) -> AsyncEngine:
+def create_async_db_engine(
+    url: str | None = None, *, echo: bool = False
+) -> AsyncEngine:
     """An async Engine with a pre-ping pool, for the submission API."""
     return create_async_engine(url or database_url(), pool_pre_ping=True, echo=echo)
 

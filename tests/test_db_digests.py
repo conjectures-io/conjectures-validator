@@ -13,7 +13,6 @@ from conjectures_subnet.db import digests
 from conjectures_subnet.db.submissions import canonical_request_digest
 from verifier.hashing import sha256_bytes
 
-
 HEX = "ab" * 32
 PREFIXED = f"sha256:{HEX}"
 
@@ -36,11 +35,6 @@ def test_verifier_hashing_output_converts():
     # The two representations must agree for the digests the verifier actually produces.
     digest = sha256_bytes(b"theorem target : True := by trivial\n")
     assert digests.to_prefixed(digests.to_bytes(digest)) == digest
-
-
-def test_none_passes_through():
-    assert digests.to_prefixed(None) is None
-    assert digests.to_hex(None) is None
 
 
 def test_memoryview_is_accepted():

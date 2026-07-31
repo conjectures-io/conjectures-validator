@@ -7,13 +7,17 @@ is a mistake worth not repeating.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
-from conjectures_subnet.db import async_session_factory, create_async_db_engine, database_url
+from conjectures_subnet.db import (
+    async_session_factory,
+    create_async_db_engine,
+    database_url,
+)
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
@@ -24,7 +28,6 @@ from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
-
 
 DESCRIPTION = """
 Paid Lean-proof submission API for conjectures.io, Bittensor Subnet 66.
@@ -60,7 +63,9 @@ def build_services(
 def create_app(
     settings: Settings | None = None, *, services: Services | None = None
 ) -> FastAPI:
-    resolved_settings = settings or (services.settings if services else Settings.from_env())
+    resolved_settings = settings or (
+        services.settings if services else Settings.from_env()
+    )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -89,7 +94,9 @@ def create_app(
     application.add_exception_handler(errors.ApiError, errors.api_error_handler)
     application.add_exception_handler(VerifierError, errors.verifier_error_handler)
     application.add_exception_handler(DatabaseError, errors.database_error_handler)
-    application.add_exception_handler(RequestValidationError, errors.validation_error_handler)
+    application.add_exception_handler(
+        RequestValidationError, errors.validation_error_handler
+    )
     application.add_exception_handler(Exception, errors.unhandled_error_handler)
     application.include_router(health.router)
     application.include_router(tasks.router)

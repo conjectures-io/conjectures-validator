@@ -21,9 +21,10 @@ so two simultaneous requests cannot both succeed.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -53,7 +54,6 @@ from conjectures_subnet.db.models import (
 )
 from verifier.hashing import canonical_json_bytes, sha256_bytes
 
-
 ACTOR_API = "api"
 CREATED_STATUS = "CREATED"
 
@@ -70,16 +70,16 @@ class NewSubmission:
 
     hotkey: str
     idempotency_key: uuid.UUID
-    request_digest: str          # sha256:<hex>; converted at the column
+    request_digest: str  # sha256:<hex>; converted at the column
     task_id: str
-    task_bundle_sha256: str      # sha256:<hex>
-    proof_content: bytes         # the miner's Main.lean, exactly as admitted
-    proof_sha256: str            # sha256:<hex>
+    task_bundle_sha256: str  # sha256:<hex>
+    proof_content: bytes  # the miner's Main.lean, exactly as admitted
+    proof_sha256: str  # sha256:<hex>
     payment_reference: str
-    payment_sender: str          # coldkey that paid, proven to own the hotkey
+    payment_sender: str  # coldkey that paid, proven to own the hotkey
     payment_amount_rao: int
     payment_block: int
-    hotkey_signature: bytes      # 64 bytes over request_digest
+    hotkey_signature: bytes  # 64 bytes over request_digest
     manual_review_required: bool
     review_policy_version: str
 
@@ -212,9 +212,13 @@ async def _ensure_proof(session: AsyncSession, content: bytes, digest: str) -> N
     )
 
 
-async def create_submission(session: AsyncSession, request: NewSubmission) -> SubmissionView:
+async def create_submission(
+    session: AsyncSession, request: NewSubmission
+) -> SubmissionView:
     """Record one confirmed-paid submission, or return the original for an exact replay."""
-    existing = await find_by_idempotency_key(session, request.hotkey, request.idempotency_key)
+    existing = await find_by_idempotency_key(
+        session, request.hotkey, request.idempotency_key
+    )
     if existing is not None:
         if bytes(existing.request_digest) != digests.to_bytes(request.request_digest):
             raise IdempotencyConflict(
@@ -251,7 +255,9 @@ async def create_submission(session: AsyncSession, request: NewSubmission) -> Su
         await session.flush()
     except IntegrityError as exc:
         await session.rollback()
-        if _violates(exc, PROOF_CONSTRAINT) or "proof_digest" in str(getattr(exc, "orig", exc)):
+        if _violates(exc, PROOF_CONSTRAINT) or "proof_digest" in str(
+            getattr(exc, "orig", exc)
+        ):
             raise DuplicateProof(
                 "these proof bytes have already been submitted",
                 proof_sha256=request.proof_sha256,
@@ -320,7 +326,9 @@ async def record_verification_result(
         stage=stage,
         checks=dict(checks) if checks is not None else None,
         report=report,
-        report_digest=None if report is None else digests.to_bytes(sha256_bytes(report)),
+        report_digest=None
+        if report is None
+        else digests.to_bytes(sha256_bytes(report)),
         started_at=started_at,
         finished_at=finished_at,
     )
@@ -350,7 +358,9 @@ async def record_verification_result(
     return run
 
 
-async def approve_automatically(session: AsyncSession, submission: Submission) -> ReviewDecision:
+async def approve_automatically(
+    session: AsyncSession, submission: Submission
+) -> ReviewDecision:
     """Record the AUTOMATIC review decision and make the submission reward-eligible."""
     decision = ReviewDecision(
         submission_id=submission.id,
@@ -433,7 +443,9 @@ async def log_rejection(
     await session.flush()
 
 
-async def proof_bytes(session: AsyncSession, digest: bytes | memoryview) -> bytes | None:
+async def proof_bytes(
+    session: AsyncSession, digest: bytes | memoryview
+) -> bytes | None:
     """The stored proof for a digest, for the verification worker."""
     proof = await session.get(Proof, bytes(digest))
     return None if proof is None else bytes(proof.content)

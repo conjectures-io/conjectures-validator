@@ -34,7 +34,6 @@ from submission_api.settings import (
     Settings,
 )
 
-
 REASON_NOT_FINALIZED = "PAYMENT_NOT_FINALIZED"
 REASON_UNAVAILABLE = "PAYMENT_VERIFIER_UNAVAILABLE"
 
@@ -44,14 +43,15 @@ class ConfirmedPayment:
     """A finalized transfer that may fund exactly one submission."""
 
     reference: str
-    sender: str        # coldkey, proven to own the submitting hotkey
+    sender: str  # coldkey, proven to own the submitting hotkey
     amount_rao: int
-    block: int         # the finalized block it was observed in
+    block: int  # the finalized block it was observed in
 
 
 class PaymentVerifier(Protocol):
     async def confirm(self, *, reference: str, hotkey: str) -> ConfirmedPayment:
         """Return the confirmed transfer, or raise PaymentRequired."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class ChainPaymentVerifier:
 
     recipient: str
     amount_rao: int
-    reader: "TransferReader | None" = None
+    reader: TransferReader | None = None
 
     async def confirm(self, *, reference: str, hotkey: str) -> ConfirmedPayment:
         if self.reader is None:
@@ -126,7 +126,9 @@ class FinalizedTransfer:
 class TransferReader(Protocol):
     """Read-only finalized-chain queries. Holds no keys and signs nothing."""
 
-    async def finalized_transfer(self, *, reference: str) -> FinalizedTransfer | None: ...
+    async def finalized_transfer(
+        self, *, reference: str
+    ) -> FinalizedTransfer | None: ...
 
     async def coldkey_owns_hotkey(self, *, coldkey: str, hotkey: str) -> bool: ...
 
@@ -167,7 +169,9 @@ def build_payment_verifier(settings: Settings) -> PaymentVerifier:
         )
     if settings.payment_verifier == DEVELOPMENT_PAYMENTS:
         if settings.production:  # pragma: no cover - Settings already refuses this
-            raise RuntimeError("the development payment verifier is not permitted in production")
+            raise RuntimeError(
+                "the development payment verifier is not permitted in production"
+            )
         return DevelopmentPaymentVerifier(
             sender=settings.development_coldkey,
             amount_rao=settings.payment_amount_rao,

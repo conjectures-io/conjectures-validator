@@ -8,9 +8,9 @@ admitting submissions against an unaudited task.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
 from verifier.gold_registry import AllowedTask, GoldTaskRegistry, TaskNotAllowed
 from verifier.models import TaskManifest
@@ -32,7 +32,7 @@ class TaskCatalog:
     entries: Mapping[str, TaskEntry]
 
     @classmethod
-    def load(cls, *, allowlist_path: Path, pool_root: Path) -> "TaskCatalog":
+    def load(cls, *, allowlist_path: Path, pool_root: Path) -> TaskCatalog:
         registry = GoldTaskRegistry.load(allowlist_path)
         entries: dict[str, TaskEntry] = {}
         for task_id, allowed in sorted(registry.tasks.items()):
@@ -62,7 +62,9 @@ class TaskCatalog:
         """Look up a task and require the caller's digest to match the published one."""
         entry = self.get(task_id)
         if entry.task_bundle_sha256 != task_bundle_sha256:
-            raise TaskNotAllowed("task bundle digest does not match the published commitment")
+            raise TaskNotAllowed(
+                "task bundle digest does not match the published commitment"
+            )
         return entry
 
     def summaries(self) -> tuple[TaskEntry, ...]:
@@ -79,4 +81,10 @@ def catalog_from_entries(
     )
 
 
-__all__ = ["AllowedTask", "TaskCatalog", "TaskEntry", "TaskNotAllowed", "catalog_from_entries"]
+__all__ = [
+    "AllowedTask",
+    "TaskCatalog",
+    "TaskEntry",
+    "TaskNotAllowed",
+    "catalog_from_entries",
+]

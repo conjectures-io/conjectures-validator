@@ -22,11 +22,12 @@ import time
 from dataclasses import dataclass
 from typing import Protocol
 
+from bittensor.sp_core import Keypair
+
 from conjectures_subnet.db import digests
 from submission_api.errors import Unauthorized
 from submission_api.settings import DEVELOPMENT_AUTH, HOTKEY_SIGNATURE_AUTH, Settings
 from verifier.bundle import SS58_ADDRESS
-
 
 SIGNATURE_HEX = re.compile(r"^[0-9a-f]{128}$")
 SIGNATURE_BYTES = 64
@@ -39,8 +40,8 @@ class SignedRequest:
     """What the miner signed: the request digest, and who claims to have signed it."""
 
     hotkey: str
-    request_digest: str          # sha256:<hex>
-    signature: bytes             # 64 raw bytes, as stored on the submission
+    request_digest: str  # sha256:<hex>
+    signature: bytes  # 64 raw bytes, as stored on the submission
 
     @property
     def message(self) -> bytes:
@@ -79,21 +80,21 @@ class Authenticator(Protocol):
 class HotkeySignatureAuthenticator:
     """Verify an sr25519/ed25519 signature made by the miner's hotkey.
 
-    The keypair implementation is imported lazily so this package stays importable, and its
-    offline tests stay runnable, without the bittensor dependency present.
+    `Keypair` here holds only the public key decoded from the SS58 address — this process
+    never sees a miner's secret, and the validator holds no miner keys.
     """
 
     def verify(self, request: SignedRequest) -> None:
-        keypair_type = _load_keypair()
         try:
-            keypair = keypair_type(ss58_address=request.hotkey)
-        except Exception as exc:  # noqa: BLE001 - any decode failure is an auth failure
+            keypair = Keypair(ss58_address=request.hotkey)
+        except Exception as exc:  # any decode failure is an auth failure
             raise Unauthorized(
-                "hotkey is not a valid SS58 address", reason_code=REASON_SIGNATURE_INVALID
+                "hotkey is not a valid SS58 address",
+                reason_code=REASON_SIGNATURE_INVALID,
             ) from exc
         try:
             valid = keypair.verify(request.message, request.signature)
-        except Exception as exc:  # noqa: BLE001 - a malformed signature is an auth failure
+        except Exception as exc:  # a malformed signature is an auth failure
             raise Unauthorized(
                 "signature could not be verified", reason_code=REASON_SIGNATURE_INVALID
             ) from exc
@@ -129,31 +130,21 @@ def development_signature() -> str:
     return DEVELOPMENT_SIGNATURE.encode("utf-8").ljust(SIGNATURE_BYTES, b"\x00").hex()
 
 
-def _load_keypair() -> type:
-    try:
-        from bittensor_wallet import Keypair  # type: ignore[import-not-found]
-    except ImportError:  # pragma: no cover - exercised only without the subnet extra
-        try:
-            from substrateinterface import Keypair  # type: ignore[import-not-found,no-redef]
-        except ImportError as exc:
-            raise Unauthorized(
-                "hotkey signature verification is unavailable on this deployment",
-                reason_code=REASON_SIGNATURE_INVALID,
-            ) from exc
-    return Keypair
-
-
 def build_authenticator(settings: Settings) -> Authenticator:
     if settings.authenticator == HOTKEY_SIGNATURE_AUTH:
         return HotkeySignatureAuthenticator()
     if settings.authenticator == DEVELOPMENT_AUTH:
         if settings.production:  # pragma: no cover - Settings already refuses this
-            raise RuntimeError("the development authenticator is not permitted in production")
+            raise RuntimeError(
+                "the development authenticator is not permitted in production"
+            )
         return DevelopmentAuthenticator(hotkeys=settings.development_hotkeys)
     raise RuntimeError(f"unknown authenticator: {settings.authenticator}")
 
 
-def assert_fresh_nonce(nonce_ms: int, window_seconds: int, now_ms: int | None = None) -> None:
+def assert_fresh_nonce(
+    nonce_ms: int, window_seconds: int, now_ms: int | None = None
+) -> None:
     """Bound how long a signed request stays usable.
 
     The window is two-sided: a nonce far in the future is as suspect as a stale one, and would

@@ -97,8 +97,10 @@ class RewardState(enum.StrEnum):
 
 
 class PayoutState(enum.StrEnum):
-    PENDING = "PENDING"        # committed before the extrinsic is signed; unresolved, not failed
-    SUBMITTED = "SUBMITTED"    # broadcast, awaiting finality; safe to poll forever
+    PENDING = (
+        "PENDING"  # committed before the extrinsic is signed; unresolved, not failed
+    )
+    SUBMITTED = "SUBMITTED"  # broadcast, awaiting finality; safe to poll forever
     CONFIRMED = "CONFIRMED"
     FAILED = "FAILED"
 
@@ -109,13 +111,15 @@ class ReviewOutcome(enum.StrEnum):
 
 
 class ReviewerKind(enum.StrEnum):
-    HUMAN = "HUMAN"            # the only kind that may reject a Lean-valid proof
-    AUTOMATIC = "AUTOMATIC"    # manual review was disabled; still a recorded policy decision
-    ADVISORY = "ADVISORY"      # an LLM pre-check; evidence, never binding
+    HUMAN = "HUMAN"  # the only kind that may reject a Lean-valid proof
+    AUTOMATIC = (
+        "AUTOMATIC"  # manual review was disabled; still a recorded policy decision
+    )
+    ADVISORY = "ADVISORY"  # an LLM pre-check; evidence, never binding
 
 
 class SubmissionStatusField(enum.StrEnum):
-    CREATED = "CREATED"        # the intake itself; from_status is NULL
+    CREATED = "CREATED"  # the intake itself; from_status is NULL
     VERIFICATION = "VERIFICATION"
     MANUAL_REVIEW = "MANUAL_REVIEW"
     REWARD = "REWARD"
@@ -158,8 +162,12 @@ class Proof(Base):
 
     __table_args__ = (
         # pg_catalog-qualified: bare sha256(...) could read as a cast to the domain.
-        CheckConstraint("digest = pg_catalog.sha256(content)", name="proof_digest_matches"),
-        CheckConstraint("byte_length = octet_length(content)", name="proof_length_matches"),
+        CheckConstraint(
+            "digest = pg_catalog.sha256(content)", name="proof_digest_matches"
+        ),
+        CheckConstraint(
+            "byte_length = octet_length(content)", name="proof_length_matches"
+        ),
     )
 
 
@@ -172,7 +180,9 @@ class Submission(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
-    idempotency_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    idempotency_key: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
     request_digest: Mapped[bytes] = mapped_column(SHA256, nullable=False)
     # No FK on task_id: the repo is the task source of truth.
     task_id: Mapped[str] = mapped_column(Text, nullable=False)
@@ -190,10 +200,14 @@ class Submission(Base):
     hotkey_signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
     verification_status: Mapped[VerificationState] = mapped_column(
-        VERIFICATION_STATE, nullable=False, server_default=VerificationState.UNVERIFIED.value
+        VERIFICATION_STATE,
+        nullable=False,
+        server_default=VerificationState.UNVERIFIED.value,
     )
     manual_review_status: Mapped[ManualReviewState] = mapped_column(
-        MANUAL_REVIEW_STATE, nullable=False, server_default=ManualReviewState.UNREVIEWED.value
+        MANUAL_REVIEW_STATE,
+        nullable=False,
+        server_default=ManualReviewState.UNREVIEWED.value,
     )
     reward_status: Mapped[RewardState] = mapped_column(
         REWARD_STATE, nullable=False, server_default=RewardState.INELIGIBLE.value
@@ -215,17 +229,24 @@ class Submission(Base):
     __table_args__ = (
         CheckConstraint("length(task_id) BETWEEN 1 AND 255", name="task_id_nonempty"),
         CheckConstraint(
-            "length(payment_reference) BETWEEN 1 AND 128", name="payment_reference_nonempty"
+            "length(payment_reference) BETWEEN 1 AND 128",
+            name="payment_reference_nonempty",
         ),
         CheckConstraint("payment_amount_rao > 0", name="payment_amount_positive"),
         CheckConstraint("payment_block > 0", name="payment_block_positive"),
-        CheckConstraint("octet_length(hotkey_signature) = 64", name="hotkey_signature_len"),
+        CheckConstraint(
+            "octet_length(hotkey_signature) = 64", name="hotkey_signature_len"
+        ),
         CheckConstraint(
             "length(review_policy_version) BETWEEN 1 AND 64",
             name="review_policy_version_nonempty",
         ),
-        UniqueConstraint("hotkey", "idempotency_key", name="submissions_idempotency_unique"),
-        UniqueConstraint("payment_reference", name="submissions_payment_reference_unique"),
+        UniqueConstraint(
+            "hotkey", "idempotency_key", name="submissions_idempotency_unique"
+        ),
+        UniqueConstraint(
+            "payment_reference", name="submissions_payment_reference_unique"
+        ),
         CheckConstraint("updated_at >= created_at", name="updated_not_before_created"),
         # Worker queues, oldest first, for FOR UPDATE SKIP LOCKED. Partial, so only
         # rows still awaiting work are indexed.
@@ -315,16 +336,24 @@ class VerificationRun(Base):
     report_digest: Mapped[bytes | None] = mapped_column(SHA256)
 
     # Duration is finished_at - started_at. Not stored, so the two cannot disagree.
-    started_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    finished_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finished_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
     __table_args__ = (
-        CheckConstraint("(report IS NULL) = (report_digest IS NULL)", name="runs_report_paired"),
+        CheckConstraint(
+            "(report IS NULL) = (report_digest IS NULL)", name="runs_report_paired"
+        ),
         CheckConstraint(
             "report IS NULL OR report_digest = pg_catalog.sha256(report)",
             name="runs_report_digest_matches",
         ),
-        CheckConstraint("finished_at >= started_at", name="runs_finished_after_started"),
+        CheckConstraint(
+            "finished_at >= started_at", name="runs_finished_after_started"
+        ),
         # UNIQUE is free (id is already the primary key) and makes the pair a
         # foreign-key target, so submission_events can only cite a run belonging
         # to the same submission.
@@ -388,7 +417,9 @@ class RewardEvent(Base):
 
     __table_args__ = (
         CheckConstraint("bounty_amount_rao > 0", name="bounty_amount_positive"),
-        CheckConstraint("length(bounty_commit) BETWEEN 7 AND 64", name="bounty_commit_nonempty"),
+        CheckConstraint(
+            "length(bounty_commit) BETWEEN 7 AND 64", name="bounty_commit_nonempty"
+        ),
         # PENDING means exactly "no extrinsic exists yet", so status and reference
         # must not drift apart. FAILED is exempt: an attempt can die before broadcast.
         CheckConstraint(
@@ -401,7 +432,8 @@ class RewardEvent(Base):
             name="reward_confirmed_needs_finality",
         ),
         CheckConstraint(
-            "status <> 'FAILED' OR failure_reason IS NOT NULL", name="reward_failed_needs_reason"
+            "status <> 'FAILED' OR failure_reason IS NOT NULL",
+            name="reward_failed_needs_reason",
         ),
         CheckConstraint(
             "(submitted_block IS NULL OR submitted_block > 0) "
@@ -438,7 +470,11 @@ class RewardEvent(Base):
             "created_at",
             postgresql_where=text("status IN ('PENDING', 'SUBMITTED')"),
         ),
-        Index("reward_events_destination_idx", "destination_coldkey", text("created_at DESC")),
+        Index(
+            "reward_events_destination_idx",
+            "destination_coldkey",
+            text("created_at DESC"),
+        ),
     )
 
 
@@ -484,8 +520,12 @@ class ReviewDecision(Base):
         # the self-reference below and by submission_events, and it doubles as the
         # per-submission history index — btree scans backwards, so latest-first
         # needs no DESC index.
-        UniqueConstraint("submission_id", "id", name="review_decisions_submission_unique"),
-        CheckConstraint("supersedes_id IS DISTINCT FROM id", name="review_supersedes_not_self"),
+        UniqueConstraint(
+            "submission_id", "id", name="review_decisions_submission_unique"
+        ),
+        CheckConstraint(
+            "supersedes_id IS DISTINCT FROM id", name="review_supersedes_not_self"
+        ),
         ForeignKeyConstraint(
             ["submission_id", "supersedes_id"],
             ["review_decisions.submission_id", "review_decisions.id"],
@@ -566,7 +606,9 @@ class SubmissionEvent(Base):
             "(status_field = 'CREATED') = (from_status IS NULL)",
             name="events_created_has_no_from",
         ),
-        CheckConstraint("to_status IS DISTINCT FROM from_status", name="events_status_changed"),
+        CheckConstraint(
+            "to_status IS DISTINCT FROM from_status", name="events_status_changed"
+        ),
         Index("submission_events_submission_idx", "submission_id", "id"),
         Index(
             "submission_events_causation_idx",

@@ -24,8 +24,9 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime, timezone
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Path, Request, Response, status
+from fastapi import APIRouter, Header, Path, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db import digests
@@ -39,7 +40,7 @@ from submission_api.auth import (
     assert_valid_hotkey,
     normalise_signature,
 )
-from submission_api.dependencies import Services, get_services, get_session
+from submission_api.dependencies import Services, ServicesDep, SessionDep
 from submission_api.errors import (
     ApiError,
     BadRequest,
@@ -75,7 +76,9 @@ def _require_uuid(raw: str, field: str) -> uuid.UUID:
 
 def _require_nonce(raw: str) -> int:
     if not raw.isdigit() or len(raw) > 20:
-        raise BadRequest("X-Conjectures-Timestamp must be milliseconds since the Unix epoch")
+        raise BadRequest(
+            "X-Conjectures-Timestamp must be milliseconds since the Unix epoch"
+        )
     return int(raw)
 
 
@@ -117,7 +120,9 @@ def _utc(value: datetime | None) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
-def _verification(run: VerificationRun | None, submission: Submission) -> schemas.VerificationStatus:
+def _verification(
+    run: VerificationRun | None, submission: Submission
+) -> schemas.VerificationStatus:
     if run is None:
         return schemas.VerificationStatus(status=str(submission.verification_status))
     return schemas.VerificationStatus(
@@ -172,19 +177,19 @@ def _status(view: store.SubmissionView) -> schemas.SubmissionStatus:
 async def create_submission(
     request: Request,
     response: Response,
-    services: Services = Depends(get_services),
-    session: AsyncSession = Depends(get_session),
-    content_length: int | None = Header(default=None, alias="Content-Length"),
-    content_type: str | None = Header(default=None, alias="Content-Type"),
-    user_agent: str | None = Header(default=None, alias="User-Agent"),
-    idempotency_key: str = Header(alias="Idempotency-Key"),
-    hotkey: str = Header(alias="X-Conjectures-Hotkey"),
-    timestamp: str = Header(alias="X-Conjectures-Timestamp"),
-    signature: str = Header(alias="X-Conjectures-Signature"),
-    task_id: str = Header(alias="X-Conjectures-Task-Id"),
-    task_sha256: str = Header(alias="X-Conjectures-Task-Sha256"),
-    proof_sha256: str = Header(alias="X-Conjectures-Proof-Sha256"),
-    payment_reference: str = Header(alias="X-Conjectures-Payment-Ref"),
+    services: ServicesDep,
+    session: SessionDep,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    hotkey: Annotated[str, Header(alias="X-Conjectures-Hotkey")],
+    timestamp: Annotated[str, Header(alias="X-Conjectures-Timestamp")],
+    signature: Annotated[str, Header(alias="X-Conjectures-Signature")],
+    task_id: Annotated[str, Header(alias="X-Conjectures-Task-Id")],
+    task_sha256: Annotated[str, Header(alias="X-Conjectures-Task-Sha256")],
+    proof_sha256: Annotated[str, Header(alias="X-Conjectures-Proof-Sha256")],
+    payment_reference: Annotated[str, Header(alias="X-Conjectures-Payment-Ref")],
+    content_length: Annotated[int | None, Header(alias="Content-Length")] = None,
+    content_type: Annotated[str | None, Header(alias="Content-Type")] = None,
+    user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
 ) -> schemas.SubmissionStatus:
     settings = services.settings
     audit = _Audit(
@@ -244,9 +249,7 @@ async def create_submission(
         existing = await store.find_by_idempotency_key(session, miner, key)
         if existing is not None:
             if bytes(existing.request_digest) != digests.to_bytes(request_digest):
-                raise from_database_error(
-                    _idempotency_conflict(str(key))
-                )
+                raise from_database_error(_idempotency_conflict(str(key)))
             audit.disarm()
             response.status_code = status.HTTP_200_OK
             return _status(await store.load_view(session, existing))
@@ -280,7 +283,9 @@ async def create_submission(
         assert_fresh_nonce(nonce_ms, settings.nonce_window_seconds)
 
         # Payment last, and before any write: the schema has no unpaid state.
-        payment = await services.payments.confirm(reference=payment_reference, hotkey=miner)
+        payment = await services.payments.confirm(
+            reference=payment_reference, hotkey=miner
+        )
 
         view = await store.create_submission(
             session,
@@ -420,8 +425,12 @@ def _read_authentication(
     replayed as a submission — the intake digest covers six fields and can never equal it.
     """
     miner = assert_valid_hotkey(hotkey)
-    digest = sha256_bytes(f"conjectures-read-v1:{miner}:{submission_id}".encode("utf-8"))
-    assert_fresh_nonce(_require_nonce(timestamp), services.settings.nonce_window_seconds)
+    digest = sha256_bytes(
+        f"conjectures-read-v1:{miner}:{submission_id}".encode("utf-8")
+    )
+    assert_fresh_nonce(
+        _require_nonce(timestamp), services.settings.nonce_window_seconds
+    )
     services.authenticator.verify(
         SignedRequest(
             hotkey=miner,
@@ -438,14 +447,16 @@ def _read_authentication(
     summary="Read verification, review, and reward state",
 )
 async def read_submission(
-    submission_id: uuid.UUID = Path(),
-    services: Services = Depends(get_services),
-    session: AsyncSession = Depends(get_session),
-    hotkey: str = Header(alias="X-Conjectures-Hotkey"),
-    timestamp: str = Header(alias="X-Conjectures-Timestamp"),
-    signature: str = Header(alias="X-Conjectures-Signature"),
+    submission_id: Annotated[uuid.UUID, Path()],
+    services: ServicesDep,
+    session: SessionDep,
+    hotkey: Annotated[str, Header(alias="X-Conjectures-Hotkey")],
+    timestamp: Annotated[str, Header(alias="X-Conjectures-Timestamp")],
+    signature: Annotated[str, Header(alias="X-Conjectures-Signature")],
 ) -> schemas.SubmissionStatus:
-    miner = _read_authentication(services, str(submission_id), hotkey, timestamp, signature)
+    miner = _read_authentication(
+        services, str(submission_id), hotkey, timestamp, signature
+    )
     return _status(await store.get_for_miner(session, submission_id, miner))
 
 
@@ -455,16 +466,18 @@ async def read_submission(
     summary="Read the immutable verifier report",
 )
 async def read_report(
-    submission_id: uuid.UUID = Path(),
-    services: Services = Depends(get_services),
-    session: AsyncSession = Depends(get_session),
-    hotkey: str = Header(alias="X-Conjectures-Hotkey"),
-    timestamp: str = Header(alias="X-Conjectures-Timestamp"),
-    signature: str = Header(alias="X-Conjectures-Signature"),
+    submission_id: Annotated[uuid.UUID, Path()],
+    services: ServicesDep,
+    session: SessionDep,
+    hotkey: Annotated[str, Header(alias="X-Conjectures-Hotkey")],
+    timestamp: Annotated[str, Header(alias="X-Conjectures-Timestamp")],
+    signature: Annotated[str, Header(alias="X-Conjectures-Signature")],
 ) -> schemas.VerificationReportResponse:
     import json
 
-    miner = _read_authentication(services, str(submission_id), hotkey, timestamp, signature)
+    miner = _read_authentication(
+        services, str(submission_id), hotkey, timestamp, signature
+    )
     view = await store.get_for_miner(session, submission_id, miner)
     run = view.verification
     if run is None or run.report is None or run.report_digest is None:

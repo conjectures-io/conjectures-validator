@@ -1,0 +1,64 @@
+flowchart TD
+    subgraph GEN["GENERATION DOMAIN — offline, trusted, once per pin"]
+        FC["Formal Conjectures @ e923379e<br/>823 files · 3236 declarations"]
+        EX["CatalogExtractor.lean<br/>Lean environment introspection"]
+        CAT["data/catalog.json<br/>3236 records × 24 fields"]
+        POL["production_policy_violations<br/>10 deny-by-default rules"]
+        AUD["HUMAN AUDIT<br/>gold/selection-audit.json · 100 candidates"]
+        PICK["gold/whole-problem-targets.json<br/>29 asserted picks"]
+        SEL["select_gold_declarations<br/>re-verifies every pick mechanically"]
+        GT["generate_task<br/>fcTypeOfName% type splice"]
+        VAL["target_validator<br/>compile · isDefEq · policy recheck"]
+        BUN["tasks/gold/TASK_ID/<br/>7 frozen files"]
+        ALLOW["gold/allowlist.json<br/>29 bundle digests · default DENY"]
+    end
+
+    subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
+        API["POST /v1/submissions<br/>SPEC"]
+        PAY["payment watcher<br/>0.5 TAO finalized<br/>SPEC"]
+        OBJ["object store<br/>proof bytes by digest<br/>SPEC"]
+        DB["Postgres<br/>lifecycle · audit · outbox<br/>SPEC"]
+        WORK["verification worker<br/>SPEC"]
+        REV["reward gating<br/>optional manual review<br/>SPEC"]
+        RE["reward_events<br/>SPEC"]
+        WB["weight_batches → set_weights<br/>OPEN"]
+    end
+
+    subgraph VER["VERIFICATION DOMAIN — hostile input, no secrets"]
+        LOAD["load_task_bundle<br/>rehash · regenerate · compare"]
+        SUB["load_submission<br/>bounded UTF-8 · sha256"]
+        STAT["check_submission<br/>static hostile-input policy"]
+        BC["build Challenge + task_inspector<br/>recheck hashes against live Lean"]
+        CMP["Comparator<br/>build · export · compare · axioms · kernel replay"]
+        REP["VerificationReport<br/>19 fields · immutable"]
+    end
+
+    FC --> EX --> CAT
+    CAT --> POL --> SEL
+    CAT --> AUD --> PICK --> SEL
+    SEL --> GT --> VAL --> BUN --> ALLOW
+
+    MINER["miner"] -->|"0.5 TAO"| PAY
+    ALLOW -.->|"task_id + bundle digest<br/>published"| MINER
+    MINER -->|"Main.lean + digest + payment ref"| API
+    API --> OBJ
+    API --> DB
+    PAY --> DB
+    DB -->|"outbox job"| WORK
+    OBJ -->|"proof bytes"| WORK
+    ALLOW -->|"expected_task_sha256"| WORK
+    BUN -->|"read-only mount"| WORK
+
+    WORK --> LOAD --> SUB --> STAT --> BC --> CMP --> REP
+    REP -->|"report bytes"| OBJ
+    REP -->|"verdict + reason_code"| DB
+    DB --> REV --> RE --> WB
+
+    classDef built fill:#0f5132,stroke:#0f5132,color:#fff
+    classDef spec fill:#664d03,stroke:#664d03,color:#fff
+    classDef open fill:#842029,stroke:#842029,color:#fff
+    classDef ext fill:#41464b,stroke:#41464b,color:#fff
+    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP built
+    class API,PAY,OBJ,DB,WORK,REV,RE spec
+    class WB open
+    class MINER ext

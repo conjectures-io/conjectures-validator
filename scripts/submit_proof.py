@@ -31,6 +31,9 @@ import uuid
 import zipfile
 from pathlib import Path
 
+from bittensor.sp_core import Keypair
+from bittensor.wallet import Wallet
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -75,10 +78,6 @@ def canonical_request_digest(
 
 
 def load_keypair(args):
-    try:
-        from bittensor_wallet import Keypair, Wallet
-    except ImportError as exc:  # pragma: no cover
-        raise SystemExit("signing needs the subnet extra: pip install -e '.[subnet]'") from exc
     if args.uri:
         return Keypair.create_from_uri(args.uri)
     if not (args.wallet and args.hotkey):
@@ -116,7 +115,7 @@ def timestamp_ms() -> str:
 
 def read_headers(keypair, submission_id: str) -> dict[str, str]:
     message = hashlib.sha256(
-        f"{READ_DOMAIN}:{keypair.ss58_address}:{submission_id}".encode("utf-8")
+        f"{READ_DOMAIN}:{keypair.ss58_address}:{submission_id}".encode()
     ).digest()
     return {
         "X-Conjectures-Hotkey": keypair.ss58_address,

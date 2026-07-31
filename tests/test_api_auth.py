@@ -8,6 +8,9 @@ import pytest
 
 pytest.importorskip("fastapi", reason="submission API tests need the service extra")
 pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra")
+pytest.importorskip("bittensor", reason="submission API tests need the subnet extra")
+
+from bittensor.sp_core import Keypair
 
 from conjectures_subnet.db import digests
 from submission_api.auth import (
@@ -277,19 +280,9 @@ def test_the_development_verifier_honours_its_allowlist():
 
 # --- the production signature path, against a real keypair --------------------------
 
-try:
-    import bittensor_wallet as keypair_module
-except ImportError:  # pragma: no cover - depends on the installed extras
-    keypair_module = None
 
-needs_keypair = pytest.mark.skipif(
-    keypair_module is None, reason="hotkey signature verification needs the subnet extra"
-)
-
-
-@needs_keypair
 def test_a_real_signature_over_the_request_digest_verifies():
-    key = keypair_module.Keypair.create_from_uri("//Alice")
+    key = Keypair.create_from_uri("//Alice")
     request = signed(hotkey=key.ss58_address, signature=b"\x00")
     signature = key.sign(request.message)
     assert len(signature) == 64
@@ -298,9 +291,8 @@ def test_a_real_signature_over_the_request_digest_verifies():
     )
 
 
-@needs_keypair
 def test_a_signature_does_not_carry_over_to_another_digest():
-    key = keypair_module.Keypair.create_from_uri("//Alice")
+    key = Keypair.create_from_uri("//Alice")
     signature = key.sign(signed(hotkey=key.ss58_address, signature=b"\x00").message)
     with pytest.raises(Unauthorized, match="does not match"):
         HotkeySignatureAuthenticator().verify(
@@ -308,10 +300,9 @@ def test_a_signature_does_not_carry_over_to_another_digest():
         )
 
 
-@needs_keypair
 def test_another_keys_signature_is_rejected():
-    key = keypair_module.Keypair.create_from_uri("//Alice")
-    bob = keypair_module.Keypair.create_from_uri("//Bob")
+    key = Keypair.create_from_uri("//Alice")
+    bob = Keypair.create_from_uri("//Bob")
     signature = bob.sign(signed(hotkey=key.ss58_address, signature=b"\x00").message)
     with pytest.raises(Unauthorized, match="does not match"):
         HotkeySignatureAuthenticator().verify(
@@ -319,26 +310,9 @@ def test_another_keys_signature_is_rejected():
         )
 
 
-@needs_keypair
 def test_a_garbage_signature_is_rejected():
-    key = keypair_module.Keypair.create_from_uri("//Alice")
+    key = Keypair.create_from_uri("//Alice")
     with pytest.raises(Unauthorized):
         HotkeySignatureAuthenticator().verify(
             signed(hotkey=key.ss58_address, signature=b"\xff" * 64)
         )
-
-
-def test_hotkey_authenticator_fails_closed_without_a_keypair_backend(monkeypatch):
-    """With neither keypair library importable, authentication must 401, not crash."""
-    import builtins
-
-    real_import = builtins.__import__
-
-    def blocked(name, *args, **kwargs):
-        if name in {"bittensor_wallet", "substrateinterface"}:
-            raise ImportError(f"blocked for test: {name}")
-        return real_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", blocked)
-    with pytest.raises(Unauthorized, match="unavailable"):
-        HotkeySignatureAuthenticator().verify(signed(signature=b"\xab" * 64))

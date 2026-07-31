@@ -7,10 +7,12 @@ commit to in a bundle.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path
+from typing import Annotated
+
+from fastapi import APIRouter, Path
 
 from submission_api import schemas
-from submission_api.dependencies import Services, get_services
+from submission_api.dependencies import ServicesDep
 from submission_api.errors import NotFound
 from verifier.bundle import BUNDLE_FORMAT
 from verifier.gold_registry import TaskNotAllowed
@@ -28,7 +30,7 @@ def _summary(entry) -> schemas.TaskSummary:  # type: ignore[no-untyped-def]
 
 
 @router.get("", response_model=schemas.TaskList, summary="List submittable tasks")
-async def list_tasks(services: Services = Depends(get_services)) -> schemas.TaskList:
+async def list_tasks(services: ServicesDep) -> schemas.TaskList:
     catalog = services.catalog
     settings = services.settings
     return schemas.TaskList(
@@ -47,8 +49,8 @@ async def list_tasks(services: Services = Depends(get_services)) -> schemas.Task
     summary="Read one task's published commitment",
 )
 async def read_task(
-    task_id: str = Path(max_length=255),
-    services: Services = Depends(get_services),
+    task_id: Annotated[str, Path(max_length=255)],
+    services: ServicesDep,
 ) -> schemas.TaskSummary:
     try:
         return _summary(services.catalog.get(task_id))

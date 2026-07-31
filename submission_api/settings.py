@@ -17,12 +17,11 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -61,7 +60,9 @@ def _require(environ: Mapping[str, str], key: str) -> str:
     return value
 
 
-def _choice(environ: Mapping[str, str], key: str, options: tuple[str, ...], default: str) -> str:
+def _choice(
+    environ: Mapping[str, str], key: str, options: tuple[str, ...], default: str
+) -> str:
     value = environ.get(key, default).strip()
     if value not in options:
         raise SettingsError(f"{key} must be one of {', '.join(options)}, got {value!r}")
@@ -108,7 +109,9 @@ def _address(environ: Mapping[str, str], key: str, value: str) -> str:
 
 
 def _csv(environ: Mapping[str, str], key: str) -> tuple[str, ...]:
-    return tuple(item.strip() for item in environ.get(key, "").split(",") if item.strip())
+    return tuple(
+        item.strip() for item in environ.get(key, "").split(",") if item.strip()
+    )
 
 
 @dataclass(frozen=True)
@@ -142,7 +145,7 @@ class Settings:
         return not self.production
 
     @classmethod
-    def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
+    def from_env(cls, environ: Mapping[str, str] | None = None) -> Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
@@ -161,7 +164,9 @@ class Settings:
         )
         dispatcher = _choice(env, "SUBMISSION_DISPATCHER", DISPATCHERS, QUEUE_DISPATCH)
         if production and authenticator != HOTKEY_SIGNATURE_AUTH:
-            raise SettingsError("production requires SUBMISSION_AUTHENTICATOR=hotkey-signature")
+            raise SettingsError(
+                "production requires SUBMISSION_AUTHENTICATOR=hotkey-signature"
+            )
         if production and payment_verifier != CHAIN_PAYMENTS:
             raise SettingsError("production requires SUBMISSION_PAYMENT_VERIFIER=chain")
         if production and dispatcher != QUEUE_DISPATCH:
@@ -176,7 +181,9 @@ class Settings:
 
         review_policy_version = env.get("REVIEW_POLICY_VERSION", "v1").strip()
         if POLICY_VERSION.fullmatch(review_policy_version) is None:
-            raise SettingsError("REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}")
+            raise SettingsError(
+                "REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
+            )
 
         development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
         invalid = tuple(
@@ -202,8 +209,12 @@ class Settings:
             gold_allowlist_path=_directory(
                 env, "GOLD_ALLOWLIST_PATH", PROJECT_ROOT / "gold" / "allowlist.json"
             ),
-            gold_pool_root=_directory(env, "GOLD_POOL_ROOT", PROJECT_ROOT / "tasks" / "gold"),
-            verifier_project_root=_directory(env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT),
+            gold_pool_root=_directory(
+                env, "GOLD_POOL_ROOT", PROJECT_ROOT / "tasks" / "gold"
+            ),
+            verifier_project_root=_directory(
+                env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT
+            ),
             payment_recipient=recipient,
             payment_amount_rao=_positive_int(
                 env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
@@ -214,7 +225,9 @@ class Settings:
             development_hotkeys=development_hotkeys,
             development_coldkey=development_coldkey,
             development_payment_references=_csv(env, "DEVELOPMENT_PAYMENT_REFERENCES"),
-            nonce_window_seconds=_positive_int(env, "NONCE_WINDOW_SECONDS", 120, maximum=3600),
+            nonce_window_seconds=_positive_int(
+                env, "NONCE_WINDOW_SECONDS", 120, maximum=3600
+            ),
             max_bundle_bytes=_positive_int(
                 env, "MAX_BUNDLE_BYTES", MAX_BUNDLE_BYTES, maximum=MAX_BUNDLE_BYTES
             ),

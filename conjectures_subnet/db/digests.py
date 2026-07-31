@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import re
 
-
 DIGEST_BYTES = 32
 PREFIX = "sha256:"
 HEX = re.compile(r"^[0-9a-f]{64}$")
@@ -26,23 +25,23 @@ def to_bytes(digest: str) -> bytes:
     """`sha256:<hex>` or bare lowercase hex to the 32 raw bytes the schema stores."""
     if not isinstance(digest, str):
         raise DigestError("digest must be a string")
-    candidate = digest[len(PREFIX) :] if digest.startswith(PREFIX) else digest
+    candidate = digest.removeprefix(PREFIX)
     if HEX.fullmatch(candidate) is None:
         raise DigestError(f"not a lowercase sha256 digest: {digest!r}")
     return bytes.fromhex(candidate)
 
 
-def to_prefixed(raw: bytes | memoryview | None) -> str | None:
+def to_prefixed(raw: bytes | memoryview) -> str:
     """The 32 raw bytes back to the `sha256:<hex>` form used in reports and responses."""
-    if raw is None:
-        return None
     value = bytes(raw)
     if len(value) != DIGEST_BYTES:
-        raise DigestError(f"stored digest is {len(value)} bytes, expected {DIGEST_BYTES}")
+        raise DigestError(
+            f"stored digest is {len(value)} bytes, expected {DIGEST_BYTES}"
+        )
     return f"{PREFIX}{value.hex()}"
 
 
-def to_hex(raw: bytes | memoryview | None) -> str | None:
+def to_hex(raw: bytes | memoryview) -> str:
     """Bare hex, for the rejection log, which stores digests as unvalidated text."""
     prefixed = to_prefixed(raw)
-    return None if prefixed is None else prefixed[len(PREFIX) :]
+    return prefixed[len(PREFIX) :]

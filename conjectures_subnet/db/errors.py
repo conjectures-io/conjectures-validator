@@ -10,7 +10,8 @@ miner, so a refusal is machine-readable rather than prose to be scraped.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 
 class DatabaseError(Exception):
@@ -18,7 +19,9 @@ class DatabaseError(Exception):
 
     reason_code = "DATABASE_ERROR"
 
-    def __init__(self, message: str, *, reason_code: str | None = None, **details: Any) -> None:
+    def __init__(
+        self, message: str, *, reason_code: str | None = None, **details: Any
+    ) -> None:
         super().__init__(message)
         self.message = message
         if reason_code is not None:
