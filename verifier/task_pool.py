@@ -11,17 +11,23 @@ from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import pretty_json, sha256_bytes
 from verifier.models import Catalog, CatalogDeclaration, TaskManifest
 from verifier.task_loader import TaskBundle
-from verifier.task_policy import EXACT_TASK_MODE, production_eligibility
+from verifier.task_generator import problem_id
+from verifier.task_policy import (
+    COUNTEREXAMPLE_TASK_MODE,
+    EXACT_TASK_MODE,
+    PRODUCTION_TASK_MODES,
+    production_eligibility,
+)
 
 
-TASK_POOL_SCHEMA_VERSION = 5
+TASK_POOL_SCHEMA_VERSION = 6
 SELECTION_AUDIT_SCHEMA_VERSION = 1
 TASK_GROUP_SCHEMA_VERSION = 1
 WHOLE_PROBLEM_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
 DEFAULT_TIER_SIZE = 29
-DEFAULT_TIER_TASK_COUNT = 29
+DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = DEFAULT_TIER_SIZE
 TASK_POOL_SELECTION = "audited-erdos-whole-problem-v1"
 TASK_POOL_GROUPING = "none-single-target-v1"
@@ -567,10 +573,13 @@ def build_task_allowlist(
         )
     declaration_groups = tuple(selected)
     task_bundles = tuple(bundles)
-    if len(declaration_groups) != len(task_bundles) or not declaration_groups:
+    if (
+        len(task_bundles) != len(declaration_groups) * len(PRODUCTION_TASK_MODES)
+        or not declaration_groups
+    ):
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            "task groups and generated bundles must be non-empty and one-to-one",
+            "every task group must have one generated bundle for each production mode",
         )
     declarations = tuple(
         declaration
@@ -591,62 +600,82 @@ def build_task_allowlist(
         declaration.theorem: index
         for index, declaration in enumerate(catalog.declarations)
     }
-    sources = []
+    sources = [
+        {
+            "index": catalog_indices[declaration.theorem],
+            "source_path": declaration.source_path,
+            "source_type_sha256": declaration.type_hash,
+            "theorem": declaration.theorem,
+            "tier": tier,
+        }
+        for declaration in declarations
+    ]
+    bundles_by_identity = {
+        (
+            tuple(source.theorem for source in bundle.sources),
+            bundle.manifest.task_mode,
+        ): bundle
+        for bundle in task_bundles
+    }
+    expected_identities = {
+        (tuple(item.theorem for item in group), mode)
+        for group in declaration_groups
+        for mode in PRODUCTION_TASK_MODES
+    }
+    if len(bundles_by_identity) != len(task_bundles) or set(bundles_by_identity) != expected_identities:
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "generated task bundles do not form complete proof/counterexample pairs",
+        )
+
     tasks = []
-    for declarations_for_task, bundle in zip(
-        declaration_groups,
-        task_bundles,
-        strict=True,
-    ):
-        manifest: TaskManifest = bundle.manifest
+    for declarations_for_task in declaration_groups:
         primary = declarations_for_task[0]
-        if (
-            manifest.source_theorem != primary.theorem
-            or manifest.task_mode != EXACT_TASK_MODE
-            or not manifest.production_eligible
-            or manifest.source_type_hash != primary.type_hash
-            or manifest.generated_target_type_hash != primary.type_hash
-            or tuple(item.theorem for item in bundle.sources)
-            != tuple(item.theorem for item in declarations_for_task)
-            or tuple(item.type_hash for item in bundle.sources)
-            != tuple(item.type_hash for item in declarations_for_task)
-        ):
-            raise VerifierError(
-                ReasonCode.INVALID_MANIFEST,
-                f"generated task is not the exact source group: {primary.theorem}",
+        theorem_names = tuple(item.theorem for item in declarations_for_task)
+        source_indices = [catalog_indices[item.theorem] for item in declarations_for_task]
+        source_hashes = tuple(item.type_hash for item in declarations_for_task)
+        for mode in PRODUCTION_TASK_MODES:
+            bundle = bundles_by_identity[(theorem_names, mode)]
+            manifest: TaskManifest = bundle.manifest
+            target_hashes = (
+                source_hashes
+                if mode == EXACT_TASK_MODE
+                else (manifest.generated_target_type_hash,)
             )
-        source_indices = []
-        for declaration in declarations_for_task:
-            source_index = catalog_indices[declaration.theorem]
-            source_indices.append(source_index)
-            sources.append(
+            if (
+                manifest.source_theorem != primary.theorem
+                or manifest.task_mode != mode
+                or not manifest.production_eligible
+                or manifest.source_type_hash != primary.type_hash
+                or tuple(item.theorem for item in bundle.sources) != theorem_names
+                or tuple(item.type_hash for item in bundle.sources) != source_hashes
+                or (mode == EXACT_TASK_MODE and target_hashes != source_hashes)
+                or (
+                    mode == COUNTEREXAMPLE_TASK_MODE
+                    and (
+                        len(declarations_for_task) != 1
+                        or target_hashes[0] == source_hashes[0]
+                    )
+                )
+            ):
+                raise VerifierError(
+                    ReasonCode.INVALID_MANIFEST,
+                    f"generated task has an invalid target relation: {primary.theorem} ({mode})",
+                )
+            tasks.append(
                 {
-                    "index": source_index,
-                    "source_path": declaration.source_path,
-                    "source_type_sha256": declaration.type_hash,
-                    "theorem": declaration.theorem,
+                    "completion_policy": "all_of",
+                    "mode": mode,
+                    "problem_id": problem_id(catalog.repository_commit, theorem_names),
+                    "source_indices": source_indices,
+                    "source_path": primary.source_path,
+                    "target_type_sha256s": list(target_hashes),
+                    "task_bundle_sha256": bundle.sha256,
+                    "task_id": manifest.task_id,
+                    "theorems": list(theorem_names),
                     "tier": tier,
                 }
             )
-        tasks.append(
-            {
-                "completion_policy": "all_of",
-                "mode": EXACT_TASK_MODE,
-                "source_indices": source_indices,
-                "source_path": primary.source_path,
-                "target_type_sha256s": [
-                    declaration.type_hash
-                    for declaration in declarations_for_task
-                ],
-                "task_bundle_sha256": bundle.sha256,
-                "task_id": manifest.task_id,
-                "theorems": [
-                    declaration.theorem
-                    for declaration in declarations_for_task
-                ],
-                "tier": tier,
-            }
-        )
     value = {
         "allowed_source_theorems": sources,
         "allowed_task_bundles": tasks,
@@ -657,25 +686,28 @@ def build_task_allowlist(
             tier: {
                 "classification": "DIRECT_PROP",
                 "compiled_target_validation": True,
-                "exact_source_type": True,
                 "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
                 "grouping": TASK_POOL_GROUPING,
                 "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
-                "mode": EXACT_TASK_MODE,
+                "modes": list(PRODUCTION_TASK_MODES),
                 "multi_target_tasks": sum(
                     len(group) > 1
                     for group in declaration_groups
-                ),
-                "one_task_per_source_path": True,
-                "pool_size": len(declaration_groups),
+                ) * len(PRODUCTION_TASK_MODES),
+                "one_reward_per_problem": True,
+                "pool_size": len(tasks),
                 "retired_source_theorems_sha256": retired.sha256,
                 "selection": TASK_POOL_SELECTION,
                 "selection_audit_sha256": selection_audit.sha256,
                 "source_category": "research open",
                 "source_theorem_count": len(declarations),
-                "synthetic_negation": False,
                 "task_scope": TASK_POOL_TASK_SCOPE,
+                "target_relations": {
+                    COUNTEREXAMPLE_TASK_MODE: "logical-negation",
+                    EXACT_TASK_MODE: "definitionally-equal",
+                },
                 "task_groups_sha256": grouping.sha256,
+                "outcomes_per_problem": len(PRODUCTION_TASK_MODES),
                 "whole_problem_targets_sha256": whole_problem_targets.sha256,
             }
         },

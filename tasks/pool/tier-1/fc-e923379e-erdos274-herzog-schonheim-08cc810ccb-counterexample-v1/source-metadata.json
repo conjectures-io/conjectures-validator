@@ -1,0 +1,45 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    20
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $G$ be a group, and let $A = \\{a_1G_1, \\dots, a_kG_k\\}$ be a finite system of left cosets of\nsubgroups $G_1, \\dots, G_k$ of $G$.\n\nHerzog and Schönheim conjectured that if $A$ forms a partition of $G$ with $k > 1$, then the\nindices $[G:G_1], \\dots, [G:G_k]$ cannot be distinct.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«274»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/274](https://www.erdosproblems.com/274)",
+    "[Wikipedia](https://en.wikipedia.org/wiki/Herzog%E2%80%93Sch%C3%B6nheim_conjecture)",
+    "[arXiv:1803.08301](https://arxiv.org/abs/1803.08301)",
+    "[arXiv:1803.03569](https://arxiv.org/abs/1803.03569)",
+    "[PMC7247885](https://pmc.ncbi.nlm.nih.gov/articles/PMC7247885/)",
+    "[arXiv:1804.11103](https://arxiv.org/abs/1804.11103)"
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/274.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos274.herzog_schonheim",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:6e309ada359ca6dd3d37cc74ae7fe2288fce8c2c6332911204d420be9433a74b",
+  "type_pretty": "∀ {G : Type u_1} [inst : Group G],\n  1 < ENat.card G →\n    ∀ {ι : Type u_2} [inst_1 : Fintype ι],\n      1 < Fintype.card ι →\n        ∀ (P : Erdos274.Group.ExactCovering G ι), ∃ i j, i ≠ j ∧ (P.parts i).index = (P.parts j).index"
+}

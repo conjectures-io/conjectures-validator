@@ -1,0 +1,41 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Prove that there exists some $c>0$ such that\n$$h(n) \\sim c \\left(\\frac{n}{\\log n}\\right)^{1/2}$$\nas $n\\to \\infty$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«912»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/912](https://www.erdosproblems.com/912)",
+    "[Er82c](https://users.renyi.hu/~p_erdos/1982-08.pdf) Erdős, P., Miscellaneous problems in number theory. Congr. Numer. (1982), 25-45."
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/912.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos912.erdos_912",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:db634ec622da2c97ef6bccd55eebc0a3bd563529484de2686c2d9fa730bde50d",
+  "type_pretty": "∃ c > 0, Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos912.h n)) fun n => c * (↑n / Real.log ↑n) ^ (1 / 2)"
+}

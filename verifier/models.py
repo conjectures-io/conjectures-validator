@@ -269,6 +269,7 @@ DEFAULT_CHECKS: Mapping[str, bool] = {
 @dataclass(frozen=True)
 class VerificationReport:
     schema_version: int
+    problem_id: str
     task_id: str
     repository_commit: str
     source_theorem: str

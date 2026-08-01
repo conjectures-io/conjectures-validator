@@ -4,6 +4,7 @@ from typing import Mapping
 
 from verifier.errors import ReasonCode
 from verifier.models import DEFAULT_CHECKS, TaskManifest, VerificationReport
+from verifier.task_generator import problem_id
 
 
 def tail(value: str, limit: int = 4000) -> str:
@@ -32,7 +33,11 @@ def build_report(
     sandbox_mode: str = "not-started",
 ) -> VerificationReport:
     return VerificationReport(
-        schema_version=1,
+        schema_version=2,
+        problem_id=problem_id(
+            manifest.repository_commit,
+            manifest.forbidden_dependencies or (manifest.source_theorem,),
+        ),
         task_id=manifest.task_id,
         repository_commit=manifest.repository_commit,
         source_theorem=manifest.source_theorem,

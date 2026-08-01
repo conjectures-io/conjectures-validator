@@ -1,7 +1,7 @@
 # Task pool
 
 The checked-in task pool is a deny-by-default set of exact Formal Conjectures
-formalizations for the production verifier and subnet submission protocol. Tasks
+proof and counterexample targets for the production verifier and subnet submission protocol. Tasks
 are organized into explicit tiers. The allowlist commits the tier of every source
 and bundle, so moving a task between tiers is a reviewed policy change.
 
@@ -23,14 +23,14 @@ Each admitted theorem target must:
 
 - come from the pinned Formal Conjectures commit;
 - be a compiled `research open`, `DIRECT_PROP` theorem;
-- use `formalized` mode, whose target is definitionally equal to the complete
-  source theorem type;
-- have identical canonical source and target type hashes;
+- have a `formalized` target definitionally equal to the complete source theorem
+  type and a `counterexample` target definitionally equal to its logical negation;
+- have independently compiled and committed canonical target hashes for both modes;
 - contain no `sorryAx` term or answer annotation in its type;
 - have no formal-proof metadata or exact collision with a cataloged proved
   theorem;
 - satisfy the selection and freshness rules declared by its tier;
-- be the only admitted task for its canonical type;
+- have no cataloged non-admitted proof collision for either `P` or `¬ P`;
 - compile and pass the independent `TaskInspector` target check.
 
 Each current task contains one exact canonical theorem whose proof closes the
@@ -55,16 +55,22 @@ Written on the Wall II conjectures may be included in a future tier after the sa
 open-status, pull-request, collision, and compiled-target checks. The current
 `tier-1` selection happens to contain only Erdős problems.
 
-The pool does not create a positive/negative pair, extract a proposition from an
-answer wrapper, or substitute a new answer. If a future admitted source theorem
-is itself a negation, that exact negation may be used.
+The pool creates one `formalized`/`counterexample` pair for every admitted source.
+Both bundles have distinct task IDs and commitments but share one deterministic
+`problem_id`. The reward store must enforce at most one reward for that problem.
+The pool does not extract propositions from answer wrappers or substitute answers.
+
+A counterexample task asks for a kernel-checked proof of `¬ P`. For a universal
+conjecture this can normally exhibit a concrete violating witness. For other
+logical shapes it is more accurately a refutation and need not expose a
+machine-readable witness.
 
 ## Scope
 
-`tier-1` contains 29 reward tasks covering 29 audited Erdős problems from 29
-source files. Every task has exactly one theorem target and one source file. A
-valid proof therefore closes the whole selected problem; no grouped or partial
-task can earn a reward in this tier.
+`tier-1` contains 58 task bundles covering 29 audited Erdős problems from 29
+source files: one proof target and one counterexample target per problem. Every
+bundle has exactly one theorem target. Acceptance of either outcome closes the
+shared problem identity; no grouped or partial task can earn a reward in this tier.
 
 The GitHub review covered all 281 open pull requests visible at audit time and
 excluded selected theorems with an active resolution or correction. A separate

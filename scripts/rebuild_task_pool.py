@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a tier of the exact-formalization task pool from the pinned catalog."""
+"""Build paired proof/counterexample task commitments from the pinned catalog."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from verifier.task_pool import (
 )
 from verifier.task_generator import generate_group_task, generate_task
 from verifier.task_loader import load_task_bundle
-from verifier.task_policy import EXACT_TASK_MODE
+from verifier.task_policy import PRODUCTION_TASK_MODES
 from verifier.workspace import target_validator
 
 
@@ -119,33 +119,40 @@ def main() -> int:
     generated.mkdir()
     bundles = []
     try:
+        work = tuple(
+            (index, declarations, mode)
+            for index, declarations in enumerate(selected, start=1)
+            for mode in PRODUCTION_TASK_MODES
+        )
+
         def generate_one(item):
-            index, declarations = item
+            index, declarations, mode = item
             names = ", ".join(declaration.theorem for declaration in declarations)
-            print(f"[{index}/{len(selected)}] {names}", flush=True)
+            print(f"[{index}/{len(selected)}] {names} ({mode})", flush=True)
+            pending = generated / f"pending-{index:03d}-{mode}"
             if len(declarations) == 1:
                 manifest = generate_task(
                     catalog=catalog,
                     declaration=declarations[0],
-                    mode=EXACT_TASK_MODE,
-                    output=generated / f"pending-{index:03d}",
+                    mode=mode,
+                    output=pending,
                     validate_target=validate_target,
                 )
             else:
                 manifest = generate_group_task(
                     catalog=catalog,
                     declarations=declarations,
-                    mode=EXACT_TASK_MODE,
-                    output=generated / f"pending-{index:03d}",
+                    mode=mode,
+                    output=pending,
                     validate_target=validate_target,
                 )
             destination = generated / manifest.task_id
-            os.replace(generated / f"pending-{index:03d}", destination)
+            os.replace(pending, destination)
             return load_task_bundle(destination)
 
         with ThreadPoolExecutor(max_workers=arguments.jobs) as executor:
             bundles = list(
-                executor.map(generate_one, enumerate(selected, start=1))
+                executor.map(generate_one, work)
             )
         allowlist_content = build_task_allowlist(
             catalog=catalog,
@@ -172,7 +179,7 @@ def main() -> int:
         raise
     finally:
         shutil.rmtree(temporary, ignore_errors=True)
-    print(f"wrote {len(bundles)} exact-formalization tasks to {output}")
+    print(f"wrote {len(bundles)} proof/counterexample tasks to {output}")
     print(f"wrote allowlist to {allowlist}")
     return 0
 

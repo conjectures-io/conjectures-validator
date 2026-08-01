@@ -1,0 +1,40 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Denote by $M(n, k)$ the least common multiple of the finite set $\\{n+1, \\dotsc, n+k\\}$.\nIs it true that for all $m \\geq n + k$, we get $M(m, k) \\neq M(n, k)$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«677»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/677](https://www.erdosproblems.com/677)"
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/677.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos677.erdos_677",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:78054fe49acd5d6854705a6a72de9d04ec80433aeab8e289b9096cbc7f9dc5f5",
+  "type_pretty": "∀ (m n k : ℕ), k > 0 → m ≥ n + k → Finset.lcmInterval m k ≠ Finset.lcmInterval n k"
+}

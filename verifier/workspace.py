@@ -13,7 +13,10 @@ from verifier.hashing import sha256_text
 from verifier.models import CatalogDeclaration, ProcessResult
 from verifier.process import run_process
 from verifier.submission import Submission
-from verifier.task_policy import EXACT_TASK_MODE
+from verifier.task_policy import (
+    COUNTEREXAMPLE_TASK_MODE,
+    is_production_task_mode,
+)
 
 
 @dataclass(frozen=True)
@@ -389,7 +392,7 @@ def target_validator(
                 raise VerifierError(ReasonCode.SOURCE_TYPE_CHANGED, "source type differs during task generation")
             if not inspection["matches"]:
                 raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "generated challenge is not the intended target")
-            if mode == EXACT_TASK_MODE and (
+            if is_production_task_mode(mode) and (
                 inspection["source_category"] != "research open"
                 or inspection["source_declaration_kind"] != "theorem"
                 or not inspection["source_depends_on_sorry"]
@@ -400,6 +403,14 @@ def target_validator(
                 raise VerifierError(
                     ReasonCode.INELIGIBLE_TASK,
                     "source production policy differs from the compiled Lean environment",
+                )
+            if (
+                mode == COUNTEREXAMPLE_TASK_MODE
+                and inspection["target_hash"] == inspection["source_hash"]
+            ):
+                raise VerifierError(
+                    ReasonCode.STATEMENT_MISMATCH,
+                    "counterexample target unexpectedly matches the source theorem type",
                 )
             return str(inspection["target_hash"])
         finally:
