@@ -14,6 +14,7 @@ from submission_api.auth import (
     DevelopmentAuthenticator,
     HotkeySignatureAuthenticator,
     SignedRequest,
+    authentication_message,
     assert_fresh_nonce,
     assert_valid_hotkey,
     build_authenticator,
@@ -27,6 +28,7 @@ from submission_api.payments import (
     build_payment_verifier,
 )
 from submission_api.settings import Settings, SettingsError
+from submission_api.review_asgi import ReviewSettings, create_review_app
 
 
 HOTKEY = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
@@ -39,6 +41,7 @@ def signed(*, hotkey: str = HOTKEY, digest: str = DIGEST, signature: bytes | Non
     return SignedRequest(
         hotkey=hotkey,
         request_digest=digest,
+        timestamp_ms=1_700_000_000_000,
         signature=signature
         if signature is not None
         else bytes.fromhex(development_signature()),
@@ -59,13 +62,43 @@ def base_env(**overrides: str) -> dict[str, str]:
 
 
 def test_the_signed_message_is_the_raw_request_digest():
-    # 32 raw bytes, matching what the schema stores, not a formatted string.
-    assert signed().message == digests.to_bytes(DIGEST)
+    assert signed().message == authentication_message(
+        domain="conjectures-submit-v1",
+        request_digest=DIGEST,
+        timestamp_ms=1_700_000_000_000,
+    )
     assert len(signed().message) == 32
 
 
 def test_a_different_digest_is_a_different_message():
     assert signed().message != signed(digest="sha256:" + "cd" * 32).message
+
+
+def test_timestamp_and_operation_are_bound_into_the_signature_message():
+    original = signed()
+    assert original.message != SignedRequest(
+        hotkey=original.hotkey,
+        request_digest=original.request_digest,
+        timestamp_ms=original.timestamp_ms + 1,
+        signature=original.signature,
+    ).message
+    assert original.message != SignedRequest(
+        hotkey=original.hotkey,
+        request_digest=original.request_digest,
+        timestamp_ms=original.timestamp_ms,
+        signature=original.signature,
+        domain="conjectures-read-v1",
+    ).message
+
+
+def test_reference_client_builds_the_identical_authentication_envelope():
+    from scripts.submit_proof import authentication_message as client_message
+
+    assert signed().message == client_message(
+        domain="conjectures-submit-v1",
+        request_digest=DIGEST,
+        timestamp="1700000000000",
+    )
 
 
 # --- signature normalisation --------------------------------------------------------
@@ -172,7 +205,10 @@ def test_production_refuses_development_components(override, message):
 
 def test_production_defaults_are_all_hardened():
     settings = Settings.from_env(
-        {"APP_MODE": "PROD", "PAYMENT_RECIPIENT_SS58": RECIPIENT}
+        {
+            "APP_MODE": "PROD",
+            "PAYMENT_RECIPIENT_SS58": RECIPIENT,
+        }
     )
     assert isinstance(build_authenticator(settings), HotkeySignatureAuthenticator)
     assert isinstance(build_payment_verifier(settings), ChainPaymentVerifier)
@@ -206,6 +242,25 @@ def test_the_shared_resolver_supplies_the_url(monkeypatch):
     assert database_url() == "postgresql+psycopg://someone:secret@db:5432/conjectures"
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://explicit/x")
     assert database_url() == "postgresql+psycopg://explicit/x"
+
+
+def test_review_service_requires_its_own_strong_token_and_exposes_only_review_routes():
+    with pytest.raises(RuntimeError, match="at least 32"):
+        ReviewSettings.from_env({"REVIEW_API_TOKEN": "short"})
+    settings = ReviewSettings.from_env(
+        {
+            "DATABASE_URL": "postgresql+psycopg://reviewer:secret@db/conjectures",
+            "REVIEW_API_TOKEN": "r" * 32,
+            "REVIEWER_IDENTITY": "alice",
+            "APP_MODE": "PROD",
+        }
+    )
+    app = create_review_app(settings)
+    included = [route.original_router for route in app.routes if hasattr(route, "original_router")]
+    assert len(included) == 1
+    paths = {route.path for route in included[0].routes}
+    assert paths == {"/v1/reviews/{submission_id}"}
+    assert app.openapi_url is None
 
 
 @pytest.mark.parametrize(
@@ -280,7 +335,14 @@ def test_the_development_verifier_honours_its_allowlist():
 try:
     import bittensor_wallet as keypair_module
 except ImportError:  # pragma: no cover - depends on the installed extras
-    keypair_module = None
+    try:
+        from types import SimpleNamespace
+
+        from bittensor.sp_core import Keypair
+
+        keypair_module = SimpleNamespace(Keypair=Keypair)
+    except ImportError:
+        keypair_module = None
 
 needs_keypair = pytest.mark.skipif(
     keypair_module is None, reason="hotkey signature verification needs the subnet extra"
@@ -335,7 +397,7 @@ def test_hotkey_authenticator_fails_closed_without_a_keypair_backend(monkeypatch
     real_import = builtins.__import__
 
     def blocked(name, *args, **kwargs):
-        if name in {"bittensor_wallet", "substrateinterface"}:
+        if name in {"bittensor.sp_core", "bittensor_wallet", "substrateinterface"}:
             raise ImportError(f"blocked for test: {name}")
         return real_import(name, *args, **kwargs)
 

@@ -36,7 +36,12 @@ from conjectures_subnet.db import digests
 from conjectures_subnet.db.models import (
     ApiRejectionLog,
     ManualReviewState,
+    PayoutState,
+    ProblemWinner,
     Proof,
+    ReviewerKind,
+    ReviewOutcome,
+    RewardEvent,
     RewardState,
     Submission,
     SubmissionEvent,
@@ -96,6 +101,8 @@ def test_a_paid_submission_is_recorded_and_queued():
             assert body["reward_status"] == RewardState.INELIGIBLE.value
             assert body["hotkey"] == HOTKEY
             assert body["task_id"] == TASK_ID
+            assert body["problem_id"] == "fc-test-fixture-problem"
+            assert body["task_mode"] == "formalized"
             assert body["proof_sha256"] == sha256_bytes(VALID_PROOF)
             assert body["manual_review_required"] is True
 
@@ -110,6 +117,8 @@ def test_a_paid_submission_is_recorded_and_queued():
                 assert proof is not None
                 assert bytes(proof.content) == VALID_PROOF
                 assert proof.byte_length == len(VALID_PROOF)
+                submission = await session.get(Submission, body["submission_id"])
+                assert submission.request_timestamp_ms > 0
         finally:
             await kit.teardown()
 
@@ -647,6 +656,37 @@ def test_a_verified_proof_is_held_when_review_is_required():
     run(scenario())
 
 
+def test_a_human_review_is_audited_and_claims_the_problem_winner():
+    async def scenario():
+        import uuid
+
+        from conjectures_subnet.db import submissions as store
+
+        kit = await harness().setup()
+        try:
+            created = (await _post(kit, valid_bundle())).json()
+            await _record_verdict(kit, created["submission_id"], accepted=True)
+            async with kit.session() as session:
+                view = await store.record_human_review(
+                    session,
+                    uuid.UUID(created["submission_id"]),
+                    decision=ReviewOutcome.APPROVED,
+                    reviewer="operator:alice",
+                    reason_code="REVIEW_APPROVED",
+                    notes="internal audit note",
+                )
+                await session.commit()
+                assert view.submission.manual_review_status == ManualReviewState.APPROVED
+                assert view.submission.reward_status == RewardState.ELIGIBLE
+                assert view.review.kind == ReviewerKind.HUMAN
+                assert view.review.reviewer == "operator:alice"
+                assert view.winner.submission_id == view.submission.id
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_verified_proof_is_eligible_when_review_is_disabled():
     async def scenario():
         kit = await harness(MANUAL_REWARD_REVIEW_ENABLED="false").setup()
@@ -712,6 +752,115 @@ def test_the_event_history_covers_every_status_change():
     run(scenario())
 
 
+def test_positive_and_counterexample_share_one_atomic_winner_and_one_payout():
+    async def scenario():
+        import json
+        import uuid
+        from datetime import datetime, timezone
+
+        from sqlalchemy import func, select
+
+        from conjectures_subnet.db import submissions as store
+
+        kit = await harness(MANUAL_REWARD_REVIEW_ENABLED="false").setup()
+        try:
+            created = []
+            async with kit.session() as session:
+                for index, mode in enumerate(("formalized", "counterexample"), start=1):
+                    proof = f"theorem target : True := by trivial\n-- outcome {index}\n".encode()
+                    proof_digest = sha256_bytes(proof)
+                    key = uuid.uuid4()
+                    task_id = f"paired-{mode}"
+                    payment_reference = f"100-{index:04d}"
+                    request_digest = store.canonical_request_digest(
+                        hotkey=HOTKEY,
+                        task_id=task_id,
+                        task_bundle_sha256=TASK_DIGEST,
+                        proof_sha256=proof_digest,
+                        payment_reference=payment_reference,
+                        idempotency_key=str(key),
+                    )
+                    view = await store.create_submission(
+                        session,
+                        store.NewSubmission(
+                            hotkey=HOTKEY,
+                            idempotency_key=key,
+                            request_digest=request_digest,
+                            task_id=task_id,
+                            problem_id="shared-mathematical-problem",
+                            task_mode=mode,
+                            task_bundle_sha256=TASK_DIGEST,
+                            proof_content=proof,
+                            proof_sha256=proof_digest,
+                            payment_reference=payment_reference,
+                            payment_sender=COLDKEY,
+                            payment_amount_rao=500_000_000,
+                            payment_block=100,
+                            request_timestamp_ms=1_700_000_000_000 + index,
+                            hotkey_signature=b"s" * 64,
+                            manual_review_required=False,
+                            review_policy_version="v1",
+                        ),
+                    )
+                    now = datetime.now(timezone.utc)
+                    await store.record_verification_result(
+                        session,
+                        view.submission,
+                        accepted=True,
+                        reason_code="VERIFIED",
+                        stage="COMPLETED",
+                        verifier_version="test",
+                        container_digest="sha256:" + "11" * 32,
+                        sandbox_mode="landrun+seccomp",
+                        checks={"lean_kernel_passed": True},
+                        report=json.dumps({"accepted": True, "mode": mode}).encode(),
+                        started_at=now,
+                        finished_at=now,
+                    )
+                    created.append(view.submission.id)
+                await session.commit()
+
+            async with kit.session() as session:
+                first = await session.get(Submission, created[0])
+                second = await session.get(Submission, created[1])
+                assert first.reward_status == RewardState.ELIGIBLE
+                assert second.reward_status == RewardState.INELIGIBLE
+                assert second.failure_reason == "PROBLEM_ALREADY_WON"
+                assert await session.scalar(select(func.count()).select_from(ProblemWinner)) == 1
+                winner = await session.get(ProblemWinner, "shared-mathematical-problem")
+                assert winner.submission_id == first.id
+
+                payout = await store.create_reward_event(
+                    session,
+                    first.id,
+                    bounty_amount_rao=1_000_000_000,
+                    bounty_commit="abcdef0",
+                )
+                await session.commit()
+                assert payout.status == PayoutState.PENDING
+
+                await store.mark_reward_submitted(
+                    session,
+                    payout.id,
+                    extrinsic_reference="200-0003",
+                    submitted_block=200,
+                )
+                await session.commit()
+                await store.mark_reward_confirmed(
+                    session, payout.id, finalized_block=200
+                )
+                await session.commit()
+                confirmed = await session.get(RewardEvent, payout.id)
+                rewarded = await session.get(Submission, first.id)
+                assert confirmed.status == PayoutState.CONFIRMED
+                assert confirmed.extrinsic_reference == "200-0003"
+                assert rewarded.reward_status == RewardState.REWARDED
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 # --- discovery and operations -------------------------------------------------------
 
 
@@ -727,7 +876,9 @@ def test_task_list_publishes_the_submission_contract():
             assert body["submission_price_rao"] == 500_000_000
             assert body["payment_recipient"] == kit.settings.payment_recipient
             assert [task["task_id"] for task in body["tasks"]] == [TASK_ID]
-            assert "tier" not in body["tasks"][0]
+            assert body["tasks"][0]["problem_id"] == "fc-test-fixture-problem"
+            assert body["tasks"][0]["mode"] == "formalized"
+            assert body["tasks"][0]["tier"] == "tier-1"
         finally:
             await kit.teardown()
 

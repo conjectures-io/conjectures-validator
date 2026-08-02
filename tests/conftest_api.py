@@ -89,12 +89,17 @@ def build_settings(**overrides: str) -> Settings:
 
 
 def task_entry(*, task_id: str = TASK_ID, digest: str = TASK_DIGEST, **manifest_kwargs) -> TaskEntry:
+    task = task_manifest(**manifest_kwargs)
     return TaskEntry(
         task_id=task_id,
+        problem_id="fc-test-fixture-problem",
+        mode="formalized" if task.task_mode == "positive" else task.task_mode,
+        tier="tier-1",
+        source_theorems=(task.source_theorem,),
         task_bundle_sha256=digest,
         target_type_sha256s=("sha256:" + "11" * 32,),
-        task_dir=Path("tasks/gold") / task_id,
-        manifest=task_manifest(**manifest_kwargs),
+        task_dir=Path("tasks/pool/tier-1") / task_id,
+        manifest=task,
     )
 
 

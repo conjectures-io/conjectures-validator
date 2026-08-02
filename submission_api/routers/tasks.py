@@ -13,7 +13,7 @@ from submission_api import schemas
 from submission_api.dependencies import Services, get_services
 from submission_api.errors import NotFound
 from verifier.bundle import BUNDLE_FORMAT
-from verifier.gold_registry import TaskNotAllowed
+from verifier.task_registry import TaskNotAllowed
 
 
 router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
@@ -22,6 +22,10 @@ router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
 def _summary(entry) -> schemas.TaskSummary:  # type: ignore[no-untyped-def]
     return schemas.TaskSummary(
         task_id=entry.task_id,
+        problem_id=entry.problem_id,
+        mode=entry.mode,
+        tier=entry.tier,
+        source_theorems=entry.source_theorems,
         task_bundle_sha256=entry.task_bundle_sha256,
         target_type_sha256s=entry.target_type_sha256s,
     )

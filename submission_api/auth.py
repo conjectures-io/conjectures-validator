@@ -1,9 +1,9 @@
 """Miner authentication by Bittensor hotkey signature.
 
-The signed message is the canonical **request digest** — the 32 raw bytes of
-`conjectures_subnet.db.submissions.canonical_request_digest`. The schema stores that signature
-on the submission (`hotkey_signature`, 64 bytes), so the row itself carries the proof that this
-miner authorised this exact request, and the binding stays auditable after the fact.
+The signed message is a domain-separated envelope over the canonical request digest and the
+millisecond timestamp. The schema stores both the signature and timestamp, so the row itself
+carries an auditable authorization while a captured signature cannot be refreshed by changing an
+unsigned timestamp.
 
 Because the digest covers the proof digest, the task, the payment reference and the idempotency
 key, a captured signature cannot be reused for different proof bytes, a different task, or a
@@ -17,6 +17,7 @@ the payment verifier, which has to read the chain anyway.
 from __future__ import annotations
 
 import hmac
+import hashlib
 import re
 import time
 from dataclasses import dataclass
@@ -32,20 +33,43 @@ SIGNATURE_HEX = re.compile(r"^[0-9a-f]{128}$")
 SIGNATURE_BYTES = 64
 DEVELOPMENT_SIGNATURE = "development"
 REASON_SIGNATURE_INVALID = "SIGNATURE_INVALID"
+SUBMISSION_DOMAIN = "conjectures-submit-v1"
+READ_DOMAIN = "conjectures-read-v1"
+
+
+def authentication_message(*, domain: str, request_digest: str, timestamp_ms: int) -> bytes:
+    """The exact 32-byte, domain-separated authentication message."""
+    if not domain or "\x00" in domain or timestamp_ms <= 0:
+        raise ValueError("invalid authentication envelope")
+    envelope = (
+        b"conjectures-auth-v1\x00"
+        + domain.encode("ascii")
+        + b"\x00"
+        + str(timestamp_ms).encode("ascii")
+        + b"\x00"
+        + digests.to_bytes(request_digest)
+    )
+    return hashlib.sha256(envelope).digest()
 
 
 @dataclass(frozen=True)
 class SignedRequest:
-    """What the miner signed: the request digest, and who claims to have signed it."""
+    """Inputs to the timestamped, domain-separated miner signature envelope."""
 
     hotkey: str
     request_digest: str          # sha256:<hex>
+    timestamp_ms: int
     signature: bytes             # 64 raw bytes, as stored on the submission
+    domain: str = SUBMISSION_DOMAIN
 
     @property
     def message(self) -> bytes:
         """The exact bytes the signature is over."""
-        return digests.to_bytes(self.request_digest)
+        return authentication_message(
+            domain=self.domain,
+            request_digest=self.request_digest,
+            timestamp_ms=self.timestamp_ms,
+        )
 
 
 def normalise_signature(value: str) -> bytes:
@@ -72,7 +96,7 @@ def assert_valid_hotkey(value: str) -> str:
 
 class Authenticator(Protocol):
     def verify(self, request: SignedRequest) -> None:
-        """Raise Unauthorized unless the signature is valid for the request digest."""
+        """Raise Unauthorized unless the signature is valid for the full envelope."""
 
 
 @dataclass(frozen=True)
@@ -131,15 +155,19 @@ def development_signature() -> str:
 
 def _load_keypair() -> type:
     try:
-        from bittensor_wallet import Keypair  # type: ignore[import-not-found]
+        # Bittensor 11 ships its supported Substrate keypair implementation here.
+        from bittensor.sp_core import Keypair  # type: ignore[import-not-found]
     except ImportError:  # pragma: no cover - exercised only without the subnet extra
         try:
-            from substrateinterface import Keypair  # type: ignore[import-not-found,no-redef]
-        except ImportError as exc:
-            raise Unauthorized(
-                "hotkey signature verification is unavailable on this deployment",
-                reason_code=REASON_SIGNATURE_INVALID,
-            ) from exc
+            from bittensor_wallet import Keypair  # type: ignore[import-not-found,no-redef]
+        except ImportError:
+            try:
+                from substrateinterface import Keypair  # type: ignore[import-not-found,no-redef]
+            except ImportError as exc:
+                raise Unauthorized(
+                    "hotkey signature verification is unavailable on this deployment",
+                    reason_code=REASON_SIGNATURE_INVALID,
+                ) from exc
     return Keypair
 
 
@@ -157,9 +185,8 @@ def assert_fresh_nonce(nonce_ms: int, window_seconds: int, now_ms: int | None = 
     """Bound how long a signed request stays usable.
 
     The window is two-sided: a nonce far in the future is as suspect as a stale one, and would
-    otherwise let a miner mint long-lived reusable credentials. Freshness is advisory here —
-    the durable guarantee is that a payment reference and an idempotency key are each usable
-    once — but it keeps a captured request from being useful indefinitely.
+    otherwise let a miner mint long-lived reusable credentials. The timestamp is inside the
+    signed envelope, so an observer cannot refresh a captured signature by changing this header.
     """
     current = int(time.time() * 1000) if now_ms is None else now_ms
     if abs(current - nonce_ms) > window_seconds * 1000:

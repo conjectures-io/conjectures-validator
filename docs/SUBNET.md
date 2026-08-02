@@ -34,13 +34,14 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
      the allowlist);
    - the payment transaction or extrinsic reference; and
    - the candidate proof bundle.
-4. The API validates request limits, admits the bundle against its exact shape and the static Lean
-   policy, stores the bundle and the extracted proof in durable content-addressed artifact
-   storage, creates the database records transactionally, and returns a durable submission ID.
-5. The payment worker confirms the transfer against finalized chain state. It checks the recipient,
-   asset, exact amount, sender policy, and uniqueness of the payment reference.
-6. Once paid, a verification job passes the stored proof bytes and exact task digest through
-   `verifier/service_adapter.py` into a fresh isolated verifier container.
+4. The API validates request limits, admits the bundle against its exact shape and static Lean
+   policy, authenticates the request, and synchronously confirms the canonical payment reference
+   against finalized chain state. It checks the recipient, exact amount, successful dispatch, and
+   coldkey ownership of the signing hotkey at the payment block.
+5. Only after payment confirmation, the API transactionally stores the extracted proof bytes and
+   submission, then returns a durable submission ID. The archive itself is not retained.
+6. A leased verification worker passes the stored proof bytes and exact task digest into a fresh,
+   immutable, networkless verifier container.
 7. Static policy, Comparator, and the Lean kernel determine the result:
    - invalid proofs become terminal verification rejections and cannot receive rewards;
    - valid proofs receive an immutable verifier report.
@@ -50,8 +51,11 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 9. A reviewer may approve or reject a held proof for rewards. The decision, reviewer, reason,
    timestamp, and policy version are appended to the audit history.
 10. Approved proofs and automatically eligible proofs enter the same reward pipeline.
-11. The reward process applies a versioned scoring policy, builds the Subnet 66 weight decision,
-    submits it to Bittensor, and records the chain result.
+11. The first approved outcome atomically claims its shared `problem_id`. The reward worker commits
+    a unique payout record before signing, submits the configured exact TAO bounty, waits for
+    finality, and records the canonical chain reference. An unresolved `PENDING` record blocks
+    automatic retries until an operator reconciles whether broadcast occurred, preventing double
+    payment.
 
 ```text
                        intake (payment confirmed first, or no submission at all)
@@ -87,13 +91,13 @@ All validator source and operational configuration belongs in this repository:
 | Component | Responsibility |
 | --- | --- |
 | Submission API | Authenticate miners, enforce schemas and limits, accept paid proof submissions, expose status |
-| Payment watcher | Confirm finalized 0.5 TAO transfers and reconcile chain state |
+| Finalized payment reader | Confirm finalized 0.5 TAO transfers synchronously at intake |
 | Durable database | Store the authoritative lifecycle, references, decisions, and audit history |
 | Artifact store | Store immutable proof bytes and verifier reports by content digest |
-| Job workers | Advance payment, verification, review, and reward jobs idempotently |
+| Job workers | Advance verification and reward jobs idempotently |
 | Lean verifier | Decide whether the exact submitted proof proves the exact committed task |
 | Review service | Hold and decide Lean-valid submissions when manual review is enabled |
-| Reward process | Convert eligible results into versioned Subnet 66 scores and weights |
+| Reward process | Reserve, submit, finalize, and reconcile exact TAO bounty payouts |
 | Operator tooling | Migrations, monitoring, backups, restores, reconciliation, and incident response |
 
 These components share a repository, not a security context. Payment keys, validator wallet keys,
@@ -178,16 +182,16 @@ silently change the treatment of an in-flight submission.
 
 When enabled:
 
-- a Lean-valid proof remains held in `MANUAL_REVIEW_PENDING`;
+- a Lean-valid proof remains `manual_review_status = UNREVIEWED` and reward-ineligible;
 - the reward worker must ignore it;
 - only an authorized, audited approval makes it reward-eligible;
 - a rejection needs a structured reason and remains visible to the miner.
 
 When disabled:
 
-- a Lean-valid proof transitions directly to `REWARD_ELIGIBLE`;
+- a Lean-valid proof receives an automatic approval and becomes `reward_status = ELIGIBLE`;
 - the transition is still recorded as an automatic policy decision;
-- the same reward scoring and deduplication rules apply.
+- the same atomic winner and payout deduplication rules apply.
 
 The review interface may inspect mathematical novelty, duplication, task eligibility, abuse, or
 other reward policy. It must not rewrite the Lean verdict or the submitted proof.
@@ -241,9 +245,10 @@ components reuse the same models and extend the same migration history rather th
 own. Adding a migration is adding a file to `deploy/migrate/sql`; see
 [`../deploy/README.md`](../deploy/README.md).
 
-It does not yet include the payment allocation/reconciliation worker, the asynchronous
-verification worker, the reviewer-facing decision service, the reward processor, or end-to-end
-Subnet 66 weight submission.
+It also includes the read-only finalized transfer reader, leased isolated verification worker,
+bearer-authorized audited review endpoint, atomic problem-winner claim, and finalized direct-TAO
+payout worker. Production environment setup and staging evidence are deployment responsibilities,
+not repository state.
 
 ## Implementation sequence
 
@@ -253,37 +258,41 @@ Subnet 66 weight submission.
    window for `api_rejection_log` remain to write.
 2. ~~Add miner authentication, `POST /v1/submissions`, status/report reads, strict limits, and
    idempotency behavior.~~ Done.
-3. Add the finalized-transfer reader the payment-gated intake needs, plus reconciliation and
-   operator repair tools. The API already refuses a submission whose payment cannot be confirmed;
-   until the reader is injected, `SUBMISSION_PAYMENT_VERIFIER=chain` fails closed and refuses
-   every submission rather than admitting an unpaid one.
-4. Add queue workers that claim `verification_runs`, invoke the existing verifier adapter in a
-   separate trust domain, and persist immutable reports.
-5. Add review authorization and the decision API/UI. The per-submission manual-review flag and
-   policy version are already captured, and the gate is already applied when a verdict is
-   recorded.
-6. Add deterministic reward eligibility, duplicate handling, scoring-policy versions, weight
-   batches, chain submission, and reconciliation.
-7. Add metrics, alerts, rate limits, secret isolation, migrations in deployment, backups, restore
+3. ~~Add a read-only finalized-transfer reader for payment-gated intake.~~ Done; it accepts only a
+   successful direct Balances transfer at a canonical finalized `block-index` reference.
+4. ~~Add a queue worker that leases submissions, invokes the verifier in a separate trust domain,
+   and persists immutable reports.~~ Done in `conjectures_subnet/verification_worker.py`.
+5. ~~Add review authorization and the decision API.~~ Done; decisions are append-only, and review
+   cannot override the Lean verdict.
+6. ~~Add deterministic reward eligibility, cross-mode duplicate handling, chain payout, and
+   reconciliation.~~ Done for direct TAO bounties. A PENDING result lost across broadcast is held
+   for manual reconciliation and is never automatically signed again.
+7. Add deployment-specific metrics, alerts, edge rate limits, secret isolation, backups, restore
    drills, upgrades, rollbacks, and incident runbooks.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,
-   weight submission, and chain reconciliation.
+   winner selection, payout finality, and chain reconciliation.
 
 ## Decisions taken
 
-3. **How is the miner request authenticated?** By hotkey signature over a domain-separated
-   payload that includes a nonce and the bundle digest, with the spent nonce recorded under a
-   unique constraint. The API performs no chain query; registration and eligibility are decided
-   downstream from durable state. See [`API.md`](API.md).
+1. **How is the miner request authenticated?** By hotkey signature over a domain-separated
+   envelope containing the canonical request digest and a bounded millisecond timestamp. The
+   timestamp and signature are stored; idempotency and payment-reference uniqueness make replay
+   non-consuming. See [`API.md`](API.md).
+2. **What constitutes payment evidence?** A successful direct Balances transfer found by canonical
+   `block-index` in finalized state, for exactly 500,000,000 rao to the configured recipient, from
+   the coldkey that owned the signing hotkey at that block.
+3. **How do opposite outcomes race?** Formalized and counterexample tasks share a server-derived
+   `problem_id`; a primary-key insert selects exactly one approved winner in PostgreSQL.
+4. **What does this implementation pay?** One exact, configured direct TAO bounty, pre-recorded
+   before signing and exposed to the miner after finality.
 
 ## Decisions still required
 
-1. Which chain address receives the 0.5 TAO and how many finalized blocks are required?
+1. Which configured chain address receives the 0.5 TAO in each deployment?
 2. Is the 0.5 TAO consumed by every accepted API submission, including a Lean-invalid proof, and
    are any failure classes refundable?
-4. Is manual review configured globally, per task, or per submission policy? The API currently
-   captures one global flag per submission at creation time.
-5. What exact review criteria can reject a Lean-valid proof, and is there an appeal process?
-6. How are duplicate valid proofs, repeat attempts, and multiple solvers scored?
-7. What deterministic rule converts a reward-eligible proof into Subnet 66 weights?
-8. What result proves to the miner that a reward decision was included and finalized on-chain?
+3. Should manual review remain a global captured policy or become per task?
+4. What exact review criteria can reject a Lean-valid proof, and is there an appeal process?
+5. Should production economics keep direct TAO bounties, or replace the payout gateway with subnet
+   weight setting? The durable winner and finality interfaces support either, but this branch
+   implements direct TAO payout.

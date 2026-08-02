@@ -17,12 +17,11 @@ This repository is the system boundary for the entire validator, including:
 - immutable proof artifacts and audit history;
 - asynchronous verification workers and the hardened Lean verifier;
 - the optional manual reward-review queue;
-- reward eligibility, scoring, and Subnet 66 weight submission; and
+- atomic reward eligibility and finalized TAO bounty payout; and
 - deployment, monitoring, backup, and recovery configuration.
 
-Some of those validator components still need to be implemented. The current checkout already
-contains the audited task pool, exact task commitments, service adapter, and hardened Lean
-verification core.
+The application path is implemented end to end. Production launch still requires deployment
+configuration, a digest-pinned verifier image, funded wallets, monitoring, and a staging drill.
 
 | Validator component | Status |
 | --- | --- |
@@ -32,20 +31,19 @@ verification core.
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
 | Shared durable schema, migrations, and append-only event history | Implemented |
-| Finalized 0.5 TAO transfer reader for payment-gated intake | To build |
-| Asynchronous verification worker | To build |
-| Manual reward-review decision service | To build |
-| Reward eligibility, scoring, and Subnet 66 weight-setting loop | To build |
-| Production launch and operating runbooks | To build |
-
-The submission API captures the per-submission manual-review policy and records the review gate
-decision, but the reviewer-facing decision service itself is still to build.
+| Finalized 0.5 TAO transfer reader for payment-gated intake | Implemented |
+| Leased asynchronous verification worker | Implemented |
+| Audited manual reward-review decision service | Implemented |
+| Atomic problem winner selection and finalized TAO payout | Implemented |
+| Production launch checklist and operating commands | Implemented |
+| Staging chain drill, monitoring, backups, and incident exercises | Deployment work |
 
 Miners should start at [`docs/MINER.md`](docs/MINER.md): what to do, in order, to get one proof
 submitted, verified and paid. [`docs/API.md`](docs/API.md) documents the API surface and its
 configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the submission format,
 [`deploy/README.md`](deploy/README.md) the database deployment, and
-[`docs/SUBNET.md`](docs/SUBNET.md) the service contract, trust boundaries, and remaining work.
+[`docs/SUBNET.md`](docs/SUBNET.md) the service contract and trust boundaries, and
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md) the production launch checklist.
 
 ## Validator flow
 
@@ -97,7 +95,7 @@ Lean valid
                                  reward-eligible
                                           |
                                           v
-                                Subnet 66 reward pipeline
+                                  finalized TAO payout
 ```
 
 The manual-review switch controls only whether a Lean-valid submission is held before reward

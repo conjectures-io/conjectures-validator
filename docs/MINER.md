@@ -45,6 +45,10 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
   "tasks": [
     {
       "task_id": "fc-e923379e-erdos1094-erdos-1094-e88b987211-formalized-v1",
+      "problem_id": "fc-problem-v1:…",
+      "mode": "formalized",
+      "tier": "tier-1",
+      "source_theorems": ["Erdos1094.erdos_1094"],
       "task_bundle_sha256": "sha256:c70c6d…",
       "target_type_sha256s": ["sha256:304f28…"]
     }
@@ -55,7 +59,7 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
 Keep the `task_id` and its `task_bundle_sha256`: both go into your submission, and the
 validator refuses anything that does not match the published commitment.
 
-The task itself is in this repository, at `tasks/gold/<task_id>/`. `Challenge.lean` is the
+The task itself is in this repository, at `tasks/pool/<tier>/<task_id>/`. `Challenge.lean` is the
 statement you must prove; `SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your
 file gets wrapped in.
 
@@ -95,7 +99,7 @@ runs:
 
 ```bash
 python3 -m verifier verify \
-  --task tasks/gold/<task_id> \
+  --task tasks/pool/<tier>/<task_id> \
   --submission Main.lean \
   --expected-task-sha256 <task_bundle_sha256>
 ```
@@ -103,7 +107,8 @@ python3 -m verifier verify \
 ## 4. Pay
 
 Transfer exactly **0.5 TAO** (`500000000` rao) from your coldkey to the `payment_recipient`
-from step 1. Wait for the block to finalize, then keep the **extrinsic reference** — you cannot
+from step 1. Wait for the block to finalize, then keep the canonical **`block-index` extrinsic
+reference** (for example `4210031-0002`) — you cannot
 submit without it, and it can fund only one submission ever.
 
 Payment buys one verification attempt. It does not change Lean's verdict and does not guarantee
@@ -142,6 +147,10 @@ Three statuses move independently — none of them implies another:
 | `manual_review_status` | `UNREVIEWED` → `APPROVED` / `REJECTED` | Reward-policy review, if enabled |
 | `reward_status` | `INELIGIBLE` → `ELIGIBLE` → `REWARDED` / `FAILED` | Payout |
 
+The `reward` object also shows whether this submission won its shared proof/counterexample
+`problem_id`, plus the payout status, amount, finalized block, and extrinsic reference. A valid
+submission can remain unpayable when its opposite-mode sibling already won the problem.
+
 Once `verification_status` leaves `UNVERIFIED` the immutable verifier report is available:
 
 ```bash
@@ -171,7 +180,7 @@ A rejection tells you which gate failed — `LEAN_KERNEL_REJECTED`, `STATEMENT_M
 | `reason_code` | What to do |
 | --- | --- |
 | `PAYMENT_NOT_FINALIZED` | Wait for finality, or check the recipient, amount, and that your coldkey owns the hotkey |
-| `SIGNATURE_INVALID` | Sign the request digest, not the bundle; check the hotkey matches |
+| `SIGNATURE_INVALID` | Use the reference client; the operation domain, request digest, and exact timestamp header are all signed |
 | `TASK_NOT_ALLOWED` | Re-read `/v1/tasks`; the pool changes between releases |
 | `DUPLICATE_PROOF` / `DUPLICATE_PAYMENT` | Already used; nothing to retry |
 | `IDEMPOTENCY_CONFLICT` | Use a fresh UUID for a genuinely new submission |

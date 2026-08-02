@@ -17,12 +17,20 @@
 set -euo pipefail
 
 : "${MONITOR_PASSWORD:=monitor}"   # fallback if not provided via .env
+: "${API_DB_PASSWORD:?API_DB_PASSWORD must be set}"
+: "${VERIFIER_DB_PASSWORD:?VERIFIER_DB_PASSWORD must be set}"
+: "${REVIEW_DB_PASSWORD:?REVIEW_DB_PASSWORD must be set}"
+: "${REWARD_DB_PASSWORD:?REWARD_DB_PASSWORD must be set}"
 
 psql -v ON_ERROR_STOP=1 \
      --username "$POSTGRES_USER" \
      --dbname "$POSTGRES_DB" \
      -v db_name="$POSTGRES_DB" \
-     -v monitor_password="$MONITOR_PASSWORD" <<-'EOSQL'
+     -v monitor_password="$MONITOR_PASSWORD" \
+     -v api_password="$API_DB_PASSWORD" \
+     -v verifier_password="$VERIFIER_DB_PASSWORD" \
+     -v review_password="$REVIEW_DB_PASSWORD" \
+     -v reward_password="$REWARD_DB_PASSWORD" <<-'EOSQL'
 
     -- The schema needs no extension for UUIDs: gen_random_uuid() has been in
     -- core since PostgreSQL 13, so pgcrypto is deliberately not installed.
@@ -50,6 +58,32 @@ psql -v ON_ERROR_STOP=1 \
     GRANT pg_monitor TO monitor;
     GRANT CONNECT ON DATABASE :"db_name" TO monitor;
     GRANT USAGE ON SCHEMA public TO monitor;
+
+    -- Separate login roles keep the public API, proof worker, reviewer, and
+    -- wallet-bearing reward worker from inheriting each other's authority.
+    SELECT format(
+        'CREATE ROLE conjectures_api LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
+        :'api_password'
+    ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'conjectures_api')
+    \gexec
+    SELECT format(
+        'CREATE ROLE conjectures_verifier LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
+        :'verifier_password'
+    ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'conjectures_verifier')
+    \gexec
+    SELECT format(
+        'CREATE ROLE conjectures_reviewer LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
+        :'review_password'
+    ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'conjectures_reviewer')
+    \gexec
+    SELECT format(
+        'CREATE ROLE conjectures_reward LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
+        :'reward_password'
+    ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'conjectures_reward')
+    \gexec
+
+    GRANT CONNECT ON DATABASE :"db_name"
+        TO conjectures_api, conjectures_verifier, conjectures_reviewer, conjectures_reward;
 
     -- Intentionally NO blanket SELECT on application tables, unlike a typical
     -- monitoring setup. proofs.content is hostile miner-submitted source and

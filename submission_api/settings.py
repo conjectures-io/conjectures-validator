@@ -48,6 +48,7 @@ RAO_PER_TAO = 1_000_000_000
 DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 
 POLICY_VERSION = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
+NETWORK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+.:/_-]{0,254}$")
 
 
 class SettingsError(RuntimeError):
@@ -117,11 +118,12 @@ class Settings:
     # Empty means "whatever conjectures_subnet.db resolves". The API does not own the
     # database; it reuses the validator's shared store.
     database_url: str
-    gold_allowlist_path: Path
-    gold_pool_root: Path
+    task_allowlist_path: Path
+    task_pool_root: Path
     verifier_project_root: Path
     payment_recipient: str
     payment_amount_rao: int
+    subtensor_network: str
     authenticator: str
     payment_verifier: str
     dispatcher: str
@@ -196,18 +198,27 @@ class Settings:
         if SS58_ADDRESS.fullmatch(development_coldkey) is None:
             raise SettingsError("DEVELOPMENT_COLDKEY is not a valid SS58 address")
 
+        subtensor_network = env.get("SUBTENSOR_NETWORK", "finney").strip() or "finney"
+        if NETWORK.fullmatch(subtensor_network) is None:
+            raise SettingsError("SUBTENSOR_NETWORK contains invalid characters")
+
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
-            gold_allowlist_path=_directory(
-                env, "GOLD_ALLOWLIST_PATH", PROJECT_ROOT / "gold" / "allowlist.json"
+            task_allowlist_path=_directory(
+                env,
+                "TASK_ALLOWLIST_PATH",
+                PROJECT_ROOT / "task_pool" / "allowlist.json",
             ),
-            gold_pool_root=_directory(env, "GOLD_POOL_ROOT", PROJECT_ROOT / "tasks" / "gold"),
+            task_pool_root=_directory(
+                env, "TASK_POOL_ROOT", PROJECT_ROOT / "tasks" / "pool"
+            ),
             verifier_project_root=_directory(env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT),
             payment_recipient=recipient,
             payment_amount_rao=_positive_int(
                 env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
             ),
+            subtensor_network=subtensor_network,
             authenticator=authenticator,
             payment_verifier=payment_verifier,
             dispatcher=dispatcher,

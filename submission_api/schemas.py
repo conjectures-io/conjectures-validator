@@ -44,10 +44,37 @@ class VerificationStatus(Model):
     finished_at: datetime | None = None
 
 
+class ReviewStatus(Model):
+    decision: str
+    kind: str
+    reviewer: str
+    reason_code: str
+    policy_version: str
+    created_at: datetime
+
+
+class RewardRecord(Model):
+    winner: bool
+    problem_closed: bool
+    winner_submission_id: uuid.UUID | None = None
+    eligibility_reason: str | None = None
+    payout_status: str | None = None
+    amount_rao: int | None = None
+    destination_coldkey: str | None = None
+    extrinsic_reference: str | None = None
+    submitted_block: int | None = None
+    finalized_block: int | None = None
+    failure_reason: str | None = None
+    submitted_at: datetime | None = None
+    confirmed_at: datetime | None = None
+
+
 class SubmissionStatus(Model):
     submission_id: uuid.UUID
     hotkey: str
     task_id: str
+    problem_id: str
+    task_mode: str
     task_bundle_sha256: str
     proof_sha256: str
     request_digest: str
@@ -62,6 +89,8 @@ class SubmissionStatus(Model):
 
     payment: PaymentRecord
     verification: VerificationStatus | None = None
+    review: ReviewStatus | None = None
+    reward: RewardRecord
 
     created_at: datetime
     updated_at: datetime
@@ -69,6 +98,10 @@ class SubmissionStatus(Model):
 
 class TaskSummary(Model):
     task_id: str
+    problem_id: str
+    mode: str
+    tier: str
+    source_theorems: tuple[str, ...]
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
 
@@ -86,6 +119,12 @@ class VerificationReportResponse(Model):
     submission_id: uuid.UUID
     report_sha256: str
     report: dict[str, Any]
+
+
+class ReviewRequest(Model):
+    decision: str = Field(pattern="^(APPROVED|REJECTED)$")
+    reason_code: str = Field(min_length=1, max_length=128, pattern="^[A-Z0-9_]+$")
+    notes: str | None = Field(default=None, max_length=4000)
 
 
 class Health(Model):

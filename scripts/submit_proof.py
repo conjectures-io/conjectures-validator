@@ -35,10 +35,23 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 READ_DOMAIN = "conjectures-read-v1"
+SUBMISSION_DOMAIN = "conjectures-submit-v1"
 
 
 def digest(data: bytes) -> str:
     return f"sha256:{hashlib.sha256(data).hexdigest()}"
+
+
+def authentication_message(*, domain: str, request_digest: str, timestamp: str) -> bytes:
+    envelope = (
+        b"conjectures-auth-v1\x00"
+        + domain.encode("ascii")
+        + b"\x00"
+        + timestamp.encode("ascii")
+        + b"\x00"
+        + bytes.fromhex(request_digest.removeprefix("sha256:"))
+    )
+    return hashlib.sha256(envelope).digest()
 
 
 def canonical_request_digest(
@@ -76,14 +89,16 @@ def canonical_request_digest(
 
 def load_keypair(args):
     try:
-        from bittensor_wallet import Keypair, Wallet
+        from bittensor import Wallet
+        from bittensor.sp_core import Keypair
     except ImportError as exc:  # pragma: no cover
         raise SystemExit("signing needs the subnet extra: pip install -e '.[subnet]'") from exc
     if args.uri:
         return Keypair.create_from_uri(args.uri)
     if not (args.wallet and args.hotkey):
         raise SystemExit("provide --wallet and --hotkey, or --uri for a development key")
-    wallet = Wallet(name=args.wallet, hotkey=args.hotkey, path=args.wallet_path)
+    options = {} if args.wallet_path is None else {"path": args.wallet_path}
+    wallet = Wallet(name=args.wallet, hotkey=args.hotkey, **options)
     return wallet.hotkey
 
 
@@ -115,12 +130,16 @@ def timestamp_ms() -> str:
 
 
 def read_headers(keypair, submission_id: str) -> dict[str, str]:
-    message = hashlib.sha256(
+    timestamp = timestamp_ms()
+    request_digest = digest(
         f"{READ_DOMAIN}:{keypair.ss58_address}:{submission_id}".encode("utf-8")
-    ).digest()
+    )
+    message = authentication_message(
+        domain=READ_DOMAIN, request_digest=request_digest, timestamp=timestamp
+    )
     return {
         "X-Conjectures-Hotkey": keypair.ss58_address,
-        "X-Conjectures-Timestamp": timestamp_ms(),
+        "X-Conjectures-Timestamp": timestamp,
         "X-Conjectures-Signature": keypair.sign(message).hex(),
     }
 
@@ -137,13 +156,20 @@ def submit(args, keypair) -> int:
         payment_reference=args.payment_ref,
         idempotency_key=key,
     )
-    signature = keypair.sign(bytes.fromhex(request_digest.removeprefix("sha256:")))
+    timestamp = timestamp_ms()
+    signature = keypair.sign(
+        authentication_message(
+            domain=SUBMISSION_DOMAIN,
+            request_digest=request_digest,
+            timestamp=timestamp,
+        )
+    )
     headers = {
         "Content-Type": "application/zip",
         "Content-Length": str(len(bundle)),
         "Idempotency-Key": key,
         "X-Conjectures-Hotkey": keypair.ss58_address,
-        "X-Conjectures-Timestamp": timestamp_ms(),
+        "X-Conjectures-Timestamp": timestamp,
         "X-Conjectures-Signature": signature.hex(),
         "X-Conjectures-Task-Id": args.task_id,
         "X-Conjectures-Task-Sha256": args.task_sha256,

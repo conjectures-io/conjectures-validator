@@ -28,13 +28,26 @@ CREATE TABLE proofs (
     CONSTRAINT proof_length_matches CHECK (byte_length = octet_length(content))
 );
 
+CREATE FUNCTION reject_immutable_row_mutation() RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION '% is append-only', TG_TABLE_NAME USING ERRCODE = '55000';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER proofs_append_only BEFORE UPDATE OR DELETE ON proofs
+    FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();
+
 CREATE TABLE submissions (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     hotkey                  ss58 NOT NULL,                                 -- submitting miner
     idempotency_key         UUID NOT NULL,                                 -- SUBNET.md:128, client-generated, one attempt
     request_digest          sha256 NOT NULL,                               -- canonical request; tells replay from conflict
-    task_id                 TEXT NOT NULL                                  -- dir under tasks/gold/; no FK, the repo is the task source of truth
+    task_id                 TEXT NOT NULL                                  -- dir under tasks/pool/<tier>/; no FK, the repo is the source of truth
         CONSTRAINT task_id_nonempty CHECK (length(task_id) BETWEEN 1 AND 255),
+    problem_id              TEXT NOT NULL                                  -- shared by the P and Not-P task pair
+        CONSTRAINT problem_id_nonempty CHECK (length(problem_id) BETWEEN 1 AND 255),
+    task_mode               TEXT NOT NULL                                  -- server-derived, never trusted from the miner
+        CONSTRAINT task_mode_known CHECK (task_mode IN ('formalized', 'counterexample')),
     task_bundle_sha256      sha256 NOT NULL,                               -- exact bundle this proof was written against
 
     proof_digest            sha256 NOT NULL UNIQUE REFERENCES proofs (digest),  -- drop the UNIQUE if identical proofs should ever both be payable.
@@ -47,13 +60,20 @@ CREATE TABLE submissions (
         CONSTRAINT payment_amount_positive CHECK (payment_amount_rao > 0),
     payment_block           BIGINT NOT NULL                                -- finalized block it was observed in
         CONSTRAINT payment_block_positive CHECK (payment_block > 0),
-    hotkey_signature        BYTEA NOT NULL                                 -- sr25519 by hotkey over request_digest; binds miner to this payment
+    request_timestamp_ms    BIGINT NOT NULL                                -- signed request timestamp, retained for audit
+        CONSTRAINT request_timestamp_positive CHECK (request_timestamp_ms > 0),
+    hotkey_signature        BYTEA NOT NULL                                 -- sr25519 over domain + digest + request_timestamp_ms
         CONSTRAINT hotkey_signature_len CHECK (octet_length(hotkey_signature) = 64),
 
     verification_status     verification_state NOT NULL DEFAULT 'UNVERIFIED',
     manual_review_status    manual_review_state NOT NULL DEFAULT 'UNREVIEWED',  -- whether a review is needed comes from manual_review_required
     reward_status           reward_state NOT NULL DEFAULT 'INELIGIBLE',
     failure_reason          TEXT,                                          -- ReasonCode where one applies; ordering rules live in the service
+
+    verification_attempts          INTEGER NOT NULL DEFAULT 0,
+    verification_lease_owner       TEXT,
+    verification_lease_expires_at  TIMESTAMPTZ,
+    verification_next_attempt_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     manual_review_required  BOOLEAN NOT NULL DEFAULT true,
     review_policy_version   TEXT NOT NULL
@@ -64,13 +84,21 @@ CREATE TABLE submissions (
 
     CONSTRAINT submissions_idempotency_unique UNIQUE (hotkey, idempotency_key),  -- SUBNET.md:154, per miner, not global
     CONSTRAINT submissions_payment_reference_unique UNIQUE (payment_reference),  -- SUBNET.md:155, one transfer backs one submission
+    CONSTRAINT submissions_problem_unique UNIQUE (problem_id, id),
+    CONSTRAINT verification_attempts_nonnegative CHECK (verification_attempts >= 0),
+    CONSTRAINT verification_lease_paired CHECK (
+        (verification_lease_owner IS NULL) = (verification_lease_expires_at IS NULL)
+    ),
+    CONSTRAINT verification_lease_owner_nonempty CHECK (
+        verification_lease_owner IS NULL OR length(verification_lease_owner) BETWEEN 1 AND 255
+    ),
     CONSTRAINT updated_not_before_created CHECK (updated_at >= created_at)
 );
 
 
 -- Worker queues, oldest first, for FOR UPDATE SKIP LOCKED. Partial, so only rows
 -- still awaiting work are indexed and the indexes stay small as history grows.
-CREATE INDEX submissions_verification_queue_idx ON submissions (created_at)
+CREATE INDEX submissions_verification_queue_idx ON submissions (verification_next_attempt_at, created_at)
     WHERE verification_status = 'UNVERIFIED';
 CREATE INDEX submissions_review_queue_idx ON submissions (created_at)
     WHERE verification_status = 'VERIFIED' AND manual_review_status = 'UNREVIEWED';
@@ -78,6 +106,7 @@ CREATE INDEX submissions_reward_queue_idx ON submissions (created_at)
     WHERE reward_status = 'ELIGIBLE';
 
 CREATE INDEX submissions_task_idx ON submissions (task_id, created_at DESC);
+CREATE INDEX submissions_problem_idx ON submissions (problem_id, created_at DESC);
 CREATE INDEX submissions_hotkey_idx ON submissions (hotkey, created_at DESC);
 -- No proof_digest index: the UNIQUE above already builds one, and it also means a copied proof
 -- is refused at INSERT rather than found afterwards, so there is nothing to scan for.
@@ -92,6 +121,22 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER submissions_touch_updated_at
     BEFORE UPDATE ON submissions
     FOR EACH ROW EXECUTE FUNCTION submissions_touch_updated_at();
+
+
+-- One mathematical problem has one winner across its positive and counterexample tasks.
+-- The primary key makes winner selection atomic even when two workers approve concurrently.
+CREATE TABLE problem_winners (
+    problem_id      TEXT PRIMARY KEY,
+    submission_id   UUID NOT NULL UNIQUE,
+    claim_reason    TEXT NOT NULL
+        CONSTRAINT problem_winner_reason_nonempty CHECK (length(claim_reason) BETWEEN 1 AND 128),
+    claimed_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT problem_winner_matches_submission
+        FOREIGN KEY (problem_id, submission_id) REFERENCES submissions (problem_id, id)
+);
+CREATE TRIGGER problem_winners_append_only BEFORE UPDATE OR DELETE ON problem_winners
+    FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();
 
 
 CREATE TABLE verification_runs (
@@ -123,6 +168,8 @@ CREATE TABLE verification_runs (
 
 CREATE UNIQUE INDEX verification_runs_submission_idx ON verification_runs (submission_id, id);
 CREATE INDEX verification_runs_reason_idx ON verification_runs (reason_code, finished_at DESC);   -- rejection rates by gate
+CREATE TRIGGER verification_runs_append_only BEFORE UPDATE OR DELETE ON verification_runs
+    FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();
 
 
 CREATE TYPE payout_state AS ENUM (
@@ -137,13 +184,13 @@ CREATE TABLE reward_events (
 
     -- The bounty in force when this submission was accepted, captured so repricing
     -- tasks/bounties.json later cannot change what an in-flight miner is owed.
-    bounty_amount_rao       BIGINT NOT NULL                  -- alpha base units (1e-9); integer only, as SUBNET.md:168 requires of TAO
+    bounty_amount_rao       BIGINT NOT NULL                  -- TAO base units (rao); integer only
         CONSTRAINT bounty_amount_positive CHECK (bounty_amount_rao > 0),
     bounty_commit           TEXT NOT NULL                    -- repo commit the bounty was read from; makes the amount defensible after the fact
         CONSTRAINT bounty_commit_nonempty CHECK (length(bounty_commit) BETWEEN 7 AND 64),
 
-    -- Captured, not derived from submissions: this is where the money actually went,
-    -- an external fact. Alpha is held as stake, so a transfer needs both keys.
+    -- Captured, not derived from submissions: this is where the TAO transfer went.
+    -- The hotkey is retained as attribution evidence.
     destination_coldkey     ss58 NOT NULL,                   -- normally submissions.payment_sender, already proven to own the hotkey
     destination_hotkey      ss58 NOT NULL,
 
@@ -151,7 +198,7 @@ CREATE TABLE reward_events (
     extrinsic_reference     TEXT,                            -- NULL until submitted
     submitted_block         BIGINT,
     finalized_block         BIGINT,
-    failure_reason          TEXT,                            -- why this attempt failed; the next attempt is a new row
+    failure_reason          TEXT,                            -- terminal explanation; a submission is never paid twice
 
     initiated_by            TEXT NOT NULL,                   -- operator who ran the payout CLI, or 'system' once automated
 
@@ -159,12 +206,13 @@ CREATE TABLE reward_events (
     submitted_at            TIMESTAMPTZ,
     confirmed_at            TIMESTAMPTZ,
 
-    -- Deduplication (SUBNET.md:208) is the CLI's job, not a constraint: it must query for an
-    -- existing payout on this submission and refuse before signing anything.
+    -- This is the deduplication boundary: a winning submission gets one durable
+    -- payout attempt. An unresolved PENDING row is reconciled, never re-signed.
+    CONSTRAINT reward_events_submission_unique UNIQUE (submission_id),
 
-    -- PENDING means exactly "no extrinsic exists yet", so status and reference must not drift
-    -- apart: a SUBMITTED row without one would be indistinguishable from the unresolved case
-    -- that has to block further payouts. FAILED is exempt — an attempt can die before broadcast.
+    -- PENDING means no extrinsic reference is recorded yet. An extrinsic may nevertheless
+    -- exist after an ambiguous RPC failure, so the row blocks re-signing until an operator
+    -- reconciles it. A SUBMITTED row must always carry the known reference. FAILED is exempt.
     CONSTRAINT reward_submitted_needs_reference
         CHECK (status NOT IN ('SUBMITTED', 'CONFIRMED')
                OR (extrinsic_reference IS NOT NULL AND submitted_at IS NOT NULL)),
@@ -237,6 +285,8 @@ CREATE TABLE review_decisions (
 );
 CREATE INDEX review_decisions_reviewer_idx ON review_decisions (reviewer, created_at DESC);
 CREATE INDEX review_decisions_reason_idx ON review_decisions (reason_code, created_at DESC);   -- what reviewers actually reject for
+CREATE TRIGGER review_decisions_append_only BEFORE UPDATE OR DELETE ON review_decisions
+    FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();
 
 
 CREATE TYPE submission_status_field AS ENUM (
@@ -286,6 +336,8 @@ CREATE INDEX submission_events_submission_idx ON submission_events (submission_i
 CREATE INDEX submission_events_causation_idx ON submission_events (causation_id)
     WHERE causation_id IS NOT NULL;                           -- everything one request or job run did
 CREATE INDEX submission_events_recent_idx ON submission_events (created_at DESC);          -- operational tail: what is the system doing now
+CREATE TRIGGER submission_events_append_only BEFORE UPDATE OR DELETE ON submission_events
+    FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();
 
 
 CREATE TABLE api_rejection_log (

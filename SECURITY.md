@@ -149,6 +149,12 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
    miners.
 7. Treat timeouts and resource-limit results as rejections, and apply queue limits and rate limits
    in the validator service outside the one-shot verifier.
+8. Run the API, verification worker, and reward worker with separate process credentials. The API
+   must have no wallet or Docker socket; verifier containers must have neither database nor wallet
+   access; only the reward worker may load the payout coldkey.
+9. Treat a reward row left `PENDING` after a signing/RPC failure as ambiguous. Reconcile it on chain
+   and never sign a replacement automatically; the database uniqueness constraint is a deliberate
+   double-payment brake.
 
 ## Residual risks and non-goals
 
@@ -164,9 +170,9 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
 - Correctness of the informal-to-Lean formalization remains a human review obligation.
 - A `counterexample` acceptance proves `Not P`; it does not promise an extracted witness. For
   existential, implication, or already-negated sources, “refutation” may be the more precise term.
-- Resource bounds reduce single-submission denial of service. The paid API, payment reconciliation,
-  validator replication, scoring, consensus, weight submission, and reward logic remain outside the
-  one-shot verifier.
+- Resource bounds reduce single-submission denial of service. The paid API, finalized payment
+  reader, validator replication, review policy, winner selection, and TAO payout logic remain
+  outside the one-shot verifier and need their own operational controls.
 - Compiler, kernel, microarchitectural, and hardware side channels are not claimed to be eliminated.
 
 Security issues should include the verifier commit, image digest, task digest, report, host kernel

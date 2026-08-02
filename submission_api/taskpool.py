@@ -1,7 +1,7 @@
 """The set of tasks a miner may submit against.
 
 Loaded once at startup and immutable thereafter. Every entry is checked against the audited
-deny-by-default allowlist with `GoldTaskRegistry.assert_bundle`, so a task directory whose
+deny-by-default allowlist with `TaskPoolRegistry.assert_bundle`, so a task directory whose
 bytes drift from the published commitment stops the process from starting rather than silently
 admitting submissions against an unaudited task.
 """
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-from verifier.gold_registry import AllowedTask, GoldTaskRegistry, TaskNotAllowed
+from verifier.task_registry import AllowedTask, TaskNotAllowed, TaskPoolRegistry
 from verifier.models import TaskManifest
 from verifier.task_loader import load_task_bundle
 
@@ -20,6 +20,10 @@ from verifier.task_loader import load_task_bundle
 @dataclass(frozen=True)
 class TaskEntry:
     task_id: str
+    problem_id: str
+    mode: str
+    tier: str
+    source_theorems: tuple[str, ...]
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
     task_dir: Path
@@ -33,29 +37,33 @@ class TaskCatalog:
 
     @classmethod
     def load(cls, *, allowlist_path: Path, pool_root: Path) -> "TaskCatalog":
-        registry = GoldTaskRegistry.load(allowlist_path)
+        registry = TaskPoolRegistry.load(allowlist_path)
         entries: dict[str, TaskEntry] = {}
         for task_id, allowed in sorted(registry.tasks.items()):
-            task_dir = pool_root / task_id
+            task_dir = pool_root / allowed.tier / task_id
             bundle = load_task_bundle(task_dir)
             # Fail closed on task id, repository commit, whole-bundle digest, or target type
             # digest drift.
             registry.assert_bundle(bundle)
             entries[task_id] = TaskEntry(
                 task_id=allowed.task_id,
+                problem_id=allowed.problem_id,
+                mode=allowed.mode,
+                tier=allowed.tier,
+                source_theorems=allowed.source_theorems,
                 task_bundle_sha256=allowed.task_bundle_sha256,
                 target_type_sha256s=allowed.target_type_sha256s,
                 task_dir=task_dir,
                 manifest=bundle.manifest,
             )
         if not entries:
-            raise TaskNotAllowed("gold task pool is empty")
+            raise TaskNotAllowed("task pool is empty")
         return cls(repository_commit=registry.repository_commit, entries=entries)
 
     def get(self, task_id: str) -> TaskEntry:
         entry = self.entries.get(task_id)
         if entry is None:
-            raise TaskNotAllowed("task is not on the audited gold allowlist")
+            raise TaskNotAllowed("task is not on the audited task allowlist")
         return entry
 
     def resolve(self, task_id: str, task_bundle_sha256: str) -> TaskEntry:

@@ -58,10 +58,9 @@ class PaymentVerifier(Protocol):
 class ChainPaymentVerifier:
     """Confirm a transfer against finalized Subtensor state.
 
-    The finalized-transfer reader is the remaining piece of the payment component
-    (`README.md` lists it as to build). Until it is injected this verifier fails closed: it
-    refuses every submission rather than admitting an unpaid one, which is the only safe
-    default for a component that gates money.
+    Production construction injects the read-only Bittensor reader. Direct construction without
+    a reader still fails closed, which keeps tests and alternate deployments from accidentally
+    admitting an unpaid submission.
     """
 
     recipient: str
@@ -99,7 +98,7 @@ class ChainPaymentVerifier:
                 },
             )
         if not await self.reader.coldkey_owns_hotkey(
-            coldkey=transfer.sender, hotkey=hotkey
+            coldkey=transfer.sender, hotkey=hotkey, block=transfer.block
         ):
             raise PaymentRequired(
                 "the paying coldkey does not own the submitting hotkey",
@@ -128,7 +127,9 @@ class TransferReader(Protocol):
 
     async def finalized_transfer(self, *, reference: str) -> FinalizedTransfer | None: ...
 
-    async def coldkey_owns_hotkey(self, *, coldkey: str, hotkey: str) -> bool: ...
+    async def coldkey_owns_hotkey(
+        self, *, coldkey: str, hotkey: str, block: int
+    ) -> bool: ...
 
 
 @dataclass(frozen=True)
@@ -161,9 +162,12 @@ class DevelopmentPaymentVerifier:
 
 def build_payment_verifier(settings: Settings) -> PaymentVerifier:
     if settings.payment_verifier == CHAIN_PAYMENTS:
+        from conjectures_subnet.chain import BittensorTransferReader
+
         return ChainPaymentVerifier(
             recipient=settings.payment_recipient,
             amount_rao=settings.payment_amount_rao,
+            reader=BittensorTransferReader(settings.subtensor_network),
         )
     if settings.payment_verifier == DEVELOPMENT_PAYMENTS:
         if settings.production:  # pragma: no cover - Settings already refuses this

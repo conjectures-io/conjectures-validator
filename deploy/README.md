@@ -8,6 +8,7 @@ deploy/
   migrate/
     sql/
       V001__initial_schema.sql
+      R__service_grants.sql # least-privilege desired-state grants
 ```
 
 ## Running it
@@ -37,6 +38,12 @@ docker compose -f docker-compose.db.yml logs migrate
 `POSTGRES_PORT` in `.env` sets the host port. Only loopback is published — the
 database is never on a routable interface, and other compose services reach it
 as `db:5432` regardless.
+
+On first initialization, `00_init.sh` creates four non-superuser login roles:
+`conjectures_api`, `conjectures_verifier`, `conjectures_reviewer`, and
+`conjectures_reward`. Their passwords are separate `.env` values and
+`R__service_grants.sql` gives each only the tables and state-transition columns it needs. The
+Flyway owner credential is for migrations only; do not use it as a runtime `DATABASE_URL`.
 
 ## Writing a migration
 
@@ -82,6 +89,5 @@ python3 scripts/check_schema_drift.py \
   --dsn postgresql://conjectures:<password>@127.0.0.1:5432/postgres
 ```
 
-As of `V001` the two agree on all 199 compared objects. Run it after editing
-either side; a mirror that has silently drifted is worse than no mirror, because
-tests built from the metadata would pass against a schema production never has.
+Run it after editing either side; a mirror that has silently drifted is worse than no mirror,
+because tests built from the metadata would pass against a schema production never has.

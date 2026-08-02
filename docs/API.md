@@ -42,7 +42,7 @@ X-Conjectures-Signature: 0x4a3f…
 X-Conjectures-Task-Id: fc-e923379e-erdos11-erdos-11-7c0303029e-formalized-v1
 X-Conjectures-Task-Sha256: sha256:1dfef7…
 X-Conjectures-Proof-Sha256: sha256:09da51…
-X-Conjectures-Payment-Ref: 0x8b21…
+X-Conjectures-Payment-Ref: 4210031-0002
 
 <submission.zip bytes>
 ```
@@ -67,6 +67,8 @@ X-Conjectures-Payment-Ref: 0x8b21…
   "submission_id": "7ee1de44-3708-47ff-a383-9248cdf2b412",
   "hotkey": "5Grw…",
   "task_id": "fc-e923379e-erdos11-…",
+  "problem_id": "fc-problem-v1:…",
+  "task_mode": "formalized",
   "task_bundle_sha256": "sha256:1dfef7…",
   "proof_sha256": "sha256:09da51…",
   "request_digest": "sha256:48ecf3…",
@@ -77,12 +79,20 @@ X-Conjectures-Payment-Ref: 0x8b21…
   "manual_review_required": true,
   "review_policy_version": "v1",
   "payment": {
-    "reference": "0x8b21…",
+    "reference": "4210031-0002",
     "sender": "5DAA…",
     "amount_rao": 500000000,
     "block": 4210031
   },
   "verification": { "status": "UNVERIFIED", "report_available": false },
+  "review": null,
+  "reward": {
+    "winner": false,
+    "problem_closed": false,
+    "winner_submission_id": null,
+    "payout_status": null,
+    "extrinsic_reference": null
+  },
   "created_at": "2026-07-30T15:20:11.025465Z",
   "updated_at": "2026-07-30T15:20:11.025465Z"
 }
@@ -99,11 +109,11 @@ queue table.
 
 ## Authentication
 
-The signed message is the canonical **request digest**: the 32 raw bytes of the SHA-256 over
-canonical JSON (sorted keys, no spaces, one trailing newline) of exactly these six fields.
+First compute the canonical **request digest**: SHA-256 over canonical JSON (sorted keys, no
+spaces, one trailing newline) of exactly these six fields.
 
 ```json
-{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"0x8b21…","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:1dfef7…","task_id":"fc-e923379e-…"}
+{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"4210031-0002","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:1dfef7…","task_id":"fc-e923379e-…"}
 ```
 
 ```python
@@ -117,18 +127,28 @@ digest = canonical_request_digest(
     payment_reference=PAYMENT_REF,
     idempotency_key=IDEMPOTENCY_KEY,
 )
-signature = keypair.sign(bytes.fromhex(digest.removeprefix("sha256:")))
+from submission_api.auth import authentication_message
+
+timestamp_ms = 1753876543210
+signature = keypair.sign(authentication_message(
+    domain="conjectures-submit-v1",
+    request_digest=digest,
+    timestamp_ms=timestamp_ms,
+))
 ```
 
 [`../scripts/submit_proof.py`](../scripts/submit_proof.py) does this end to end and
 reimplements the digest with the standard library only, so a miner can copy it.
 
-That signature is stored on the submission row (`hotkey_signature`, 64 bytes), so the record
-itself carries the proof that this miner authorised this exact request.
+That signature and its signed timestamp are stored on the submission row (`hotkey_signature`, 64
+bytes, and `request_timestamp_ms`), so the record itself carries the proof that this miner
+authorised this exact request.
 
-Status and report reads sign a different message —
-`sha256("conjectures-read-v1:<hotkey>:<submission_id>")` — so a read signature can never be
-replayed as a submission.
+The signature is over `sha256("conjectures-auth-v1\\0" || domain || "\\0" || timestamp_ms ||
+"\\0" || raw_request_digest)`. The API checks the same timestamp for freshness and stores it with
+submission signatures. Status and report reads use domain `conjectures-read-v1` and a request
+digest of `sha256("conjectures-read-v1:<hotkey>:<submission_id>")`, so neither the timestamp nor
+the operation can be substituted in a captured signature.
 
 Three properties worth calling out:
 
@@ -157,12 +177,32 @@ the payment verifier must establish that:
 Amounts are integers in rao, TAO's base unit; 0.5 TAO is `500000000`. No floating point appears
 anywhere in payment accounting.
 
-`SUBMISSION_PAYMENT_VERIFIER=chain` is the production setting. The finalized-transfer reader it
-needs is the remaining piece of the payment component (see the status table in
-[../README.md](../README.md)); until that reader is injected the chain verifier **fails closed**
-and refuses every submission with `503 PAYMENT_VERIFIER_UNAVAILABLE`, rather than admitting an
-unpaid one. `SUBMISSION_PAYMENT_VERIFIER=development` accepts configured references without a
+`SUBMISSION_PAYMENT_VERIFIER=chain` is the production setting. Its read-only Subtensor reader
+accepts only canonical `block-index` references, requires the block to be finalized, checks a
+successful direct Balances transfer, and checks hotkey ownership at that payment block. It holds
+no wallet keys. `SUBMISSION_PAYMENT_VERIFIER=development` accepts configured references without a
 chain and is refused in production.
+
+## Manual review
+
+The internal review service (a separate ASGI app and database role) exposes one endpoint. When
+review is enabled, an operator appends a decision with the configured bearer token:
+
+```http
+POST /v1/reviews/7ee1de44-3708-47ff-a383-9248cdf2b412
+Authorization: Bearer <REVIEW_API_TOKEN>
+Content-Type: application/json
+
+{"decision":"APPROVED","reason_code":"REVIEW_APPROVED","notes":"optional audit note"}
+```
+
+The configured `REVIEWER_IDENTITY`, reason, notes, timestamp, and captured policy version are
+stored in append-only review and event rows. Review can only decide a `VERIFIED` submission and
+cannot change a Lean rejection. Concurrent approval of a proof and its counterexample is resolved
+by the `problem_winners.problem_id` primary key; only one becomes reward-eligible.
+
+Run this route with `uvicorn --factory submission_api.review_asgi:create_review_app` on a private
+listener. It is intentionally not part of the public miner API's route table.
 
 ## Idempotency
 
@@ -225,8 +265,9 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `POSTGRES_USER` / `PASSWORD` / `HOST` / `PORT` / `DB` | `conjectures`, `conjectures`, `localhost`, `5432`, `conjectures` | Used when `DATABASE_URL` is unset |
 | `PAYMENT_RECIPIENT_SS58` | required | The address that must receive the transfer |
 | `PAYMENT_AMOUNT_RAO` | `500000000` | 0.5 TAO |
-| `GOLD_ALLOWLIST_PATH` | `./gold/allowlist.json` | |
-| `GOLD_POOL_ROOT` | `./tasks/gold` | |
+| `TASK_ALLOWLIST_PATH` | `./task_pool/allowlist.json` | Deny-by-default audited task list |
+| `TASK_POOL_ROOT` | `./tasks/pool` | Contains tier directories |
+| `SUBTENSOR_NETWORK` | `finney` | Read-only payment chain endpoint/network |
 | `SUBMISSION_AUTHENTICATOR` | `hotkey-signature` in `PROD` | `development-static-key` refused in `PROD` |
 | `SUBMISSION_PAYMENT_VERIFIER` | `chain` in `PROD` | `development` refused in `PROD` |
 | `SUBMISSION_DISPATCHER` | `queue` | `in-process` refused in `PROD` |
@@ -237,6 +278,8 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `MAX_BUNDLE_BYTES` | `2097152` | Cannot exceed the verifier policy |
 | `MANUAL_REWARD_REVIEW_ENABLED` | `true` | Captured per submission at creation |
 | `REVIEW_POLICY_VERSION` | `v1` | |
+| `REVIEW_API_TOKEN` | — | Required with at least 32 characters in production when review is enabled |
+| `REVIEWER_IDENTITY` | `operator` | Written to the immutable review audit |
 
 Every value is validated at startup, so a misconfigured deployment refuses to boot instead of
 failing on the first miner request. Three refusals are deliberate fail-closed guardrails:
@@ -256,11 +299,11 @@ uvicorn submission_api.asgi:app --host 127.0.0.1 --port 8080
 ```
 
 The task pool is loaded once at startup and every entry is checked against the audited
-allowlist with `GoldTaskRegistry.assert_bundle`, so a task directory whose bytes have drifted
+allowlist with `TaskPoolRegistry.assert_bundle`, so a task directory whose bytes have drifted
 from the published commitment stops the process from starting rather than quietly admitting
 submissions against an unaudited task.
 
-## What is not in this module
+## Separate worker processes
 
 The durable database is not the API's: it lives in
 [`../conjectures_subnet/db/`](../conjectures_subnet/db/) as the runtime view of
@@ -268,5 +311,8 @@ The durable database is not the API's: it lives in
 no models and no migrations; it borrows a session per request and translates the shared layer's
 domain errors into HTTP so that layer stays usable from a worker.
 
-The finalized-payment reader, the verification worker, the review service and the reward
-processor are separate components. See [SUBNET.md](SUBNET.md) for the remaining sequence.
+The API queues work only by committing database state. `fc-verification-worker` claims leased rows
+and runs one proof per immutable, networkless verifier container. `fc-reward-worker` reserves one
+unique payout row before signing, submits an exact TAO transfer under a wallet spend cap, waits for
+finality, and exposes the chain reference in the miner status. Run them as separate trust domains;
+see [OPERATIONS.md](OPERATIONS.md).

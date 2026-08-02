@@ -163,6 +163,37 @@ class Proof(Base):
     )
 
 
+# The database, not service convention, makes proofs, verifier reports, review
+# decisions, winner claims and audit events append-only.
+_IMMUTABLE_FUNCTION = (
+    "CREATE FUNCTION reject_immutable_row_mutation() RETURNS TRIGGER AS $$\n"
+    "BEGIN\n"
+    "    RAISE EXCEPTION '% is append-only', TG_TABLE_NAME USING ERRCODE = '55000';\n"
+    "END;\n"
+    "$$ LANGUAGE plpgsql;\n"
+    "\n"
+    "CREATE TRIGGER proofs_append_only BEFORE UPDATE OR DELETE ON proofs\n"
+    "    FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();"
+)
+event.listen(Proof.__table__, "after_create", DDL(_IMMUTABLE_FUNCTION))
+event.listen(
+    Proof.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS reject_immutable_row_mutation() CASCADE;"),
+)
+
+
+def _append_only(table, trigger_name: str) -> None:  # type: ignore[no-untyped-def]
+    event.listen(
+        table,
+        "after_create",
+        DDL(
+            f"CREATE TRIGGER {trigger_name} BEFORE UPDATE OR DELETE ON {table.name} "
+            "FOR EACH ROW EXECUTE FUNCTION reject_immutable_row_mutation();"
+        ),
+    )
+
+
 class Submission(Base):
     """One paid submission. Holds current state; history lives in the event tables."""
 
@@ -176,6 +207,10 @@ class Submission(Base):
     request_digest: Mapped[bytes] = mapped_column(SHA256, nullable=False)
     # No FK on task_id: the repo is the task source of truth.
     task_id: Mapped[str] = mapped_column(Text, nullable=False)
+    # Paired tasks share a problem_id. Exactly one positive proof OR counterexample
+    # may win that problem; ProblemWinner enforces the cross-mode race atomically.
+    problem_id: Mapped[str] = mapped_column(Text, nullable=False)
+    task_mode: Mapped[str] = mapped_column(Text, nullable=False)
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
 
     # Drop the UNIQUE if identical proofs should ever both be payable.
@@ -187,6 +222,8 @@ class Submission(Base):
     payment_sender: Mapped[str] = mapped_column(SS58, nullable=False)
     payment_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     payment_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    request_timestamp_ms: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Signature over the domain-separated request digest + request_timestamp_ms.
     hotkey_signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
     verification_status: Mapped[VerificationState] = mapped_column(
@@ -199,6 +236,20 @@ class Submission(Base):
         REWARD_STATE, nullable=False, server_default=RewardState.INELIGIBLE.value
     )
     failure_reason: Mapped[str | None] = mapped_column(Text)
+
+    # Verification workers claim rows with FOR UPDATE SKIP LOCKED. A lease lets
+    # another worker safely recover work after a crash without running the same
+    # untrusted proof concurrently during normal operation.
+    verification_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    verification_lease_owner: Mapped[str | None] = mapped_column(Text)
+    verification_lease_expires_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    verification_next_attempt_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     manual_review_required: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true")
@@ -214,11 +265,16 @@ class Submission(Base):
 
     __table_args__ = (
         CheckConstraint("length(task_id) BETWEEN 1 AND 255", name="task_id_nonempty"),
+        CheckConstraint("length(problem_id) BETWEEN 1 AND 255", name="problem_id_nonempty"),
+        CheckConstraint(
+            "task_mode IN ('formalized', 'counterexample')", name="task_mode_known"
+        ),
         CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128", name="payment_reference_nonempty"
         ),
         CheckConstraint("payment_amount_rao > 0", name="payment_amount_positive"),
         CheckConstraint("payment_block > 0", name="payment_block_positive"),
+        CheckConstraint("request_timestamp_ms > 0", name="request_timestamp_positive"),
         CheckConstraint("octet_length(hotkey_signature) = 64", name="hotkey_signature_len"),
         CheckConstraint(
             "length(review_policy_version) BETWEEN 1 AND 64",
@@ -226,11 +282,23 @@ class Submission(Base):
         ),
         UniqueConstraint("hotkey", "idempotency_key", name="submissions_idempotency_unique"),
         UniqueConstraint("payment_reference", name="submissions_payment_reference_unique"),
+        UniqueConstraint("problem_id", "id", name="submissions_problem_unique"),
+        CheckConstraint("verification_attempts >= 0", name="verification_attempts_nonnegative"),
+        CheckConstraint(
+            "(verification_lease_owner IS NULL) = "
+            "(verification_lease_expires_at IS NULL)",
+            name="verification_lease_paired",
+        ),
+        CheckConstraint(
+            "verification_lease_owner IS NULL OR length(verification_lease_owner) BETWEEN 1 AND 255",
+            name="verification_lease_owner_nonempty",
+        ),
         CheckConstraint("updated_at >= created_at", name="updated_not_before_created"),
         # Worker queues, oldest first, for FOR UPDATE SKIP LOCKED. Partial, so only
         # rows still awaiting work are indexed.
         Index(
             "submissions_verification_queue_idx",
+            "verification_next_attempt_at",
             "created_at",
             postgresql_where=text("verification_status = 'UNVERIFIED'"),
         ),
@@ -247,6 +315,7 @@ class Submission(Base):
             postgresql_where=text("reward_status = 'ELIGIBLE'"),
         ),
         Index("submissions_task_idx", "task_id", text("created_at DESC")),
+        Index("submissions_problem_idx", "problem_id", text("created_at DESC")),
         Index("submissions_hotkey_idx", "hotkey", text("created_at DESC")),
         # No proof_digest index: the UNIQUE above already builds one.
     )
@@ -273,6 +342,38 @@ event.listen(
         "    FOR EACH ROW EXECUTE FUNCTION submissions_touch_updated_at();"
     ),
 )
+
+
+class ProblemWinner(Base):
+    """The single accepted winner for a paired mathematical problem.
+
+    The primary key is the concurrency primitive. Positive and counterexample
+    submissions race to insert the same problem_id while holding their own
+    submission lock; PostgreSQL can commit at most one of them.
+    """
+
+    __tablename__ = "problem_winners"
+
+    problem_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    submission_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, unique=True)
+    claim_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    claimed_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["problem_id", "submission_id"],
+            ["submissions.problem_id", "submissions.id"],
+            name="problem_winner_matches_submission",
+        ),
+        CheckConstraint(
+            "length(claim_reason) BETWEEN 1 AND 128", name="problem_winner_reason_nonempty"
+        ),
+    )
+
+
+_append_only(ProblemWinner.__table__, "problem_winners_append_only")
 event.listen(
     Submission.__table__,
     "before_drop",
@@ -333,11 +434,11 @@ class VerificationRun(Base):
     )
 
 
-class RewardEvent(Base):
-    """One payout attempt: a flat per-task bounty paid as a direct alpha transfer.
+_append_only(VerificationRun.__table__, "verification_runs_append_only")
 
-    Weights go to a fixed treasury uid that funds these, so no per-submission
-    weight exists and nothing here is scored.
+
+class RewardEvent(Base):
+    """The one durable payout attempt for a winning submission.
 
     The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
     then its chain fields fill in as it progresses. Inserting after the transfer
@@ -345,10 +446,8 @@ class RewardEvent(Base):
     unresolved, not failed: it must block further payouts for that submission
     until a human reconciles it against the chain.
 
-    Several rows per submission are permitted on purpose. The CLI checks for an
-    existing payout before paying, but if it ever pays twice the second transfer
-    is real and must be recordable; a rejected INSERT would only hide it.
-    Duplicates are found by query, not prevented.
+    ``submission_id`` is unique. A crash with an unresolved PENDING row therefore
+    fails safe and needs reconciliation instead of ever signing a second payout.
     """
 
     __tablename__ = "reward_events"
@@ -365,8 +464,8 @@ class RewardEvent(Base):
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bounty_commit: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Captured, not derived from submissions: this is where the money actually
-    # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
+    # Captured, not derived from submissions: this is where the TAO payout
+    # actually went. The hotkey is retained as attribution evidence.
     destination_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
     destination_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
 
@@ -387,10 +486,12 @@ class RewardEvent(Base):
     confirmed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
+        UniqueConstraint("submission_id", name="reward_events_submission_unique"),
         CheckConstraint("bounty_amount_rao > 0", name="bounty_amount_positive"),
         CheckConstraint("length(bounty_commit) BETWEEN 7 AND 64", name="bounty_commit_nonempty"),
-        # PENDING means exactly "no extrinsic exists yet", so status and reference
-        # must not drift apart. FAILED is exempt: an attempt can die before broadcast.
+        # PENDING means no extrinsic reference is recorded yet. An extrinsic may
+        # nevertheless exist after an ambiguous RPC failure, which is why this row
+        # blocks re-signing until an operator reconciles it. FAILED is exempt.
         CheckConstraint(
             "status NOT IN ('SUBMITTED', 'CONFIRMED') "
             "OR (extrinsic_reference IS NOT NULL AND submitted_at IS NOT NULL)",
@@ -496,6 +597,9 @@ class ReviewDecision(Base):
     )
 
 
+_append_only(ReviewDecision.__table__, "review_decisions_append_only")
+
+
 class SubmissionEvent(Base):
     """Append-only audit history.
 
@@ -577,6 +681,9 @@ class SubmissionEvent(Base):
     )
 
 
+_append_only(SubmissionEvent.__table__, "submission_events_append_only")
+
+
 class ApiRejectionLog(Base):
     """Telemetry, not source of truth.
 
@@ -641,6 +748,7 @@ __all__ = [
     "Base",
     "ManualReviewState",
     "PayoutState",
+    "ProblemWinner",
     "Proof",
     "ReviewDecision",
     "ReviewOutcome",

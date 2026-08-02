@@ -8,9 +8,9 @@ Ordering here is a security and cost property, not a style choice:
 
 1. headers, then declared length — a hostile 500 MB body is refused at the door rather than
    buffered and then measured;
-2. idempotency replay — an exact retry is answered from durable state without re-uploading;
-3. the body, streamed under a running cap, and the bundle admitted by the exact-shape scanner;
-4. the hotkey signature over the canonical request digest, which covers the proof digest;
+2. the hotkey signature over the timestamped, domain-separated request digest envelope;
+3. authenticated idempotency replay — an exact retry is answered without re-uploading;
+4. the body, streamed under a running cap, and the bundle admitted by the exact-shape scanner;
 5. the payment, confirmed against finalized chain state.
 
 Payment is confirmed last among the checks but before any write, because the schema makes it a
@@ -34,6 +34,7 @@ from conjectures_subnet.db.errors import DatabaseError
 from conjectures_subnet.db.models import Submission, VerificationRun
 from submission_api import schemas
 from submission_api.auth import (
+    READ_DOMAIN,
     SignedRequest,
     assert_fresh_nonce,
     assert_valid_hotkey,
@@ -53,7 +54,7 @@ from submission_api.errors import (
 from submission_api.errors import REASON_TASK_NOT_ALLOWED
 from verifier.bundle import BUNDLE_MEDIA_TYPE, ProofBundle, admit_proof_bundle
 from verifier.errors import VerifierError
-from verifier.gold_registry import TaskNotAllowed
+from verifier.task_registry import TaskNotAllowed
 from verifier.hashing import is_sha256, sha256_bytes
 
 
@@ -135,10 +136,15 @@ def _verification(run: VerificationRun | None, submission: Submission) -> schema
 
 def _status(view: store.SubmissionView) -> schemas.SubmissionStatus:
     submission = view.submission
+    review = view.review
+    payout = view.reward
+    winner = view.winner
     return schemas.SubmissionStatus(
         submission_id=submission.id,
         hotkey=submission.hotkey,
         task_id=submission.task_id,
+        problem_id=submission.problem_id,
+        task_mode=submission.task_mode,
         task_bundle_sha256=digests.to_prefixed(submission.task_bundle_sha256),
         proof_sha256=digests.to_prefixed(submission.proof_digest),
         request_digest=digests.to_prefixed(submission.request_digest),
@@ -155,6 +161,35 @@ def _status(view: store.SubmissionView) -> schemas.SubmissionStatus:
             block=submission.payment_block,
         ),
         verification=_verification(view.verification, submission),
+        review=None
+        if review is None
+        else schemas.ReviewStatus(
+            decision=str(review.decision),
+            kind=str(review.kind),
+            reviewer=review.reviewer,
+            reason_code=review.reason_code,
+            policy_version=review.policy_version,
+            created_at=_utc(review.created_at),
+        ),
+        reward=schemas.RewardRecord(
+            winner=winner is not None and winner.submission_id == submission.id,
+            problem_closed=winner is not None,
+            winner_submission_id=(
+                submission.id
+                if winner is not None and winner.submission_id == submission.id
+                else None
+            ),
+            eligibility_reason=None if payout is None else payout.eligibility_reason,
+            payout_status=None if payout is None else str(payout.status),
+            amount_rao=None if payout is None else payout.bounty_amount_rao,
+            destination_coldkey=None if payout is None else payout.destination_coldkey,
+            extrinsic_reference=None if payout is None else payout.extrinsic_reference,
+            submitted_block=None if payout is None else payout.submitted_block,
+            finalized_block=None if payout is None else payout.finalized_block,
+            failure_reason=None if payout is None else payout.failure_reason,
+            submitted_at=None if payout is None else _utc(payout.submitted_at),
+            confirmed_at=None if payout is None else _utc(payout.confirmed_at),
+        ),
         created_at=_utc(submission.created_at),
         updated_at=_utc(submission.updated_at),
     )
@@ -240,7 +275,18 @@ async def create_submission(
         )
         audit.request_digest = request_digest
 
-        # An exact replay is answered from durable state; the body is not needed.
+        signature_bytes = normalise_signature(signature)
+        assert_fresh_nonce(nonce_ms, settings.nonce_window_seconds)
+        services.authenticator.verify(
+            SignedRequest(
+                hotkey=miner,
+                request_digest=request_digest,
+                timestamp_ms=nonce_ms,
+                signature=signature_bytes,
+            )
+        )
+
+        # An authenticated exact replay is answered from durable state; the body is not needed.
         existing = await store.find_by_idempotency_key(session, miner, key)
         if existing is not None:
             if bytes(existing.request_digest) != digests.to_bytes(request_digest):
@@ -270,15 +316,6 @@ async def create_submission(
                 extra={"proof_sha256": bundle.proof.sha256},
             )
 
-        services.authenticator.verify(
-            SignedRequest(
-                hotkey=miner,
-                request_digest=request_digest,
-                signature=normalise_signature(signature),
-            )
-        )
-        assert_fresh_nonce(nonce_ms, settings.nonce_window_seconds)
-
         # Payment last, and before any write: the schema has no unpaid state.
         payment = await services.payments.confirm(reference=payment_reference, hotkey=miner)
 
@@ -289,6 +326,8 @@ async def create_submission(
                 idempotency_key=key,
                 request_digest=request_digest,
                 task_id=task_id,
+                problem_id=entry.problem_id,
+                task_mode=entry.mode,
                 task_bundle_sha256=entry.task_bundle_sha256,
                 proof_content=bundle.proof.raw,
                 proof_sha256=bundle.proof.sha256,
@@ -296,7 +335,8 @@ async def create_submission(
                 payment_sender=payment.sender,
                 payment_amount_rao=payment.amount_rao,
                 payment_block=payment.block,
-                hotkey_signature=normalise_signature(signature),
+                request_timestamp_ms=nonce_ms,
+                hotkey_signature=signature_bytes,
                 manual_review_required=settings.manual_review_enabled,
                 review_policy_version=settings.review_policy_version,
             ),
@@ -420,13 +460,16 @@ def _read_authentication(
     replayed as a submission — the intake digest covers six fields and can never equal it.
     """
     miner = assert_valid_hotkey(hotkey)
-    digest = sha256_bytes(f"conjectures-read-v1:{miner}:{submission_id}".encode("utf-8"))
-    assert_fresh_nonce(_require_nonce(timestamp), services.settings.nonce_window_seconds)
+    nonce_ms = _require_nonce(timestamp)
+    digest = sha256_bytes(f"{READ_DOMAIN}:{miner}:{submission_id}".encode("utf-8"))
+    assert_fresh_nonce(nonce_ms, services.settings.nonce_window_seconds)
     services.authenticator.verify(
         SignedRequest(
             hotkey=miner,
             request_digest=digest,
+            timestamp_ms=nonce_ms,
             signature=normalise_signature(signature),
+            domain=READ_DOMAIN,
         )
     )
     return miner
