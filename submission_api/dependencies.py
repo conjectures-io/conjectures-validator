@@ -16,6 +16,7 @@ from typing import AsyncIterator
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from conjectures_subnet.bounty import BountyPricer
 from submission_api.auth import Authenticator
 from submission_api.payments import PaymentVerifier
 from submission_api.settings import Settings
@@ -32,6 +33,7 @@ class Services:
     authenticator: Authenticator
     payments: PaymentVerifier
     dispatcher: VerificationDispatcher
+    pricing: BountyPricer
 
 
 def get_services(request: Request) -> Services:

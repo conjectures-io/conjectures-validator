@@ -5,9 +5,9 @@ Plain factory functions rather than fixtures, matching tests/conftest.py.
 These tests need a real PostgreSQL server. The schema uses domains, native enums, JSONB, INET,
 partial indexes and a plpgsql trigger, so there is no portable subset to fall back to and a
 SQLite run would prove nothing about the database the service actually uses. Set
-`FC_POSTGRES_DSN` to enable them:
+`FC_POSTGRES_DSN` to a throwaway database whose name contains ``test``:
 
-    FC_POSTGRES_DSN=postgresql+psycopg://conjectures:pw@127.0.0.1:55432/conjectures pytest
+    FC_POSTGRES_DSN=postgresql+psycopg://conjectures:pw@127.0.0.1:55432/conjectures_test pytest
 
 The schema is built with `Base.metadata.create_all`, which is the mirror rather than the source
 of truth; `scripts/check_schema_drift.py` is what proves the mirror still matches
@@ -22,9 +22,11 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from conftest import manifest as task_manifest
+from conjectures_subnet.bounty import FlatBountyPricer
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import Base
@@ -64,7 +66,15 @@ __all__ = [
 
 
 def postgres_dsn() -> str | None:
-    return os.environ.get("FC_POSTGRES_DSN", "").strip() or None
+    dsn = os.environ.get("FC_POSTGRES_DSN", "").strip()
+    if not dsn:
+        return None
+    database = (make_url(dsn).database or "").lower()
+    if "test" not in database:
+        raise RuntimeError(
+            "FC_POSTGRES_DSN must name a throwaway test database; the suite drops its schema"
+        )
+    return dsn
 
 
 def new_key() -> str:
@@ -139,6 +149,10 @@ def harness(*, entries=None, dispatcher=None, **overrides: str) -> Harness:
         authenticator=build_authenticator(settings),
         payments=build_payment_verifier(settings),
         dispatcher=dispatcher or QueueDispatcher(),
+        pricing=FlatBountyPricer(
+            amount_rao=settings.bounty_amount_rao,
+            policy_version=settings.bounty_policy_version,
+        ),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings

@@ -84,6 +84,10 @@ X-Conjectures-Payment-Ref: 4210031-0002
     "amount_rao": 500000000,
     "block": 4210031
   },
+  "bounty": {
+    "amount_rao": 1000000000,
+    "policy_version": "flat-tao-v1"
+  },
   "verification": { "status": "UNVERIFIED", "report_available": false },
   "review": null,
   "reward": {
@@ -265,6 +269,8 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `POSTGRES_USER` / `PASSWORD` / `HOST` / `PORT` / `DB` | `conjectures`, `conjectures`, `localhost`, `5432`, `conjectures` | Used when `DATABASE_URL` is unset |
 | `PAYMENT_RECIPIENT_SS58` | required | The address that must receive the transfer |
 | `PAYMENT_AMOUNT_RAO` | `500000000` | 0.5 TAO |
+| `BOUNTY_AMOUNT_RAO` | required in `PROD` | Direct TAO bounty frozen on each accepted submission |
+| `BOUNTY_POLICY_VERSION` | `flat-tao-v1` | Version recorded with the frozen quote |
 | `TASK_ALLOWLIST_PATH` | `./task_pool/allowlist.json` | Deny-by-default audited task list |
 | `TASK_POOL_ROOT` | `./tasks/pool` | Contains tier directories |
 | `SUBTENSOR_NETWORK` | `finney` | Read-only payment chain endpoint/network |
@@ -283,8 +289,8 @@ The API configures no database of its own. It reuses the validator's shared stor
 
 Every value is validated at startup, so a misconfigured deployment refuses to boot instead of
 failing on the first miner request. Three refusals are deliberate fail-closed guardrails:
-production will not start with the development authenticator, the development payment verifier,
-or the in-process dispatcher — each would otherwise weaken the boundary
+production will not start without an explicit bounty or with the development authenticator, the
+development payment verifier, or the in-process dispatcher — each would otherwise weaken the boundary
 [SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe.
 
 ## Running it

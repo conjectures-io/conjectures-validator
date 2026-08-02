@@ -14,7 +14,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.2", "pytest-cov>=5"]
 service = [
-    "formal-conjectures-verifier[db]",
+    "formal-conjectures-verifier[db,subnet]",
     "fastapi==0.139.2",
     "httpx==0.28.1",
     "pydantic==2.13.4",

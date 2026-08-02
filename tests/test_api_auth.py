@@ -208,6 +208,7 @@ def test_production_defaults_are_all_hardened():
         {
             "APP_MODE": "PROD",
             "PAYMENT_RECIPIENT_SS58": RECIPIENT,
+            "BOUNTY_AMOUNT_RAO": "1000000000",
         }
     )
     assert isinstance(build_authenticator(settings), HotkeySignatureAuthenticator)
@@ -223,6 +224,18 @@ def test_development_defaults_are_convenient():
     assert settings.payment_amount_rao == 500_000_000
     assert settings.nonce_window_seconds == 120
     assert settings.review_policy_version == "v1"
+    assert settings.bounty_amount_rao == 1_000_000_000
+    assert settings.bounty_policy_version == "flat-tao-v1"
+
+
+def test_production_requires_an_explicit_frozen_bounty():
+    with pytest.raises(SettingsError, match="BOUNTY_AMOUNT_RAO"):
+        Settings.from_env(
+            {
+                "APP_MODE": "PROD",
+                "PAYMENT_RECIPIENT_SS58": RECIPIENT,
+            }
+        )
 
 
 def test_the_api_does_not_require_its_own_database_url():
@@ -268,6 +281,10 @@ def test_review_service_requires_its_own_strong_token_and_exposes_only_review_ro
     [
         ({"PAYMENT_AMOUNT_RAO": "0"}, "positive"),
         ({"PAYMENT_AMOUNT_RAO": "not-a-number"}, "integer"),
+        ({"PAYMENT_AMOUNT_RAO": str(1 << 63)}, "must not exceed"),
+        ({"BOUNTY_AMOUNT_RAO": "0"}, "positive"),
+        ({"BOUNTY_AMOUNT_RAO": str(1 << 63)}, "must not exceed"),
+        ({"BOUNTY_POLICY_VERSION": "Not Valid"}, "BOUNTY_POLICY"),
         ({"MAX_BUNDLE_BYTES": "99999999"}, "must not exceed"),
         ({"MANUAL_REWARD_REVIEW_ENABLED": "maybe"}, "boolean"),
         ({"REVIEW_POLICY_VERSION": "Not Valid"}, "REVIEW_POLICY"),

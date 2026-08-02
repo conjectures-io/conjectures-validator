@@ -91,3 +91,7 @@ python3 scripts/check_schema_drift.py \
 
 Run it after editing either side; a mirror that has silently drifted is worse than no mirror,
 because tests built from the metadata would pass against a schema production never has.
+
+API database tests drop and recreate their target schema. `FC_POSTGRES_DSN` is therefore rejected
+unless its database name contains `test`; create a separate throwaway database and never point the
+suite at the development or production database.

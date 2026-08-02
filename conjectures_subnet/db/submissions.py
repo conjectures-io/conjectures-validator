@@ -91,6 +91,9 @@ class NewSubmission:
     hotkey_signature: bytes      # 64 bytes over the signed request envelope
     manual_review_required: bool
     review_policy_version: str
+    bounty_amount_rao: int
+    bounty_policy_version: str
+    bounty_inputs: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -308,6 +311,11 @@ async def create_submission(session: AsyncSession, request: NewSubmission) -> Su
         reward_status=RewardState.INELIGIBLE,
         manual_review_required=request.manual_review_required,
         review_policy_version=request.review_policy_version,
+        bounty_amount_rao=request.bounty_amount_rao,
+        bounty_policy_version=request.bounty_policy_version,
+        bounty_inputs=(
+            dict(request.bounty_inputs) if request.bounty_inputs is not None else None
+        ),
     )
     session.add(submission)
     try:
@@ -346,6 +354,8 @@ async def create_submission(session: AsyncSession, request: NewSubmission) -> Su
             "payment_amount_rao": request.payment_amount_rao,
             "payment_block": request.payment_block,
             "request_timestamp_ms": request.request_timestamp_ms,
+            "bounty_amount_rao": request.bounty_amount_rao,
+            "bounty_policy_version": request.bounty_policy_version,
         },
     )
     await session.flush()
@@ -768,7 +778,7 @@ async def create_reward_event(
     session: AsyncSession,
     submission_id: uuid.UUID,
     *,
-    bounty_amount_rao: int,
+    source_coldkey: str,
     bounty_commit: str,
     initiated_by: str = ACTOR_REWARD,
 ) -> RewardEvent:
@@ -796,10 +806,11 @@ async def create_reward_event(
     payout = RewardEvent(
         submission_id=submission.id,
         eligibility_reason=winner.claim_reason,
-        bounty_amount_rao=bounty_amount_rao,
+        bounty_amount_rao=submission.bounty_amount_rao,
         bounty_commit=bounty_commit,
         destination_coldkey=submission.payment_sender,
         destination_hotkey=submission.hotkey,
+        source_coldkey=source_coldkey,
         status=PayoutState.PENDING,
         initiated_by=initiated_by,
     )

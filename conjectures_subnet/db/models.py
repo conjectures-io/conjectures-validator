@@ -256,6 +256,12 @@ class Submission(Base):
     )
     review_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # Reward quote frozen at intake. Runtime roles have no UPDATE privilege on
+    # these columns, so approval and payout cannot silently reprice the miner.
+    bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
+    bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
+
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -279,6 +285,13 @@ class Submission(Base):
         CheckConstraint(
             "length(review_policy_version) BETWEEN 1 AND 64",
             name="review_policy_version_nonempty",
+        ),
+        CheckConstraint(
+            "bounty_amount_rao > 0", name="submission_bounty_amount_positive"
+        ),
+        CheckConstraint(
+            "length(bounty_policy_version) BETWEEN 1 AND 64",
+            name="bounty_policy_version_nonempty",
         ),
         UniqueConstraint("hotkey", "idempotency_key", name="submissions_idempotency_unique"),
         UniqueConstraint("payment_reference", name="submissions_payment_reference_unique"),
@@ -459,15 +472,16 @@ class RewardEvent(Base):
 
     eligibility_reason: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # The bounty in force when this submission was accepted, captured so
-    # repricing bounties later cannot change what an in-flight miner is owed.
+    # Copied from the submission's frozen intake quote.
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Reviewed implementation commit used to construct and submit this payout.
     bounty_commit: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Captured, not derived from submissions: this is where the TAO payout
     # actually went. The hotkey is retained as attribution evidence.
     destination_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
     destination_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    source_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
 
     status: Mapped[PayoutState] = mapped_column(
         PAYOUT_STATE, nullable=False, server_default=PayoutState.PENDING.value

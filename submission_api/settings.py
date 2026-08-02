@@ -45,7 +45,10 @@ DISPATCHERS = (QUEUE_DISPATCH, IN_PROCESS_DISPATCH)
 # TAO carries nine decimal places, so its integer base unit is the rao. Payment accounting is
 # integer-only; see docs/SUBNET.md on never using floating point for amounts.
 RAO_PER_TAO = 1_000_000_000
+MAX_DATABASE_RAO = (1 << 63) - 1
 DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
+DEVELOPMENT_BOUNTY_RAO = RAO_PER_TAO
+DEFAULT_BOUNTY_POLICY_VERSION = "flat-tao-v1"
 
 POLICY_VERSION = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
 NETWORK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+.:/_-]{0,254}$")
@@ -134,6 +137,8 @@ class Settings:
     max_bundle_bytes: int
     manual_review_enabled: bool
     review_policy_version: str
+    bounty_amount_rao: int
+    bounty_policy_version: str
 
     @property
     def production(self) -> bool:
@@ -180,6 +185,27 @@ class Settings:
         if POLICY_VERSION.fullmatch(review_policy_version) is None:
             raise SettingsError("REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}")
 
+        # Every accepted paid submission receives a durable quote. Production
+        # must state the liability explicitly instead of inheriting a default.
+        if production and not env.get("BOUNTY_AMOUNT_RAO", "").strip():
+            raise SettingsError(
+                "BOUNTY_AMOUNT_RAO is required in production; it is the direct TAO "
+                "bounty frozen on each accepted submission"
+            )
+        bounty_amount_rao = _positive_int(
+            env,
+            "BOUNTY_AMOUNT_RAO",
+            DEVELOPMENT_BOUNTY_RAO,
+            maximum=MAX_DATABASE_RAO,
+        )
+        bounty_policy_version = env.get(
+            "BOUNTY_POLICY_VERSION", DEFAULT_BOUNTY_POLICY_VERSION
+        ).strip()
+        if POLICY_VERSION.fullmatch(bounty_policy_version) is None:
+            raise SettingsError(
+                "BOUNTY_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
+            )
+
         development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
         invalid = tuple(
             item for item in development_hotkeys if SS58_ADDRESS.fullmatch(item) is None
@@ -216,7 +242,10 @@ class Settings:
             verifier_project_root=_directory(env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT),
             payment_recipient=recipient,
             payment_amount_rao=_positive_int(
-                env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
+                env,
+                "PAYMENT_AMOUNT_RAO",
+                DEFAULT_SUBMISSION_PRICE_RAO,
+                maximum=MAX_DATABASE_RAO,
             ),
             subtensor_network=subtensor_network,
             authenticator=authenticator,
@@ -231,4 +260,6 @@ class Settings:
             ),
             manual_review_enabled=_flag(env, "MANUAL_REWARD_REVIEW_ENABLED", True),
             review_policy_version=review_policy_version,
+            bounty_amount_rao=bounty_amount_rao,
+            bounty_policy_version=bounty_policy_version,
         )

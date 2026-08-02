@@ -30,8 +30,9 @@ python3 scripts/check_schema_drift.py \
   --dsn postgresql://conjectures:<password>@127.0.0.1:5432/postgres
 ```
 
-Set at minimum `APP_MODE=PROD`, the API-role `DATABASE_URL`, `PAYMENT_RECIPIENT_SS58`, and
-`SUBTENSOR_NETWORK`. Start the API without reviewer secrets, wallet files, or a Docker socket:
+Set at minimum `APP_MODE=PROD`, the API-role `DATABASE_URL`, `PAYMENT_RECIPIENT_SS58`,
+`BOUNTY_AMOUNT_RAO`, and `SUBTENSOR_NETWORK`. Start the API without reviewer secrets, wallet files,
+or a Docker socket:
 
 ```bash
 uvicorn submission_api.asgi:app --host 127.0.0.1 --port 8080
@@ -87,8 +88,8 @@ for the shared problem.
 ## 5. Reward worker
 
 Use a dedicated, funded coldkey and a database credential separate from the API and verifier.
-The worker applies an SDK spend cap equal to the configured bounty on every operation and takes a
-database advisory lock so a second reward-signer process cannot race the wallet nonce:
+The worker pays the bounty frozen on each submission, applies an SDK spend cap on every operation,
+and takes a database advisory lock so a second reward-signer process cannot race the wallet nonce:
 
 ```bash
 fc-reward-worker \
@@ -96,7 +97,7 @@ fc-reward-worker \
   --network finney \
   --wallet-name validator-rewards \
   --wallet-path /run/secrets/bittensor-wallets \
-  --bounty-amount-rao <exact-rao> \
+  --max-payout-rao <maximum-frozen-bounty-rao> \
   --bounty-commit <reviewed-git-commit>
 ```
 
@@ -115,12 +116,12 @@ fc-reward-reconcile \
   --network finney \
   --reward-event-id <id> \
   --extrinsic-reference <block-index> \
-  --sender-ss58 <reward-wallet-coldkey> \
   --operator <operator-id>
 ```
 
-The command refuses a failed, nonfinal, wrong-sender, wrong-destination, or wrong-amount transfer
-and appends the normal reward transition event on success.
+The expected reward-wallet sender was frozen on the payout reservation. The command refuses a
+failed, nonfinal, wrong-sender, wrong-destination, or wrong-amount transfer and appends the normal
+reward transition event on success.
 
 ## 6. Required staging drill
 

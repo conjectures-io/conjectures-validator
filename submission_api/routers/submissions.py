@@ -160,6 +160,10 @@ def _status(view: store.SubmissionView) -> schemas.SubmissionStatus:
             amount_rao=submission.payment_amount_rao,
             block=submission.payment_block,
         ),
+        bounty=schemas.BountyQuote(
+            amount_rao=submission.bounty_amount_rao,
+            policy_version=submission.bounty_policy_version,
+        ),
         verification=_verification(view.verification, submission),
         review=None
         if review is None
@@ -319,6 +323,10 @@ async def create_submission(
         # Payment last, and before any write: the schema has no unpaid state.
         payment = await services.payments.confirm(reference=payment_reference, hotkey=miner)
 
+        # Quote only once the payment is confirmed, then freeze the result on
+        # the submission. Approval and payout consume this value verbatim.
+        quote = await services.pricing.quote(session, task_id=task_id)
+
         view = await store.create_submission(
             session,
             store.NewSubmission(
@@ -339,6 +347,9 @@ async def create_submission(
                 hotkey_signature=signature_bytes,
                 manual_review_required=settings.manual_review_enabled,
                 review_policy_version=settings.review_policy_version,
+                bounty_amount_rao=quote.amount_rao,
+                bounty_policy_version=quote.policy_version,
+                bounty_inputs=quote.inputs,
             ),
         )
         if view.replayed:

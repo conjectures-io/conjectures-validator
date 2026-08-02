@@ -66,7 +66,7 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
 9. If manual reward review is not required, or if a held proof is approved, the submission becomes
    reward-eligible and is passed to the reward pipeline.
-10. The reward processor pays the captured per-task bounty and records the chain evidence.
+10. The reward processor pays the intake-frozen bounty and records the chain evidence.
 
 ```text
 miner pays 0.5 TAO

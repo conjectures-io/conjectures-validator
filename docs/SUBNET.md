@@ -52,7 +52,7 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
    timestamp, and policy version are appended to the audit history.
 10. Approved proofs and automatically eligible proofs enter the same reward pipeline.
 11. The first approved outcome atomically claims its shared `problem_id`. The reward worker commits
-    a unique payout record before signing, submits the configured exact TAO bounty, waits for
+    a unique payout record before signing, submits the intake-frozen exact TAO bounty, waits for
     finality, and records the canonical chain reference. An unresolved `PENDING` record blocks
     automatic retries until an operator reconciles whether broadcast occurred, preventing double
     payment.
@@ -173,6 +173,10 @@ Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotenc
 one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
 payment accounting.
 
+**The bounty is quoted once.** After payment confirmation, intake records the direct TAO amount,
+pricing-policy version, and internal pricing inputs on the submission. Winner selection and the
+wallet worker copy that amount rather than consulting mutable live pricing.
+
 ## Manual reward review
 
 Manual review is a policy gate after deterministic Lean verification. The validator needs a
@@ -283,8 +287,8 @@ not repository state.
    the coldkey that owned the signing hotkey at that block.
 3. **How do opposite outcomes race?** Formalized and counterexample tasks share a server-derived
    `problem_id`; a primary-key insert selects exactly one approved winner in PostgreSQL.
-4. **What does this implementation pay?** One exact, configured direct TAO bounty, pre-recorded
-   before signing and exposed to the miner after finality.
+4. **What does this implementation pay?** One exact direct TAO bounty quoted at intake, frozen on
+   the submission, pre-recorded before signing, and exposed to the miner from intake through finality.
 
 ## Decisions still required
 

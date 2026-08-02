@@ -44,6 +44,13 @@ class VerificationStatus(Model):
     finished_at: datetime | None = None
 
 
+class BountyQuote(Model):
+    """Direct TAO bounty frozen at paid-submission intake."""
+
+    amount_rao: int = Field(description="Frozen direct TAO payout in integer rao")
+    policy_version: str
+
+
 class ReviewStatus(Model):
     decision: str
     kind: str
@@ -88,6 +95,7 @@ class SubmissionStatus(Model):
     review_policy_version: str
 
     payment: PaymentRecord
+    bounty: BountyQuote
     verification: VerificationStatus | None = None
     review: ReviewStatus | None = None
     reward: RewardRecord

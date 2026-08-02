@@ -30,6 +30,7 @@ async def reconcile(args: argparse.Namespace) -> None:
                 raise RuntimeError("reward event not found")
             expected_destination = snapshot.destination_coldkey
             expected_amount = snapshot.bounty_amount_rao
+            expected_sender = snapshot.source_coldkey
 
         transfer = await BittensorTransferReader(args.network).finalized_transfer(
             reference=args.extrinsic_reference
@@ -37,7 +38,7 @@ async def reconcile(args: argparse.Namespace) -> None:
         if transfer is None:
             raise RuntimeError("reference is not a successful finalized direct TAO transfer")
         if (
-            transfer.sender != args.sender_ss58
+            transfer.sender != expected_sender
             or transfer.recipient != expected_destination
             or transfer.amount_rao != expected_amount
         ):
@@ -85,6 +86,5 @@ def main() -> None:
     parser.add_argument("--network", default="finney")
     parser.add_argument("--reward-event-id", type=int, required=True)
     parser.add_argument("--extrinsic-reference", required=True)
-    parser.add_argument("--sender-ss58", required=True)
     parser.add_argument("--operator", required=True)
     asyncio.run(reconcile(parser.parse_args()))

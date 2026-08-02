@@ -50,14 +50,21 @@ class BittensorTaoGateway:
         wallet_path: Path,
         max_payout_rao: int,
     ):
+        if max_payout_rao <= 0 or max_payout_rao > (1 << 63) - 1:
+            raise ValueError("maximum payout must fit a positive PostgreSQL BIGINT")
         self.network = network
         self.wallet = bt.Wallet(name=wallet_name, path=str(wallet_path))
         self.reader = BittensorTransferReader(network)
         self.max_payout_rao = max_payout_rao
 
     async def submit(self, payout: RewardEvent) -> SubmittedPayout:
-        if payout.bounty_amount_rao != self.max_payout_rao:
-            raise RuntimeError("payout amount does not match the wallet spend policy")
+        if (
+            payout.bounty_amount_rao <= 0
+            or payout.bounty_amount_rao > self.max_payout_rao
+        ):
+            raise RuntimeError("frozen payout amount exceeds the wallet spend policy")
+        if payout.source_coldkey != self.wallet.coldkeypub.ss58_address:
+            raise RuntimeError("reserved payout source does not match the loaded reward wallet")
         intent = bt.Transfer(
             dest_ss58=payout.destination_coldkey,
             amount_tao=bt.Balance.from_rao(payout.bounty_amount_rao),
@@ -89,7 +96,7 @@ class BittensorTaoGateway:
         if transfer is None:
             return None
         if (
-            transfer.sender != self.wallet.coldkeypub.ss58_address
+            transfer.sender != payout.source_coldkey
             or transfer.recipient != payout.destination_coldkey
             or transfer.amount_rao != payout.bounty_amount_rao
         ):
@@ -103,19 +110,15 @@ class RewardWorker:
         *,
         sessions: async_sessionmaker[AsyncSession],
         gateway: BittensorTaoGateway,
-        bounty_amount_rao: int,
         bounty_commit: str,
         worker_id: str = "reward-worker",
     ):
-        if bounty_amount_rao <= 0:
-            raise ValueError("bounty amount must be positive")
         if COMMIT.fullmatch(bounty_commit) is None:
             raise ValueError("bounty commit must be a 7 to 40 character lowercase git hash")
         if not worker_id or len(worker_id) > 255 or "\x00" in worker_id:
             raise ValueError("worker id must contain 1 to 255 non-NUL characters")
         self.sessions = sessions
         self.gateway = gateway
-        self.bounty_amount_rao = bounty_amount_rao
         self.bounty_commit = bounty_commit
         self.worker_id = worker_id
 
@@ -160,10 +163,14 @@ class RewardWorker:
             ).scalar_one_or_none()
             if submission is None:
                 return None
+            if submission.bounty_amount_rao > self.gateway.max_payout_rao:
+                raise RuntimeError(
+                    "eligible submission bounty exceeds the configured wallet safety cap"
+                )
             payout = await store.create_reward_event(
                 session,
                 submission.id,
-                bounty_amount_rao=self.bounty_amount_rao,
+                source_coldkey=self.gateway.wallet.coldkeypub.ss58_address,
                 bounty_commit=self.bounty_commit,
                 initiated_by=self.worker_id,
             )
@@ -213,12 +220,11 @@ async def _serve(args: argparse.Namespace) -> None:
         network=args.network,
         wallet_name=args.wallet_name,
         wallet_path=args.wallet_path,
-        max_payout_rao=args.bounty_amount_rao,
+        max_payout_rao=args.max_payout_rao,
     )
     worker = RewardWorker(
         sessions=async_session_factory(engine),
         gateway=gateway,
-        bounty_amount_rao=args.bounty_amount_rao,
         bounty_commit=args.bounty_commit,
         worker_id=args.worker_id,
     )
@@ -258,7 +264,12 @@ def main() -> None:
     parser.add_argument("--network", default="finney")
     parser.add_argument("--wallet-name", required=True)
     parser.add_argument("--wallet-path", type=Path, required=True)
-    parser.add_argument("--bounty-amount-rao", type=int, required=True)
+    parser.add_argument(
+        "--max-payout-rao",
+        type=int,
+        required=True,
+        help="wallet safety cap; each submission is paid its lower frozen bounty quote",
+    )
     parser.add_argument("--bounty-commit", required=True)
     parser.add_argument("--worker-id", default="reward-worker")
     parser.add_argument("--poll-seconds", type=float, default=6.0)

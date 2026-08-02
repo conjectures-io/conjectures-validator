@@ -3,7 +3,7 @@
 Gated on `FC_POSTGRES_DSN`, because the schema is PostgreSQL-only. Start one with:
 
     cp .env.example .env && docker compose -f docker-compose.db.yml up -d
-    export FC_POSTGRES_DSN=postgresql+psycopg://conjectures:<pw>@127.0.0.1:<port>/conjectures
+    export FC_POSTGRES_DSN=postgresql+psycopg://conjectures:<pw>@127.0.0.1:<port>/conjectures_test
 """
 
 from __future__ import annotations
@@ -110,6 +110,10 @@ def test_a_paid_submission_is_recorded_and_queued():
             assert body["payment"]["sender"] == COLDKEY
             assert body["payment"]["amount_rao"] == 500_000_000
             assert body["payment"]["block"] > 0
+            assert body["bounty"] == {
+                "amount_rao": 1_000_000_000,
+                "policy_version": "flat-tao-v1",
+            }
 
             # The proof bytes are stored in the database, content-addressed.
             async with kit.session() as session:
@@ -119,6 +123,8 @@ def test_a_paid_submission_is_recorded_and_queued():
                 assert proof.byte_length == len(VALID_PROOF)
                 submission = await session.get(Submission, body["submission_id"])
                 assert submission.request_timestamp_ms > 0
+                assert submission.bounty_amount_rao == 1_000_000_000
+                assert submission.bounty_policy_version == "flat-tao-v1"
         finally:
             await kit.teardown()
 
@@ -800,6 +806,8 @@ def test_positive_and_counterexample_share_one_atomic_winner_and_one_payout():
                             hotkey_signature=b"s" * 64,
                             manual_review_required=False,
                             review_policy_version="v1",
+                            bounty_amount_rao=1_000_000_000,
+                            bounty_policy_version="flat-tao-v1",
                         ),
                     )
                     now = datetime.now(timezone.utc)
@@ -833,11 +841,12 @@ def test_positive_and_counterexample_share_one_atomic_winner_and_one_payout():
                 payout = await store.create_reward_event(
                     session,
                     first.id,
-                    bounty_amount_rao=1_000_000_000,
+                    source_coldkey=COLDKEY,
                     bounty_commit="abcdef0",
                 )
                 await session.commit()
                 assert payout.status == PayoutState.PENDING
+                assert payout.bounty_amount_rao == first.bounty_amount_rao
 
                 await store.mark_reward_submitted(
                     session,

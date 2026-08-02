@@ -79,6 +79,13 @@ CREATE TABLE submissions (
     review_policy_version   TEXT NOT NULL
         CONSTRAINT review_policy_version_nonempty CHECK (length(review_policy_version) BETWEEN 1 AND 64),
 
+    -- Direct TAO bounty quoted after payment confirmation and never repriced downstream.
+    bounty_amount_rao       BIGINT NOT NULL
+        CONSTRAINT submission_bounty_amount_positive CHECK (bounty_amount_rao > 0),
+    bounty_policy_version   TEXT NOT NULL
+        CONSTRAINT bounty_policy_version_nonempty CHECK (length(bounty_policy_version) BETWEEN 1 AND 64),
+    bounty_inputs           JSONB,
+
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -182,17 +189,17 @@ CREATE TABLE reward_events (
 
     eligibility_reason      TEXT NOT NULL,                   -- 'REVIEW_APPROVED' or 'AUTO_REVIEW_DISABLED' (SUBNET.md:206)
 
-    -- The bounty in force when this submission was accepted, captured so repricing
-    -- tasks/bounties.json later cannot change what an in-flight miner is owed.
+    -- Copied from the submission's frozen intake quote.
     bounty_amount_rao       BIGINT NOT NULL                  -- TAO base units (rao); integer only
         CONSTRAINT bounty_amount_positive CHECK (bounty_amount_rao > 0),
-    bounty_commit           TEXT NOT NULL                    -- repo commit the bounty was read from; makes the amount defensible after the fact
+    bounty_commit           TEXT NOT NULL                    -- reviewed implementation commit that submitted the payout
         CONSTRAINT bounty_commit_nonempty CHECK (length(bounty_commit) BETWEEN 7 AND 64),
 
     -- Captured, not derived from submissions: this is where the TAO transfer went.
     -- The hotkey is retained as attribution evidence.
     destination_coldkey     ss58 NOT NULL,                   -- normally submissions.payment_sender, already proven to own the hotkey
     destination_hotkey      ss58 NOT NULL,
+    source_coldkey          ss58 NOT NULL,                   -- reward wallet captured before signing; reconciliation may not substitute it
 
     status                  payout_state NOT NULL DEFAULT 'PENDING',
     extrinsic_reference     TEXT,                            -- NULL until submitted

@@ -126,7 +126,8 @@ python3 scripts/submit_proof.py \
   --wallet <wallet name> --hotkey <hotkey name>
 ```
 
-On success you get `201` and a `submission_id`. Save it.
+On success you get `201`, a `submission_id`, and a `bounty` quote. Save them. The quote is the
+direct TAO amount frozen for this submission; later configuration changes cannot reprice it.
 
 The script signs the canonical request digest with your hotkey. If you'd rather build the
 request yourself, the headers and the exact digest construction are in
