@@ -8,6 +8,8 @@ that schema, not its source of truth:
 * ``engine`` — URL resolution, sync and async engines, sessions, unit-of-work scopes;
 * ``submissions`` — the submission seam: payment-gated intake, verdict recording,
   reward eligibility, and the API rejection log;
+* ``verification`` — claiming work off the verification queue under a lease, because
+  the verifier runs far longer than a transaction may stay open;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 

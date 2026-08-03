@@ -226,6 +226,14 @@ class Submission(Base):
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
 
+    verification_lease_until: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    verification_lease_owner: Mapped[str | None] = mapped_column(Text)
+    verification_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -256,6 +264,20 @@ class Submission(Base):
             "length(bounty_policy_version) BETWEEN 1 AND 64",
             name="bounty_policy_version_nonempty",
         ),
+        CheckConstraint(
+            "verification_attempts >= 0", name="verification_attempts_nonneg"
+        ),
+        # Both halves or neither: a lease with no owner cannot be traced to a process,
+        # and an owner with no expiry never releases.
+        CheckConstraint(
+            "(verification_lease_until IS NULL) = (verification_lease_owner IS NULL)",
+            name="verification_lease_paired",
+        ),
+        CheckConstraint(
+            "verification_lease_owner IS NULL "
+            "OR length(verification_lease_owner) BETWEEN 1 AND 128",
+            name="verification_lease_owner_len",
+        ),
         UniqueConstraint(
             "hotkey", "idempotency_key", name="submissions_idempotency_unique"
         ),
@@ -264,7 +286,8 @@ class Submission(Base):
         ),
         CheckConstraint("updated_at >= created_at", name="updated_not_before_created"),
         # Worker queues, oldest first, for FOR UPDATE SKIP LOCKED. Partial, so only
-        # rows still awaiting work are indexed.
+        # rows still awaiting work are indexed. The lease is not in the verification
+        # predicate: now() is not immutable, so expiry is filtered, not indexed.
         Index(
             "submissions_verification_queue_idx",
             "created_at",

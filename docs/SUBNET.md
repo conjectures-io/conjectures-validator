@@ -256,9 +256,15 @@ components reuse the same models and extend the same migration history rather th
 own. Adding a migration is adding a file to `deploy/migrate/sql`; see
 [`../deploy/README.md`](../deploy/README.md).
 
-It does not yet include the payment allocation/reconciliation worker, the asynchronous
-verification worker, the reviewer-facing decision service, the reward processor, or end-to-end
-Subnet 66 weight submission.
+It does not yet include the payment allocation/reconciliation worker, the reviewer-facing
+decision service, the reward processor, or end-to-end Subnet 66 weight submission.
+
+One open operational question the verification worker raises: whatever launches the verifier
+container needs a Docker socket, which is root-equivalent on the host. The boundary above is
+satisfied — the verifier itself has neither the socket nor the database — but a socket escape in
+the process that also holds database credentials reaches the database one hop later. Rootless
+podman, a pre-provisioned `systemd-run` unit, or a separate unprivileged runner holding the socket
+and no credentials all close it.
 
 ## Implementation sequence
 
@@ -272,8 +278,19 @@ Subnet 66 weight submission.
    operator repair tools. The API already refuses a submission whose payment cannot be confirmed;
    until the reader is injected, `SUBMISSION_PAYMENT_VERIFIER=chain` fails closed and refuses
    every submission rather than admitting an unpaid one.
-4. Add queue workers that claim `verification_runs`, invoke the existing verifier adapter in a
-   separate trust domain, and persist immutable reports.
+4. ~~Add queue workers that claim unverified submissions, invoke the verifier in a separate trust
+   domain, and persist immutable reports.~~ Done in
+   [`../verification_worker/`](../verification_worker/). Workers claim `submissions`, not
+   `verification_runs` — a run row can only be written once the verifier has finished. Claiming
+   uses a committed lease rather than a held `FOR UPDATE SKIP LOCKED` lock, because a production
+   task declares `timeout_seconds = 3600` and the database terminates any session idle in a
+   transaction after 60 seconds.
+
+   The trust boundary is the CLI, not `verifier/service_adapter.py`: the worker runs
+   `python -m verifier verify` in a fresh hardened container and reads the report off stdout. The
+   adapter is on the container's side of that line, since the worker holds the database
+   credentials. Two things still to do: decide who owns the Docker socket (see below), and pay
+   attention to submissions parked at the attempt cap, which may be owed a refund.
 5. Add review authorization and the decision API/UI. The per-submission manual-review flag and
    policy version are already captured, and the gate is already applied when a verdict is
    recorded.

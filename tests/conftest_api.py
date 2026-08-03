@@ -18,13 +18,12 @@ of truth; `scripts/check_schema_drift.py` is what proves the mirror still matche
 
 from __future__ import annotations
 
-import os
 import time
 import uuid
 from dataclasses import dataclass
-from functools import cache
 from pathlib import Path
 
+from conftest import PYTEST_DSN, postgres_dsn
 from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
@@ -67,48 +66,6 @@ __all__ = [
     "submission_headers",
     "valid_bundle",
 ]
-
-
-# The stack in docker-compose.pytest-db.yml, credentials and all. Duplicated there rather than
-# read from a file so neither side can drift into pointing somewhere else, and separate from the
-# development database so a suite that drops and recreates the schema cannot reach real data.
-PYTEST_DSN = (
-    "postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw"
-    "@127.0.0.1:5440/conjectures-pytest"
-)
-
-
-def _reachable(dsn: str) -> bool:
-    """Whether a server is actually answering on `dsn`.
-
-    Probed rather than assumed: the alternative to skipping is every database test failing with
-    a connection error, which reads like a broken suite rather than a stack that is not up.
-    """
-    try:
-        import psycopg
-    except ModuleNotFoundError:  # pragma: no cover - psycopg is a test dependency
-        return False
-    # psycopg wants a libpq DSN; the SQLAlchemy driver suffix is not part of one.
-    libpq = dsn.replace("postgresql+psycopg://", "postgresql://", 1)
-    try:
-        with psycopg.connect(libpq, connect_timeout=2):
-            return True
-    except (psycopg.Error, OSError):
-        return False
-
-
-@cache
-def postgres_dsn() -> str | None:
-    """The database tests' DSN, or None to skip them.
-
-    Cached because this opens a connection and is called once per harness. `FC_POSTGRES_DSN`
-    wins when set, so pointing the suite at another server stays possible; otherwise the fixed
-    pytest stack is used if it is up, which is what makes the tests need no configuration.
-    """
-    explicit = os.environ.get("FC_POSTGRES_DSN", "").strip()
-    if explicit:
-        return explicit
-    return PYTEST_DSN if _reachable(PYTEST_DSN) else None
 
 
 def new_key() -> str:
