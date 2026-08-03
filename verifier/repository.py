@@ -10,11 +10,12 @@ from verifier.errors import ReasonCode, VerifierError
 
 
 PINNED_REPOSITORIES = (
-    ("formal_conjectures", "formal-conjectures"),
-    ("comparator", "comparator"),
-    ("lean4export", "lean4export"),
-    ("landrun", "landrun"),
-    ("nanoda", "nanoda"),
+    ("formal_conjectures", "vendor/formal-conjectures"),
+    ("comparator", "vendor/comparator"),
+    ("lean4export", "vendor/lean4export"),
+    ("landrun", "vendor/landrun"),
+    ("nanoda", "vendor/nanoda"),
+    ("tasks", "tasks"),
 )
 GIT_EXECUTABLE = Path("/usr/bin/git")
 
@@ -129,7 +130,7 @@ def dependency_pin_status(project_root: Path) -> dict[str, dict[str, Any]]:
     statuses: dict[str, dict[str, Any]] = {}
     for key, directory in PINNED_REPOSITORIES:
         expected = str(pins.get(key, {}).get("commit", ""))
-        repository = project_root / "vendor" / directory
+        repository = project_root / directory
         statuses[key] = _checkout_status(repository, expected)
     formal_repository = project_root / "vendor" / "formal-conjectures"
     try:

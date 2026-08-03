@@ -15,6 +15,10 @@
     "repository": "https://github.com/google-deepmind/formal-conjectures.git",
     "commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20"
   },
+  "tasks": {
+    "repository": "https://github.com/conjectures-io/conjectures-tasks.git",
+    "commit": "0d4452ff507ebe930b6bf53770847d24c0393820"
+  },
   "lean": {
     "toolchain": "leanprover/lean4:v4.27.0",
     "commit": "db93fe1608548721853390a10cd40580fe7d22ae"

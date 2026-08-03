@@ -131,11 +131,13 @@ export PATH="$PWD/.venv/bin:$PWD/.elan/bin:$PATH"
 python -m verifier doctor
 ```
 
-The bootstrap script checks out only the commits in `pins.lock.json`, installs the pinned Lean
-toolchains, downloads Mathlib's trusted binary cache, builds Formal Conjectures in `answer`
-postpone mode, and builds Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is
-optional: set `ENABLE_NANODA=1` during bootstrap to build it. Bootstrap also installs the pinned
-service and Subnet 66 dependencies; it does not install the removed legacy miner transport.
+The bootstrap script materializes the pinned
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) checkout and the other
+commits in `pins.lock.json`, installs the pinned Lean toolchains, downloads Mathlib's trusted binary
+cache, builds Formal Conjectures in `answer` postpone mode, and builds Comparator, the Lean-4.27
+`lean4export` backport, and Landrun. Nanoda is optional: set `ENABLE_NANODA=1` during bootstrap to
+build it. Bootstrap also installs the pinned service and Subnet 66 dependencies; it does not
+install the removed legacy miner transport.
 
 Build and inspect the real full-repository catalog:
 
@@ -165,9 +167,11 @@ python -m verifier task generate \
 
 ## Solver task pool
 
-Use the immutable bundles in [`tasks/pool/`](tasks/pool/) as the public targets for solver
-attempts. The task pool is divided into explicit tiers; the current audited set is
-[`tier-1`](tasks/pool/tier-1/). It is pinned to Formal Conjectures commit
+Use the immutable bundles in the pinned
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
+the public targets for solver attempts. The task pool is divided into explicit tiers; the current
+audited set is
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1). It is pinned to Formal Conjectures commit
 `e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 58 committed bundles covering 29
 reward problems from 29 audited Erdős source files. Each source has a `formalized` target `P` and a
 `counterexample` target `¬ P`; the pair shares one `problem_id` and can produce at most one reward.
