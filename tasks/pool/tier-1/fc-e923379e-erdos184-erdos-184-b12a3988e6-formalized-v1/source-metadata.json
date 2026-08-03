@@ -1,0 +1,44 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Any graph on $n$ vertices can be decomposed into $O(n)$ many edge-disjoint cycles and edges.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«184»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/184](https://www.erdosproblems.com/184)",
+    "[BM22](https://arxiv.org/abs/2211.07689) Bucić, M. and Montgomery, R., Towards the Erdős-Gallai Cycle Decomposition Conjecture. arXiv:2211.07689 (2022).",
+    "[CFS14](https://arxiv.org/abs/1310.0632) Conlon, David and Fox, Jacob and Sudakov, Benny, Cycle packing. Random Structures Algorithms (2014), 608-626.",
+    "[EGP66](https://doi.org/10.4153/CJM-1966-014-3) Erdős, Paul and Goodman, A. W. and Pósa, Lajos, The representation of a graph by set intersections. Canadian J. Math. (1966), 106-112.",
+    "[Er71](https://users.renyi.hu/~p_erdos/1971-25.pdf) Erdős, P., Some unsolved problems in graph theory and combinatorial analysis. Combinatorial Mathematics and its Applications (Proc. Conf., Oxford, 1969) (1971), 97-109."
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/184.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos184.erdos_184",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:c442f6327f0c100f43f1cccecdbba7a72629b40d981e762390af4d96e265ee18",
+  "type_pretty": "∃ f,\n  (f =O[Filter.atTop] fun n => ↑n) ∧\n    ∀ {V : Type u_1} [inst : Fintype V] [DecidableEq V] (G : SimpleGraph V),\n      ∃ D, (∀ H ∈ D, Erdos184.IsCycleOrEdge H.coe) ∧ Erdos184.IsDecomposition G D ∧ ↑D.card ≤ f (Fintype.card V)"
+}

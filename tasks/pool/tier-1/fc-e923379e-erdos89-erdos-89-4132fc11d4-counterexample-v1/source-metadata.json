@@ -1,0 +1,43 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    52
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Erdős [Er46] asked whether every set of $n$ distinct points in $\\mathbb{R}^2$\ndetermines $\\gg \\frac{n}{\\sqrt{\\log n}}$ many distinct distances.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": false,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«89»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/89](https://www.erdosproblems.com/89)",
+    "[Er46](https://doi.org/10.2307/2305092) Erdős, Paul. On sets of distances of $n$ points. Amer. Math. Monthly 53 (1946), 248--250.",
+    "[GuKa15](https://doi.org/10.4007/annals.2015.181.1.2) Guth, Larry and Katz, Nets Hawk. On the Erdős distinct distances problem in the plane. Ann. of Math. (2) 181 (2015), 155--190.",
+    "[Mo52](https://doi.org/10.2307/2307105) Moser, Leo. On the different distances determined by $n$ points. Amer. Math. Monthly 59 (1952), 85--91."
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/89.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos89.erdos_89",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:14461c0f9134bf4581dd5212ac64e93bc64e084486ef9f875008fc8c3473c452",
+  "type_pretty": "(fun n => ↑n / √(Real.log ↑n)) =O[Filter.atTop] fun n => ↑(EuclideanGeometry.minimalDistinctDistances n)"
+}

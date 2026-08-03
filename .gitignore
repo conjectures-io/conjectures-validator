@@ -11,9 +11,5 @@ __pycache__/
 .work/
 dist/
 build/
-.env
-# Default ARTIFACT_ROOT for the submission API; artifact bytes are never committed.
-.artifacts/
 # Recreated at pinned revisions by scripts/pin_dependencies.sh.
 vendor/
-.venv-api/*

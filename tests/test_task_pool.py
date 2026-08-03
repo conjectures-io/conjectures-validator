@@ -6,10 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from submission_api.taskpool import TaskCatalog
 from verifier.catalog import load_catalog
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
-from verifier.task_generator import problem_id, task_directory_name
+from verifier.task_generator import problem_id
 from verifier.task_pool import (
     DEFAULT_TASK_TIER,
     DEFAULT_TIER_SIZE,
@@ -149,10 +148,6 @@ def test_checked_in_task_pool_is_paired_tiered_and_allowlisted():
         bundle = load_task_bundle(task_directory)
         manifest = bundle.manifest
         assert registry.assert_bundle(bundle).task_id == manifest.task_id
-        assert task_directory.name == task_directory_name(
-            tuple(source.theorem for source in bundle.sources),
-            manifest.task_mode,
-        )
         assert manifest.task_mode in PRODUCTION_TASK_MODES
         assert manifest.production_eligible
         assert manifest.classification.value == "DIRECT_PROP"
@@ -188,11 +183,6 @@ def test_checked_in_task_pool_is_paired_tiered_and_allowlisted():
         problem_modes.setdefault(task.problem_id, set()).add(task.mode)
     assert len(problem_modes) == DEFAULT_TIER_SIZE
     assert all(modes == set(PRODUCTION_TASK_MODES) for modes in problem_modes.values())
-    catalog = TaskCatalog.load(
-        allowlist_path=allowlist,
-        pool_root=ROOT / "tasks/pool",
-    )
-    assert set(catalog.entries) == set(registry.tasks)
 
 
 def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path):

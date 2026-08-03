@@ -1,0 +1,40 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    5
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $A = \\{1, 2, 4, 8, 13, 21, 31, 45, 66, 81, 97, \\ldots\\}$ be the greedy Sidon sequence:\nwe begin with $1$ and iteratively include the next smallest integer that preserves the\nSidon property (i.e. there are no non-trivial solutions to $a + b = c + d$). What is the\norder of growth of $A$? Is it true that $|A \\cap \\{1, \\ldots, N\\}| \\gg N^{1/2 - \\varepsilon}$\nfor all $\\varepsilon > 0$ and large $N$?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«340»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/340](https://www.erdosproblems.com/340)"
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/340.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos340.erdos_340",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:d0bd6bbca81683d2f19d089c381cf1f17435eaeb8abaa9b27356681c76c08090",
+  "type_pretty": "∀ ε > 0, (fun n => √↑n / ↑n ^ ε) =O[Filter.atTop] fun n => ↑(Set.range Finset.greedySidon ∩ Set.Icc 1 n).ncard"
+}

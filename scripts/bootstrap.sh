@@ -4,9 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-git submodule update --init --recursive
-find "$ROOT/tasks/pool" -type d -exec chmod 755 {} +
-find "$ROOT/tasks/pool" -type f -exec chmod 644 {} +
 ./scripts/pin_dependencies.sh
 
 export ELAN_HOME="${ELAN_HOME:-$ROOT/.elan}"
@@ -43,7 +40,7 @@ export PATH="$ELAN_HOME/bin:$PATH"
 python3 -m venv "$ROOT/.venv"
 "$ROOT/.venv/bin/pip" install \
   --constraint "$ROOT/requirements-service.lock" \
-  -e '.[dev,service,subnet,db]'
+  -e '.[dev,service,subnet]'
 "$ROOT/.venv/bin/pip" check
 ./scripts/build_trusted_cache.sh
 "$ROOT/.venv/bin/python" -m verifier doctor

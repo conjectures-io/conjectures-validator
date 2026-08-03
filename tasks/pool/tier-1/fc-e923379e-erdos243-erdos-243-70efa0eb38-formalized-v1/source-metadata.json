@@ -1,0 +1,40 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    40
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let $a_1 < a_2 < \\dots$ be a sequence of integers such that\n$\\lim_{n\\to\\infty} \\frac{a_n}{a_{n-1}^2} = 1$ and $\\sum \\frac{1}{a_n} \\in \\mathbb{Q}$.\n\nThen, for all sufficiently large $n \\ge 1$, $a_n = a_{n-1}^2 - a_{n-1} + 1$.\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«243»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/243](https://www.erdosproblems.com/243)"
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/243.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos243.erdos_243",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:ba32c2cf4a6115f9b6f592a10cfc4eb7e93182059efa2302ca69a211ced3ec3f",
+  "type_pretty": "∀ (a : ℕ → ℕ),\n  StrictMono a →\n    Filter.Tendsto (fun n => ↑(a n) / ↑(a (n - 1)) ^ 2) Filter.atTop (nhds 1) →\n      (Summable fun x => 1 / ↑(a x)) → ∀ᶠ (n : ℕ) in Filter.atTop, a n = a (n - 1) ^ 2 - a (n - 1) + 1"
+}

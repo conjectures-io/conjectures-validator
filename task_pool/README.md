@@ -9,8 +9,7 @@ and bundle, so moving a task between tiers is a reviewed policy change.
 
 - `allowlist.json` is the pool-wide, machine-readable admission set.
 - `tiers/<tier>/` contains that tier's selection audit and policy inputs.
-- [`../tasks/pool/<tier>/`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool)
-  contains the immutable task bundles through the pinned `conjectures-tasks` submodule.
+- `../tasks/pool/<tier>/` contains the immutable task bundles.
 
 The current release has one tier, `tier-1`. Additional tiers can be added without
 renaming the pool or weakening deny-by-default validation.

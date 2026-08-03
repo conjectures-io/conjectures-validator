@@ -1,0 +1,40 @@
+{
+  "adapter_version": 1,
+  "ams_subjects": [
+    11
+  ],
+  "answer_occurrences": [],
+  "category": "research open",
+  "classification": "DIRECT_PROP",
+  "contains_answer_annotation": false,
+  "contains_sorry_in_type": false,
+  "contains_sorry_in_value": true,
+  "declaration_kind": "theorem",
+  "depends_on_sorry": true,
+  "docstring": "Let `A ⊆ ℕ` be an infinite set such that the triple sums `a + b + c` are all distinct for\n`a, b, c` in `A` (aside from the trivial coincidences). Is it true that\n`liminf n → ∞ |A ∩ {1, …, N}| / N^(1/3) = 0`?\n",
+  "finite_constructors": [],
+  "formal_proof_kind": null,
+  "formal_proof_link": null,
+  "has_parameters": true,
+  "is_prop": true,
+  "module": "FormalConjectures.ErdosProblems.«41»",
+  "pointer_target": null,
+  "references": [
+    "[erdosproblems.com/41](https://www.erdosproblems.com/41)"
+  ],
+  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "source_path": "FormalConjectures/ErdosProblems/41.lean",
+  "supported_modes": [
+    "positive",
+    "negative"
+  ],
+  "theorem": "Erdos41.erdos_41",
+  "transitive_axioms": [
+    "propext",
+    "sorryAx",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "type_hash": "sha256:d254b0ecdd34012c0f1b4044e03eb4cff0fda16778d2cd2a1f1d7b047e0cf084",
+  "type_pretty": "∀ (A : Set ℕ),\n  Erdos41.NtupleCondition A 3 →\n    A.Infinite → Filter.liminf (fun N => ↑(A ∩ Set.Icc 1 N).ncard / ↑N ^ (1 / 3)) Filter.atTop = 0"
+}
