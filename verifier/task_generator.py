@@ -13,6 +13,7 @@ from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import hash_named_files, pretty_json, sha256_text
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
 from verifier.task_policy import (
+    COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
     production_eligibility,
     proved_type_collisions,
@@ -50,6 +51,16 @@ def task_id(repository_commit: str, theorem: str, mode: str, adapter_version: in
     seed = f"{repository_commit}\0{theorem}\0{mode}\0{adapter_version}"
     digest = sha256_text(seed)[7:17]
     return f"fc-{repository_commit[:8]}-{task_slug(theorem)}-{digest}-{mode}-v{adapter_version}"
+
+
+def problem_id(repository_commit: str, theorems: tuple[str, ...]) -> str:
+    if not theorems:
+        raise ValueError("a problem identity requires at least one source theorem")
+    seed = f"{repository_commit}\0problem\0" + "\0".join(theorems)
+    digest = sha256_text(seed)[7:39]
+    slug = task_slug(theorems[0])
+    suffix = f"-all-{len(theorems)}" if len(theorems) > 1 else ""
+    return f"fc-{repository_commit[:8]}-{slug}{suffix}-{digest}-problem"
 
 
 def group_task_id(
@@ -294,6 +305,11 @@ def generate_task(
             raise VerifierError(
                 ReasonCode.STATEMENT_MISMATCH,
                 "formalized task target is not the exact source theorem type",
+            )
+        if mode == COUNTEREXAMPLE_TASK_MODE and generated_hash == declaration.type_hash:
+            raise VerifierError(
+                ReasonCode.STATEMENT_MISMATCH,
+                "counterexample task target unexpectedly matches the source theorem type",
             )
         target_collisions = proved_type_collisions(
             catalog,

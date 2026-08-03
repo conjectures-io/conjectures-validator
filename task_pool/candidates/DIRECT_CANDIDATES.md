@@ -4,7 +4,7 @@ Audit date: `2026-07-28`
 
 Formal Conjectures commit: `f7349f32ba6df6e7b7baf77467a3c6c7777a634d`
 
-This inventory contains **274 declarations across 165 source files**. It excludes the 29 current tier-1 tasks. A row is a review candidate, not an admitted or certified task.
+This inventory contains **274 declarations across 165 source files**. It excludes the 29 current tier-1 reward problems. A row is a review candidate, not an admitted or certified task.
 
 After exact-shape rejection and current manual decisions, **249** remain as provisional additions.
 

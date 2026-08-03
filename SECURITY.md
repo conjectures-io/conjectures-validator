@@ -61,14 +61,13 @@ a miner-facing API.
 
 ## Admitted proofs and open sources
 
-Formal Conjectures represents an open conjecture as a theorem whose repository proof transitively
+Formal Conjectures represents an open conjecture `P` as a theorem whose repository proof transitively
 contains Lean's `sorryAx`. Production task generation intentionally requires that marker, the
 `research open` category, `DIRECT_PROP` classification, theorem declaration kind, and absence of
-formal-proof metadata. The task must use `formalized` mode: every complete target type is
-definitionally equal to its corresponding source theorem type and has the same canonical hash.
-Answer extraction and synthetic positive/negative pairing are not admitted to the task pool.
-Those facts are independently recomputed for every target from the compiled Lean environment
-during verification.
+formal-proof metadata. Each source has a `formalized` task definitionally equal to `P` and a
+`counterexample` task definitionally equal to `Not P`. Both relations and canonical target hashes
+are independently recomputed from the compiled Lean environment during generation and verification.
+Answer extraction and the legacy experimental `positive`/`negative` modes are not admitted.
 
 The admitted source theorem is used only to identify and reconstruct its type. It is placed on the
 forbidden-dependency list, and `sorryAx` is not a permitted axiom. Consequently, invoking that
@@ -97,7 +96,7 @@ The permitted production axioms are exactly:
 | Use an exotic compression method or a split archive | Only `stored` and `deflate`; multi-disk and spanned archives are refused |
 | Claim a different task or another miner's identity in the manifest | The manifest's task id, task digest, and hotkey must equal the operator-supplied commitment and the authenticated hotkey |
 | Change or swap task files | No-follow bounded reads, exact file set, per-file hashes, deterministic payload regeneration, and external whole-bundle SHA-256 |
-| Supply a solved, transformed, paired-negative, answer-wrapper, or test task | Exact `formalized` mode, source/target type-hash equality, compiled classification/category/declaration kind, formal-proof tag, `sorryAx` dependency, and target-hole checks |
+| Supply a solved, incorrectly transformed, answer-wrapper, or test task | Allowlisted mode, independent compiled `P`/`Not P` target reconstruction, source and target hashes, compiled classification/category/declaration kind, formal-proof tag, `sorryAx` dependency, and target-hole checks |
 | Submit `sorry`, `admit`, an axiom, a module initializer, or the admitted source theorem | Token policy plus Comparator's transitive axiom closure |
 | Hide an answer behind a decoy namespace or alternate declaration kind | Exactly one ordinary `Bounty.submittedAnswer` definition is required |
 | Make numeral text elaborate to a different value | Instance declarations and syntax/notation extensions are prohibited; the definition type/value is still kernel checked |
@@ -163,6 +162,8 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
   unrelated imported lemmas are not a complete novelty check. If rewards require global proof
   novelty, use a separately reviewed source-pruned environment and an explicit novelty policy.
 - Correctness of the informal-to-Lean formalization remains a human review obligation.
+- A `counterexample` acceptance proves `Not P`; it does not promise an extracted witness. For
+  existential, implication, or already-negated sources, “refutation” may be the more precise term.
 - Resource bounds reduce single-submission denial of service. The paid API, payment reconciliation,
   validator replication, scoring, consensus, weight submission, and reward logic remain outside the
   one-shot verifier.

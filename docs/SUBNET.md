@@ -12,7 +12,8 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 - One submission costs exactly **0.5 TAO**.
 - The miner pays and submits a candidate Lean proof through the validator API.
 - A payment may fund at most one submission.
-- A submission targets one exact immutable task-bundle digest.
+- A submission targets one exact immutable proof or counterexample task-bundle digest.
+- Proof and counterexample variants share one problem identity and may produce at most one reward.
 - Payment never changes the verification result.
 - Only a proof accepted by the hardened Lean verifier may reach reward review or rewards.
 - Manual review, when enabled, gates reward eligibility after Lean succeeds.
@@ -22,13 +23,15 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 
 ## End-to-end flow
 
-1. A miner selects an eligible task and produces a candidate `Main.lean`, then packages it as a
-   `conjectures-submission/v1` bundle ([`SUBMISSION_BUNDLE.md`](SUBMISSION_BUNDLE.md)).
+1. A miner selects an eligible `formalized` or `counterexample` task and produces a candidate
+   `Main.lean`, then packages it as a `conjectures-submission/v1` bundle
+   ([`SUBMISSION_BUNDLE.md`](SUBMISSION_BUNDLE.md)).
 2. The miner transfers 0.5 TAO to the configured payment recipient.
 3. The miner calls the submission API with:
    - an idempotency key;
    - authenticated miner identity;
-   - the task ID and exact task-bundle SHA-256;
+   - the task ID and exact task-bundle SHA-256 (the server derives the problem ID and mode from
+     the allowlist);
    - the payment transaction or extrinsic reference; and
    - the candidate proof bundle.
 4. The API validates request limits, admits the bundle against its exact shape and the static Lean
@@ -162,6 +165,15 @@ Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotenc
 one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
 payment accounting.
 
+One uniqueness constraint the contract requires is still missing. The task pool now issues a
+`formalized` and a `counterexample` task for each problem, and the core contract above allows at
+most one reward per problem identity — but `V001` carries only `task_id` and `task_bundle_sha256`.
+There is no `problem_id` column and no `task_mode`, so nothing in the schema stops one problem from
+paying twice, once for the proof and once for its counterexample. Closing it needs `problem_id` and
+`task_mode` on `submissions`, populated from the allowlist at intake, and a partial unique index on
+`problem_id` over reward-eligible rows. Until that migration exists the exclusivity is an intention,
+not an invariant.
+
 ## Manual reward review
 
 Manual review is a policy gate after deterministic Lean verification. The validator needs a
@@ -200,6 +212,11 @@ Production acceptance requires:
 - Lean kernel acceptance;
 - the production Landlock/seccomp sandbox.
 
+For `formalized` mode, the committed target is definitionally equal to the source proposition `P`.
+For `counterexample` mode, it is definitionally equal to `Not P`. Both use the same static policy,
+axiom closure, Comparator statement check, kernel replay, and sandbox. A counterexample result is a
+formal refutation; the generic verifier does not claim to extract a displayable witness.
+
 A plain successful `lake build` is not an accepted result. See [`../SECURITY.md`](../SECURITY.md)
 for the exact security boundary and residual risks.
 
@@ -208,7 +225,7 @@ for the exact security boundary and residual risks.
 The repository currently includes:
 
 - deterministic extraction and task generation from the pinned Formal Conjectures revision;
-- an audited allowlist of 29 whole-problem Erdős reward tasks;
+- an audited allowlist of 58 proof/counterexample bundles for 29 whole-problem Erdős rewards;
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;
 - an API-neutral service adapter for bounded proof bytes and exact task digests;

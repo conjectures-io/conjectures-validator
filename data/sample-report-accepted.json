@@ -23,10 +23,11 @@
     "Quot.sound",
     "Classical.choice"
   ],
+  "problem_id": "fc-e923379e-verifierfixtures-natanswer-59357b5653b6776b2e42a023cfbfb5c6-problem",
   "reason_code": "VERIFIED",
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "sandbox_mode": "development-fake-landrun",
-  "schema_version": 1,
+  "schema_version": 2,
   "source_theorem": "VerifierFixtures.natAnswer",
   "stage": "COMPLETED",
   "stderr_tail": "",
