@@ -135,13 +135,24 @@ class VerificationWorker:
         if outcome is Outcome.OPERATOR:
             return await self._operator(claim, run.reason_code, f"stage={run.stage}")
 
-        # Unconditional, not production-only: an accept produced without the real Landlock and
-        # seccomp isolation says nothing sound about the proof, whatever the report claims.
+        # An accept produced without the real Landlock and seccomp isolation says nothing sound
+        # about the proof, whatever the report claims — so it is refused unless this deployment
+        # has explicitly asked for an insecure sandbox, which WorkerSettings permits only for the
+        # in-process runner outside production. The verdict is still recorded with the sandbox mode
+        # that actually ran, so nothing downstream can mistake it for a production one.
         if run.accepted and run.sandbox_mode != PRODUCTION_SANDBOX_MODE:
-            return await self._operator(
-                claim,
-                ReasonCode.INSECURE_SANDBOX,
-                f"accepted under sandbox_mode={run.sandbox_mode!r}",
+            if not self.settings.allow_insecure_sandbox:
+                return await self._operator(
+                    claim,
+                    ReasonCode.INSECURE_SANDBOX,
+                    f"accepted under sandbox_mode={run.sandbox_mode!r}",
+                )
+            logger.warning(
+                "recording an accept produced without production isolation submission=%s "
+                "sandbox_mode=%s: VERIFICATION_ALLOW_INSECURE_SANDBOX is set, so this verdict is "
+                "evidence that the Lean checks out and nothing more",
+                claim.submission_id,
+                run.sandbox_mode,
             )
 
         async with async_session_scope(self.sessions) as session:

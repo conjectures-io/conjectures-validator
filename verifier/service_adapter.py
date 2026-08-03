@@ -16,6 +16,12 @@ class ProductionVerifierAdapter:
     """Narrow service-facing handoff into the production proof verifier."""
 
     project_root: Path
+    # Development only, and off unless a caller asks for it. Skips the fail-closed sandbox probe
+    # and runs the comparator under the non-sandboxing shim, so the resulting report is about
+    # whether the Lean checks out and says nothing about isolation. Its `sandbox_mode` is
+    # `development-fake-landrun` rather than the production name, which is what lets a consumer
+    # tell such a report apart from one that may be paid on.
+    allow_insecure_development: bool = False
 
     def verify_file(
         self,
@@ -31,6 +37,7 @@ class ProductionVerifierAdapter:
             submission_path=submission_path,
             project_root=self.project_root,
             expected_task_sha256=expected_task_sha256,
+            allow_insecure_development=self.allow_insecure_development,
         )
 
     def verify_bytes(

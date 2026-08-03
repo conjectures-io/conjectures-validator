@@ -97,6 +97,17 @@ def _positive_float(environ: Mapping[str, str], key: str, default: float) -> flo
     return value
 
 
+def _flag(environ: Mapping[str, str], key: str) -> bool:
+    raw = environ.get(key, "").strip().lower()
+    if not raw:
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "no", "off"):
+        return False
+    raise SettingsError(f"{key} must be a boolean, got {raw!r}")
+
+
 def _directory(environ: Mapping[str, str], key: str, default: Path) -> Path:
     raw = environ.get(key, "").strip()
     return Path(os.path.abspath(default if not raw else Path(raw)))
@@ -112,6 +123,7 @@ class WorkerSettings:
     app_mode: str
     database_url: str
     runner: str
+    allow_insecure_sandbox: bool
     owner: str
     verifier_image: str
     verifier_version: str
@@ -159,6 +171,28 @@ class WorkerSettings:
                 "credentials and must not compile a miner's proof in its own trust domain"
             )
 
+        # Runs the verifier without its fail-closed isolation probe, under the non-sandboxing
+        # development shim. For hosts that cannot provide the real thing — a kernel below Landlock
+        # ABI 4, or macOS — where the alternative is that every submission parks unjudged.
+        #
+        # Refused in production for the obvious reason, and refused with the container runner
+        # because it would do nothing there: that runner invokes the published verifier CLI, which
+        # is not passed this flag. A security setting that is silently ignored is worse than one
+        # that is absent, so it is an error rather than a no-op.
+        allow_insecure_sandbox = _flag(env, "VERIFICATION_ALLOW_INSECURE_SANDBOX")
+        if allow_insecure_sandbox and production:
+            raise SettingsError(
+                "VERIFICATION_ALLOW_INSECURE_SANDBOX is not permitted in production; a proof "
+                "accepted without the real Landrun/seccomp isolation says nothing sound about "
+                "the proof, and must never become reward-eligible"
+            )
+        if allow_insecure_sandbox and runner != IN_PROCESS_RUNNER:
+            raise SettingsError(
+                "VERIFICATION_ALLOW_INSECURE_SANDBOX only affects the in-process runner; the "
+                f"container runner does not pass it to the verifier, so with {runner!r} it would "
+                "be silently ignored"
+            )
+
         verifier_version = env.get("VERIFIER_VERSION", "").strip()
         if production and not verifier_version:
             raise SettingsError(
@@ -172,6 +206,7 @@ class WorkerSettings:
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
             runner=runner,
+            allow_insecure_sandbox=allow_insecure_sandbox,
             owner=env.get("VERIFICATION_WORKER_ID", "").strip() or default_owner(),
             verifier_image=env.get("VERIFIER_IMAGE", "").strip() or DEFAULT_IMAGE,
             verifier_version=verifier_version or "development",

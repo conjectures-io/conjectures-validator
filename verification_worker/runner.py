@@ -317,6 +317,9 @@ class InProcessVerifierRunner:
     project_root: Path
     verifier_version: str = "in-process"
     container_digest: str = "sha256:" + "00" * 32
+    # Passed through to the adapter, which is otherwise given none of the CLI's override flags.
+    # See WorkerSettings.allow_insecure_sandbox for what it costs and where it is refused.
+    allow_insecure_development: bool = False
 
     async def run(
         self,
@@ -329,7 +332,10 @@ class InProcessVerifierRunner:
         del timeout_seconds  # verify() enforces the manifest's own deadline
         from verifier.service_adapter import ProductionVerifierAdapter
 
-        adapter = ProductionVerifierAdapter(project_root=self.project_root)
+        adapter = ProductionVerifierAdapter(
+            project_root=self.project_root,
+            allow_insecure_development=self.allow_insecure_development,
+        )
         try:
             report = await asyncio.to_thread(
                 adapter.verify_bytes,
@@ -372,7 +378,10 @@ def build_runner(settings: Any) -> VerifierRunner:
     if settings.runner == IN_PROCESS_RUNNER:
         if settings.production:  # pragma: no cover - WorkerSettings already refuses this
             raise RuntimeError("the in-process runner is not permitted in production")
-        return InProcessVerifierRunner(project_root=settings.verifier_project_root)
+        return InProcessVerifierRunner(
+            project_root=settings.verifier_project_root,
+            allow_insecure_development=settings.allow_insecure_sandbox,
+        )
     raise RuntimeError(f"unknown verification runner: {settings.runner}")
 
 

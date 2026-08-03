@@ -210,6 +210,39 @@ def test_development_needs_no_configuration_at_all():
     assert not settings.production
     assert settings.runner == "in-process"
     assert settings.owner  # host/pid, so a lease can be traced to a process
+    # The isolation override is opt-in. A deployment that says nothing gets the real sandbox.
+    assert settings.allow_insecure_sandbox is False
+
+
+def test_production_refuses_an_insecure_sandbox():
+    # An accept produced without the real isolation says nothing sound about the proof, so it must
+    # never be reachable in the deployment that pays out.
+    with pytest.raises(SettingsError, match="VERIFICATION_ALLOW_INSECURE_SANDBOX"):
+        WorkerSettings.from_env(
+            {
+                "APP_MODE": "PROD",
+                "VERIFICATION_RUNNER": "container",
+                "VERIFIER_VERSION": "v1",
+                "VERIFICATION_ALLOW_INSECURE_SANDBOX": "1",
+            }
+        )
+
+
+def test_an_insecure_sandbox_is_refused_where_it_would_do_nothing():
+    # The container runner invokes the published verifier CLI without this flag, so honouring it
+    # there would be a lie. Silently ignoring a security setting is worse than not having one.
+    with pytest.raises(SettingsError, match="only affects the in-process runner"):
+        WorkerSettings.from_env(
+            {
+                "VERIFICATION_RUNNER": "container",
+                "VERIFICATION_ALLOW_INSECURE_SANDBOX": "true",
+            }
+        )
+
+
+def test_the_insecure_sandbox_flag_rejects_a_value_it_cannot_read():
+    with pytest.raises(SettingsError, match="must be a boolean"):
+        WorkerSettings.from_env({"VERIFICATION_ALLOW_INSECURE_SANDBOX": "maybe"})
 
 
 def test_the_lease_covers_the_container_which_covers_the_task_deadline():

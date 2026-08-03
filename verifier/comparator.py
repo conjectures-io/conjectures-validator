@@ -4,15 +4,14 @@ import os
 import platform
 import subprocess
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
 from verifier.errors import ReasonCode
 from verifier.models import ProcessResult, TaskManifest
 from verifier.process import run_process
 from verifier.workspace import WorkspacePaths
-
 
 COMPARATOR_MEMORY_BYTES = 64 * 1024 * 1024 * 1024
 RESOURCE_FAILURE_MARKERS = (
@@ -25,6 +24,12 @@ RESOURCE_FAILURE_MARKERS = (
 )
 
 
+# The only isolation a production verdict may be produced under. Named here because both
+# `resolve_tools` and the checks that gate on it have to agree on the spelling.
+PRODUCTION_SANDBOX_MODE = "landrun+seccomp"
+DEVELOPMENT_SANDBOX_MODE = "development-fake-landrun"
+
+
 @dataclass(frozen=True)
 class ComparatorTools:
     comparator: Path
@@ -35,18 +40,32 @@ class ComparatorTools:
     sandbox_mode: str
 
 
-def resolve_tools(project_root: Path) -> ComparatorTools:
+def resolve_tools(
+    project_root: Path, *, insecure_development: bool = False
+) -> ComparatorTools:
+    """The isolation tools this host will use, and the honest name for what they provide.
+
+    `insecure_development` selects the same non-sandboxing shim that non-Linux hosts already get,
+    on Linux too. It exists because the real Landrun refuses to start below Landlock ABI 4 and
+    exits 126, which `run_comparator` cannot distinguish from a proof the comparator rejected —
+    so without this the environment's own failure is recorded as a verdict against the miner.
+
+    The resulting `sandbox_mode` is `development-fake-landrun`, not the production name. That is
+    the point: `production_sandbox_available` keys off it, so the caller must still pass
+    `allow_insecure_development` to get past the gate, and every report and `verification_runs`
+    row states which isolation actually ran.
+    """
     root = project_root.resolve()
     comparator = root / "vendor/comparator/.lake/build/bin/comparator"
     exporter = root / "vendor/lean4export/.lake/build/bin/lean4export"
-    if platform.system() == "Linux":
+    if platform.system() == "Linux" and not insecure_development:
         landrun = root / "security/hardened-landrun.sh"
         launcher = root / ".tools/seccomp-launcher"
-        mode = "landrun+seccomp"
+        mode = PRODUCTION_SANDBOX_MODE
     else:
         landrun = root / "vendor/comparator/scripts/fake-landrun.sh"
         launcher = None
-        mode = "development-fake-landrun"
+        mode = DEVELOPMENT_SANDBOX_MODE
     default_nanoda = root / "vendor/nanoda/target/release/nanoda_bin"
     nanoda = default_nanoda if default_nanoda.is_file() else None
     return ComparatorTools(comparator, exporter, landrun, launcher, nanoda, mode)
@@ -62,7 +81,9 @@ def missing_tools(tools: ComparatorTools, enable_nanoda: bool = False) -> tuple[
         "lean4export": tools.lean4export,
         "landrun": tools.landrun,
     }
-    if platform.system() == "Linux":
+    # Keyed off the mode rather than the platform: the development shim deliberately has no
+    # seccomp launcher, and demanding one would report it as a missing tool instead.
+    if tools.sandbox_mode == PRODUCTION_SANDBOX_MODE:
         required["seccomp_launcher"] = tools.seccomp_launcher
     if enable_nanoda:
         required["nanoda"] = tools.nanoda
@@ -140,7 +161,7 @@ def production_sandbox_available(
     return (
         platform.system() == "Linux"
         and unprivileged
-        and tools.sandbox_mode == "landrun+seccomp"
+        and tools.sandbox_mode == PRODUCTION_SANDBOX_MODE
         and not missing_tools(tools, False)
         and landlock_available(tools)
         and behavior_valid
@@ -173,8 +194,9 @@ def run_comparator(
     lake: Path,
     env: Mapping[str, str],
     timeout_seconds: int,
+    insecure_development: bool = False,
 ) -> tuple[ProcessResult, ComparatorTools]:
-    tools = resolve_tools(project_root)
+    tools = resolve_tools(project_root, insecure_development=insecure_development)
     absent = missing_tools(tools, manifest.enable_nanoda)
     if absent:
         detail = ", ".join(absent)

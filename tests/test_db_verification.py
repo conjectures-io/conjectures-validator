@@ -440,9 +440,9 @@ def report(**overrides) -> dict:
     return payload
 
 
-def worker(kit: Kit, runner) -> VerificationWorker:
+def worker(kit: Kit, runner, env: dict[str, str] | None = None) -> VerificationWorker:
     return VerificationWorker(
-        settings=WorkerSettings.from_env({}),
+        settings=WorkerSettings.from_env(env or {}),
         sessions=kit.sessions,
         runner=runner,
         tasks=resolver_from_tasks(
@@ -562,6 +562,40 @@ def test_an_accept_without_the_real_sandbox_is_refused():
             assert (
                 await kit.row(submission_id)
             ).verification_status == VerificationState.UNVERIFIED
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_accept_without_the_real_sandbox_is_recorded_when_explicitly_permitted():
+    async def scenario():
+        kit = await Kit.setup()
+        try:
+            submission_id = await kit.submit()
+            processed = await worker(
+                kit,
+                FakeRunner(payload=report(sandbox_mode="development-fake-landrun")),
+                {"VERIFICATION_ALLOW_INSECURE_SANDBOX": "1"},
+            ).process_one()
+
+            assert processed is not None
+            assert processed.outcome is Outcome.VERDICT
+            # The point of the override: on a host that cannot provide the real isolation the
+            # alternative is that every valid proof parks unjudged, which teaches nothing.
+            row = await kit.row(submission_id)
+            assert row.verification_status == VerificationState.VERIFIED
+            # And the run records the isolation that actually ran, so no later reader can mistake
+            # this for a verdict produced under the reviewed profile.
+            async with kit.session() as session:
+                modes = await session.execute(
+                    text(
+                        "SELECT sandbox_mode FROM verification_runs "
+                        "WHERE submission_id = :id"
+                    ),
+                    {"id": submission_id},
+                )
+                assert modes.scalars().all() == ["development-fake-landrun"]
         finally:
             await kit.teardown()
 

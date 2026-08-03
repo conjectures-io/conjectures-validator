@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 from verifier.comparator import (
     production_sandbox_available,
@@ -15,7 +15,11 @@ from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import is_sha256
 from verifier.models import VerificationReport
 from verifier.reports import build_report, updated_checks
-from verifier.repository import assert_dependency_pins, formal_conjectures_pin, repository_commit
+from verifier.repository import (
+    assert_dependency_pins,
+    formal_conjectures_pin,
+    repository_commit,
+)
 from verifier.static_checks import check_submission
 from verifier.submission import load_submission
 from verifier.task_loader import load_task_bundle
@@ -176,7 +180,9 @@ def verify(
             )
         checks = updated_checks(checks, submission_policy_valid=True)
 
-        tools = resolve_tools(project_root)
+        tools = resolve_tools(
+            project_root, insecure_development=allow_insecure_development
+        )
         production_sandbox = production_sandbox_available(tools, project_root)
         checks = updated_checks(checks, production_sandbox=production_sandbox)
         if not production_sandbox and not allow_insecure_development:
@@ -304,6 +310,9 @@ def verify(
             lake=lake,
             env=effective_env,
             timeout_seconds=remaining,
+            # Must match the tools resolved above, or the comparator would run under the real
+            # Landrun after the gate was passed on the strength of the shim.
+            insecure_development=allow_insecure_development,
         )
         if comparator.exit_code != 0 or comparator.timed_out:
             reason = rejection_reason(comparator, manifest.enable_nanoda)
