@@ -378,6 +378,7 @@ class Submission(Base):
             "account_id",
             text("created_at DESC"),
             postgresql_where=text("account_id IS NOT NULL"),
+        ),
         Index(
             "submissions_problem_reward_unique",
             "problem_id",
