@@ -51,11 +51,19 @@ class PoolTaskResolver:
         registry = TaskPoolRegistry.load(allowlist_path)
         resolved: dict[str, ResolvedTask] = {}
         for tier in sorted({allowed.tier for allowed in registry.tasks.values()}):
+            tier_root = pool_root / tier
+            if not tier_root.is_dir():
+                # The pool is no longer committed here; it is a pinned checkout of the task
+                # repository. Absent bytes usually mean that checkout was never materialized.
+                raise TaskNotAllowed(
+                    f"task pool tier {tier} is missing at {tier_root}; the task bundles are a "
+                    "pinned checkout materialized by scripts/pin_dependencies.sh"
+                )
             # A task is identified by the task ID in its manifest, never by the name of the
             # directory holding it: the task repository names directories for humans and may
             # rename them without reissuing a task. Tasks do live under their tier, so the
             # tier is a path component rather than something to search for.
-            for task_dir in sorted(path for path in (pool_root / tier).iterdir() if path.is_dir()):
+            for task_dir in sorted(path for path in tier_root.iterdir() if path.is_dir()):
                 bundle = load_task_bundle(task_dir)
                 # Fail closed on task id, repository commit, whole-bundle digest, or target
                 # type digest drift.
