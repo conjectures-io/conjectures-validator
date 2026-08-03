@@ -26,7 +26,10 @@ from verification_worker.runner import (
     _report_from,
 )
 from verification_worker.settings import SettingsError, WorkerSettings
+from verification_worker.tasks import PoolTaskResolver, TaskNotAllowed
 from verifier.errors import ReasonCode
+
+ROOT = Path(__file__).resolve().parents[1]
 
 TASK_DIGEST = "sha256:" + "ab" * 32
 
@@ -216,3 +219,44 @@ def test_the_lease_covers_the_container_which_covers_the_task_deadline():
     # gets written under an expired lease.
     assert settings.container_timeout(3600) > 3600
     assert settings.lease_seconds(3600) > settings.container_timeout(3600)
+
+
+def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
+    """The other worker tests build a resolver directly, leaving `load` uncovered.
+
+    The task repository names its directories for humans and renames them freely, so a task is
+    the task ID in its manifest and the directory name is only a label. This asserts the two
+    genuinely differ in the checked-out pool, so a resolver that rebuilt the path from the task
+    ID fails here rather than when a paid submission is already claimed.
+    """
+    resolver = PoolTaskResolver.load(
+        allowlist_path=ROOT / "task_pool/allowlist.json",
+        pool_root=ROOT / "tasks/pool",
+    )
+
+    tasks = tuple(resolver.tasks.values())
+    assert len(tasks) == 58  # 29 problems, each as a proof and a counterexample task
+    assert all(task.task_dir.is_dir() for task in tasks)
+    assert all(task.task_dir.name != task.task_id for task in tasks)
+    # The worker sizes its lease from this, so a manifest that declares nothing usable would
+    # silently become an unbounded container.
+    assert all(task.timeout_seconds > 0 for task in tasks)
+
+
+def test_the_resolver_refuses_a_pool_missing_an_allowlisted_task(tmp_path: Path):
+    """A claimed submission whose task has no bytes would be released and retried forever."""
+    complete = PoolTaskResolver.load(
+        allowlist_path=ROOT / "task_pool/allowlist.json",
+        pool_root=ROOT / "tasks/pool",
+    )
+    kept = min(complete.tasks.values(), key=lambda task: task.task_id)
+    destination = tmp_path / kept.tier / kept.task_dir.name
+    destination.mkdir(parents=True)
+    for source in kept.task_dir.iterdir():
+        if source.is_file():
+            (destination / source.name).write_bytes(source.read_bytes())
+
+    with pytest.raises(TaskNotAllowed, match="missing from the pool"):
+        PoolTaskResolver.load(
+            allowlist_path=ROOT / "task_pool/allowlist.json", pool_root=tmp_path
+        )
