@@ -238,6 +238,7 @@ def test_the_detail_serves_the_audited_challenge_and_the_machine_contract():
             assert body["challenge_lean"] == CHALLENGE_LEAN
 
             contract = body["machine_contract"]
+            assert contract["reward_family_id"] == "erdos-1"
             assert contract["task_bundle_sha256"] == body["machine_contract"]["task_bundle_sha256"]
             assert contract["bundle_format"] == "conjectures-submission/v1"
             assert contract["target_theorem"]

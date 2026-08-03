@@ -215,7 +215,7 @@ class WorkerSettings:
             task_allowlist_path=_directory(
                 env,
                 "TASK_ALLOWLIST_PATH",
-                PROJECT_ROOT / "task_pool" / "allowlist.json",
+                PROJECT_ROOT / "tasks" / "allowlist.json",
             ),
             task_pool_root=_directory(
                 env, "TASK_POOL_ROOT", PROJECT_ROOT / "tasks" / "pool"

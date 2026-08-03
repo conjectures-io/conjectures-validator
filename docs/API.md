@@ -90,8 +90,8 @@ Idempotency-Key: ab0002f6-7a99-4352-b478-9da553dcdc1a
 X-Conjectures-Hotkey: 5Grw…
 X-Conjectures-Timestamp: 1753876543210
 X-Conjectures-Signature: 0x4a3f…
-X-Conjectures-Task-Id: fc-e923379e-erdos11-erdos-11-7c0303029e-formalized-v1
-X-Conjectures-Task-Sha256: sha256:1dfef7…
+X-Conjectures-Task-Id: fc-379fc029-erdos11-erdos-11-2bde7d8572-formalized-v1
+X-Conjectures-Task-Sha256: sha256:31687f…
 X-Conjectures-Proof-Sha256: sha256:09da51…
 X-Conjectures-Payment-Ref: 0x8b21…
 
@@ -117,8 +117,8 @@ X-Conjectures-Payment-Ref: 0x8b21…
 {
   "submission_id": "7ee1de44-3708-47ff-a383-9248cdf2b412",
   "hotkey": "5Grw…",
-  "task_id": "fc-e923379e-erdos11-…",
-  "task_bundle_sha256": "sha256:1dfef7…",
+  "task_id": "fc-379fc029-erdos11-…",
+  "task_bundle_sha256": "sha256:31687f…",
   "proof_sha256": "sha256:09da51…",
   "request_digest": "sha256:48ecf3…",
   "verification_status": "UNVERIFIED",
@@ -164,7 +164,7 @@ The signed message is the canonical **request digest**: the 32 raw bytes of the 
 canonical JSON (sorted keys, no spaces, one trailing newline) of exactly these six fields.
 
 ```json
-{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"0x8b21…","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:1dfef7…","task_id":"fc-e923379e-…"}
+{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"0x8b21…","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
 ```
 
 ```python
@@ -287,7 +287,7 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `POSTGRES_USER` / `PASSWORD` / `HOST` / `PORT` / `DB` | `conjectures`, `conjectures`, `localhost`, `5432`, `conjectures` | Used when `DATABASE_URL` is unset |
 | `PAYMENT_RECIPIENT_SS58` | required | The address that must receive the transfer |
 | `PAYMENT_AMOUNT_RAO` | `500000000` | 0.5 TAO |
-| `TASK_ALLOWLIST_PATH` | `./task_pool/allowlist.json` | |
+| `TASK_ALLOWLIST_PATH` | `./tasks/allowlist.json` | |
 | `TASK_POOL_ROOT` | `./tasks/pool` | Bundles live under `<root>/<tier>/<task_id>` |
 | `SUBMISSION_AUTHENTICATOR` | `hotkey-signature` in `PROD` | `development-static-key` refused in `PROD` |
 | `SUBMISSION_PAYMENT_VERIFIER` | `chain` in `PROD` | `development` refused in `PROD` |

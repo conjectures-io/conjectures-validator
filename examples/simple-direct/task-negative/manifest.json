@@ -17,7 +17,7 @@
     "Classical.choice"
   ],
   "production_eligible": false,
-  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "repository_commit": "379fc0298dc146df549e7061c3ede0353a5bb51f",
   "schema_version": 1,
   "solution_module": "Solution",
   "source_module": "TestFixtures",
@@ -25,7 +25,7 @@
   "source_theorem": "VerifierFixtures.direct",
   "source_type_hash": "sha256:3cbc87c7681f34db4617feaa2c8801931bc5e42d8d0f560e756dd4cd92885f18",
   "target_theorem": "Bounty.target",
-  "task_id": "fc-e923379e-verifierfixtures-direct-7602094c8a-negative-v1",
+  "task_id": "fc-379fc029-verifierfixtures-direct-5afbde0bb8-negative-v1",
   "task_mode": "negative",
   "theorem_names": [
     "Bounty.target"
@@ -36,6 +36,6 @@
     "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
     "SolutionHeader.lean.txt": "sha256:7c6fe1e8c5e58631c61c3a96c6abba6561b3e754e912dee2f023fedbfe0809bb",
     "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
-    "source-metadata.json": "sha256:f3b277a29501ab2d22cb74c18b80d43c902682a518ae995b32353e8f55cb8094"
+    "source-metadata.json": "sha256:8643e89d5e18950dd3d1907585ecf3b01e044b5b1edc6ae341128e827aa997a5"
   }
 }

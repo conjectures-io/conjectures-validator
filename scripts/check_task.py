@@ -9,7 +9,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parent.parent
-ALLOWLIST = ROOT / "task_pool" / "allowlist.json"
+ALLOWLIST = ROOT / "tasks" / "allowlist.json"
 
 
 def fail(message: str) -> None:
@@ -83,6 +83,7 @@ def main() -> None:
                 "allowed": True,
                 "mode": admitted.mode,
                 "problem_id": admitted.problem_id,
+                "reward_family_id": admitted.reward_family_id,
                 "source_indices": row["source_indices"],
                 "task_id": row["task_id"],
                 "task_bundle_sha256": row["task_bundle_sha256"],

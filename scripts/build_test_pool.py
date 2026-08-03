@@ -1,7 +1,7 @@
 """Build a one-problem task pool whose counterexample task is actually provable.
 
-Development only. The audited pool is 29 open conjectures in two modes each, and by design none of
-them can be proved — so it cannot demonstrate that the pipeline reaches `accepted=true`. This builds
+Development only. The audited pool is 74 open theorem targets in two modes each, and by design none
+of them can be proved — so it cannot demonstrate that the pipeline reaches `accepted=true`. This builds
 a separate pool, with its own allowlist, that can:
 
     python3 scripts/build_test_pool.py
@@ -18,7 +18,7 @@ Unproved in Lean and annotated `research open`, so it satisfies the production p
 its *counterexample* task is provable in three lines while its *formalized* task is not, which is
 the same shape as a real problem pair.
 
-Nothing here writes to `task_pool/allowlist.json` or `tasks/`. The audited artifacts are untouched;
+Nothing here writes to `tasks/allowlist.json` or `tasks/pool/`. The audited artifacts are untouched;
 this pool exists beside them and is selected by environment variable.
 """
 from __future__ import annotations
@@ -116,8 +116,11 @@ def tier_policy(pool_size: int, source_count: int) -> dict:
         "modes": ["formalized", "counterexample"],
         "multi_target_tasks": 0,
         "one_reward_per_problem": True,
+        "one_reward_per_reward_family": True,
         "outcomes_per_problem": 2,
         "pool_size": pool_size,
+        "reward_family_count": source_count,
+        "reward_family_policy": "stable-erdos-number-v1",
         "retired_source_theorems_sha256": empty,
         "selection": "development-fixture",
         "selection_audit_sha256": empty,
@@ -129,7 +132,7 @@ def tier_policy(pool_size: int, source_count: int) -> dict:
             "counterexample": "logical-negation",
             "formalized": "definitionally-equal",
         },
-        "whole_problem_targets_sha256": empty,
+        "task_targets_sha256": empty,
     }
 
 
@@ -188,13 +191,15 @@ def main(argv: list[str] | None = None) -> int:
                     "tier": TIER,
                 }
             )
+        identity = problem_id(
+            manifest.repository_commit, (manifest.source_theorem,)
+        )
         rows.append(
             {
                 "completion_policy": "all_of",
                 "mode": manifest.task_mode,
-                "problem_id": problem_id(
-                    manifest.repository_commit, (manifest.source_theorem,)
-                ),
+                "problem_id": identity,
+                "reward_family_id": identity,
                 "source_indices": [0],
                 "source_path": ALLOWLIST_SOURCE_PATH,
                 "target_type_sha256s": [
@@ -215,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
         "audit_date_utc": args.audit_date,
         "default": "DENY",
         "repository_commit": rows[0] and load_task_bundle(formalized).manifest.repository_commit,
-        "schema_version": 6,
+        "schema_version": 7,
         "tier_order": [TIER],
         "tier_policies": {TIER: tier_policy(len(rows), len(sources))},
     }

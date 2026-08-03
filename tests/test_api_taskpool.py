@@ -13,11 +13,16 @@ import pytest
 
 from submission_api.taskpool import TaskCatalog, TaskNotAllowed
 from verifier.task_policy import COUNTEREXAMPLE_TASK_MODE, EXACT_TASK_MODE
-from verifier.task_pool import DEFAULT_TASK_TIER, DEFAULT_TIER_SIZE
+from verifier.task_pool import (
+    DEFAULT_TASK_TIER,
+    DEFAULT_TIER_SIZE,
+    SUBPROBLEM_TASK_TIER,
+    SUBPROBLEM_TIER_SIZE,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
-ALLOWLIST = ROOT / "task_pool/allowlist.json"
+ALLOWLIST = ROOT / "tasks/allowlist.json"
 POOL_ROOT = ROOT / "tasks/pool"
 
 
@@ -25,9 +30,13 @@ def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
     catalog = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)
 
     modes = [entry.manifest.task_mode for entry in catalog.summaries()]
-    assert modes.count(EXACT_TASK_MODE) == DEFAULT_TIER_SIZE
-    assert modes.count(COUNTEREXAMPLE_TASK_MODE) == DEFAULT_TIER_SIZE
-    assert all(entry.tier == DEFAULT_TASK_TIER for entry in catalog.summaries())
+    target_count = DEFAULT_TIER_SIZE + SUBPROBLEM_TIER_SIZE
+    assert modes.count(EXACT_TASK_MODE) == target_count
+    assert modes.count(COUNTEREXAMPLE_TASK_MODE) == target_count
+    assert {entry.tier for entry in catalog.summaries()} == {
+        DEFAULT_TASK_TIER,
+        SUBPROBLEM_TASK_TIER,
+    }
     assert all(
         entry.task_id == entry.manifest.task_id for entry in catalog.summaries()
     )
@@ -50,10 +59,11 @@ def test_api_catalog_identifies_tasks_by_manifest_not_directory_name():
 
 def test_api_catalog_refuses_an_allowlisted_task_with_no_bytes_on_disk(tmp_path: Path):
     """A paid submission must never meet a task the pool cannot produce."""
-    tier = tmp_path / DEFAULT_TASK_TIER
-    tier.mkdir(parents=True)
     complete = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)
     kept = complete.summaries()[0]
+    for tier_name in (DEFAULT_TASK_TIER, SUBPROBLEM_TASK_TIER):
+        (tmp_path / tier_name).mkdir(parents=True)
+    tier = tmp_path / kept.tier
     for source in kept.task_dir.iterdir():
         if source.is_file():
             destination = tier / kept.task_dir.name / source.name

@@ -45,8 +45,9 @@ miner-visible notes.
 Verification, review, and reward are three independent states. A proof can be verified and
 not approved; approved and not yet paid. Reading one says nothing about the others.
 
-One reward is paid per problem. If an earlier submission already established a result,
-a later proof of the same result is valid Lean and still earns nothing.
+One reward is paid per numbered Erdős family. If an earlier submission solved its parent, a part,
+a variant, or the opposite proof/refutation task, a later Lean-valid result in that family earns
+nothing.
 
 ## Attribution
 

@@ -91,7 +91,7 @@ services:
       #   TASK_ALLOWLIST_PATH=/srv/app/tasks-test/allowlist.json \
       #     docker compose -f docker-compose.db.yml -f docker-compose.worker.yml up -d worker
       TASK_POOL_ROOT: ${TASK_POOL_ROOT:-/srv/app/tasks/pool}
-      TASK_ALLOWLIST_PATH: ${TASK_ALLOWLIST_PATH:-/srv/app/task_pool/allowlist.json}
+      TASK_ALLOWLIST_PATH: ${TASK_ALLOWLIST_PATH:-/srv/app/tasks/allowlist.json}
       VERIFIER_PROJECT_ROOT: /srv/app
 
       # The overridden uid has no passwd entry, so HOME would be unset and git and pip would try to

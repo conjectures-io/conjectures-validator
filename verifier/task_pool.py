@@ -20,18 +20,26 @@ from verifier.task_policy import (
 )
 
 
-TASK_POOL_SCHEMA_VERSION = 6
+TASK_POOL_SCHEMA_VERSION = 7
 SELECTION_AUDIT_SCHEMA_VERSION = 1
 TASK_GROUP_SCHEMA_VERSION = 1
-WHOLE_PROBLEM_SCHEMA_VERSION = 1
+TASK_TARGET_SCHEMA_VERSION = 2
 DEFAULT_TASK_TIER = "tier-1"
+SUBPROBLEM_TASK_TIER = "tier-2"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
 DEFAULT_TIER_SIZE = 29
+SUBPROBLEM_TIER_SIZE = 45
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
+SUBPROBLEM_TIER_TASK_COUNT = SUBPROBLEM_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = DEFAULT_TIER_SIZE
 TASK_POOL_SELECTION = "audited-erdos-whole-problem-v1"
+SUBPROBLEM_POOL_SELECTION = "audited-erdos-part-or-variant-v1"
 TASK_POOL_GROUPING = "none-single-target-v1"
 TASK_POOL_TASK_SCOPE = "whole_problem"
+SUBPROBLEM_TASK_SCOPE = "part_or_variant"
+WHOLE_PROBLEM_POLICY = "one_task_one_complete_problem"
+SUBPROBLEM_POLICY = "one_task_one_audited_subproblem"
+REWARD_FAMILY_POLICY = "stable-erdos-number-v1"
 ERDOS_SOURCE_PREFIX = "FormalConjectures/ErdosProblems/"
 EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
 FEASIBILITY_SIGNALS = frozenset(
@@ -104,21 +112,28 @@ class TaskGrouping:
 
 
 @dataclass(frozen=True)
-class WholeProblemTarget:
+class TaskTarget:
     theorem: str
     source_path: str
     erdos_problem_number: int
+    reward_family_id: str
 
 
 @dataclass(frozen=True)
-class WholeProblemTargets:
+class TaskTargets:
     repository_commit: str
-    targets: tuple[WholeProblemTarget, ...]
+    policy: str
+    task_scope: str
+    targets: tuple[TaskTarget, ...]
     sha256: str
 
     @property
     def theorems(self) -> tuple[str, ...]:
         return tuple(target.theorem for target in self.targets)
+
+    @property
+    def reward_families(self) -> dict[str, str]:
+        return {target.theorem: target.reward_family_id for target in self.targets}
 
 
 def _is_commit(value: object) -> bool:
@@ -238,7 +253,7 @@ def load_selection_audit(path: Path) -> SelectionAudit:
     )
 
 
-def load_whole_problem_targets(path: Path) -> WholeProblemTargets:
+def load_task_targets(path: Path) -> TaskTargets:
     try:
         content = path.read_bytes()
         value = json.loads(content.decode("utf-8", errors="strict"))
@@ -246,59 +261,98 @@ def load_whole_problem_targets(path: Path) -> WholeProblemTargets:
         if (
             not isinstance(value, dict)
             or set(value)
-            != {"policy", "repository_commit", "schema_version", "targets"}
-            or value.get("schema_version") != WHOLE_PROBLEM_SCHEMA_VERSION
-            or value.get("policy") != "one_task_one_complete_problem"
+            != {"policy", "repository_commit", "schema_version", "task_scope", "targets"}
+            or value.get("schema_version") != TASK_TARGET_SCHEMA_VERSION
+            or value.get("policy") not in {WHOLE_PROBLEM_POLICY, SUBPROBLEM_POLICY}
+            or value.get("task_scope") not in {TASK_POOL_TASK_SCOPE, SUBPROBLEM_TASK_SCOPE}
+            or (
+                value.get("policy") == WHOLE_PROBLEM_POLICY
+                and value.get("task_scope") != TASK_POOL_TASK_SCOPE
+            )
+            or (
+                value.get("policy") == SUBPROBLEM_POLICY
+                and value.get("task_scope") != SUBPROBLEM_TASK_SCOPE
+            )
             or not _is_commit(value.get("repository_commit"))
             or not isinstance(targets, list)
             or not targets
         ):
-            raise ValueError("whole-problem target metadata is invalid")
+            raise ValueError("task target metadata is invalid")
         parsed = tuple(
-            WholeProblemTarget(
+            TaskTarget(
                 theorem=item["theorem"],
                 source_path=item["source_path"],
                 erdos_problem_number=item["erdos_problem_number"],
+                reward_family_id=item["reward_family_id"],
             )
             for item in targets
             if isinstance(item, dict)
-            and set(item) == {"erdos_problem_number", "source_path", "theorem"}
+            and set(item)
+            == {"erdos_problem_number", "reward_family_id", "source_path", "theorem"}
             and type(item.get("erdos_problem_number")) is int
             and item["erdos_problem_number"] > 0
             and isinstance(item.get("source_path"), str)
             and item["source_path"]
             == f"{ERDOS_SOURCE_PREFIX}{item['erdos_problem_number']}.lean"
             and isinstance(item.get("theorem"), str)
-            and item["theorem"]
-            in {
+            and isinstance(item.get("reward_family_id"), str)
+            and item["reward_family_id"] == f"erdos-{item['erdos_problem_number']}"
+            and (
                 (
-                    f"Erdos{item['erdos_problem_number']}."
-                    f"erdos_{item['erdos_problem_number']}"
-                ),
-                "Erdos274.herzog_schonheim",
-            }
+                    value.get("policy") == WHOLE_PROBLEM_POLICY
+                    and item["theorem"]
+                    in {
+                        (
+                            f"Erdos{item['erdos_problem_number']}."
+                            f"erdos_{item['erdos_problem_number']}"
+                        ),
+                        "Erdos274.herzog_schonheim",
+                    }
+                )
+                or (
+                    value.get("policy") == SUBPROBLEM_POLICY
+                    and item["theorem"].startswith(
+                        f"Erdos{item['erdos_problem_number']}.erdos_{item['erdos_problem_number']}."
+                    )
+                )
+            )
         )
         if (
             len(parsed) != len(targets)
             or tuple(target.theorem for target in parsed)
             != tuple(sorted(target.theorem for target in parsed))
             or len({target.theorem for target in parsed}) != len(parsed)
-            or len({target.source_path for target in parsed}) != len(parsed)
-            or len({target.erdos_problem_number for target in parsed}) != len(parsed)
-        ):
-            raise ValueError(
-                "whole-problem targets must be sorted, canonical, and one per problem"
+            or (
+                value.get("policy") == WHOLE_PROBLEM_POLICY
+                and (
+                    len({target.source_path for target in parsed}) != len(parsed)
+                    or len({target.erdos_problem_number for target in parsed}) != len(parsed)
+                )
             )
+        ):
+            raise ValueError("task targets must be sorted, canonical, and unique")
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            f"cannot load whole-problem targets: {exc}",
+            f"cannot load task targets: {exc}",
         ) from exc
-    return WholeProblemTargets(
+    return TaskTargets(
         repository_commit=value["repository_commit"],
+        policy=value["policy"],
+        task_scope=value["task_scope"],
         targets=parsed,
         sha256=sha256_bytes(content),
     )
+
+
+def load_whole_problem_targets(path: Path) -> TaskTargets:
+    targets = load_task_targets(path)
+    if targets.policy != WHOLE_PROBLEM_POLICY:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "target file is not a whole-problem policy",
+        )
+    return targets
 
 
 def load_task_grouping(path: Path) -> TaskGrouping:
@@ -415,13 +469,20 @@ def select_task_declarations(
     catalog: Catalog,
     retired: RetiredSources,
     selection_audit: SelectionAudit,
-    whole_problem_targets: WholeProblemTargets,
+    task_targets: TaskTargets | None = None,
+    whole_problem_targets: TaskTargets | None = None,
     pool_size: int = DEFAULT_TIER_SIZE,
 ) -> tuple[CatalogDeclaration, ...]:
+    targets = task_targets if task_targets is not None else whole_problem_targets
+    if targets is None or (task_targets is not None and whole_problem_targets is not None):
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "exactly one task target policy is required",
+        )
     if (
         retired.repository_commit != catalog.repository_commit
         or selection_audit.repository_commit != catalog.repository_commit
-        or whole_problem_targets.repository_commit != catalog.repository_commit
+        or targets.repository_commit != catalog.repository_commit
     ):
         raise VerifierError(
             ReasonCode.REPOSITORY_COMMIT_MISMATCH,
@@ -429,12 +490,12 @@ def select_task_declarations(
         )
     if pool_size <= 0:
         raise VerifierError(ReasonCode.INVALID_ARGUMENT, "task tier size must be positive")
-    if len(whole_problem_targets.targets) != pool_size:
+    if len(targets.targets) != pool_size:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
             (
-                "whole-problem target policy contains "
-                f"{len(whole_problem_targets.targets)} tasks, expected {pool_size}"
+                "task target policy contains "
+                f"{len(targets.targets)} tasks, expected {pool_size}"
             ),
         )
 
@@ -445,7 +506,7 @@ def select_task_declarations(
     }
     selected: list[CatalogDeclaration] = []
     used_types: set[str] = set()
-    for target in whole_problem_targets.targets:
+    for target in targets.targets:
         entry = audited_by_theorem.get(target.theorem)
         if (
             entry is None
@@ -454,7 +515,7 @@ def select_task_declarations(
         ):
             raise VerifierError(
                 ReasonCode.INVALID_ARGUMENT,
-                f"whole-problem target is not in the audited selection: {target.theorem}",
+                f"task target is not in the audited selection: {target.theorem}",
             )
         declaration = by_theorem.get(target.theorem)
         if declaration is None:
@@ -559,7 +620,7 @@ def build_task_allowlist(
     catalog: Catalog,
     retired: RetiredSources,
     selection_audit: SelectionAudit,
-    whole_problem_targets: WholeProblemTargets,
+    task_targets: TaskTargets,
     grouping: TaskGrouping,
     selected: Iterable[tuple[CatalogDeclaration, ...]],
     bundles: Iterable[TaskBundle],
@@ -588,13 +649,13 @@ def build_task_allowlist(
     )
     if (
         {declaration.theorem for declaration in declarations}
-        != set(whole_problem_targets.theorems)
-        or not set(whole_problem_targets.theorems) <= set(selection_audit.theorems)
+        != set(task_targets.theorems)
+        or not set(task_targets.theorems) <= set(selection_audit.theorems)
         or any(len(group) != 1 for group in declaration_groups)
     ):
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            "generated declarations are not one-target whole-problem tasks",
+            "generated declarations are not audited single-target tasks",
         )
     catalog_indices = {
         declaration.theorem: index
@@ -629,6 +690,7 @@ def build_task_allowlist(
         )
 
     tasks = []
+    reward_families = task_targets.reward_families
     for declarations_for_task in declaration_groups:
         primary = declarations_for_task[0]
         theorem_names = tuple(item.theorem for item in declarations_for_task)
@@ -667,6 +729,7 @@ def build_task_allowlist(
                     "completion_policy": "all_of",
                     "mode": mode,
                     "problem_id": problem_id(catalog.repository_commit, theorem_names),
+                    "reward_family_id": reward_families[primary.theorem],
                     "source_indices": source_indices,
                     "source_path": primary.source_path,
                     "target_type_sha256s": list(target_hashes),
@@ -695,23 +758,70 @@ def build_task_allowlist(
                     for group in declaration_groups
                 ) * len(PRODUCTION_TASK_MODES),
                 "one_reward_per_problem": True,
+                "one_reward_per_reward_family": True,
                 "pool_size": len(tasks),
+                "reward_family_count": len(set(reward_families.values())),
+                "reward_family_policy": REWARD_FAMILY_POLICY,
                 "retired_source_theorems_sha256": retired.sha256,
-                "selection": TASK_POOL_SELECTION,
+                "selection": (
+                    TASK_POOL_SELECTION
+                    if task_targets.policy == WHOLE_PROBLEM_POLICY
+                    else SUBPROBLEM_POOL_SELECTION
+                ),
                 "selection_audit_sha256": selection_audit.sha256,
                 "source_category": "research open",
                 "source_theorem_count": len(declarations),
-                "task_scope": TASK_POOL_TASK_SCOPE,
+                "task_scope": task_targets.task_scope,
                 "target_relations": {
                     COUNTEREXAMPLE_TASK_MODE: "logical-negation",
                     EXACT_TASK_MODE: "definitionally-equal",
                 },
                 "task_groups_sha256": grouping.sha256,
                 "outcomes_per_problem": len(PRODUCTION_TASK_MODES),
-                "whole_problem_targets_sha256": whole_problem_targets.sha256,
+                "task_targets_sha256": task_targets.sha256,
             }
         },
         "repository_commit": catalog.repository_commit,
         "schema_version": TASK_POOL_SCHEMA_VERSION,
+    }
+    return pretty_json(value).encode("utf-8")
+
+
+def merge_task_allowlists(allowlists: Iterable[bytes]) -> bytes:
+    documents = tuple(json.loads(content.decode("utf-8")) for content in allowlists)
+    if not documents:
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "no tier allowlists to merge")
+    first = documents[0]
+    shared = ("audit_date_utc", "default", "repository_commit", "schema_version")
+    if any(any(document.get(key) != first.get(key) for key in shared) for document in documents):
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "tier allowlists do not share one release identity",
+        )
+    tier_order = [tier for document in documents for tier in document["tier_order"]]
+    policies = {
+        tier: policy
+        for document in documents
+        for tier, policy in document["tier_policies"].items()
+    }
+    sources = [source for document in documents for source in document["allowed_source_theorems"]]
+    tasks = [task for document in documents for task in document["allowed_task_bundles"]]
+    if (
+        len(tier_order) != len(set(tier_order))
+        or set(tier_order) != set(policies)
+        or len({source["theorem"] for source in sources}) != len(sources)
+        or len({source["index"] for source in sources}) != len(sources)
+        or len({task["task_id"] for task in tasks}) != len(tasks)
+    ):
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "merged tier identities are duplicated")
+    value = {
+        "allowed_source_theorems": sources,
+        "allowed_task_bundles": tasks,
+        "audit_date_utc": first["audit_date_utc"],
+        "default": first["default"],
+        "tier_order": tier_order,
+        "tier_policies": policies,
+        "repository_commit": first["repository_commit"],
+        "schema_version": first["schema_version"],
     }
     return pretty_json(value).encode("utf-8")

@@ -10,7 +10,7 @@ idempotency and duplicate-proof constraints all apply, and `problem_id` and `tas
 from the audited allowlist rather than from anything passed in here.
 
     python3 scripts/seed_submission.py --list
-    python3 scripts/seed_submission.py --proof my_attempt.lean --task-id fc-e923379e-...-formalized-v1
+    python3 scripts/seed_submission.py --proof my_attempt.lean --task-id fc-379fc029-...-formalized-v1
 
 The proof is spliced between the task's SolutionHeader and SolutionFooter, inside `namespace
 Bounty`, so it must define `theorem target`. The static policy check runs here too, before the row
@@ -91,7 +91,7 @@ def load_pool(
     allowlist_path = (
         allowlist
         or (Path(env["TASK_ALLOWLIST_PATH"]) if env.get("TASK_ALLOWLIST_PATH") else None)
-        or PROJECT_ROOT / "task_pool" / "allowlist.json"
+        or PROJECT_ROOT / "tasks" / "allowlist.json"
     )
     root = (
         pool_root
@@ -131,6 +131,7 @@ async def insert(dsn: str, *, allowed, task_dir: Path, proof: bytes, review: boo
                     # From the allowlist, never from the command line: the whole point of these two
                     # columns is that the submitter does not choose which reward they compete for.
                     problem_id=allowed.problem_id,
+                    reward_family_id=allowed.reward_family_id,
                     task_mode=store.TaskMode(allowed.mode),
                     proof_content=proof,
                     proof_sha256=digest,

@@ -37,15 +37,15 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
 
 ```json
 {
-  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "repository_commit": "379fc0298dc146df549e7061c3ede0353a5bb51f",
   "bundle_format": "conjectures-submission/v1",
   "max_bundle_bytes": 2097152,
   "submission_price_rao": 500000000,
   "payment_recipient": "5C4h…",
   "tasks": [
     {
-      "task_id": "fc-e923379e-erdos1094-erdos-1094-e88b987211-formalized-v1",
-      "task_bundle_sha256": "sha256:c70c6d…",
+      "task_id": "fc-379fc029-erdos1094-erdos-1094-1ec3e802ca-formalized-v1",
+      "task_bundle_sha256": "sha256:74937b…",
       "target_type_sha256s": ["sha256:304f28…"]
     }
   ]
