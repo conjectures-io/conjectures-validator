@@ -245,7 +245,8 @@ async def create_submission(
 
         try:
             entry = services.catalog.resolve(task_id, task_sha256)
-        except TaskNotAllowed as exc:
+            task_mode = store.TaskMode(entry.mode)
+        except (TaskNotAllowed, ValueError) as exc:
             raise NotFound(str(exc), reason_code=REASON_TASK_NOT_ALLOWED) from exc
 
         request_digest = store.canonical_request_digest(
@@ -313,6 +314,8 @@ async def create_submission(
                 request_digest=request_digest,
                 task_id=task_id,
                 task_bundle_sha256=entry.task_bundle_sha256,
+                problem_id=entry.problem_id,
+                task_mode=task_mode,
                 proof_content=bundle.proof.raw,
                 proof_sha256=bundle.proof.sha256,
                 payment_reference=payment.reference,

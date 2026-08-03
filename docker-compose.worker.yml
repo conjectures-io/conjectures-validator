@@ -1,0 +1,137 @@
+# One verification worker, against the database docker-compose.db.yml deploys.
+#
+#   DOCKER_UID=$(id -u) DOCKER_GID=$(id -g) \
+#     docker compose -f docker-compose.db.yml -f docker-compose.worker.yml up -d --build
+#   docker compose -f docker-compose.db.yml -f docker-compose.worker.yml logs -f worker
+#
+# The uid matters and the default is a guess — see the `user:` note below.
+#
+# An overlay, not a project of its own. Merged `-f` files form a single Compose project, which is
+# what makes both of the things this needs work: the worker shares the database's network, so
+# `db:5432` resolves, and `depends_on` can gate on the migration service in the other file. A
+# standalone project would have neither — it would be reduced to reaching the published loopback
+# port, and could not wait for Flyway at all.
+#
+# Deliberately no `name:`. docker-compose.db.yml sets `name: conjectures-db`, so the data volume is
+# really `conjectures-db_pgdata`; naming this file's project anything else would silently start a
+# second, empty database instead of using the migrated one.
+#
+# `docker compose -f docker-compose.db.yml up -d` on its own is unchanged. This file only adds.
+
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: conjectures-verification-worker:local
+    container_name: conjectures_worker
+    init: true
+
+    # The uid that owns the checkout mounted below, not the image's own `worker` user.
+    #
+    # The in-process runner is the real verifier, and it establishes the identity of every vendored
+    # dependency with git — 27 repositories, counting the Lake packages nested inside Formal
+    # Conjectures. git refuses to read a repository owned by a different uid, so running as anyone
+    # else fails every submission with REPOSITORY_COMMIT_MISMATCH at LOAD_TASK. Matching the owner
+    # is the fix; `safe.directory` is not, because the nested package repositories cannot be
+    # enumerated when the image is built.
+    #
+    # If your uid is not 1000, pass DOCKER_UID/DOCKER_GID — the usage note at the top of this file
+    # shows how. The symptom of getting it wrong is REPOSITORY_COMMIT_MISMATCH on every submission.
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+
+    # A misconfigured worker exits 2 on purpose rather than discovering the same problem once per
+    # submission. Restarting it would turn that single clear message into a crash loop that scrolls
+    # the reason out of reach, so it stays dead and visible.
+    restart: "no"
+
+    depends_on:
+      db:
+        condition: service_healthy
+      # Flyway exits 0 on a no-op re-run, so this is safe on every boot — and a failed migration
+      # means the worker never starts against a schema it cannot rely on.
+      migrate:
+        condition: service_completed_successfully
+
+    env_file: .env
+    environment:
+      # `db`, not the published 127.0.0.1 port: that publish exists for host tools, and inside the
+      # project the database is reachable by service name.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+      APP_MODE: DEV
+      # DEV only, and WorkerSettings refuses it when APP_MODE=PROD: the in-process runner compiles
+      # a miner's Lean inside the process holding the credentials above. It is used here because it
+      # needs no Docker socket — the container runner would have to create sibling containers, and
+      # a socket mount is a separate decision with its own consequences.
+      VERIFICATION_RUNNER: in-process
+
+      # This host's kernel offers Landlock ABI 3 and the verifier requires ABI 4, so the real
+      # Landrun exits 126 before Lean runs. Without this, `run_comparator` cannot tell that apart
+      # from a rejected proof and records COMPARATOR_REJECTED against the submission — a paid
+      # submission failed for our reasons. With it, the comparator runs under the non-sandboxing
+      # development shim and every report says sandbox_mode=development-fake-landrun.
+      #
+      # Refused outside DEV, and refused with the container runner. Drop it the moment the host
+      # kernel can provide the real isolation: `python -m verifier doctor` is the check.
+      VERIFICATION_ALLOW_INSECURE_SANDBOX: "1"
+
+      # Recorded on every verification_runs row as what decided the submission. Named for what it
+      # is so no dev verdict can ever be mistaken for one a released verifier produced.
+      VERIFIER_VERSION: dev-in-process
+      VERIFICATION_WORKER_ID: compose-worker-1
+
+      # Paths inside the container. The pool and the allowlist are validated against each other at
+      # startup, so a stale or partial mount fails the boot rather than one submission at a time.
+      # Overridable so a development pool can be swapped in without editing this file. Paths are
+      # as the container sees them, under /srv/app — e.g. to use the pool that
+      # scripts/build_test_pool.py writes, whose counterexample task is actually provable:
+      #
+      #   TASK_POOL_ROOT=/srv/app/tasks-test/pool \
+      #   TASK_ALLOWLIST_PATH=/srv/app/tasks-test/allowlist.json \
+      #     docker compose -f docker-compose.db.yml -f docker-compose.worker.yml up -d worker
+      TASK_POOL_ROOT: ${TASK_POOL_ROOT:-/srv/app/tasks/pool}
+      TASK_ALLOWLIST_PATH: ${TASK_ALLOWLIST_PATH:-/srv/app/task_pool/allowlist.json}
+      VERIFIER_PROJECT_ROOT: /srv/app
+
+      # The overridden uid has no passwd entry, so HOME would be unset and git and pip would try to
+      # write to a path the read-only root filesystem denies. Point it at the one writable mount.
+      HOME: /tmp
+
+    volumes:
+      # Read-only, and the whole checkout: the worker resolves the task pool, the audited allowlist
+      # and the verifier toolchain by path, and mounting them from the host is what guarantees the
+      # container verifies against exactly the tree you are looking at. `tasks/` in particular is a
+      # pinned checkout of a separate repository materialized by scripts/pin_dependencies.sh, and
+      # has no business being baked into an image.
+      - .:/srv/app:ro
+
+      # Layered writable on top of that read-only mount, because the verifier builds each proof in
+      # a fresh directory under `<project root>/.work` and there is no setting to move it.
+      #
+      # A host bind rather than a named volume: a named volume is created owned by root, and this
+      # container runs as the developer's uid, so it could not write to it. Bound to the host's own
+      # gitignored `.work`, which the native verifier already uses, the ownership matches for the
+      # same reason the rest of the checkout does.
+      - ./.work:/srv/app/.work
+
+    # Writes nothing but temporary files, so the filesystem is read-only and /tmp is the exception.
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # Nothing to publish. The worker polls the database; it serves no traffic.
+
+    # One verification is a Lean build. These are the dev-loop figures, well under the verifier
+    # image's own 72g/4cpu profile, because on a kernel below Landlock ABI 4 no proof gets as far
+    # as compiling anyway — see `python -m verifier doctor`.
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G

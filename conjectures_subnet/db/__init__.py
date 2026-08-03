@@ -16,6 +16,8 @@ that schema, not its source of truth:
   transaction. Also the submission timeline;
 * ``public`` — the read-only queries behind the unauthenticated endpoints, whose
   row types carry no miner-identifying column at all;
+* ``verification`` — claiming work off the verification queue under a lease, because
+  the verifier runs far longer than a transaction may stay open;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 

@@ -36,6 +36,8 @@ CHALLENGE_NAME = "Challenge.lean"
 class TaskEntry:
     task_id: str
     tier: str
+    problem_id: str
+    mode: str
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
     task_dir: Path
@@ -85,6 +87,8 @@ class TaskCatalog:
                 entries[allowed.task_id] = TaskEntry(
                     task_id=allowed.task_id,
                     tier=allowed.tier,
+                    problem_id=allowed.problem_id,
+                    mode=allowed.mode,
                     task_bundle_sha256=allowed.task_bundle_sha256,
                     target_type_sha256s=allowed.target_type_sha256s,
                     task_dir=task_dir,

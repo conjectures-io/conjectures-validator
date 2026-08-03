@@ -52,6 +52,7 @@ from conjectures_subnet.db.models import (
     RewardEvent,
     RewardState,
     Submission,
+    TaskMode,
     VerificationRun,
     VerificationState,
 )
@@ -62,6 +63,10 @@ from verifier.hashing import canonical_json_bytes, sha256_bytes
 IDEMPOTENCY_CONSTRAINT = "submissions_idempotency_unique"
 PAYMENT_CONSTRAINT = "submissions_payment_reference_unique"
 PROOF_CONSTRAINT = "submissions_proof_digest_key"
+PROBLEM_REWARD_CONSTRAINT = "submissions_problem_reward_unique"
+
+PROBLEM_ALREADY_AWARDED = "PROBLEM_ALREADY_AWARDED"
+PROBLEM_CONTRADICTED = "PROBLEM_VERIFIED_IN_BOTH_MODES"
 
 
 @dataclass(frozen=True)
@@ -73,6 +78,8 @@ class NewSubmission:
     request_digest: str  # sha256:<hex>; converted at the column
     task_id: str
     task_bundle_sha256: str  # sha256:<hex>
+    problem_id: str  # from the allowlist, not the request: the miner does not choose it
+    task_mode: TaskMode
     proof_content: bytes  # the miner's Main.lean, exactly as admitted
     proof_sha256: str  # sha256:<hex>
     payment_reference: str
@@ -92,6 +99,14 @@ class SubmissionView:
     submission: Submission
     verification: VerificationRun | None
     replayed: bool = False
+
+
+@dataclass(frozen=True)
+class RecordedVerdict:
+    """One recorded run, and whether it decided the submission."""
+
+    run: VerificationRun
+    applied: bool
 
 
 def canonical_request_digest(
@@ -213,6 +228,8 @@ async def create_submission(
         request_digest=digests.to_bytes(request.request_digest),
         task_id=request.task_id,
         task_bundle_sha256=digests.to_bytes(request.task_bundle_sha256),
+        problem_id=request.problem_id,
+        task_mode=request.task_mode,
         proof_digest=digests.to_bytes(request.proof_sha256),
         payment_reference=request.payment_reference,
         payment_sender=request.payment_sender,
@@ -272,7 +289,7 @@ async def record_verification_result(
     report: bytes | None,
     started_at: datetime,
     finished_at: datetime,
-) -> VerificationRun:
+) -> RecordedVerdict:
     """Record one completed verifier run and advance the affected status axes.
 
     The run row is inserted once, on completion: every column the schema requires is only
@@ -301,23 +318,114 @@ async def record_verification_result(
     session.add(run)
     await session.flush()
 
-    verdict = VerificationState.VERIFIED if accepted else VerificationState.REJECTED
-    submission.verification_status = verdict
-    if not accepted:
-        submission.failure_reason = reason_code
+    already_ruled = submission.verification_status != VerificationState.UNVERIFIED
+    if not already_ruled:
+        verdict = VerificationState.VERIFIED if accepted else VerificationState.REJECTED
+        submission.verification_status = verdict
+        if not accepted:
+            submission.failure_reason = reason_code
+        # Sessions run with autoflush=False, so the verdict is flushed before the problem-level
+        # checks below: they query this submission too, and must see it as VERIFIED.
+        await session.flush()
 
-    if accepted and not submission.manual_review_required:
-        # Manual review is disabled for this submission, so eligibility is automatic — but it
-        # is still recorded as a policy decision rather than left implicit.
-        await approve_automatically(session, submission)
+        if accepted and not submission.manual_review_required:
+            # Manual review is disabled for this submission, so eligibility is automatic — but
+            # it is still recorded as a policy decision rather than left implicit.
+            await approve_automatically(session, submission)
+
+    submission.verification_lease_until = None
+    submission.verification_lease_owner = None
     await session.flush()
-    return run
+    return RecordedVerdict(run=run, applied=not already_ruled)
+
+
+async def problem_reward_holder(
+    session: AsyncSession, submission: Submission
+) -> uuid.UUID | None:
+    """The other submission already holding this problem's single reward, if any.
+
+    Mirrors the predicate of `submissions_problem_reward_unique`. The index is the authority;
+    this only lets the service give the reason instead of surfacing an IntegrityError.
+    """
+    result = await session.execute(
+        select(Submission.id)
+        .where(
+            Submission.problem_id == submission.problem_id,
+            Submission.id != submission.id,
+            Submission.reward_status != RewardState.INELIGIBLE,
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def problem_verified_modes(
+    session: AsyncSession, submission: Submission
+) -> set[TaskMode]:
+    """Which task modes of this problem have a Lean-valid proof."""
+    result = await session.execute(
+        select(Submission.task_mode)
+        .where(
+            Submission.problem_id == submission.problem_id,
+            Submission.verification_status == VerificationState.VERIFIED,
+        )
+        .distinct()
+    )
+    return set(result.scalars())
 
 
 async def approve_automatically(
     session: AsyncSession, submission: Submission
 ) -> ReviewDecision:
-    """Record the AUTOMATIC review decision and make the submission reward-eligible."""
+    """Record the AUTOMATIC review decision and make the submission reward-eligible.
+
+    Two problem-level facts can stop that, because one conjecture carries one reward across
+    both of its tasks:
+
+    * the conjecture has been proved *and* refuted -- one of those proofs must be wrong, or the
+      generated negation is not the negation. Nothing automatic should pay either, so the
+      submission is left `UNREVIEWED` with an ADVISORY note and enters the human review queue;
+    * another submission already holds the reward. That is not a fault in this proof, but it
+      cannot be paid, so the reward decision is a recorded rejection rather than an approval.
+    """
+    verified_modes = await problem_verified_modes(session, submission)
+    if len(verified_modes) > 1:
+        # Advisory, so it is evidence rather than a decision: a human must look at a conjecture
+        # that appears to be both true and false before anyone is paid for either answer.
+        advisory = ReviewDecision(
+            submission_id=submission.id,
+            decision=ReviewOutcome.REJECTED,
+            kind=ReviewerKind.ADVISORY,
+            reviewer="system",
+            policy_version=submission.review_policy_version,
+            reason_code=PROBLEM_CONTRADICTED,
+            notes=(
+                "problem verified in both modes: "
+                + ", ".join(sorted(mode.value for mode in verified_modes))
+            ),
+        )
+        session.add(advisory)
+        await session.flush()
+        return advisory
+
+    holder = await problem_reward_holder(session, submission)
+    if holder is not None:
+        superseded = ReviewDecision(
+            submission_id=submission.id,
+            decision=ReviewOutcome.REJECTED,
+            kind=ReviewerKind.AUTOMATIC,
+            reviewer="system",
+            policy_version=submission.review_policy_version,
+            reason_code=PROBLEM_ALREADY_AWARDED,
+            notes=f"problem {submission.problem_id} is already held by {holder}",
+        )
+        session.add(superseded)
+        await session.flush()
+        submission.manual_review_status = ManualReviewState.REJECTED
+        # reward_status stays INELIGIBLE: the proof is valid, but the reward is spent.
+        await session.flush()
+        return superseded
+
     decision = ReviewDecision(
         submission_id=submission.id,
         decision=ReviewOutcome.APPROVED,

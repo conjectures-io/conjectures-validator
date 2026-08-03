@@ -77,6 +77,13 @@ SS58 = DOMAIN(
 # verification state AND a review state AND a reward state at all times.
 
 
+class TaskMode(enum.StrEnum):
+    """What a task asks for. Mirrors verifier.task_policy.PRODUCTION_TASK_MODES."""
+
+    FORMALIZED = "formalized"  # prove the conjecture
+    COUNTEREXAMPLE = "counterexample"  # prove its negation
+
+
 class VerificationState(enum.StrEnum):
     UNVERIFIED = "UNVERIFIED"
     REJECTED = "REJECTED"
@@ -128,6 +135,7 @@ def _pg_enum(python_enum: type[enum.StrEnum], name: str) -> ENUM:
     )
 
 
+TASK_MODE = _pg_enum(TaskMode, "task_mode")
 VERIFICATION_STATE = _pg_enum(VerificationState, "verification_state")
 MANUAL_REVIEW_STATE = _pg_enum(ManualReviewState, "manual_review_state")
 REWARD_STATE = _pg_enum(RewardState, "reward_state")
@@ -176,9 +184,12 @@ class Submission(Base):
         UUID(as_uuid=True), nullable=False
     )
     request_digest: Mapped[bytes] = mapped_column(SHA256, nullable=False)
-    # No FK on task_id: the repo is the task source of truth.
+    # No FK on task_id: the task repo is the source of truth.
     task_id: Mapped[str] = mapped_column(Text, nullable=False)
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+    # Both derived from the allowlist at intake, never sent by the miner.
+    problem_id: Mapped[str] = mapped_column(Text, nullable=False)
+    task_mode: Mapped[TaskMode] = mapped_column(TASK_MODE, nullable=False)
 
     # Drop the UNIQUE if identical proofs should ever both be payable.
     proof_digest: Mapped[bytes] = mapped_column(
@@ -245,6 +256,14 @@ class Submission(Base):
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
 
+    verification_lease_until: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    verification_lease_owner: Mapped[str | None] = mapped_column(Text)
+    verification_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -254,6 +273,9 @@ class Submission(Base):
 
     __table_args__ = (
         CheckConstraint("length(task_id) BETWEEN 1 AND 255", name="task_id_nonempty"),
+        CheckConstraint(
+            "length(problem_id) BETWEEN 1 AND 255", name="problem_id_nonempty"
+        ),
         CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128",
             name="payment_reference_nonempty",
@@ -272,6 +294,20 @@ class Submission(Base):
             "length(bounty_policy_version) BETWEEN 1 AND 64",
             name="bounty_policy_version_nonempty",
         ),
+        CheckConstraint(
+            "verification_attempts >= 0", name="verification_attempts_nonneg"
+        ),
+        # Both halves or neither: a lease with no owner cannot be traced to a process,
+        # and an owner with no expiry never releases.
+        CheckConstraint(
+            "(verification_lease_until IS NULL) = (verification_lease_owner IS NULL)",
+            name="verification_lease_paired",
+        ),
+        CheckConstraint(
+            "verification_lease_owner IS NULL "
+            "OR length(verification_lease_owner) BETWEEN 1 AND 128",
+            name="verification_lease_owner_len",
+        ),
         UniqueConstraint(
             "hotkey", "idempotency_key", name="submissions_idempotency_unique"
         ),
@@ -280,7 +316,8 @@ class Submission(Base):
         ),
         CheckConstraint("updated_at >= created_at", name="updated_not_before_created"),
         # Worker queues, oldest first, for FOR UPDATE SKIP LOCKED. Partial, so only
-        # rows still awaiting work are indexed.
+        # rows still awaiting work are indexed. The lease is not in the verification
+        # predicate: now() is not immutable, so expiry is filtered, not indexed.
         Index(
             "submissions_verification_queue_idx",
             "created_at",
@@ -341,6 +378,17 @@ class Submission(Base):
             "account_id",
             text("created_at DESC"),
             postgresql_where=text("account_id IS NOT NULL"),
+        Index(
+            "submissions_problem_reward_unique",
+            "problem_id",
+            unique=True,
+            postgresql_where=text("reward_status <> 'INELIGIBLE'"),
+        ),
+        Index(
+            "submissions_problem_verified_idx",
+            "problem_id",
+            "task_mode",
+            postgresql_where=text("verification_status = 'VERIFIED'"),
         ),
     )
 
@@ -1368,6 +1416,7 @@ __all__ = [
     "Submission",
     "SubmissionEvent",
     "SubmissionIntent",
+    "TaskMode",
     "VerificationRun",
     "VerificationState",
 ]

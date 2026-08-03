@@ -1,0 +1,58 @@
+# The verification worker: claims paid submissions, verifies one proof each, records the verdict.
+#
+# NOT the verifier image. `Dockerfile` builds that one, and it is the hostile-proof sandbox.
+# docs/SUBNET.md forbids the database from ever being reachable inside it; this image is the other
+# side of that line — it holds the database credentials. So this image must never gain the
+# verifier's Lean toolchain, and the verifier image must never gain these credentials. Keeping them
+# as two images is what keeps that structural rather than a matter of care.
+#
+# Deliberately thin: the `db` extra, plus git for the reason given below. The code, the pinned task
+# pool, the audited allowlist and the Lean toolchain are all mounted read-only at run time by
+# docker-compose.worker.yml, so the image cannot carry a stale copy of the checkout it is meant to
+# be verifying against. A production worker image would COPY the code instead and be pinned by
+# digest; this one is built for a dev loop where the code changes between runs.
+
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+
+# git, because the in-process runner is the real verifier: it establishes the identity of the
+# vendored Formal Conjectures checkout with `git rev-parse HEAD` and refuses a task whose declared
+# repository commit does not match a clean tree. Without it every submission fails LOAD_TASK with
+# REPOSITORY_COMMIT_MISMATCH — an operator failure, so it burns the attempt cap and parks the row.
+# Nothing else is added: the container runner needs no git, and a production worker using it can
+# drop this layer.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+# The worker's whole dependency set: the `db` extra from pyproject.toml, version-pinned by the
+# repository's existing lock. Mirrors scripts/bootstrap.sh, which installs the same way —
+#
+#   pip install --constraint requirements-service.lock -e '.[dev,service,subnet,db]'
+#
+# so there is one place where a version is decided. The project itself is not installed: its code
+# arrives on the bind mount, and a wheel in site-packages would shadow it confusingly.
+# psycopg[binary] ships its own libpq, so no system postgres client is needed.
+COPY requirements-service.lock ./
+RUN pip install --no-cache-dir --constraint requirements-service.lock \
+      SQLAlchemy greenlet 'psycopg[binary]' \
+    && rm -f requirements-service.lock
+
+# Unprivileged, and not uid 10001: that one belongs to the verifier image, and two different trust
+# domains sharing a uid makes a mount that crosses them look accidental instead of wrong.
+#
+# docker-compose.worker.yml overrides this with the uid that owns the bind-mounted checkout — see
+# the note there. This stays the default for a run without that mount.
+RUN useradd --create-home --shell /usr/sbin/nologin --uid 10101 worker
+
+USER worker
+WORKDIR /srv/app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONNOUSERSITE=1 \
+    PYTHONPATH=/srv/app
+
+# No ENTRYPOINT wrapper: the worker installs its own SIGINT/SIGTERM handlers so an in-flight
+# verification finishes and its attempt is not wasted, and it must receive those signals directly.
+# The compose service sets `init: true` for pid-1 reaping instead, which matters once the container
+# runner is used and each job leaves a `docker` client process behind.
+CMD ["python", "-m", "verification_worker", "--log-level", "INFO"]

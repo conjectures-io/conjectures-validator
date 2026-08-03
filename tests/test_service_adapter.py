@@ -32,14 +32,35 @@ def test_service_adapter_passes_only_production_verifier_arguments(
         )
         == "verified"
     )
+    # The exact argument set, so a development override cannot be added to the production path
+    # without this test being changed on purpose. allow_insecure_development is passed explicitly
+    # as False rather than omitted: the default must be visible here, not inherited from verify().
     assert calls == [
         {
             "task_dir": tmp_path / "task",
             "submission_path": calls[0]["submission_path"],
             "project_root": tmp_path,
             "expected_task_sha256": TASK_DIGEST,
+            "allow_insecure_development": False,
         }
     ]
+
+
+def test_service_adapter_forwards_an_insecure_sandbox_only_when_asked(
+    monkeypatch, tmp_path
+):
+    calls = []
+    monkeypatch.setattr(
+        "verifier.service_adapter.verify", lambda **kwargs: calls.append(kwargs)
+    )
+
+    ProductionVerifierAdapter(
+        project_root=tmp_path, allow_insecure_development=True
+    ).verify_bytes(
+        task_dir=tmp_path / "task", submission=PROOF, expected_task_sha256=TASK_DIGEST
+    )
+
+    assert calls[0]["allow_insecure_development"] is True
 
 
 def test_service_adapter_rejects_bad_task_digest_before_verification(

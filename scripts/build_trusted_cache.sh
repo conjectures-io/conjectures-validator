@@ -13,7 +13,12 @@ lake build FormalConjecturesAnswerPostpone extract_names
 cd "$ROOT"
 lake update
 lake exe cache get
-lake build VerifierLean TaskSupport TestFixtures catalog_extractor task_inspector
+# TestFixtures.Counterexample is named explicitly: the TestFixtures lean_lib has no globs, so
+# building it compiles only the root module and its imports, and TestFixtures.lean does not import
+# Counterexample. Without it examples/counterexample/task-counterexample cannot build its challenge,
+# which tests/test_integration.py already depends on.
+lake build VerifierLean TaskSupport TestFixtures TestFixtures.Counterexample \
+  catalog_extractor task_inspector
 
 cd "$ROOT/vendor/lean4export"
 lake build lean4export

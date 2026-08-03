@@ -60,10 +60,12 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
 4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
    submission ID together with the bounty the submission is owed if it verifies, frozen at that
    moment. The submission is queued for verification by being `UNVERIFIED`.
-5. A verification worker claims it and passes the exact proof bytes and task digest to the
-   isolated verifier.
+5. A verification worker claims it under a lease and passes the exact proof bytes and task digest
+   to the isolated verifier, in a container holding neither the database nor any key.
 6. A proof rejected by policy, Comparator, or the Lean kernel is recorded as rejected and never
-   reaches rewards.
+   reaches rewards. A run that failed for the validator's own reasons — no sandbox, a dead
+   container — is not a rejection: the submission stays unverified and is retried, because the
+   miner has already paid and their proof was never judged.
 7. A Lean-valid proof and its immutable verification report are durably recorded.
 8. If manual reward review is required, the valid submission remains held until a reviewer
    approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
