@@ -72,7 +72,15 @@ class Kit:
     def session(self):
         return self.sessions()
 
-    async def submit(self, content: bytes = b"theorem t : True := trivial") -> uuid.UUID:
+    async def submit(
+        self,
+        content: bytes = b"theorem t : True := trivial",
+        *,
+        problem_id: str | None = None,
+    ) -> uuid.UUID:
+        """One paid submission. Each gets its own conjecture unless a test asks them to
+        share: only one submission per problem may hold a reward, so submissions that share
+        a problem exercise that contention rather than the lease behaviour tested here."""
         digest = sha256_bytes(content)
         async with self.session() as session:
             view = await store.create_submission(
@@ -83,6 +91,8 @@ class Kit:
                     request_digest=digest,
                     task_id=TASK_ID,
                     task_bundle_sha256=TASK_DIGEST,
+                    problem_id=problem_id or f"fc-e923379e-fixture-{uuid.uuid4()}-problem",
+                    task_mode=store.TaskMode.FORMALIZED,
                     proof_content=content,
                     proof_sha256=digest,
                     payment_reference=f"ref-{uuid.uuid4()}",
