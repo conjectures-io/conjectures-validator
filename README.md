@@ -190,6 +190,12 @@ The API process must not share a trust domain with the proof verifier; productio
 if it is configured to run verification in process, to authenticate with the development key, or
 to accept payments without reading the chain.
 
+Subnet funding and proof payouts use separate signing processes. `fc-weight-worker` pins the chain
+genesis plus a registered treasury UID/hotkey/coldkey tuple, submits the finalized Subnet 66
+primary-mechanism allocation, and emits a JSON chain audit record. `fc-reward-worker` uses the
+separately funded treasury payout wallet to send the winning miner's frozen direct TAO bounty.
+Deployment commands and safety checks are in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+
 Build and inspect the real full-repository catalog:
 
 ```bash

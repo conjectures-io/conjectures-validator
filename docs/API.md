@@ -321,4 +321,5 @@ The API queues work only by committing database state. `fc-verification-worker` 
 and runs one proof per immutable, networkless verifier container. `fc-reward-worker` reserves one
 unique payout row before signing, submits an exact TAO transfer under a wallet spend cap, waits for
 finality, and exposes the chain reference in the miner status. Run them as separate trust domains;
-see [OPERATIONS.md](OPERATIONS.md).
+`fc-weight-worker` separately submits the subnet's pinned treasury allocation and never handles a
+miner's proof or payout row. See [OPERATIONS.md](OPERATIONS.md).

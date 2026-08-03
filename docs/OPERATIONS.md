@@ -85,7 +85,52 @@ The operator identity, policy version, reason, notes, timestamp, and resulting w
 append-only. Two approvals for opposite modes may race, but PostgreSQL can commit only one winner
 for the shared problem.
 
-## 5. Reward worker
+## 5. Treasury weight worker
+
+Subnet weights address registered UIDs, not arbitrary wallet addresses. Register a dedicated
+treasury hotkey on netuid 66 under a treasury coldkey, pin all three identifiers in deployment
+configuration, and keep the validator hotkey that signs weights separate from the coldkey that
+signs winner payouts. The default guard refuses a treasury hotkey owned by the subnet-owner
+coldkey because current Subtensor owner-UID policy may burn or recycle that miner emission.
+
+The current launch policy assigns the primary mechanism entirely to the treasury UID. Confirm
+that netuid 66 permits one non-self weight with a 100% maximum before running the command. Invoke
+the one-shot worker from a scheduler no more often than the on-chain weight interval:
+
+```bash
+fc-weight-worker \
+  --network finney \
+  --netuid 66 \
+  --mechid 0 \
+  --wallet-name validator \
+  --wallet-hotkey weights \
+  --wallet-path /run/secrets/bittensor-wallets \
+  --expected-genesis-hash <target-chain-genesis-hash> \
+  --expected-validator-hotkey <validator-hotkey-ss58> \
+  --treasury-uid <registered-uid> \
+  --treasury-hotkey <treasury-hotkey-ss58> \
+  --treasury-coldkey <treasury-coldkey-ss58> \
+  --weights-version-key <reviewed-version-key> \
+  --max-fee-rao <maximum-chain-fee-rao> \
+  --implementation-commit <reviewed-git-commit>
+```
+
+The worker reads a finalized metagraph, verifies the pinned UID/hotkey/coldkey tuple and validator
+authority, refuses clipping or a stale version key, submits without SDK retries, waits for
+finality, and checks the tuple again at the inclusion block. Its single stdout line is a
+`conjectures-weight-submission/v1` JSON audit record containing the genesis hash, exact effective
+weight, final block/hash and canonical extrinsic reference. Send that line to append-only operator
+logging. If the process exits ambiguously after signing, inspect the validator hotkey's chain
+history before invoking it again.
+
+Setting weights routes subnet miner incentive to the treasury UID; it does not by itself guarantee
+an immediately spendable TAO balance. Maintain the direct-payout wallet reserve independently and
+operate the reviewed emission realization/replenishment procedure for the target network.
+
+`--allow-owner-controlled-treasury` is an emergency policy override, not a normal deployment
+setting. Use it only after verifying the target network's current owner-UID burn/recycle behavior.
+
+## 6. Reward worker
 
 Use a dedicated, funded coldkey and a database credential separate from the API and verifier.
 The worker pays the bounty frozen on each submission, applies an SDK spend cap on every operation,
@@ -123,7 +168,7 @@ The expected reward-wallet sender was frozen on the payout reservation. The comm
 failed, nonfinal, wrong-sender, wrong-destination, or wrong-amount transfer and appends the normal
 reward transition event on success.
 
-## 6. Required staging drill
+## 7. Required staging drill
 
 For one formalized task and its paired counterexample task, record evidence for:
 
@@ -133,8 +178,10 @@ For one formalized task and its paired counterexample task, record evidence for:
 4. an append-only report whose task mode/problem/digests match the submission;
 5. optional review with an operator audit row;
 6. exactly one `problem_winners` row when both outcomes race;
-7. exactly one finalized payout and its miner-visible extrinsic reference; and
-8. backup/restore recovery preserving proofs, reports, reviews, winners, payout state, and events.
+7. one finalized treasury weight submission whose chain genesis and inclusion-block UID, hotkey
+   and coldkey match the pinned deployment values;
+8. exactly one finalized payout and its miner-visible extrinsic reference; and
+9. backup/restore recovery preserving proofs, reports, reviews, winners, payout state, and events.
 
 Also simulate a verifier crash after leasing and a reward RPC failure after reservation. The first
 must be reclaimed after lease expiry; the second must remain PENDING and must not sign again.

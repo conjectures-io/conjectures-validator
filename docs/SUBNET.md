@@ -7,6 +7,11 @@ legacy miner submission protocol.
 The validator accepts paid Lean-proof submissions, verifies them, optionally holds valid proofs for
 manual reward review, and sends reward-eligible results to the Subnet 66 reward pipeline.
 
+Subnet emissions and winner payouts are deliberately separate. A validator weight transaction
+assigns the primary mechanism to one pinned, registered treasury UID. It does not itself turn the
+resulting subnet incentive into liquid TAO; operators maintain a funded treasury payout wallet,
+which sends each winning miner the exact direct TAO bounty frozen at submission intake.
+
 ## Core contract
 
 - One submission costs exactly **0.5 TAO**.
@@ -56,6 +61,11 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
     finality, and records the canonical chain reference. An unresolved `PENDING` record blocks
     automatic retries until an operator reconciles whether broadcast occurred, preventing double
     payment.
+12. Independently, a one-shot weight worker verifies the configured treasury UID, hotkey and
+    coldkey against finalized metagraph state, submits the primary mechanism's treasury allocation,
+    waits for finality, rechecks the tuple at the inclusion block, and emits the canonical chain
+    reference. Weight setting routes incentive toward the treasury UID; it is neither an immediate
+    liquid-TAO transfer nor the per-submission payout record.
 
 ```text
                        intake (payment confirmed first, or no submission at all)
@@ -97,6 +107,7 @@ All validator source and operational configuration belongs in this repository:
 | Job workers | Advance verification and reward jobs idempotently |
 | Lean verifier | Decide whether the exact submitted proof proves the exact committed task |
 | Review service | Hold and decide Lean-valid submissions when manual review is enabled |
+| Weight process | Submit the finalized, pinned Subnet 66 treasury allocation |
 | Reward process | Reserve, submit, finalize, and reconcile exact TAO bounty payouts |
 | Operator tooling | Migrations, monitoring, backups, restores, reconciliation, and incident response |
 
@@ -297,6 +308,5 @@ not repository state.
    are any failure classes refundable?
 3. Should manual review remain a global captured policy or become per task?
 4. What exact review criteria can reject a Lean-valid proof, and is there an appeal process?
-5. Should production economics keep direct TAO bounties, or replace the payout gateway with subnet
-   weight setting? The durable winner and finality interfaces support either, but this branch
-   implements direct TAO payout.
+5. What operational reserve and replenishment thresholds should connect treasury emissions to the
+   direct TAO bounty wallet?
