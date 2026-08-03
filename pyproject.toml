@@ -14,12 +14,23 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.2", "pytest-cov>=5"]
 service = [
+    "formal-conjectures-verifier[db,subnet]",
     "fastapi==0.139.2",
     "httpx==0.28.1",
     "pydantic==2.13.4",
     "uvicorn==0.51.0",
 ]
 subnet = ["bittensor==11.0.0"]
+# Database access only. Migrations are plain SQL applied by Flyway
+# (deploy/migrate/sql), so no migration tool belongs in this extra.
+# greenlet is explicit rather than left to SQLAlchemy's platform-conditional
+# dependency, because the API drives the async engine and would fail at runtime
+# with MissingGreenlet on any platform where that condition does not hold.
+db = [
+    "SQLAlchemy==2.0.51",
+    "greenlet==3.5.4",
+    "psycopg[binary]==3.3.4",
+]
 
 [project.scripts]
 fc-verifier = "verifier.cli:main"
@@ -33,4 +44,4 @@ markers = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["verifier", "conjectures_subnet"]
+packages = ["verifier", "conjectures_subnet", "submission_api"]

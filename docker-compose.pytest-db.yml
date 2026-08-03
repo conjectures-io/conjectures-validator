@@ -1,0 +1,109 @@
+# Throwaway database for the pytest suite, kept apart from docker-compose.db.yml so a test
+# run can never touch development data.
+#
+#   docker compose -f docker-compose.pytest-db.yml up -d
+#
+# Every credential here is fixed and duplicated in tests/conftest_api.py, which probes this
+# stack and skips the database tests when it is not up. That is the point: running the tests
+# needs no FC_POSTGRES_DSN and no .env, so there is nothing to keep in sync by hand. Do not
+# parameterise these values — the tests hardcode them.
+
+name: conjectures-db-pytest
+
+services:
+  db:
+    image: postgres:17
+    container_name: conjectures-db-pytest
+    restart: unless-stopped
+    # Deliberately no env_file: this stack is self-contained, so a missing or edited .env
+    # cannot change what the tests connect to.
+    environment:
+      POSTGRES_USER: conjectures-pytest
+      POSTGRES_PASSWORD: conjectures-pytest-pw
+      POSTGRES_DB: conjectures-pytest
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # Run with the tuned config instead of the stock one.
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    ports:
+      # Loopback only, and a different host port from docker-compose.db.yml so both stacks can
+      # run at once. Fixed rather than ${...}: the tests hardcode 5440.
+      - "127.0.0.1:5440:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Mounted as a single file so the path resolves to a real file rather than
+      # an empty bind-created directory, which is what makes config_file= fail
+      # and the container come up unhealthy.
+      - ./deploy/db/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      # Runs once, on an empty data dir, as the superuser.
+      - ./deploy/db/00_init.sh:/docker-entrypoint-initdb.d/00_init.sh:ro
+    # Postgres uses /dev/shm for parallel workers and large hash/sort spills.
+    # Docker's 64MB default causes "could not resize shared memory segment".
+    shm_size: "1gb"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conjectures-pytest -d conjectures-pytest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          cpus: "1.0"
+          memory: 2G
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # One-shot: applies pending migrations, then exits. No Dockerfile — the
+  # migrations are plain SQL, so the official image plus a read-only bind mount
+  # is the whole runner.
+  migrate:
+    image: flyway/flyway:11-alpine
+    container_name: conjectures-migrate-pytest
+    environment:
+      # JDBC URL, not a libpq one. The password is passed separately, so it
+      # never appears in the connection string in logs.
+      #
+      # 5432, not the 5440 published above: the host port mapping does not exist inside the
+      # compose network, where Postgres still listens on its own port.
+      FLYWAY_URL: jdbc:postgresql://db:5432/conjectures-pytest
+      FLYWAY_USER: conjectures-pytest
+      FLYWAY_PASSWORD: conjectures-pytest-pw
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      # Refuse to adopt a database that already has objects but no history
+      # table. Without this, pointing at an existing database would mark V001 as
+      # applied without running it and every later migration would build on
+      # unknown ground.
+      FLYWAY_BASELINE_ON_MIGRATE: "false"
+      # The checksum guard: an already-applied migration that has been edited
+      # aborts the run instead of leaving two environments quietly different.
+      FLYWAY_VALIDATE_ON_MIGRATE: "true"
+      FLYWAY_VALIDATE_MIGRATION_NAMING: "true"
+      # `flyway clean` drops every object in the schema. Never reachable here.
+      FLYWAY_CLEAN_DISABLED: "true"
+      # The database sets statement_timeout=60s for application queries; a real
+      # index build is legitimately slower than that.
+      FLYWAY_INIT_SQL: "SET statement_timeout = 0"
+      # Low, unlike the durable stack: depends_on already waits for a healthy database, so a
+      # connection failure here means a misconfiguration. Flyway backs off exponentially up to
+      # 120s per retry, and 10 of those is a container that appears to hang for 20 minutes
+      # instead of telling you the URL is wrong.
+      FLYWAY_CONNECT_RETRIES: "3"
+    volumes:
+      - ./deploy/migrate/sql:/flyway/sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["migrate"]
+    restart: "no"
+
+volumes:
+  pgdata:

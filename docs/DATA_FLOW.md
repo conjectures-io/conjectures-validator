@@ -1,0 +1,558 @@
+# Data flow: source theorem → reward
+
+How data moves through the validator, what each stage consumes, what it produces, and which values
+are load-bearing for trust. Every number here was computed from the pinned repository state at
+`e923379e609b9d5987011a1d1f06ec22ea25cd20`; the commands are reproducible from `data/catalog.json`
+and `task_pool/**/*.json`.
+
+Companion documents: [`SUBNET.md`](SUBNET.md) for the service contract,
+[`../SECURITY.md`](../SECURITY.md) for the isolation boundary.
+
+## Status legend
+
+Roughly half of this pipeline exists as code and half as specification. Every stage below is tagged:
+
+| Tag | Meaning |
+| --- | --- |
+| **BUILT** | Implemented, with a file reference. Behaviour described is what the code does. |
+| **SPEC** | Described in [`SUBNET.md`](SUBNET.md), no implementation. Behaviour described is intended. |
+| **OPEN** | Neither implemented nor decided. Listed in `SUBNET.md` "Decisions still required". |
+
+The cut is clean and worth stating plainly: **everything from the upstream theorem to the immutable
+verifier report is BUILT. Everything that moves money or weights is SPEC or OPEN.** The only chain
+code in the repository is `conjectures_subnet/chain.py` — 38 lines, two classes, read-only.
+
+## Two trust domains
+
+Data crosses one hard boundary, and the direction of crossing is what makes the design work.
+
+| | Generation domain | Verification domain |
+| --- | --- | --- |
+| Runs | Offline, once per dependency pin | Per submission, in a fresh container |
+| Input trust | Trusted (upstream Lean source, human audit) | **Hostile** (miner-controlled bytes) |
+| Network | Available | None |
+| Secrets present | None needed | **None permitted** — no payment keys, no wallet keys, no DB credentials |
+| Output | Immutable task bundles + digests | One immutable report |
+
+Everything expensive, human, and judgement-based happens on the left. The right side receives only
+a read-only task directory, bounded proof bytes, and an expected digest, and returns a verdict.
+`SUBNET.md:113` states the rule; `SECURITY.md` defines the enforcement.
+
+## The whole flow
+
+```mermaid
+flowchart TD
+    subgraph GEN["GENERATION DOMAIN — offline, trusted, once per pin"]
+        FC["Formal Conjectures @ e923379e<br/>823 files · 3236 declarations"]
+        EX["CatalogExtractor.lean<br/>Lean environment introspection"]
+        CAT["data/catalog.json<br/>3236 records × 24 fields"]
+        POL["production_policy_violations<br/>10 deny-by-default rules"]
+        AUD["HUMAN AUDIT<br/>task_pool/tiers/tier-1/selection-audit.json · 100 candidates"]
+        PICK["task_pool/tiers/tier-1/whole-problem-targets.json<br/>29 asserted picks"]
+        SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
+        GT["generate_task<br/>fcTypeOfName% type splice"]
+        VAL["target_validator<br/>compile · isDefEq · policy recheck"]
+        BUN["tasks/pool/tier-1/TASK_ID/<br/>7 frozen files"]
+        ALLOW["task_pool/allowlist.json<br/>29 bundle digests · default DENY"]
+    end
+
+    subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
+        API["POST /v1/submissions<br/>SPEC"]
+        PAY["payment watcher<br/>0.5 TAO finalized<br/>SPEC"]
+        OBJ["object store<br/>proof bytes by digest<br/>SPEC"]
+        DB["Postgres<br/>lifecycle · audit · outbox<br/>SPEC"]
+        WORK["verification worker<br/>SPEC"]
+        REV["reward gating<br/>optional manual review<br/>SPEC"]
+        RE["reward_events<br/>SPEC"]
+        WB["weight_batches → set_weights<br/>OPEN"]
+    end
+
+    subgraph VER["VERIFICATION DOMAIN — hostile input, no secrets"]
+        LOAD["load_task_bundle<br/>rehash · regenerate · compare"]
+        SUB["load_submission<br/>bounded UTF-8 · sha256"]
+        STAT["check_submission<br/>static hostile-input policy"]
+        BC["build Challenge + task_inspector<br/>recheck hashes against live Lean"]
+        CMP["Comparator<br/>build · export · compare · axioms · kernel replay"]
+        REP["VerificationReport<br/>19 fields · immutable"]
+    end
+
+    FC --> EX --> CAT
+    CAT --> POL --> SEL
+    CAT --> AUD --> PICK --> SEL
+    SEL --> GT --> VAL --> BUN --> ALLOW
+
+    MINER["miner"] -->|"0.5 TAO"| PAY
+    ALLOW -.->|"task_id + bundle digest<br/>published"| MINER
+    MINER -->|"Main.lean + digest + payment ref"| API
+    API --> OBJ
+    API --> DB
+    PAY --> DB
+    DB -->|"outbox job"| WORK
+    OBJ -->|"proof bytes"| WORK
+    ALLOW -->|"expected_task_sha256"| WORK
+    BUN -->|"read-only mount"| WORK
+
+    WORK --> LOAD --> SUB --> STAT --> BC --> CMP --> REP
+    REP -->|"report bytes"| OBJ
+    REP -->|"verdict + reason_code"| DB
+    DB --> REV --> RE --> WB
+
+    classDef built fill:#0f5132,stroke:#0f5132,color:#fff
+    classDef spec fill:#664d03,stroke:#664d03,color:#fff
+    classDef open fill:#842029,stroke:#842029,color:#fff
+    classDef ext fill:#41464b,stroke:#41464b,color:#fff
+    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP built
+    class API,PAY,OBJ,DB,WORK,REV,RE spec
+    class WB open
+    class MINER ext
+```
+
+---
+
+# Stage by stage
+
+## 1. Extraction — **BUILT**
+
+`lean/CatalogExtractor.lean` → `data/catalog.json`
+
+| | |
+| --- | --- |
+| **Primary source** | `vendor/formal-conjectures` at commit `e923379e…`, a Lean 4 project |
+| **Needs** | The pinned toolchain `leanprover/lean4:v4.27.0`, Mathlib `a3a10db0…`, a full compile |
+| **Produces** | 3,236 declaration records over 823 source files, plus `schema_version`, `repository_commit`, `lean_toolchain`, `mathlib_commit`, `extraction_duration_ms` |
+| **Cost** | `extraction_duration_ms: 728811` — 12.1 minutes, once per pin |
+
+The data does not come from parsing text. It comes from asking the compiled Lean environment about
+each declaration, which is why fields like `depends_on_sorry` and `transitive_axioms` can be
+trusted: they are the elaborator's answer, not a regex's guess.
+
+**Trust-critical field produced here:**
+
+- `type_hash` — SHA-256 over the declaration's elaborated type. This single value is the anchor for
+  everything downstream. If the upstream statement changes by so much as an implicit binder, this
+  changes, and every later stage notices.
+
+Other fields consumed downstream: `category`, `classification`, `declaration_kind`, `is_prop`,
+`depends_on_sorry`, `contains_sorry_in_type`, `contains_answer_annotation`, `formal_proof_kind`,
+`formal_proof_link`, `transitive_axioms`, `module`, `source_path`, `theorem`, `type_pretty`.
+
+## 2. Classification — **BUILT**
+
+`verifier/classification.py` → the `classification` field, one of 11 `Classification` values.
+
+This asks a shape question: *can a proof of this statement be checked mechanically without a human
+deciding what the answer means?* The distribution over 3,236 declarations:
+
+| Classification | Count | Usable as a paid task |
+| --- | --- | --- |
+| `DIRECT_PROP` | 2,015 | **yes** — statement is a closed proposition |
+| `PROP_ANSWER_WRAPPER` | 869 | no — wraps an `answer` hole |
+| `POINTER_DECLARATION` | 208 | no — refers elsewhere |
+| `GENERAL_VALUE_ANSWER` | 114 | no — needs an adapter |
+| `NAT_ANSWER` | 20 | no for production — answer syntax |
+| `UNSUPPORTED` | 9 | no |
+| `DEFINITION_HOLE` | 1 | no |
+| `BOOL_ANSWER`, `INT_ANSWER`, `FINITE_ANSWER`, `MULTIPLE_ANSWER_HOLES` | 0 each | — |
+
+Only `DIRECT_PROP` survives into production. The reason is narrow and worth stating: for anything
+with an answer hole, "correct" depends on what value the miner supplied, so acceptance would need a
+policy about answers. `DIRECT_PROP` has no such freedom — either the proposition is proved or it is
+not.
+
+## 3. Curation — **BUILT** code, **HUMAN** input
+
+This is the stage most people assume is automatic. It is not, and it is the most important stage in
+the pipeline.
+
+### The measured funnel
+
+| Step | Rule | Remaining |
+| --- | --- | --- |
+| 0 | All declarations at the pinned commit | **3,236** |
+| 1 | `category == "research open"` | **1,172** |
+| 2 | `classification == DIRECT_PROP` | **404** |
+| 3 | `declaration_kind == "theorem"` | 404 |
+| 4 | `is_prop` | 404 |
+| 5 | `depends_on_sorry` — no existing proof | 404 |
+| 6 | no `sorry` inside the type itself | 404 |
+| 7 | no `answer` annotation | 404 |
+| 8 | no formal-proof metadata | 404 |
+| 9 | no other *proved* declaration with the same `type_hash` | 404 |
+| 10 | not under `FormalConjectures/WrittenOnTheWallII/` | 381 |
+| 11 | module under `ErdosProblems/` | **121** over 78 files |
+| 12 | human audit reviewed a candidate | **100** over 67 files |
+| 13 | chosen as the one canonical whole-problem target for its file | **29** |
+
+**Steps 3 through 9 remove nothing.** All 404 declarations that pass the category and classification
+filters also pass the remaining eight production-policy rules. Those rules are defence in depth
+against a future upstream revision, not live selection criteria — a useful thing to know before
+anyone "optimises" them away, and a useful thing to re-measure after every pin bump, because the day
+one of them starts firing is the day upstream changed something that matters.
+
+### The 178 retired theorems
+
+`task_pool/tiers/tier-1/retired-source-theorems.json` names 178 source theorems that must never be offered again,
+committed by both `theorem` name **and** `source_type_sha256` — so retiring survives a rename. Of
+those, 88 intersect the eligible pool and 11 intersect the Erdős-eligible 121. Retirement is checked
+by name *or* type hash at selection time (`task_pool.py:467-468`).
+
+### Human picks, machine proves the pick is legal
+
+The 29 are **not computed** from the 121. They are asserted by hand in
+`task_pool/tiers/tier-1/whole-problem-targets.json`, and `select_task_declarations` (`task_pool.py:407-489`) then
+refuses to accept any pick that is not simultaneously:
+
+- present in the audited selection with matching `source_path` and `erdos_problem_number`;
+- present in the pinned catalog;
+- passing all 10 production-eligibility rules;
+- not retired by name and not retired by type hash;
+- not a duplicate `type_hash` of an already-selected task;
+- not under an excluded prefix.
+
+Plus a floor: at least 29 Erdős tasks or the build fails. All three audit inputs must carry the same
+`repository_commit` as the catalog, or the whole selection is rejected up front.
+
+Why human judgement is unavoidable here: a source file typically holds several `research open`
+declarations — variants, partial results, restatements — and only one of them is *the problem*.
+`FormalConjectures/ErdosProblems/11.lean` contains six declarations, three of them `research open`;
+exactly one becomes a task. Nothing in the catalog distinguishes "the conjecture" from "a lemma
+someone stated on the way to it".
+
+The audit record is not a rubber stamp either. Each of the 100 entries carries `upstream_status`,
+`problem_tracker_status`, `open_prs_touching_source`, `active_resolution_prs`, and
+`feasibility_signals`, screened against `teorth/erdosproblems` at commit `1fddae46…` with 281 open
+upstream PRs considered. The file states its own limits:
+
+> Plausibly attackable solver target; this is a comparative screen, not a claim that the conjecture
+> is easy or guaranteed solvable.
+
+## 4. Task generation — **BUILT**
+
+`verifier/task_generator.py:213-346` → a bundle directory of exactly 7 files.
+
+The central mechanism, and the thing that makes statement drift structurally impossible: the
+generated `Challenge.lean` **never copies the statement text**. It asks Lean to splice the source
+theorem's type in by name, via the custom elaborator `fcTypeOfName%` in `lean/TaskSupport.lean`.
+
+A complete real bundle — `tasks/pool/tier-1/fc-e923379e-erdos11-erdos-11-7c0303029e-formalized-v1/`:
+
+```lean
+-- Challenge.lean, 160 bytes, the entire task
+import FormalConjectures.ErdosProblems.«11»
+import TaskSupport
+
+namespace Bounty
+
+theorem target : fcTypeOfName% "Erdos11.erdos_11" := by
+  sorry
+
+end Bounty
+```
+
+The statement the miner must prove — never stored as text anywhere in the bundle:
+
+```
+∀ (n : ℕ), Odd n → 1 < n → ∃ k l, Squarefree k ∧ n = k + 2 ^ l
+```
+
+| File | Role |
+| --- | --- |
+| `Challenge.lean` | The task. Target theorem with `sorry`. |
+| `SolutionHeader.lean.txt` | Prepended to the miner's proof — the imports and `namespace Bounty`. |
+| `SolutionFooter.lean.txt` | Appended — `end Bounty`. |
+| `manifest.json` | 25 fields; the task contract. |
+| `source-metadata.json` | The catalog record for the source theorem, frozen. |
+| `trusted-hashes.json` | Per-file SHA-256 of the 5 payload files. |
+| `comparator-config.json` | What the Comparator must check. |
+
+**Trust-critical manifest fields:**
+
+| Field | Value in this bundle | Purpose |
+| --- | --- | --- |
+| `source_type_hash` | `sha256:7e9596e7…a19ea738` | The upstream statement's identity |
+| `generated_target_type_hash` | `sha256:7e9596e7…a19ea738` | The generated target's identity — **must be equal in formalized mode** |
+| `forbidden_dependencies` | `["Erdos11.erdos_11"]` | The proof may not cite the source theorem |
+| `permitted_axioms` | `propext`, `Quot.sound`, `Classical.choice` | Whitelist; `sorryAx` is absent |
+| `theorem_names` | `["Bounty.target"]` | What must be proved and exported |
+| `production_eligible` | `true` | Gates the strict path |
+| `task_mode` | `formalized` | The only mode |
+| `timeout_seconds` | `3600` | Wall-clock cap |
+| `max_submission_bytes` | `1000000` | Size cap |
+| `trusted_file_hashes` | 5 entries | Must equal `trusted-hashes.json` |
+
+Generation writes to a temp directory, validates, then publishes with `os.replace`; it refuses to
+overwrite an existing bundle.
+
+Note: `TaskManifest.max_submission_bytes` falls back to `5_000_000` when the key is absent
+(`models.py:207`), while the generator's own default is `1_000_000`. Every pool manifest sets the
+value explicitly, so nothing is currently affected — but a hand-written manifest that omits the key
+gets a 5× larger cap than the generator would ever produce.
+
+## 5. Generation-time audit — **BUILT**
+
+`verifier/workspace.py:350-407`, `target_validator`
+
+Before a bundle is allowed to exist, the generated Challenge is compiled and inspected. The task is
+rejected unless the source hash is unchanged, the generated target is `isDefEq` to the source type,
+and for formalized mode: `source_category == "research open"`, `declaration_kind == "theorem"`,
+`depends_on_sorry` is true, `has_formal_proof` is false, the target contains no `sorry`, and the
+axiom sets match.
+
+This is why the pool policy records `compiled_target_validation: true` — eligibility is asserted
+against a real Lean compile, not against JSON.
+
+## 6. Commitment — **BUILT**
+
+`task_pool/allowlist.json`, schema version 5, `default: "DENY"`, enforced by
+`task_registry.py` `assert_bundle`.
+
+29 `allowed_source_theorems` and 29 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+`source_path`, `theorems`, `target_type_sha256s`, and:
+
+- `task_bundle_sha256` — the whole-bundle digest, e.g.
+  `sha256:c70c6d5c…cf6b4a48`
+
+The bundle digest is computed by `sha256_named_bytes` (`verifier/hashing.py`), which
+**length-prefixes each filename and each content block** so bytes cannot be shuffled between files
+to collide.
+
+`pool_policy` additionally commits to a hash of every audit input, so the allowlist cannot be
+combined with a tampered audit file:
+
+| Commitment | Covers |
+| --- | --- |
+| `selection_audit_sha256` | the 100 human reviews |
+| `retired_source_theorems_sha256` | the 178 retirements |
+| `whole_problem_targets_sha256` | the 29 picks |
+| `task_groups_sha256` | the group policy (currently empty) |
+
+`pool_policy` also records the selection rules as data: `one_task_per_source_path: true`,
+`task_scope: whole_problem`, `synthetic_negation: false`, `multi_target_tasks: 0`,
+`minimum_erdos_tasks: 29`.
+
+**This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
+move into the database. A row is mutable by anything holding app credentials, and the attack it
+enables is direct: add a task you already have a proof for.
+
+---
+
+## 7. Task publication — **SPEC**
+
+The miner needs `task_id` and `task_bundle_sha256` to submit. Nothing publishes them yet; there is
+no task-listing endpoint in the minimum API (`SUBNET.md:118-136`).
+
+## 8. Payment — **SPEC**, with **OPEN** parameters
+
+The miner transfers 0.5 TAO before submitting. The watcher confirms against *finalized* chain state,
+checking recipient, asset, exact amount, sender policy, and uniqueness of the payment reference.
+
+**Needs:** a chain transaction/extrinsic reference. **Produces:** a `payments` row — unique chain
+reference, expected and observed sender and recipient, amount **as an integer in RAO**
+(500,000,000 — never a float, `SUBNET.md:168`), asset and network, observed and finalized block,
+confirmation state, linked submission, reconciliation timestamps.
+
+The API must accept a payment *reference*, never a client-provided `paid: true`.
+
+**OPEN:** which address receives the TAO, how many finalized blocks are required, and whether a
+Lean-invalid proof consumes the payment or is refundable.
+
+## 9. Submission intake — **SPEC**
+
+`POST /v1/submissions`, idempotency key required.
+
+**Needs from the miner:** idempotency key, authenticated identity, `task_id`, exact
+`task_bundle_sha256`, payment reference, and the candidate `Main.lean`.
+
+**Produces:** proof bytes in the object store keyed by content digest, plus one transaction writing
+`artifacts`, `submissions`, and an outbox job.
+
+**Write order matters and is not optional:** blob first, then the database transaction. A crash
+between them leaves an orphan blob, which a reaper sweeps. Reversed, a crash leaves a paid
+submission whose proof cannot be read.
+
+The miner-supplied digest is a real gate — it must match an entry in the allowlist. A submission
+naming a `task_bundle_sha256` that is not allowlisted must be refused before any Lean work happens.
+
+Reusing an idempotency key with the same canonical request returns the original submission; reusing
+it with different task, proof, miner, or payment data is a conflict.
+
+## 10. Verification — **BUILT**
+
+`verifier/verification.py` `verify()`, reached through
+`verifier/service_adapter.py` `ProductionVerifierAdapter.verify_bytes`.
+
+**Needs exactly four things**, and nothing else: a read-only task directory, the proof bytes, the
+`expected_task_sha256`, and a fresh disposable workspace. No secrets, no network, no database.
+`expected_task_sha256` is a **required** argument and is validated by `is_sha256`.
+
+Ordered gates, each with a stable `reason_code`:
+
+| # | Gate | Rejects with |
+| --- | --- | --- |
+| 1 | Bundle digest equals `expected_task_sha256` | `TASK_COMMITMENT_MISMATCH` |
+| 2 | Task is production-eligible | `INELIGIBLE_TASK` |
+| 3 | Dependency pins intact; FC commit matches manifest and checkout | `REPOSITORY_COMMIT_MISMATCH` |
+| 4 | Per-file hashes match; payloads **regenerate byte-identically** | `TRUSTED_FILE_MODIFIED` |
+| 5 | Proof is one regular non-symlink `.lean`, ≤ 1 MB, valid UTF-8, no NUL | `SUBMISSION_TOO_LARGE`, `SUBMISSION_NOT_UTF8`, `SUBMISSION_POLICY_VIOLATION` |
+| 6 | Static policy: no forbidden dependency, no attributes, no top-level `#` commands | `SUBMISSION_POLICY_VIOLATION` |
+| 7 | Live Landlock ≥ ABI 4 + seccomp probe passes | `INSECURE_SANDBOX` |
+| 8 | Challenge builds | `CHALLENGE_BUILD_FAILED` |
+| 9 | Source hash **recomputed from live Lean** equals the frozen hash | `SOURCE_TYPE_CHANGED` |
+| 10 | Target hash matches manifest and `isDefEq` holds | `STATEMENT_MISMATCH` |
+| 11 | Comparator: build, decl-filtered export, compare, axiom check, kernel replay | `SOLUTION_BUILD_FAILED`, `STATEMENT_MISMATCH`, `UNPERMITTED_AXIOM`, `LEAN_KERNEL_REJECTED` |
+| 12 | Deadline not exceeded | `TIMEOUT` |
+
+Gates 9 and 10 are the subtle ones. The manifest's hashes are not merely trusted from disk — they
+are **recomputed against the compiled Lean environment on every single submission**. A bundle that
+was valid when generated but whose upstream statement has since shifted fails here rather than
+silently verifying the wrong theorem.
+
+Gate 4 is stronger than a hash check: `load_task_bundle` re-runs the pure generator and compares the
+result byte-for-byte (`task_loader.py:495-503`).
+
+**Produces** a `VerificationReport` — 19 fields, of which the trust-critical ones are:
+
+| Field | Meaning |
+| --- | --- |
+| `task_bundle_sha256` | Which exact task |
+| `submission_sha256` | Which exact bytes — `sha256_bytes(raw)`, `submission.py:58` |
+| `accepted` | The verdict |
+| `reason_code` | One of 30 stable strings, the public API contract |
+| `stage` | Where it stopped |
+| `sandbox_mode` | Must be `landrun+seccomp` to be a production result |
+| `checks` | 14 named booleans |
+| `permitted_axioms` | The 3 allowed axioms |
+| `repository_commit` | Which pin decided this |
+
+Bulk fields — `stdout_tail`, `stderr_tail`, `theorem_names`, `duration_ms`,
+`comparator_exit_code`, `workspace_retained`, `schema_version` — are diagnostic. Workspace paths are
+sanitised out of both tails before the report is built.
+
+The authoritative verdict comes only from the Comparator. **A successful `lake build` is never an
+accepted result** — the miner controls the proof file, and `lake build` alone would accept a file
+that builds while proving something else, or proves the target via `sorryAx`. Acceptance requires
+the exported statement to match and the kernel to replay the proof term.
+
+`nanoda` — an independent second kernel — exists in the pins but is `enabled: false`.
+
+## 11. Report persistence — **SPEC**
+
+Report bytes to the object store under their digest; one `verification_runs` row: submission ID,
+attempt number, task and proof digests, verifier version and **immutable container digest**, start
+and finish timestamps, verdict, reason code, stage, report artifact digest, retry metadata.
+
+"Artifact" and "proof bytes" are not different kinds of thing. An artifact is any immutable blob
+stored under its content digest; this system has exactly two — the miner's proof and the verifier's
+report. The `artifacts` table is an *index* (digest → object key, length, media type, retention
+state); it holds no bytes.
+
+The distinction that matters is **terminal policy rejection vs. retryable infrastructure failure**.
+`CONFIGURATION_REASONS` (17 of the 30 codes) already encodes this: those are operator faults, and a
+worker must retry them rather than burn the miner's submission. `exit_code_for` maps accepted → 0,
+policy rejection → 1, configuration fault → 2.
+
+## 12. Reward gating — **SPEC**
+
+Lean-valid proofs hit the captured review policy. The flag `MANUAL_REWARD_REVIEW_ENABLED` is global,
+but each submission **captures the effective value and policy version** when it reaches gating, so
+flipping the live flag cannot retroactively change an in-flight submission.
+
+Enabled → `MANUAL_REVIEW_PENDING`, reward worker must ignore it, only an audited approval releases
+it. Disabled → straight to `REWARD_ELIGIBLE`, still recorded as an automatic policy decision.
+
+`review_decisions` is append-only: corrections create a superseding row. Review may weigh novelty,
+duplication, eligibility, or abuse — it may **not** rewrite the Lean verdict.
+
+**OPEN:** what criteria may reject a Lean-valid proof, whether there is an appeal, and whether
+review is configured globally, per task, or per submission.
+
+## 13. Reward event — **SPEC**, then **OPEN**
+
+`reward_events` needs: submission and miner identity, eligibility reason, scoring-policy version,
+deterministic score inputs, and a deduplication key.
+
+**This is where the traceable data flow ends.** Every input above is produced by something that
+exists or is specified. The next step is not.
+
+### What the weight mechanism needs that nothing produces
+
+| Required input | Status |
+| --- | --- |
+| Deterministic rule converting an eligible proof into Subnet 66 weights | **OPEN** — `SUBNET.md:305` |
+| Scoring of duplicate valid proofs, repeat attempts, multiple solvers | **OPEN** — `SUBNET.md:304` |
+| Per-task difficulty or value signal | **Not produced anywhere.** The catalog has no difficulty field; `feasibility_signals` in the audit is a screening aid, not a score, and covers only the 100 audited candidates |
+| Proof-of-inclusion returned to the miner | **OPEN** — `SUBNET.md:306` |
+| `set_weights` submission and chain reconciliation | **Not implemented.** `chain.py` is read-only |
+
+The scoring gap is the substantive one. All 29 tasks are currently indistinguishable to a scorer:
+same mode, same classification, same axiom set, same timeout, one target each. A reward rule that
+needs to pay more for a harder problem has no field to read. Whatever rule gets chosen, its inputs
+must be **deterministic and persisted** — `reward_events` records "score inputs" precisely so a
+reward can be recomputed and defended later.
+
+---
+
+# Trust-critical value lineage
+
+One chain of custody, from upstream Lean to the paid verdict. Each arrow is an equality that some
+piece of code enforces.
+
+```
+Lean elaborated type of Erdos11.erdos_11
+  │  CatalogExtractor.lean
+  ▼
+catalog.type_hash ─────────────── sha256:7e9596e7…a19ea738
+  │  task_generator (formalized mode requires equality, task_generator.py:293)
+  ▼
+manifest.source_type_hash == manifest.generated_target_type_hash
+  │  sha256_named_bytes over 7 length-prefixed files
+  ▼
+bundle.sha256 ─────────────────── sha256:c70c6d5c…cf6b4a48
+  │  committed externally
+  ▼
+allowlist.allowed_task_bundles[].task_bundle_sha256
+  │  passed in by the worker; required argument
+  ▼
+verify(expected_task_sha256=…) ── must equal recomputed bundle.sha256
+  │  AND re-derived from live Lean per submission
+  ▼
+inspection.source_hash == manifest.source_type_hash     (gate 9)
+inspection.target_hash == manifest.generated_target_type_hash, isDefEq  (gate 10)
+  │
+  ▼
+VerificationReport.task_bundle_sha256 + .submission_sha256
+```
+
+The proof side is one hop: raw bytes → `sha256_bytes(raw)` → `Submission.sha256` →
+`VerificationReport.submission_sha256` → object key. Store `raw`, never a re-encoded string; the
+digest is over bytes, and a round trip through `str` risks a digest that no longer matches what was
+verified. Because the key *is* the digest, `PUT` is idempotent, identical proofs deduplicate, and
+re-hashing on read is a free integrity check.
+
+---
+
+# Known gaps
+
+Ordered by how much they matter, not by where they appear above.
+
+1. **The reward rule has no input data.** All 29 tasks look identical to a scorer. Decide the rule
+   and the fields it reads before building the reward processor, or the schema will be wrong.
+2. **No task publication path.** Miners cannot discover `task_id` + digest, so no submission can be
+   well-formed. This blocks the whole right-hand side.
+3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets
+   `generated_target_type_hash` from `generated_hashes[0]`, so a multi-source task would not commit
+   its secondary targets. Currently latent: `task_pool/tiers/tier-1/task-groups.json` has 0 groups and
+   `pool_policy.multi_target_tasks` is 0. Closing it needs a manifest schema bump.
+4. **`nanoda` is pinned but disabled.** The second independent kernel is one config flag away and is
+   the cheapest available increase in kernel-level assurance.
+5. **8 of 10 production-policy rules currently select nothing.** Correct as defence in depth, but
+   re-measure the funnel after every pin bump — one of them firing means upstream changed something
+   that matters.
+6. **No database, object store, event history, or queue.** Everything in stages 7–13 marked SPEC.
+
+# Reproducing the numbers
+
+Every count above comes from `data/catalog.json` and `task_pool/**/*.json` at the pinned commit. The funnel
+is `category == "research open"` then `classification == "DIRECT_PROP"`, then the remaining
+`production_policy_violations` rules from `verifier/task_policy.py:53-82`, then the prefix and
+audit-set intersections. Set membership for retirement is by `theorem` **or** `source_type_sha256`.

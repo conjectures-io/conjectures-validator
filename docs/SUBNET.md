@@ -24,7 +24,8 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 ## End-to-end flow
 
 1. A miner selects an eligible `formalized` or `counterexample` task and produces a candidate
-   `Main.lean`.
+   `Main.lean`, then packages it as a `conjectures-submission/v1` bundle
+   ([`SUBMISSION_BUNDLE.md`](SUBMISSION_BUNDLE.md)).
 2. The miner transfers 0.5 TAO to the configured payment recipient.
 3. The miner calls the submission API with:
    - an idempotency key;
@@ -32,8 +33,9 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
    - the task ID and exact task-bundle SHA-256 (the server derives the problem ID and mode from
      the allowlist);
    - the payment transaction or extrinsic reference; and
-   - the candidate Lean proof.
-4. The API validates request limits, stores the proof in durable content-addressed artifact
+   - the candidate proof bundle.
+4. The API validates request limits, admits the bundle against its exact shape and the static Lean
+   policy, stores the bundle and the extracted proof in durable content-addressed artifact
    storage, creates the database records transactionally, and returns a durable submission ID.
 5. The payment worker confirms the transfer against finalized chain state. It checks the recipient,
    asset, exact amount, sender policy, and uniqueness of the payment reference.
@@ -46,52 +48,33 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
    - if manual review is enabled, the proof enters `MANUAL_REVIEW_PENDING`;
    - if manual review is disabled, it immediately becomes `REWARD_ELIGIBLE`.
 9. A reviewer may approve or reject a held proof for rewards. The decision, reviewer, reason,
-   timestamp, and policy version are appended to the audit history.
+   timestamp, and policy version are recorded as a `review_decisions` row.
 10. Approved proofs and automatically eligible proofs enter the same reward pipeline.
 11. The reward process applies a versioned scoring policy, builds the Subnet 66 weight decision,
     submits it to Bittensor, and records the chain result.
 
 ```text
-RECEIVED
-   |
-   v
-PAYMENT_PENDING
-   |
-   +-- invalid/unfinalized/reused payment --> PAYMENT_REJECTED
-   |
-   v
-PAYMENT_CONFIRMED
-   |
-   v
-VERIFICATION_PENDING --> VERIFYING
-                          |
-                          +-- Lean rejected --> VERIFICATION_REJECTED
-                          |
-                          v
-                     LEAN_VERIFIED
-                          |
-             +------------+------------+
-             |                         |
-     manual review on           manual review off
-             |                         |
-             v                         |
-   MANUAL_REVIEW_PENDING               |
-        |              |               |
-        v              v               |
- REVIEW_REJECTED  REVIEW_APPROVED       |
-                       |                |
-                       +----------------+
-                                |
-                                v
-                       REWARD_ELIGIBLE
-                                |
-                                v
-                       REWARD_PROCESSING
-                                |
-                       +--------+--------+
-                       v                 v
-                    REWARDED       REWARD_FAILED
+                       intake (payment confirmed first, or no submission at all)
+                                        |
+                                        v
+verification_status   UNVERIFIED --> VERIFIED ----------------+
+                          |                                  |
+                          +------> REJECTED (terminal)        |
+                                                             v
+manual_review_status                            UNREVIEWED --+--> APPROVED --+
+                                                     |                      |
+                                                     +--> REJECTED          |
+                                                                            v
+reward_status                                            INELIGIBLE --> ELIGIBLE --> REWARDED
+                                                                                 \-> FAILED
 ```
+
+The three axes are independent columns, not stages of one machine: a submission always has a
+verification status AND a review status AND a reward status. `REJECTED` verification is terminal —
+review can reject a Lean-valid proof but can never make a Lean-invalid one valid. When review is
+not required the APPROVED decision is still recorded, as an `AUTOMATIC` `review_decisions` row,
+rather than being left implicit.
+
 
 Failures must distinguish terminal policy decisions from retryable infrastructure errors.
 Retrying a job must never create a second submission, consume a second payment, or duplicate a
@@ -105,7 +88,7 @@ All validator source and operational configuration belongs in this repository:
 | --- | --- |
 | Submission API | Authenticate miners, enforce schemas and limits, accept paid proof submissions, expose status |
 | Payment watcher | Confirm finalized 0.5 TAO transfers and reconcile chain state |
-| Durable database | Store the authoritative lifecycle, references, decisions, and audit history |
+| Durable database | Store the authoritative lifecycle, references, decisions, and payout records |
 | Artifact store | Store immutable proof bytes and verifier reports by content digest |
 | Job workers | Advance payment, verification, review, and reward jobs idempotently |
 | Lean verifier | Decide whether the exact submitted proof proves the exact committed task |
@@ -120,13 +103,17 @@ fresh disposable workspace.
 
 ## Minimum API
 
-The first production API needs this surface:
+The first production API needs this surface, implemented in
+[`../submission_api/`](../submission_api/) and documented in [`API.md`](API.md):
 
 | Operation | Purpose |
 | --- | --- |
 | `POST /v1/submissions` | Idempotently create one paid Lean-proof submission |
 | `GET /v1/submissions/{id}` | Return payment, verification, review, and reward state |
 | `GET /v1/submissions/{id}/report` | Return the immutable verifier report when verification finishes |
+
+`GET /v1/tasks` was added alongside these so a miner can discover the exact `task_id` and
+`task_bundle_sha256` to commit to without an out-of-band channel.
 
 `POST /v1/submissions` must require an idempotency key. Reusing the key with the same canonical
 request returns the original submission. Reusing it with different task, proof, miner, or payment
@@ -140,90 +127,52 @@ reward issuance are the same event. Each has its own persisted state and timesta
 
 ## Durable data model
 
-Use a transactional relational database as the source of truth and durable content-addressed
-storage for proof and report bytes. At minimum, migrations need these logical records:
+The schema now exists: [`../deploy/migrate/sql/`](../deploy/migrate/sql/) is the source of truth,
+applied by Flyway, with [`../conjectures_subnet/db/models.py`](../conjectures_subnet/db/models.py)
+as the runtime mirror and `scripts/check_schema_drift.py` as the proof they agree. Read the
+migration for the authoritative definitions; what follows is why it is shaped the way it is.
 
-### `submissions`
+`V001` differs deliberately from the sketch this document originally carried, in four ways worth
+knowing:
 
-- server-generated submission ID;
-- miner hotkey or authenticated identity;
-- idempotency key and canonical request digest;
-- problem ID, task ID, task mode, and exact task-bundle digest;
-- proof artifact digest, size, and media type;
-- current state and state version;
-- captured manual-review policy and policy version;
-- created and updated timestamps.
+**Payment is a precondition, not a state.** There is no `payments` table. Every payment column on
+`submissions` — reference, sender, amount in rao, finalized block, and the hotkey signature — is
+NOT NULL, so a row exists only for a transfer already confirmed on finalized chain state. That
+removes the whole unpaid-submission state space rather than modelling it. A refused request
+creates no submission and is recorded in `api_rejection_log`, which is the only trace a miner who
+paid and was turned away would otherwise leave.
 
-Unique constraints must prevent duplicate idempotency keys for one miner and conflicting reuse of a
-payment reference. Reward eligibility must also have a uniqueness constraint on `problem_id`, so
-accepting one outcome closes its proof/counterexample sibling.
+**Proof bytes live in the database.** There is no `artifacts` table and no object store: `proofs`
+holds the miner's `Main.lean` with `CHECK (digest = pg_catalog.sha256(content))`, so the bytes and
+their digest cannot disagree. The table is separate from `submissions` precisely so it can be made
+write-once by revoking UPDATE and DELETE from the service role. The submitted archive is not
+retained; only the proof it contained.
 
-### `payments`
+**Four independent status axes, not one lifecycle.** `verification_status`,
+`manual_review_status` and `reward_status` each move on their own, which is what makes it
+structurally impossible for a response to imply that payment acceptance, Lean validity, manual
+approval and reward issuance are the same event. What justified a given status is recoverable from
+the row that caused it: `verification_runs` for a verdict, `review_decisions` for an approval,
+`reward_events` for a payout, each carrying its own timestamps.
 
-- unique chain transaction or extrinsic reference;
-- expected and observed sender and recipient;
-- amount stored as an integer in the chain's base unit;
-- asset and network;
-- observed block and finalized block;
-- confirmation/finality state;
-- linked submission ID;
-- reconciliation timestamps and failure reason.
+**The queue is an index, not a table.** A submission is queued for verification by being
+`UNVERIFIED`; workers claim from the partial index `submissions_verification_queue_idx` with
+`FOR UPDATE SKIP LOCKED`. `verification_runs` rows are inserted once, on completion, because every
+column they require is only known after the verifier has finished.
 
-The required amount is the integer representation of 0.5 TAO. Floating-point numbers must not be
-used for payment accounting.
+Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotency,
+`payment_reference` so one transfer backs one submission, and a global unique on `proof_digest` so
+one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
+payment accounting.
 
-### `artifacts`
-
-- content digest;
-- durable object-store key;
-- byte length and media type;
-- creation timestamp;
-- retention and integrity-check state.
-
-The database stores references and hashes; the API process must not rely on its local filesystem for
-durability.
-
-### `verification_runs`
-
-- submission ID and attempt number;
-- task and proof digests;
-- verifier code/version and immutable container digest;
-- start and finish timestamps;
-- verdict, stable reason code, and stage;
-- immutable report artifact digest;
-- retry or infrastructure-failure metadata.
-
-### `review_decisions`
-
-- submission ID;
-- decision (`APPROVED` or `REJECTED`);
-- reviewer identity;
-- policy version and structured reason;
-- created timestamp.
-
-Review records are append-only. Corrections create a new superseding decision rather than silently
-editing history.
-
-### `reward_events` and `weight_batches`
-
-- submission and miner identity;
-- reward-eligibility reason;
-- scoring-policy version and deterministic score inputs;
-- deduplication key;
-- Subnet 66 weight batch;
-- wallet/account used by the validator;
-- chain submission reference and finality state;
-- retry, failure, and reconciliation metadata.
-
-### `submission_events`
-
-Every lifecycle transition records the submission, previous and next state, actor or worker,
-causation ID, timestamp, and relevant record digests. The current state is queryable efficiently,
-while the event history remains append-only and sufficient for audit and recovery.
-
-Use a transactional outbox for database-to-queue work. Workers claim jobs with leases and
-idempotency keys so a crash between processing and acknowledgement does not lose work or repeat a
-financial action.
+One uniqueness constraint the contract requires is still missing. The task pool now issues a
+`formalized` and a `counterexample` task for each problem, and the core contract above allows at
+most one reward per problem identity — but `V001` carries only `task_id` and `task_bundle_sha256`.
+There is no `problem_id` column and no `task_mode`, so nothing in the schema stops one problem from
+paying twice, once for the proof and once for its counterexample. Closing it needs `problem_id` and
+`task_mode` on `submissions`, populated from the allowlist at intake, and a partial unique index on
+`problem_id` over reward-eligible rows. Until that migration exists the exclusivity is an intention,
+not an invariant.
 
 ## Manual reward review
 
@@ -280,21 +229,44 @@ The repository currently includes:
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;
 - an API-neutral service adapter for bounded proof bytes and exact task digests;
-- a finalized-chain reader and pinned Subnet 66 service dependencies.
+- a finalized-chain reader and pinned Subnet 66 service dependencies;
+- the `conjectures-submission/v1` bundle format and its exact-shape archive scanner
+  ([`SUBMISSION_BUNDLE.md`](SUBMISSION_BUNDLE.md));
+- the miner-facing submission API with hotkey-signature authentication, replay protection,
+  idempotency, task admission, and status/report reads ([`API.md`](API.md));
+- the shared durable schema in [`../deploy/migrate/sql/`](../deploy/migrate/sql/), applied by
+  Flyway, with its runtime mirror and the submission seam in
+  [`../conjectures_subnet/db/`](../conjectures_subnet/db/);
+- content-addressed proof storage in the `proofs` table, and the `api_rejection_log` record of
+  every refused request.
 
-It does not yet include the miner-facing API, durable database and artifact store, payment
-allocation/reconciliation workers, manual review service, reward processor, or end-to-end Subnet 66
-weight submission.
+The database is a component in its own right, not the API's: every process resolves one URL
+through `conjectures_subnet.db.database_url()`, and the payment, verification, review and reward
+components reuse the same models and extend the same migration history rather than defining their
+own. Adding a migration is adding a file to `deploy/migrate/sql`; see
+[`../deploy/README.md`](../deploy/README.md).
+
+It does not yet include the payment allocation/reconciliation worker, the asynchronous
+verification worker, the reviewer-facing decision service, the reward processor, or end-to-end
+Subnet 66 weight submission.
 
 ## Implementation sequence
 
-1. Add the relational schema, migrations, durable artifact interface, transactional outbox, and
-   backup/restore tests.
-2. Add miner authentication, `POST /v1/submissions`, status/report reads, strict limits, and
-   idempotency behavior.
-3. Add finalized 0.5 TAO payment lookup, allocation, reconciliation, and operator repair tools.
-4. Add queue workers that invoke the existing verifier adapter and persist immutable reports.
-5. Add the captured manual-review flag, review authorization, decision API/UI, and audit history.
+1. ~~Add the relational schema, migrations, and durable proof storage.~~ Done in
+   [`../deploy/migrate/sql/`](../deploy/migrate/sql/) and
+   [`../conjectures_subnet/db/`](../conjectures_subnet/db/). Backup/restore tests and a retention
+   window for `api_rejection_log` remain to write.
+2. ~~Add miner authentication, `POST /v1/submissions`, status/report reads, strict limits, and
+   idempotency behavior.~~ Done.
+3. Add the finalized-transfer reader the payment-gated intake needs, plus reconciliation and
+   operator repair tools. The API already refuses a submission whose payment cannot be confirmed;
+   until the reader is injected, `SUBMISSION_PAYMENT_VERIFIER=chain` fails closed and refuses
+   every submission rather than admitting an unpaid one.
+4. Add queue workers that claim `verification_runs`, invoke the existing verifier adapter in a
+   separate trust domain, and persist immutable reports.
+5. Add review authorization and the decision API/UI. The per-submission manual-review flag and
+   policy version are already captured, and the gate is already applied when a verdict is
+   recorded.
 6. Add deterministic reward eligibility, duplicate handling, scoring-policy versions, weight
    batches, chain submission, and reconciliation.
 7. Add metrics, alerts, rate limits, secret isolation, migrations in deployment, backups, restore
@@ -302,13 +274,20 @@ weight submission.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,
    weight submission, and chain reconciliation.
 
+## Decisions taken
+
+3. **How is the miner request authenticated?** By hotkey signature over a domain-separated
+   payload that includes a nonce and the bundle digest, with the spent nonce recorded under a
+   unique constraint. The API performs no chain query; registration and eligibility are decided
+   downstream from durable state. See [`API.md`](API.md).
+
 ## Decisions still required
 
 1. Which chain address receives the 0.5 TAO and how many finalized blocks are required?
 2. Is the 0.5 TAO consumed by every accepted API submission, including a Lean-invalid proof, and
    are any failure classes refundable?
-3. How is the miner request authenticated: hotkey signature, API credential, or both?
-4. Is manual review configured globally, per task, or per submission policy?
+4. Is manual review configured globally, per task, or per submission policy? The API currently
+   captures one global flag per submission at creation time.
 5. What exact review criteria can reject a Lean-valid proof, and is there an appeal process?
 6. How are duplicate valid proofs, repeat attempts, and multiple solvers scored?
 7. What deterministic rule converts a reward-eligible proof into Subnet 66 weights?

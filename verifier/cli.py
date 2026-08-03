@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from verifier.bundle import bundle_verdict, read_bundle_file
 from verifier.catalog import build_catalog, find_declaration, load_catalog
 from verifier.classification import catalog_statistics
 from verifier.doctor import doctor_report
@@ -13,7 +14,7 @@ from verifier.errors import ReasonCode, VerifierError, exit_code_for
 from verifier.hashing import pretty_json
 from verifier.models import CATEGORY_ORDER
 from verifier.repository import formal_conjectures_pin
-from verifier.task_generator import generate_all, generate_task
+from verifier.task_generator import MAX_SUBMISSION_BYTES, generate_all, generate_task
 from verifier.task_loader import load_task_bundle
 from verifier.verification import verify
 from verifier.workspace import target_validator
@@ -52,6 +53,12 @@ def _parser() -> argparse.ArgumentParser:
     task_all.add_argument("--output", type=Path, required=True)
     task_all.add_argument("--enable-nanoda", action="store_true")
     task_all.add_argument("--allow-non-open", action="store_true")
+
+    bundle = subcommands.add_parser("bundle")
+    bundle_commands = bundle.add_subparsers(dest="bundle_command", required=True)
+    bundle_scan = bundle_commands.add_parser("scan")
+    bundle_scan.add_argument("--bundle", type=Path, required=True)
+    bundle_scan.add_argument("--max-proof-bytes", type=int, default=MAX_SUBMISSION_BYTES)
 
     verification = subcommands.add_parser("verify")
     verification.add_argument("--task", type=Path, required=True)
@@ -140,6 +147,13 @@ def _run(args: argparse.Namespace) -> int:
         summary_path.write_text(pretty_json(result), encoding="utf-8")
         _print(result)
         return 0 if result["failed"] == 0 else 2
+    if args.command == "bundle" and args.bundle_command == "scan":
+        verdict = bundle_verdict(
+            read_bundle_file(_absolute_without_resolving(args.bundle)),
+            max_proof_bytes=args.max_proof_bytes,
+        )
+        _print(dict(verdict))
+        return 0 if verdict["admitted"] else 1
     if args.command == "verify":
         report = verify(
             task_dir=_absolute_without_resolving(args.task),

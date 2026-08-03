@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from typing import cast
 
 import bittensor as bt
 
@@ -21,18 +23,22 @@ class BittensorChainView:
         self._lock = asyncio.Lock()
 
     async def snapshot(self) -> ChainSnapshot:
-        async with self._lock:
-            async with bt.Subtensor(self.network) as client:
-                finalized_blocks = client.blocks(finalized=True)
-                try:
-                    block = (await anext(finalized_blocks)).number
-                finally:
-                    await finalized_blocks.aclose()
-                genesis_hash = self._genesis_hash
-                if genesis_hash is None:
-                    genesis = await client.block_info(0)
-                    if genesis is None or not genesis.hash:
-                        raise RuntimeError("chain did not return a genesis block hash")
-                    genesis_hash = str(genesis.hash).lower()
-                    self._genesis_hash = genesis_hash
+        async with self._lock, bt.Subtensor(self.network) as client:
+            # bittensor declares blocks() as AsyncIterator, but it is an async generator
+            # function, so the object does have aclose(). Closing it is what cancels the
+            # block subscription deterministically instead of at collection time.
+            finalized_blocks = cast(
+                AsyncGenerator[bt.BlockHeader, None], client.blocks(finalized=True)
+            )
+            try:
+                block = (await anext(finalized_blocks)).number
+            finally:
+                await finalized_blocks.aclose()
+            genesis_hash = self._genesis_hash
+            if genesis_hash is None:
+                genesis = await client.block_info(0)
+                if genesis is None or not genesis.hash:
+                    raise RuntimeError("chain did not return a genesis block hash")
+                genesis_hash = str(genesis.hash).lower()
+                self._genesis_hash = genesis_hash
         return ChainSnapshot(genesis_hash=genesis_hash, block=int(block))
