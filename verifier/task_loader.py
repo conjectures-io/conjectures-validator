@@ -25,8 +25,10 @@ from verifier.task_generator import (
     trusted_task_payloads,
 )
 from verifier.task_policy import (
+    COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
     expected_answer_policy,
+    is_production_task_mode,
     production_policy_violations,
 )
 
@@ -286,11 +288,11 @@ def _validate_manifest(manifest: TaskManifest) -> None:
             "all-of forbidden proof dependencies are inconsistent",
         )
     modes = supported_modes(manifest.classification)
-    exact_formalized_mode = (
+    direct_production_mode = (
         manifest.classification == Classification.DIRECT_PROP
-        and manifest.task_mode == EXACT_TASK_MODE
+        and is_production_task_mode(manifest.task_mode)
     )
-    if modes and manifest.task_mode not in modes and not exact_formalized_mode:
+    if modes and manifest.task_mode not in modes and not direct_production_mode:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "task mode is inconsistent with its classification")
     for label, digest in (
         ("source type", manifest.source_type_hash),
@@ -315,13 +317,20 @@ def _validate_manifest(manifest: TaskManifest) -> None:
     if (
         manifest.production_eligible
         and (
-            manifest.task_mode != EXACT_TASK_MODE
-            or manifest.generated_target_type_hash != manifest.source_type_hash
+            not is_production_task_mode(manifest.task_mode)
+            or (
+                manifest.task_mode == EXACT_TASK_MODE
+                and manifest.generated_target_type_hash != manifest.source_type_hash
+            )
+            or (
+                manifest.task_mode == COUNTEREXAMPLE_TASK_MODE
+                and manifest.generated_target_type_hash == manifest.source_type_hash
+            )
         )
     ):
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
-            "production task must preserve the exact source theorem type",
+            "production task target relation is inconsistent with its mode",
         )
 
 

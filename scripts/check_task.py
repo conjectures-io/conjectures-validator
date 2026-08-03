@@ -28,7 +28,7 @@ def main() -> None:
     from verifier.task_pool import TASK_POOL_SCHEMA_VERSION
     from verifier.task_registry import TaskPoolRegistry
     from verifier.task_loader import load_task_bundle
-    from verifier.task_policy import EXACT_TASK_MODE
+    from verifier.task_policy import COUNTEREXAMPLE_TASK_MODE, EXACT_TASK_MODE
 
     try:
         policy = json.loads(ALLOWLIST.read_text(encoding="utf-8"))
@@ -49,31 +49,40 @@ def main() -> None:
     if row is None:
         fail("task ID is not on the task allowlist")
     try:
-        registry.assert_bundle(bundle)
+        admitted = registry.assert_bundle(bundle)
     except Exception as error:
         fail(str(error))
     if bundle.manifest.repository_commit != policy["repository_commit"]:
         fail("repository commit does not match the audited commit")
     if bundle.sha256 != row["task_bundle_sha256"]:
         fail("task-bundle digest does not match the audited digest")
-    if [source.type_hash for source in bundle.sources] != row["target_type_sha256s"]:
-        fail("generated target-type digests do not match the audited digests")
-    if (
-        bundle.manifest.task_mode != EXACT_TASK_MODE
-        or any(
-            source.type_hash != target_hash
+    if bundle.manifest.task_mode == EXACT_TASK_MODE:
+        relation_valid = all(
+            source.type_hash == target_hash
             for source, target_hash in zip(
                 bundle.sources,
                 row["target_type_sha256s"],
                 strict=True,
             )
         )
-    ):
-        fail("task is not the exact source formalization")
+    elif bundle.manifest.task_mode == COUNTEREXAMPLE_TASK_MODE:
+        relation_valid = (
+            len(bundle.sources) == 1
+            and row["target_type_sha256s"]
+            == [bundle.manifest.generated_target_type_hash]
+            and bundle.manifest.generated_target_type_hash
+            != bundle.manifest.source_type_hash
+        )
+    else:
+        relation_valid = False
+    if not relation_valid:
+        fail("task target relation is inconsistent with its mode")
     print(
         json.dumps(
             {
                 "allowed": True,
+                "mode": admitted.mode,
+                "problem_id": admitted.problem_id,
                 "source_indices": row["source_indices"],
                 "task_id": row["task_id"],
                 "task_bundle_sha256": row["task_bundle_sha256"],

@@ -58,7 +58,7 @@ def _direct(declaration: CatalogDeclaration, mode: str, _context: GenerationCont
     source = _lean_string(declaration.theorem)
     if mode in {"formalized", "positive"}:
         target = f"fcTypeOfName% {source}"
-    elif mode == "negative":
+    elif mode in {"counterexample", "negative"}:
         target = f"¬ (fcTypeOfName% {source})"
     else:
         raise ValueError(f"unsupported direct proposition mode: {mode}")
@@ -103,7 +103,7 @@ def _finite(declaration: CatalogDeclaration, _mode: str, _context: GenerationCon
 ADAPTERS: Mapping[Classification, AdapterSpec] = {
     Classification.DIRECT_PROP: AdapterSpec(
         Classification.DIRECT_PROP,
-        ("formalized", "positive", "negative"),
+        ("formalized", "counterexample", "positive", "negative"),
         _direct,
     ),
     Classification.PROP_ANSWER_WRAPPER: AdapterSpec(

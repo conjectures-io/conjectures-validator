@@ -12,7 +12,8 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 - One submission costs exactly **0.5 TAO**.
 - The miner pays and submits a candidate Lean proof through the validator API.
 - A payment may fund at most one submission.
-- A submission targets one exact immutable task-bundle digest.
+- A submission targets one exact immutable proof or counterexample task-bundle digest.
+- Proof and counterexample variants share one problem identity and may produce at most one reward.
 - Payment never changes the verification result.
 - Only a proof accepted by the hardened Lean verifier may reach reward review or rewards.
 - Manual review, when enabled, gates reward eligibility after Lean succeeds.
@@ -22,12 +23,14 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 
 ## End-to-end flow
 
-1. A miner selects an eligible task and produces a candidate `Main.lean`.
+1. A miner selects an eligible `formalized` or `counterexample` task and produces a candidate
+   `Main.lean`.
 2. The miner transfers 0.5 TAO to the configured payment recipient.
 3. The miner calls the submission API with:
    - an idempotency key;
    - authenticated miner identity;
-   - the task ID and exact task-bundle SHA-256;
+   - the task ID and exact task-bundle SHA-256 (the server derives the problem ID and mode from
+     the allowlist);
    - the payment transaction or extrinsic reference; and
    - the candidate Lean proof.
 4. The API validates request limits, stores the proof in durable content-addressed artifact
@@ -145,14 +148,15 @@ storage for proof and report bytes. At minimum, migrations need these logical re
 - server-generated submission ID;
 - miner hotkey or authenticated identity;
 - idempotency key and canonical request digest;
-- task ID and exact task-bundle digest;
+- problem ID, task ID, task mode, and exact task-bundle digest;
 - proof artifact digest, size, and media type;
 - current state and state version;
 - captured manual-review policy and policy version;
 - created and updated timestamps.
 
 Unique constraints must prevent duplicate idempotency keys for one miner and conflicting reuse of a
-payment reference.
+payment reference. Reward eligibility must also have a uniqueness constraint on `problem_id`, so
+accepting one outcome closes its proof/counterexample sibling.
 
 ### `payments`
 
@@ -259,6 +263,11 @@ Production acceptance requires:
 - Lean kernel acceptance;
 - the production Landlock/seccomp sandbox.
 
+For `formalized` mode, the committed target is definitionally equal to the source proposition `P`.
+For `counterexample` mode, it is definitionally equal to `Not P`. Both use the same static policy,
+axiom closure, Comparator statement check, kernel replay, and sandbox. A counterexample result is a
+formal refutation; the generic verifier does not claim to extract a displayable witness.
+
 A plain successful `lake build` is not an accepted result. See [`../SECURITY.md`](../SECURITY.md)
 for the exact security boundary and residual risks.
 
@@ -267,7 +276,7 @@ for the exact security boundary and residual risks.
 The repository currently includes:
 
 - deterministic extraction and task generation from the pinned Formal Conjectures revision;
-- an audited allowlist of 29 whole-problem Erdős reward tasks;
+- an audited allowlist of 58 proof/counterexample bundles for 29 whole-problem Erdős rewards;
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;
 - an API-neutral service adapter for bounded proof bytes and exact task digests;
