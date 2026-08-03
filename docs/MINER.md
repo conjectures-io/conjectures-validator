@@ -152,7 +152,8 @@ Three statuses move independently — none of them implies another:
 | `reward_status` | `INELIGIBLE` → `ELIGIBLE` → `REWARDED` / `FAILED` | Payout |
 
 The `reward` object also shows whether this submission won its shared proof/counterexample
-`problem_id`, plus the payout status, amount, finalized block, and extrinsic reference. A valid
+`problem_id`, plus the manual-multisig payout status, amount, finalized block, and extrinsic
+reference. A valid
 submission can remain unpayable when its opposite-mode sibling already won the problem.
 
 Once `verification_status` leaves `UNVERIFIED` the immutable verifier report is available:

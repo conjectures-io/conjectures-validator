@@ -40,8 +40,9 @@ uvicorn submission_api.asgi:app --host 127.0.0.1 --port 8080
 
 Use a different least-privilege URL for each process: `conjectures_api` for the public API,
 `conjectures_verifier` for `fc-verification-worker`, `conjectures_reviewer` for the internal review
-app, and `conjectures_reward` for the wallet-bearing payout worker. The migration owner must never
-be a runtime credential.
+app, and `conjectures_reward` for the manual payout-intent and confirmation commands. The payout
+credential has no treasury signing authority, and the migration owner must never be a runtime
+credential.
 
 Terminate TLS and apply request/body/rate limits at the edge. Do not publish the operator review
 route without an additional private-network or identity-aware access boundary; its bearer token is
@@ -89,8 +90,8 @@ for the shared problem.
 
 Subnet weights address registered UIDs, not arbitrary wallet addresses. Register a dedicated
 treasury hotkey on netuid 66 under a treasury coldkey, pin all three identifiers in deployment
-configuration, and keep the validator hotkey that signs weights separate from the coldkey that
-signs winner payouts. The default guard refuses a treasury hotkey owned by the subnet-owner
+configuration, and keep the validator hotkey that signs weights separate from every treasury
+multisig signer. The default guard refuses a treasury hotkey owned by the subnet-owner
 coldkey because current Subtensor owner-UID policy may burn or recycle that miner emission.
 
 The current launch policy assigns the primary mechanism entirely to the treasury UID. Confirm
@@ -124,39 +125,38 @@ logging. If the process exits ambiguously after signing, inspect the validator h
 history before invoking it again.
 
 Setting weights routes subnet miner incentive to the treasury UID; it does not by itself guarantee
-an immediately spendable TAO balance. Maintain the direct-payout wallet reserve independently and
+an immediately spendable TAO balance. Maintain the payout multisig balance independently and
 operate the reviewed emission realization/replenishment procedure for the target network.
 
 `--allow-owner-controlled-treasury` is an emergency policy override, not a normal deployment
 setting. Use it only after verifying the target network's current owner-UID burn/recycle behavior.
 
-## 6. Reward worker
+## 6. Manual treasury payout
 
-Use a dedicated, funded coldkey and a database credential separate from the API and verifier.
-The worker pays the bounty frozen on each submission, applies an SDK spend cap on every operation,
-and takes a database advisory lock so a second reward-signer process cannot race the wallet nonce:
+Winner payouts are treasury-multisig operations and are never signed or broadcast by this
+application. First record the exact instruction with a database credential separate from the API
+and verifier. Supplying `--submission-id` selects a specific winner; omitting it selects the oldest
+eligible winner without an instruction:
 
 ```bash
-fc-reward-worker \
-  --database-url "$DATABASE_URL" \
-  --network finney \
-  --wallet-name validator-rewards \
-  --wallet-path /run/secrets/bittensor-wallets \
-  --max-payout-rao <maximum-frozen-bounty-rao> \
-  --bounty-commit <reviewed-git-commit>
+fc-payout-intent \
+  --database-url "$REWARD_DATABASE_URL" \
+  --submission-id <winner-submission-uuid> \
+  --treasury-account <multisig-ss58> \
+  --payout-policy-commit <reviewed-git-commit> \
+  --operator <operator-id>
 ```
 
-A payout is committed as `PENDING` before signing, then becomes `SUBMITTED` and `CONFIRMED`.
-Never restart or manually retry a PENDING payout merely because it has no reference: an RPC failure
-can occur after broadcast. Reconcile it against the sending wallet's chain history first. The
-unique `reward_events.submission_id` constraint deliberately makes a second automatic attempt
-impossible.
+The command prints sorted JSON containing the reward-event ID, treasury account, winner destination,
+and exact frozen amount. It writes `AWAITING_MULTISIG` and does not import a wallet, construct an
+extrinsic, sign, or broadcast. Use that output to prepare and approve the transfer through the
+organization's normal multisig procedure. Signers must independently compare all instruction fields
+before approval.
 
-After locating the exact finalized transfer, advance the existing row without loading signing
-keys:
+After the multisig transfer is finalized, attach its canonical `block-index` reference:
 
 ```bash
-fc-reward-reconcile \
+fc-payout-confirm \
   --database-url "$REWARD_DATABASE_URL" \
   --network finney \
   --reward-event-id <id> \
@@ -164,9 +164,12 @@ fc-reward-reconcile \
   --operator <operator-id>
 ```
 
-The expected reward-wallet sender was frozen on the payout reservation. The command refuses a
-failed, nonfinal, wrong-sender, wrong-destination, or wrong-amount transfer and appends the normal
-reward transition event on success.
+This command also holds no signing keys. It reads finalized chain state and refuses a failed,
+nonfinal, noncanonical, wrong-treasury, wrong-destination, or wrong-amount transfer. Only a complete
+match moves the instruction directly from `AWAITING_MULTISIG` to `CONFIRMED`, marks the submission
+`REWARDED`, and appends the normal reward transition event. The unique
+`reward_events.submission_id` and extrinsic-reference constraints prevent duplicate instructions and
+reuse of one transfer.
 
 ## 7. Required staging drill
 
@@ -180,8 +183,10 @@ For one formalized task and its paired counterexample task, record evidence for:
 6. exactly one `problem_winners` row when both outcomes race;
 7. one finalized treasury weight submission whose chain genesis and inclusion-block UID, hotkey
    and coldkey match the pinned deployment values;
-8. exactly one finalized payout and its miner-visible extrinsic reference; and
+8. exactly one `AWAITING_MULTISIG` instruction, one manually executed finalized payout, and its
+   miner-visible extrinsic reference; and
 9. backup/restore recovery preserving proofs, reports, reviews, winners, payout state, and events.
 
-Also simulate a verifier crash after leasing and a reward RPC failure after reservation. The first
-must be reclaimed after lease expiry; the second must remain PENDING and must not sign again.
+Also simulate a verifier crash after leasing and attempts to confirm a nonfinal, wrong-sender,
+wrong-destination, and wrong-amount payout. The verifier lease must be reclaimed; every invalid
+payout reference must leave the instruction `AWAITING_MULTISIG` and the submission unrewarded.

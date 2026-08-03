@@ -60,7 +60,7 @@ from verifier.hashing import canonical_json_bytes, sha256_bytes
 
 ACTOR_API = "api"
 ACTOR_VERIFIER = "verification-worker"
-ACTOR_REWARD = "reward-worker"
+ACTOR_REWARD = "payout-operator"
 CREATED_STATUS = "CREATED"
 
 # Constraint names from deploy/migrate/sql/V001__initial_schema.sql. Matching on the name is
@@ -778,11 +778,11 @@ async def create_reward_event(
     session: AsyncSession,
     submission_id: uuid.UUID,
     *,
-    source_coldkey: str,
-    bounty_commit: str,
+    treasury_account: str,
+    payout_policy_commit: str,
     initiated_by: str = ACTOR_REWARD,
 ) -> RewardEvent:
-    """Create the single pre-broadcast payout record for an eligible winner."""
+    """Create the single manual-multisig payout instruction for an eligible winner."""
     result = await session.execute(
         select(Submission).where(Submission.id == submission_id).with_for_update()
     )
@@ -801,17 +801,25 @@ async def create_reward_event(
         )
     existing = await reward_event(session, submission.id)
     if existing is not None:
+        if (
+            existing.treasury_account != treasury_account
+            or existing.payout_policy_commit != payout_policy_commit
+        ):
+            raise RecordConflict(
+                "submission already has a different payout instruction",
+                reason_code="PAYOUT_INTENT_CONFLICT",
+            )
         return existing
 
     payout = RewardEvent(
         submission_id=submission.id,
         eligibility_reason=winner.claim_reason,
         bounty_amount_rao=submission.bounty_amount_rao,
-        bounty_commit=bounty_commit,
+        payout_policy_commit=payout_policy_commit,
         destination_coldkey=submission.payment_sender,
         destination_hotkey=submission.hotkey,
-        source_coldkey=source_coldkey,
-        status=PayoutState.PENDING,
+        treasury_account=treasury_account,
+        status=PayoutState.AWAITING_MULTISIG,
         initiated_by=initiated_by,
     )
     session.add(payout)
@@ -819,36 +827,11 @@ async def create_reward_event(
     return payout
 
 
-async def mark_reward_submitted(
+async def confirm_manual_payout(
     session: AsyncSession,
     reward_event_id: int,
     *,
     extrinsic_reference: str,
-    submitted_block: int,
-    submitted_at: datetime | None = None,
-) -> RewardEvent:
-    result = await session.execute(
-        select(RewardEvent).where(RewardEvent.id == reward_event_id).with_for_update()
-    )
-    payout = result.scalar_one_or_none()
-    if payout is None:
-        raise RecordNotFound("reward event not found")
-    if PayoutState(payout.status) is not PayoutState.PENDING:
-        raise RecordConflict(
-            "reward event is not pending", reason_code="PAYOUT_NOT_PENDING"
-        )
-    payout.status = PayoutState.SUBMITTED
-    payout.extrinsic_reference = extrinsic_reference
-    payout.submitted_block = submitted_block
-    payout.submitted_at = submitted_at or datetime.now(timezone.utc)
-    await session.flush()
-    return payout
-
-
-async def mark_reward_confirmed(
-    session: AsyncSession,
-    reward_event_id: int,
-    *,
     finalized_block: int,
     confirmed_at: datetime | None = None,
     actor: str = ACTOR_REWARD,
@@ -860,16 +843,26 @@ async def mark_reward_confirmed(
     if payout is None:
         raise RecordNotFound("reward event not found")
     if PayoutState(payout.status) is PayoutState.CONFIRMED:
+        if (
+            payout.extrinsic_reference != extrinsic_reference
+            or payout.finalized_block != finalized_block
+        ):
+            raise RecordConflict(
+                "reward event is confirmed with a different transfer",
+                reason_code="PAYOUT_REFERENCE_CONFLICT",
+            )
         return payout
-    if PayoutState(payout.status) is not PayoutState.SUBMITTED:
+    if PayoutState(payout.status) is not PayoutState.AWAITING_MULTISIG:
         raise RecordConflict(
-            "reward event is not awaiting finality", reason_code="PAYOUT_NOT_SUBMITTED"
+            "reward event is not awaiting multisig execution",
+            reason_code="PAYOUT_NOT_AWAITING_MULTISIG",
         )
     submission = await session.get(Submission, payout.submission_id, with_for_update=True)
     if submission is None:
         raise RecordNotFound("submission not found")
     previous = RewardState(submission.reward_status).value
     payout.status = PayoutState.CONFIRMED
+    payout.extrinsic_reference = extrinsic_reference
     payout.finalized_block = finalized_block
     payout.confirmed_at = confirmed_at or datetime.now(timezone.utc)
     submission.reward_status = RewardState.REWARDED

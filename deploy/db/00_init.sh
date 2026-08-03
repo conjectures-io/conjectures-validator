@@ -60,7 +60,7 @@ psql -v ON_ERROR_STOP=1 \
     GRANT USAGE ON SCHEMA public TO monitor;
 
     -- Separate login roles keep the public API, proof worker, reviewer, and
-    -- wallet-bearing reward worker from inheriting each other's authority.
+    -- manual payout tooling from inheriting each other's authority.
     SELECT format(
         'CREATE ROLE conjectures_api LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
         :'api_password'

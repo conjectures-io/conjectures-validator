@@ -17,11 +17,12 @@ This repository is the system boundary for the entire validator, including:
 - immutable proof artifacts and audit history;
 - asynchronous verification workers and the hardened Lean verifier;
 - the optional manual reward-review queue;
-- atomic reward eligibility and finalized TAO bounty payout; and
+- atomic reward eligibility and finalized manual-multisig TAO payout confirmation; and
 - deployment, monitoring, backup, and recovery configuration.
 
 The application path is implemented end to end. Production launch still requires deployment
-configuration, a digest-pinned verifier image, funded wallets, monitoring, and a staging drill.
+configuration, a digest-pinned verifier image, a funded treasury multisig, monitoring, and a
+staging drill.
 
 | Validator component | Status |
 | --- | --- |
@@ -34,7 +35,7 @@ configuration, a digest-pinned verifier image, funded wallets, monitoring, and a
 | Finalized 0.5 TAO transfer reader for payment-gated intake | Implemented |
 | Leased asynchronous verification worker | Implemented |
 | Audited manual reward-review decision service | Implemented |
-| Atomic problem winner selection and finalized TAO payout | Implemented |
+| Atomic problem winner selection and manual-multisig payout confirmation | Implemented |
 | Production launch checklist and operating commands | Implemented |
 | Staging chain drill, monitoring, backups, and incident exercises | Deployment work |
 
@@ -66,7 +67,8 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
 9. If manual reward review is not required, or if a held proof is approved, the submission becomes
    reward-eligible and is passed to the reward pipeline.
-10. The reward processor pays the intake-frozen bounty and records the chain evidence.
+10. An operator records the intake-frozen payout instruction, executes it through the treasury
+    multisig, and attaches the finalized chain evidence through a read-only confirmation command.
 
 ```text
 miner pays 0.5 TAO
@@ -95,7 +97,7 @@ Lean valid
                                  reward-eligible
                                           |
                                           v
-                                  finalized TAO payout
+                         manual multisig payout + confirmation
 ```
 
 The manual-review switch controls only whether a Lean-valid submission is held before reward
@@ -122,8 +124,8 @@ Formal Conjectures e923379e…
 ```
 
 The verifier remains isolated from networking, payment credentials, wallets, and the validator
-database. The API, payment watcher, reward process, and proof verifier are parts of this repository
-but must run as separate trust domains. [`verifier/service_adapter.py`](verifier/service_adapter.py)
+database. The API, payment reader, payout operator tooling, and proof verifier are parts of this
+repository but must run as separate trust domains. [`verifier/service_adapter.py`](verifier/service_adapter.py)
 is the narrow handoff from the validator's verification worker into this unchanged verification
 contract.
 
@@ -164,7 +166,7 @@ uvicorn submission_api.asgi:app --host 127.0.0.1 --port 8080
 
 The API has no database of its own. [`conjectures_subnet/db/`](conjectures_subnet/db/) is the
 runtime view of [`deploy/migrate/sql/`](deploy/migrate/sql/), which is the source of truth and is
-applied by Flyway; the same store is shared with the payment, verification, review, and reward
+applied by Flyway; the same store is shared with the payment, verification, review, and payout
 components. `DATABASE_URL` or the standard `POSTGRES_*` variables configure it once for every
 process. Confirm the ORM mirror still matches the migrations with:
 
@@ -193,11 +195,12 @@ The API process must not share a trust domain with the proof verifier; productio
 if it is configured to run verification in process, to authenticate with the development key, or
 to accept payments without reading the chain.
 
-Subnet funding and proof payouts use separate signing processes. `fc-weight-worker` pins the chain
-genesis plus a registered treasury UID/hotkey/coldkey tuple, submits the finalized Subnet 66
-primary-mechanism allocation, and emits a JSON chain audit record. `fc-reward-worker` uses the
-separately funded treasury payout wallet to send the winning miner's frozen direct TAO bounty.
-Deployment commands and safety checks are in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+Subnet funding and proof payouts are separate. `fc-weight-worker` pins the chain genesis plus a
+registered treasury UID/hotkey/coldkey tuple, submits the finalized Subnet 66 primary-mechanism
+allocation, and emits a JSON chain audit record. Winner payouts are executed manually through the
+treasury multisig: `fc-payout-intent` records the exact instruction and `fc-payout-confirm` verifies
+the finalized transfer without loading or using signing keys. Deployment commands and safety checks
+are in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 Build and inspect the real full-repository catalog:
 

@@ -9,8 +9,8 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 
 Subnet emissions and winner payouts are deliberately separate. A validator weight transaction
 assigns the primary mechanism to one pinned, registered treasury UID. It does not itself turn the
-resulting subnet incentive into liquid TAO; operators maintain a funded treasury payout wallet,
-which sends each winning miner the exact direct TAO bounty frozen at submission intake.
+resulting subnet incentive into liquid TAO; operators maintain a funded treasury multisig and
+manually send each winning miner the exact direct TAO bounty frozen at submission intake.
 
 ## Core contract
 
@@ -56,11 +56,11 @@ which sends each winning miner the exact direct TAO bounty frozen at submission 
 9. A reviewer may approve or reject a held proof for rewards. The decision, reviewer, reason,
    timestamp, and policy version are appended to the audit history.
 10. Approved proofs and automatically eligible proofs enter the same reward pipeline.
-11. The first approved outcome atomically claims its shared `problem_id`. The reward worker commits
-    a unique payout record before signing, submits the intake-frozen exact TAO bounty, waits for
-    finality, and records the canonical chain reference. An unresolved `PENDING` record blocks
-    automatic retries until an operator reconciles whether broadcast occurred, preventing double
-    payment.
+11. The first approved outcome atomically claims its shared `problem_id`. An operator records one
+    `AWAITING_MULTISIG` instruction containing the treasury account, winner destination, and
+    intake-frozen exact TAO bounty. Treasury signers execute it manually. A separate read-only
+    command verifies the finalized transfer and records its canonical chain reference; application
+    code never loads treasury keys, signs, or broadcasts.
 12. Independently, a one-shot weight worker verifies the configured treasury UID, hotkey and
     coldkey against finalized metagraph state, submits the primary mechanism's treasury allocation,
     waits for finality, rechecks the tuple at the inclusion block, and emits the canonical chain
@@ -104,11 +104,11 @@ All validator source and operational configuration belongs in this repository:
 | Finalized payment reader | Confirm finalized 0.5 TAO transfers synchronously at intake |
 | Durable database | Store the authoritative lifecycle, references, decisions, and audit history |
 | Artifact store | Store immutable proof bytes and verifier reports by content digest |
-| Job workers | Advance verification and reward jobs idempotently |
+| Job workers | Advance verification jobs idempotently |
 | Lean verifier | Decide whether the exact submitted proof proves the exact committed task |
 | Review service | Hold and decide Lean-valid submissions when manual review is enabled |
 | Weight process | Submit the finalized, pinned Subnet 66 treasury allocation |
-| Reward process | Reserve, submit, finalize, and reconcile exact TAO bounty payouts |
+| Payout tooling | Record multisig instructions and confirm exact finalized TAO payouts read-only |
 | Operator tooling | Migrations, monitoring, backups, restores, reconciliation, and incident response |
 
 These components share a repository, not a security context. Payment keys, validator wallet keys,
@@ -185,8 +185,8 @@ one proof is payable at most once. Amounts are integers in rao; floating point a
 payment accounting.
 
 **The bounty is quoted once.** After payment confirmation, intake records the direct TAO amount,
-pricing-policy version, and internal pricing inputs on the submission. Winner selection and the
-wallet worker copy that amount rather than consulting mutable live pricing.
+pricing-policy version, and internal pricing inputs on the submission. The payout instruction copies
+that amount rather than consulting mutable live pricing.
 
 ## Manual reward review
 
@@ -198,7 +198,7 @@ silently change the treatment of an in-flight submission.
 When enabled:
 
 - a Lean-valid proof remains `manual_review_status = UNREVIEWED` and reward-ineligible;
-- the reward worker must ignore it;
+- payout tooling must reject it;
 - only an authorized, audited approval makes it reward-eligible;
 - a rejection needs a structured reason and remains visible to the miner.
 
@@ -255,15 +255,15 @@ The repository currently includes:
   every refused request.
 
 The database is a component in its own right, not the API's: every process resolves one URL
-through `conjectures_subnet.db.database_url()`, and the payment, verification, review and reward
+through `conjectures_subnet.db.database_url()`, and the payment, verification, review and payout
 components reuse the same models and extend the same migration history rather than defining their
 own. Adding a migration is adding a file to `deploy/migrate/sql`; see
 [`../deploy/README.md`](../deploy/README.md).
 
 It also includes the read-only finalized transfer reader, leased isolated verification worker,
-bearer-authorized audited review endpoint, atomic problem-winner claim, and finalized direct-TAO
-payout worker. Production environment setup and staging evidence are deployment responsibilities,
-not repository state.
+bearer-authorized audited review endpoint, atomic problem-winner claim, manual-multisig payout
+instructions, and read-only finalized payout confirmation. Production environment setup and staging
+evidence are deployment responsibilities, not repository state.
 
 ## Implementation sequence
 
@@ -279,9 +279,9 @@ not repository state.
    and persists immutable reports.~~ Done in `conjectures_subnet/verification_worker.py`.
 5. ~~Add review authorization and the decision API.~~ Done; decisions are append-only, and review
    cannot override the Lean verdict.
-6. ~~Add deterministic reward eligibility, cross-mode duplicate handling, chain payout, and
-   reconciliation.~~ Done for direct TAO bounties. A PENDING result lost across broadcast is held
-   for manual reconciliation and is never automatically signed again.
+6. ~~Add deterministic reward eligibility, cross-mode duplicate handling, manual-multisig payout
+   instructions, and finalized confirmation.~~ Done for direct TAO bounties. The application never
+   receives treasury signer material or broadcasts a payout.
 7. Add deployment-specific metrics, alerts, edge rate limits, secret isolation, backups, restore
    drills, upgrades, rollbacks, and incident runbooks.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,
@@ -298,8 +298,9 @@ not repository state.
    the coldkey that owned the signing hotkey at that block.
 3. **How do opposite outcomes race?** Formalized and counterexample tasks share a server-derived
    `problem_id`; a primary-key insert selects exactly one approved winner in PostgreSQL.
-4. **What does this implementation pay?** One exact direct TAO bounty quoted at intake, frozen on
-   the submission, pre-recorded before signing, and exposed to the miner from intake through finality.
+4. **What does this implementation pay?** It records one exact direct TAO bounty quoted at intake
+   and frozen on the submission. Treasury signers pay it manually through the configured multisig;
+   the application only confirms the finalized transfer and exposes that evidence to the miner.
 
 ## Decisions still required
 
@@ -309,4 +310,4 @@ not repository state.
 3. Should manual review remain a global captured policy or become per task?
 4. What exact review criteria can reject a Lean-valid proof, and is there an appeal process?
 5. What operational reserve and replenishment thresholds should connect treasury emissions to the
-   direct TAO bounty wallet?
+   payout multisig?

@@ -48,6 +48,9 @@ from conjectures_subnet.db.models import (
     SubmissionStatusField,
     VerificationState,
 )
+from conjectures_subnet.payout_confirm import confirm_payout
+from conjectures_subnet.payout_intent import record_payout_intent
+from submission_api.payments import FinalizedTransfer
 from verifier.errors import ReasonCode
 from verifier.hashing import sha256_bytes
 
@@ -758,7 +761,7 @@ def test_the_event_history_covers_every_status_change():
     run(scenario())
 
 
-def test_positive_and_counterexample_share_one_atomic_winner_and_one_payout():
+def test_positive_and_counterexample_share_one_atomic_winner_and_one_manual_payout():
     async def scenario():
         import json
         import uuid
@@ -837,30 +840,59 @@ def test_positive_and_counterexample_share_one_atomic_winner_and_one_payout():
                 assert await session.scalar(select(func.count()).select_from(ProblemWinner)) == 1
                 winner = await session.get(ProblemWinner, "shared-mathematical-problem")
                 assert winner.submission_id == first.id
+                winning_submission_id = first.id
+                frozen_bounty_rao = first.bounty_amount_rao
 
-                payout = await store.create_reward_event(
-                    session,
-                    first.id,
-                    source_coldkey=COLDKEY,
-                    bounty_commit="abcdef0",
-                )
-                await session.commit()
-                assert payout.status == PayoutState.PENDING
-                assert payout.bounty_amount_rao == first.bounty_amount_rao
+            payout = await record_payout_intent(
+                sessions=kit.services.sessions,
+                submission_id=winning_submission_id,
+                treasury_account=OTHER_HOTKEY,
+                payout_policy_commit="abcdef0",
+                operator="test-operator",
+            )
+            assert payout.status == PayoutState.AWAITING_MULTISIG
+            assert payout.bounty_amount_rao == frozen_bounty_rao
 
-                await store.mark_reward_submitted(
-                    session,
-                    payout.id,
+            class FinalizedPayoutReader:
+                async def finalized_transfer(self, *, reference: str):
+                    return FinalizedTransfer(
+                        reference=reference,
+                        sender=OTHER_HOTKEY,
+                        recipient=COLDKEY,
+                        amount_rao=frozen_bounty_rao,
+                        block=200,
+                    )
+
+            class WrongTreasuryReader:
+                async def finalized_transfer(self, *, reference: str):
+                    return FinalizedTransfer(
+                        reference=reference,
+                        sender=COLDKEY,
+                        recipient=COLDKEY,
+                        amount_rao=frozen_bounty_rao,
+                        block=200,
+                    )
+
+            with pytest.raises(RuntimeError, match="does not match the payout instruction"):
+                await confirm_payout(
+                    sessions=kit.services.sessions,
+                    reader=WrongTreasuryReader(),
+                    reward_event_id=payout.id,
                     extrinsic_reference="200-0003",
-                    submitted_block=200,
+                    operator="test-operator",
                 )
-                await session.commit()
-                await store.mark_reward_confirmed(
-                    session, payout.id, finalized_block=200
-                )
-                await session.commit()
+
+            await confirm_payout(
+                sessions=kit.services.sessions,
+                reader=FinalizedPayoutReader(),
+                reward_event_id=payout.id,
+                extrinsic_reference="200-0003",
+                operator="test-operator",
+            )
+
+            async with kit.session() as session:
                 confirmed = await session.get(RewardEvent, payout.id)
-                rewarded = await session.get(Submission, first.id)
+                rewarded = await session.get(Submission, winning_submission_id)
                 assert confirmed.status == PayoutState.CONFIRMED
                 assert confirmed.extrinsic_reference == "200-0003"
                 assert rewarded.reward_status == RewardState.REWARDED

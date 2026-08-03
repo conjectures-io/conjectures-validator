@@ -180,7 +180,7 @@ CREATE TRIGGER verification_runs_append_only BEFORE UPDATE OR DELETE ON verifica
 
 
 CREATE TYPE payout_state AS ENUM (
-    'PENDING', 'SUBMITTED', 'CONFIRMED', 'FAILED'
+    'AWAITING_MULTISIG', 'CONFIRMED', 'FAILED'
 );
 
 CREATE TABLE reward_events (
@@ -192,50 +192,41 @@ CREATE TABLE reward_events (
     -- Copied from the submission's frozen intake quote.
     bounty_amount_rao       BIGINT NOT NULL                  -- TAO base units (rao); integer only
         CONSTRAINT bounty_amount_positive CHECK (bounty_amount_rao > 0),
-    bounty_commit           TEXT NOT NULL                    -- reviewed implementation commit that submitted the payout
-        CONSTRAINT bounty_commit_nonempty CHECK (length(bounty_commit) BETWEEN 7 AND 64),
+    payout_policy_commit    TEXT NOT NULL                    -- reviewed policy/implementation commit for this instruction
+        CONSTRAINT payout_policy_commit_nonempty CHECK (length(payout_policy_commit) BETWEEN 7 AND 64),
 
-    -- Captured, not derived from submissions: this is where the TAO transfer went.
+    -- Captured, not derived from submissions: this is the intended TAO destination.
     -- The hotkey is retained as attribution evidence.
     destination_coldkey     ss58 NOT NULL,                   -- normally submissions.payment_sender, already proven to own the hotkey
     destination_hotkey      ss58 NOT NULL,
-    source_coldkey          ss58 NOT NULL,                   -- reward wallet captured before signing; reconciliation may not substitute it
+    treasury_account        ss58 NOT NULL,                   -- multisig account that operators must execute the transfer from
 
-    status                  payout_state NOT NULL DEFAULT 'PENDING',
-    extrinsic_reference     TEXT,                            -- NULL until submitted
-    submitted_block         BIGINT,
+    status                  payout_state NOT NULL DEFAULT 'AWAITING_MULTISIG',
+    extrinsic_reference     TEXT,                            -- populated only after finalized manual execution
     finalized_block         BIGINT,
-    failure_reason          TEXT,                            -- terminal explanation; a submission is never paid twice
+    failure_reason          TEXT,                            -- terminal operator/policy explanation
 
-    initiated_by            TEXT NOT NULL,                   -- operator who ran the payout CLI, or 'system' once automated
+    initiated_by            TEXT NOT NULL,                   -- operator who recorded the payout instruction
 
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    submitted_at            TIMESTAMPTZ,
     confirmed_at            TIMESTAMPTZ,
 
     -- This is the deduplication boundary: a winning submission gets one durable
-    -- payout attempt. An unresolved PENDING row is reconciled, never re-signed.
+    -- payout instruction, and the application never signs a replacement transfer.
     CONSTRAINT reward_events_submission_unique UNIQUE (submission_id),
 
-    -- PENDING means no extrinsic reference is recorded yet. An extrinsic may nevertheless
-    -- exist after an ambiguous RPC failure, so the row blocks re-signing until an operator
-    -- reconciles it. A SUBMITTED row must always carry the known reference. FAILED is exempt.
-    CONSTRAINT reward_submitted_needs_reference
-        CHECK (status NOT IN ('SUBMITTED', 'CONFIRMED')
-               OR (extrinsic_reference IS NOT NULL AND submitted_at IS NOT NULL)),
+    -- The application records a reference only after a read-only finalized-chain check.
+    CONSTRAINT reward_reference_only_when_confirmed
+        CHECK ((status = 'CONFIRMED') = (extrinsic_reference IS NOT NULL)),
     CONSTRAINT reward_confirmed_needs_finality
         CHECK (status <> 'CONFIRMED' OR (finalized_block IS NOT NULL AND confirmed_at IS NOT NULL)),
     CONSTRAINT reward_failed_needs_reason
         CHECK (status <> 'FAILED' OR failure_reason IS NOT NULL),
 
-    CONSTRAINT reward_blocks_positive
-        CHECK ((submitted_block IS NULL OR submitted_block > 0)
-               AND (finalized_block IS NULL OR finalized_block > 0)),
-    CONSTRAINT reward_finalized_not_before_submitted
-        CHECK (finalized_block IS NULL OR submitted_block IS NULL OR finalized_block >= submitted_block),
-    CONSTRAINT reward_submitted_not_before_created CHECK (submitted_at IS NULL OR submitted_at >= created_at),
-    CONSTRAINT reward_confirmed_after_submitted
-        CHECK (confirmed_at IS NULL OR (submitted_at IS NOT NULL AND confirmed_at >= submitted_at))
+    CONSTRAINT reward_finalized_block_positive
+        CHECK (finalized_block IS NULL OR finalized_block > 0),
+    CONSTRAINT reward_confirmed_not_before_created
+        CHECK (confirmed_at IS NULL OR confirmed_at >= created_at)
 );
 
 -- Not the dedup key: one extrinsic cannot be two payouts, so this catches recording the
@@ -244,9 +235,9 @@ CREATE UNIQUE INDEX reward_events_extrinsic_idx ON reward_events (extrinsic_refe
     WHERE extrinsic_reference IS NOT NULL;                   -- partial, so unpaid rows don't collide on NULL
 
 -- UNIQUE is free (id is already the primary key) and makes the pair a foreign-key target.
-CREATE UNIQUE INDEX reward_events_submission_idx ON reward_events (submission_id, id);   -- the CLI's pre-flight check, and attempt order
-CREATE INDEX reward_events_pending_idx ON reward_events (created_at)
-    WHERE status IN ('PENDING', 'SUBMITTED');                -- queue: pay, then poll for finality
+CREATE UNIQUE INDEX reward_events_submission_idx ON reward_events (submission_id, id);
+CREATE INDEX reward_events_awaiting_multisig_idx ON reward_events (created_at)
+    WHERE status = 'AWAITING_MULTISIG';                      -- operator queue for manual execution
 CREATE INDEX reward_events_destination_idx ON reward_events (destination_coldkey, created_at DESC);
 
 

@@ -69,10 +69,8 @@ class RewardRecord(Model):
     amount_rao: int | None = None
     destination_coldkey: str | None = None
     extrinsic_reference: str | None = None
-    submitted_block: int | None = None
     finalized_block: int | None = None
     failure_reason: str | None = None
-    submitted_at: datetime | None = None
     confirmed_at: datetime | None = None
 
 

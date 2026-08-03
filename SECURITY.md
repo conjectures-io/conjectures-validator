@@ -149,12 +149,14 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
    miners.
 7. Treat timeouts and resource-limit results as rejections, and apply queue limits and rate limits
    in the validator service outside the one-shot verifier.
-8. Run the API, verification worker, and reward worker with separate process credentials. The API
-   must have no wallet or Docker socket; verifier containers must have neither database nor wallet
-   access; only the reward worker may load the payout coldkey.
-9. Treat a reward row left `PENDING` after a signing/RPC failure as ambiguous. Reconcile it on chain
-   and never sign a replacement automatically; the database uniqueness constraint is a deliberate
-   double-payment brake.
+8. Run the API, verification worker, and payout operator commands with separate process credentials.
+   The API must have no wallet or Docker socket; verifier containers must have neither database nor
+   wallet access; payout commands may access the database and read finalized chain state but must
+   never receive treasury keys or multisig signer material.
+9. A payout row in `AWAITING_MULTISIG` is an instruction, not evidence of payment. Mark it
+   `CONFIRMED` only after `fc-payout-confirm` verifies the exact treasury sender, winner destination,
+   frozen amount, canonical reference, and finality. The unique submission and extrinsic constraints
+   are deliberate double-payment brakes.
 
 ## Residual risks and non-goals
 

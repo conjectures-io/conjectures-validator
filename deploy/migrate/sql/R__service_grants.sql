@@ -60,8 +60,7 @@ BEGIN
             TO conjectures_reward;
         GRANT INSERT ON reward_events TO conjectures_reward;
         GRANT UPDATE (
-            status, extrinsic_reference, submitted_block, finalized_block,
-            failure_reason, submitted_at, confirmed_at
+            status, extrinsic_reference, finalized_block, failure_reason, confirmed_at
         ) ON reward_events TO conjectures_reward;
         GRANT INSERT ON submission_events TO conjectures_reward;
         GRANT UPDATE (reward_status, failure_reason) ON submissions TO conjectures_reward;

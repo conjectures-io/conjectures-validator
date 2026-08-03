@@ -35,8 +35,8 @@ db = [
 [project.scripts]
 fc-verifier = "verifier.cli:main"
 fc-verification-worker = "conjectures_subnet.verification_worker:main"
-fc-reward-worker = "conjectures_subnet.rewards:main"
-fc-reward-reconcile = "conjectures_subnet.reward_reconcile:main"
+fc-payout-intent = "conjectures_subnet.payout_intent:main"
+fc-payout-confirm = "conjectures_subnet.payout_confirm:main"
 fc-weight-worker = "conjectures_subnet.weights:main"
 
 [tool.pytest.ini_options]

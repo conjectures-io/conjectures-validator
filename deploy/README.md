@@ -43,7 +43,9 @@ On first initialization, `00_init.sh` creates four non-superuser login roles:
 `conjectures_api`, `conjectures_verifier`, `conjectures_reviewer`, and
 `conjectures_reward`. Their passwords are separate `.env` values and
 `R__service_grants.sql` gives each only the tables and state-transition columns it needs. The
-Flyway owner credential is for migrations only; do not use it as a runtime `DATABASE_URL`.
+`conjectures_reward` role is for payout intent and read-only chain-confirmation commands; it has no
+relationship to treasury multisig keys. The Flyway owner credential is for migrations only; do not
+use it as a runtime `DATABASE_URL`.
 
 ## Writing a migration
 

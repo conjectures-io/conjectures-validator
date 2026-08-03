@@ -5,7 +5,11 @@ from types import SimpleNamespace
 
 import bittensor as bt
 
-from conjectures_subnet.chain import BittensorChainView, BittensorTransferReader
+from conjectures_subnet.chain import (
+    BittensorChainView,
+    BittensorMultisigTransferReader,
+    BittensorTransferReader,
+)
 
 
 class _FakeSubtensor:
@@ -139,3 +143,115 @@ def test_transfer_reader_checks_ownership_at_the_payment_block(monkeypatch):
     )
     assert owns is True
     assert chain.owner_block == 100
+
+
+class _FakeMultisigChain:
+    multisig = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+    recipient = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
+
+    def __init__(self, *, finalized=120, outer_success=True, inner_success=True, executed=True):
+        self.finalized = finalized
+        self.outer_success = outer_success
+        self.inner_success = inner_success
+        self.executed = executed
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        return None
+
+    async def blocks(self, *, finalized=False):
+        assert finalized is True
+        yield SimpleNamespace(number=self.finalized)
+
+    async def block_info(self, block):
+        assert block == 100
+        inner = {
+            "call_module": "Balances",
+            "call_function": "transfer_keep_alive",
+            "call_args": [
+                {"name": "dest", "value": {"Id": self.recipient}},
+                {"name": "value", "value": 1_000_000_000},
+            ],
+        }
+        return SimpleNamespace(
+            extrinsics=[
+                None,
+                {
+                    "address": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
+                    "call": {
+                        "call_module": "Multisig",
+                        "call_function": "as_multi",
+                        "call_args": [
+                            {"name": "threshold", "value": 2},
+                            {"name": "call", "value": inner},
+                        ],
+                    },
+                },
+            ]
+        )
+
+    async def query(self, descriptor, *, block):
+        assert descriptor == ("System", "Events")
+        assert block == 100
+        events = [
+            {
+                "extrinsic_idx": 1,
+                "event": {
+                    "module_id": "Balances",
+                    "event_id": "Transfer",
+                    "attributes": {
+                        "from": self.multisig,
+                        "to": self.recipient,
+                        "amount": 1_000_000_000,
+                    },
+                },
+            }
+        ]
+        if self.executed:
+            events.append(
+                {
+                    "extrinsic_idx": 1,
+                    "event": {
+                        "module_id": "Multisig",
+                        "event_id": "MultisigExecuted",
+                        "attributes": {
+                            "multisig": self.multisig,
+                            "result": {"Ok": None} if self.inner_success else {"Err": "Failed"},
+                        },
+                    },
+                }
+            )
+        events.append(
+            {
+                "extrinsic_idx": 1,
+                "event": {
+                    "module_id": "System",
+                    "event_id": "ExtrinsicSuccess" if self.outer_success else "ExtrinsicFailed",
+                    "attributes": {},
+                },
+            }
+        )
+        return events
+
+
+def test_multisig_transfer_reader_requires_executed_exact_inner_transfer(monkeypatch):
+    chain = _FakeMultisigChain()
+    monkeypatch.setattr(bt, "Subtensor", lambda _network: chain)
+
+    direct_reader = BittensorTransferReader("local")
+    assert asyncio.run(direct_reader.finalized_transfer(reference="100-0001")) is None
+
+    reader = BittensorMultisigTransferReader("local")
+    transfer = asyncio.run(reader.finalized_transfer(reference="100-0001"))
+    assert transfer is not None
+    assert transfer.sender == chain.multisig
+    assert transfer.recipient == chain.recipient
+    assert transfer.amount_rao == 1_000_000_000
+
+    chain.inner_success = False
+    assert asyncio.run(reader.finalized_transfer(reference="100-0001")) is None
+    chain.inner_success = True
+    chain.executed = False
+    assert asyncio.run(reader.finalized_transfer(reference="100-0001")) is None

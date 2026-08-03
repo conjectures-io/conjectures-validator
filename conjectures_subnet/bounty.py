@@ -1,6 +1,6 @@
 """Quote a reward once at paid-submission intake.
 
-The API writes the quote and the reward worker pays exactly that frozen value.
+The API writes the quote and the manual payout instruction copies exactly that frozen value.
 Pricing is therefore shared infrastructure rather than an API or wallet detail.
 The current implementation is deliberately flat; a future dynamic policy can
 read treasury state through the supplied session without changing the durable

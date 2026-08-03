@@ -97,8 +97,7 @@ class RewardState(enum.StrEnum):
 
 
 class PayoutState(enum.StrEnum):
-    PENDING = "PENDING"        # committed before the extrinsic is signed; unresolved, not failed
-    SUBMITTED = "SUBMITTED"    # broadcast, awaiting finality; safe to poll forever
+    AWAITING_MULTISIG = "AWAITING_MULTISIG"  # instruction recorded; operators sign out of band
     CONFIRMED = "CONFIRMED"
     FAILED = "FAILED"
 
@@ -451,16 +450,13 @@ _append_only(VerificationRun.__table__, "verification_runs_append_only")
 
 
 class RewardEvent(Base):
-    """The one durable payout attempt for a winning submission.
+    """The one durable manual-multisig payout instruction for a winner.
 
-    The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
-    then its chain fields fill in as it progresses. Inserting after the transfer
-    instead would lose the payout on a crash. A PENDING row with no reference is
-    unresolved, not failed: it must block further payouts for that submission
-    until a human reconciles it against the chain.
-
-    ``submission_id`` is unique. A crash with an unresolved PENDING row therefore
-    fails safe and needs reconciliation instead of ever signing a second payout.
+    The application records the exact treasury account, destination and amount,
+    but never constructs, signs or broadcasts the transfer. Operators execute the
+    payout through the treasury multisig and then attach one finalized extrinsic.
+    ``submission_id`` is unique, so recording an intent also prevents a duplicate
+    payout instruction for the same winning submission.
     """
 
     __tablename__ = "reward_events"
@@ -474,20 +470,19 @@ class RewardEvent(Base):
 
     # Copied from the submission's frozen intake quote.
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    # Reviewed implementation commit used to construct and submit this payout.
-    bounty_commit: Mapped[str] = mapped_column(Text, nullable=False)
+    # Reviewed policy/implementation commit used to construct this instruction.
+    payout_policy_commit: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Captured, not derived from submissions: this is where the TAO payout
-    # actually went. The hotkey is retained as attribution evidence.
+    # Captured, not derived from submissions: this is the intended TAO payout
+    # destination. The hotkey is retained as attribution evidence.
     destination_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
     destination_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
-    source_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    treasury_account: Mapped[str] = mapped_column(SS58, nullable=False)
 
     status: Mapped[PayoutState] = mapped_column(
-        PAYOUT_STATE, nullable=False, server_default=PayoutState.PENDING.value
+        PAYOUT_STATE, nullable=False, server_default=PayoutState.AWAITING_MULTISIG.value
     )
     extrinsic_reference: Mapped[str | None] = mapped_column(Text)
-    submitted_block: Mapped[int | None] = mapped_column(BigInteger)
     finalized_block: Mapped[int | None] = mapped_column(BigInteger)
     failure_reason: Mapped[str | None] = mapped_column(Text)
 
@@ -496,20 +491,18 @@ class RewardEvent(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    submitted_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
     confirmed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         UniqueConstraint("submission_id", name="reward_events_submission_unique"),
         CheckConstraint("bounty_amount_rao > 0", name="bounty_amount_positive"),
-        CheckConstraint("length(bounty_commit) BETWEEN 7 AND 64", name="bounty_commit_nonempty"),
-        # PENDING means no extrinsic reference is recorded yet. An extrinsic may
-        # nevertheless exist after an ambiguous RPC failure, which is why this row
-        # blocks re-signing until an operator reconciles it. FAILED is exempt.
         CheckConstraint(
-            "status NOT IN ('SUBMITTED', 'CONFIRMED') "
-            "OR (extrinsic_reference IS NOT NULL AND submitted_at IS NOT NULL)",
-            name="reward_submitted_needs_reference",
+            "length(payout_policy_commit) BETWEEN 7 AND 64",
+            name="payout_policy_commit_nonempty",
+        ),
+        CheckConstraint(
+            "(status = 'CONFIRMED') = (extrinsic_reference IS NOT NULL)",
+            name="reward_reference_only_when_confirmed",
         ),
         CheckConstraint(
             "status <> 'CONFIRMED' OR (finalized_block IS NOT NULL AND confirmed_at IS NOT NULL)",
@@ -519,22 +512,12 @@ class RewardEvent(Base):
             "status <> 'FAILED' OR failure_reason IS NOT NULL", name="reward_failed_needs_reason"
         ),
         CheckConstraint(
-            "(submitted_block IS NULL OR submitted_block > 0) "
-            "AND (finalized_block IS NULL OR finalized_block > 0)",
-            name="reward_blocks_positive",
+            "finalized_block IS NULL OR finalized_block > 0",
+            name="reward_finalized_block_positive",
         ),
         CheckConstraint(
-            "finalized_block IS NULL OR submitted_block IS NULL "
-            "OR finalized_block >= submitted_block",
-            name="reward_finalized_not_before_submitted",
-        ),
-        CheckConstraint(
-            "submitted_at IS NULL OR submitted_at >= created_at",
-            name="reward_submitted_not_before_created",
-        ),
-        CheckConstraint(
-            "confirmed_at IS NULL OR (submitted_at IS NOT NULL AND confirmed_at >= submitted_at)",
-            name="reward_confirmed_after_submitted",
+            "confirmed_at IS NULL OR confirmed_at >= created_at",
+            name="reward_confirmed_not_before_created",
         ),
         # Not the dedup key: one extrinsic cannot be two payouts, so this catches
         # recording the same transfer twice, while a genuine second transfer has
@@ -549,9 +532,9 @@ class RewardEvent(Base):
         # UNIQUE is free and makes the pair a foreign-key target.
         Index("reward_events_submission_idx", "submission_id", "id", unique=True),
         Index(
-            "reward_events_pending_idx",
+            "reward_events_awaiting_multisig_idx",
             "created_at",
-            postgresql_where=text("status IN ('PENDING', 'SUBMITTED')"),
+            postgresql_where=text("status = 'AWAITING_MULTISIG'"),
         ),
         Index("reward_events_destination_idx", "destination_coldkey", text("created_at DESC")),
     )
