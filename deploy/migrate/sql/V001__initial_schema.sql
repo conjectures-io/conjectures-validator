@@ -3,6 +3,10 @@
 CREATE DOMAIN sha256 AS BYTEA CHECK (octet_length(VALUE) = 32);   -- raw 32 bytes, never 'sha256:<hex>'
 CREATE DOMAIN ss58 AS TEXT CHECK (VALUE ~ '^[1-9A-HJ-NP-Za-km-z]{48}$');   -- Bittensor address, prefix 42
 
+CREATE TYPE task_mode AS ENUM (
+    'formalized', 'counterexample'
+);
+
 CREATE TYPE verification_state AS ENUM (
     'UNVERIFIED', 'REJECTED', 'VERIFIED'
 );
@@ -33,9 +37,12 @@ CREATE TABLE submissions (
     hotkey                  ss58 NOT NULL,                                 -- submitting miner
     idempotency_key         UUID NOT NULL,                                 -- SUBNET.md:128, client-generated, one attempt
     request_digest          sha256 NOT NULL,                               -- canonical request; tells replay from conflict
-    task_id                 TEXT NOT NULL                                  -- dir under tasks/pool/<tier>/; no FK, the repo is the task source of truth
+    task_id                 TEXT NOT NULL                                  -- manifest task id; no FK, the task repo is the source of truth
         CONSTRAINT task_id_nonempty CHECK (length(task_id) BETWEEN 1 AND 255),
     task_bundle_sha256      sha256 NOT NULL,                               -- exact bundle this proof was written against
+    problem_id              TEXT NOT NULL                                  -- the conjecture; its proof task and counterexample task share it
+        CONSTRAINT problem_id_nonempty CHECK (length(problem_id) BETWEEN 1 AND 255),
+    task_mode               task_mode NOT NULL,                            -- both derived server-side from the allowlist, never sent by the miner
 
     proof_digest            sha256 NOT NULL UNIQUE REFERENCES proofs (digest),  -- drop the UNIQUE if identical proofs should ever both be payable.
 
@@ -85,6 +92,11 @@ CREATE INDEX submissions_reward_queue_idx ON submissions (created_at)
 
 CREATE INDEX submissions_task_idx ON submissions (task_id, created_at DESC);
 CREATE INDEX submissions_hotkey_idx ON submissions (hotkey, created_at DESC);
+
+CREATE UNIQUE INDEX submissions_problem_reward_unique ON submissions (problem_id)
+    WHERE reward_status <> 'INELIGIBLE';
+CREATE INDEX submissions_problem_verified_idx ON submissions (problem_id, task_mode)
+    WHERE verification_status = 'VERIFIED';
 -- No proof_digest index: the UNIQUE above already builds one, and it also means a copied proof
 -- is refused at INSERT rather than found afterwards, so there is nothing to scan for.
 

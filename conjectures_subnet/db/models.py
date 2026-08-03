@@ -77,6 +77,13 @@ SS58 = DOMAIN(
 # verification state AND a review state AND a reward state at all times.
 
 
+class TaskMode(enum.StrEnum):
+    """What a task asks for. Mirrors verifier.task_policy.PRODUCTION_TASK_MODES."""
+
+    FORMALIZED = "formalized"  # prove the conjecture
+    COUNTEREXAMPLE = "counterexample"  # prove its negation
+
+
 class VerificationState(enum.StrEnum):
     UNVERIFIED = "UNVERIFIED"
     REJECTED = "REJECTED"
@@ -128,6 +135,7 @@ def _pg_enum(python_enum: type[enum.StrEnum], name: str) -> ENUM:
     )
 
 
+TASK_MODE = _pg_enum(TaskMode, "task_mode")
 VERIFICATION_STATE = _pg_enum(VerificationState, "verification_state")
 MANUAL_REVIEW_STATE = _pg_enum(ManualReviewState, "manual_review_state")
 REWARD_STATE = _pg_enum(RewardState, "reward_state")
@@ -176,9 +184,12 @@ class Submission(Base):
         UUID(as_uuid=True), nullable=False
     )
     request_digest: Mapped[bytes] = mapped_column(SHA256, nullable=False)
-    # No FK on task_id: the repo is the task source of truth.
+    # No FK on task_id: the task repo is the source of truth.
     task_id: Mapped[str] = mapped_column(Text, nullable=False)
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+    # Both derived from the allowlist at intake, never sent by the miner.
+    problem_id: Mapped[str] = mapped_column(Text, nullable=False)
+    task_mode: Mapped[TaskMode] = mapped_column(TASK_MODE, nullable=False)
 
     # Drop the UNIQUE if identical proofs should ever both be payable.
     proof_digest: Mapped[bytes] = mapped_column(
@@ -224,6 +235,9 @@ class Submission(Base):
 
     __table_args__ = (
         CheckConstraint("length(task_id) BETWEEN 1 AND 255", name="task_id_nonempty"),
+        CheckConstraint(
+            "length(problem_id) BETWEEN 1 AND 255", name="problem_id_nonempty"
+        ),
         CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128",
             name="payment_reference_nonempty",
@@ -271,6 +285,18 @@ class Submission(Base):
         Index("submissions_task_idx", "task_id", text("created_at DESC")),
         Index("submissions_hotkey_idx", "hotkey", text("created_at DESC")),
         # No proof_digest index: the UNIQUE above already builds one.
+        Index(
+            "submissions_problem_reward_unique",
+            "problem_id",
+            unique=True,
+            postgresql_where=text("reward_status <> 'INELIGIBLE'"),
+        ),
+        Index(
+            "submissions_problem_verified_idx",
+            "problem_id",
+            "task_mode",
+            postgresql_where=text("verification_status = 'VERIFIED'"),
+        ),
     )
 
 
@@ -601,6 +627,7 @@ __all__ = [
     "RewardEvent",
     "RewardState",
     "Submission",
+    "TaskMode",
     "VerificationRun",
     "VerificationState",
 ]

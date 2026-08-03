@@ -43,6 +43,7 @@ from submission_api.verification import QueueDispatcher
 
 TASK_ID = "fixture"
 TIER = "tier-1"
+PROBLEM_ID = "fixture-problem"
 RECIPIENT = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
 OTHER_HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
@@ -136,11 +137,15 @@ def task_entry(
     task_id: str = TASK_ID,
     digest: str = TASK_DIGEST,
     tier: str = TIER,
+    problem_id: str = PROBLEM_ID,
+    mode: str = "formalized",
     **manifest_kwargs,
 ) -> TaskEntry:
     return TaskEntry(
         task_id=task_id,
         tier=tier,
+        problem_id=problem_id,
+        mode=mode,
         task_bundle_sha256=digest,
         target_type_sha256s=("sha256:" + "11" * 32,),
         # The pool is tiered, so bytes live under the tier, not directly under the root.
