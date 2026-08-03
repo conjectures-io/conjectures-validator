@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+git submodule update --init --recursive
+find "$ROOT/tasks/pool" -type d -exec chmod 755 {} +
+find "$ROOT/tasks/pool" -type f -exec chmod 644 {} +
 ./scripts/pin_dependencies.sh
 
 export ELAN_HOME="${ELAN_HOME:-$ROOT/.elan}"
