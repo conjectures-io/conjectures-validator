@@ -19,8 +19,12 @@ pin_repo() {
   local name="$1"
   local url="$2"
   local commit="$3"
-  local destination="vendor/$name"
-  if [[ ! -d "$destination/.git" ]]; then
+  local destination="$4"
+  if ! git -C "$destination" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if [[ -e "$destination" ]]; then
+      echo "$destination exists but is not a Git checkout for $name" >&2
+      return 2
+    fi
     git clone --filter=blob:none --no-checkout "$url" "$destination"
   fi
   git -C "$destination" remote set-url origin "$url"
@@ -32,8 +36,20 @@ pin_repo() {
 
 for dependency in formal_conjectures comparator lean4export landrun nanoda; do
   directory="${dependency//_/-}"
-  pin_repo "$directory" "$(pin_field "$dependency" repository)" "$(pin_field "$dependency" commit)"
+  pin_repo \
+    "$directory" \
+    "$(pin_field "$dependency" repository)" \
+    "$(pin_field "$dependency" commit)" \
+    "vendor/$directory"
 done
+
+pin_repo \
+  tasks \
+  "$(pin_field tasks repository)" \
+  "$(pin_field tasks commit)" \
+  tasks
+find tasks/pool -type d -exec chmod 755 {} +
+find tasks/pool -type f -exec chmod 644 {} +
 
 python3 <<'PY'
 import json
