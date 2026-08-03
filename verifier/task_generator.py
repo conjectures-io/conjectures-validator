@@ -38,6 +38,8 @@ LEAN_MODULE_NAME = re.compile(
     r"(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»)"
     r"(?:\.(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»))*"
 )
+ERDOS_NAMESPACE = re.compile(r"Erdos([1-9][0-9]*)")
+TASK_DIRECTORY_MODE = re.compile(r"[a-z][a-z0-9-]{0,31}")
 
 
 def task_slug(theorem: str) -> str:
@@ -45,6 +47,18 @@ def task_slug(theorem: str) -> str:
     normalized = "-".join(re.sub(r"[^a-z0-9]+", "-", segment.lower()).strip("-") for segment in segments)
     shortened = normalized[:80].rstrip("-")
     return shortened or sha256_text(theorem)[7:19]
+
+
+def task_directory_name(theorems: tuple[str, ...], mode: str) -> str:
+    """Return a readable storage name without changing the protocol task id."""
+    if not theorems or TASK_DIRECTORY_MODE.fullmatch(mode) is None:
+        raise ValueError("a task directory requires source theorems and a safe mode")
+    namespace = theorems[0].rsplit(".", 1)[0].rsplit(".", 1)[-1]
+    erdos = ERDOS_NAMESPACE.fullmatch(namespace)
+    base = f"erdos-{erdos.group(1)}" if erdos else task_slug(theorems[0])
+    if len(theorems) > 1:
+        base = f"{base}-all-{len(theorems)}"
+    return f"{base}-{mode}"
 
 
 def task_id(repository_commit: str, theorem: str, mode: str, adapter_version: int) -> str:
@@ -593,7 +607,7 @@ def generate_all(
             )
             continue
         for mode in applicable:
-            target = output / task_id(catalog.repository_commit, declaration.theorem, mode, adapter.version)
+            target = output / task_directory_name((declaration.theorem,), mode)
             try:
                 manifest = generate_one(
                     catalog=catalog, declaration=declaration, mode=mode, output=target, **options

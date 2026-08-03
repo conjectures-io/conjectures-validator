@@ -1,0 +1,4 @@
+[submodule "tasks"]
+	path = tasks
+	url = https://github.com/conjectures-io/conjectures-tasks.git
+	branch = main

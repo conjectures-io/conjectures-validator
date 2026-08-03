@@ -17,60 +17,67 @@ This repository is the system boundary for the entire validator, including:
 - immutable proof artifacts and audit history;
 - asynchronous verification workers and the hardened Lean verifier;
 - the optional manual reward-review queue;
-- reward eligibility, scoring, and Subnet 66 weight submission; and
+- atomic reward eligibility and finalized TAO bounty payout; and
 - deployment, monitoring, backup, and recovery configuration.
 
-Some of those validator components still need to be implemented. The current checkout already
-contains the audited task pool, exact task commitments, service adapter, and hardened Lean
-verification core.
+The application path is implemented end to end. Production launch still requires deployment
+configuration, a digest-pinned verifier image, funded wallets, monitoring, and a staging drill.
 
 | Validator component | Status |
 | --- | --- |
 | Audited Lean task generation and immutable task commitments | Implemented |
 | Hostile-proof verification in an isolated container | Implemented |
 | API-neutral proof handoff with exact task digest | Implemented |
-| Miner-facing paid submission and status API | To build |
-| Finalized 0.5 TAO payment confirmation and reconciliation | To build |
-| Durable database, artifact storage, and append-only event history | To build |
-| Asynchronous verification job lifecycle | To build |
-| Configurable manual reward-review gate | To build |
-| Reward eligibility, scoring, and Subnet 66 weight-setting loop | To build |
-| Production launch and operating runbooks | To build |
+| Hardened miner submission bundle format and archive admission | Implemented |
+| Miner-facing paid submission and status API | Implemented |
+| Shared durable schema, migrations, and append-only event history | Implemented |
+| Finalized 0.5 TAO transfer reader for payment-gated intake | Implemented |
+| Leased asynchronous verification worker | Implemented |
+| Audited manual reward-review decision service | Implemented |
+| Atomic problem winner selection and finalized TAO payout | Implemented |
+| Production launch checklist and operating commands | Implemented |
+| Staging chain drill, monitoring, backups, and incident exercises | Deployment work |
 
-See [`docs/SUBNET.md`](docs/SUBNET.md) for the service contract, durable data model, state machine,
-trust boundaries, and remaining implementation work.
+Miners should start at [`docs/MINER.md`](docs/MINER.md): what to do, in order, to get one proof
+submitted, verified and paid. [`docs/API.md`](docs/API.md) documents the API surface and its
+configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the submission format,
+[`deploy/README.md`](deploy/README.md) the database deployment, and
+[`docs/SUBNET.md`](docs/SUBNET.md) the service contract and trust boundaries, and
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md) the production launch checklist.
 
 ## Validator flow
 
-1. A miner chooses an eligible committed proof or counterexample task and prepares one candidate
-   Lean proof.
-2. The miner pays exactly **0.5 TAO** and submits the proof through the validator API with its task
-   ID and digest, payment reference, miner identity, and idempotency key.
-3. The API durably records the request and proof artifact before returning a submission ID.
-4. A payment worker confirms that the transfer is finalized, is for the configured recipient and
-   amount, and has not funded another submission.
-5. A verification worker passes the exact proof bytes and task digest to the isolated verifier.
+1. A miner chooses an eligible committed proof or counterexample task, prepares one candidate Lean
+   proof, and checks it locally with `verifier bundle scan` — a rejected bundle costs nothing to
+   fix.
+2. The miner pays exactly **0.5 TAO** and submits the proof bundle through the validator API with
+   its task ID and digest, the payment reference, miner identity, and an idempotency key.
+3. The API admits the bundle, authenticates the hotkey signature, and confirms the transfer
+   against finalized chain state. Intake is payment-gated: a refused request creates no
+   submission and is recorded in `api_rejection_log` instead.
+4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
+   submission ID. The submission is queued for verification by being `UNVERIFIED`.
+5. A verification worker claims it and passes the exact proof bytes and task digest to the
+   isolated verifier.
 6. A proof rejected by policy, Comparator, or the Lean kernel is recorded as rejected and never
    reaches rewards.
 7. A Lean-valid proof and its immutable verification report are durably recorded.
-8. If manual reward review is enabled, the valid submission remains held until a reviewer approves
-   or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
-9. If manual reward review is disabled, or if a held proof is approved, the submission becomes
+8. If manual reward review is required, the valid submission remains held until a reviewer
+   approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
+9. If manual reward review is not required, or if a held proof is approved, the submission becomes
    reward-eligible and is passed to the reward pipeline.
-10. The reward processor applies the versioned scoring policy, submits the corresponding Subnet 66
-    weights, and records the resulting reward decision and chain evidence.
+10. The reward processor pays the intake-frozen bounty and records the chain evidence.
 
 ```text
 miner pays 0.5 TAO
         |
         v
-POST proof to validator API
+POST bundle to validator API
+        |
+        +-- bundle, signature, or payment refused --> no submission, logged in api_rejection_log
         |
         v
-durable submission + payment record
-        |
-        v
-payment confirmed
+durable submission (payment already confirmed) + stored proof bytes
         |
         v
 isolated Lean verification
@@ -80,15 +87,15 @@ isolated Lean verification
         v
 Lean valid
         |
-        +-- manual review enabled --> held --> approve/reject
-        |                                      |
-        +-- manual review disabled ------------+
-                                               |
-                                               v
-                                      reward-eligible
-                                               |
-                                               v
-                                    Subnet 66 reward pipeline
+        +-- review required --> held --> approve/reject
+        |                                 |
+        +-- review not required ----------+
+                                          |
+                                          v
+                                 reward-eligible
+                                          |
+                                          v
+                                  finalized TAO payout
 ```
 
 The manual-review switch controls only whether a Lean-valid submission is held before reward
@@ -126,16 +133,71 @@ On Ubuntu 24.04 (or an equivalent Linux host with Python 3.11+, Git, curl, a C t
 and Landlock support):
 
 ```bash
+git submodule update --init --recursive
 ./scripts/bootstrap.sh
 export PATH="$PWD/.venv/bin:$PWD/.elan/bin:$PATH"
 python -m verifier doctor
 ```
 
-The bootstrap script checks out only the commits in `pins.lock.json`, installs the pinned Lean
-toolchains, downloads Mathlib's trusted binary cache, builds Formal Conjectures in `answer`
-postpone mode, and builds Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is
-optional: set `ENABLE_NANODA=1` during bootstrap to build it. Bootstrap also installs the pinned
-service and Subnet 66 dependencies; it does not install the removed legacy miner transport.
+The bootstrap script initializes the pinned
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) submodule, checks out only
+the commits in `pins.lock.json`, installs the pinned Lean toolchains, downloads Mathlib's trusted
+binary cache, builds Formal Conjectures in `answer` postpone mode, and builds Comparator, the
+Lean-4.27 `lean4export` backport, and Landrun. Nanoda is optional: set `ENABLE_NANODA=1` during
+bootstrap to build it. Bootstrap also installs the pinned service and Subnet 66 dependencies; it
+does not install the removed legacy miner transport.
+
+## Submission API
+
+The miner-facing API lives in [`submission_api/`](submission_api/). It authenticates a miner by
+hotkey signature, admits one proof bundle, records durable submission and payment state, and queues
+the proof for the isolated verifier.
+
+```bash
+cp .env.example .env                              # then edit the passwords
+docker compose -f docker-compose.db.yml up -d     # Postgres + Flyway migrations
+
+export PAYMENT_RECIPIENT_SS58='5C4h…'
+export DATABASE_URL='postgresql+psycopg://conjectures:<pw>@127.0.0.1:5432/conjectures'
+uvicorn submission_api.asgi:app --host 127.0.0.1 --port 8080
+```
+
+The API has no database of its own. [`conjectures_subnet/db/`](conjectures_subnet/db/) is the
+runtime view of [`deploy/migrate/sql/`](deploy/migrate/sql/), which is the source of truth and is
+applied by Flyway; the same store is shared with the payment, verification, review, and reward
+components. `DATABASE_URL` or the standard `POSTGRES_*` variables configure it once for every
+process. Confirm the ORM mirror still matches the migrations with:
+
+```bash
+python3 scripts/check_schema_drift.py --dsn postgresql://conjectures:<pw>@127.0.0.1:5432/postgres
+```
+
+Intake is payment-gated: a submission row exists only for a transfer already confirmed on
+finalized chain state, so a refused request creates no submission and is recorded in
+`api_rejection_log` instead. A miner therefore checks a bundle *before* paying:
+
+```bash
+python3 scripts/build_submission_bundle.py \
+  --proof Main.lean --task-id <task id> --task-sha256 <sha256:…> \
+  --hotkey <ss58> --output submission.zip
+
+python -m verifier bundle scan --bundle submission.zip
+```
+
+`GET /v1/tasks` publishes the submittable task ids, their committed digests, the price, and the
+payment address. Start at [`docs/MINER.md`](docs/MINER.md) for the miner's path end to end, then
+[`docs/API.md`](docs/API.md) for endpoints, headers, the signature scheme and configuration, and
+[`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) for the bundle format.
+
+The API process must not share a trust domain with the proof verifier; production refuses to start
+if it is configured to run verification in process, to authenticate with the development key, or
+to accept payments without reading the chain.
+
+Subnet funding and proof payouts use separate signing processes. `fc-weight-worker` pins the chain
+genesis plus a registered treasury UID/hotkey/coldkey tuple, submits the finalized Subnet 66
+primary-mechanism allocation, and emits a JSON chain audit record. `fc-reward-worker` uses the
+separately funded treasury payout wallet to send the winning miner's frozen direct TAO bounty.
+Deployment commands and safety checks are in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 Build and inspect the real full-repository catalog:
 
@@ -165,9 +227,11 @@ python -m verifier task generate \
 
 ## Solver task pool
 
-Use the immutable bundles in [`tasks/pool/`](tasks/pool/) as the public targets for solver
-attempts. The task pool is divided into explicit tiers; the current audited set is
-[`tier-1`](tasks/pool/tier-1/). It is pinned to Formal Conjectures commit
+Use the immutable bundles in the
+[`tasks/pool/`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) submodule as the
+public targets for solver attempts. The task pool is divided into explicit tiers; the current
+audited set is
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1). It is pinned to Formal Conjectures commit
 `e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 58 committed bundles covering 29
 reward problems from 29 audited Erdős source files. Each source has a `formalized` target `P` and a
 `counterexample` target `¬ P`; the pair shares one `problem_id` and can produce at most one reward.
@@ -331,8 +395,16 @@ to `Not P` in `counterexample` mode rather than trusting JSON metadata.
 
 ## Submission policy and verification stages
 
-The only untrusted input is one regular `.lean` UTF-8 file. It is placed between the trusted header
-and footer. A comment/string-aware Lean token scanner rejects command-form `import`, `prelude`,
+A miner submits a `conjectures-submission/v1` ZIP bundle, which the exact-shape scanner in
+[`verifier/bundle.py`](verifier/bundle.py) admits only if it contains exactly a bounded strict-JSON
+manifest and one regular UTF-8 `.lean` file. The archive is never extracted: entry names are only
+compared against a two-name allowlist and never used as filesystem paths. Check a bundle before
+submitting it with `python -m verifier bundle scan --bundle submission.zip`. See
+[`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) for the format and the full admission
+rules.
+
+The only untrusted input reaching Lean is that one regular `.lean` UTF-8 file. It is placed between
+the trusted header and footer. A comment/string-aware Lean token scanner rejects command-form `import`, `prelude`,
 `module`, `axiom`/`constant`, `unsafe`, `extern`, `foreign`, initializers, syntax/elaboration
 extensions, `set_option`, `run_cmd`, and `run_tac` even when commands share a line; it rejects
 `native_decide` (which trusts generated native code), and qualified or quoted `sorry`, `admit`, and

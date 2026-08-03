@@ -27,7 +27,11 @@ from verifier.task_pool import (
     load_whole_problem_targets,
     select_task_declarations,
 )
-from verifier.task_generator import generate_group_task, generate_task
+from verifier.task_generator import (
+    generate_group_task,
+    generate_task,
+    task_directory_name,
+)
 from verifier.task_loader import load_task_bundle
 from verifier.task_policy import PRODUCTION_TASK_MODES
 from verifier.workspace import target_validator
@@ -146,7 +150,10 @@ def main() -> int:
                     output=pending,
                     validate_target=validate_target,
                 )
-            destination = generated / manifest.task_id
+            destination = generated / task_directory_name(
+                tuple(declaration.theorem for declaration in declarations),
+                mode,
+            )
             os.replace(pending, destination)
             return load_task_bundle(destination)
 
