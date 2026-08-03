@@ -165,14 +165,24 @@ Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotenc
 one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
 payment accounting.
 
-One uniqueness constraint the contract requires is still missing. The task pool now issues a
-`formalized` and a `counterexample` task for each problem, and the core contract above allows at
-most one reward per problem identity — but `V001` carries only `task_id` and `task_bundle_sha256`.
-There is no `problem_id` column and no `task_mode`, so nothing in the schema stops one problem from
-paying twice, once for the proof and once for its counterexample. Closing it needs `problem_id` and
-`task_mode` on `submissions`, populated from the allowlist at intake, and a partial unique index on
-`problem_id` over reward-eligible rows. Until that migration exists the exclusivity is an intention,
-not an invariant.
+**One reward per conjecture is a constraint, not a convention.** The pool issues a `formalized`
+and a `counterexample` task for each problem, and `submissions` carries the `problem_id` and
+`task_mode` behind both, derived from the allowlist at intake so a miner cannot choose which
+problem their proof is aimed at. `submissions_problem_reward_unique` is a unique index on
+`problem_id` over every row whose `reward_status` is not `INELIGIBLE`, so proving a conjecture and
+refuting it cannot both be paid. `FAILED` is inside that predicate deliberately: a payout that
+failed keeps its claim and is retried on the same row, and moving the reward to a different
+submission means first returning the failed one to `INELIGIBLE`.
+
+Two things follow, both handled where eligibility is decided rather than left to the index:
+
+- a Lean-valid proof for a problem already awarded is not a verification failure. It is recorded
+  as a rejected reward decision with `PROBLEM_ALREADY_AWARDED` and stays `INELIGIBLE`;
+- a problem verified in **both** modes has been proved and refuted, which cannot be right — the
+  generated negation is not the negation, or something worse. Nothing automatic pays either side:
+  an ADVISORY `PROBLEM_VERIFIED_IN_BOTH_MODES` row is recorded and the submission is left
+  `UNREVIEWED`, so it enters the human review queue. `submissions_problem_verified_idx` is what
+  makes that check cheap enough to run before every award.
 
 ## Manual reward review
 
