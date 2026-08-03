@@ -7,7 +7,16 @@ admitting submissions against an unaudited task.
 
 The pool is tiered, so a task's bytes live under its tier rather than directly under the pool
 root. The tier is carried on each entry because it is part of the path; it is deliberately not
-in the API response, since what a tier means for pricing or eligibility is not decided yet.
+in the miner-facing response, since what a tier means for pricing or eligibility is not decided
+yet. It *is* published on the public catalog, as a facet — a reader of the website can see how
+the pool is grouped without that grouping meaning anything about price.
+
+Each entry also keeps the source declaration and the exact `Challenge.lean` bytes it was
+admitted with. Both are already in the bundle `load_task_bundle` hash-verified against the
+allowlist, so serving them on `/v1/catalog/conjectures/{slug}` costs no extra read and — more
+importantly — publishes the same bytes the verifier compiles. Reading `Challenge.lean` off disk
+per request would let the published statement drift from the audited one between startup and
+the request.
 """
 
 from __future__ import annotations
@@ -16,9 +25,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from verifier.models import TaskManifest
+from verifier.models import CatalogDeclaration, TaskManifest
 from verifier.task_loader import load_task_bundle
 from verifier.task_registry import AllowedTask, TaskNotAllowed, TaskPoolRegistry
+
+CHALLENGE_NAME = "Challenge.lean"
 
 
 @dataclass(frozen=True)
@@ -31,6 +42,10 @@ class TaskEntry:
     target_type_sha256s: tuple[str, ...]
     task_dir: Path
     manifest: TaskManifest
+    # The audited source declaration: statement, docstring, category, AMS subjects, references.
+    source: CatalogDeclaration
+    # `Challenge.lean` exactly as hashed into the task bundle digest above.
+    challenge_lean: str
 
 
 @dataclass(frozen=True)
@@ -78,6 +93,11 @@ class TaskCatalog:
                     target_type_sha256s=allowed.target_type_sha256s,
                     task_dir=task_dir,
                     manifest=bundle.manifest,
+                    source=bundle.source,
+                    # A trusted file, so its bytes are already hash-verified. Lean source is
+                    # UTF-8 by construction; a decode failure here would mean the digest check
+                    # above passed on bytes no verifier could compile.
+                    challenge_lean=bundle.files[CHALLENGE_NAME].decode("utf-8"),
                 )
         missing = sorted(set(registry.tasks) - set(entries))
         if missing:
@@ -118,6 +138,7 @@ def catalog_from_entries(
 
 
 __all__ = [
+    "CHALLENGE_NAME",
     "AllowedTask",
     "TaskCatalog",
     "TaskEntry",

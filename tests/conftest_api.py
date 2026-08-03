@@ -20,6 +20,12 @@ from __future__ import annotations
 
 import time
 import uuid
+from datetime import date
+from dataclasses import dataclass, replace
+from functools import cache
+from pathlib import Path
+
+from conftest import declaration
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,10 +41,14 @@ from conjectures_subnet.db.models import Base
 from submission_api.app import create_app
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
+from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.mail import ConsoleSender
 from submission_api.payments import build_payment_verifier
+from submission_api.pins import PinSet
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
 from submission_api.verification import QueueDispatcher
+from verifier.models import CatalogDeclaration, Classification
 
 TASK_ID = "fixture"
 TIER = "tier-1"
@@ -46,26 +56,145 @@ PROBLEM_ID = "fixture-problem"
 RECIPIENT = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
 OTHER_HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+REPOSITORY_COMMIT = "e923379e609b9d5987011a1d1f06ec22ea25cd20"
+
+# What a task entry carries as its Lean challenge. Short, and structurally the real thing: the
+# public detail endpoint serves these bytes verbatim.
+CHALLENGE_LEAN = (
+    "import FormalConjectures.TestFixtures\n"
+    "import TaskSupport\n"
+    "\n"
+    "namespace Bounty\n"
+    "\n"
+    'theorem target : fcTypeOfName% "VerifierFixtures.direct" := by\n'
+    "  sorry\n"
+    "\n"
+    "end Bounty\n"
+)
+
+# A pin lock shaped like the real one, pinning the same source revision the fixture catalog
+# claims, so `assert_agrees_with_catalog` holds for tests that exercise it.
+PINS_JSON = (
+    '{"schema_version": 1,'
+    ' "formal_conjectures": {"repository": "https://example.invalid/fc.git",'
+    f' "commit": "{REPOSITORY_COMMIT}"}},'
+    ' "mathlib": {"repository": "https://example.invalid/mathlib4.git",'
+    ' "commit": "a3a10db0e9d66acbebf76c5e6a135066525ac900"},'
+    ' "lean": {"toolchain": "leanprover/lean4:v4.27.0",'
+    ' "commit": "db93fe1608548721853390a10cd40580fe7d22ae"},'
+    ' "nanoda": {"repository": "https://example.invalid/nanoda.git",'
+    ' "commit": "f58f2f6d535e189a40fcb02ede8eb95f97a92d37", "enabled": false},'
+    ' "elan": {"version": "4.2.3", "commit": "b6cec7e10fe4965a605aaf60d1cb4a5837f0462b",'
+    ' "assets": {"x86_64-unknown-linux-gnu": "df0b2b3a"}}}'
+).encode("utf-8")
 
 __all__ = [
+    "CHALLENGE_LEAN",
     "COLDKEY",
     "HOTKEY",
     "OTHER_HOTKEY",
+    "PINS_JSON",
     "PYTEST_DSN",
     "RECIPIENT",
+    "REPOSITORY_COMMIT",
     "TASK_DIGEST",
     "TASK_ID",
     "VALID_PROOF",
     "Harness",
     "build_settings",
+    "distinct_bundle",
     "harness",
     "manifest_json",
     "new_key",
+    "pin_set",
+    "terms",
     "postgres_dsn",
     "read_headers",
     "submission_headers",
+    "task_entry",
     "valid_bundle",
 ]
+
+
+def pin_set() -> PinSet:
+    return PinSet.from_bytes(PINS_JSON)
+
+
+def terms() -> SubmissionTerms:
+    """The real terms document, read from the repository.
+
+    Not a fixture string: the endpoint serves these bytes, and a test that asserted on invented
+    prose would pass while the shipped document was empty or missing.
+    """
+    return SubmissionTerms.load(
+        ROOT / "docs" / "SUBMISSION_TERMS.md",
+        version="v1",
+        effective_from=date(2026, 8, 1),
+    )
+
+
+def distinct_bundle(marker: str, *, hotkey: str = HOTKEY) -> tuple[bytes, str]:
+    """A bundle whose proof bytes are unique to `marker`, and that proof's digest.
+
+    `submissions.proof_digest` is globally UNIQUE, so two submissions can never carry the same
+    proof — the second is refused as a duplicate. Any test with more than one submission in it
+    therefore needs distinct proof bytes, and the bundle manifest has to agree with them.
+    """
+    from verifier.hashing import sha256_bytes
+
+    proof = VALID_PROOF + f"-- {marker}\n".encode("utf-8")
+    digest = sha256_bytes(proof)
+    bundle = valid_bundle(
+        proof=proof,
+        manifest=manifest_json(
+            proof_sha256=digest, proof_bytes=len(proof), miner_hotkey=hotkey
+        ),
+    )
+    return bundle, digest
+
+
+# The stack in docker-compose.pytest-db.yml, credentials and all. Duplicated there rather than
+# read from a file so neither side can drift into pointing somewhere else, and separate from the
+# development database so a suite that drops and recreates the schema cannot reach real data.
+ROOT = Path(__file__).resolve().parents[1]
+
+PYTEST_DSN = (
+    "postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw"
+    "@127.0.0.1:5440/conjectures-pytest"
+)
+
+
+def _reachable(dsn: str) -> bool:
+    """Whether a server is actually answering on `dsn`.
+
+    Probed rather than assumed: the alternative to skipping is every database test failing with
+    a connection error, which reads like a broken suite rather than a stack that is not up.
+    """
+    try:
+        import psycopg
+    except ModuleNotFoundError:  # pragma: no cover - psycopg is a test dependency
+        return False
+    # psycopg wants a libpq DSN; the SQLAlchemy driver suffix is not part of one.
+    libpq = dsn.replace("postgresql+psycopg://", "postgresql://", 1)
+    try:
+        with psycopg.connect(libpq, connect_timeout=2):
+            return True
+    except (psycopg.Error, OSError):
+        return False
+
+
+@cache
+def postgres_dsn() -> str | None:
+    """The database tests' DSN, or None to skip them.
+
+    Cached because this opens a connection and is called once per harness. `FC_POSTGRES_DSN`
+    wins when set, so pointing the suite at another server stays possible; otherwise the fixed
+    pytest stack is used if it is up, which is what makes the tests need no configuration.
+    """
+    explicit = os.environ.get("FC_POSTGRES_DSN", "").strip()
+    if explicit:
+        return explicit
+    return PYTEST_DSN if _reachable(PYTEST_DSN) else None
 
 
 def new_key() -> str:
@@ -94,10 +223,29 @@ def task_entry(
     task_id: str = TASK_ID,
     digest: str = TASK_DIGEST,
     tier: str = TIER,
+    source: CatalogDeclaration | None = None,
+    challenge_lean: str = CHALLENGE_LEAN,
+    classification: Classification | None = None,
+    task_mode: str | None = None,
     problem_id: str = PROBLEM_ID,
     mode: str = "formalized",
     **manifest_kwargs,
 ) -> TaskEntry:
+    """One catalog entry.
+
+    `classification` and `task_mode` patch the *manifest*, not the source declaration. The
+    public catalog facets read the manifest, because what a solver filters on is the task's
+    contract rather than the upstream declaration's own label, and `conftest.manifest()` has
+    neither as a parameter.
+    """
+    manifest = task_manifest(**manifest_kwargs)
+    patch = {}
+    if classification is not None:
+        patch["classification"] = classification
+    if task_mode is not None:
+        patch["task_mode"] = task_mode
+    if patch:
+        manifest = replace(manifest, **patch)
     return TaskEntry(
         task_id=task_id,
         tier=tier,
@@ -107,7 +255,9 @@ def task_entry(
         target_type_sha256s=("sha256:" + "11" * 32,),
         # The pool is tiered, so bytes live under the tier, not directly under the root.
         task_dir=Path("tasks/pool") / tier / task_id,
-        manifest=task_manifest(**manifest_kwargs),
+        manifest=manifest,
+        source=source if source is not None else declaration(),
+        challenge_lean=challenge_lean,
     )
 
 
@@ -136,7 +286,7 @@ def harness(*, entries=None, dispatcher=None, **overrides: str) -> Harness:
     settings = build_settings(**overrides)
     engine = create_async_db_engine(settings.database_url)
     catalog = catalog_from_entries(
-        repository_commit="e923379e609b9d5987011a1d1f06ec22ea25cd20",
+        repository_commit=REPOSITORY_COMMIT,
         entries=entries if entries is not None else (task_entry(),),
     )
     services = Services(
@@ -151,6 +301,12 @@ def harness(*, entries=None, dispatcher=None, **overrides: str) -> Harness:
             amount_rao=settings.bounty_amount_rao,
             policy_version=settings.bounty_policy_version,
         ),
+        pins=pin_set(),
+        mail=ConsoleSender(),
+        packages=parse_packages(
+            settings.credit_packages, credit_price_rao=settings.payment_amount_rao
+        ),
+        terms=terms(),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings

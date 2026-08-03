@@ -178,6 +178,13 @@ def production_env(**overrides: str) -> dict[str, str]:
         "APP_MODE": "PROD",
         "PAYMENT_RECIPIENT_SS58": RECIPIENT,
         "BOUNTY_AMOUNT_RAO": "1000000000",
+        # Required in production, and refused if they are the published development constants;
+        # see tests/test_api_public.py for the settings guardrails themselves.
+        "PUBLIC_CURSOR_SECRET": "x" * 40,
+        "PUBLIC_ACTIVITY_SALT": "y" * 40,
+        # Stage 2 additions production also refuses to start without.
+        "WEBSITE_BASE_URL": "https://conjectures.io",
+        "MAIL_SENDER": "smtp",
     }
     environ.update(overrides)
     return environ

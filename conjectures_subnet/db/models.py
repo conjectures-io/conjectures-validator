@@ -43,7 +43,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import DOMAIN, ENUM, INET, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, DOMAIN, ENUM, INET, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -196,11 +196,41 @@ class Submission(Base):
         SHA256, ForeignKey("proofs.digest"), nullable=False, unique=True
     )
 
-    payment_reference: Mapped[str] = mapped_column(Text, nullable=False)
-    payment_sender: Mapped[str] = mapped_column(SS58, nullable=False)
-    payment_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    payment_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # NULLable since V003: a submission has exactly one funding source, and a credit-funded one
+    # is named by `credit_ledger_id` instead. See submission_funded_exactly_once below.
+    payment_reference: Mapped[str | None] = mapped_column(Text)
+    payment_sender: Mapped[str | None] = mapped_column(SS58)
+    payment_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
+    payment_block: Mapped[int | None] = mapped_column(BigInteger)
     hotkey_signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+    # V003. The account that owns this submission, and the two rows behind the credit path.
+    # All three are NULL on the extrinsic-funded path, which authenticates a hotkey and need
+    # not involve an account at all.
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id")
+    )
+    # `use_alter=True`: submissions, credit_ledger and submission_intents reference one
+    # another, so these two edges are emitted as ALTER TABLE ADD CONSTRAINT after all three
+    # tables exist — exactly what V003 does. Without it SQLAlchemy cannot order the CREATEs.
+    credit_ledger_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey(
+            "credit_ledger.id",
+            name="submissions_credit_ledger_id_fkey",
+            use_alter=True,
+        ),
+        unique=True,
+    )
+    intent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "submission_intents.id",
+            name="submissions_intent_id_fkey",
+            use_alter=True,
+        ),
+        unique=True,
+    )
 
     verification_status: Mapped[VerificationState] = mapped_column(
         VERIFICATION_STATE,
@@ -308,6 +338,46 @@ class Submission(Base):
         Index("submissions_task_idx", "task_id", text("created_at DESC")),
         Index("submissions_hotkey_idx", "hotkey", text("created_at DESC")),
         # No proof_digest index: the UNIQUE above already builds one.
+        # Public result feeds, newest first, from V002. Separate from the worker queues above:
+        # those are ascending and lack `id`, which the keyset page predicate compares as part
+        # of a row value because `created_at` is not unique.
+        Index(
+            "submissions_certified_feed_idx",
+            text("created_at DESC"),
+            text("id DESC"),
+            postgresql_where=text("reward_status = 'REWARDED'"),
+        ),
+        Index(
+            "submissions_in_review_feed_idx",
+            text("created_at DESC"),
+            text("id DESC"),
+            postgresql_where=text(
+                "verification_status = 'VERIFIED' AND manual_review_status = 'UNREVIEWED'"
+            ),
+        ),
+        # V003: exactly one funding source. Neither path admits an unfunded submission; they
+        # differ only in what names the money — an extrinsic, or a credit ledger entry.
+        CheckConstraint(
+            "(payment_reference IS NOT NULL)::int + (credit_ledger_id IS NOT NULL)::int = 1",
+            name="submission_funded_exactly_once",
+        ),
+        CheckConstraint(
+            "payment_reference IS NULL "
+            "OR (payment_sender IS NOT NULL "
+            "AND payment_amount_rao IS NOT NULL "
+            "AND payment_block IS NOT NULL)",
+            name="submission_payment_is_complete",
+        ),
+        CheckConstraint(
+            "credit_ledger_id IS NULL "
+            "OR (account_id IS NOT NULL AND intent_id IS NOT NULL)",
+            name="submission_credit_path_is_complete",
+        ),
+        Index(
+            "submissions_account_idx",
+            "account_id",
+            text("created_at DESC"),
+            postgresql_where=text("account_id IS NOT NULL"),
         Index(
             "submissions_problem_reward_unique",
             "problem_id",
@@ -638,9 +708,703 @@ class ApiRejectionLog(Base):
     )
 
 
+# --- V003: accounts, credits, intents -----------------------------------------
+# The account layer the website needs, and with it a second way to fund a
+# submission. See deploy/migrate/sql/V003__accounts_credits_intents.sql for why
+# the funding invariant on Submission above changed.
+
+MINER_ROLE = "MINER"
+REVIEWER_ROLE = "REVIEWER"
+ADMIN_ROLE = "ADMIN"
+ACCOUNT_ROLES = (MINER_ROLE, REVIEWER_ROLE, ADMIN_ROLE)
+
+
+class LoginChallengeKind(enum.StrEnum):
+    EMAIL = "EMAIL"  # a magic link token
+    WALLET = "WALLET"  # a coldkey sign-in nonce
+    HOTKEY_LINK = "HOTKEY_LINK"  # attaching a hotkey to an existing account
+
+
+class CreditEntryKind(enum.StrEnum):
+    DEPOSIT = "DEPOSIT"
+    SPEND = "SPEND"
+    REFUND = "REFUND"
+    ADJUSTMENT = "ADJUSTMENT"
+    BONUS = "BONUS"
+
+
+class DepositState(enum.StrEnum):
+    AWAITING_TRANSFER = "AWAITING_TRANSFER"
+    # The transfer is visible but not final, so no credits are issued yet.
+    SEEN_UNFINALIZED = "SEEN_UNFINALIZED"
+    CREDITED = "CREDITED"
+    EXPIRED = "EXPIRED"
+    FAILED = "FAILED"
+
+
+class IntentState(enum.StrEnum):
+    OPEN = "OPEN"  # credit held, no bundle yet
+    BUNDLE_ATTACHED = "BUNDLE_ATTACHED"  # admitted, awaiting a signature
+    CONFIRMED = "CONFIRMED"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+
+
+LOGIN_CHALLENGE_KIND = _pg_enum(LoginChallengeKind, "login_challenge_kind")
+CREDIT_ENTRY_KIND = _pg_enum(CreditEntryKind, "credit_entry_kind")
+DEPOSIT_STATE = _pg_enum(DepositState, "deposit_state")
+INTENT_STATE = _pg_enum(IntentState, "intent_state")
+
+EMAIL_SHAPE = r"^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$"
+
+
+class Account(Base):
+    """One website account. May be reached by email, by wallet, or by both."""
+
+    __tablename__ = "accounts"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    # NULL for a wallet-only account. Uniqueness is case-insensitive, via the
+    # functional index below: two addresses differing only in case are the same
+    # mailbox, and one must not be able to claim the other's account.
+    email: Mapped[str | None] = mapped_column(Text)
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    display_name: Mapped[str | None] = mapped_column(Text)
+    roles: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("ARRAY['MINER']::TEXT[]")
+    )
+    # Alpha is held as stake, so a payout needs both keys. Set together or not at all.
+    payout_coldkey: Mapped[str | None] = mapped_column(SS58)
+    payout_hotkey: Mapped[str | None] = mapped_column(SS58)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            f"email IS NULL OR email ~ '{EMAIL_SHAPE}'", name="account_email_shape"
+        ),
+        CheckConstraint(
+            "display_name IS NULL OR length(display_name) BETWEEN 1 AND 64",
+            name="display_name_length",
+        ),
+        CheckConstraint(
+            "roles <@ ARRAY['MINER', 'REVIEWER', 'ADMIN']::TEXT[]",
+            name="account_roles_are_known",
+        ),
+        CheckConstraint(
+            "(payout_coldkey IS NULL) = (payout_hotkey IS NULL)",
+            name="payout_is_a_complete_pair",
+        ),
+        CheckConstraint(
+            "updated_at >= created_at", name="accounts_updated_not_before_created"
+        ),
+        Index(
+            "accounts_email_idx",
+            text("lower(email)"),
+            unique=True,
+            postgresql_where=text("email IS NOT NULL"),
+        ),
+    )
+
+
+event.listen(
+    Account.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION accounts_touch_updated_at() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    NEW.updated_at := now();\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER accounts_touch_updated_at\n"
+        "    BEFORE UPDATE ON accounts\n"
+        "    FOR EACH ROW EXECUTE FUNCTION accounts_touch_updated_at();"
+    ),
+)
+event.listen(
+    Account.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS accounts_touch_updated_at() CASCADE;"),
+)
+
+
+class AccountWallet(Base):
+    """A coldkey the account signs in with.
+
+    Separate from LinkedHotkey because the two answer different questions: this is
+    "who is logging in", that is "which miner identity may submit".
+    """
+
+    __tablename__ = "account_wallets"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    coldkey: Mapped[str] = mapped_column(SS58, primary_key=True)
+    signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    linked_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "octet_length(signature) = 64", name="wallet_signature_len"
+        ),
+        Index("account_wallets_account_idx", "account_id"),
+    )
+
+
+class LinkedHotkey(Base):
+    """A hotkey the account may submit under, and how a deposit is attributed.
+
+    Globally unique: two accounts claiming one hotkey would make submission
+    attribution ambiguous and leave a reward with no single owner.
+    """
+
+    __tablename__ = "linked_hotkeys"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    hotkey: Mapped[str] = mapped_column(SS58, nullable=False, unique=True)
+    signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    linked_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "octet_length(signature) = 64", name="hotkey_link_signature_len"
+        ),
+        Index("linked_hotkeys_account_idx", "account_id", text("linked_at DESC")),
+    )
+
+
+class AccountSession(Base):
+    """One signed-in browser session.
+
+    Only the SHA-256 of the token is stored, never the token. A database read — a
+    dump, a backup, a replica, an over-broad SELECT — must not yield anything
+    replayable as a credential, exactly as for a password.
+    """
+
+    __tablename__ = "account_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
+    # Bound to the session rather than a bare double-submit cookie, so a value the
+    # client can set is not itself the proof.
+    csrf_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+
+    issued_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_seen_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    # Rolling: extended on use, so an active session does not expire under someone
+    # and an abandoned one does.
+    expires_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    revoked_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    source_ip: Mapped[str | None] = mapped_column(INET)
+
+    __table_args__ = (
+        CheckConstraint(
+            "expires_at > issued_at", name="session_expires_after_issue"
+        ),
+        Index(
+            "account_sessions_live_idx",
+            "expires_at",
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+        Index("account_sessions_account_idx", "account_id", text("issued_at DESC")),
+    )
+
+
+class LoginChallenge(Base):
+    """A single-use, short-lived secret for one of the three login flows.
+
+    One table for all three because the rules are identical: single use, short
+    lived, rate limited, and the secret stored only as a digest.
+    """
+
+    __tablename__ = "login_challenges"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    kind: Mapped[LoginChallengeKind] = mapped_column(
+        LOGIN_CHALLENGE_KIND, nullable=False
+    )
+
+    # Set for HOTKEY_LINK, which attaches to a known account. NULL for the two
+    # sign-in kinds, where the account may not exist yet.
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE")
+    )
+    email: Mapped[str | None] = mapped_column(Text)
+    ss58: Mapped[str | None] = mapped_column(Text)
+
+    secret_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
+    # The exact bytes the client is asked to sign, stored verbatim so verification
+    # never reconstructs them and cannot reconstruct them differently.
+    message: Mapped[str | None] = mapped_column(Text)
+
+    expires_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    consumed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "kind <> 'EMAIL' OR email IS NOT NULL", name="challenge_email_present"
+        ),
+        CheckConstraint(
+            "kind NOT IN ('WALLET', 'HOTKEY_LINK') "
+            "OR (ss58 IS NOT NULL AND message IS NOT NULL)",
+            name="challenge_wallet_present",
+        ),
+        CheckConstraint(
+            "kind <> 'HOTKEY_LINK' OR account_id IS NOT NULL",
+            name="challenge_link_has_account",
+        ),
+        CheckConstraint(
+            "expires_at > created_at", name="challenge_expires_after_creation"
+        ),
+        Index(
+            "login_challenges_email_idx",
+            text("lower(email)"),
+            text("created_at DESC"),
+            postgresql_where=text("email IS NOT NULL"),
+        ),
+        Index(
+            "login_challenges_ss58_idx",
+            "ss58",
+            text("created_at DESC"),
+            postgresql_where=text("ss58 IS NOT NULL"),
+        ),
+        Index(
+            "login_challenges_expiry_idx",
+            "expires_at",
+            postgresql_where=text("consumed_at IS NULL"),
+        ),
+    )
+
+
+class CreditLedgerEntry(Base):
+    """One movement of an account's balance. Append-only.
+
+    Make it append-only in deployment: REVOKE UPDATE, DELETE from the service
+    role. A ledger that can be rewritten is not a ledger, and the balance is
+    derived from it rather than cached anywhere.
+
+    Amounts are in rao, signed. Credits are DERIVED, not stored: a credit is one
+    verification attempt at the price in force, so the available credit count is
+    the balance divided by that price. Storing a count as well would create two
+    numbers that can disagree.
+    """
+
+    __tablename__ = "credit_ledger"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
+    )
+
+    kind: Mapped[CreditEntryKind] = mapped_column(CREDIT_ENTRY_KIND, nullable=False)
+    amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # The price in force when an attempt was spent, so a later reprice does not
+    # restate what a past attempt cost.
+    credit_price_rao: Mapped[int | None] = mapped_column(BigInteger)
+
+    # A SPEND names its INTENT, not its submission. `submissions.credit_ledger_id`
+    # points here, so a SPEND pointing back at its submission would make the two
+    # rows reference each other with neither insertable first — and this table is
+    # append-only, so insert-then-backfill is not available. The intent already
+    # exists when the credit is spent. The submission stays reachable through
+    # SubmissionIntent.submission_id.
+    deposit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "deposits.id", name="credit_ledger_deposit_fkey", use_alter=True
+        ),
+    )
+    intent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "submission_intents.id", name="credit_ledger_intent_fkey", use_alter=True
+        ),
+    )
+    reason: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("amount_rao <> 0", name="ledger_amount_nonzero"),
+        CheckConstraint(
+            "credit_price_rao IS NULL OR credit_price_rao > 0",
+            name="ledger_price_positive",
+        ),
+        # Signs are fixed per kind, so a debit cannot be recorded as a credit by
+        # passing the wrong sign. ADJUSTMENT is the only either-way kind, and it
+        # must say why.
+        CheckConstraint(
+            "kind NOT IN ('DEPOSIT', 'REFUND', 'BONUS') OR amount_rao > 0",
+            name="ledger_credits_are_positive",
+        ),
+        CheckConstraint(
+            "kind <> 'SPEND' OR amount_rao < 0", name="ledger_spends_are_negative"
+        ),
+        CheckConstraint(
+            "kind <> 'ADJUSTMENT' OR reason IS NOT NULL",
+            name="ledger_adjustments_explain_themselves",
+        ),
+        CheckConstraint(
+            "kind <> 'SPEND' "
+            "OR (intent_id IS NOT NULL AND credit_price_rao IS NOT NULL)",
+            name="ledger_spend_names_its_intent",
+        ),
+        CheckConstraint(
+            "kind <> 'DEPOSIT' OR deposit_id IS NOT NULL",
+            name="ledger_deposit_names_its_deposit",
+        ),
+        Index("credit_ledger_account_idx", "account_id", text("id DESC")),
+        # One SPEND per intent. A second debit for the same attempt is
+        # double-charging, and an intent is exactly one attempt.
+        Index(
+            "credit_ledger_spend_idx",
+            "intent_id",
+            unique=True,
+            postgresql_where=text("kind = 'SPEND'"),
+        ),
+    )
+
+
+class Deposit(Base):
+    """An intent to send TAO to the treasury, and what was observed for it.
+
+    `amount_rao` and `treasury_address` are recorded at creation so confirmation
+    has something to check against rather than crediting whatever arrived.
+    """
+
+    __tablename__ = "deposits"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
+    )
+
+    amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    treasury_address: Mapped[str] = mapped_column(SS58, nullable=False)
+    credit_price_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    status: Mapped[DepositState] = mapped_column(
+        DEPOSIT_STATE, nullable=False, server_default=DepositState.AWAITING_TRANSFER.value
+    )
+
+    extrinsic_reference: Mapped[str | None] = mapped_column(Text)
+    sender_coldkey: Mapped[str | None] = mapped_column(SS58)
+    observed_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
+    block: Mapped[int | None] = mapped_column(BigInteger)
+    failure_reason: Mapped[str | None] = mapped_column(Text)
+
+    credited_ledger_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("credit_ledger.id"), unique=True
+    )
+
+    expires_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("amount_rao > 0", name="deposit_amount_positive"),
+        CheckConstraint("credit_price_rao > 0", name="deposit_price_positive"),
+        CheckConstraint(
+            "extrinsic_reference IS NULL "
+            "OR length(extrinsic_reference) BETWEEN 1 AND 128",
+            name="deposit_reference_length",
+        ),
+        CheckConstraint(
+            "observed_amount_rao IS NULL OR observed_amount_rao > 0",
+            name="deposit_observed_positive",
+        ),
+        CheckConstraint("block IS NULL OR block > 0", name="deposit_block_positive"),
+        CheckConstraint(
+            "status <> 'CREDITED' "
+            "OR (credited_ledger_id IS NOT NULL "
+            "AND extrinsic_reference IS NOT NULL "
+            "AND observed_amount_rao IS NOT NULL "
+            "AND block IS NOT NULL)",
+            name="deposit_credited_needs_ledger_and_finality",
+        ),
+        CheckConstraint(
+            "status <> 'SEEN_UNFINALIZED' OR extrinsic_reference IS NOT NULL",
+            name="deposit_seen_needs_a_reference",
+        ),
+        CheckConstraint(
+            "status <> 'FAILED' OR failure_reason IS NOT NULL",
+            name="deposit_failed_needs_a_reason",
+        ),
+        CheckConstraint(
+            "updated_at >= created_at", name="deposits_updated_not_before_created"
+        ),
+        # One transfer funds one deposit, the rule submissions.payment_reference
+        # follows. Partial, so rows with no reference yet do not collide on NULL.
+        Index(
+            "deposits_extrinsic_idx",
+            "extrinsic_reference",
+            unique=True,
+            postgresql_where=text("extrinsic_reference IS NOT NULL"),
+        ),
+        Index("deposits_account_idx", "account_id", text("created_at DESC")),
+        Index(
+            "deposits_open_idx",
+            "created_at",
+            postgresql_where=text(
+                "status IN ('AWAITING_TRANSFER', 'SEEN_UNFINALIZED')"
+            ),
+        ),
+    )
+
+
+event.listen(
+    Deposit.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION deposits_touch_updated_at() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    NEW.updated_at := now();\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER deposits_touch_updated_at\n"
+        "    BEFORE UPDATE ON deposits\n"
+        "    FOR EACH ROW EXECUTE FUNCTION deposits_touch_updated_at();"
+    ),
+)
+event.listen(
+    Deposit.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS deposits_touch_updated_at() CASCADE;"),
+)
+
+
+class SubmissionIntent(Base):
+    """A held credit and, once uploaded, the bundle it will be spent on.
+
+    The hold is state on this row rather than a ledger entry, because a hold is
+    not a movement of money: it is a claim on the balance that either becomes a
+    SPEND or evaporates. Writing holds to the ledger would put entries there that
+    later have to be undone, which is exactly what an append-only ledger cannot
+    do. The available credit count is therefore the balance minus live holds.
+
+    `proof_content` lives here rather than in `proofs` because `proofs` is the
+    record of what was verified, and an unconfirmed intent has not paid for
+    verification yet. It moves across in the confirming transaction.
+    """
+
+    __tablename__ = "submission_intents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
+    )
+    # Checked against linked_hotkeys at creation, and what the confirming
+    # signature must come from.
+    hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+
+    task_id: Mapped[str] = mapped_column(Text, nullable=False)
+    task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+
+    status: Mapped[IntentState] = mapped_column(
+        INTENT_STATE, nullable=False, server_default=IntentState.OPEN.value
+    )
+    credits_held: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
+    )
+    credit_price_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    proof_content: Mapped[bytes | None] = mapped_column(LargeBinary)
+    proof_sha256: Mapped[bytes | None] = mapped_column(SHA256)
+    # Computed by the server from the bundle, so the client never chooses what it
+    # is signing.
+    request_digest: Mapped[bytes | None] = mapped_column(SHA256)
+
+    submission_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("submissions.id"), unique=True
+    )
+
+    expires_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(task_id) BETWEEN 1 AND 255", name="intent_task_id_nonempty"
+        ),
+        CheckConstraint("credits_held > 0", name="intent_holds_something"),
+        CheckConstraint("credit_price_rao > 0", name="intent_price_positive"),
+        CheckConstraint(
+            "(proof_content IS NULL) = (proof_sha256 IS NULL)",
+            name="intent_proof_is_paired",
+        ),
+        CheckConstraint(
+            "proof_content IS NULL OR proof_sha256 = pg_catalog.sha256(proof_content)",
+            name="intent_proof_digest_matches",
+        ),
+        CheckConstraint(
+            "status <> 'BUNDLE_ATTACHED' "
+            "OR (proof_sha256 IS NOT NULL AND request_digest IS NOT NULL)",
+            name="intent_attached_has_a_proof",
+        ),
+        CheckConstraint(
+            "status <> 'CONFIRMED' OR submission_id IS NOT NULL",
+            name="intent_confirmed_has_a_submission",
+        ),
+        CheckConstraint(
+            "expires_at > created_at", name="intent_expires_after_creation"
+        ),
+        CheckConstraint(
+            "updated_at >= created_at", name="intents_updated_not_before_created"
+        ),
+        # The live-hold sum behind the available credit count, and the expiry
+        # sweeper's queue.
+        Index(
+            "submission_intents_live_idx",
+            "account_id",
+            "expires_at",
+            postgresql_where=text("status IN ('OPEN', 'BUNDLE_ATTACHED')"),
+        ),
+        Index(
+            "submission_intents_account_idx", "account_id", text("created_at DESC")
+        ),
+    )
+
+
+event.listen(
+    SubmissionIntent.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION submission_intents_touch_updated_at() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    NEW.updated_at := now();\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submission_intents_touch_updated_at\n"
+        "    BEFORE UPDATE ON submission_intents\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submission_intents_touch_updated_at();"
+    ),
+)
+event.listen(
+    SubmissionIntent.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submission_intents_touch_updated_at() CASCADE;"),
+)
+
+
+class SubmissionEvent(Base):
+    """What the miner sees while waiting.
+
+    The status columns on Submission say where a submission is now; this says how
+    it got there, which is the question a miner asks when nothing appears to be
+    happening. Append-only, like the ledger.
+    """
+
+    __tablename__ = "submission_events"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    submission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("submissions.id"), nullable=False
+    )
+
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    # Miner-visible prose. Optional: the kind is the machine-readable part.
+    detail: Mapped[str | None] = mapped_column(Text)
+    context: Mapped[dict | None] = mapped_column(JSONB)
+    actor: Mapped[str] = mapped_column(Text, nullable=False)
+
+    occurred_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("kind ~ '^[A-Z][A-Z0-9_]{0,63}$'", name="event_kind_shape"),
+        # The timeline read: one submission, oldest first. btree scans either
+        # direction, so no DESC variant is needed.
+        Index("submission_events_submission_idx", "submission_id", "id"),
+    )
+
+
 __all__ = [
+    "ACCOUNT_ROLES",
+    "ADMIN_ROLE",
+    "MINER_ROLE",
+    "REVIEWER_ROLE",
+    "Account",
+    "AccountSession",
+    "AccountWallet",
     "ApiRejectionLog",
     "Base",
+    "CreditEntryKind",
+    "CreditLedgerEntry",
+    "Deposit",
+    "DepositState",
+    "IntentState",
+    "LinkedHotkey",
+    "LoginChallenge",
+    "LoginChallengeKind",
     "ManualReviewState",
     "PayoutState",
     "Proof",
@@ -650,6 +1414,8 @@ __all__ = [
     "RewardEvent",
     "RewardState",
     "Submission",
+    "SubmissionEvent",
+    "SubmissionIntent",
     "TaskMode",
     "VerificationRun",
     "VerificationState",

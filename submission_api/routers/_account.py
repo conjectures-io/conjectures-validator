@@ -1,0 +1,259 @@
+"""Shared serialisation for the signed-in surface. No routes.
+
+Underscore-prefixed because it holds none: it is the one place an `Account` or a `Submission`
+becomes a response model, so `/v1/auth/session`, `/v1/me` and the intent confirmation cannot
+drift into returning three different shapes for the same row.
+
+Also the shared cursor helpers. The public feeds key on `(created_at, id)` because `created_at`
+is not unique there; the ledger and reward feeds key on a single monotonic identity column, so
+they reuse the same signed-cursor format with the id in it rather than introducing a second
+cursor encoding.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import uuid
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from conjectures_subnet.db import accounts as account_store
+from conjectures_subnet.db import digests
+from conjectures_subnet.db.models import (
+    Account,
+    ReviewDecision,
+    ReviewerKind,
+    RewardEvent,
+)
+from submission_api import schemas_account as schemas
+from submission_api.pagination import decode_cursor, encode_cursor
+from submission_api.settings import Settings
+
+
+def _utc(value: dt.datetime) -> dt.datetime:
+    return value if value.tzinfo else value.replace(tzinfo=dt.UTC)
+
+
+def utc(value: dt.datetime | None) -> dt.datetime | None:
+    return None if value is None else _utc(value)
+
+
+# --- Account -----------------------------------------------------------------------------
+
+
+async def account_response(session: AsyncSession, account: Account) -> schemas.Account:
+    """The full account, with its linked keys.
+
+    Served only to the account's owner. Every field here — the email, the payout keys, the
+    hotkeys — would be a disclosure on the public surface, which is why those models live in a
+    different module with the opposite rule.
+    """
+    hotkeys = await account_store.hotkeys_for(session, account.id)
+    wallets = await account_store.wallets_for(session, account.id)
+    payout = None
+    if account.payout_coldkey and account.payout_hotkey:
+        payout = schemas.PayoutDestination(
+            coldkey=account.payout_coldkey, hotkey=account.payout_hotkey
+        )
+    return schemas.Account(
+        id=account.id,
+        email=account.email,
+        email_verified=account.email_verified,
+        display_name=account.display_name,
+        roles=tuple(account.roles or ()),
+        payout=payout,
+        hotkeys=tuple(
+            schemas.LinkedHotkey(hotkey=item.hotkey, linked_at=_utc(item.linked_at))
+            for item in hotkeys
+        ),
+        wallets=tuple(
+            schemas.LinkedWallet(coldkey=item.coldkey, linked_at=_utc(item.linked_at))
+            for item in wallets
+        ),
+        created_at=_utc(account.created_at),
+    )
+
+
+# --- Submissions -------------------------------------------------------------------------
+
+
+def funding_summary(submission) -> schemas.FundingSummary:
+    """Which of the two funding paths paid for this submission.
+
+    Exactly one, guaranteed by `submission_funded_exactly_once` in the schema rather than by
+    checking here — so this branch reads durable state instead of guessing.
+    """
+    if submission.payment_reference is not None:
+        return schemas.FundingSummary(
+            source="extrinsic",
+            payment_reference=submission.payment_reference,
+            payment_amount_rao=submission.payment_amount_rao,
+            payment_block=submission.payment_block,
+        )
+    return schemas.FundingSummary(
+        source="credit",
+        credit_ledger_id=submission.credit_ledger_id,
+        intent_id=submission.intent_id,
+    )
+
+
+def submission_summary(submission) -> schemas.SubmissionSummary:
+    return schemas.SubmissionSummary(
+        id=submission.id,
+        hotkey=submission.hotkey,
+        task_id=submission.task_id,
+        proof_sha256=digests.to_prefixed(submission.proof_digest),
+        verification_status=str(submission.verification_status),
+        manual_review_status=str(submission.manual_review_status),
+        reward_status=str(submission.reward_status),
+        failure_reason=submission.failure_reason,
+        bounty_amount_rao=submission.bounty_amount_rao,
+        created_at=_utc(submission.created_at),
+        updated_at=_utc(submission.updated_at),
+    )
+
+
+def verification_summary(view) -> schemas.VerificationSummary:
+    run = view.verification
+    submission = view.submission
+    if run is None:
+        return schemas.VerificationSummary(status=str(submission.verification_status))
+    return schemas.VerificationSummary(
+        status=str(submission.verification_status),
+        attempt=run.id,
+        accepted=run.accepted,
+        reason_code=run.reason_code,
+        stage=run.stage,
+        sandbox_mode=run.sandbox_mode,
+        report_available=run.report is not None,
+        started_at=utc(run.started_at),
+        finished_at=utc(run.finished_at),
+    )
+
+
+async def submission_detail(session: AsyncSession, view) -> schemas.SubmissionDetail:
+    submission = view.submission
+    return schemas.SubmissionDetail(
+        id=submission.id,
+        hotkey=submission.hotkey,
+        task_id=submission.task_id,
+        task_bundle_sha256=digests.to_prefixed(submission.task_bundle_sha256),
+        proof_sha256=digests.to_prefixed(submission.proof_digest),
+        request_digest=digests.to_prefixed(submission.request_digest),
+        verification_status=str(submission.verification_status),
+        manual_review_status=str(submission.manual_review_status),
+        reward_status=str(submission.reward_status),
+        failure_reason=submission.failure_reason,
+        manual_review_required=submission.manual_review_required,
+        review_policy_version=submission.review_policy_version,
+        bounty_amount_rao=submission.bounty_amount_rao,
+        bounty_policy_version=submission.bounty_policy_version,
+        funding=funding_summary(submission),
+        verification=verification_summary(view),
+        review=await latest_review(session, submission.id),
+        reward=await latest_reward(session, submission.id),
+        created_at=_utc(submission.created_at),
+        updated_at=_utc(submission.updated_at),
+    )
+
+
+async def latest_review(
+    session: AsyncSession, submission_id: uuid.UUID
+) -> schemas.ReviewDecisionView | None:
+    """The binding decision, and only the miner-visible part of it.
+
+    ADVISORY decisions are excluded: an LLM pre-check is recorded as evidence and is never
+    binding, so showing one to a miner would present a non-decision as one. The reviewer's free
+    -text `notes` are not returned either — `notes_public` is a separate Stage 3 field, and
+    until it exists the honest answer is the reason code alone.
+    """
+    statement = (
+        select(ReviewDecision)
+        .where(
+            ReviewDecision.submission_id == submission_id,
+            ReviewDecision.kind != ReviewerKind.ADVISORY,
+        )
+        .order_by(ReviewDecision.id.desc())
+        .limit(1)
+    )
+    decision = (await session.execute(statement)).scalar_one_or_none()
+    if decision is None:
+        return None
+    return schemas.ReviewDecisionView(
+        decision=str(decision.decision),
+        reason_code=decision.reason_code,
+        notes_public=None,
+        policy_version=decision.policy_version,
+        decided_at=_utc(decision.created_at),
+    )
+
+
+async def latest_reward(
+    session: AsyncSession, submission_id: uuid.UUID
+) -> schemas.RewardSummary | None:
+    statement = (
+        select(RewardEvent)
+        .where(RewardEvent.submission_id == submission_id)
+        .order_by(RewardEvent.id.desc())
+        .limit(1)
+    )
+    event = (await session.execute(statement)).scalar_one_or_none()
+    if event is None:
+        return None
+    return schemas.RewardSummary(
+        status=str(event.status),
+        amount_rao=event.amount_rao,
+        extrinsic_reference=event.extrinsic_reference,
+        finalized_block=event.finalized_block,
+        failure_reason=event.failure_reason,
+        confirmed_at=utc(event.confirmed_at),
+    )
+
+
+# --- Cursors -----------------------------------------------------------------------------
+
+
+def encode_id_cursor(settings: Settings, last_id: int) -> str:
+    """A signed cursor over a single monotonic identity column.
+
+    Signed for the same reason the public feed cursors are: the handler never parses an
+    attacker-chosen value into a query predicate, and a tampered cursor is one clean 400. The
+    id rides in the UUID half so there is one cursor format in the codebase, not two.
+    """
+    return encode_cursor(
+        settings.cursor_secret,
+        created_at=dt.datetime.fromtimestamp(0, tz=dt.UTC),
+        id=uuid.UUID(int=last_id & ((1 << 128) - 1)),
+    )
+
+
+def decode_id_cursor(settings: Settings, cursor: str | None) -> int | None:
+    if not cursor:
+        return None
+    return decode_cursor(settings.cursor_secret, cursor).id.int
+
+
+def page_of(items: list[Any], *, limit: int) -> tuple[list[Any], bool]:
+    """Split a `limit + 1` read into the page and whether another exists.
+
+    Reading one extra row is what makes `next_cursor` null exactly at the end, rather than
+    handing back a cursor that turns out to address an empty page.
+    """
+    return items[:limit], len(items) > limit
+
+
+__all__ = [
+    "account_response",
+    "decode_id_cursor",
+    "encode_id_cursor",
+    "funding_summary",
+    "latest_review",
+    "latest_reward",
+    "page_of",
+    "submission_detail",
+    "submission_summary",
+    "utc",
+    "verification_summary",
+]

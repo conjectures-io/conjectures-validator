@@ -62,3 +62,45 @@ def test_api_catalog_refuses_an_allowlisted_task_with_no_bytes_on_disk(tmp_path:
 
     with pytest.raises(TaskNotAllowed, match="missing from the pool"):
         TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=tmp_path)
+
+
+def test_a_catalog_entry_carries_the_source_and_challenge_the_public_detail_serves(
+    tmp_path: Path,
+):
+    """`TaskEntry` keeps the two fields `/v1/catalog/conjectures/{slug}` publishes.
+
+    Asserted against a generated task rather than the checked-out pool, so it holds without the
+    pinned task checkout: the tests above need `tasks/pool` materialized by
+    `scripts/pin_dependencies.sh`, and this covers the projection `TaskCatalog.load` performs.
+
+    What matters is that both come from the bundle whose bytes were hash-verified against the
+    allowlist. Re-reading `Challenge.lean` off disk per request would let the published statement
+    drift from the audited one between startup and the request, and reading the statement from
+    anywhere but `source-metadata.json` would publish something no commitment covers.
+    """
+    from conftest import catalog as fixture_catalog
+    from conftest import declaration
+    from verifier.task_generator import generate_task
+    from verifier.task_loader import load_task_bundle
+
+    from submission_api.taskpool import CHALLENGE_NAME
+
+    item = declaration()
+    destination = tmp_path / "generated-task"
+    generate_task(
+        catalog=fixture_catalog(item),
+        declaration=item,
+        mode="formalized",
+        output=destination,
+        validate_target=lambda *_: item.type_hash,
+    )
+
+    bundle = load_task_bundle(destination)
+
+    # The two reads TaskCatalog.load makes, by the names it uses.
+    assert bundle.source == item
+    challenge = bundle.files[CHALLENGE_NAME].decode("utf-8")
+    assert 'theorem target : fcTypeOfName% "VerifierFixtures.direct"' in challenge
+    # A trusted file, so the bytes served publicly are the bytes the digest covers.
+    assert bundle.manifest.trusted_file_hashes[CHALLENGE_NAME].startswith("sha256:")
+    assert challenge == (destination / CHALLENGE_NAME).read_text(encoding="utf-8")

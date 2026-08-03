@@ -1,0 +1,473 @@
+"""Read-only queries behind the public, unauthenticated endpoints.
+
+Separate from ``submissions`` because the audience is different and the rules that
+follow from that are worth enforcing in the query layer rather than trusting a
+router to remember. Two invariants hold for everything in this module:
+
+* **Nothing returned identifies a miner.** The row types below carry no hotkey, no
+  paying coldkey, no payment reference and no extrinsic. `submissions.hotkey` is
+  read in exactly one place — ``activity`` — and it is passed straight through a
+  caller-supplied pseudonymiser and never stored in the returned row, so the
+  hotkey cannot reach a response even by mistake.
+* **Nothing here can be made expensive.** Every feed is keyset-paginated over a
+  partial index (``deploy/migrate/sql/V002__public_feeds.sql``), the page size is
+  bounded by the caller, and there is no total-count query: ``COUNT(*)`` over a
+  growing table on every page read is a scan an anonymous caller should not be
+  able to ask for.
+
+A page is read in three statements rather than one join with two lateral
+subqueries: the submissions for the page, then their latest verification runs,
+then their confirmed payouts, each by primary or unique index over at most
+``limit`` ids. It is not an N+1 — the count is fixed at three — and the intent
+survives being read six months from now.
+"""
+
+from __future__ import annotations
+
+import uuid
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+
+from sqlalchemy import Select, and_, func, or_, select, tuple_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from conjectures_subnet.db.models import (
+    ManualReviewState,
+    PayoutState,
+    RewardEvent,
+    RewardState,
+    Submission,
+    VerificationRun,
+    VerificationState,
+)
+
+# A submission is on the public certified feed once it has been paid out. The review status is
+# APPROVED in both paths that get there — a human approval, or the recorded AUTOMATIC decision
+# when manual review is disabled — so requiring it costs nothing and states the intent.
+CERTIFIED = (
+    Submission.reward_status == RewardState.REWARDED,
+    Submission.manual_review_status == ManualReviewState.APPROVED,
+    Submission.verification_status == VerificationState.VERIFIED,
+)
+
+# Lean-verified and waiting on the reward decision.
+IN_REVIEW = (
+    Submission.verification_status == VerificationState.VERIFIED,
+    Submission.manual_review_status == ManualReviewState.UNREVIEWED,
+)
+
+MAX_ACTIVITY_ROWS = 500
+
+
+@dataclass(frozen=True)
+class ResultRow:
+    """One publishable result.
+
+    Every field here is either a property of the task, a property of the verdict, or the money
+    owed. Deliberately no miner-identifying field exists on this type: a router cannot leak what
+    it was never handed.
+    """
+
+    id: uuid.UUID
+    task_id: str
+    task_bundle_sha256: bytes
+    created_at: datetime
+    bounty_amount_rao: int
+    bounty_policy_version: str
+    review_policy_version: str
+    verified_at: datetime | None
+    certified_at: datetime | None
+    verifier_version: str | None
+    sandbox_mode: str | None
+    report_available: bool
+
+
+@dataclass(frozen=True)
+class _RunFacts:
+    """The columns of the latest verification run a public response may use.
+
+    A plain record rather than a partially populated ``VerificationRun``: constructing a mapped
+    instance from a subset of its columns produces a transient object that looks like a pending
+    insert, and the report bytes are deliberately not loaded here.
+    """
+
+    verifier_version: str
+    sandbox_mode: str
+    finished_at: datetime
+    has_report: bool
+
+
+@dataclass(frozen=True)
+class ActivityRow:
+    """One anonymised event on a conjecture. `solver` is already a pseudonym."""
+
+    event: str
+    occurred_at: datetime
+    solver: str
+
+
+@dataclass(frozen=True)
+class TaskActivity:
+    attempts: int
+    solvers: int
+    verified: int
+    certified: int
+    items: tuple[ActivityRow, ...]
+
+
+@dataclass(frozen=True)
+class QueueDepths:
+    awaiting_verification: int
+    awaiting_review: int
+    awaiting_reward: int
+
+    @property
+    def drained(self) -> bool:
+        """The precondition README.md sets on starting a pin rotation.
+
+        "No pin update may begin while any submission is queued, leased, running, retryable, or
+        awaiting review or reward processing."
+        """
+        return (
+            self.awaiting_verification == 0
+            and self.awaiting_review == 0
+            and self.awaiting_reward == 0
+        )
+
+
+# --- Feeds ---------------------------------------------------------------------------------
+
+
+async def certified_page(
+    session: AsyncSession,
+    *,
+    limit: int,
+    after: tuple[datetime, uuid.UUID] | None = None,
+) -> tuple[ResultRow, ...]:
+    """Certified results, newest first. `after` is the keyset position, exclusive."""
+    return await _page(session, CERTIFIED, limit=limit, after=after)
+
+
+async def in_review_page(
+    session: AsyncSession,
+    *,
+    limit: int,
+    after: tuple[datetime, uuid.UUID] | None = None,
+) -> tuple[ResultRow, ...]:
+    """Lean-verified results awaiting manual review, newest first."""
+    return await _page(session, IN_REVIEW, limit=limit, after=after)
+
+
+async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRow | None:
+    """One result, if it is on a public feed.
+
+    A submission that is neither certified nor in review is reported as absent rather than
+    forbidden — the same rule ``get_for_miner`` follows, so a submission id cannot be probed for
+    the state of something not yet published.
+    """
+    statement = select(Submission).where(
+        Submission.id == result_id,
+        _or_public(),
+    )
+    submission = (await session.execute(statement)).scalar_one_or_none()
+    if submission is None:
+        return None
+    rows = await _decorate(session, [submission])
+    return rows[0]
+
+
+def _or_public():
+    return or_(and_(*CERTIFIED), and_(*IN_REVIEW))
+
+
+async def _page(
+    session: AsyncSession,
+    conditions: Sequence,
+    *,
+    limit: int,
+    after: tuple[datetime, uuid.UUID] | None,
+) -> tuple[ResultRow, ...]:
+    statement: Select = select(Submission).where(*conditions)
+    if after is not None:
+        # Row-value comparison, so the pair is compared as one value and the partial index on
+        # (created_at DESC, id DESC) is scanned from exactly the right offset. Comparing the
+        # columns separately would need an OR and would not use the index the same way.
+        statement = statement.where(
+            tuple_(Submission.created_at, Submission.id) < tuple_(after[0], after[1])
+        )
+    statement = statement.order_by(
+        Submission.created_at.desc(), Submission.id.desc()
+    ).limit(limit)
+    submissions = list((await session.execute(statement)).scalars())
+    return await _decorate(session, submissions)
+
+
+async def _decorate(
+    session: AsyncSession, submissions: Sequence[Submission]
+) -> tuple[ResultRow, ...]:
+    """Attach the verdict and the payout to a page of submissions."""
+    if not submissions:
+        return ()
+    ids = [submission.id for submission in submissions]
+    runs = await _latest_runs(session, ids)
+    confirmed = await _confirmed_payouts(session, ids)
+    rows = []
+    for submission in submissions:
+        run = runs.get(submission.id)
+        rows.append(
+            ResultRow(
+                id=submission.id,
+                task_id=submission.task_id,
+                task_bundle_sha256=bytes(submission.task_bundle_sha256),
+                created_at=submission.created_at,
+                bounty_amount_rao=submission.bounty_amount_rao,
+                bounty_policy_version=submission.bounty_policy_version,
+                review_policy_version=submission.review_policy_version,
+                verified_at=None if run is None else run.finished_at,
+                certified_at=confirmed.get(submission.id),
+                verifier_version=None if run is None else run.verifier_version,
+                sandbox_mode=None if run is None else run.sandbox_mode,
+                report_available=run is not None and run.has_report,
+            )
+        )
+    return tuple(rows)
+
+
+async def _latest_runs(
+    session: AsyncSession, submission_ids: Sequence[uuid.UUID]
+) -> Mapping[uuid.UUID, _RunFacts]:
+    """The most recent run per submission.
+
+    ``verification_runs.id`` is monotonic, so the latest attempt is the greatest id — no
+    timestamp comparison, which could tie. The report bytes are excluded from the load: a page
+    of results only needs to know whether a report exists, and the reports are large.
+    """
+    latest = (
+        select(func.max(VerificationRun.id))
+        .where(VerificationRun.submission_id.in_(submission_ids))
+        .group_by(VerificationRun.submission_id)
+        .scalar_subquery()
+    )
+    statement = select(
+        VerificationRun.submission_id,
+        VerificationRun.verifier_version,
+        VerificationRun.sandbox_mode,
+        VerificationRun.report_digest,
+        VerificationRun.finished_at,
+    ).where(VerificationRun.id.in_(latest))
+    return {
+        row.submission_id: _RunFacts(
+            verifier_version=row.verifier_version,
+            sandbox_mode=row.sandbox_mode,
+            finished_at=row.finished_at,
+            has_report=row.report_digest is not None,
+        )
+        for row in (await session.execute(statement)).all()
+    }
+
+
+async def _confirmed_payouts(
+    session: AsyncSession, submission_ids: Sequence[uuid.UUID]
+) -> Mapping[uuid.UUID, datetime]:
+    """When each submission's payout was confirmed on chain.
+
+    ``max`` over confirmed attempts: a submission normally has one payout, but the schema
+    permits several on purpose — a second real transfer must be recordable — and the latest
+    confirmation is the honest answer for "when was this certified".
+    """
+    statement = (
+        select(RewardEvent.submission_id, func.max(RewardEvent.confirmed_at))
+        .where(
+            RewardEvent.submission_id.in_(submission_ids),
+            RewardEvent.status == PayoutState.CONFIRMED,
+        )
+        .group_by(RewardEvent.submission_id)
+    )
+    return {
+        submission_id: confirmed
+        for submission_id, confirmed in (await session.execute(statement)).all()
+        if confirmed is not None
+    }
+
+
+async def public_report(
+    session: AsyncSession, result_id: uuid.UUID
+) -> tuple[bytes, bytes] | None:
+    """The latest report bytes and digest for a publicly visible result, or None.
+
+    Returns the raw bytes; reducing them to the publishable subset is the API's job, because the
+    allowlist of fields is a transport concern and this package stays free of them.
+    """
+    statement = (
+        select(VerificationRun.report, VerificationRun.report_digest)
+        .join(Submission, Submission.id == VerificationRun.submission_id)
+        .where(VerificationRun.submission_id == result_id, _or_public())
+        .order_by(VerificationRun.id.desc())
+        .limit(1)
+    )
+    row = (await session.execute(statement)).first()
+    if row is None or row.report is None or row.report_digest is None:
+        return None
+    return bytes(row.report), bytes(row.report_digest)
+
+
+# --- Per-conjecture counters ---------------------------------------------------------------
+
+
+async def attempts_by_task(session: AsyncSession) -> Mapping[str, int]:
+    """Paid attempts per task, for the conjecture list.
+
+    One grouped scan for the whole pool rather than a count per row on the page. The pool is a
+    few hundred tasks, so the result is small enough to attach to every summary in the response.
+    """
+    statement = (
+        select(Submission.task_id, func.count())
+        .select_from(Submission)
+        .group_by(Submission.task_id)
+    )
+    return {task_id: count for task_id, count in (await session.execute(statement)).all()}
+
+
+async def attempts_for_task(session: AsyncSession, task_id: str) -> int:
+    """Paid attempts against one task.
+
+    A single count over ``submissions_task_idx``, for the detail page, which needs the number but
+    not the stream. Running ``activity`` for it would add an ordered read and a four-way
+    aggregate for one integer.
+    """
+    statement = (
+        select(func.count()).select_from(Submission).where(Submission.task_id == task_id)
+    )
+    return (await session.execute(statement)).scalar_one()
+
+
+async def activity(
+    session: AsyncSession,
+    task_id: str,
+    *,
+    limit: int,
+    pseudonymise: Callable[[str], str],
+) -> TaskActivity:
+    """The anonymised activity stream for one conjecture.
+
+    ``pseudonymise`` is required, not optional: it is the only thing standing between
+    ``submissions.hotkey`` and a public response, so it is a parameter rather than a default that
+    could be forgotten. The hotkey is read here, mapped, and dropped — it never lands on
+    ``ActivityRow``.
+
+    The counters are computed from the same rows as the stream when the stream covers the whole
+    history, and from a separate aggregate when it does not, so a truncated stream never implies
+    a truncated count.
+    """
+    bounded = min(max(limit, 1), MAX_ACTIVITY_ROWS)
+    statement = (
+        select(
+            Submission.hotkey,
+            Submission.created_at,
+            Submission.verification_status,
+            Submission.manual_review_status,
+            Submission.reward_status,
+        )
+        .where(Submission.task_id == task_id)
+        .order_by(Submission.created_at.desc(), Submission.id.desc())
+        .limit(bounded)
+    )
+    items = tuple(
+        ActivityRow(
+            event=_event(row.verification_status, row.manual_review_status, row.reward_status),
+            occurred_at=row.created_at,
+            solver=pseudonymise(row.hotkey),
+        )
+        for row in (await session.execute(statement)).all()
+    )
+
+    totals = (
+        await session.execute(
+            select(
+                func.count(),
+                func.count(func.distinct(Submission.hotkey)),
+                func.count().filter(
+                    Submission.verification_status == VerificationState.VERIFIED
+                ),
+                func.count().filter(Submission.reward_status == RewardState.REWARDED),
+            )
+            .select_from(Submission)
+            .where(Submission.task_id == task_id)
+        )
+    ).one()
+    return TaskActivity(
+        attempts=totals[0],
+        solvers=totals[1],
+        verified=totals[2],
+        certified=totals[3],
+        items=items,
+    )
+
+
+def _event(
+    verification: VerificationState,
+    review: ManualReviewState,
+    reward: RewardState,
+) -> str:
+    """The furthest state this submission has reached, as one label.
+
+    Reported as a single event rather than as a per-transition stream because the schema keeps
+    current state, not transitions: ``submission_events`` is Stage 2 work. Saying "attempt" for
+    a submission that has since been certified would be wrong, so the label is the furthest
+    point reached.
+    """
+    if reward == RewardState.REWARDED:
+        return "certified"
+    if verification == VerificationState.REJECTED:
+        return "rejected"
+    if verification == VerificationState.VERIFIED:
+        return "verified"
+    del review  # the review axis is not published per-event; only its outcome, via `certified`
+    return "attempt"
+
+
+# --- System status -------------------------------------------------------------------------
+
+
+async def queue_depths(session: AsyncSession) -> QueueDepths:
+    """The three worker queues, counted over their own partial indexes.
+
+    Each `count` matches a partial index predicate from the initial migration exactly, so these
+    are index-only counts rather than table scans, and they stay cheap as history grows.
+    """
+    statement = select(
+        func.count().filter(
+            Submission.verification_status == VerificationState.UNVERIFIED
+        ),
+        func.count().filter(
+            (Submission.verification_status == VerificationState.VERIFIED)
+            & (Submission.manual_review_status == ManualReviewState.UNREVIEWED)
+        ),
+        func.count().filter(Submission.reward_status == RewardState.ELIGIBLE),
+    ).select_from(Submission)
+    row = (await session.execute(statement)).one()
+    return QueueDepths(
+        awaiting_verification=row[0],
+        awaiting_review=row[1],
+        awaiting_reward=row[2],
+    )
+
+
+__all__ = [
+    "CERTIFIED",
+    "IN_REVIEW",
+    "MAX_ACTIVITY_ROWS",
+    "ActivityRow",
+    "QueueDepths",
+    "ResultRow",
+    "TaskActivity",
+    "activity",
+    "attempts_by_task",
+    "attempts_for_task",
+    "certified_page",
+    "in_review_page",
+    "public_report",
+    "public_result",
+    "queue_depths",
+]

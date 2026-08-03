@@ -1,0 +1,484 @@
+"""The public result feeds: certified, in review, one result, and the published report.
+
+This is the surface with the strictest disclosure rules, so most of these tests are about what
+does *not* appear: no hotkey, no coldkey, no payment reference, no proof bytes, and no verifier
+stdout or stderr. Needs a real PostgreSQL server:
+
+    docker compose -f docker-compose.pytest-db.yml up -d
+"""
+
+from __future__ import annotations
+
+import asyncio
+import uuid
+
+import pytest
+
+pytest.importorskip("fastapi", reason="submission API tests need the service extra")
+pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra")
+pytest.importorskip("httpx", reason="submission API tests need the service extra")
+pytest.importorskip("psycopg", reason="submission API tests need the db extra")
+
+import json
+from datetime import UTC, datetime
+
+from conftest_api import (
+    COLDKEY,
+    HOTKEY,
+    OTHER_HOTKEY,
+    TASK_ID,
+    distinct_bundle,
+    harness,
+    new_key,
+    postgres_dsn,
+    submission_headers,
+)
+
+from conjectures_subnet.db import submissions as store
+from conjectures_subnet.db.models import (
+    PayoutState,
+    RewardEvent,
+    RewardState,
+    Submission,
+)
+from submission_api.pagination import decode_cursor, encode_cursor
+from submission_api.routers.results import PUBLIC_REPORT_FIELDS
+
+pytestmark = pytest.mark.skipif(
+    postgres_dsn() is None,
+    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+)
+
+# A report shaped like verifier.models.VerificationReport.to_dict(), including the two fields
+# that must never be published.
+FULL_REPORT = {
+    "schema_version": 1,
+    "problem_id": "fixture-problem",
+    "task_id": TASK_ID,
+    "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+    "source_theorem": "VerifierFixtures.direct",
+    "task_mode": "positive",
+    "task_bundle_sha256": "sha256:" + "ab" * 32,
+    "submission_sha256": "sha256:" + "cd" * 32,
+    "accepted": True,
+    "stage": "COMPLETED",
+    "reason_code": "VERIFIED",
+    "checks": {"lean_kernel_passed": True},
+    "theorem_names": ["Bounty.target"],
+    "permitted_axioms": ["propext"],
+    "duration_ms": 1234,
+    "comparator_exit_code": 0,
+    "stdout_tail": "the miner's proof, quoted back by Lean: theorem target := by trivial",
+    "stderr_tail": "warning referencing the submitted source",
+    "workspace_retained": False,
+    "sandbox_mode": "landrun+seccomp",
+}
+
+
+def run(coroutine):
+    return asyncio.run(coroutine)
+
+
+async def _client(kit):
+    from httpx import ASGITransport, AsyncClient
+
+    return AsyncClient(
+        transport=ASGITransport(app=kit.app, raise_app_exceptions=True),
+        base_url="http://validator.test",
+    )
+
+
+async def _get(kit, path: str, **params):
+    async with await _client(kit) as client:
+        return await client.get(path, params=params or None)
+
+
+async def _submit(kit, marker: str, *, hotkey: str = HOTKEY) -> str:
+    bundle, digest = distinct_bundle(marker, hotkey=hotkey)
+    async with await _client(kit) as client:
+        response = await client.post(
+            "/v1/submissions",
+            content=bundle,
+            headers=submission_headers(
+                bundle,
+                hotkey=hotkey,
+                idempotency_key=new_key(),
+                payment_reference=f"0xpay-{marker}",
+                proof_digest=digest,
+            ),
+        )
+    assert response.status_code == 201, response.text
+    return response.json()["submission_id"]
+
+
+async def _verify(kit, submission_id: str, *, accepted: bool = True, report=None):
+    payload = json.dumps(FULL_REPORT if report is None else report).encode("utf-8")
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        await store.record_verification_result(
+            session,
+            submission,
+            accepted=accepted,
+            reason_code="VERIFIED" if accepted else "LEAN_KERNEL_REJECTED",
+            stage="COMPLETED",
+            verifier_version="verifier-1.2.3",
+            container_digest="sha256:" + "11" * 32,
+            sandbox_mode="landrun+seccomp",
+            checks={"lean_kernel_passed": accepted},
+            report=payload,
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
+        )
+        await session.commit()
+
+
+async def _certify(kit, submission_id: str):
+    """Drive a verified submission all the way to paid out.
+
+    Approves the review, records a confirmed payout, and flips `reward_status`. Done directly
+    rather than through a reward CLI because that component does not exist yet; what matters
+    here is the state the feed reads.
+    """
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        await store.approve_automatically(session, submission)
+        now = datetime.now(UTC)
+        session.add(
+            RewardEvent(
+                submission_id=submission.id,
+                eligibility_reason="REVIEW_APPROVED",
+                amount_rao=submission.bounty_amount_rao,
+                destination_coldkey=COLDKEY,
+                destination_hotkey=submission.hotkey,
+                status=PayoutState.CONFIRMED,
+                extrinsic_reference=f"0xpayout-{submission_id[:8]}",
+                submitted_block=100,
+                finalized_block=101,
+                initiated_by="test",
+                submitted_at=now,
+                confirmed_at=now,
+            )
+        )
+        submission.reward_status = RewardState.REWARDED
+        await session.commit()
+
+
+# --- what is published, and what is not ----------------------------------------------------
+
+
+def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0001")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id)
+
+            response = await _get(kit, "/v1/results/certified")
+            assert response.status_code == 200, response.text
+            body = response.json()
+            assert len(body["items"]) == 1
+
+            item = body["items"][0]
+            assert item["id"] == submission_id
+            assert item["slug"] == TASK_ID
+            assert item["attribution"] == "conjectures.io"
+            assert item["certified_at"] is not None
+            assert item["verified_at"] is not None
+            assert item["bounty_amount_rao"] == 1_000_000_000
+            assert item["verifier_version"] == "verifier-1.2.3"
+            assert item["report_available"] is True
+
+            # No author credit, and nothing joinable back to a miner anywhere in the payload.
+            assert HOTKEY not in response.text
+            assert COLDKEY not in response.text
+            assert "0xpay-0001" not in response.text
+            assert not {"hotkey", "author", "author_credit", "payment"} & set(item)
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_in_review_result_carries_no_proof_and_no_identity():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0002")
+            await _verify(kit, submission_id)
+
+            response = await _get(kit, "/v1/results/in-review")
+            body = response.json()
+            assert [item["id"] for item in body["items"]] == [submission_id]
+
+            item = body["items"][0]
+            assert item["review_policy_version"] == "v1"
+            assert item["attribution"] == "conjectures.io"
+            # No proof file, and no digest of one.
+            assert not {"proof", "proof_sha256", "challenge_lean"} & set(item)
+            assert HOTKEY not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unverified_submission_appears_on_no_public_feed():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0003")
+
+            assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
+            assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
+            # And it cannot be read by id either: not published is reported as absent, so a
+            # submission id cannot be probed for the state of unpublished work.
+            single = await _get(kit, f"/v1/results/{submission_id}")
+            assert single.status_code == 404
+            assert single.json()["reason_code"] == "NOT_FOUND"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_rejected_submission_is_never_published():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0004")
+            await _verify(kit, submission_id, accepted=False)
+
+            assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
+            assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
+            assert (await _get(kit, f"/v1/results/{submission_id}")).status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_random_uuid_is_a_404_not_a_500():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            response = await _get(kit, f"/v1/results/{uuid.uuid4()}")
+            assert response.status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- the published report ------------------------------------------------------------------
+
+
+def test_the_public_report_withholds_verifier_output_and_the_proof_digest():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0005")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id)
+
+            response = await _get(kit, f"/v1/results/{submission_id}/report")
+            assert response.status_code == 200, response.text
+            body = response.json()
+
+            # The digest is of the full immutable bytes, so it still matches the miner's copy
+            # and the row on the run, not of the reduced projection below.
+            assert body["report_sha256"].startswith("sha256:")
+            assert body["slug"] == TASK_ID
+
+            report = body["report"]
+            assert set(report) == set(PUBLIC_REPORT_FIELDS)
+            assert report["accepted"] is True
+            assert report["checks"] == {"lean_kernel_passed": True}
+
+            # Lean's output quotes the submitted proof back, so it is not published.
+            assert "stdout_tail" not in report
+            assert "stderr_tail" not in report
+            assert "the miner's proof" not in response.text
+            # proof_digest is globally UNIQUE, so publishing it would let anyone test a
+            # candidate proof for prior submission.
+            assert "submission_sha256" not in report
+            assert "sha256:" + "cd" * 32 not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_report_field_set_is_an_allowlist_so_a_new_field_is_withheld():
+    """A field the verifier adds later must not be published by default.
+
+    This is the difference between an allowlist and a denylist, and it is the whole reason the
+    projection names what it copies.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0006")
+            await _verify(
+                kit,
+                submission_id,
+                report={**FULL_REPORT, "future_diagnostic_field": "leak me"},
+            )
+            await _certify(kit, submission_id)
+
+            response = await _get(kit, f"/v1/results/{submission_id}/report")
+            assert "future_diagnostic_field" not in response.json()["report"]
+            assert "leak me" not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_result_with_no_recorded_report_is_a_404():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0007")
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                await store.record_verification_result(
+                    session,
+                    submission,
+                    accepted=True,
+                    reason_code="VERIFIED",
+                    stage="COMPLETED",
+                    verifier_version="verifier-1.2.3",
+                    container_digest="sha256:" + "11" * 32,
+                    sandbox_mode="landrun+seccomp",
+                    checks=None,
+                    report=None,  # the run died before writing one
+                    started_at=datetime.now(UTC),
+                    finished_at=datetime.now(UTC),
+                )
+                await session.commit()
+
+            assert (await _get(kit, f"/v1/results/{submission_id}")).status_code == 200
+            report = await _get(kit, f"/v1/results/{submission_id}/report")
+            assert report.status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- paging --------------------------------------------------------------------------------
+
+
+def test_the_feed_pages_newest_first_and_ends_with_a_null_cursor():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            created = []
+            for index in range(5):
+                submission_id = await _submit(kit, f"01{index}")
+                await _verify(kit, submission_id)
+                created.append(submission_id)
+
+            seen = []
+            cursor = None
+            pages = 0
+            while True:
+                params = {"limit": 2}
+                if cursor:
+                    params["cursor"] = cursor
+                page = (await _get(kit, "/v1/results/in-review", **params)).json()
+                seen.extend(item["id"] for item in page["items"])
+                pages += 1
+                cursor = page["next_cursor"]
+                if cursor is None:
+                    break
+                assert pages < 10, "cursor did not terminate"
+
+            # Newest first, every row exactly once, and no wasted final request: the cursor is
+            # null on the page that exhausts the feed rather than one page later.
+            assert seen == list(reversed(created))
+            assert pages == 3
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_tampered_cursor_is_one_clean_400():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0008")
+            await _verify(kit, submission_id)
+            first = (await _get(kit, "/v1/results/in-review", limit=1)).json()
+            issued = first["next_cursor"]
+            assert issued is None or isinstance(issued, str)
+
+            # Correctly signed, but by a key this deployment does not hold. Nothing below the
+            # signature check ever parses it, so it cannot reach the query as a predicate.
+            forged = encode_cursor(
+                "a-secret-this-deployment-never-configured",
+                created_at=datetime.now(UTC),
+                id=uuid.uuid4(),
+            )
+            for hostile in (forged, "not-a-cursor", "AAAA.BBBB", "1.99999999999999999999.x"):
+                response = await _get(kit, "/v1/results/in-review", cursor=hostile)
+                assert response.status_code == 400, hostile
+                # One reason code for every failure mode: a client learns nothing about
+                # whether it was the shape or the signature that was wrong.
+                assert response.json()["reason_code"] == "INVALID_CURSOR", hostile
+
+            # An over-long cursor never reaches the decoder: the query parameter's own length
+            # bound rejects it first, which is the cheaper place to do it.
+            too_long = await _get(kit, "/v1/results/in-review", cursor="x" * 300)
+            assert too_long.status_code == 400
+            assert too_long.json()["reason_code"] == "MALFORMED_REQUEST"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_cursor_round_trips_exactly():
+    moment = datetime(2026, 8, 3, 14, 15, 16, 123456, tzinfo=UTC)
+    identifier = uuid.uuid4()
+    encoded = encode_cursor("secret", created_at=moment, id=identifier)
+    decoded = decode_cursor("secret", encoded)
+    assert decoded.created_at == moment
+    assert decoded.id == identifier
+    # Opaque and URL-safe, so it needs no escaping in a query string.
+    assert "/" not in encoded and "+" not in encoded and "=" not in encoded
+
+
+def test_the_feed_page_size_is_capped():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            response = await _get(kit, "/v1/results/certified", limit=1000)
+            assert response.status_code == 400
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_two_solvers_on_one_conjecture_both_appear_without_being_distinguishable():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            mine = await _submit(kit, "0009", hotkey=HOTKEY)
+            theirs = await _submit(kit, "0010", hotkey=OTHER_HOTKEY)
+            await _verify(kit, mine)
+            await _verify(kit, theirs)
+
+            response = await _get(kit, "/v1/results/in-review")
+            assert {item["id"] for item in response.json()["items"]} == {mine, theirs}
+            # Nothing in the payload tells the two results apart by author.
+            assert HOTKEY not in response.text
+            assert OTHER_HOTKEY not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
