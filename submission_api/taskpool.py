@@ -40,22 +40,38 @@ class TaskCatalog:
     def load(cls, *, allowlist_path: Path, pool_root: Path) -> TaskCatalog:
         registry = TaskPoolRegistry.load(allowlist_path)
         entries: dict[str, TaskEntry] = {}
-        for task_id, allowed in sorted(registry.tasks.items()):
-            # Tasks live under their tier, so the tier is part of the path rather than
-            # something to search the pool for.
-            task_dir = pool_root / allowed.tier / task_id
-            bundle = load_task_bundle(task_dir)
-            # Fail closed on task id, repository commit, whole-bundle digest, or target type
-            # digest drift.
-            registry.assert_bundle(bundle)
-            entries[task_id] = TaskEntry(
-                task_id=allowed.task_id,
-                tier=allowed.tier,
-                task_bundle_sha256=allowed.task_bundle_sha256,
-                target_type_sha256s=allowed.target_type_sha256s,
-                task_dir=task_dir,
-                manifest=bundle.manifest,
-            )
+        for tier in sorted({allowed.tier for allowed in registry.tasks.values()}):
+            # A task is identified by the task ID in its manifest, never by the name of the
+            # directory holding it: the task repository names directories for humans and may
+            # rename them without reissuing a task. Tasks do live under their tier, so the
+            # tier is a path component rather than something to search the pool for.
+            for task_dir in sorted(path for path in (pool_root / tier).iterdir() if path.is_dir()):
+                bundle = load_task_bundle(task_dir)
+                # Fail closed on task id, repository commit, whole-bundle digest, or target
+                # type digest drift. An unaudited bundle stops startup here.
+                allowed = registry.assert_bundle(bundle)
+                if allowed.tier != tier:
+                    raise TaskNotAllowed(
+                        f"task {allowed.task_id} is published for {allowed.tier} "
+                        f"but is stored under {tier}"
+                    )
+                if allowed.task_id in entries:
+                    raise TaskNotAllowed(
+                        f"task {allowed.task_id} appears in more than one pool directory"
+                    )
+                entries[allowed.task_id] = TaskEntry(
+                    task_id=allowed.task_id,
+                    tier=allowed.tier,
+                    task_bundle_sha256=allowed.task_bundle_sha256,
+                    target_type_sha256s=allowed.target_type_sha256s,
+                    task_dir=task_dir,
+                    manifest=bundle.manifest,
+                )
+        missing = sorted(set(registry.tasks) - set(entries))
+        if missing:
+            # An allowlisted task with no bytes on disk would otherwise be a 404 at submission
+            # time for a miner who paid, so it is a startup failure instead.
+            raise TaskNotAllowed(f"allowlisted tasks are missing from the pool: {missing}")
         if not entries:  # pragma: no cover - the registry already refuses an empty pool
             raise TaskNotAllowed("task pool is empty")
         return cls(repository_commit=registry.repository_commit, entries=entries)

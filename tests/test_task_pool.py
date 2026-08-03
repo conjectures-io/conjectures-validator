@@ -8,6 +8,7 @@ import pytest
 
 from verifier.catalog import load_catalog
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
+from verifier.task_generator import problem_id
 from verifier.task_pool import (
     DEFAULT_TASK_TIER,
     DEFAULT_TIER_SIZE,
@@ -28,7 +29,11 @@ from verifier.task_pool import (
     select_task_declarations,
 )
 from verifier.task_loader import load_task_bundle
-from verifier.task_policy import EXACT_TASK_MODE
+from verifier.task_policy import (
+    COUNTEREXAMPLE_TASK_MODE,
+    EXACT_TASK_MODE,
+    PRODUCTION_TASK_MODES,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,12 +80,12 @@ def test_task_selection_is_new_and_audited_erdos_only():
     )
     grouping = load_task_grouping(TIER_METADATA / "task-groups.json")
     groups = group_task_declarations(selected, grouping)
-    assert len(groups) == DEFAULT_TIER_TASK_COUNT
+    assert len(groups) == DEFAULT_TIER_SIZE
     assert not grouping.groups
     assert all(len(group) == 1 for group in groups)
 
 
-def test_checked_in_task_pool_is_exact_tiered_and_one_to_one():
+def test_checked_in_task_pool_is_paired_tiered_and_allowlisted():
     allowlist = ROOT / "task_pool/allowlist.json"
     policy = json.loads(allowlist.read_text(encoding="utf-8"))
     registry = TaskPoolRegistry.load(allowlist)
@@ -99,8 +104,13 @@ def test_checked_in_task_pool_is_exact_tiered_and_one_to_one():
     tier_policy = policy["tier_policies"][DEFAULT_TASK_TIER]
     assert policy["schema_version"] == TASK_POOL_SCHEMA_VERSION
     assert policy["tier_order"] == [DEFAULT_TASK_TIER]
-    assert tier_policy["mode"] == EXACT_TASK_MODE
-    assert tier_policy["synthetic_negation"] is False
+    assert tier_policy["modes"] == list(PRODUCTION_TASK_MODES)
+    assert tier_policy["target_relations"] == {
+        COUNTEREXAMPLE_TASK_MODE: "logical-negation",
+        EXACT_TASK_MODE: "definitionally-equal",
+    }
+    assert tier_policy["outcomes_per_problem"] == len(PRODUCTION_TASK_MODES)
+    assert tier_policy["one_reward_per_problem"] is True
     assert tier_policy["source_theorem_count"] == DEFAULT_TIER_SIZE
     assert tier_policy["pool_size"] == DEFAULT_TIER_TASK_COUNT
     assert tier_policy["selection_audit_sha256"] == audit.sha256
@@ -111,7 +121,6 @@ def test_checked_in_task_pool_is_exact_tiered_and_one_to_one():
     assert tier_policy["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
     assert tier_policy["task_scope"] == TASK_POOL_TASK_SCOPE
     assert tier_policy["multi_target_tasks"] == 0
-    assert tier_policy["one_task_per_source_path"] is True
     assert tier_policy["excluded_source_prefixes"] == list(EXCLUDED_SOURCE_PREFIXES)
     assert len(registry.tasks) == DEFAULT_TIER_TASK_COUNT
     assert len(registry.tasks_for_tier(DEFAULT_TASK_TIER)) == DEFAULT_TIER_TASK_COUNT
@@ -127,7 +136,7 @@ def test_checked_in_task_pool_is_exact_tiered_and_one_to_one():
         for row in policy["allowed_task_bundles"]
     )
 
-    source_types = set()
+    source_occurrences = {}
     task_hashes = set()
     for task_directory in task_directories:
         assert task_directory.stat().st_mode & 0o005 == 0o005
@@ -138,11 +147,14 @@ def test_checked_in_task_pool_is_exact_tiered_and_one_to_one():
         )
         bundle = load_task_bundle(task_directory)
         manifest = bundle.manifest
-        assert manifest.task_id in registry.tasks
-        assert manifest.task_mode == EXACT_TASK_MODE
+        assert registry.assert_bundle(bundle).task_id == manifest.task_id
+        assert manifest.task_mode in PRODUCTION_TASK_MODES
         assert manifest.production_eligible
         assert manifest.classification.value == "DIRECT_PROP"
-        assert manifest.source_type_hash == manifest.generated_target_type_hash
+        if manifest.task_mode == EXACT_TASK_MODE:
+            assert manifest.source_type_hash == manifest.generated_target_type_hash
+        else:
+            assert manifest.source_type_hash != manifest.generated_target_type_hash
         assert all(source.references for source in bundle.sources)
         assert all(
             re.search(r"\[[^\]]+\]\(https?://[^)\s]+\)", reference)
@@ -150,17 +162,27 @@ def test_checked_in_task_pool_is_exact_tiered_and_one_to_one():
             for reference in source.references
         )
         challenge = (task_directory / "Challenge.lean").read_text(encoding="utf-8")
-        assert all(
-            f"theorem {name.rsplit('.', 1)[-1]} : fcTypeOfName%" in challenge
-            for name in manifest.theorem_names
-        )
-        assert "theorem target : ¬" not in challenge
-        assert not ({source.type_hash for source in bundle.sources} & source_types)
+        if manifest.task_mode == EXACT_TASK_MODE:
+            assert all(
+                f"theorem {name.rsplit('.', 1)[-1]} : fcTypeOfName%" in challenge
+                for name in manifest.theorem_names
+            )
+            assert "theorem target : ¬" not in challenge
+        else:
+            assert 'theorem target : ¬ (fcTypeOfName%' in challenge
         assert bundle.sha256 not in task_hashes
         assert not manifest.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
-        source_types.update(source.type_hash for source in bundle.sources)
+        source_occurrences.setdefault(manifest.source_theorem, set()).add(
+            manifest.task_mode
+        )
         task_hashes.add(bundle.sha256)
-    assert len(source_types) == DEFAULT_TIER_SIZE
+    assert len(source_occurrences) == DEFAULT_TIER_SIZE
+    assert all(modes == set(PRODUCTION_TASK_MODES) for modes in source_occurrences.values())
+    problem_modes = {}
+    for task in registry.tasks.values():
+        problem_modes.setdefault(task.problem_id, set()).add(task.mode)
+    assert len(problem_modes) == DEFAULT_TIER_SIZE
+    assert all(modes == set(PRODUCTION_TASK_MODES) for modes in problem_modes.values())
 
 
 def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path):
@@ -174,20 +196,30 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
         }
         for index in range(MINIMUM_ERDOS_TASKS)
     ]
-    task_rows = [
-        {
-            "completion_policy": "all_of",
-            "mode": "formalized",
-            "source_indices": [source["index"]],
-            "source_path": source["source_path"],
-            "task_id": f"fc-test-{source['index'] + 1}-formalized-v1",
-            "task_bundle_sha256": f"sha256:{source['index'] + 1001:064x}",
-            "target_type_sha256s": [source["source_type_sha256"]],
-            "theorems": [source["theorem"]],
-            "tier": DEFAULT_TASK_TIER,
-        }
-        for source in source_rows
-    ]
+    task_rows = []
+    for source in source_rows:
+        for mode_index, mode in enumerate(PRODUCTION_TASK_MODES):
+            target_hash = (
+                source["source_type_sha256"]
+                if mode == EXACT_TASK_MODE
+                else f"sha256:{source['index'] + 2001:064x}"
+            )
+            task_rows.append(
+                {
+                    "completion_policy": "all_of",
+                    "mode": mode,
+                    "problem_id": problem_id("a" * 40, (source["theorem"],)),
+                    "source_indices": [source["index"]],
+                    "source_path": source["source_path"],
+                    "task_id": f"fc-test-{source['index'] + 1}-{mode}-v1",
+                    "task_bundle_sha256": (
+                        f"sha256:{source['index'] + 1001 + mode_index * 100:064x}"
+                    ),
+                    "target_type_sha256s": [target_hash],
+                    "theorems": [source["theorem"]],
+                    "tier": DEFAULT_TASK_TIER,
+                }
+            )
     base = {
         "schema_version": TASK_POOL_SCHEMA_VERSION,
         "default": "DENY",
@@ -198,22 +230,25 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
             DEFAULT_TASK_TIER: {
                 "classification": "DIRECT_PROP",
                 "compiled_target_validation": True,
-                "exact_source_type": True,
                 "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
                 "grouping": TASK_POOL_GROUPING,
                 "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
-                "mode": "formalized",
+                "modes": list(PRODUCTION_TASK_MODES),
                 "multi_target_tasks": 0,
-                "one_task_per_source_path": True,
-                "pool_size": MINIMUM_ERDOS_TASKS,
+                "one_reward_per_problem": True,
+                "pool_size": MINIMUM_ERDOS_TASKS * len(PRODUCTION_TASK_MODES),
                 "retired_source_theorems_sha256": "sha256:" + "d" * 64,
                 "selection": TASK_POOL_SELECTION,
                 "selection_audit_sha256": "sha256:" + "e" * 64,
                 "source_category": "research open",
                 "source_theorem_count": MINIMUM_ERDOS_TASKS,
-                "synthetic_negation": False,
                 "task_scope": TASK_POOL_TASK_SCOPE,
+                "target_relations": {
+                    COUNTEREXAMPLE_TASK_MODE: "logical-negation",
+                    EXACT_TASK_MODE: "definitionally-equal",
+                },
                 "task_groups_sha256": "sha256:" + "f" * 64,
+                "outcomes_per_problem": len(PRODUCTION_TASK_MODES),
                 "whole_problem_targets_sha256": "sha256:" + "1" * 64,
             }
         },
@@ -222,7 +257,14 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
     }
     valid = tmp_path / "valid.json"
     valid.write_text(json.dumps(base), encoding="utf-8")
-    assert len(TaskPoolRegistry.load(valid).tasks) == MINIMUM_ERDOS_TASKS
+    registry = TaskPoolRegistry.load(valid)
+    assert len(registry.tasks) == MINIMUM_ERDOS_TASKS * len(
+        PRODUCTION_TASK_MODES
+    )
+    first_problem = task_rows[0]["problem_id"]
+    assert {task.mode for task in registry.tasks_for_problem(first_problem)} == set(
+        PRODUCTION_TASK_MODES
+    )
 
     incorrect_multi_target_count = json.loads(json.dumps(base))
     incorrect_multi_target_count["tier_policies"][DEFAULT_TASK_TIER][
@@ -235,6 +277,26 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
     )
     with pytest.raises(TaskNotAllowed):
         TaskPoolRegistry.load(incorrect_count)
+
+    missing_counterexample = json.loads(json.dumps(base))
+    missing_counterexample["allowed_task_bundles"].pop()
+    missing_path = tmp_path / "missing-counterexample.json"
+    missing_path.write_text(json.dumps(missing_counterexample), encoding="utf-8")
+    with pytest.raises(TaskNotAllowed):
+        TaskPoolRegistry.load(missing_path)
+
+    forged_relation = json.loads(json.dumps(base))
+    forged = next(
+        row
+        for row in forged_relation["allowed_task_bundles"]
+        if row["mode"] == COUNTEREXAMPLE_TASK_MODE
+    )
+    source = source_rows[forged["source_indices"][0]]
+    forged["target_type_sha256s"] = [source["source_type_sha256"]]
+    forged_path = tmp_path / "forged-counterexample-relation.json"
+    forged_path.write_text(json.dumps(forged_relation), encoding="utf-8")
+    with pytest.raises(TaskNotAllowed):
+        TaskPoolRegistry.load(forged_path)
 
     mismatched_tier = json.loads(json.dumps(base))
     mismatched_tier["allowed_task_bundles"][0]["tier"] = "tier-2"

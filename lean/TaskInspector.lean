@@ -38,7 +38,7 @@ def intendedType
       pure target
     else
       throwError "unsupported inspector classification: {classification}"
-  if mode == "negative" then
+  if mode == "counterexample" || mode == "negative" then
     return mkApp (.const ``Not []) positive
   if mode == "positive" || mode == "formalized" || mode == "answer" then
     return positive

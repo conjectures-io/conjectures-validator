@@ -10,8 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from verifier.hashing import is_sha256
+from verifier.task_generator import problem_id
 from verifier.task_loader import TaskBundle
-from verifier.task_policy import EXACT_TASK_MODE
+from verifier.task_policy import (
+    COUNTEREXAMPLE_TASK_MODE,
+    EXACT_TASK_MODE,
+    PRODUCTION_TASK_MODES,
+)
 from verifier.task_pool import ERDOS_SOURCE_PREFIX, TASK_POOL_SCHEMA_VERSION
 
 
@@ -99,22 +104,22 @@ def _valid_tier_policy(policy: object) -> bool:
     expected_fields = {
         "classification",
         "compiled_target_validation",
-        "exact_source_type",
         "excluded_source_prefixes",
         "grouping",
         "minimum_erdos_tasks",
-        "mode",
+        "modes",
         "multi_target_tasks",
-        "one_task_per_source_path",
+        "one_reward_per_problem",
         "pool_size",
         "retired_source_theorems_sha256",
         "selection",
         "selection_audit_sha256",
         "source_category",
         "source_theorem_count",
-        "synthetic_negation",
         "task_scope",
+        "target_relations",
         "task_groups_sha256",
+        "outcomes_per_problem",
         "whole_problem_targets_sha256",
     }
     return (
@@ -122,16 +127,15 @@ def _valid_tier_policy(policy: object) -> bool:
         and set(policy) == expected_fields
         and policy.get("classification") == "DIRECT_PROP"
         and policy.get("compiled_target_validation") is True
-        and policy.get("exact_source_type") is True
         and _valid_source_prefixes(policy.get("excluded_source_prefixes"))
         and isinstance(policy.get("grouping"), str)
         and bool(policy["grouping"])
         and type(policy.get("minimum_erdos_tasks")) is int
         and policy["minimum_erdos_tasks"] >= 0
-        and policy.get("mode") == EXACT_TASK_MODE
+        and policy.get("modes") == list(PRODUCTION_TASK_MODES)
         and type(policy.get("multi_target_tasks")) is int
         and policy["multi_target_tasks"] >= 0
-        and policy.get("one_task_per_source_path") is True
+        and policy.get("one_reward_per_problem") is True
         and type(policy.get("pool_size")) is int
         and policy["pool_size"] > 0
         and is_sha256(policy.get("retired_source_theorems_sha256"))
@@ -141,9 +145,14 @@ def _valid_tier_policy(policy: object) -> bool:
         and policy.get("source_category") == "research open"
         and type(policy.get("source_theorem_count")) is int
         and policy["source_theorem_count"] > 0
-        and policy.get("synthetic_negation") is False
         and policy.get("task_scope") == "whole_problem"
+        and policy.get("target_relations")
+        == {
+            COUNTEREXAMPLE_TASK_MODE: "logical-negation",
+            EXACT_TASK_MODE: "definitionally-equal",
+        }
         and is_sha256(policy.get("task_groups_sha256"))
+        and policy.get("outcomes_per_problem") == len(PRODUCTION_TASK_MODES)
         and is_sha256(policy.get("whole_problem_targets_sha256"))
     )
 
@@ -151,7 +160,10 @@ def _valid_tier_policy(policy: object) -> bool:
 @dataclass(frozen=True)
 class AllowedTask:
     task_id: str
+    problem_id: str
     tier: str
+    mode: str
+    source_theorems: tuple[str, ...]
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
 
@@ -265,12 +277,14 @@ class TaskPoolRegistry:
             source_types.add(source_type)
 
         tasks: dict[str, AllowedTask] = {}
-        used_source_indices: set[int] = set()
+        used_source_modes: set[tuple[int, str]] = set()
         bundle_hashes: set[str] = set()
+        problem_sources: dict[str, tuple[str, ...]] = {}
         for row in rows:
             if not isinstance(row, dict) or set(row) != {
                 "completion_policy",
                 "mode",
+                "problem_id",
                 "source_indices",
                 "source_path",
                 "target_type_sha256s",
@@ -282,6 +296,7 @@ class TaskPoolRegistry:
                 raise TaskNotAllowed("task allowlist contains a non-object entry")
             task_id = row.get("task_id")
             tier = row.get("tier")
+            mode = row.get("mode")
             bundle_hash = row.get("task_bundle_sha256")
             target_hashes = row.get("target_type_sha256s")
             source_indices = row.get("source_indices")
@@ -292,6 +307,13 @@ class TaskPoolRegistry:
                 and all(type(index) is int for index in source_indices)
                 else ()
             )
+            expected_problem_id = (
+                problem_id(repository_commit, tuple(theorems))
+                if isinstance(theorems, list)
+                and all(isinstance(theorem, str) for theorem in theorems)
+                and theorems
+                else None
+            )
             if (
                 not isinstance(task_id, str)
                 or TASK_ID.fullmatch(task_id) is None
@@ -301,27 +323,49 @@ class TaskPoolRegistry:
                 or bundle_hash in bundle_hashes
                 or task_id in tasks
                 or row.get("completion_policy") != "all_of"
-                or row.get("mode") != EXACT_TASK_MODE
+                or mode not in tier_policies[tier]["modes"]
                 or not sources_for_task
                 or any(source is None for source in sources_for_task)
                 or any(source[3] != tier for source in sources_for_task)
                 or len(set(source_indices)) != len(source_indices)
-                or any(index in used_source_indices for index in source_indices)
+                or any((index, mode) in used_source_modes for index in source_indices)
                 or not isinstance(theorems, list)
                 or tuple(theorems) != tuple(source[0] for source in sources_for_task)
+                or row.get("problem_id") != expected_problem_id
+                or (
+                    expected_problem_id in problem_sources
+                    and problem_sources[expected_problem_id] != tuple(theorems)
+                )
                 or not isinstance(target_hashes, list)
-                or tuple(target_hashes) != tuple(source[2] for source in sources_for_task)
+                or len(target_hashes) != len(sources_for_task)
+                or not all(is_sha256(item) for item in target_hashes)
+                or (
+                    mode == EXACT_TASK_MODE
+                    and tuple(target_hashes)
+                    != tuple(source[2] for source in sources_for_task)
+                )
+                or (
+                    mode == COUNTEREXAMPLE_TASK_MODE
+                    and (
+                        len(sources_for_task) != 1
+                        or target_hashes[0] == sources_for_task[0][2]
+                    )
+                )
                 or row.get("source_path") != sources_for_task[0][1]
                 or any(source[1] != row.get("source_path") for source in sources_for_task)
             ):
                 raise TaskNotAllowed("task allowlist contains an invalid or duplicate entry")
             tasks[task_id] = AllowedTask(
                 task_id=task_id,
+                problem_id=row["problem_id"],
                 tier=tier,
+                mode=mode,
+                source_theorems=tuple(theorems),
                 task_bundle_sha256=bundle_hash,
                 target_type_sha256s=tuple(target_hashes),
             )
-            used_source_indices.update(source_indices)
+            problem_sources.setdefault(row["problem_id"], tuple(theorems))
+            used_source_modes.update((index, mode) for index in source_indices)
             bundle_hashes.add(bundle_hash)
 
         for tier in tier_order:
@@ -335,7 +379,8 @@ class TaskPoolRegistry:
             if (
                 len(tier_tasks) != policy["pool_size"]
                 or len(tier_sources) != policy["source_theorem_count"]
-                or len(tier_sources) != len(tier_tasks)
+                or len(tier_tasks)
+                != len(tier_sources) * policy["outcomes_per_problem"]
                 or len({source[1] for source in tier_sources.values()})
                 != len(tier_sources)
                 or sum(
@@ -347,8 +392,18 @@ class TaskPoolRegistry:
                 != policy["multi_target_tasks"]
             ):
                 raise TaskNotAllowed("task tier is empty or violates its declared policy")
-        if not tasks or used_source_indices != set(source_by_index):
-            raise TaskNotAllowed("task allowlist is empty or not one-to-one")
+        expected_source_modes = {
+            (index, mode)
+            for index, source in source_by_index.items()
+            for mode in tier_policies[source[3]]["modes"]
+        }
+        if not tasks or used_source_modes != expected_source_modes:
+            raise TaskNotAllowed("task allowlist is empty or lacks a complete outcome pair")
+        problem_modes: dict[str, set[str]] = {}
+        for task in tasks.values():
+            problem_modes.setdefault(task.problem_id, set()).add(task.mode)
+        if any(modes != set(PRODUCTION_TASK_MODES) for modes in problem_modes.values()):
+            raise TaskNotAllowed("task allowlist problem lacks a complete outcome pair")
         return cls(
             repository_commit=repository_commit,
             tier_order=tuple(tier_order),
@@ -360,6 +415,14 @@ class TaskPoolRegistry:
             raise TaskNotAllowed(f"unknown task tier: {tier}")
         return tuple(task for task in self.tasks.values() if task.tier == tier)
 
+    def tasks_for_problem(self, problem_id: str) -> tuple[AllowedTask, ...]:
+        result = tuple(
+            task for task in self.tasks.values() if task.problem_id == problem_id
+        )
+        if not result:
+            raise TaskNotAllowed(f"unknown problem: {problem_id}")
+        return result
+
     def assert_bundle(self, bundle: TaskBundle) -> AllowedTask:
         allowed = self.tasks.get(bundle.manifest.task_id)
         if allowed is None:
@@ -368,6 +431,15 @@ class TaskPoolRegistry:
             raise TaskNotAllowed("task repository commit does not match the allowlist")
         if bundle.sha256 != allowed.task_bundle_sha256:
             raise TaskNotAllowed("task bundle digest does not match the allowlist")
-        if tuple(source.type_hash for source in bundle.sources) != allowed.target_type_sha256s:
+        if bundle.manifest.task_mode != allowed.mode:
+            raise TaskNotAllowed("task mode does not match the allowlist")
+        if tuple(source.theorem for source in bundle.sources) != allowed.source_theorems:
+            raise TaskNotAllowed("task sources do not match the allowlist")
+        actual_target_hashes = (
+            tuple(source.type_hash for source in bundle.sources)
+            if allowed.mode == EXACT_TASK_MODE
+            else (bundle.manifest.generated_target_type_hash,)
+        )
+        if actual_target_hashes != allowed.target_type_sha256s:
             raise TaskNotAllowed("task target digests do not match the allowlist")
         return allowed

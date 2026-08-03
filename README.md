@@ -49,8 +49,9 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
 
 ## Validator flow
 
-1. A miner chooses an eligible committed task, prepares one candidate Lean proof, and checks it
-   locally with `verifier bundle scan` — a rejected bundle costs nothing to fix.
+1. A miner chooses an eligible committed task — proving the conjecture, or refuting it with a
+   counterexample — prepares one candidate Lean proof, and checks it locally with
+   `verifier bundle scan`: a rejected bundle costs nothing to fix.
 2. The miner pays exactly **0.5 TAO** and submits the proof bundle through the validator API with
    its task ID and digest, the payment reference, miner identity, and an idempotency key.
 3. The API admits the bundle, authenticates the hotkey signature, and confirms the transfer
@@ -143,11 +144,13 @@ export PATH="$PWD/.venv/bin:$PWD/.elan/bin:$PATH"
 python -m verifier doctor
 ```
 
-The bootstrap script checks out only the commits in `pins.lock.json`, installs the pinned Lean
-toolchains, downloads Mathlib's trusted binary cache, builds Formal Conjectures in `answer`
-postpone mode, and builds Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is
-optional: set `ENABLE_NANODA=1` during bootstrap to build it. Bootstrap also installs the pinned
-service and Subnet 66 dependencies; it does not install the removed legacy miner transport.
+The bootstrap script materializes the pinned
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) checkout and the other
+commits in `pins.lock.json`, installs the pinned Lean toolchains, downloads Mathlib's trusted binary
+cache, builds Formal Conjectures in `answer` postpone mode, and builds Comparator, the Lean-4.27
+`lean4export` backport, and Landrun. Nanoda is optional: set `ENABLE_NANODA=1` during bootstrap to
+build it. Bootstrap also installs the pinned service and Subnet 66 dependencies; it does not
+install the removed legacy miner transport.
 
 ## Submission API
 
@@ -213,25 +216,33 @@ python -m verifier task generate \
   --theorem Arxiv.id2303_01089.conjecture_1_3 \
   --mode formalized \
   --output tasks/furstenberg-formalized
+
+python -m verifier task generate \
+  --catalog data/catalog.json \
+  --theorem Arxiv.id2303_01089.conjecture_1_3 \
+  --mode counterexample \
+  --output tasks/furstenberg-counterexample
 ```
 
 ## Solver task pool
 
-Use the immutable bundles in [`tasks/pool/`](tasks/pool/) as the public targets for solver
-attempts. The task pool is divided into explicit tiers; the current audited set is
-[`tier-1`](tasks/pool/tier-1/). It is pinned to Formal Conjectures commit
-`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 29 reward tasks covering 29
-audited Erdős problems from 29 source files. Each task has one exact canonical theorem whose proof
-closes the whole source problem. Partial results, numbered parts, variants, candidate bounds, and
-multi-target bundles are excluded from this tier. The 178 source declarations and canonical types
-used by the two previous releases are explicitly retired and are not reused. Source families such
-as Written on the Wall II are not globally excluded and may be admitted by a future audited tier.
+Use the immutable bundles in the pinned
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
+the public targets for solver attempts. The task pool is divided into explicit tiers; the current
+audited set is
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1). It is pinned to Formal Conjectures commit
+`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 58 committed bundles covering 29
+reward problems from 29 audited Erdős source files. Each source has a `formalized` target `P` and a
+`counterexample` target `¬ P`; the pair shares one `problem_id` and can produce at most one reward.
+Partial results, numbered parts, variants, candidate bounds, and multi-target bundles are excluded
+from this tier. The 178 source declarations and canonical types used by the two previous releases
+are explicitly retired and are not reused. Source families such as Written on the Wall II are not
+globally excluded and may be admitted by a future audited tier.
 
-Every pooled task has mode `formalized`. Its generated target is definitionally equal to the source
-theorem's complete Lean type and has the same canonical type hash. The pool admits only direct
-propositions: it does not synthesize `¬P`, extract one side of an answer wrapper, or substitute a
-new answer. A source theorem that is itself a negation remains a negation because that is the
-formalization; the generator never synthesizes one.
+The pool admits only direct propositions. It does not extract one side of an answer wrapper or
+substitute a new answer. Both task variants are compiled and inspected: `formalized` must be
+definitionally equal to the source type, while `counterexample` must be definitionally equal to its
+logical negation.
 
 Choose a task, read its `Challenge.lean` and `manifest.json`, then write
 `submissions/Main.lean` with a proof of the single `Bounty.target`, replacing its `sorry`. Do not
@@ -245,7 +256,7 @@ python scripts/check_task.py "$TASK"
 
 The complete machine-readable admission set and bundle commitments are in
 [`task_pool/allowlist.json`](task_pool/allowlist.json). It records a tier for every source and task
-bundle. Only an allowlisted, verifier-accepted proof should
+bundle. Only an allowlisted, verifier-accepted proof or refutation should
 advance to human mathematical review. Generation compiles and independently inspects every target;
 this proves that the validator has an exact, hole-free target. The separate
 [`tier-1 selection audit`](task_pool/tiers/tier-1/selection-audit.json) records the Formal
@@ -257,7 +268,8 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 whole-problem targets`](task_pool/tiers/tier-1/whole-problem-targets.json), admits exactly
-one canonical whole-problem theorem per task and source file, enforces the tier policy, and
+one canonical whole-problem theorem per source file, generates committed `formalized` and
+`counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`task_pool/README.md`](task_pool/README.md).
 
@@ -288,7 +300,8 @@ Never expose `--allow-test-task`, `--allow-uncommitted-task`, or
 
 The exit status is `0` for accepted, `1` for a rejected proof, and `2` for bad verifier/task
 configuration. Reports use sorted JSON keys and stable reason codes. Timing fields are measurements
-and naturally vary.
+and naturally vary. Report schema version 2 includes the deterministic `problem_id` used to join
+the mutually exclusive proof and counterexample outcomes.
 
 The production container profile runs the same commands without exposing the host toolchain:
 
@@ -321,10 +334,11 @@ that canonical elaborated representation with SHA-256.
 Production generation rejects a compiled target whose canonical type hash already belongs to a
 cataloged, non-admitted theorem. This is an exact collision screen, not a general novelty oracle.
 
-The exact production task mode handles:
+The production task modes handle:
 
 - `DIRECT_PROP` with mode `formalized`: the exact source theorem type, with no logical
-  transformation.
+  transformation;
+- `DIRECT_PROP` with mode `counterexample`: the exact logical negation of the source theorem type.
 
 The version-1 adapter table also retains the following non-pool generation modes for verifier
 fixtures and offline experiments:
@@ -359,19 +373,24 @@ and files that are hashed but do not exactly match output reconstructed by the p
 separate whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted
 after task publication.
 
+The allowlist assigns both variants the same deterministic `problem_id`. Reward storage must use
+that identity to enforce at most one reward across the proof/counterexample pair.
+
 `source-metadata.json` includes a `references` array when the Formal Conjectures module docstring
 has a `*Reference:*` or `*References:*` section. Each entry preserves the source Markdown so clients
 can render linked and unlinked citations without parsing Lean source. Grouped task metadata carries
 the same field for every member.
 
-Production generation accepts only `formalized` tasks from compiled `research open`,
+Production generation accepts only `formalized` and `counterexample` tasks from compiled
+`research open`,
 `DIRECT_PROP` theorem declarations whose dependency closure contains `sorryAx`, which is how the
 source repository marks an admitted open conjecture. The source type itself must contain no
 `sorryAx` term or answer annotation. Production rejects formal-proof metadata and exact canonical
-type collisions with cataloged theorems that have non-admitted proofs. Verification recomputes the
-source category, declaration kind, formal-proof status, axiom closure, exact source/target type
-equality, and absence of holes in the generated target from the compiled Lean environment rather
-than trusting JSON metadata.
+type collisions with cataloged theorems that have non-admitted proofs. This collision check is
+applied to both `P` and the generated `¬ P`. Verification recomputes the source category,
+declaration kind, formal-proof status, axiom closure, and absence of holes from the compiled Lean
+environment. It then checks that the target is definitionally equal to `P` in `formalized` mode or
+to `Not P` in `counterexample` mode rather than trusting JSON metadata.
 
 ## Submission policy and verification stages
 

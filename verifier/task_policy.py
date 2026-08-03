@@ -6,6 +6,12 @@ from verifier.models import Catalog, CatalogDeclaration, Classification
 
 
 EXACT_TASK_MODE = "formalized"
+COUNTEREXAMPLE_TASK_MODE = "counterexample"
+PRODUCTION_TASK_MODES = (EXACT_TASK_MODE, COUNTEREXAMPLE_TASK_MODE)
+
+
+def is_production_task_mode(mode: str) -> bool:
+    return mode in PRODUCTION_TASK_MODES
 
 
 def expected_answer_policy(declaration: CatalogDeclaration) -> dict[str, Any]:
@@ -56,7 +62,10 @@ def production_policy_violations(
     mode: str = EXACT_TASK_MODE,
 ) -> tuple[str, ...]:
     checks = (
-        (mode != EXACT_TASK_MODE, "production tasks must use the exact formalized mode"),
+        (
+            not is_production_task_mode(mode),
+            "production tasks must use formalized or counterexample mode",
+        ),
         (
             declaration.classification != Classification.DIRECT_PROP,
             "source is not a direct proposition",

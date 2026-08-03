@@ -23,10 +23,11 @@
     "Quot.sound",
     "Classical.choice"
   ],
+  "problem_id": "fc-e923379e-verifierfixtures-direct-1f854eae24d31ce7c431179946bfc46b-problem",
   "reason_code": "SUBMISSION_POLICY_VIOLATION",
   "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
   "sandbox_mode": "not-started",
-  "schema_version": 1,
+  "schema_version": 2,
   "source_theorem": "VerifierFixtures.direct",
   "stage": "STATIC_POLICY_CHECK",
   "stderr_tail": "sorry is prohibited at 2:3",

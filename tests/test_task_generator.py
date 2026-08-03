@@ -59,6 +59,38 @@ def test_formalized_mode_is_the_exact_production_source_type(tmp_path):
     assert load_task(destination) == result
 
 
+def test_counterexample_mode_is_a_distinct_production_target(tmp_path):
+    item = declaration()
+    counterexample_hash = "sha256:" + "2" * 64
+    destination = tmp_path / "task-counterexample"
+    result = generate_task(
+        catalog=catalog(item),
+        declaration=item,
+        mode="counterexample",
+        output=destination,
+        validate_target=lambda *_: counterexample_hash,
+    )
+    challenge = (destination / "Challenge.lean").read_text(encoding="utf-8")
+    assert result.production_eligible
+    assert result.generated_target_type_hash == counterexample_hash
+    assert result.generated_target_type_hash != result.source_type_hash
+    assert 'theorem target : ¬ (fcTypeOfName% "VerifierFixtures.direct")' in challenge
+    assert load_task(destination) == result
+
+
+def test_counterexample_generation_rejects_source_hash_as_target(tmp_path):
+    item = declaration()
+    with pytest.raises(VerifierError) as error:
+        generate_task(
+            catalog=catalog(item),
+            declaration=item,
+            mode="counterexample",
+            output=tmp_path / "task-counterexample",
+            validate_target=lambda *_: item.type_hash,
+        )
+    assert error.value.reason == ReasonCode.STATEMENT_MISMATCH
+
+
 def test_adapter_required_is_stable_reason(tmp_path):
     item = declaration(classification=Classification.GENERAL_VALUE_ANSWER)
     with pytest.raises(VerifierError) as error:
@@ -170,6 +202,27 @@ def test_production_generation_rejects_matching_proved_declaration(tmp_path):
             mode="formalized",
             output=tmp_path / "task",
             validate_target=lambda *_: open_source.type_hash,
+        )
+    assert error.value.reason == ReasonCode.INELIGIBLE_TASK
+
+
+def test_counterexample_generation_rejects_matching_proved_negation(tmp_path):
+    open_source = declaration()
+    counterexample_hash = "sha256:" + "2" * 64
+    proved_negation = replace(
+        declaration(theorem="Fixture.alreadyRefuted"),
+        type_hash=counterexample_hash,
+        contains_sorry_in_value=False,
+        depends_on_sorry=False,
+        transitive_axioms=(),
+    )
+    with pytest.raises(VerifierError) as error:
+        generate_task(
+            catalog=catalog(open_source, proved_negation),
+            declaration=open_source,
+            mode="counterexample",
+            output=tmp_path / "task",
+            validate_target=lambda *_: counterexample_hash,
         )
     assert error.value.reason == ReasonCode.INELIGIBLE_TASK
 

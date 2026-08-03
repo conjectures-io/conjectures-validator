@@ -2,7 +2,7 @@
 
 ## Result
 
-There are not 500 candidates under the current exact-formalization admission
+There are not 500 candidates under the current direct-proposition admission
 policy.
 
 A full multiline declaration-type rescan corrected the initial lexical count.
@@ -14,7 +14,7 @@ compilation checks.
 
 After freshness, current Erdős statuses, and the conservative
 resolution/correction PR screen, the first pass produced 303 declarations in
-186 source files, including the 29 current `tier-1` tasks. Deeper review then:
+186 source files, including the 29 current `tier-1` reward problems. Deeper review then:
 
 - removed 21 answer-hole declarations missed by the first parser;
 - removed two `type_of%` aliases that merely point at canonical conjectures;
@@ -164,22 +164,22 @@ declarations after screening. The multiline rescan reclassified two additional
 proposition wrappers and 19 additional value-answer declarations that the first
 parser had incorrectly placed in the direct queue. The combined pre-deduplication
 source-question count remains 825, but only the provisional 278 direct entries
-fit the current exact-task protocol.
+fit the current direct-proposition protocol.
 
-Those wrappers are not valid exact-formalization tasks under the current
-policy. Pre-generating both `P` and `¬P` would count an impossible task for every
-question, because only one polarity can be true. A future tier would need a
-submission protocol in which the solver chooses a polarity and supplies a proof
-of that selected proposition. Non-proposition answers require a separately
-audited finite or literal answer type; most of the 90 remaining declarations
+Those wrappers are not valid direct-proposition tasks under the current policy.
+The current pool publishes committed `P` and `¬P` bundles but counts them as one
+reward problem, because only one polarity can be true; the solver chooses a
+bundle and supplies a proof of that selected proposition. Non-proposition
+answers require a separately audited finite or literal answer type; most of the
+90 remaining declarations
 use unsupported types such as real numbers, functions, sets, or asymptotic
 classes and must not be counted as usable without new verifier support.
 
 ## Recommendation
 
-Keep `tier-1` as the 29 compiled whole-problem tasks. Continue reviewing the
-249 provisional additional direct candidates, expecting the count to fall
-during compiled, grouping, and mathematical review. Treat a 500-task target as
+Keep `tier-1` as 29 compiled whole-problem rewards with 58 paired task bundles.
+Continue reviewing the 249 provisional additional direct candidates, expecting
+the count to fall during compiled, grouping, and mathematical review. Treat a 500-task target as
 a later protocol project:
 it requires an answer-wrapper tier with solver-selected polarity, not merely a
 larger allowlist.

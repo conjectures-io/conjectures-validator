@@ -19,7 +19,11 @@ from verifier.repository import assert_dependency_pins, formal_conjectures_pin, 
 from verifier.static_checks import check_submission
 from verifier.submission import load_submission
 from verifier.task_loader import load_task_bundle
-from verifier.task_policy import EXACT_TASK_MODE
+from verifier.task_policy import (
+    COUNTEREXAMPLE_TASK_MODE,
+    EXACT_TASK_MODE,
+    is_production_task_mode,
+)
 from verifier.workspace import (
     build_challenge,
     cleanup_workspace,
@@ -252,13 +256,8 @@ def verify(
             inspections[0]["source_hash"] != manifest.source_type_hash
             or inspections[0]["target_hash"] != manifest.generated_target_type_hash
             or any(
-                inspection["target_hash"] != source.type_hash
-                or not inspection["matches"]
-                for source, inspection in zip(
-                    bundle.sources,
-                    inspections,
-                    strict=True,
-                )
+                not inspection["matches"]
+                for inspection in inspections
             )
         ):
             return rejected(ReasonCode.STATEMENT_MISMATCH, "BUILD_CHALLENGE")
@@ -268,8 +267,15 @@ def verify(
             or not inspection["source_depends_on_sorry"]
             or inspection["source_has_formal_proof"]
             or inspection["target_contains_sorry"]
-            or manifest.task_mode != EXACT_TASK_MODE
-            or inspection["target_hash"] != inspection["source_hash"]
+            or not is_production_task_mode(manifest.task_mode)
+            or (
+                manifest.task_mode == EXACT_TASK_MODE
+                and inspection["target_hash"] != inspection["source_hash"]
+            )
+            or (
+                manifest.task_mode == COUNTEREXAMPLE_TASK_MODE
+                and inspection["target_hash"] == inspection["source_hash"]
+            )
             or inspection["source_axioms"] != tuple(sorted(source.transitive_axioms))
             for source, inspection in zip(
                 bundle.sources,

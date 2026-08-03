@@ -8,6 +8,7 @@ from verifier.classification import catalog_statistics
 from verifier.errors import ReasonCode
 from verifier.models import Classification
 from verifier.task_generator import generate_task
+from verifier.task_loader import load_task_bundle
 from verifier.verification import verify
 from verifier.workspace import target_validator
 
@@ -131,3 +132,32 @@ def test_prop_and_numeric_answer_fixtures():
     assert numeric.accepted and numeric.reason_code == ReasonCode.VERIFIED
     assert not wrong.accepted
     assert not nonliteral.accepted and nonliteral.reason_code == ReasonCode.SUBMISSION_POLICY_VIOLATION
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
+def test_counterexample_fixture_accepts_refutation_and_rejects_wrong_or_admitted_proofs():
+    task = ROOT / "examples/counterexample/task-counterexample"
+    digest = load_task_bundle(task).sha256
+    options = {
+        "task_dir": task,
+        "project_root": ROOT,
+        "expected_task_sha256": digest,
+        "allow_insecure_development": True,
+    }
+    accepted = verify(
+        **options,
+        submission_path=ROOT / "examples/counterexample/Valid.lean",
+    )
+    wrong = verify(
+        **options,
+        submission_path=ROOT / "examples/counterexample/WrongStatement.lean",
+    )
+    admitted = verify(
+        **options,
+        submission_path=ROOT / "examples/counterexample/SourceDependency.lean",
+    )
+    assert accepted.accepted and accepted.reason_code == ReasonCode.VERIFIED
+    assert not wrong.accepted and wrong.reason_code == ReasonCode.STATEMENT_MISMATCH
+    assert not admitted.accepted
+    assert admitted.reason_code == ReasonCode.SUBMISSION_POLICY_VIOLATION
