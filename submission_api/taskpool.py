@@ -14,6 +14,7 @@ from typing import Mapping
 
 from verifier.task_registry import AllowedTask, TaskNotAllowed, TaskPoolRegistry
 from verifier.models import TaskManifest
+from verifier.task_generator import task_directory_name
 from verifier.task_loader import load_task_bundle
 
 
@@ -40,11 +41,16 @@ class TaskCatalog:
         registry = TaskPoolRegistry.load(allowlist_path)
         entries: dict[str, TaskEntry] = {}
         for task_id, allowed in sorted(registry.tasks.items()):
-            task_dir = pool_root / allowed.tier / task_id
+            task_dir = pool_root / allowed.tier / task_directory_name(
+                allowed.source_theorems,
+                allowed.mode,
+            )
             bundle = load_task_bundle(task_dir)
             # Fail closed on task id, repository commit, whole-bundle digest, or target type
             # digest drift.
-            registry.assert_bundle(bundle)
+            validated = registry.assert_bundle(bundle)
+            if validated.task_id != task_id:
+                raise TaskNotAllowed("task directory contains the wrong allowlisted bundle")
             entries[task_id] = TaskEntry(
                 task_id=allowed.task_id,
                 problem_id=allowed.problem_id,

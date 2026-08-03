@@ -1,5 +1,6 @@
 import json
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -10,6 +11,7 @@ from verifier.task_generator import (
     generate_group_task,
     generate_task,
     group_task_id,
+    task_directory_name,
     task_id,
 )
 from verifier.task_loader import load_task, load_task_bundle
@@ -118,6 +120,21 @@ def test_generate_all_records_every_skip(tmp_path):
     assert result["generated"] == 1
     assert result["skipped_adapter_required"] == 1
     assert len(result["tasks"]) + len(result["skipped"]) == 2
+    assert Path(result["tasks"][0]["path"]).name == "verifierfixtures-direct-positive"
+
+
+def test_task_directory_name_is_readable_and_separate_from_protocol_id():
+    assert (
+        task_directory_name(("Erdos274.herzog_schonheim",), "formalized")
+        == "erdos-274-formalized"
+    )
+    assert (
+        task_directory_name(
+            ("Erdos11.erdos_11", "Erdos28.erdos_28"),
+            "counterexample",
+        )
+        == "erdos-11-all-2-counterexample"
+    )
 
 
 def test_explicit_pointer_resolves_to_original(tmp_path):

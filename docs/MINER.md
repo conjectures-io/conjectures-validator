@@ -61,8 +61,10 @@ validator refuses anything that does not match the published commitment.
 
 The task itself is in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) submodule, checked out at
-`tasks/pool/<tier>/<task_id>/`. `Challenge.lean` is the statement you must prove;
-`SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your file gets wrapped in.
+`tasks/pool/<tier>/erdos-<number>-<mode>/`. The concise directory name is for navigation; the
+opaque `task_id` above remains the stable submission identity. `Challenge.lean` is the statement
+you must prove; `SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your file gets
+wrapped in.
 
 ## 2. Write your proof
 
