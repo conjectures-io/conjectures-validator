@@ -1,18 +1,27 @@
 # Submission API
 
-The miner-facing surface of the Subnet 66 validator, implemented in
+The network-facing surface of the Subnet 66 validator, implemented in
 [`../submission_api/`](../submission_api/). For the miner's step-by-step path start with
-[MINER.md](MINER.md); the bundle format is in [SUBMISSION_BUNDLE.md](SUBMISSION_BUNDLE.md).
+[MINER.md](MINER.md); the bundle format is in [SUBMISSION_BUNDLE.md](SUBMISSION_BUNDLE.md). The
+public read surface the website is built on has its own document,
+[PUBLIC_API.md](PUBLIC_API.md).
 
 Payment buys one verification attempt. It never changes Lean's verdict and does not guarantee a
 reward.
 
-**Intake is payment-gated.** The schema has no unpaid state: every payment column on
-`submissions` is NOT NULL, so a row exists only for a transfer already confirmed on finalized
-chain state. A refused request creates no submission and is recorded in `api_rejection_log`
-instead, which is the only trace a miner who paid and was turned away would otherwise leave.
+**Intake is funded up front.** A submission row exists only once money has been confirmed.
+Since V003 there are two ways for that to be true and `submissions` carries a CHECK that exactly
+one holds per row: an extrinsic-funded submission names the finalized transfer that paid for it,
+and a credit-funded one names the ledger entry it was debited from. Neither admits an unfunded
+row. A refused request creates no submission and is recorded in `api_rejection_log` instead,
+which is the only trace a miner who paid and was turned away would otherwise leave.
 
 ## Endpoints
+
+One process serves two audiences on one port. The miner-facing surface authenticates with a
+hotkey signature; the public surface authenticates nothing and is read by a browser.
+
+### Miner-facing
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
@@ -21,10 +30,52 @@ instead, which is the only trace a miner who paid and was turned away would othe
 | `POST` | `/v1/submissions` | hotkey signature | Idempotently create one paid submission |
 | `GET` | `/v1/submissions/{id}` | hotkey signature | Verification, review, and reward state |
 | `GET` | `/v1/submissions/{id}/report` | hotkey signature | The immutable verifier report |
+
+Task discovery is unauthenticated because the task pool and its digests are public.
+
+### Public — see [PUBLIC_API.md](PUBLIC_API.md)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/catalog/conjectures` | Conjecture list with filters and facet counts |
+| `GET` | `/v1/catalog/conjectures/{slug}` | Statement, `Challenge.lean`, references, machine contract |
+| `GET` | `/v1/catalog/conjectures/{slug}/activity` | Anonymised per-conjecture activity |
+| `GET` | `/v1/catalog/meta` | Pool counts, credit price, treasury, bounty model, pins |
+| `GET` | `/v1/results/certified` | Certified results, keyset-paginated |
+| `GET` | `/v1/results/in-review` | Lean-verified, awaiting manual review |
+| `GET` | `/v1/results/{id}` | One published result |
+| `GET` | `/v1/results/{id}/report` | The published subset of the verifier report |
+| `GET` | `/v1/system/status` | Submissions open/paused, queue depths, pin rotation |
+
+### Signed-in account — see [ACCOUNT_API.md](ACCOUNT_API.md)
+
+Session cookie plus a CSRF token. `POST /v1/submissions/preflight` is the one exception: free,
+unauthenticated, and it writes nothing.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET`/`POST` | `/v1/auth/session`, `/v1/auth/logout` | Read or end the session |
+| `POST` | `/v1/auth/email/request-link`, `/v1/auth/email/verify` | Magic-link sign-in |
+| `POST` | `/v1/auth/wallet/challenge`, `/v1/auth/wallet/verify` | Coldkey sign-in |
+| `GET`/`PATCH` | `/v1/me` | Profile, roles, linked keys, payout |
+| `POST` | `/v1/me/hotkeys`, `/v1/me/hotkeys/challenge` | Link a hotkey by signature |
+| `PUT` | `/v1/me/payout` | Payout destination: coldkey plus hotkey |
+| `GET` | `/v1/me/credits`, `/v1/me/credits/ledger` | Balance and the append-only ledger |
+| `POST`/`GET` | `/v1/me/deposits`, `/v1/me/deposits/{id}`, `/v1/me/deposits/claim` | Buy credits |
+| `GET` | `/v1/me/submissions[/{id}[/events|/report]]` | The miner panel |
+| `GET` | `/v1/me/rewards` | Payouts with explorer links |
+| `POST` | `/v1/submissions/preflight` | Free static check; no credit, no auth |
+| `POST`/`PUT` | `/v1/submissions/intents[/{id}/bundle|/confirm]` | Spend a credit and submit |
+
+### Operations
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
 | `GET` | `/healthz` | none | Liveness |
 | `GET` | `/readyz` | none | Readiness: database and task pool |
 
-Task discovery is unauthenticated because the task pool and its digests are public.
+`/healthz` and `/readyz` are for the orchestrator: outside `/v1`, so they carry no CORS grant and
+are never rate-limited — a `429` to a health probe would take the replica out of service.
 
 ## Creating a submission
 
@@ -210,7 +261,8 @@ RFC 9457 `application/problem+json`, always carrying a stable `reason_code`:
 | `411` | `Content-Length` missing |
 | `413` | Bundle over the size limit |
 | `422` | Bundle or proof rejected; see `reason_code` |
-| `503` | Validator misconfigured, not ready, or payment confirmation unavailable |
+| `429` | Per-client rate ceiling on `/v1` (`RATE_LIMITED`); carries `Retry-After` |
+| `503` | Validator misconfigured, not ready, payment confirmation unavailable, or `SUBMISSIONS_PAUSED` |
 
 A submission belonging to another miner is `404`, not `403`, so identifiers cannot be probed. A
 reason code in the verifier's `CONFIGURATION_REASONS` set means the validator is misconfigured,
@@ -249,14 +301,20 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `REVIEW_POLICY_VERSION` | `v1` | |
 | `BOUNTY_AMOUNT_RAO` | `1000000000` in `DEV`, required in `PROD` | Alpha base units. Frozen per submission at intake |
 | `BOUNTY_POLICY_VERSION` | `flat-v1` | The pricing rule the amount came from |
+| `SUBMISSIONS_PAUSED` | `false` | Refuses intake with `503 SUBMISSIONS_PAUSED`; reported on `/v1/system/status` |
+
+The public read surface adds its own variables; they are documented in
+[PUBLIC_API.md](PUBLIC_API.md#configuration) and in [`../.env.example`](../.env.example).
 
 Every value is validated at startup, so a misconfigured deployment refuses to boot instead of
-failing on the first miner request. Four refusals are deliberate fail-closed guardrails:
-production will not start with the development authenticator, the development payment verifier,
+failing on the first miner request. Eight refusals are deliberate fail-closed guardrails.
+Production will not start with the development authenticator, the development payment verifier,
 or the in-process dispatcher — each would otherwise weaken the boundary
-[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe — and it will not start
-without an explicit `BOUNTY_AMOUNT_RAO`, because inheriting a default there promises money the
-operator never chose to promise.
+[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe. It will not start without
+an explicit `BOUNTY_AMOUNT_RAO`, because inheriting a default there promises money the operator
+never chose to promise. And on the public side it will not start with a wildcard or plaintext
+CORS origin, with rate limiting disabled, or with either public secret left unset or set to the
+published development constant.
 
 ## Running it
 

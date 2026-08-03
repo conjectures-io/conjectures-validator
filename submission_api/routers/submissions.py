@@ -49,6 +49,7 @@ from submission_api.errors import (
     LengthRequired,
     NotFound,
     PayloadTooLarge,
+    ServiceUnavailable,
     from_database_error,
     from_verifier_error,
 )
@@ -61,6 +62,8 @@ router = APIRouter(prefix="/v1/submissions", tags=["submissions"])
 
 PAYMENT_REFERENCE = re.compile(r"^[A-Za-z0-9:_.#-]{4,128}$")
 TASK_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,254}$")
+
+REASON_SUBMISSIONS_PAUSED = "SUBMISSIONS_PAUSED"
 
 
 # --- request parsing -----------------------------------------------------------------
@@ -93,7 +96,7 @@ def _require_digest(value: str, field: str) -> str:
     return value
 
 
-async def _read_body(request: Request, declared_length: int, limit: int) -> bytes:
+async def read_body(request: Request, declared_length: int, limit: int) -> bytes:
     """Stream the body with a running cap so an oversized upload dies mid-flight."""
     chunks: list[bytes] = []
     total = 0
@@ -205,6 +208,15 @@ async def create_submission(
     )
 
     async with audit:
+        # Refused before the body is read and before any payment is confirmed. A pause is what
+        # `/v1/system/status` reports as `submissions_open: false` and what the weekly pin
+        # rotation depends on: the drain cannot complete if new work keeps arriving. 503 with
+        # `Retry-After` rather than 403 — the miner did nothing wrong and should come back.
+        if settings.submissions_paused:
+            raise ServiceUnavailable(
+                "submissions are paused; see GET /v1/system/status",
+                reason_code=REASON_SUBMISSIONS_PAUSED,
+            )
         if (
             content_type is None
             or content_type.split(";")[0].strip().lower() != BUNDLE_MEDIA_TYPE
@@ -255,7 +267,7 @@ async def create_submission(
             response.status_code = status.HTTP_200_OK
             return _status(await store.load_view(session, existing))
 
-        raw = await _read_body(request, content_length, settings.max_bundle_bytes)
+        raw = await read_body(request, content_length, settings.max_bundle_bytes)
         try:
             bundle: ProofBundle = admit_proof_bundle(
                 raw,

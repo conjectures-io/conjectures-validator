@@ -1,0 +1,156 @@
+# The network-facing API, on top of the database stack.
+#
+#   cp .env.example .env          # then fill in the secrets marked REQUIRED IN PROD
+#   docker compose -f docker-compose.api.yml up -d --build
+#
+# `include` pulls in docker-compose.db.yml, so that one command brings up Postgres, applies
+# every pending Flyway migration, waits for both, and then starts the API. There is no ordering
+# to remember and no second command to forget.
+#
+# Named docker-compose.api.yml rather than compose.yaml for the same reason the database stack
+# is: this repository's docker-compose.yml is the hostile-proof verifier sandbox, and Compose
+# gives compose.yaml precedence, so a bare `docker compose up` must not start meaning something
+# else.
+#
+# THE API AND THE VERIFIER ARE DIFFERENT TRUST DOMAINS. This stack starts the API only. The
+# verifier runs from docker-compose.yml with `network_mode: none`, and nothing here mounts its
+# image, its toolchain, or a writable path it shares. See submission_api/__init__.py.
+
+name: conjectures-api
+
+include:
+  - docker-compose.db.yml
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/api/Dockerfile
+    image: conjectures-submission-api:local
+    container_name: conjectures_api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # --- Required ---------------------------------------------------------
+      APP_MODE: ${APP_MODE:-DEV}
+      # Reaches Postgres by service name on the compose network. Not the host
+      # port: that is bound to loopback for operator tooling only.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PAYMENT_RECIPIENT_SS58: ${PAYMENT_RECIPIENT_SS58:?set the treasury address in .env}
+      PAYMENT_AMOUNT_RAO: ${PAYMENT_AMOUNT_RAO:-500000000}
+      BOUNTY_AMOUNT_RAO: ${BOUNTY_AMOUNT_RAO:-}
+      BOUNTY_POLICY_VERSION: ${BOUNTY_POLICY_VERSION:-flat-v1}
+
+      # --- Paths inside the container ---------------------------------------
+      # Both are read-only mounts below, so a pin rotation is a restart against
+      # new bytes rather than an image rebuild.
+      TASK_ALLOWLIST_PATH: /opt/conjectures/task_pool/allowlist.json
+      TASK_POOL_ROOT: /opt/conjectures/tasks/pool
+      PINS_LOCK_PATH: /opt/conjectures/pins.lock.json
+      SUBMISSION_TERMS_PATH: /opt/conjectures/docs/SUBMISSION_TERMS.md
+
+      # --- Trust boundary ---------------------------------------------------
+      # `queue` leaves accepted submissions UNVERIFIED for a worker in the other
+      # trust domain to claim. Settings refuses `in-process` in production, and
+      # this container has no Lean to run it with anyway.
+      SUBMISSION_DISPATCHER: queue
+      SUBMISSION_AUTHENTICATOR: ${SUBMISSION_AUTHENTICATOR:-}
+      SUBMISSION_PAYMENT_VERIFIER: ${SUBMISSION_PAYMENT_VERIFIER:-}
+
+      # --- Public read surface ----------------------------------------------
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      PUBLIC_CURSOR_SECRET: ${PUBLIC_CURSOR_SECRET:-}
+      PUBLIC_ACTIVITY_SALT: ${PUBLIC_ACTIVITY_SALT:-}
+      PUBLIC_CACHE_SECONDS: ${PUBLIC_CACHE_SECONDS:-60}
+      # Per replica, because the limiter is in-process. Raising the replica count
+      # raises the effective global rate by the same factor.
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      # 0 ignores X-Forwarded-For and uses the peer address. Set this to the real
+      # hop count once a reverse proxy or CDN is in front, or every visitor
+      # collapses onto one rate-limit budget.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
+      ALT_SVC: ${ALT_SVC:-}
+      HSTS_MAX_AGE: ${HSTS_MAX_AGE:-31536000}
+
+      # --- Accounts ---------------------------------------------------------
+      WEBSITE_BASE_URL: ${WEBSITE_BASE_URL:-}
+      LOGIN_DOMAIN: ${LOGIN_DOMAIN:-conjectures.io}
+      MAIL_SENDER: ${MAIL_SENDER:-}
+      SESSION_DAYS: ${SESSION_DAYS:-30}
+      CREDIT_PACKAGES: ${CREDIT_PACKAGES:-1,10:1,50:8}
+      CREDIT_PRICE_USD: ${CREDIT_PRICE_USD:-}
+      CREDIT_PRICE_USD_ASOF: ${CREDIT_PRICE_USD_ASOF:-}
+
+      # --- Operating switches -----------------------------------------------
+      SUBMISSIONS_PAUSED: ${SUBMISSIONS_PAUSED:-false}
+      STATUS_BANNER: ${STATUS_BANNER:-}
+      MANUAL_REWARD_REVIEW_ENABLED: ${MANUAL_REWARD_REVIEW_ENABLED:-true}
+
+    ports:
+      # Loopback only. TLS, HTTP/2 and HTTP/3 terminate at the edge — this
+      # process speaks HTTP/1.1 and must not be the thing facing the internet.
+      # See docs/PUBLIC_API.md on Alt-Svc.
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+
+    volumes:
+      # Read-only, all of it. The API needs to read the audited pool and the pin
+      # lock; it has no reason to write either, and a writable mount here would
+      # be a path from a network-facing process to the bytes the verifier trusts.
+      - ./tasks:/opt/conjectures/tasks:ro
+      - ./task_pool:/opt/conjectures/task_pool:ro
+      - ./pins.lock.json:/opt/conjectures/pins.lock.json:ro
+      - ./docs/SUBMISSION_TERMS.md:/opt/conjectures/docs/SUBMISSION_TERMS.md:ro
+
+    depends_on:
+      db:
+        condition: service_healthy
+      # Not just started: the API reads a schema the migration creates. Starting
+      # before it completes would mean the first request hits missing tables.
+      migrate:
+        condition: service_completed_successfully
+
+    # Hardening, matching the verifier sandbox's posture as far as a network
+    # service can. `network_mode: none` is the one thing it cannot have.
+    read_only: true
+    user: "10002:10002"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Under `deploy.resources.limits` rather than the top-level `pids_limit`, because Compose
+    # refuses a project that sets both forms and the cpu/memory limits below are already in the
+    # deploy form.
+    tmpfs:
+      # The only writable path. `noexec` so nothing dropped there can be run.
+      - /tmp:rw,nosuid,nodev,noexec,size=64m
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 8192
+
+    healthcheck:
+      # `/healthz` says the process is up. `/readyz` additionally touches the
+      # database and the task pool, but it is deliberately NOT the healthcheck:
+      # a transient database blip would restart a process that is fine, and
+      # readiness is the orchestrator's routing signal, not a liveness one.
+      test:
+        - CMD-SHELL
+        - >-
+          python3 -c "import urllib.request,sys;
+          sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',
+          timeout=3).status == 200 else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+          pids: 512
+        reservations:
+          cpus: "0.5"
+          memory: 256M

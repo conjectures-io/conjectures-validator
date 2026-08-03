@@ -6,8 +6,12 @@ theirs to scope; nothing here opens its own connection.
 
 Two properties of the schema shape everything below:
 
-* **Intake is payment-gated.** Every payment column on `submissions` is NOT NULL and there
-  is no payment state, so a row exists only once a finalized transfer has been confirmed.
+* **Intake is funded up front.** A submission row exists only once money has been
+  confirmed. Since V003 there are two ways for that to be true, and `submissions` carries
+  a CHECK that exactly one of them holds per row: an extrinsic-funded submission names the
+  finalized transfer that paid for it, and a credit-funded one names the ledger entry it was
+  debited from. `create_submission` below writes the first kind;
+  `conjectures_subnet.db.intents.confirm` writes the second. Neither admits an unfunded row.
   A refused request creates no submission and is recorded in `api_rejection_log` instead.
 * **The four statuses are independent axes, not one lifecycle.** A submission always has a
   verification status AND a review status AND a reward status. Each moves on its own, so
@@ -45,6 +49,7 @@ from conjectures_subnet.db.models import (
     ReviewDecision,
     ReviewerKind,
     ReviewOutcome,
+    RewardEvent,
     RewardState,
     Submission,
     VerificationRun,
@@ -165,7 +170,7 @@ async def get_for_miner(
     return await load_view(session, submission)
 
 
-async def _ensure_proof(session: AsyncSession, content: bytes, digest: str) -> None:
+async def ensure_proof(session: AsyncSession, content: bytes, digest: str) -> None:
     """Store the proof bytes, or do nothing if these exact bytes are already stored.
 
     `proofs` is content-addressed and the digest is verified by a CHECK constraint, so a
@@ -200,7 +205,7 @@ async def create_submission(
             submission=view.submission, verification=view.verification, replayed=True
         )
 
-    await _ensure_proof(session, request.proof_content, request.proof_sha256)
+    await ensure_proof(session, request.proof_content, request.proof_sha256)
 
     submission = Submission(
         hotkey=request.hotkey,
@@ -381,3 +386,74 @@ async def proof_bytes(
     """The stored proof for a digest, for the verification worker."""
     proof = await session.get(Proof, bytes(digest))
     return None if proof is None else bytes(proof.content)
+
+
+# --- The miner panel -----------------------------------------------------------------
+# Reads scoped to one account, behind /v1/me/submissions and /v1/me/rewards. Distinct
+# from `get_for_miner` above, which scopes to a hotkey signature and predates accounts:
+# a signed-in miner may have several linked hotkeys and should see all of their work.
+
+
+async def for_account(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    limit: int,
+    after: tuple[datetime, uuid.UUID] | None = None,
+) -> list[Submission]:
+    """One page of an account's own submissions, newest first.
+
+    Keyset-paginated on `(created_at, id)` over `submissions_account_idx`, the same
+    shape the public feeds use and for the same reason: an offset would both scan and
+    silently skip a row when a new submission lands mid-page.
+    """
+    from sqlalchemy import tuple_
+
+    statement = select(Submission).where(Submission.account_id == account_id)
+    if after is not None:
+        statement = statement.where(
+            tuple_(Submission.created_at, Submission.id) < tuple_(after[0], after[1])
+        )
+    statement = statement.order_by(
+        Submission.created_at.desc(), Submission.id.desc()
+    ).limit(limit)
+    return list((await session.execute(statement)).scalars())
+
+
+async def get_for_account(
+    session: AsyncSession, submission_id: uuid.UUID, account_id: uuid.UUID
+) -> SubmissionView:
+    """One of the account's own submissions, with its latest verification run.
+
+    Another account's submission is reported as absent rather than forbidden, so a
+    submission id cannot be probed for existence.
+    """
+    submission = await session.get(Submission, submission_id)
+    if submission is None or submission.account_id != account_id:
+        raise RecordNotFound("submission not found")
+    return await load_view(session, submission)
+
+
+async def rewards_for_account(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    limit: int,
+    after_id: int | None = None,
+) -> list[tuple[RewardEvent, str]]:
+    """An account's payouts, newest first, each with the task it was earned on.
+
+    Joined through `submissions` because `reward_events` has no account column: a
+    payout belongs to a submission, and the submission belongs to the account. Keyset
+    on the reward event's own identity column, which is monotonic and unique.
+    """
+    statement = (
+        select(RewardEvent, Submission.task_id)
+        .join(Submission, Submission.id == RewardEvent.submission_id)
+        .where(Submission.account_id == account_id)
+        .order_by(RewardEvent.id.desc())
+        .limit(limit)
+    )
+    if after_id is not None:
+        statement = statement.where(RewardEvent.id < after_id)
+    return [(row[0], row[1]) for row in (await session.execute(statement)).all()]

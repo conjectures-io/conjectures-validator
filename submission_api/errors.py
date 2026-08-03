@@ -137,6 +137,19 @@ class UnprocessableEntity(ApiError):
     title = "Submission rejected"
 
 
+class TooManyRequests(ApiError):
+    """A per-identity limit, distinct from the middleware's per-IP one.
+
+    Mailing a sign-in link or minting a signing nonce is an action taken against an address
+    someone else controls, so the thing to bound is requests per address. The rate-limit
+    middleware cannot see that — it only knows who is asking, not who is being asked about.
+    """
+
+    status_code = 429
+    title = "Too many requests"
+    reason_code = "TOO_MANY_REQUESTS"
+
+
 class ServiceUnavailable(ApiError):
     status_code = 503
     title = "Temporarily unavailable"

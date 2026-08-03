@@ -6,8 +6,16 @@ that schema, not its source of truth:
 
 * ``models`` — the tables, mirroring the migrations by hand;
 * ``engine`` — URL resolution, sync and async engines, sessions, unit-of-work scopes;
-* ``submissions`` — the submission seam: payment-gated intake, verdict recording,
-  reward eligibility, and the API rejection log;
+* ``submissions`` — the submission seam: funded intake, verdict recording, reward
+  eligibility, the API rejection log, and an account's own submissions;
+* ``accounts`` — accounts, sessions, login challenges, and linked keys. Every secret
+  is stored only as a digest and every challenge is claimed atomically;
+* ``credits`` — the append-only credit ledger, deposits, and the balance arithmetic.
+  Integer rao only, and holds are not ledger entries;
+* ``intents`` — hold a credit, attach a bundle, then spend and submit in one
+  transaction. Also the submission timeline;
+* ``public`` — the read-only queries behind the unauthenticated endpoints, whose
+  row types carry no miner-identifying column at all;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 
@@ -17,7 +25,17 @@ rather than assuming they still agree.
 
 from __future__ import annotations
 
-from conjectures_subnet.db import digests, engine, errors, models, submissions
+from conjectures_subnet.db import (
+    accounts,
+    credits,
+    digests,
+    engine,
+    errors,
+    intents,
+    models,
+    public,
+    submissions,
+)
 from conjectures_subnet.db.engine import (
     async_session_factory,
     async_session_scope,
@@ -45,15 +63,19 @@ __all__ = [
     "IdempotencyConflict",
     "RecordConflict",
     "RecordNotFound",
+    "accounts",
     "async_session_factory",
     "async_session_scope",
     "create_async_db_engine",
     "create_db_engine",
+    "credits",
     "database_url",
     "digests",
     "engine",
     "errors",
+    "intents",
     "models",
+    "public",
     "session_factory",
     "session_scope",
     "submissions",
