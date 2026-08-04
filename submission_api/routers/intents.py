@@ -37,6 +37,7 @@ from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import intents as intent_store
 from conjectures_subnet.db.errors import RecordConflict
+from conjectures_subnet.db.models import TaskMode
 from submission_api import schemas_account as schemas
 from submission_api.dependencies import (
     PrincipalDep,
@@ -421,12 +422,22 @@ async def confirm_intent(
         _signed_request(intent, signature)
     )
 
+    # Resolved before the debit, not after. The submission row cannot exist without the
+    # reward identity this entry carries, and a task that has left the allowlist between
+    # upload and confirm must fail before the credit moves rather than after.
+    entry = _resolve_task(
+        services, intent.task_id, digests.to_prefixed(intent.task_bundle_sha256)
+    )
+
     quote = await services.pricing.quote(session, task_id=intent.task_id)
     try:
         confirmed = await intent_store.confirm(
             session,
             identifier,
             principal.account.id,
+            problem_id=entry.problem_id,
+            reward_target_id=entry.reward_target_id,
+            task_mode=TaskMode(entry.mode),
             hotkey_signature=signature,
             manual_review_required=settings.manual_review_enabled,
             review_policy_version=settings.review_policy_version,
@@ -439,9 +450,6 @@ async def confirm_intent(
         await session.rollback()
         raise
 
-    entry = _resolve_task(
-        services, intent.task_id, digests.to_prefixed(confirmed.submission.task_bundle_sha256)
-    )
     await services.dispatcher.dispatch(session, confirmed.submission, entry.task_dir)
     await session.commit()
 

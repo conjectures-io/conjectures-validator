@@ -53,6 +53,7 @@ from conjectures_subnet.db.models import (
     Submission,
     SubmissionEvent,
     SubmissionIntent,
+    TaskMode,
 )
 
 PROOF_CONSTRAINT = "submissions_proof_digest_key"
@@ -199,6 +200,9 @@ async def confirm(
     intent_id: uuid.UUID,
     account_id: uuid.UUID,
     *,
+    problem_id: str,
+    reward_target_id: str,
+    task_mode: TaskMode,
     hotkey_signature: bytes,
     manual_review_required: bool,
     review_policy_version: str,
@@ -209,9 +213,15 @@ async def confirm(
 ) -> ConfirmedIntent:
     """Debit the credit and write the submission, atomically.
 
-    The caller supplies the quote and the review policy, and has already verified the
-    signature against ``intent.request_digest``. What this owns is that the credit and
-    the submission come into existence together: either both, or neither.
+    The caller supplies the quote, the review policy, and the reward identity, and has
+    already verified the signature against ``intent.request_digest``. What this owns is
+    that the credit and the submission come into existence together: either both, or
+    neither.
+
+    ``problem_id``, ``reward_target_id`` and ``task_mode`` come from the allowlist entry
+    for ``intent.task_id``, never from the request — the same rule the extrinsic path
+    follows in ``submissions.create_submission``. A submitter does not choose which
+    reward they compete for.
 
     Idempotent for an exact retry. A second confirm of a CONFIRMED intent raises
     INTENT_ALREADY_CONFIRMED carrying the original submission id, rather than charging
@@ -259,6 +269,10 @@ async def confirm(
         request_digest=bytes(intent.request_digest),
         task_id=intent.task_id,
         task_bundle_sha256=bytes(intent.task_bundle_sha256),
+        # From the allowlist, resolved by the caller against this intent's task id.
+        problem_id=problem_id,
+        reward_target_id=reward_target_id,
+        task_mode=task_mode,
         proof_digest=bytes(intent.proof_sha256),
         hotkey_signature=hotkey_signature,
         manual_review_required=manual_review_required,
