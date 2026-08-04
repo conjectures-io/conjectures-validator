@@ -168,7 +168,7 @@ canonical JSON (sorted keys, no spaces, one trailing newline) of exactly these s
 ```
 
 ```python
-from conjectures_subnet.db.submissions import canonical_request_digest
+from conjectures_subnet.signing import canonical_request_digest
 
 digest = canonical_request_digest(
     hotkey=keypair.ss58_address,
@@ -181,15 +181,19 @@ digest = canonical_request_digest(
 signature = keypair.sign(bytes.fromhex(digest.removeprefix("sha256:")))
 ```
 
-[`../scripts/submit_proof.py`](../scripts/submit_proof.py) does this end to end and
-reimplements the digest with the standard library only, so a miner can copy it.
+Both messages are built by [`conjectures_subnet/signing.py`](../conjectures_subnet/signing.py),
+which is the module this API imports to rebuild and verify them. It has no database or web
+dependencies precisely so a miner's client can import the same function: there is one
+definition of what gets signed, not a server copy and a client copy that must be kept in step.
+`conjectures` (the CLI) and [`../scripts/submit_proof.py`](../scripts/submit_proof.py) both use
+it.
 
 That signature is stored on the submission row (`hotkey_signature`, 64 bytes), so the record
 itself carries the proof that this miner authorised this exact request.
 
 Status and report reads sign a different message —
-`sha256("conjectures-read-v1:<hotkey>:<submission_id>")` — so a read signature can never be
-replayed as a submission.
+`sha256("conjectures-read-v1:<hotkey>:<submission_id>")`, built by `signing.read_digest` — so a
+read signature can never be replayed as a submission.
 
 Three properties worth calling out:
 

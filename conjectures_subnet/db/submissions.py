@@ -56,7 +56,12 @@ from conjectures_subnet.db.models import (
     VerificationRun,
     VerificationState,
 )
-from verifier.hashing import canonical_json_bytes, sha256_bytes
+# Re-exported rather than defined here. The digest lives in `conjectures_subnet.signing` so a
+# miner's client can build the message it signs without SQLAlchemy installed, while server-side
+# callers keep importing it from the store they were already using. One definition, two sides:
+# if they ever drifted, every honest submission would fail authentication.
+from conjectures_subnet.signing import canonical_request_digest as canonical_request_digest
+from verifier.hashing import sha256_bytes
 
 # Constraint names from deploy/migrate/sql/V001__initial_schema.sql. Matching on the name is
 # what lets one IntegrityError be reported as the specific conflict the miner caused.
@@ -108,35 +113,6 @@ class RecordedVerdict:
 
     run: VerificationRun
     applied: bool
-
-
-def canonical_request_digest(
-    *,
-    hotkey: str,
-    task_id: str,
-    task_bundle_sha256: str,
-    proof_sha256: str,
-    payment_reference: str,
-    idempotency_key: str,
-) -> str:
-    """The identity of a request, and the message the miner signs.
-
-    Reusing an idempotency key with any of these values changed is a conflict rather than a
-    replay, so every one of them is part of the digest. It binds the proof digest too, so a
-    signature cannot be reused for different proof bytes.
-    """
-    return sha256_bytes(
-        canonical_json_bytes(
-            {
-                "hotkey": hotkey,
-                "idempotency_key": idempotency_key,
-                "payment_reference": payment_reference,
-                "proof_sha256": proof_sha256,
-                "task_bundle_sha256": task_bundle_sha256,
-                "task_id": task_id,
-            }
-        )
-    )
 
 
 def _violates(exc: IntegrityError, constraint: str) -> bool:

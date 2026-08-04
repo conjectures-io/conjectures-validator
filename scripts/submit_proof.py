@@ -37,44 +37,15 @@ from bittensor.wallet import Wallet
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-READ_DOMAIN = "conjectures-read-v1"
+# The messages this script signs are built by the module the validator imports to rebuild and
+# verify them, rather than reimplemented here. A local copy that drifted by one byte would make
+# every submission this script sends fail authentication, and the transfer funding it would
+# already be on chain.
+from conjectures_subnet.signing import canonical_request_digest, read_digest  # noqa: E402
 
 
 def digest(data: bytes) -> str:
     return f"sha256:{hashlib.sha256(data).hexdigest()}"
-
-
-def canonical_request_digest(
-    *,
-    hotkey: str,
-    task_id: str,
-    task_bundle_sha256: str,
-    proof_sha256: str,
-    payment_reference: str,
-    idempotency_key: str,
-) -> str:
-    """The message the hotkey signs.
-
-    Kept byte-identical to `conjectures_subnet.db.submissions.canonical_request_digest`: sorted
-    keys, no spaces, one trailing newline.
-    """
-    payload = (
-        json.dumps(
-            {
-                "hotkey": hotkey,
-                "idempotency_key": idempotency_key,
-                "payment_reference": payment_reference,
-                "proof_sha256": proof_sha256,
-                "task_bundle_sha256": task_bundle_sha256,
-                "task_id": task_id,
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        + "\n"
-    ).encode("utf-8")
-    return digest(payload)
 
 
 def load_keypair(args):
@@ -114,9 +85,11 @@ def timestamp_ms() -> str:
 
 
 def read_headers(keypair, submission_id: str) -> dict[str, str]:
-    message = hashlib.sha256(
-        f"{READ_DOMAIN}:{keypair.ss58_address}:{submission_id}".encode()
-    ).digest()
+    message = bytes.fromhex(
+        read_digest(
+            hotkey=keypair.ss58_address, submission_id=submission_id
+        ).removeprefix("sha256:")
+    )
     return {
         "X-Conjectures-Hotkey": keypair.ss58_address,
         "X-Conjectures-Timestamp": timestamp_ms(),

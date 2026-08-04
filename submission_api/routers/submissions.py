@@ -33,6 +33,7 @@ from conjectures_subnet.db import digests
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.errors import DatabaseError
 from conjectures_subnet.db.models import Submission, VerificationRun
+from conjectures_subnet.signing import read_digest
 from submission_api import schemas
 from submission_api.auth import (
     SignedRequest,
@@ -55,7 +56,7 @@ from submission_api.errors import (
 )
 from verifier.bundle import BUNDLE_MEDIA_TYPE, ProofBundle, admit_proof_bundle
 from verifier.errors import VerifierError
-from verifier.hashing import is_sha256, sha256_bytes
+from verifier.hashing import is_sha256
 from verifier.task_registry import TaskNotAllowed
 
 router = APIRouter(prefix="/v1/submissions", tags=["submissions"])
@@ -465,11 +466,12 @@ def _read_authentication(
 
     The signed message is the digest of the submission id, so a read signature can never be
     replayed as a submission — the intake digest covers six fields and can never equal it.
+
+    Built by `conjectures_subnet.signing`, which is also what the miner's client signs, so the
+    two constructions cannot drift.
     """
     miner = assert_valid_hotkey(hotkey)
-    digest = sha256_bytes(
-        f"conjectures-read-v1:{miner}:{submission_id}".encode()
-    )
+    digest = read_digest(hotkey=miner, submission_id=submission_id)
     assert_fresh_nonce(
         _require_nonce(timestamp), services.settings.nonce_window_seconds
     )
