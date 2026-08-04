@@ -28,6 +28,7 @@ from conftest_api import (
     TASK_DIGEST,
     TASK_ID,
     VALID_PROOF,
+    distinct_bundle,
     harness,
     manifest_json,
     new_key,
@@ -119,34 +120,84 @@ def test_a_paid_submission_is_recorded_and_queued():
     run(scenario())
 
 
-def test_the_bounty_is_quoted_at_intake_and_then_frozen():
+def test_the_bounty_is_estimated_at_intake_but_not_locked():
     async def scenario():
         kit = await harness(
-            BOUNTY_AMOUNT_RAO="4200000000", BOUNTY_POLICY_VERSION="flat-v1"
+            BOUNTY_POOL_BALANCE_RAO="16800000000",
+            BOUNTY_POLICY_VERSION="dynamic-age-v1",
         ).setup()
         try:
             bundle = valid_bundle()
             key = new_key()
             first = await _post(kit, bundle, idempotency_key=key)
             assert first.status_code == 201, first.text
-            # The miner learns what the proof is worth together with the submission id.
+            # The miner sees a live estimate together with the submission id, explicitly not a
+            # reservation of either the target or this amount.
             assert first.json()["bounty"] == {
                 "amount_rao": 4_200_000_000,
-                "policy_version": "flat-v1",
+                "policy_version": "dynamic-age-v1",
+                "available": True,
+                "reason": "OPEN",
+                "as_of": first.json()["bounty"]["as_of"],
+                "locked": False,
             }
 
-            # Frozen on the row, so nothing downstream has to re-derive the amount, and a
-            # replay quotes the original rather than pricing the request again.
+            # The row retains the estimate only as an audit snapshot. A replay is repriced and
+            # advertises that it remains unlocked.
             async with kit.session() as session:
                 submission = await session.get(
                     Submission, uuid.UUID(first.json()["submission_id"])
                 )
                 assert submission is not None
                 assert submission.bounty_amount_rao == 4_200_000_000
-                assert submission.bounty_policy_version == "flat-v1"
+                assert submission.bounty_policy_version == "dynamic-age-v1"
             replay = await _post(kit, bundle, idempotency_key=key)
             assert replay.status_code == 200
-            assert replay.json()["bounty"] == first.json()["bounty"]
+            assert replay.json()["bounty"]["amount_rao"] == 4_200_000_000
+            assert replay.json()["bounty"]["locked"] is False
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_successful_earlier_claim_closes_the_bounty_without_invalidating_its_proof():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            first = await _post(kit, valid_bundle())
+            assert first.status_code == 201, first.text
+            first_id = uuid.UUID(first.json()["submission_id"])
+
+            # Stand in for the first proof completing verification/review. The existing unique
+            # reward-target constraint decides the winner; pricing reads that same predicate.
+            async with kit.session() as session:
+                winner = await session.get(Submission, first_id)
+                assert winner is not None
+                winner.reward_status = RewardState.ELIGIBLE
+                await session.commit()
+
+            second_bundle, second_digest = distinct_bundle("after-solved")
+            second = await _post(
+                kit,
+                second_bundle,
+                payment_reference="0xpayment-after-solved",
+                proof_digest=second_digest,
+            )
+            assert second.status_code == 409
+            assert second.json()["reason_code"] == "BOUNTY_CLOSED"
+            assert await _count(kit, Submission) == 1
+
+            # The winning miner still sees a live claim estimate. New task discovery omits the
+            # solved target so miners do not mistake it for available work.
+            async with await _client(kit) as client:
+                status = await client.get(
+                    f"/v1/submissions/{first_id}", headers=read_headers()
+                )
+                tasks = await client.get("/v1/tasks")
+            assert status.json()["bounty"]["reason"] == "CLAIM_HELD"
+            assert status.json()["bounty"]["locked"] is False
+            assert tasks.json()["tasks"] == []
         finally:
             await kit.teardown()
 

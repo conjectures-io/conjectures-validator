@@ -456,29 +456,26 @@ duplication, eligibility, or abuse — it may **not** rewrite the Lean verdict.
 **OPEN:** what criteria may reject a Lean-valid proof, whether there is an appeal, and whether
 review is configured globally, per task, or per submission.
 
-## 13. Reward event — **SPEC**, then **OPEN**
+## 13. Reward event — **IMPLEMENTED SCHEMA**, payout execution **OPEN**
 
-`reward_events` needs: submission and miner identity, eligibility reason, scoring-policy version,
-deterministic score inputs, and a deduplication key.
+`reward_events` records the submission, eligibility reason, actual integer payout amount,
+dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
+evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
+targets without a successful reward claim. The intake estimate is retained separately and is not
+the amount-of-record.
 
-**This is where the traceable data flow ends.** Every input above is produced by something that
-exists or is specified. The next step is not.
-
-### What the weight mechanism needs that nothing produces
+### What the remaining weight/funding mechanism needs
 
 | Required input | Status |
 | --- | --- |
 | Deterministic rule converting an eligible proof into Subnet 66 weights | **OPEN** — `SUBNET.md:305` |
 | Scoring of duplicate valid proofs, repeat attempts, multiple solvers | **OPEN** — `SUBNET.md:304` |
-| Per-task difficulty or value signal | **Not produced anywhere.** The catalog has no difficulty field; `feasibility_signals` in the audit is a screening aid, not a score, and covers only the 100 audited candidates |
+| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` produces the versioned age weight; no subjective difficulty score is used |
 | Proof-of-inclusion returned to the miner | **OPEN** — `SUBNET.md:306` |
 | `set_weights` submission and chain reconciliation | **Not implemented.** `chain.py` is read-only |
 
-The scoring gap is the substantive one. All 74 targets are currently indistinguishable to a scorer:
-same mode, same classification, same axiom set, same timeout, one target each. A reward rule that
-needs to pay more for a harder problem has no field to read. Whatever rule gets chosen, its inputs
-must be **deterministic and persisted** — `reward_events` records "score inputs" precisely so a
-reward can be recomputed and defended later.
+The payout rule is deterministic and its inputs are persisted. Converting validator funding into
+Subnet 66 weights and returning proof-of-inclusion to the miner remain separate open components.
 
 ---
 
@@ -525,8 +522,8 @@ re-hashing on read is a free integrity check.
 
 Ordered by how much they matter, not by where they appear above.
 
-1. **The reward rule has no input data.** All 74 targets look identical to a scorer. Decide the rule
-   and the fields it reads before building the reward processor, or the schema will be wrong.
+1. **Payout execution is not automated.** Dynamic pricing and its amount-of-record schema exist,
+   but a production signer/reconciler still has to create and finalize the transfer safely.
 2. **No task publication path.** Miners cannot discover `task_id` + digest, so no submission can be
    well-formed. This blocks the whole right-hand side.
 3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets

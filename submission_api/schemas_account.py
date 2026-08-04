@@ -316,7 +316,14 @@ class SubmissionSummary(Model):
     manual_review_status: str
     reward_status: str
     failure_reason: str | None = None
-    bounty_amount_rao: int
+    bounty_amount_rao: int = Field(
+        description="The estimate captured at intake; not a reserved payout amount."
+    )
+    bounty_policy_version: str
+    bounty_locked: bool = Field(
+        default=False,
+        description="Always false for the intake estimate; `reward` carries any fixed payout.",
+    )
     created_at: dt.datetime
     updated_at: dt.datetime
 
@@ -360,8 +367,14 @@ class SubmissionDetail(Model):
     failure_reason: str | None = None
     manual_review_required: bool
     review_policy_version: str
-    bounty_amount_rao: int
+    bounty_amount_rao: int = Field(
+        description="The estimate captured at intake; not a reserved payout amount."
+    )
     bounty_policy_version: str
+    bounty_locked: bool = Field(
+        default=False,
+        description="Always false for the intake estimate; `reward` carries any fixed payout.",
+    )
     funding: FundingSummary
     verification: VerificationSummary | None = None
     review: ReviewDecisionView | None = None

@@ -171,6 +171,29 @@ class Proof(Base):
     )
 
 
+class BountyTask(Base):
+    """The durable age origin for one stable reward target.
+
+    Catalog pins may change task ids and bundle digests, but a stable reward target keeps the
+    same age.  Rows are therefore inserted once and never reset by a restart or repin.
+    """
+
+    __tablename__ = "bounty_tasks"
+
+    reward_target_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    opened_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(reward_target_id) BETWEEN 1 AND 255",
+            name="bounty_tasks_reward_target_id_nonempty",
+        ),
+        Index("bounty_tasks_opened_idx", "opened_at", "reward_target_id"),
+    )
+
+
 class Submission(Base):
     """One paid submission. Holds current state; history lives in the event tables."""
 
@@ -253,6 +276,8 @@ class Submission(Base):
     )
     review_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # An audit snapshot of what the API displayed at intake. The payout event is the
+    # amount-of-record and may use a later live quote; this column never reserves funds.
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
@@ -497,11 +522,10 @@ class VerificationRun(Base):
 
 
 class RewardEvent(Base):
-    """One payout attempt, paid as a direct alpha transfer.
+    """One payout attempt, paid as a direct transfer.
 
-    Weights go to a fixed treasury uid that funds these, so no per-submission
-    weight exists and nothing here is scored. The amount is not decided here: it was
-    quoted and frozen on the submission at intake.
+    The amount and pricing inputs on this event are the payout facts. The submission's bounty
+    fields are only the estimate displayed at intake and are never copied implicitly here.
 
     The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
     then its chain fields fill in as it progresses. Inserting after the transfer
@@ -525,6 +549,8 @@ class RewardEvent(Base):
     eligibility_reason: Mapped[str] = mapped_column(Text, nullable=False)
 
     amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    pricing_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
+    pricing_inputs: Mapped[dict | None] = mapped_column(JSONB)
 
     # Captured, not derived from submissions: this is where the money actually
     # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
@@ -549,6 +575,10 @@ class RewardEvent(Base):
 
     __table_args__ = (
         CheckConstraint("amount_rao > 0", name="reward_amount_positive"),
+        CheckConstraint(
+            "length(pricing_policy_version) BETWEEN 1 AND 64",
+            name="reward_pricing_policy_version_nonempty",
+        ),
         # PENDING means exactly "no extrinsic exists yet", so status and reference
         # must not drift apart. FAILED is exempt: an attempt can die before broadcast.
         CheckConstraint(
@@ -1651,6 +1681,7 @@ __all__ = [
     "AccountWallet",
     "ApiRejectionLog",
     "Base",
+    "BountyTask",
     "ChainTransfer",
     "ChainTransferState",
     "ChainWatchCursor",

@@ -105,6 +105,13 @@ class _RunFacts:
 
 
 @dataclass(frozen=True)
+class _PayoutFacts:
+    amount_rao: int
+    policy_version: str
+    confirmed_at: datetime
+
+
+@dataclass(frozen=True)
 class ActivityRow:
     """One anonymised event on a conjecture. `solver` is already a pseudonym."""
 
@@ -221,6 +228,7 @@ async def _decorate(
     rows = []
     for submission in submissions:
         run = runs.get(submission.id)
+        payout = confirmed.get(submission.id)
         rows.append(
             ResultRow(
                 id=submission.id,
@@ -228,11 +236,19 @@ async def _decorate(
                 reward_target_id=submission.reward_target_id,
                 task_bundle_sha256=bytes(submission.task_bundle_sha256),
                 created_at=submission.created_at,
-                bounty_amount_rao=submission.bounty_amount_rao,
-                bounty_policy_version=submission.bounty_policy_version,
+                bounty_amount_rao=(
+                    submission.bounty_amount_rao
+                    if payout is None
+                    else payout.amount_rao
+                ),
+                bounty_policy_version=(
+                    submission.bounty_policy_version
+                    if payout is None
+                    else payout.policy_version
+                ),
                 review_policy_version=submission.review_policy_version,
                 verified_at=None if run is None else run.finished_at,
-                certified_at=confirmed.get(submission.id),
+                certified_at=None if payout is None else payout.confirmed_at,
                 verifier_version=None if run is None else run.verifier_version,
                 sandbox_mode=None if run is None else run.sandbox_mode,
                 report_available=run is not None and run.has_report,
@@ -276,25 +292,39 @@ async def _latest_runs(
 
 async def _confirmed_payouts(
     session: AsyncSession, submission_ids: Sequence[uuid.UUID]
-) -> Mapping[uuid.UUID, datetime]:
+) -> Mapping[uuid.UUID, _PayoutFacts]:
     """When each submission's payout was confirmed on chain.
 
-    ``max`` over confirmed attempts: a submission normally has one payout, but the schema
-    permits several on purpose — a second real transfer must be recordable — and the latest
-    confirmation is the honest answer for "when was this certified".
+    A submission normally has one payout, but the schema permits several on purpose — a second
+    real transfer must be recordable. PostgreSQL ``DISTINCT ON`` selects the latest confirmed
+    attempt and keeps its timestamp, actual amount, and pricing policy together as one fact.
     """
     statement = (
-        select(RewardEvent.submission_id, func.max(RewardEvent.confirmed_at))
+        select(
+            RewardEvent.submission_id,
+            RewardEvent.amount_rao,
+            RewardEvent.pricing_policy_version,
+            RewardEvent.confirmed_at,
+        )
         .where(
             RewardEvent.submission_id.in_(submission_ids),
             RewardEvent.status == PayoutState.CONFIRMED,
         )
-        .group_by(RewardEvent.submission_id)
+        .distinct(RewardEvent.submission_id)
+        .order_by(
+            RewardEvent.submission_id,
+            RewardEvent.confirmed_at.desc(),
+            RewardEvent.id.desc(),
+        )
     )
     return {
-        submission_id: confirmed
-        for submission_id, confirmed in (await session.execute(statement)).all()
-        if confirmed is not None
+        row.submission_id: _PayoutFacts(
+            amount_rao=row.amount_rao,
+            policy_version=row.pricing_policy_version,
+            confirmed_at=row.confirmed_at,
+        )
+        for row in (await session.execute(statement)).all()
+        if row.confirmed_at is not None
     }
 
 

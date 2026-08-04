@@ -99,17 +99,36 @@ class MachineContract(Model):
 
 
 class BountyInfo(Model):
-    """What a verified proof of this conjecture is currently quoted at.
+    """The live estimate for this reward target, or why it is no longer available."""
 
-    Indicative, not a promise: the amount is frozen onto a submission when it is accepted, and
-    this is the rule's answer as of now. `policy_version` names the rule so a reader can tell a
-    reprice from a rule change.
-    """
-
-    amount_rao: int = Field(
-        description="Alpha base units. Not the TAO rao of `submission_price_rao`."
+    amount_rao: int | None = Field(
+        description="Live Subnet Alpha estimate in base units; null when unavailable."
     )
     policy_version: str
+    available: bool
+    reason: str = Field(description="OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL")
+    as_of: datetime
+    locked: bool = Field(
+        default=False,
+        description="Always false: submission acceptance does not reserve this amount.",
+    )
+
+
+class BountyPoolInfo(Model):
+    """The common inputs behind every live task estimate."""
+
+    policy_version: str
+    balance_rao: int
+    wallet_coldkey: str
+    wallet_hotkey: str
+    netuid: int
+    asset: str = Field(description="alpha")
+    open_targets: int
+    total_age_weight: int
+    constant_numerator: int
+    constant_denominator: int
+    as_of: datetime
+    locked_at_submission: bool = False
 
 
 SLUG_DESCRIPTION = (
@@ -279,7 +298,7 @@ class PoolMeta(Model):
         description="The payment recipient an attempt is paid to, on finalized chain state"
     )
     max_bundle_bytes: int
-    bounty: BountyInfo
+    bounty: BountyPoolInfo
     pins: tuple[PinInfo, ...]
     pins_sha256: str
 
@@ -423,6 +442,7 @@ class SystemStatus(Model):
 __all__ = [
     "ATTRIBUTION",
     "BountyInfo",
+    "BountyPoolInfo",
     "ConjectureActivity",
     "ConjectureDetail",
     "ConjectureListResponse",

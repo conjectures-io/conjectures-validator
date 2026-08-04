@@ -107,7 +107,8 @@ from step 1. Wait for the block to finalize, then keep the **extrinsic reference
 submit without it, and it can fund only one submission ever.
 
 Payment buys one verification attempt. It does not change Lean's verdict and does not guarantee
-a reward.
+a reward. The bounty shown before or after submission is a live estimate (`locked: false`); if an
+earlier proof establishes the same reward target while yours is queued, that bounty is solved.
 
 ## 5. Submit
 

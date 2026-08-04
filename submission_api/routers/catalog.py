@@ -36,6 +36,7 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Query, Request, Response
 from fastapi.responses import RedirectResponse
 
+from conjectures_subnet.bounty import BountyPoolSnapshot, LiveBounty
 from conjectures_subnet.db import public as public_store
 from submission_api import conjectures, credits as credit_config
 from submission_api import schemas_account as account_schemas, schemas_public as public
@@ -101,10 +102,31 @@ def _reference(raw: str) -> public.Reference:
     return public.Reference(label=raw)
 
 
-def _bounty(settings: Settings) -> public.BountyInfo:
+def _bounty(quote: LiveBounty) -> public.BountyInfo:
     return public.BountyInfo(
-        amount_rao=settings.bounty_amount_rao,
-        policy_version=settings.bounty_policy_version,
+        amount_rao=quote.amount_rao,
+        policy_version=quote.policy_version,
+        available=quote.available,
+        reason=quote.reason,
+        as_of=quote.as_of,
+        locked=False,
+    )
+
+
+def _bounty_pool(snapshot: BountyPoolSnapshot) -> public.BountyPoolInfo:
+    return public.BountyPoolInfo(
+        policy_version=snapshot.policy_version,
+        balance_rao=snapshot.balance_rao,
+        wallet_coldkey=snapshot.wallet_coldkey,
+        wallet_hotkey=snapshot.wallet_hotkey,
+        netuid=snapshot.netuid,
+        asset=snapshot.asset,
+        open_targets=snapshot.open_targets,
+        total_age_weight=snapshot.total_age_weight,
+        constant_numerator=snapshot.constant_numerator,
+        constant_denominator=snapshot.constant_denominator,
+        as_of=snapshot.as_of,
+        locked_at_submission=False,
     )
 
 
@@ -147,7 +169,7 @@ def _task_detail(
 def _summary(
     item: Conjecture,
     *,
-    settings: Settings,
+    quote: LiveBounty,
     attempts: int,
     by_task: Mapping[str, int],
 ) -> public.ConjectureSummary:
@@ -167,7 +189,7 @@ def _summary(
         tasks=tuple(
             _task(entry, attempts=by_task.get(entry.task_id, 0)) for entry in item.tasks
         ),
-        bounty=_bounty(settings),
+        bounty=_bounty(quote),
         attempts=attempts,
     )
 
@@ -262,6 +284,13 @@ async def list_conjectures(
     # attempted. Cheaper than a per-row count and it keeps the two numbers consistent.
     attempts = await public_store.attempts_by_conjecture(session)
     by_task = await public_store.attempts_by_task(session)
+    snapshot = await services.pricing.quote_many(
+        session,
+        reward_target_ids=tuple(item.reward_target_id for item in page.items),
+    )
+    # The first pricing read registers any newly pinned stable targets. Subsequent reads are
+    # no-ops, but this commit is what makes their original age survive a restart.
+    await session.commit()
 
     _cache(response, settings)
     return public.ConjectureListResponse(
@@ -269,7 +298,7 @@ async def list_conjectures(
         items=tuple(
             _summary(
                 item,
-                settings=settings,
+                quote=snapshot.quotes[item.reward_target_id],
                 attempts=attempts.get(item.reward_target_id, 0),
                 by_task=by_task,
             )
@@ -309,6 +338,10 @@ async def read_conjecture(
 
     attempts = await public_store.attempts_for_conjecture(session, item.reward_target_id)
     by_task = await public_store.attempts_by_task(session)
+    quote = await services.pricing.quote(
+        session, reward_target_id=item.reward_target_id
+    )
+    await session.commit()
     _cache(response, settings)
     return public.ConjectureDetail(
         slug=item.slug,
@@ -334,7 +367,7 @@ async def read_conjecture(
             )
             for entry in item.tasks
         ),
-        bounty=_bounty(settings),
+        bounty=_bounty(quote),
         submission_price_rao=settings.payment_amount_rao,
         attempts=attempts,
         repository_commit=services.index.repository_commit,
@@ -351,21 +384,17 @@ async def read_meta(
     request: Request,
     response: Response,
     services: ServicesDep,
+    session: SessionDep,
 ) -> public.PoolMeta | Response:
-    """Pool metadata, with a strong `ETag`.
-
-    This is the one public endpoint whose payload is derived entirely from startup state — the
-    catalog, the pin set and the settings, none of which move while the process runs — so it can
-    carry a real validator and answer `304` to a repeat read. The website hits it on every page
-    load, and a conditional request there costs a hash rather than a response body.
-
-    The list and detail endpoints deliberately carry no `ETag`: their payloads include live
-    attempt counters, so any honest validator would have to be recomputed from the database on
-    every request and would change constantly.
-    """
+    """Pool metadata and its current dynamic-pricing snapshot, with a strong `ETag`."""
     settings = services.settings
     items = services.index.all()
-    meta = _meta(services, settings, items)
+    snapshot = await services.pricing.quote_many(
+        session,
+        reward_target_ids=tuple(item.reward_target_id for item in items),
+    )
+    await session.commit()
+    meta = _meta(services, settings, items, snapshot)
 
     # Hashed from the serialised payload rather than assembled from the inputs, so the validator
     # cannot drift from the body: any change to what is published changes the tag.
@@ -398,7 +427,9 @@ def _matches(header: str | None, etag: str) -> bool:
     )
 
 
-def _meta(services, settings: Settings, items) -> public.PoolMeta:
+def _meta(
+    services, settings: Settings, items, snapshot: BountyPoolSnapshot
+) -> public.PoolMeta:
     return public.PoolMeta(
         repository_commit=services.index.repository_commit,
         bundle_format=BUNDLE_FORMAT,
@@ -413,7 +444,7 @@ def _meta(services, settings: Settings, items) -> public.PoolMeta:
         credits_per_attempt=CREDITS_PER_ATTEMPT,
         treasury_address=settings.payment_recipient,
         max_bundle_bytes=settings.max_bundle_bytes,
-        bounty=_bounty(settings),
+        bounty=_bounty_pool(snapshot),
         pins=_pins(services.pins),
         pins_sha256=services.pins.lock_sha256,
     )
