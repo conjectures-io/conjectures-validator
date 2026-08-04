@@ -18,18 +18,15 @@ of truth; `scripts/check_schema_drift.py` is what proves the mirror still matche
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
-from datetime import date
 from dataclasses import dataclass, replace
+from datetime import date
 from functools import cache
 from pathlib import Path
 
-from conftest import declaration
-from dataclasses import dataclass
-from pathlib import Path
-
-from conftest import PYTEST_DSN, postgres_dsn
+from conftest import PYTEST_DSN, declaration, postgres_dsn
 from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
