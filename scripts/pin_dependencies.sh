@@ -78,7 +78,7 @@ pin_patched_repo \
   "$(pin_field formal_conjectures base_commit)" \
   "$(pin_field formal_conjectures commit)" \
   vendor/formal-conjectures \
-  "$TASKS_ROOT/candidates/formal-conjectures-erdos-audit-fixes.patch" \
+  "$TASKS_ROOT/source-patches/formal-conjectures-audit-fixes.patch" \
   "$(pin_field formal_conjectures patch_sha256)"
 
 for dependency in comparator lean4export landrun nanoda; do
