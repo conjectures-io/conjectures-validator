@@ -61,7 +61,17 @@ def declaration(
     classification: Classification = Classification.DIRECT_PROP,
     category: str = "research open",
 ) -> CatalogDeclaration:
-    modes = ("positive", "negative") if classification == Classification.DIRECT_PROP else ("answer",)
+    if classification == Classification.DIRECT_PROP:
+        modes = ("formalized", "counterexample")
+    elif classification in {
+        Classification.BOOL_ANSWER,
+        Classification.NAT_ANSWER,
+        Classification.INT_ANSWER,
+        Classification.FINITE_ANSWER,
+    }:
+        modes = ("answer",)
+    else:
+        modes = ()
     return CatalogDeclaration(
         theorem=theorem,
         module="TestFixtures",
@@ -110,7 +120,7 @@ def manifest(*, answer_policy=None, forbidden=()) -> TaskManifest:
         source_type_hash="sha256:" + "1" * 64,
         generated_target_type_hash="sha256:" + "2" * 64,
         classification=Classification.DIRECT_PROP,
-        task_mode="positive",
+        task_mode="formalized",
         challenge_module="Challenge",
         solution_module="Solution",
         target_theorem="Bounty.target",

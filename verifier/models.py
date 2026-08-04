@@ -26,7 +26,6 @@ CATEGORY_ORDER = ("research open", "research solved", "textbook", "test", "API")
 AUTOMATIC_CLASSIFICATIONS = frozenset(
     {
         Classification.DIRECT_PROP,
-        Classification.PROP_ANSWER_WRAPPER,
         Classification.BOOL_ANSWER,
         Classification.NAT_ANSWER,
         Classification.INT_ANSWER,
@@ -35,6 +34,7 @@ AUTOMATIC_CLASSIFICATIONS = frozenset(
 )
 ADAPTER_REQUIRED_CLASSIFICATIONS = frozenset(
     {
+        Classification.PROP_ANSWER_WRAPPER,
         Classification.GENERAL_VALUE_ANSWER,
         Classification.MULTIPLE_ANSWER_HOLES,
         Classification.DEFINITION_HOLE,

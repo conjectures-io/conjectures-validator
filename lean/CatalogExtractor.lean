@@ -132,8 +132,8 @@ def pointerTarget? (environment : Environment) (self : Name) (value? : Option Ex
   | _ => none
 
 def supportedModes (classification : String) : List String :=
-  if classification == "DIRECT_PROP" || classification == "PROP_ANSWER_WRAPPER" then
-    ["positive", "negative"]
+  if classification == "DIRECT_PROP" then
+    ["formalized", "counterexample"]
   else if classification == "BOOL_ANSWER" || classification == "NAT_ANSWER" ||
       classification == "INT_ANSWER" || classification == "FINITE_ANSWER" then
     ["answer"]

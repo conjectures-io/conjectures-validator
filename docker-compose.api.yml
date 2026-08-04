@@ -44,7 +44,7 @@ services:
       # --- Paths inside the container ---------------------------------------
       # Both are read-only mounts below, so a pin rotation is a restart against
       # new bytes rather than an image rebuild.
-      TASK_ALLOWLIST_PATH: /opt/conjectures/task_pool/allowlist.json
+      TASK_ALLOWLIST_PATH: /opt/conjectures/tasks/allowlist.json
       TASK_POOL_ROOT: /opt/conjectures/tasks/pool
       PINS_LOCK_PATH: /opt/conjectures/pins.lock.json
       SUBMISSION_TERMS_PATH: /opt/conjectures/docs/SUBMISSION_TERMS.md
@@ -97,8 +97,7 @@ services:
       # Read-only, all of it. The API needs to read the audited pool and the pin
       # lock; it has no reason to write either, and a writable mount here would
       # be a path from a network-facing process to the bytes the verifier trusts.
-      - ./tasks:/opt/conjectures/tasks:ro
-      - ./task_pool:/opt/conjectures/task_pool:ro
+      - ../conjectures-tasks:/opt/conjectures/tasks:ro
       - ./pins.lock.json:/opt/conjectures/pins.lock.json:ro
       - ./docs/SUBMISSION_TERMS.md:/opt/conjectures/docs/SUBMISSION_TERMS.md:ro
 

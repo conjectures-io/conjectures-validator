@@ -7,15 +7,18 @@ import pytest
 
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import sha256_file
+from verifier.repository import tasks_repository_root
+from verifier.task_generator import task_id
 from verifier.task_loader import load_task, load_task_bundle, verify_trusted_hashes
 
 
 ROOT = Path(__file__).resolve().parent.parent
+TASKS_ROOT = tasks_repository_root(ROOT)
 
 
 def copied_task(tmp_path: Path) -> Path:
     destination = tmp_path / "task"
-    shutil.copytree(ROOT / "examples/simple-direct/task-positive", destination)
+    shutil.copytree(TASKS_ROOT / "fixtures/formalized/task-formalized", destination)
     return destination
 
 
@@ -24,6 +27,23 @@ def test_load_task_rejects_non_deterministic_id(tmp_path):
     path = task / "manifest.json"
     value = json.loads(path.read_text(encoding="utf-8"))
     path.write_text(json.dumps({**value, "task_id": "tampered"}), encoding="utf-8")
+    with pytest.raises(VerifierError) as error:
+        load_task(task)
+    assert error.value.reason == ReasonCode.INVALID_MANIFEST
+
+
+def test_load_task_rejects_legacy_polarity_mode(tmp_path):
+    task = copied_task(tmp_path)
+    path = task / "manifest.json"
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["task_mode"] = "positive"
+    value["task_id"] = task_id(
+        value["repository_commit"],
+        value["source_theorem"],
+        value["task_mode"],
+        value["adapter_version"],
+    )
+    path.write_text(json.dumps(value), encoding="utf-8")
     with pytest.raises(VerifierError) as error:
         load_task(task)
     assert error.value.reason == ReasonCode.INVALID_MANIFEST
@@ -102,7 +122,7 @@ def test_task_bundle_has_external_commitment_digest(tmp_path):
 
 def test_answer_policy_cannot_be_removed_from_numeric_task(tmp_path):
     task = tmp_path / "task"
-    shutil.copytree(ROOT / "examples/numeric-answer/task-answer", task)
+    shutil.copytree(TASKS_ROOT / "fixtures/numeric-answer/task-answer", task)
     path = task / "manifest.json"
     value = json.loads(path.read_text(encoding="utf-8"))
     value["answer_policy"] = {}

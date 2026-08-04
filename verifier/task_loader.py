@@ -288,11 +288,7 @@ def _validate_manifest(manifest: TaskManifest) -> None:
             "all-of forbidden proof dependencies are inconsistent",
         )
     modes = supported_modes(manifest.classification)
-    direct_production_mode = (
-        manifest.classification == Classification.DIRECT_PROP
-        and is_production_task_mode(manifest.task_mode)
-    )
-    if modes and manifest.task_mode not in modes and not direct_production_mode:
+    if modes and manifest.task_mode not in modes:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "task mode is inconsistent with its classification")
     for label, digest in (
         ("source type", manifest.source_type_hash),

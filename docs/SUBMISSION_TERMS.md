@@ -45,8 +45,9 @@ miner-visible notes.
 Verification, review, and reward are three independent states. A proof can be verified and
 not approved; approved and not yet paid. Reading one says nothing about the others.
 
-One reward is paid per problem. If an earlier submission already established a result,
-a later proof of the same result is valid Lean and still earns nothing.
+One reward is paid per exact theorem target. Its proof and refutation tasks compete for that one
+reward, including across source repins. Independently formalized parents, parts, and variants are
+separate targets and can each earn a reward.
 
 ## Attribution
 

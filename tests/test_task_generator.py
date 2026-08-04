@@ -22,14 +22,13 @@ def test_generates_immutable_task_files(tmp_path):
         declaration(),
         references=("[Source](https://example.com/source)",),
     )
-    destination = tmp_path / "task-positive"
+    destination = tmp_path / "task-formalized"
     result = generate_task(
         catalog=catalog(item),
         declaration=item,
-        mode="positive",
+        mode="formalized",
         output=destination,
-        allow_non_open=True,
-        validate_target=lambda *_: "sha256:" + "2" * 64,
+        validate_target=lambda *_: item.type_hash,
     )
     assert result.task_id.startswith("fc-e923379e-")
     assert (destination / "Challenge.lean").is_file()
@@ -91,6 +90,19 @@ def test_counterexample_generation_rejects_source_hash_as_target(tmp_path):
     assert error.value.reason == ReasonCode.STATEMENT_MISMATCH
 
 
+def test_legacy_polarity_mode_is_rejected(tmp_path):
+    item = declaration()
+    with pytest.raises(VerifierError) as error:
+        generate_task(
+            catalog=catalog(item),
+            declaration=item,
+            mode="positive",
+            output=tmp_path / "task",
+            validate_target=lambda *_: item.type_hash,
+        )
+    assert error.value.reason == ReasonCode.INVALID_TASK_MODE
+
+
 def test_adapter_required_is_stable_reason(tmp_path):
     item = declaration(classification=Classification.GENERAL_VALUE_ANSWER)
     with pytest.raises(VerifierError) as error:
@@ -104,16 +116,29 @@ def test_adapter_required_is_stable_reason(tmp_path):
     assert error.value.reason == ReasonCode.ADAPTER_REQUIRED
 
 
+def test_prop_answer_wrapper_requires_an_explicit_adapter(tmp_path):
+    item = declaration(classification=Classification.PROP_ANSWER_WRAPPER)
+    with pytest.raises(VerifierError) as error:
+        generate_task(
+            catalog=catalog(item),
+            declaration=item,
+            mode="formalized",
+            output=tmp_path / "task",
+            validate_target=lambda *_: "sha256:" + "2" * 64,
+        )
+    assert error.value.reason == ReasonCode.ADAPTER_REQUIRED
+
+
 def test_generate_all_records_every_skip(tmp_path):
     direct = declaration()
     general = declaration(theorem="Fixture.general", classification=Classification.GENERAL_VALUE_ANSWER)
     result = generate_all(
         catalog=catalog(direct, general),
         declarations=(direct, general),
-        modes=("positive",),
+        modes=("formalized",),
         output=tmp_path / "tasks",
         allow_non_open=True,
-        validate_target=lambda *_: "sha256:" + "2" * 64,
+        validate_target=lambda _task, declaration, *_: declaration.type_hash,
     )
     assert result["generated"] == 1
     assert result["skipped_adapter_required"] == 1
@@ -127,16 +152,16 @@ def test_explicit_pointer_resolves_to_original(tmp_path):
     result = generate_task(
         catalog=catalog(original, pointer),
         declaration=pointer,
-        mode="positive",
+        mode="formalized",
         output=tmp_path / "pointer-task",
         allow_non_open=True,
-        validate_target=lambda *_: "sha256:" + "2" * 64,
+        validate_target=lambda *_: original.type_hash,
     )
     assert result.source_theorem == original.theorem
 
 
 def test_long_theorem_name_produces_portable_task_id():
-    identifier = task_id("a" * 40, f"Namespace.{'veryLong' * 100}", "positive", 1)
+    identifier = task_id("a" * 40, f"Namespace.{'veryLong' * 100}", "formalized", 1)
     assert len(identifier.encode("utf-8")) < 255
 
 
@@ -245,10 +270,10 @@ def test_non_open_override_marks_task_as_testing_only(tmp_path):
     result = generate_task(
         catalog=catalog(item),
         declaration=item,
-        mode="positive",
+        mode="formalized",
         output=tmp_path / "task",
         allow_non_open=True,
-        validate_target=lambda *_: "sha256:" + "2" * 64,
+        validate_target=lambda *_: item.type_hash,
     )
     assert not result.production_eligible
 
@@ -280,7 +305,7 @@ def test_unsafe_module_name_is_rejected_before_writing_task(tmp_path):
         generate_task(
             catalog=catalog(item),
             declaration=item,
-            mode="positive",
+            mode="formalized",
             output=tmp_path / "task",
             allow_non_open=True,
             validate_target=lambda *_: "sha256:" + "2" * 64,
@@ -296,10 +321,10 @@ def test_quoted_module_segment_with_dots_is_accepted(tmp_path):
     generate_task(
         catalog=catalog(item),
         declaration=item,
-        mode="positive",
+        mode="formalized",
         output=tmp_path / "task",
         allow_non_open=True,
-        validate_target=lambda *_: "sha256:" + "2" * 64,
+        validate_target=lambda *_: item.type_hash,
     )
     challenge = (tmp_path / "task" / "Challenge.lean").read_text(encoding="utf-8")
     assert "import FormalConjectures.Arxiv.«2303.01089».FurstenbergTimesPTimesQ" in challenge
@@ -311,7 +336,7 @@ def test_quoted_module_segment_cannot_inject_commands(tmp_path):
         generate_task(
             catalog=catalog(item),
             declaration=item,
-            mode="positive",
+            mode="formalized",
             output=tmp_path / "task",
             allow_non_open=True,
             validate_target=lambda *_: "sha256:" + "2" * 64,
@@ -325,10 +350,10 @@ def test_source_name_is_encoded_as_a_lean_string_literal(tmp_path):
     generate_task(
         catalog=catalog(item),
         declaration=item,
-        mode="positive",
+        mode="formalized",
         output=tmp_path / "task",
         allow_non_open=True,
-        validate_target=lambda *_: "sha256:" + "2" * 64,
+        validate_target=lambda *_: item.type_hash,
     )
     challenge = (tmp_path / "task" / "Challenge.lean").read_text(encoding="utf-8")
     assert "\naxiom forged : False" not in challenge

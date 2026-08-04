@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+TASKS_ROOT="${CONJECTURES_TASKS_ROOT:-$ROOT/../conjectures-tasks}"
 
 pin_field() {
   python3 - "$1" "$2" <<'PY'
@@ -34,7 +35,53 @@ pin_repo() {
   test -z "$(git -C "$destination" status --porcelain --untracked-files=all)"
 }
 
-for dependency in formal_conjectures comparator lean4export landrun nanoda; do
+pin_patched_repo() {
+  local name="$1"
+  local url="$2"
+  local base_commit="$3"
+  local expected_commit="$4"
+  local destination="$5"
+  local patch_path="$6"
+  local expected_patch_sha256="$7"
+  pin_repo "$name" "$url" "$base_commit" "$destination"
+  test "$(sha256sum "$patch_path" | awk '{print $1}')" = "$expected_patch_sha256"
+  git -C "$destination" apply "$patch_path"
+  git -C "$destination" add --all
+  local source_tree
+  source_tree="$(git -C "$destination" write-tree)"
+  local derived_commit
+  derived_commit="$(
+    printf '%s\n' 'fix(ErdosProblems): correct audited candidate statements' |
+      GIT_AUTHOR_NAME='Conjectures Pool Builder' \
+      GIT_AUTHOR_EMAIL='pool@conjectures.io' \
+      GIT_AUTHOR_DATE='2026-08-03T00:00:00Z' \
+      GIT_COMMITTER_NAME='Conjectures Pool Builder' \
+      GIT_COMMITTER_EMAIL='pool@conjectures.io' \
+      GIT_COMMITTER_DATE='2026-08-03T00:00:00Z' \
+      git -C "$destination" commit-tree "$source_tree" -p "$base_commit"
+  )"
+  test "$derived_commit" = "$expected_commit"
+  git -C "$destination" checkout --detach "$derived_commit"
+  test -z "$(git -C "$destination" status --porcelain --untracked-files=all)"
+}
+
+if ! git -C "$TASKS_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "task repository is missing at $TASKS_ROOT; clone conjectures-tasks separately" >&2
+  exit 2
+fi
+test "$(git -C "$TASKS_ROOT" rev-parse HEAD)" = "$(pin_field tasks commit)"
+test -z "$(git -C "$TASKS_ROOT" status --porcelain --untracked-files=all)"
+
+pin_patched_repo \
+  formal-conjectures \
+  "$(pin_field formal_conjectures repository)" \
+  "$(pin_field formal_conjectures base_commit)" \
+  "$(pin_field formal_conjectures commit)" \
+  vendor/formal-conjectures \
+  "$TASKS_ROOT/tiers/tier-1/formal-conjectures-audit-fixes.patch" \
+  "$(pin_field formal_conjectures patch_sha256)"
+
+for dependency in comparator lean4export landrun nanoda; do
   directory="${dependency//_/-}"
   pin_repo \
     "$directory" \
@@ -42,14 +89,6 @@ for dependency in formal_conjectures comparator lean4export landrun nanoda; do
     "$(pin_field "$dependency" commit)" \
     "vendor/$directory"
 done
-
-pin_repo \
-  tasks \
-  "$(pin_field tasks repository)" \
-  "$(pin_field tasks commit)" \
-  tasks
-find tasks/pool -type d -exec chmod 755 {} +
-find tasks/pool -type f -exec chmod 644 {} +
 
 python3 <<'PY'
 import json

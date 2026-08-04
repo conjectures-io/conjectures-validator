@@ -35,7 +35,8 @@ verification core.
 | Finalized 0.5 TAO transfer reader for payment-gated intake | To build |
 | Asynchronous verification worker | To build |
 | Manual reward-review decision service | To build |
-| Reward eligibility, scoring, and Subnet 66 weight-setting loop | To build |
+| Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
+| Scoring and Subnet 66 weight-setting loop | To build |
 | Production launch and operating runbooks | To build |
 
 The submission API captures the per-submission manual-review policy and records the review gate
@@ -118,7 +119,7 @@ targets.
 The pinned data flow is:
 
 ```text
-Formal Conjectures e923379e…
+Formal Conjectures 379fc029…
   -> Lean environment catalog extraction
   -> open-source eligibility + versioned adapter
   -> deterministic task payload + externally published SHA-256
@@ -211,33 +212,38 @@ python -m verifier catalog stats --catalog data/catalog.json
 Generate one target or a category batch:
 
 ```bash
+mkdir -p ../conjectures-tasks/scratch
+
 python -m verifier task generate \
   --catalog data/catalog.json \
   --theorem Arxiv.id2303_01089.conjecture_1_3 \
   --mode formalized \
-  --output tasks/furstenberg-formalized
+  --output ../conjectures-tasks/scratch/furstenberg-formalized
 
 python -m verifier task generate \
   --catalog data/catalog.json \
   --theorem Arxiv.id2303_01089.conjecture_1_3 \
   --mode counterexample \
-  --output tasks/furstenberg-counterexample
+  --output ../conjectures-tasks/scratch/furstenberg-counterexample
 ```
 
 ## Solver task pool
 
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
-the public targets for solver attempts. The task pool is divided into explicit tiers; the current
-audited set is
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1). It is pinned to Formal Conjectures commit
-`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 58 committed bundles covering 29
-reward problems from 29 audited Erdős source files. Each source has a `formalized` target `P` and a
-`counterexample` target `¬ P`; the pair shares one `problem_id` and can produce at most one reward.
-Partial results, numbered parts, variants, candidate bounds, and multi-target bundles are excluded
-from this tier. The 178 source declarations and canonical types used by the two previous releases
-are explicitly retired and are not reused. Source families such as Written on the Wall II are not
-globally excluded and may be admitted by a future audited tier.
+the public targets for solver attempts. The pool currently has one compatibility tier:
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains all 74
+audited targets, including complete statements and independently formalized parts or variants. The source
+snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
+derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
+correction patch. The tier contains 148 immutable bundles for 74 theorem targets. Every
+target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
+
+Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
+`reward_target_id` shared by its proof/refutation pair and later source repins. Independently
+formalized parents, parts, and variants have independent rewards. Multi-target bundles and answer
+wrappers remain excluded. The 178 source declarations and canonical types used by the two previous
+releases are explicitly retired and are not reused.
 
 The pool admits only direct propositions. It does not extract one side of an answer wrapper or
 substitute a new answer. Both task variants are compiled and inspected: `formalized` must be
@@ -250,28 +256,28 @@ edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted befor
 time:
 
 ```bash
-TASK="$(find tasks/pool/tier-1 -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
-python scripts/check_task.py "$TASK"
+TASK="$(find ../conjectures-tasks/pool -mindepth 2 -maxdepth 2 -type d | sort | head -n 1)"
+python ../conjectures-tasks/scripts/check_task.py "$TASK"
 ```
 
 The complete machine-readable admission set and bundle commitments are in
-[`task_pool/allowlist.json`](task_pool/allowlist.json). It records a tier for every source and task
+[`tasks/allowlist.json`](https://github.com/conjectures-io/conjectures-tasks/blob/main/allowlist.json).
+It records a tier for every source and task
 bundle. Only an allowlisted, verifier-accepted proof or refutation should
 advance to human mathematical review. Generation compiles and independently inspects every target;
-this proves that the validator has an exact, hole-free target. The separate
-[`tier-1 selection audit`](task_pool/tiers/tier-1/selection-audit.json) records the Formal
-Conjectures status,
+this proves that the validator has an exact, hole-free target. The tier's selection audit records
+the Formal Conjectures status,
 Erdős Problems tracker status, pull-request review, and formal-surface screen. “Plausibly
 attackable” is not a guarantee of solvability and does not prove that the informal statement is
 correct.
 
 The deterministic pool selection and compiled validation are implemented by
-`scripts/rebuild_task_pool.py`. It loads the exact audited selection and
-[`tier-1 whole-problem targets`](task_pool/tiers/tier-1/whole-problem-targets.json), admits exactly
-one canonical whole-problem theorem per source file, generates committed `formalized` and
+`../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
+[`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
+the 74 audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
-[`task_pool/README.md`](task_pool/README.md).
+[`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
 
 The direct CLI form is below. It reports a production sandbox only when the live probe confirms an
 equivalent hardened Linux setup, including a non-executable workspace; the Compose profile later in
@@ -279,17 +285,17 @@ this section is the supported deployment path.
 
 ```bash
 python -m verifier verify \
-  --task tasks/furstenberg-formalized \
+  --task ../conjectures-tasks/scratch/furstenberg-formalized \
   --submission submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
 
-The checked-in examples are deliberately admitted test fixtures. On macOS, their explicit
-development-only invocation is:
+The task repository's fixtures are deliberately admitted for tests. On macOS, their explicit
+development-only invocation with a validator submission example is:
 
 ```bash
 python -m verifier verify \
-  --task examples/simple-direct/task-positive \
+  --task ../conjectures-tasks/fixtures/formalized/task-formalized \
   --submission examples/valid-submission/Main.lean \
   --allow-test-task \
   --allow-insecure-development
@@ -301,7 +307,8 @@ Never expose `--allow-test-task`, `--allow-uncommitted-task`, or
 The exit status is `0` for accepted, `1` for a rejected proof, and `2` for bad verifier/task
 configuration. Reports use sorted JSON keys and stable reason codes. Timing fields are measurements
 and naturally vary. Report schema version 2 includes the deterministic `problem_id` used to join
-the mutually exclusive proof and counterexample outcomes.
+the mutually exclusive proof and counterexample outcomes; reward admission separately uses the
+stable family recorded by the allowlist.
 
 The production container profile runs the same commands without exposing the host toolchain:
 
@@ -310,7 +317,7 @@ docker compose build verifier
 docker compose run --rm verifier doctor
 
 FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
-  --task /inputs/tasks/furstenberg-formalized \
+  --task /inputs/tasks/pool/tier-1/erdos-11-formalized \
   --submission /inputs/submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
@@ -343,22 +350,21 @@ The production task modes handle:
 The version-1 adapter table also retains the following non-pool generation modes for verifier
 fixtures and offline experiments:
 
-- `DIRECT_PROP`: separate positive `P` and negative `¬P` targets;
-- `PROP_ANSWER_WRAPPER`: removes exactly one annotated side from `answer(...) ↔ P`;
 - `BOOL_ANSWER`: permits only literal `true` or `false`;
 - `NAT_ANSWER`: permits only an ASCII natural numeral;
 - `INT_ANSWER`: permits only a signed integer literal;
 - `FINITE_ANSWER`: permits only cataloged nullary constructors of a known finite inductive type;
 - `POINTER_DECLARATION`: records and skips the duplicate; generate its original declaration instead.
 
-`GENERAL_VALUE_ANSWER`, `MULTIPLE_ANSWER_HOLES`, and `DEFINITION_HOLE` are cataloged but require a
-versioned operator adapter. `UNSUPPORTED` remains visible and is never silently activated.
+`PROP_ANSWER_WRAPPER`, `GENERAL_VALUE_ANSWER`, `MULTIPLE_ANSWER_HOLES`, and `DEFINITION_HOLE` are
+cataloged but require a versioned operator adapter. `UNSUPPORTED` remains visible and is never
+silently activated.
 
 Generated `Challenge.lean` files do not reparse a copied pretty string. Direct propositions use a
 trusted `fcTypeOfName% "..."` elaborator that resolves the pinned declaration by name. Finite-answer
 types are likewise recovered from the compiled environment rather than splicing catalog text into
-Lean source. `lean/TaskSupport.lean` reconstructs proposition answer targets and substitutes value
-answers by walking the elaborated expression tree. After the
+Lean source. `lean/TaskSupport.lean` substitutes value answers by walking the elaborated expression
+tree. After the
 challenge compiles, `lean/TaskInspector.lean` independently reconstructs the intended type, checks
 definitional equality, and emits canonical source and target types for hashing. Generation fails on
 a missing/moved declaration, a source hash change, classification drift, or target mismatch.
@@ -373,8 +379,9 @@ and files that are hashed but do not exactly match output reconstructed by the p
 separate whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted
 after task publication.
 
-The allowlist assigns both variants the same deterministic `problem_id`. Reward storage must use
-that identity to enforce at most one reward across the proof/counterexample pair.
+The allowlist assigns both modes the same deterministic `problem_id` and assigns each exact theorem
+target a stable `reward_target_id`. Reward storage enforces at most one reward across that target's
+proof/refutation pair and source repins; parents, parts, and variants remain independent bounties.
 
 `source-metadata.json` includes a `references` array when the Formal Conjectures module docstring
 has a `*Reference:*` or `*References:*` section. Each entry preserves the source Markdown so clients
@@ -505,8 +512,8 @@ every generated task, adapter-required skip, unsupported skip, and failure.
 ## Adding an adapter
 
 Add a pure generator to `verifier/adapters.py`, give it a new immutable version, define the submitted
-syntax policy and exact `TaskSupport` expression transformation, and add positive/negative unit and
-integration cases. General values must specify the submitted type, canonical syntax, equality or
+syntax policy and exact `TaskSupport` expression transformation, and add acceptance/rejection unit
+and integration cases. General values must specify the submitted type, canonical syntax, equality or
 equivalence semantics, exact verification theorem, and any policy checks. Do not activate arbitrary
 definition holes merely because Comparator can type-check them.
 

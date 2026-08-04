@@ -74,8 +74,11 @@ statement cannot drift from the audited one between boot and a request — and a
 against the commitment without trusting the response.
 
 `machine_contract` is the solver-facing contract: the identifiers the proof must define, the axioms
-it may depend on, the imports it may not use, and the limits it is checked against. A solver that
-satisfies it offline is checked against the same values on submission.
+it may depend on, the imports it may not use, the stable `reward_target_id`, and the limits it is
+checked against. The reward identifier belongs to one exact theorem target and is shared only by
+its proof/refutation pair and later source repins. Parents, parts, and variants have independent
+identifiers and independent rewards. A solver that satisfies the contract offline is checked
+against the same values on submission.
 
 ### Filters and facets
 

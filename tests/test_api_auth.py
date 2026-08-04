@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
 
@@ -214,6 +215,14 @@ def test_development_defaults_are_convenient():
     assert settings.payment_amount_rao == 500_000_000
     assert settings.nonce_window_seconds == 120
     assert settings.review_policy_version == "v1"
+
+
+def test_task_repository_root_configures_both_pool_paths(tmp_path: Path):
+    settings = Settings.from_env(
+        base_env(CONJECTURES_TASKS_ROOT=str(tmp_path / "task-repository"))
+    )
+    assert settings.task_allowlist_path == tmp_path / "task-repository/allowlist.json"
+    assert settings.task_pool_root == tmp_path / "task-repository/pool"
 
 
 def test_the_api_does_not_require_its_own_database_url():

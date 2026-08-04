@@ -18,18 +18,15 @@ of truth; `scripts/check_schema_drift.py` is what proves the mirror still matche
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
-from datetime import date
 from dataclasses import dataclass, replace
+from datetime import date
 from functools import cache
 from pathlib import Path
 
-from conftest import declaration
-from dataclasses import dataclass
-from pathlib import Path
-
-from conftest import PYTEST_DSN, postgres_dsn
+from conftest import PYTEST_DSN, declaration, postgres_dsn
 from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
@@ -228,6 +225,7 @@ def task_entry(
     classification: Classification | None = None,
     task_mode: str | None = None,
     problem_id: str = PROBLEM_ID,
+    reward_target_id: str = "fc-target:Erdos11.erdos_11",
     mode: str = "formalized",
     **manifest_kwargs,
 ) -> TaskEntry:
@@ -250,11 +248,12 @@ def task_entry(
         task_id=task_id,
         tier=tier,
         problem_id=problem_id,
+        reward_target_id=reward_target_id,
         mode=mode,
         task_bundle_sha256=digest,
         target_type_sha256s=("sha256:" + "11" * 32,),
         # The pool is tiered, so bytes live under the tier, not directly under the root.
-        task_dir=Path("tasks/pool") / tier / task_id,
+        task_dir=Path("/external-task-pool") / tier / task_id,
         manifest=manifest,
         source=source if source is not None else declaration(),
         challenge_lean=challenge_lean,

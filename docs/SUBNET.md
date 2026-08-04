@@ -13,7 +13,7 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 - The miner pays and submits a candidate Lean proof through the validator API.
 - A payment may fund at most one submission.
 - A submission targets one exact immutable proof or counterexample task-bundle digest.
-- Proof and counterexample variants share one problem identity and may produce at most one reward.
+- Each exact theorem target has its own reward; its proof/refutation modes share that reward.
 - Payment never changes the verification result.
 - Only a proof accepted by the hardened Lean verifier may reach reward review or rewards.
 - Manual review, when enabled, gates reward eligibility after Lean succeeds.
@@ -165,14 +165,14 @@ Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotenc
 one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
 payment accounting.
 
-**One reward per conjecture is a constraint, not a convention.** The pool issues a `formalized`
-and a `counterexample` task for each problem, and `submissions` carries the `problem_id` and
-`task_mode` behind both, derived from the allowlist at intake so a miner cannot choose which
-problem their proof is aimed at. `submissions_problem_reward_unique` is a unique index on
-`problem_id` over every row whose `reward_status` is not `INELIGIBLE`, so proving a conjecture and
-refuting it cannot both be paid. `FAILED` is inside that predicate deliberately: a payout that
-failed keeps its claim and is retried on the same row, and moving the reward to a different
-submission means first returning the failed one to `INELIGIBLE`.
+**One reward per exact theorem target is a constraint, not a convention.** The pool issues a
+`formalized` and a `counterexample` task for each theorem target. `submissions` carries both its
+source-pinned `problem_id` and stable `reward_target_id`, derived from the allowlist at intake so a
+miner cannot choose the payout identity. `submissions_reward_target_reward_unique` is a unique
+index on `reward_target_id` over every row whose `reward_status` is not `INELIGIBLE`. The two modes
+and later source repins therefore share one possible reward. Independently formalized parents,
+parts, and variants have different identities and independent rewards. `FAILED` remains inside
+that predicate so a failed payout keeps its claim while it is retried.
 
 Two things follow, both handled where eligibility is decided rather than left to the index:
 
@@ -235,7 +235,8 @@ for the exact security boundary and residual risks.
 The repository currently includes:
 
 - deterministic extraction and task generation from the pinned Formal Conjectures revision;
-- an audited allowlist of 58 proof/counterexample bundles for 29 whole-problem Erdős rewards;
+- an audited allowlist of 148 proof/counterexample bundles for 74 Erdős theorem targets in 55
+  stable reward targets;
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;
 - an API-neutral service adapter for bounded proof bytes and exact task digests;
@@ -248,7 +249,8 @@ The repository currently includes:
   Flyway, with its runtime mirror and the submission seam in
   [`../conjectures_subnet/db/`](../conjectures_subnet/db/);
 - content-addressed proof storage in the `proofs` table, and the `api_rejection_log` record of
-  every refused request.
+  every refused request;
+- automatic reward eligibility and one-reward-per-theorem-target enforcement.
 
 The database is a component in its own right, not the API's: every process resolves one URL
 through `conjectures_subnet.db.database_url()`, and the payment, verification, review and reward
@@ -294,8 +296,8 @@ and no credentials all close it.
 5. Add review authorization and the decision API/UI. The per-submission manual-review flag and
    policy version are already captured, and the gate is already applied when a verdict is
    recorded.
-6. Add deterministic reward eligibility, duplicate handling, scoring-policy versions, weight
-   batches, chain submission, and reconciliation.
+6. Add scoring-policy versions, weight batches, Subnet chain submission, and reconciliation.
+   Automatic eligibility and one-reward-per-theorem-target enforcement are implemented.
 7. Add metrics, alerts, rate limits, secret isolation, migrations in deployment, backups, restore
    drills, upgrades, rollbacks, and incident runbooks.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,

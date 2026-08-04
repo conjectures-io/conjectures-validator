@@ -28,8 +28,10 @@ from verification_worker.runner import (
 from verification_worker.settings import SettingsError, WorkerSettings
 from verification_worker.tasks import PoolTaskResolver, TaskNotAllowed
 from verifier.errors import ReasonCode
+from verifier.repository import tasks_repository_root
 
 ROOT = Path(__file__).resolve().parents[1]
+TASKS_ROOT = tasks_repository_root(ROOT)
 
 TASK_DIGEST = "sha256:" + "ab" * 32
 
@@ -214,6 +216,14 @@ def test_development_needs_no_configuration_at_all():
     assert settings.allow_insecure_sandbox is False
 
 
+def test_task_repository_root_configures_both_worker_pool_paths(tmp_path: Path):
+    settings = WorkerSettings.from_env(
+        {"CONJECTURES_TASKS_ROOT": str(tmp_path / "task-repository")}
+    )
+    assert settings.task_allowlist_path == tmp_path / "task-repository/allowlist.json"
+    assert settings.task_pool_root == tmp_path / "task-repository/pool"
+
+
 def test_production_refuses_an_insecure_sandbox():
     # An accept produced without the real isolation says nothing sound about the proof, so it must
     # never be reachable in the deployment that pays out.
@@ -263,12 +273,12 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     ID fails here rather than when a paid submission is already claimed.
     """
     resolver = PoolTaskResolver.load(
-        allowlist_path=ROOT / "task_pool/allowlist.json",
-        pool_root=ROOT / "tasks/pool",
+        allowlist_path=TASKS_ROOT / "allowlist.json",
+        pool_root=TASKS_ROOT / "pool",
     )
 
     tasks = tuple(resolver.tasks.values())
-    assert len(tasks) == 58  # 29 problems, each as a proof and a counterexample task
+    assert len(tasks) == 148  # 74 targets, each as a proof and a counterexample task
     assert all(task.task_dir.is_dir() for task in tasks)
     assert all(task.task_dir.name != task.task_id for task in tasks)
     # The worker sizes its lease from this, so a manifest that declares nothing usable would
@@ -279,17 +289,19 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
 def test_the_resolver_refuses_a_pool_missing_an_allowlisted_task(tmp_path: Path):
     """A claimed submission whose task has no bytes would be released and retried forever."""
     complete = PoolTaskResolver.load(
-        allowlist_path=ROOT / "task_pool/allowlist.json",
-        pool_root=ROOT / "tasks/pool",
+        allowlist_path=TASKS_ROOT / "allowlist.json",
+        pool_root=TASKS_ROOT / "pool",
     )
     kept = min(complete.tasks.values(), key=lambda task: task.task_id)
+    for tier in {task.tier for task in complete.tasks.values()}:
+        (tmp_path / tier).mkdir(parents=True)
     destination = tmp_path / kept.tier / kept.task_dir.name
-    destination.mkdir(parents=True)
+    destination.mkdir()
     for source in kept.task_dir.iterdir():
         if source.is_file():
             (destination / source.name).write_bytes(source.read_bytes())
 
     with pytest.raises(TaskNotAllowed, match="missing from the pool"):
         PoolTaskResolver.load(
-            allowlist_path=ROOT / "task_pool/allowlist.json", pool_root=tmp_path
+            allowlist_path=TASKS_ROOT / "allowlist.json", pool_root=tmp_path
         )
