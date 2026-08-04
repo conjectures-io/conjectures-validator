@@ -12,7 +12,7 @@ module only borrows a session from it per request.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from conjectures_subnet.bounty import BountyPricer
 from submission_api import sessions as session_layer
 from submission_api.auth import Authenticator
+from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
 from submission_api.errors import Forbidden, Unauthorized
 from submission_api.mail import MailSender
@@ -51,6 +52,14 @@ class Services:
     mail: MailSender
     packages: tuple[CreditPackage, ...]
     terms: SubmissionTerms
+    # The public view of `catalog`: tasks grouped into slug-addressable conjectures. Derived
+    # rather than passed so that building a `Services` at all runs the slug collision check —
+    # including in tests, which construct this directly. A pool that cannot be addressed by
+    # stable slug fails here, at startup, rather than serving one conjecture at another's URL.
+    index: ConjectureIndex = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "index", ConjectureIndex.build(self.catalog))
 
 
 def get_services(request: Request) -> Services:

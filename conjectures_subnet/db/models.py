@@ -342,6 +342,14 @@ class Submission(Base):
         ),
         Index("submissions_task_idx", "task_id", text("created_at DESC")),
         Index("submissions_hotkey_idx", "hotkey", text("created_at DESC")),
+        # V006. The public catalog groups tasks into conjectures by reward target, because that
+        # identity survives a pin rotation and `task_id` does not. The counters and the activity
+        # stream on a conjecture page read through this.
+        Index(
+            "submissions_reward_target_idx",
+            "reward_target_id",
+            text("created_at DESC"),
+        ),
         # No proof_digest index: the UNIQUE above already builds one.
         # Public result feeds, newest first, from V002. Separate from the worker queues above:
         # those are ascending and lack `id`, which the keyset page predicate compares as part
