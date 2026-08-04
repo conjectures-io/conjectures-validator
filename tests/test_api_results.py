@@ -57,7 +57,7 @@ FULL_REPORT = {
     "task_id": TASK_ID,
     "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
     "source_theorem": "VerifierFixtures.direct",
-    "task_mode": "positive",
+    "task_mode": "formalized",
     "task_bundle_sha256": "sha256:" + "ab" * 32,
     "submission_sha256": "sha256:" + "cd" * 32,
     "accepted": True,

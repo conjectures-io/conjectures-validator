@@ -295,7 +295,7 @@ development-only invocation with a validator submission example is:
 
 ```bash
 python -m verifier verify \
-  --task ../conjectures-tasks/fixtures/simple-direct/task-positive \
+  --task ../conjectures-tasks/fixtures/formalized/task-formalized \
   --submission examples/valid-submission/Main.lean \
   --allow-test-task \
   --allow-insecure-development
@@ -350,22 +350,21 @@ The production task modes handle:
 The version-1 adapter table also retains the following non-pool generation modes for verifier
 fixtures and offline experiments:
 
-- `DIRECT_PROP`: separate positive `P` and negative `¬P` targets;
-- `PROP_ANSWER_WRAPPER`: removes exactly one annotated side from `answer(...) ↔ P`;
 - `BOOL_ANSWER`: permits only literal `true` or `false`;
 - `NAT_ANSWER`: permits only an ASCII natural numeral;
 - `INT_ANSWER`: permits only a signed integer literal;
 - `FINITE_ANSWER`: permits only cataloged nullary constructors of a known finite inductive type;
 - `POINTER_DECLARATION`: records and skips the duplicate; generate its original declaration instead.
 
-`GENERAL_VALUE_ANSWER`, `MULTIPLE_ANSWER_HOLES`, and `DEFINITION_HOLE` are cataloged but require a
-versioned operator adapter. `UNSUPPORTED` remains visible and is never silently activated.
+`PROP_ANSWER_WRAPPER`, `GENERAL_VALUE_ANSWER`, `MULTIPLE_ANSWER_HOLES`, and `DEFINITION_HOLE` are
+cataloged but require a versioned operator adapter. `UNSUPPORTED` remains visible and is never
+silently activated.
 
 Generated `Challenge.lean` files do not reparse a copied pretty string. Direct propositions use a
 trusted `fcTypeOfName% "..."` elaborator that resolves the pinned declaration by name. Finite-answer
 types are likewise recovered from the compiled environment rather than splicing catalog text into
-Lean source. `lean/TaskSupport.lean` reconstructs proposition answer targets and substitutes value
-answers by walking the elaborated expression tree. After the
+Lean source. `lean/TaskSupport.lean` substitutes value answers by walking the elaborated expression
+tree. After the
 challenge compiles, `lean/TaskInspector.lean` independently reconstructs the intended type, checks
 definitional equality, and emits canonical source and target types for hashing. Generation fails on
 a missing/moved declaration, a source hash change, classification drift, or target mismatch.
@@ -513,8 +512,8 @@ every generated task, adapter-required skip, unsupported skip, and failure.
 ## Adding an adapter
 
 Add a pure generator to `verifier/adapters.py`, give it a new immutable version, define the submitted
-syntax policy and exact `TaskSupport` expression transformation, and add positive/negative unit and
-integration cases. General values must specify the submitted type, canonical syntax, equality or
+syntax policy and exact `TaskSupport` expression transformation, and add acceptance/rejection unit
+and integration cases. General values must specify the submitted type, canonical syntax, equality or
 equivalence semantics, exact verification theorem, and any policy checks. Do not activate arbitrary
 definition holes merely because Comparator can type-check them.
 

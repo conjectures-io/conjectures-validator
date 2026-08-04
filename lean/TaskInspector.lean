@@ -24,11 +24,9 @@ def canonicalExpression (expression : Expr) : MetaM String := do
 def intendedType
     (sourceType : Expr)
     (classification mode : String) : MetaM Expr := do
-  let positive ←
+  let target ←
     if classification == "DIRECT_PROP" then
       pure sourceType
-    else if classification == "PROP_ANSWER_WRAPPER" then
-      extractPropAnswerTarget sourceType
     else if classification == "BOOL_ANSWER" || classification == "NAT_ANSWER" ||
         classification == "INT_ANSWER" || classification == "FINITE_ANSWER" then
       let answerInfo ← getConstInfo `Bounty.submittedAnswer
@@ -38,10 +36,10 @@ def intendedType
       pure target
     else
       throwError "unsupported inspector classification: {classification}"
-  if mode == "counterexample" || mode == "negative" then
-    return mkApp (.const ``Not []) positive
-  if mode == "positive" || mode == "formalized" || mode == "answer" then
-    return positive
+  if mode == "counterexample" then
+    return mkApp (.const ``Not []) target
+  if mode == "formalized" || mode == "answer" then
+    return target
   throwError "unsupported inspector task mode: {mode}"
 
 unsafe def runInspector (arguments : List String) : IO Unit := do

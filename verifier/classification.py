@@ -14,8 +14,8 @@ from verifier.models import (
 
 
 def supported_modes(classification: Classification) -> tuple[str, ...]:
-    if classification in {Classification.DIRECT_PROP, Classification.PROP_ANSWER_WRAPPER}:
-        return ("positive", "negative")
+    if classification == Classification.DIRECT_PROP:
+        return ("formalized", "counterexample")
     if classification == Classification.BOOL_ANSWER:
         return ("answer",)
     if classification in {

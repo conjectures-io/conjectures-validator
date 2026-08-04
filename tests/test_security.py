@@ -34,7 +34,7 @@ def test_submission_fifo_is_rejected_without_blocking(tmp_path):
 
 def test_insecure_development_sandbox_fails_closed_by_default():
     report = verify(
-        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
         submission_path=ROOT / "examples/valid-submission/Main.lean",
         project_root=ROOT,
         allow_test_task=True,
@@ -45,7 +45,7 @@ def test_insecure_development_sandbox_fails_closed_by_default():
 
 def test_external_task_commitment_mismatch_fails_before_lean():
     report = verify(
-        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
         submission_path=ROOT / "examples/valid-submission/Main.lean",
         project_root=ROOT,
         expected_task_sha256="sha256:" + "0" * 64,

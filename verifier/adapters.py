@@ -56,19 +56,12 @@ def _lean_string(value: str) -> str:
 
 def _direct(declaration: CatalogDeclaration, mode: str, _context: GenerationContext) -> GeneratedLean:
     source = _lean_string(declaration.theorem)
-    if mode in {"formalized", "positive"}:
+    if mode == "formalized":
         target = f"fcTypeOfName% {source}"
-    elif mode in {"counterexample", "negative"}:
+    elif mode == "counterexample":
         target = f"¬ (fcTypeOfName% {source})"
     else:
         raise ValueError(f"unsupported direct proposition mode: {mode}")
-    return GeneratedLean(target, (), {})
-
-
-def _prop_answer(declaration: CatalogDeclaration, mode: str, _context: GenerationContext) -> GeneratedLean:
-    source = _lean_string(declaration.theorem)
-    base = f"fcPropAnswerTargetName% {source}"
-    target = base if mode == "positive" else f"¬ ({base})"
     return GeneratedLean(target, (), {})
 
 
@@ -103,11 +96,8 @@ def _finite(declaration: CatalogDeclaration, _mode: str, _context: GenerationCon
 ADAPTERS: Mapping[Classification, AdapterSpec] = {
     Classification.DIRECT_PROP: AdapterSpec(
         Classification.DIRECT_PROP,
-        ("formalized", "counterexample", "positive", "negative"),
+        ("formalized", "counterexample"),
         _direct,
-    ),
-    Classification.PROP_ANSWER_WRAPPER: AdapterSpec(
-        Classification.PROP_ANSWER_WRAPPER, ("positive", "negative"), _prop_answer
     ),
     Classification.BOOL_ANSWER: AdapterSpec(Classification.BOOL_ANSWER, ("answer",), _value_answer("Bool", "bool_literal")),
     Classification.NAT_ANSWER: AdapterSpec(Classification.NAT_ANSWER, ("answer",), _value_answer("ℕ", "nat_literal")),

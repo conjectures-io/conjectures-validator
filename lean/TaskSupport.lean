@@ -18,29 +18,6 @@ def answerType (source : TSyntax `str) : TermElabM Expr := do
 partial def answerCount (expression : Expr) : Nat :=
   Google.findAnswerExprs expression |>.size
 
-partial def extractPropAnswerTarget (expression : Expr) : MetaM Expr := do
-  match expression with
-  | .forallE name domain body binderInfo =>
-      unless answerCount domain == 0 do
-        throwError "answer annotation in a binder domain is not a proposition wrapper"
-      return .forallE name domain (← extractPropAnswerTarget body) binderInfo
-  | _ =>
-      let function := expression.getAppFn
-      let arguments := expression.getAppArgs
-      if function.isConstOf ``Iff && arguments.size == 2 then
-        let left := arguments[0]!
-        let right := arguments[1]!
-        let leftCount := answerCount left
-        let rightCount := answerCount right
-        let metadataPresent := leftCount > 0 || rightCount > 0
-        let leftIsAnswer := if metadataPresent then leftCount > 0 else left.isConstOf ``True
-        let rightIsAnswer := if metadataPresent then rightCount > 0 else right.isConstOf ``True
-        if leftIsAnswer && !rightIsAnswer then
-          return right
-        if rightIsAnswer && !leftIsAnswer then
-          return left
-      throwError "expected exactly one answer-annotated side of an iff"
-
 partial def replaceAnswer (expression replacement : Expr) : MetaM (Expr × Nat) := do
   match expression with
   | .mdata metadata inner =>
@@ -90,15 +67,6 @@ unsafe def elaborateAnswerType : TermElab := fun stx _expectedType => do
   | `(fcAnswerType% $source:str) => answerType source
   | _ => throwUnsupportedSyntax
 
-syntax (name := fcPropAnswerTargetName) "fcPropAnswerTargetName% " str : term
-
-@[term_elab fcPropAnswerTargetName]
-unsafe def elaboratePropAnswerTargetName : TermElab := fun stx _expectedType => do
-  match stx with
-  | `(fcPropAnswerTargetName% $source:str) =>
-      extractPropAnswerTarget (← constantType source)
-  | _ => throwUnsupportedSyntax
-
 syntax (name := fcValueAnswerTargetName)
   "fcValueAnswerTargetName% " str " using " term : term
 
@@ -111,17 +79,6 @@ unsafe def elaborateValueAnswerTargetName : TermElab := fun stx _expectedType =>
       unless count == 1 do
         throwError "expected exactly one answer occurrence, found {count}"
       return target
-  | _ => throwUnsupportedSyntax
-
-syntax (name := fcPropAnswerTarget) "fcPropAnswerTarget% " term : term
-
-@[term_elab fcPropAnswerTarget]
-unsafe def elaboratePropAnswerTarget : TermElab := fun stx _expectedType => do
-  match stx with
-  | `(fcPropAnswerTarget% $source:term) =>
-      let sourceExpression ← elabTerm source none
-      let sourceType ← inferType sourceExpression
-      extractPropAnswerTarget sourceType
   | _ => throwUnsupportedSyntax
 
 syntax (name := fcValueAnswerTarget) "fcValueAnswerTarget% " term " using " term : term

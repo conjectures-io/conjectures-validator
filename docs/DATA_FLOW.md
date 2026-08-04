@@ -145,8 +145,8 @@ deciding what the answer means?* The distribution over 3,267 declarations:
 
 | Classification | Count | Usable as a paid task |
 | --- | --- | --- |
-| `DIRECT_PROP` | 2,633 | **yes** — statement is a closed proposition |
-| `PROP_ANSWER_WRAPPER` | 278 | no — wraps an `answer` hole |
+| `DIRECT_PROP` | 2,605 | **yes** — statement is a closed proposition |
+| `PROP_ANSWER_WRAPPER` | 306 | no — wraps an `answer` hole and requires an adapter |
 | `POINTER_DECLARATION` | 211 | no — refers elsewhere |
 | `GENERAL_VALUE_ANSWER` | 116 | no — needs an adapter |
 | `NAT_ANSWER` | 20 | no for production — answer syntax |

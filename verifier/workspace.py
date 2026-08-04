@@ -352,6 +352,8 @@ def inspect_generated_target(
 
 def target_validator(
     project_root: Path,
+    *,
+    allow_non_open: bool = False,
 ) -> Callable[[Path, CatalogDeclaration, object, str], str]:
     lake = tool_path(project_root, "lake")
 
@@ -392,7 +394,7 @@ def target_validator(
                 raise VerifierError(ReasonCode.SOURCE_TYPE_CHANGED, "source type differs during task generation")
             if not inspection["matches"]:
                 raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "generated challenge is not the intended target")
-            if is_production_task_mode(mode) and (
+            if is_production_task_mode(mode) and not allow_non_open and (
                 inspection["source_category"] != "research open"
                 or inspection["source_declaration_kind"] != "theorem"
                 or not inspection["source_depends_on_sorry"]
