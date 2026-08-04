@@ -10,7 +10,6 @@ import shutil
 import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,14 +19,12 @@ sys.path.insert(0, str(ROOT))
 from verifier.catalog import load_catalog
 from verifier.task_pool import (
     DEFAULT_TIER_SIZE,
-    SUBPROBLEM_TIER_SIZE,
     build_task_allowlist,
     group_task_declarations,
     load_retired_sources,
     load_selection_audit,
     load_task_grouping,
     load_task_targets,
-    merge_task_allowlists,
     select_task_declarations,
 )
 from verifier.task_generator import generate_group_task, generate_task
@@ -36,17 +33,7 @@ from verifier.task_policy import PRODUCTION_TASK_MODES
 from verifier.workspace import target_validator
 
 
-@dataclass(frozen=True)
-class TierConfig:
-    name: str
-    size: int
-    targets: str
-
-
-TIER_CONFIGS = (
-    TierConfig(name="tier-1", size=DEFAULT_TIER_SIZE, targets="whole-problem-targets.json"),
-    TierConfig(name="tier-2", size=SUBPROBLEM_TIER_SIZE, targets="subproblem-targets.json"),
-)
+TIER_NAME = "tier-1"
 
 ERDOS_NUMBER = re.compile(r"/ErdosProblems/(?P<number>[0-9]+)\.lean$")
 
@@ -84,7 +71,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--metadata-root",
         type=Path,
-        default=ROOT / "tasks/tiers",
+        default=ROOT / "tasks/tiers/tier-1",
     )
     result.add_argument(
         "--output",
@@ -120,77 +107,69 @@ def main() -> int:
     temporary = Path(tempfile.mkdtemp(prefix=".task-pool-", dir=output.parent))
     generated = temporary / "pool"
     generated.mkdir()
-    tier_allowlists = []
-    bundle_count = 0
     try:
-        for config in TIER_CONFIGS:
-            metadata = arguments.metadata_root / config.name
-            retired = load_retired_sources(metadata / "retired-source-theorems.json")
-            selection_audit = load_selection_audit(metadata / "selection-audit.json")
-            task_targets = load_task_targets(metadata / config.targets)
-            selected_declarations = select_task_declarations(
-                catalog=catalog,
-                retired=retired,
-                selection_audit=selection_audit,
-                task_targets=task_targets,
-                pool_size=config.size,
-            )
-            grouping = load_task_grouping(metadata / "task-groups.json")
-            selected = group_task_declarations(selected_declarations, grouping)
-            tier_output = generated / config.name
-            tier_output.mkdir()
-            work = tuple(
-                (index, declarations, mode)
-                for index, declarations in enumerate(selected, start=1)
-                for mode in PRODUCTION_TASK_MODES
-            )
+        metadata = arguments.metadata_root
+        retired = load_retired_sources(metadata / "retired-source-theorems.json")
+        selection_audit = load_selection_audit(metadata / "selection-audit.json")
+        task_targets = load_task_targets(metadata / "task-targets.json")
+        selected_declarations = select_task_declarations(
+            catalog=catalog,
+            retired=retired,
+            selection_audit=selection_audit,
+            task_targets=task_targets,
+            pool_size=DEFAULT_TIER_SIZE,
+        )
+        grouping = load_task_grouping(metadata / "task-groups.json")
+        selected = group_task_declarations(selected_declarations, grouping)
+        tier_output = generated / TIER_NAME
+        tier_output.mkdir()
+        work = tuple(
+            (index, declarations, mode)
+            for index, declarations in enumerate(selected, start=1)
+            for mode in PRODUCTION_TASK_MODES
+        )
 
-            def generate_one(item):
-                index, declarations, mode = item
-                names = ", ".join(declaration.theorem for declaration in declarations)
-                print(
-                    f"[{config.name} {index}/{len(selected)}] {names} ({mode})",
-                    flush=True,
-                )
-                pending = tier_output / f"pending-{index:03d}-{mode}"
-                if len(declarations) == 1:
-                    manifest = generate_task(
-                        catalog=catalog,
-                        declaration=declarations[0],
-                        mode=mode,
-                        output=pending,
-                        validate_target=validate_target,
-                    )
-                else:
-                    manifest = generate_group_task(
-                        catalog=catalog,
-                        declarations=declarations,
-                        mode=mode,
-                        output=pending,
-                        validate_target=validate_target,
-                    )
-                destination = tier_output / task_directory_name(manifest)
-                os.replace(pending, destination)
-                return load_task_bundle(destination)
-
-            with ThreadPoolExecutor(max_workers=arguments.jobs) as executor:
-                bundles = list(executor.map(generate_one, work))
-            bundle_count += len(bundles)
-            tier_allowlists.append(
-                build_task_allowlist(
+        def generate_one(item):
+            index, declarations, mode = item
+            names = ", ".join(declaration.theorem for declaration in declarations)
+            print(
+                f"[{index}/{len(selected)}] {names} ({mode})",
+                flush=True,
+            )
+            pending = tier_output / f"pending-{index:03d}-{mode}"
+            if len(declarations) == 1:
+                manifest = generate_task(
                     catalog=catalog,
-                    retired=retired,
-                    selection_audit=selection_audit,
-                    task_targets=task_targets,
-                    grouping=grouping,
-                    selected=selected,
-                    bundles=bundles,
-                    audit_date_utc=arguments.audit_date,
-                    tier=config.name,
+                    declaration=declarations[0],
+                    mode=mode,
+                    output=pending,
+                    validate_target=validate_target,
                 )
-            )
+            else:
+                manifest = generate_group_task(
+                    catalog=catalog,
+                    declarations=declarations,
+                    mode=mode,
+                    output=pending,
+                    validate_target=validate_target,
+                )
+            destination = tier_output / task_directory_name(manifest)
+            os.replace(pending, destination)
+            return load_task_bundle(destination)
 
-        allowlist_content = merge_task_allowlists(tier_allowlists)
+        with ThreadPoolExecutor(max_workers=arguments.jobs) as executor:
+            bundles = list(executor.map(generate_one, work))
+        allowlist_content = build_task_allowlist(
+            catalog=catalog,
+            retired=retired,
+            selection_audit=selection_audit,
+            task_targets=task_targets,
+            grouping=grouping,
+            selected=selected,
+            bundles=bundles,
+            audit_date_utc=arguments.audit_date,
+            tier=TIER_NAME,
+        )
         make_pool_readable(generated)
         temporary_allowlist = temporary / "allowlist.json"
         temporary_allowlist.write_bytes(allowlist_content)
@@ -205,7 +184,7 @@ def main() -> int:
         raise
     finally:
         shutil.rmtree(temporary, ignore_errors=True)
-    print(f"wrote {bundle_count} proof/counterexample tasks to {output}")
+    print(f"wrote {len(bundles)} proof/counterexample tasks to {output}")
     print(f"wrote allowlist to {allowlist}")
     return 0
 

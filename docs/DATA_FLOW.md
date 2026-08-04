@@ -47,8 +47,8 @@ flowchart TD
         EX["CatalogExtractor.lean<br/>Lean environment introspection"]
         CAT["data/catalog.json<br/>3267 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
-        AUD["HUMAN AUDIT<br/>tier-1 complete problems · tier-2 parts/variants"]
-        PICK["task target policies<br/>29 + 45 asserted picks"]
+        AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
+        PICK["task target policy<br/>74 asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
@@ -173,8 +173,7 @@ the pipeline.
 | 2 | `classification == DIRECT_PROP` | **988** |
 | 3 | remaining exact-proposition safety rules | **988** |
 | 4 | module under `ErdosProblems/` | **506** over 320 files |
-| 5 | audited whole-problem tier | **29** targets |
-| 6 | audited part/variant tier | **45** targets from 33 files |
+| 5 | audited single-tier selection | **74** targets from 55 files |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -191,8 +190,8 @@ by name *or* type hash at selection time (`task_pool.py:467-468`).
 
 ### Human picks, machine proves the pick is legal
 
-The 74 targets are **not computed** from the 506. They are asserted by hand in the two tier target
-files, and `select_task_declarations` then
+The 74 targets are **not computed** from the 506. They are asserted by hand in one target file,
+and `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
 - present in the audited selection with matching `source_path` and `erdos_problem_number`;
@@ -202,12 +201,12 @@ refuses to accept any pick that is not simultaneously:
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: at least 29 Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: all 74 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
 Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
-partial results, and restatements. Tier 1 deliberately selects complete problems; tier 2 selects
-only independently meaningful parts and variants that passed the separate semantic audit.
+partial results, and restatements. The one active tier admits complete problems and only those
+independently meaningful parts and variants that passed the semantic audit.
 
 The audit record is not a rubber stamp either. Each selected entry carries `upstream_status`,
 `problem_tracker_status`, `open_prs_touching_source`, `active_resolution_prs`, and
@@ -225,7 +224,7 @@ The central mechanism, and the thing that makes statement drift structurally imp
 generated `Challenge.lean` **never copies the statement text**. It asks Lean to splice the source
 theorem's type in by name, via the custom elaborator `fcTypeOfName%` in `lean/TaskSupport.lean`.
 
-A complete real bundle — `tasks/pool/tier-1/fc-379fc029-erdos11-erdos-11-2bde7d8572-formalized-v1/`:
+A complete real bundle — `tasks/pool/tier-1/erdos-11-formalized/`:
 
 ```lean
 -- Challenge.lean, 160 bytes, the entire task
@@ -307,7 +306,7 @@ The bundle digest is computed by `sha256_named_bytes` (`verifier/hashing.py`), w
 **length-prefixes each filename and each content block** so bytes cannot be shuffled between files
 to collide.
 
-`pool_policy` additionally commits to a hash of every audit input, so the allowlist cannot be
+The `tier-1` policy additionally commits to a hash of every audit input, so the allowlist cannot be
 combined with a tampered audit file:
 
 | Commitment | Covers |
@@ -317,9 +316,9 @@ combined with a tampered audit file:
 | `task_targets_sha256` | the tier's exact targets and reward families |
 | `task_groups_sha256` | the group policy (currently empty) |
 
-Each tier policy records its scope, exact target count, proof/refutation modes, and the
-`stable-erdos-number-v1` reward-family rule. Both tiers have `multi_target_tasks: 0` and a minimum
-of 29 Erdős targets.
+The tier policy records its scope, exact target count, proof/refutation modes, and the
+`stable-erdos-number-v1` reward-family rule. The one active tier has `multi_target_tasks: 0` and
+contains all 74 Erdős targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
@@ -533,7 +532,7 @@ Ordered by how much they matter, not by where they appear above.
 3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets
    `generated_target_type_hash` from `generated_hashes[0]`, so a multi-source task would not commit
    its secondary targets. Currently latent: `tasks/tiers/tier-1/task-groups.json` has 0 groups and
-   `pool_policy.multi_target_tasks` is 0. Closing it needs a manifest schema bump.
+   `tier_policies.tier-1.multi_target_tasks` is 0. Closing it needs a manifest schema bump.
 4. **`nanoda` is pinned but disabled.** The second independent kernel is one config flag away and is
    the cheapest available increase in kernel-level assurance.
 5. **8 of 10 production-policy rules currently select nothing.** Correct as defence in depth, but

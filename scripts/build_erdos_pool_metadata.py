@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the two audited Erdős task-tier metadata snapshots."""
+"""Build the single audited Erdős task-tier metadata snapshot."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-TIERS = ROOT / "tasks/tiers"
+TIER = ROOT / "tasks/tiers/tier-1"
 CANDIDATES = ROOT / "tasks/candidates/direct-candidates-2026-07-28.json"
 CATALOG = ROOT / "data/catalog.json"
 PATCHED_COMMIT = "379fc0298dc146df549e7061c3ede0353a5bb51f"
@@ -21,7 +21,39 @@ SCREENING_STATEMENT = (
     "claim that the conjecture is easy or guaranteed solvable."
 )
 
-SUBPROBLEM_THEOREMS = (
+WHOLE_PROBLEM_THEOREMS = (
+    "Erdos1094.erdos_1094",
+    "Erdos11.erdos_11",
+    "Erdos1107.erdos_1107",
+    "Erdos184.erdos_184",
+    "Erdos233.erdos_233",
+    "Erdos236.erdos_236",
+    "Erdos242.erdos_242",
+    "Erdos243.erdos_243",
+    "Erdos274.herzog_schonheim",
+    "Erdos28.erdos_28",
+    "Erdos282.erdos_282",
+    "Erdos340.erdos_340",
+    "Erdos364.erdos_364",
+    "Erdos371.erdos_371",
+    "Erdos373.erdos_373",
+    "Erdos41.erdos_41",
+    "Erdos535.erdos_535",
+    "Erdos617.erdos_617",
+    "Erdos624.erdos_624",
+    "Erdos677.erdos_677",
+    "Erdos779.erdos_779",
+    "Erdos82.erdos_82",
+    "Erdos859.erdos_859",
+    "Erdos889.erdos_889",
+    "Erdos89.erdos_89",
+    "Erdos912.erdos_912",
+    "Erdos932.erdos_932",
+    "Erdos952.erdos_952",
+    "Erdos982.erdos_982",
+)
+
+ADDITIONAL_THEOREMS = (
     "Erdos10.erdos_10.variants.grechuk",
     "Erdos1055.erdos_1055.variants.erdos_limit",
     "Erdos1055.erdos_1055.variants.selfridge_limit",
@@ -115,16 +147,12 @@ def audit_document(entries: list[dict]) -> dict:
     }
 
 
-def target_document(theorems: list[str], *, subproblem: bool) -> dict:
+def target_document(theorems: list[str]) -> dict:
     return {
-        "policy": (
-            "one_task_one_audited_subproblem"
-            if subproblem
-            else "one_task_one_complete_problem"
-        ),
+        "policy": "one_task_one_audited_proposition",
         "repository_commit": PATCHED_COMMIT,
         "schema_version": 2,
-        "task_scope": "part_or_variant" if subproblem else "whole_problem",
+        "task_scope": "direct_proposition",
         "targets": [
             {
                 "erdos_problem_number": problem_number(theorem),
@@ -140,36 +168,39 @@ def target_document(theorems: list[str], *, subproblem: bool) -> dict:
 
 
 def main() -> int:
-    if len(SUBPROBLEM_THEOREMS) != 45 or len(set(SUBPROBLEM_THEOREMS)) != 45:
-        raise SystemExit("the tier-2 theorem list must contain exactly 45 unique entries")
+    all_theorems = tuple(sorted(WHOLE_PROBLEM_THEOREMS + ADDITIONAL_THEOREMS))
+    if (
+        len(WHOLE_PROBLEM_THEOREMS) != 29
+        or len(ADDITIONAL_THEOREMS) != 45
+        or len(all_theorems) != 74
+        or len(set(all_theorems)) != 74
+    ):
+        raise SystemExit("the task theorem list must contain exactly 74 unique entries")
 
     catalog_theorems = {
         entry["theorem"] for entry in read_json(CATALOG)["declarations"]
     }
-    missing = sorted(set(SUBPROBLEM_THEOREMS) - catalog_theorems)
+    missing = sorted(set(all_theorems) - catalog_theorems)
     if missing:
-        raise SystemExit("tier-2 theorems missing from catalog: " + ", ".join(missing))
+        raise SystemExit("task theorems missing from catalog: " + ", ".join(missing))
 
-    tier1 = TIERS / "tier-1"
-    old_targets = read_json(tier1 / "whole-problem-targets.json")["targets"]
-    tier1_theorems = sorted(item["theorem"] for item in old_targets)
-    old_audit = read_json(tier1 / "selection-audit.json")
+    old_audit = read_json(TIER / "selection-audit.json")
     old_entries = {item["theorem"]: item for item in old_audit["selected"]}
-    missing_tier1 = sorted(set(tier1_theorems) - set(old_entries))
-    if missing_tier1:
-        raise SystemExit("tier-1 audit entries missing: " + ", ".join(missing_tier1))
-    tier1_entries = [old_entries[theorem] for theorem in tier1_theorems]
+    missing_existing = sorted(set(WHOLE_PROBLEM_THEOREMS) - set(old_entries))
+    if missing_existing:
+        raise SystemExit("existing audit entries missing: " + ", ".join(missing_existing))
+    existing_entries = [old_entries[theorem] for theorem in WHOLE_PROBLEM_THEOREMS]
 
     inventory = read_json(CANDIDATES)
     candidate_by_theorem = {
         item["theorem"]: item for item in inventory["candidates"]
     }
-    tier2_entries = []
-    for theorem in SUBPROBLEM_THEOREMS:
+    additional_entries = []
+    for theorem in ADDITIONAL_THEOREMS:
         number = problem_number(theorem)
         candidate_name = RENAMED_CANDIDATES.get(theorem, theorem)
         candidate = candidate_by_theorem[candidate_name]
-        tier2_entries.append(
+        additional_entries.append(
             {
                 "active_resolution_prs": [],
                 "erdos_problem_number": number,
@@ -184,7 +215,7 @@ def main() -> int:
             }
         )
 
-    retired = read_json(tier1 / "retired-source-theorems.json")
+    retired = read_json(TIER / "retired-source-theorems.json")
     retired["repository_commit"] = PATCHED_COMMIT
     empty_groups = {
         "completion_policy": "all_of",
@@ -192,22 +223,16 @@ def main() -> int:
         "schema_version": 1,
     }
 
-    write_json(tier1 / "selection-audit.json", audit_document(tier1_entries))
     write_json(
-        tier1 / "whole-problem-targets.json",
-        target_document(tier1_theorems, subproblem=False),
+        TIER / "selection-audit.json",
+        audit_document(existing_entries + additional_entries),
     )
-    write_json(tier1 / "retired-source-theorems.json", retired)
-    write_json(tier1 / "task-groups.json", empty_groups)
-
-    tier2 = TIERS / "tier-2"
-    write_json(tier2 / "selection-audit.json", audit_document(tier2_entries))
     write_json(
-        tier2 / "subproblem-targets.json",
-        target_document(list(SUBPROBLEM_THEOREMS), subproblem=True),
+        TIER / "task-targets.json",
+        target_document(list(all_theorems)),
     )
-    write_json(tier2 / "retired-source-theorems.json", retired)
-    write_json(tier2 / "task-groups.json", empty_groups)
+    write_json(TIER / "retired-source-theorems.json", retired)
+    write_json(TIER / "task-groups.json", empty_groups)
     return 0
 
 

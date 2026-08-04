@@ -25,20 +25,18 @@ SELECTION_AUDIT_SCHEMA_VERSION = 1
 TASK_GROUP_SCHEMA_VERSION = 1
 TASK_TARGET_SCHEMA_VERSION = 2
 DEFAULT_TASK_TIER = "tier-1"
-SUBPROBLEM_TASK_TIER = "tier-2"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 29
-SUBPROBLEM_TIER_SIZE = 45
+DEFAULT_TIER_SIZE = 74
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
-SUBPROBLEM_TIER_TASK_COUNT = SUBPROBLEM_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = DEFAULT_TIER_SIZE
-TASK_POOL_SELECTION = "audited-erdos-whole-problem-v1"
+TASK_POOL_SELECTION = "audited-erdos-direct-propositions-v1"
 SUBPROBLEM_POOL_SELECTION = "audited-erdos-part-or-variant-v1"
 TASK_POOL_GROUPING = "none-single-target-v1"
-TASK_POOL_TASK_SCOPE = "whole_problem"
+TASK_POOL_TASK_SCOPE = "direct_proposition"
 SUBPROBLEM_TASK_SCOPE = "part_or_variant"
 WHOLE_PROBLEM_POLICY = "one_task_one_complete_problem"
 SUBPROBLEM_POLICY = "one_task_one_audited_subproblem"
+DIRECT_PROPOSITION_POLICY = "one_task_one_audited_proposition"
 REWARD_FAMILY_POLICY = "stable-erdos-number-v1"
 ERDOS_SOURCE_PREFIX = "FormalConjectures/ErdosProblems/"
 EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
@@ -263,15 +261,21 @@ def load_task_targets(path: Path) -> TaskTargets:
             or set(value)
             != {"policy", "repository_commit", "schema_version", "task_scope", "targets"}
             or value.get("schema_version") != TASK_TARGET_SCHEMA_VERSION
-            or value.get("policy") not in {WHOLE_PROBLEM_POLICY, SUBPROBLEM_POLICY}
-            or value.get("task_scope") not in {TASK_POOL_TASK_SCOPE, SUBPROBLEM_TASK_SCOPE}
+            or value.get("policy")
+            not in {WHOLE_PROBLEM_POLICY, SUBPROBLEM_POLICY, DIRECT_PROPOSITION_POLICY}
+            or value.get("task_scope")
+            not in {"whole_problem", SUBPROBLEM_TASK_SCOPE, TASK_POOL_TASK_SCOPE}
             or (
                 value.get("policy") == WHOLE_PROBLEM_POLICY
-                and value.get("task_scope") != TASK_POOL_TASK_SCOPE
+                and value.get("task_scope") != "whole_problem"
             )
             or (
                 value.get("policy") == SUBPROBLEM_POLICY
                 and value.get("task_scope") != SUBPROBLEM_TASK_SCOPE
+            )
+            or (
+                value.get("policy") == DIRECT_PROPOSITION_POLICY
+                and value.get("task_scope") != TASK_POOL_TASK_SCOPE
             )
             or not _is_commit(value.get("repository_commit"))
             or not isinstance(targets, list)
@@ -313,6 +317,12 @@ def load_task_targets(path: Path) -> TaskTargets:
                     value.get("policy") == SUBPROBLEM_POLICY
                     and item["theorem"].startswith(
                         f"Erdos{item['erdos_problem_number']}.erdos_{item['erdos_problem_number']}."
+                    )
+                )
+                or (
+                    value.get("policy") == DIRECT_PROPOSITION_POLICY
+                    and item["theorem"].startswith(
+                        f"Erdos{item['erdos_problem_number']}."
                     )
                 )
             )
@@ -763,11 +773,11 @@ def build_task_allowlist(
                 "reward_family_count": len(set(reward_families.values())),
                 "reward_family_policy": REWARD_FAMILY_POLICY,
                 "retired_source_theorems_sha256": retired.sha256,
-                "selection": (
-                    TASK_POOL_SELECTION
-                    if task_targets.policy == WHOLE_PROBLEM_POLICY
-                    else SUBPROBLEM_POOL_SELECTION
-                ),
+                "selection": {
+                    WHOLE_PROBLEM_POLICY: "audited-erdos-whole-problem-v1",
+                    SUBPROBLEM_POLICY: SUBPROBLEM_POOL_SELECTION,
+                    DIRECT_PROPOSITION_POLICY: TASK_POOL_SELECTION,
+                }[task_targets.policy],
                 "selection_audit_sha256": selection_audit.sha256,
                 "source_category": "research open",
                 "source_theorem_count": len(declarations),

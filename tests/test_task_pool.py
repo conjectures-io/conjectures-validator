@@ -20,11 +20,6 @@ from verifier.task_pool import (
     TASK_POOL_SELECTION,
     TASK_POOL_TASK_SCOPE,
     REWARD_FAMILY_POLICY,
-    SUBPROBLEM_POOL_SELECTION,
-    SUBPROBLEM_TASK_SCOPE,
-    SUBPROBLEM_TASK_TIER,
-    SUBPROBLEM_TIER_SIZE,
-    SUBPROBLEM_TIER_TASK_COUNT,
     UNSOLVED_ERDOS_STATUSES,
     group_task_declarations,
     load_retired_sources,
@@ -45,59 +40,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 TIER_METADATA = ROOT / "tasks/tiers/tier-1"
-SUBPROBLEM_METADATA = ROOT / "tasks/tiers/tier-2"
-TIER_CONFIGS = (
-    (
-        DEFAULT_TASK_TIER,
-        TIER_METADATA,
-        "whole-problem-targets.json",
-        DEFAULT_TIER_SIZE,
-        DEFAULT_TIER_TASK_COUNT,
-        TASK_POOL_TASK_SCOPE,
-        TASK_POOL_SELECTION,
-        29,
-    ),
-    (
-        SUBPROBLEM_TASK_TIER,
-        SUBPROBLEM_METADATA,
-        "subproblem-targets.json",
-        SUBPROBLEM_TIER_SIZE,
-        SUBPROBLEM_TIER_TASK_COUNT,
-        SUBPROBLEM_TASK_SCOPE,
-        SUBPROBLEM_POOL_SELECTION,
-        33,
-    ),
-)
 
 
-@pytest.mark.parametrize(
-    (
-        "_tier",
-        "metadata",
-        "target_file",
-        "size",
-        "_task_count",
-        "scope",
-        "_selection",
-        "_families",
-    ),
-    TIER_CONFIGS,
-)
-def test_task_selection_is_new_and_audited_erdos_only(
-    _tier, metadata, target_file, size, _task_count, scope, _selection, _families
-):
+def test_task_selection_is_new_and_audited_erdos_only():
     catalog = load_catalog(ROOT / "data/catalog.json")
-    retired = load_retired_sources(metadata / "retired-source-theorems.json")
-    audit = load_selection_audit(metadata / "selection-audit.json")
-    targets = load_task_targets(metadata / target_file)
+    retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
+    audit = load_selection_audit(TIER_METADATA / "selection-audit.json")
+    targets = load_task_targets(TIER_METADATA / "task-targets.json")
     selected = select_task_declarations(
         catalog=catalog,
         retired=retired,
         selection_audit=audit,
         task_targets=targets,
-        pool_size=size,
+        pool_size=DEFAULT_TIER_SIZE,
     )
-    assert len(selected) == size
+    assert len(selected) == DEFAULT_TIER_SIZE
     assert not ({item.theorem for item in selected} & retired.theorems)
     assert not ({item.type_hash for item in selected} & retired.type_hashes)
     assert len({item.type_hash for item in selected}) == len(selected)
@@ -115,68 +72,62 @@ def test_task_selection_is_new_and_audited_erdos_only(
     )
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
-    if scope == TASK_POOL_TASK_SCOPE:
-        assert len({item.source_path for item in selected}) == len(selected)
-    else:
-        assert len({item.source_path for item in selected}) == 33
+    assert targets.task_scope == TASK_POOL_TASK_SCOPE
+    assert len({item.source_path for item in selected}) == 55
     assert all(
         entry.problem_tracker_status in UNSOLVED_ERDOS_STATUSES
         for entry in audit.entries
     )
-    grouping = load_task_grouping(metadata / "task-groups.json")
+    grouping = load_task_grouping(TIER_METADATA / "task-groups.json")
     groups = group_task_declarations(selected, grouping)
-    assert len(groups) == size
+    assert len(groups) == DEFAULT_TIER_SIZE
     assert not grouping.groups
     assert all(len(group) == 1 for group in groups)
 
 
-def test_checked_in_task_pool_is_paired_tiered_and_allowlisted():
+def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     allowlist = ROOT / "tasks/allowlist.json"
     policy = json.loads(allowlist.read_text(encoding="utf-8"))
     registry = TaskPoolRegistry.load(allowlist)
     task_directories = tuple(
         sorted(
             path
-            for tier in (DEFAULT_TASK_TIER, SUBPROBLEM_TASK_TIER)
-            for path in (ROOT / "tasks/pool" / tier).iterdir()
+            for path in (ROOT / "tasks/pool" / DEFAULT_TASK_TIER).iterdir()
             if path.is_dir()
         )
     )
 
     assert policy["schema_version"] == TASK_POOL_SCHEMA_VERSION
-    assert policy["tier_order"] == [DEFAULT_TASK_TIER, SUBPROBLEM_TASK_TIER]
-    for tier, metadata, target_file, size, task_count, scope, selection, families in TIER_CONFIGS:
-        tier_policy = policy["tier_policies"][tier]
-        audit = load_selection_audit(metadata / "selection-audit.json")
-        targets = load_task_targets(metadata / target_file)
-        assert tier_policy["modes"] == list(PRODUCTION_TASK_MODES)
-        assert tier_policy["target_relations"] == {
-            COUNTEREXAMPLE_TASK_MODE: "logical-negation",
-            EXACT_TASK_MODE: "definitionally-equal",
-        }
-        assert tier_policy["outcomes_per_problem"] == len(PRODUCTION_TASK_MODES)
-        assert tier_policy["one_reward_per_problem"] is True
-        assert tier_policy["one_reward_per_reward_family"] is True
-        assert tier_policy["reward_family_policy"] == REWARD_FAMILY_POLICY
-        assert tier_policy["reward_family_count"] == families
-        assert tier_policy["source_theorem_count"] == size
-        assert tier_policy["pool_size"] == task_count
-        assert tier_policy["selection"] == selection
-        assert tier_policy["selection_audit_sha256"] == audit.sha256
-        assert tier_policy["task_targets_sha256"] == targets.sha256
-        assert tier_policy["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
-        assert tier_policy["task_scope"] == scope
-        assert tier_policy["multi_target_tasks"] == 0
-        assert tier_policy["excluded_source_prefixes"] == list(EXCLUDED_SOURCE_PREFIXES)
-        assert len(registry.tasks_for_tier(tier)) == task_count
-    assert len(registry.tasks) == DEFAULT_TIER_TASK_COUNT + SUBPROBLEM_TIER_TASK_COUNT
+    assert policy["tier_order"] == [DEFAULT_TASK_TIER]
+    tier_policy = policy["tier_policies"][DEFAULT_TASK_TIER]
+    audit = load_selection_audit(TIER_METADATA / "selection-audit.json")
+    targets = load_task_targets(TIER_METADATA / "task-targets.json")
+    assert tier_policy["modes"] == list(PRODUCTION_TASK_MODES)
+    assert tier_policy["target_relations"] == {
+        COUNTEREXAMPLE_TASK_MODE: "logical-negation",
+        EXACT_TASK_MODE: "definitionally-equal",
+    }
+    assert tier_policy["outcomes_per_problem"] == len(PRODUCTION_TASK_MODES)
+    assert tier_policy["one_reward_per_problem"] is True
+    assert tier_policy["one_reward_per_reward_family"] is True
+    assert tier_policy["reward_family_policy"] == REWARD_FAMILY_POLICY
+    assert tier_policy["reward_family_count"] == 55
+    assert tier_policy["source_theorem_count"] == DEFAULT_TIER_SIZE
+    assert tier_policy["pool_size"] == DEFAULT_TIER_TASK_COUNT
+    assert tier_policy["selection"] == TASK_POOL_SELECTION
+    assert tier_policy["selection_audit_sha256"] == audit.sha256
+    assert tier_policy["task_targets_sha256"] == targets.sha256
+    assert tier_policy["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
+    assert tier_policy["task_scope"] == TASK_POOL_TASK_SCOPE
+    assert tier_policy["multi_target_tasks"] == 0
+    assert tier_policy["excluded_source_prefixes"] == list(EXCLUDED_SOURCE_PREFIXES)
+    assert len(registry.tasks) == DEFAULT_TIER_TASK_COUNT
     assert len(registry.tasks_for_tier(DEFAULT_TASK_TIER)) == DEFAULT_TIER_TASK_COUNT
-    assert len(task_directories) == DEFAULT_TIER_TASK_COUNT + SUBPROBLEM_TIER_TASK_COUNT
+    assert len(task_directories) == DEFAULT_TIER_TASK_COUNT
     assert (ROOT / "tasks/pool").stat().st_mode & 0o005 == 0o005
     assert allowlist.stat().st_mode & 0o004 == 0o004
     assert {row["tier"] for row in policy["allowed_source_theorems"]} == {
-        DEFAULT_TASK_TIER,
-        SUBPROBLEM_TASK_TIER,
+        DEFAULT_TASK_TIER
     }
 
     source_occurrences = {}
@@ -219,12 +170,12 @@ def test_checked_in_task_pool_is_paired_tiered_and_allowlisted():
             manifest.task_mode
         )
         task_hashes.add(bundle.sha256)
-    assert len(source_occurrences) == DEFAULT_TIER_SIZE + SUBPROBLEM_TIER_SIZE
+    assert len(source_occurrences) == DEFAULT_TIER_SIZE
     assert all(modes == set(PRODUCTION_TASK_MODES) for modes in source_occurrences.values())
     problem_modes = {}
     for task in registry.tasks.values():
         problem_modes.setdefault(task.problem_id, set()).add(task.mode)
-    assert len(problem_modes) == DEFAULT_TIER_SIZE + SUBPROBLEM_TIER_SIZE
+    assert len(problem_modes) == DEFAULT_TIER_SIZE
     assert all(modes == set(PRODUCTION_TASK_MODES) for modes in problem_modes.values())
     reward_families = {task.reward_family_id for task in registry.tasks.values()}
     assert len(reward_families) == 55

@@ -152,7 +152,8 @@ def _valid_tier_policy(policy: object) -> bool:
         and policy.get("source_category") == "research open"
         and type(policy.get("source_theorem_count")) is int
         and policy["source_theorem_count"] > 0
-        and policy.get("task_scope") in {"whole_problem", "part_or_variant"}
+        and policy.get("task_scope")
+        in {"whole_problem", "part_or_variant", "direct_proposition"}
         and policy.get("target_relations")
         == {
             COUNTEREXAMPLE_TASK_MODE: "logical-negation",

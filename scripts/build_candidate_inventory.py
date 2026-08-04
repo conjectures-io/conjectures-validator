@@ -342,7 +342,7 @@ def main() -> None:
         "candidate_policy": (
             "Direct research-open theorem or lemma; not in a retired release; "
             "current structured Erdős status allowed; passed the preliminary "
-            "path-level PR screen; excludes the 29 current tier-1 tasks. "
+            "path-level PR screen; excludes the 29 tasks admitted at the audit boundary. "
             "Row-level rejection and hold decisions are recorded separately."
         ),
         "candidate_count": len(records),
@@ -418,7 +418,7 @@ def main() -> None:
         (
             f"This inventory contains **{len(records)} declarations across "
             f"{len(candidates_per_path)} source files**. It excludes the 29 "
-            "current tier-1 tasks. A row is a review candidate, not an "
+            "tasks admitted at the audit boundary. A row is a review candidate, not an "
             "admitted or certified task."
         ),
         "",

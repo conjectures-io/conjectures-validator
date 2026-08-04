@@ -229,17 +229,17 @@ python -m verifier task generate \
 
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
-the public targets for solver attempts. The pool is divided into two audited tiers:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) has 29
-whole-problem targets, while `tier-2` has 45 independently formalized parts or variants. The source
+the public targets for solver attempts. The pool currently has one compatibility tier:
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains all 74
+audited targets, including complete statements and independently formalized parts or variants. The source
 snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
 derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
-correction patch. Together the tiers contain 148 immutable bundles for 74 theorem targets. Every
+correction patch. The tier contains 148 immutable bundles for 74 theorem targets. Every
 target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
 
 Each bundle has a commit-specific `problem_id`, while every statement under the same numbered
 Erdős problem has a stable `reward_family_id` such as `erdos-340`. The database permits at most one
-reward per family, including across source repins, so parent problems and related tier-2 variants
+reward per family, including across source repins, so parent problems and related variants
 cannot be paid separately. The release has 55 reward families. Multi-target bundles and answer
 wrappers remain excluded. The 178 source declarations and canonical types used by the two previous
 releases are explicitly retired and are not reused.
@@ -264,7 +264,7 @@ The complete machine-readable admission set and bundle commitments are in
 It records a tier for every source and task
 bundle. Only an allowlisted, verifier-accepted proof or refutation should
 advance to human mathematical review. Generation compiles and independently inspects every target;
-this proves that the validator has an exact, hole-free target. Each tier's selection audit records
+this proves that the validator has an exact, hole-free target. The tier's selection audit records
 the Formal Conjectures status,
 Erdős Problems tracker status, pull-request review, and formal-surface screen. “Plausibly
 attackable” is not a guarantee of solvability and does not prove that the informal statement is
@@ -272,8 +272,8 @@ correct.
 
 The deterministic pool selection and compiled validation are implemented by
 `scripts/rebuild_task_pool.py`. It loads the exact audited selection and
-[`tier-1 whole-problem targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/whole-problem-targets.json), admits exactly
-one canonical whole-problem theorem per source file, generates committed `formalized` and
+[`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
+the 74 audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
