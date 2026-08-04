@@ -133,7 +133,7 @@ def _machine_contract(entry: TaskEntry, settings: Settings) -> public.MachineCon
     manifest = entry.manifest
     return public.MachineContract(
         task_id=entry.task_id,
-        reward_family_id=entry.reward_family_id,
+        reward_target_id=entry.reward_target_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         target_type_sha256s=entry.target_type_sha256s,
         bundle_format=BUNDLE_FORMAT,

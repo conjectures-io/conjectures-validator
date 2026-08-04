@@ -19,7 +19,7 @@
   },
   "tasks": {
     "repository": "https://github.com/conjectures-io/conjectures-tasks.git",
-    "commit": "1560e70dc8c5b20a1d02282e83cadedff8b49e1e"
+    "commit": "a1a874b06389e95dcf99c83047d551ce459eb99e"
   },
   "lean": {
     "toolchain": "leanprover/lean4:v4.27.0",

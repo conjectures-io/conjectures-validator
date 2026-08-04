@@ -135,7 +135,7 @@ async def insert(dsn: str, *, allowed, task_dir: Path, proof: bytes, review: boo
                     # From the allowlist, never from the command line: the whole point of these two
                     # columns is that the submitter does not choose which reward they compete for.
                     problem_id=allowed.problem_id,
-                    reward_family_id=allowed.reward_family_id,
+                    reward_target_id=allowed.reward_target_id,
                     task_mode=store.TaskMode(allowed.mode),
                     proof_content=proof,
                     proof_sha256=digest,

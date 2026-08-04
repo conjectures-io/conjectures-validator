@@ -78,9 +78,8 @@ class Kit:
         *,
         problem_id: str | None = None,
     ) -> uuid.UUID:
-        """One paid submission. Each gets its own conjecture unless a test asks them to
-        share: only one submission per reward family may hold a reward, so submissions that share
-        a problem exercise that contention rather than the lease behaviour tested here."""
+        """One paid submission. Each gets its own theorem target unless a test asks them to
+        share; only the two modes or source repins of that target share a reward."""
         digest = sha256_bytes(content)
         resolved_problem_id = problem_id or f"fc-e923379e-fixture-{uuid.uuid4()}-problem"
         async with self.session() as session:
@@ -93,7 +92,7 @@ class Kit:
                     task_id=TASK_ID,
                     task_bundle_sha256=TASK_DIGEST,
                     problem_id=resolved_problem_id,
-                    reward_family_id=resolved_problem_id,
+                    reward_target_id=resolved_problem_id,
                     task_mode=store.TaskMode.FORMALIZED,
                     proof_content=content,
                     proof_sha256=digest,

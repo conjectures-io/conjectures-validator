@@ -20,7 +20,7 @@ from verifier.task_pool import (
     TASK_POOL_SCHEMA_VERSION,
     TASK_POOL_SELECTION,
     TASK_POOL_TASK_SCOPE,
-    REWARD_FAMILY_POLICY,
+    REWARD_TARGET_POLICY,
     UNSOLVED_ERDOS_STATUSES,
     group_task_declarations,
     load_retired_sources,
@@ -111,9 +111,9 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     }
     assert tier_policy["outcomes_per_problem"] == len(PRODUCTION_TASK_MODES)
     assert tier_policy["one_reward_per_problem"] is True
-    assert tier_policy["one_reward_per_reward_family"] is True
-    assert tier_policy["reward_family_policy"] == REWARD_FAMILY_POLICY
-    assert tier_policy["reward_family_count"] == 55
+    assert tier_policy["one_reward_per_reward_target"] is True
+    assert tier_policy["reward_target_policy"] == REWARD_TARGET_POLICY
+    assert tier_policy["reward_target_count"] == DEFAULT_TIER_SIZE
     assert tier_policy["source_theorem_count"] == DEFAULT_TIER_SIZE
     assert tier_policy["pool_size"] == DEFAULT_TIER_TASK_COUNT
     assert tier_policy["selection"] == TASK_POOL_SELECTION
@@ -179,9 +179,16 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
         problem_modes.setdefault(task.problem_id, set()).add(task.mode)
     assert len(problem_modes) == DEFAULT_TIER_SIZE
     assert all(modes == set(PRODUCTION_TASK_MODES) for modes in problem_modes.values())
-    reward_families = {task.reward_family_id for task in registry.tasks.values()}
-    assert len(reward_families) == 55
-    assert len(registry.tasks_for_reward_family("erdos-340")) == 4
+    reward_targets = {task.reward_target_id for task in registry.tasks.values()}
+    assert len(reward_targets) == DEFAULT_TIER_SIZE
+    assert len(
+        registry.tasks_for_reward_target("fc-target:Erdos340.erdos_340")
+    ) == len(PRODUCTION_TASK_MODES)
+    assert len(
+        registry.tasks_for_reward_target(
+            "fc-target:Erdos340.erdos_340.variants.sub_hasPosDensity"
+        )
+    ) == len(PRODUCTION_TASK_MODES)
 
 
 def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path):
@@ -208,7 +215,7 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
                     "completion_policy": "all_of",
                     "mode": mode,
                     "problem_id": problem_id("a" * 40, (source["theorem"],)),
-                    "reward_family_id": f"erdos-{source['index'] + 1}",
+                    "reward_target_id": f"fc-target:{source['theorem']}",
                     "source_indices": [source["index"]],
                     "source_path": source["source_path"],
                     "task_id": f"fc-test-{source['index'] + 1}-{mode}-v1",
@@ -236,10 +243,10 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
                 "modes": list(PRODUCTION_TASK_MODES),
                 "multi_target_tasks": 0,
                 "one_reward_per_problem": True,
-                "one_reward_per_reward_family": True,
+                "one_reward_per_reward_target": True,
                 "pool_size": MINIMUM_ERDOS_TASKS * len(PRODUCTION_TASK_MODES),
-                "reward_family_count": MINIMUM_ERDOS_TASKS,
-                "reward_family_policy": REWARD_FAMILY_POLICY,
+                "reward_target_count": MINIMUM_ERDOS_TASKS,
+                "reward_target_policy": REWARD_TARGET_POLICY,
                 "retired_source_theorems_sha256": "sha256:" + "d" * 64,
                 "selection": TASK_POOL_SELECTION,
                 "selection_audit_sha256": "sha256:" + "e" * 64,

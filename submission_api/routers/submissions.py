@@ -315,7 +315,7 @@ async def create_submission(
                 task_id=task_id,
                 task_bundle_sha256=entry.task_bundle_sha256,
                 problem_id=entry.problem_id,
-                reward_family_id=entry.reward_family_id,
+                reward_target_id=entry.reward_target_id,
                 task_mode=task_mode,
                 proof_content=bundle.proof.raw,
                 proof_sha256=bundle.proof.sha256,

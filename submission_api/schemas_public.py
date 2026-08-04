@@ -78,7 +78,7 @@ class MachineContract(Model):
     """
 
     task_id: str
-    reward_family_id: str
+    reward_target_id: str
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
     bundle_format: str

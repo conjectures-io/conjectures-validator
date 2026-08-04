@@ -225,7 +225,7 @@ def task_entry(
     classification: Classification | None = None,
     task_mode: str | None = None,
     problem_id: str = PROBLEM_ID,
-    reward_family_id: str = "erdos-1",
+    reward_target_id: str = "fc-target:Erdos11.erdos_11",
     mode: str = "formalized",
     **manifest_kwargs,
 ) -> TaskEntry:
@@ -248,7 +248,7 @@ def task_entry(
         task_id=task_id,
         tier=tier,
         problem_id=problem_id,
-        reward_family_id=reward_family_id,
+        reward_target_id=reward_target_id,
         mode=mode,
         task_bundle_sha256=digest,
         target_type_sha256s=("sha256:" + "11" * 32,),

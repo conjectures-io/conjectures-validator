@@ -313,12 +313,12 @@ combined with a tampered audit file:
 | --- | --- |
 | `selection_audit_sha256` | the tier's selected human reviews |
 | `retired_source_theorems_sha256` | the 178 retirements |
-| `task_targets_sha256` | the tier's exact targets and reward families |
+| `task_targets_sha256` | the tier's exact targets and per-target reward identities |
 | `task_groups_sha256` | the group policy (currently empty) |
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
-`stable-erdos-number-v1` reward-family rule. The one active tier has `multi_target_tasks: 0` and
-contains all 74 Erdős targets.
+`stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
+all 74 Erdős targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it

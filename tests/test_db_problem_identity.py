@@ -1,9 +1,9 @@
-"""One reward family, potentially several conjecture tasks, one reward.
+"""One exact theorem target, two proof/refutation tasks, one reward.
 
-The task pool issues a `formalized` and a `counterexample` task for every problem, and both
-carry a stable `reward_family_id`. These tests cover the three consequences: intake records the
-identity from the allowlist rather than from the miner, the schema refuses a second reward for
-the same family, and a problem that verified in both modes is escalated instead of paid.
+The task pool issues a `formalized` and a `counterexample` task for every theorem target, and both
+carry a stable `reward_target_id`. Independently formalized parents, parts, and variants have
+different identities and therefore separate rewards. These tests cover intake, exclusivity for
+one exact target, independence between targets, and contradictory proof/refutation outcomes.
 
 Skipped unless a PostgreSQL server is reachable:
 
@@ -56,8 +56,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 PROBLEM = "fc-e923379e-erdos11-erdos-11-problem"
-OTHER_PROBLEM = "fc-e923379e-erdos42-erdos-42-problem"
-REWARD_FAMILY = "erdos-11"
+VARIANT_PROBLEM = "fc-e923379e-erdos11-not-four-dvd-problem"
+REPINNED_PROBLEM = "fc-newcommit-erdos11-erdos-11-problem"
+REWARD_TARGET = "fc-target:Erdos11.erdos_11"
+VARIANT_REWARD_TARGET = "fc-target:Erdos11.erdos_11.variants.not_four_dvd"
 
 
 def run(coroutine):
@@ -67,7 +69,7 @@ def run(coroutine):
 def new_submission(
     *,
     problem_id: str = PROBLEM,
-    reward_family_id: str | None = None,
+    reward_target_id: str | None = None,
     task_mode: TaskMode = TaskMode.FORMALIZED,
     proof: bytes = VALID_PROOF,
     manual_review_required: bool = False,
@@ -80,7 +82,7 @@ def new_submission(
         task_id=TASK_ID,
         task_bundle_sha256=TASK_DIGEST,
         problem_id=problem_id,
-        reward_family_id=reward_family_id or REWARD_FAMILY,
+        reward_target_id=reward_target_id or REWARD_TARGET,
         task_mode=task_mode,
         proof_content=proof,
         proof_sha256=sha256_bytes(proof),
@@ -140,7 +142,7 @@ def test_intake_records_the_problem_and_mode_from_the_allowlist():
                 task_entry(
                     mode="counterexample",
                     problem_id=PROBLEM,
-                    reward_family_id=REWARD_FAMILY,
+                    reward_target_id=REWARD_TARGET,
                 ),
             )
         ).setup()
@@ -163,7 +165,7 @@ def test_intake_records_the_problem_and_mode_from_the_allowlist():
                 row = await session.get(Submission, uuid.UUID(response.json()["submission_id"]))
                 assert row is not None
                 assert row.problem_id == PROBLEM
-                assert row.reward_family_id == REWARD_FAMILY
+                assert row.reward_target_id == REWARD_TARGET
                 assert row.task_mode is TaskMode.COUNTEREXAMPLE
         finally:
             await kit.teardown()
@@ -171,7 +173,7 @@ def test_intake_records_the_problem_and_mode_from_the_allowlist():
     run(scenario())
 
 
-# --- the reward is exclusive per stable family -----------------------------------------
+# --- one reward per exact theorem target ------------------------------------------------
 
 
 def test_many_submissions_may_share_a_problem_while_none_is_awarded():
@@ -232,7 +234,7 @@ def test_the_schema_refuses_a_second_reward_for_one_problem():
 
                 # A different mode of the same conjecture is still the same reward.
                 second.submission.reward_status = RewardState.ELIGIBLE
-                with pytest.raises(IntegrityError, match=store.REWARD_FAMILY_CONSTRAINT):
+                with pytest.raises(IntegrityError, match=store.REWARD_TARGET_CONSTRAINT):
                     await session.flush()
                 await session.rollback()
         finally:
@@ -261,7 +263,7 @@ def test_a_failed_payout_keeps_its_claim_on_the_problem():
                 await session.flush()
 
                 second.submission.reward_status = RewardState.ELIGIBLE
-                with pytest.raises(IntegrityError, match=store.REWARD_FAMILY_CONSTRAINT):
+                with pytest.raises(IntegrityError, match=store.REWARD_TARGET_CONSTRAINT):
                     await session.flush()
                 await session.rollback()
         finally:
@@ -270,7 +272,7 @@ def test_a_failed_payout_keeps_its_claim_on_the_problem():
     run(scenario())
 
 
-def test_a_different_problem_is_unaffected():
+def test_an_independent_variant_has_its_own_reward():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -281,9 +283,9 @@ def test_a_different_problem_is_unaffected():
                 theirs = await store.create_submission(
                     session,
                     new_submission(
-                        problem_id=OTHER_PROBLEM,
-                        reward_family_id="erdos-42",
-                        proof=VALID_PROOF + b"\n-- other\n",
+                        problem_id=VARIANT_PROBLEM,
+                        reward_target_id=VARIANT_REWARD_TARGET,
+                        proof=VALID_PROOF + b"\n-- independent variant\n",
                         manual_review_required=True,
                     ),
                 )
@@ -297,31 +299,31 @@ def test_a_different_problem_is_unaffected():
     run(scenario())
 
 
-def test_different_problem_ids_in_one_reward_family_conflict():
-    """A variant and its parent cannot each claim the same Erdős reward."""
+def test_a_source_repin_of_the_same_target_cannot_pay_twice():
+    """A new source commit does not create a second bounty for the same theorem target."""
 
     async def scenario():
         kit = await harness().setup()
         try:
             async with kit.session() as session:
-                parent = await store.create_submission(
+                original = await store.create_submission(
                     session,
                     new_submission(manual_review_required=True),
                 )
-                variant = await store.create_submission(
+                repinned = await store.create_submission(
                     session,
                     new_submission(
-                        problem_id=OTHER_PROBLEM,
-                        reward_family_id=REWARD_FAMILY,
-                        proof=VALID_PROOF + b"\n-- same reward family\n",
+                        problem_id=REPINNED_PROBLEM,
+                        reward_target_id=REWARD_TARGET,
+                        proof=VALID_PROOF + b"\n-- source repin\n",
                         manual_review_required=True,
                     ),
                 )
-                parent.submission.reward_status = RewardState.ELIGIBLE
+                original.submission.reward_status = RewardState.ELIGIBLE
                 await session.flush()
 
-                variant.submission.reward_status = RewardState.ELIGIBLE
-                with pytest.raises(IntegrityError, match=store.REWARD_FAMILY_CONSTRAINT):
+                repinned.submission.reward_status = RewardState.ELIGIBLE
+                with pytest.raises(IntegrityError, match=store.REWARD_TARGET_CONSTRAINT):
                     await session.flush()
                 await session.rollback()
         finally:

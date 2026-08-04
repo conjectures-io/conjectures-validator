@@ -37,7 +37,8 @@ SUBPROBLEM_TASK_SCOPE = "part_or_variant"
 WHOLE_PROBLEM_POLICY = "one_task_one_complete_problem"
 SUBPROBLEM_POLICY = "one_task_one_audited_subproblem"
 DIRECT_PROPOSITION_POLICY = "one_task_one_audited_proposition"
-REWARD_FAMILY_POLICY = "stable-erdos-number-v1"
+REWARD_TARGET_POLICY = "stable-theorem-target-v1"
+REWARD_TARGET_PREFIX = "fc-target:"
 ERDOS_SOURCE_PREFIX = "FormalConjectures/ErdosProblems/"
 EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
 FEASIBILITY_SIGNALS = frozenset(
@@ -57,6 +58,13 @@ UNSOLVED_ERDOS_STATUSES = frozenset(
         "verifiable",
     }
 )
+
+
+def reward_target_identity(theorem: str) -> str:
+    """Stable bounty identity for one theorem and its proof/refutation pair."""
+    return REWARD_TARGET_PREFIX + theorem
+
+
 SCREENING_STATEMENT = (
     "Plausibly attackable solver target; this is a comparative screen, not a "
     "claim that the conjecture is easy or guaranteed solvable."
@@ -114,7 +122,7 @@ class TaskTarget:
     theorem: str
     source_path: str
     erdos_problem_number: int
-    reward_family_id: str
+    reward_target_id: str
 
 
 @dataclass(frozen=True)
@@ -130,8 +138,8 @@ class TaskTargets:
         return tuple(target.theorem for target in self.targets)
 
     @property
-    def reward_families(self) -> dict[str, str]:
-        return {target.theorem: target.reward_family_id for target in self.targets}
+    def reward_targets(self) -> dict[str, str]:
+        return {target.theorem: target.reward_target_id for target in self.targets}
 
 
 def _is_commit(value: object) -> bool:
@@ -287,20 +295,20 @@ def load_task_targets(path: Path) -> TaskTargets:
                 theorem=item["theorem"],
                 source_path=item["source_path"],
                 erdos_problem_number=item["erdos_problem_number"],
-                reward_family_id=item["reward_family_id"],
+                reward_target_id=item["reward_target_id"],
             )
             for item in targets
             if isinstance(item, dict)
             and set(item)
-            == {"erdos_problem_number", "reward_family_id", "source_path", "theorem"}
+            == {"erdos_problem_number", "reward_target_id", "source_path", "theorem"}
             and type(item.get("erdos_problem_number")) is int
             and item["erdos_problem_number"] > 0
             and isinstance(item.get("source_path"), str)
             and item["source_path"]
             == f"{ERDOS_SOURCE_PREFIX}{item['erdos_problem_number']}.lean"
             and isinstance(item.get("theorem"), str)
-            and isinstance(item.get("reward_family_id"), str)
-            and item["reward_family_id"] == f"erdos-{item['erdos_problem_number']}"
+            and isinstance(item.get("reward_target_id"), str)
+            and item["reward_target_id"] == reward_target_identity(item["theorem"])
             and (
                 (
                     value.get("policy") == WHOLE_PROBLEM_POLICY
@@ -700,7 +708,7 @@ def build_task_allowlist(
         )
 
     tasks = []
-    reward_families = task_targets.reward_families
+    reward_targets = task_targets.reward_targets
     for declarations_for_task in declaration_groups:
         primary = declarations_for_task[0]
         theorem_names = tuple(item.theorem for item in declarations_for_task)
@@ -739,7 +747,7 @@ def build_task_allowlist(
                     "completion_policy": "all_of",
                     "mode": mode,
                     "problem_id": problem_id(catalog.repository_commit, theorem_names),
-                    "reward_family_id": reward_families[primary.theorem],
+                    "reward_target_id": reward_targets[primary.theorem],
                     "source_indices": source_indices,
                     "source_path": primary.source_path,
                     "target_type_sha256s": list(target_hashes),
@@ -768,10 +776,10 @@ def build_task_allowlist(
                     for group in declaration_groups
                 ) * len(PRODUCTION_TASK_MODES),
                 "one_reward_per_problem": True,
-                "one_reward_per_reward_family": True,
+                "one_reward_per_reward_target": True,
                 "pool_size": len(tasks),
-                "reward_family_count": len(set(reward_families.values())),
-                "reward_family_policy": REWARD_FAMILY_POLICY,
+                "reward_target_count": len(set(reward_targets.values())),
+                "reward_target_policy": REWARD_TARGET_POLICY,
                 "retired_source_theorems_sha256": retired.sha256,
                 "selection": {
                     WHOLE_PROBLEM_POLICY: "audited-erdos-whole-problem-v1",

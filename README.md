@@ -35,7 +35,7 @@ verification core.
 | Finalized 0.5 TAO transfer reader for payment-gated intake | To build |
 | Asynchronous verification worker | To build |
 | Manual reward-review decision service | To build |
-| Automatic reward eligibility and one-reward-per-family constraint | Implemented |
+| Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
 | Scoring and Subnet 66 weight-setting loop | To build |
 | Production launch and operating runbooks | To build |
 
@@ -239,10 +239,9 @@ derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checke
 correction patch. The tier contains 148 immutable bundles for 74 theorem targets. Every
 target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
 
-Each bundle has a commit-specific `problem_id`, while every statement under the same numbered
-Erdős problem has a stable `reward_family_id` such as `erdos-340`. The database permits at most one
-reward per family, including across source repins, so parent problems and related variants
-cannot be paid separately. The release has 55 reward families. Multi-target bundles and answer
+Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
+`reward_target_id` shared by its proof/refutation pair and later source repins. Independently
+formalized parents, parts, and variants have independent rewards. Multi-target bundles and answer
 wrappers remain excluded. The 178 source declarations and canonical types used by the two previous
 releases are explicitly retired and are not reused.
 
@@ -381,9 +380,9 @@ and files that are hashed but do not exactly match output reconstructed by the p
 separate whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted
 after task publication.
 
-The allowlist assigns both modes the same deterministic `problem_id` and assigns every related
-statement a stable `reward_family_id`. Reward storage enforces at most one reward across the entire
-family, including proof/refutation modes, parents, parts, variants, and source repins.
+The allowlist assigns both modes the same deterministic `problem_id` and assigns each exact theorem
+target a stable `reward_target_id`. Reward storage enforces at most one reward across that target's
+proof/refutation pair and source repins; parents, parts, and variants remain independent bounties.
 
 `source-metadata.json` includes a `references` array when the Formal Conjectures module docstring
 has a `*Reference:*` or `*References:*` section. Each entry preserves the source Markdown so clients

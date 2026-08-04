@@ -189,7 +189,7 @@ class Submission(Base):
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
     # Both derived from the allowlist at intake, never sent by the miner.
     problem_id: Mapped[str] = mapped_column(Text, nullable=False)
-    reward_family_id: Mapped[str] = mapped_column(Text, nullable=False)
+    reward_target_id: Mapped[str] = mapped_column(Text, nullable=False)
     task_mode: Mapped[TaskMode] = mapped_column(TASK_MODE, nullable=False)
 
     # Drop the UNIQUE if identical proofs should ever both be payable.
@@ -278,8 +278,8 @@ class Submission(Base):
             "length(problem_id) BETWEEN 1 AND 255", name="problem_id_nonempty"
         ),
         CheckConstraint(
-            "length(reward_family_id) BETWEEN 1 AND 255",
-            name="reward_family_id_nonempty",
+            "length(reward_target_id) BETWEEN 1 AND 255",
+            name="reward_target_id_nonempty",
         ),
         CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128",
@@ -385,8 +385,8 @@ class Submission(Base):
             postgresql_where=text("account_id IS NOT NULL"),
         ),
         Index(
-            "submissions_reward_family_reward_unique",
-            "reward_family_id",
+            "submissions_reward_target_reward_unique",
+            "reward_target_id",
             unique=True,
             postgresql_where=text("reward_status <> 'INELIGIBLE'"),
         ),

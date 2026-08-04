@@ -37,7 +37,7 @@ class TaskEntry:
     task_id: str
     tier: str
     problem_id: str
-    reward_family_id: str
+    reward_target_id: str
     mode: str
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
@@ -89,7 +89,7 @@ class TaskCatalog:
                     task_id=allowed.task_id,
                     tier=allowed.tier,
                     problem_id=allowed.problem_id,
-                    reward_family_id=allowed.reward_family_id,
+                    reward_target_id=allowed.reward_target_id,
                     mode=allowed.mode,
                     task_bundle_sha256=allowed.task_bundle_sha256,
                     target_type_sha256s=allowed.target_type_sha256s,
