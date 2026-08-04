@@ -30,6 +30,7 @@ from pathlib import Path
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
 
 DEVELOPMENT_MODE = "DEV"
 PRODUCTION_MODE = "PROD"
@@ -572,18 +573,19 @@ class Settings:
                 "a quoted price with no date cannot be judged for staleness"
             )
 
+        tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
-            # Renamed with the pool itself: neither gold/allowlist.json nor tasks/gold exists
+            # Renamed with the pool itself: neither gold/allowlist.json nor a gold pool exists
             # any more, so the old names could only ever have resolved to nothing.
             task_allowlist_path=_directory(
                 env,
                 "TASK_ALLOWLIST_PATH",
-                PROJECT_ROOT / "tasks" / "allowlist.json",
+                tasks_root / "allowlist.json",
             ),
             task_pool_root=_directory(
-                env, "TASK_POOL_ROOT", PROJECT_ROOT / "tasks" / "pool"
+                env, "TASK_POOL_ROOT", tasks_root / "pool"
             ),
             verifier_project_root=_directory(
                 env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT

@@ -26,6 +26,7 @@ import uuid
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from conjectures_subnet.db import submissions as store
@@ -88,15 +89,18 @@ def load_pool(
     this at the same one or it will refuse the task id.
     """
     env = {**read_dotenv(), **os.environ}
+    tasks_root = Path(
+        env.get("CONJECTURES_TASKS_ROOT", str(TASKS_ROOT))
+    ).resolve()
     allowlist_path = (
         allowlist
         or (Path(env["TASK_ALLOWLIST_PATH"]) if env.get("TASK_ALLOWLIST_PATH") else None)
-        or PROJECT_ROOT / "tasks" / "allowlist.json"
+        or tasks_root / "allowlist.json"
     )
     root = (
         pool_root
         or (Path(env["TASK_POOL_ROOT"]) if env.get("TASK_POOL_ROOT") else None)
-        or PROJECT_ROOT / "tasks" / "pool"
+        or tasks_root / "pool"
     )
     registry = TaskPoolRegistry.load(allowlist_path)
     resolver = PoolTaskResolver.load(allowlist_path=allowlist_path, pool_root=root)

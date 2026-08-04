@@ -453,7 +453,7 @@ def worker(kit: Kit, runner, env: dict[str, str] | None = None) -> VerificationW
                 ResolvedTask(
                     task_id=TASK_ID,
                     tier="tier-1",
-                    task_dir=Path("tasks/pool/tier-1") / TASK_ID,
+                    task_dir=Path("/external-task-pool/tier-1") / TASK_ID,
                     task_bundle_sha256=TASK_DIGEST,
                     timeout_seconds=30,
                 ),
@@ -640,7 +640,7 @@ def test_a_task_that_left_the_allowlist_is_not_verified_against_new_bytes():
                     ResolvedTask(
                         task_id=TASK_ID,
                         tier="tier-1",
-                        task_dir=Path("tasks/pool/tier-1") / TASK_ID,
+                        task_dir=Path("/external-task-pool/tier-1") / TASK_ID,
                         task_bundle_sha256="sha256:" + "ef" * 32,
                         timeout_seconds=30,
                     ),

@@ -3,7 +3,7 @@
 How data moves through the validator, what each stage consumes, what it produces, and which values
 are load-bearing for trust. Every number here was computed from the pinned repository state at
 `379fc0298dc146df549e7061c3ede0353a5bb51f`; the commands are reproducible from `data/catalog.json`
-and `tasks/{allowlist.json,tiers/**/*.json}`.
+and `../conjectures-tasks/{allowlist.json,tiers/**/*.json}`.
 
 Companion documents: [`SUBNET.md`](SUBNET.md) for the service contract,
 [`../SECURITY.md`](../SECURITY.md) for the isolation boundary.
@@ -52,8 +52,8 @@ flowchart TD
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
-        BUN["tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["tasks/allowlist.json<br/>148 bundle digests · default DENY"]
+        BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>148 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -183,7 +183,7 @@ one of them starts firing is the day upstream changed something that matters.
 
 ### The 178 retired theorems
 
-`tasks/tiers/tier-1/retired-source-theorems.json` names 178 source theorems that must never be offered again,
+`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 178 source theorems that must never be offered again,
 committed by both `theorem` name **and** `source_type_sha256` — so retiring survives a rename. Of
 those, 88 intersect the eligible pool and 11 intersect the Erdős-eligible 121. Retirement is checked
 by name *or* type hash at selection time (`task_pool.py:467-468`).
@@ -224,7 +224,7 @@ The central mechanism, and the thing that makes statement drift structurally imp
 generated `Challenge.lean` **never copies the statement text**. It asks Lean to splice the source
 theorem's type in by name, via the custom elaborator `fcTypeOfName%` in `lean/TaskSupport.lean`.
 
-A complete real bundle — `tasks/pool/tier-1/erdos-11-formalized/`:
+A complete real bundle — `../conjectures-tasks/pool/tier-1/erdos-11-formalized/`:
 
 ```lean
 -- Challenge.lean, 160 bytes, the entire task
@@ -293,7 +293,7 @@ against a real Lean compile, not against JSON.
 
 ## 6. Commitment — **BUILT**
 
-`tasks/allowlist.json`, schema version 7, `default: "DENY"`, enforced by
+`../conjectures-tasks/allowlist.json`, schema version 7, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
 74 `allowed_source_theorems` and 148 `allowed_task_bundles`. Each bundle entry pins `task_id`,
@@ -531,7 +531,7 @@ Ordered by how much they matter, not by where they appear above.
    well-formed. This blocks the whole right-hand side.
 3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets
    `generated_target_type_hash` from `generated_hashes[0]`, so a multi-source task would not commit
-   its secondary targets. Currently latent: `tasks/tiers/tier-1/task-groups.json` has 0 groups and
+   its secondary targets. Currently latent: `../conjectures-tasks/tiers/tier-1/task-groups.json` has 0 groups and
    `tier_policies.tier-1.multi_target_tasks` is 0. Closing it needs a manifest schema bump.
 4. **`nanoda` is pinned but disabled.** The second independent kernel is one config flag away and is
    the cheapest available increase in kernel-level assurance.
@@ -542,7 +542,8 @@ Ordered by how much they matter, not by where they appear above.
 
 # Reproducing the numbers
 
-Every count above comes from `data/catalog.json` and `tasks/{allowlist.json,tiers/**/*.json}` at the pinned commit. The funnel
+Every count above comes from `data/catalog.json` and
+`../conjectures-tasks/{allowlist.json,tiers/**/*.json}` at the pinned commit. The funnel
 is `category == "research open"` then `classification == "DIRECT_PROP"`, then the remaining
 `production_policy_violations` rules from `verifier/task_policy.py:53-82`, then the prefix and
 audit-set intersections. Set membership for retirement is by `theorem` **or** `source_type_sha256`.

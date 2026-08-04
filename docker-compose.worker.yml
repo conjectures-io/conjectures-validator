@@ -84,14 +84,16 @@ services:
       # Paths inside the container. The pool and the allowlist are validated against each other at
       # startup, so a stale or partial mount fails the boot rather than one submission at a time.
       # Overridable so a development pool can be swapped in without editing this file. Paths are
-      # as the container sees them, under /srv/app — e.g. to use the pool that
-      # scripts/build_test_pool.py writes, whose counterexample task is actually provable:
+      # as the container sees them — e.g. to use the development pool that
+      # ../conjectures-tasks/scripts/build_test_pool.py writes, whose counterexample task is
+      # actually provable:
       #
-      #   TASK_POOL_ROOT=/srv/app/tasks-test/pool \
-      #   TASK_ALLOWLIST_PATH=/srv/app/tasks-test/allowlist.json \
+      #   TASK_POOL_ROOT=/srv/tasks/development/pool \
+      #   TASK_ALLOWLIST_PATH=/srv/tasks/development/allowlist.json \
       #     docker compose -f docker-compose.db.yml -f docker-compose.worker.yml up -d worker
-      TASK_POOL_ROOT: ${TASK_POOL_ROOT:-/srv/app/tasks/pool}
-      TASK_ALLOWLIST_PATH: ${TASK_ALLOWLIST_PATH:-/srv/app/tasks/allowlist.json}
+      TASK_POOL_ROOT: ${TASK_POOL_ROOT:-/srv/tasks/pool}
+      TASK_ALLOWLIST_PATH: ${TASK_ALLOWLIST_PATH:-/srv/tasks/allowlist.json}
+      CONJECTURES_TASKS_ROOT: /srv/tasks
       VERIFIER_PROJECT_ROOT: /srv/app
 
       # The overridden uid has no passwd entry, so HOME would be unset and git and pip would try to
@@ -101,10 +103,10 @@ services:
     volumes:
       # Read-only, and the whole checkout: the worker resolves the task pool, the audited allowlist
       # and the verifier toolchain by path, and mounting them from the host is what guarantees the
-      # container verifies against exactly the tree you are looking at. `tasks/` in particular is a
-      # pinned checkout of a separate repository materialized by scripts/pin_dependencies.sh, and
-      # has no business being baked into an image.
+      # container verifies against exactly the trees you are looking at. The task repository is a
+      # separate sibling checkout and has no business being baked into the validator image.
       - .:/srv/app:ro
+      - ../conjectures-tasks:/srv/tasks:ro
 
       # Layered writable on top of that read-only mount, because the verifier builds each proof in
       # a fresh directory under `<project root>/.work` and there is no setting to move it.

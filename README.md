@@ -212,17 +212,19 @@ python -m verifier catalog stats --catalog data/catalog.json
 Generate one target or a category batch:
 
 ```bash
+mkdir -p ../conjectures-tasks/scratch
+
 python -m verifier task generate \
   --catalog data/catalog.json \
   --theorem Arxiv.id2303_01089.conjecture_1_3 \
   --mode formalized \
-  --output tasks/furstenberg-formalized
+  --output ../conjectures-tasks/scratch/furstenberg-formalized
 
 python -m verifier task generate \
   --catalog data/catalog.json \
   --theorem Arxiv.id2303_01089.conjecture_1_3 \
   --mode counterexample \
-  --output tasks/furstenberg-counterexample
+  --output ../conjectures-tasks/scratch/furstenberg-counterexample
 ```
 
 ## Solver task pool
@@ -255,8 +257,8 @@ edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted befor
 time:
 
 ```bash
-TASK="$(find tasks/pool -mindepth 2 -maxdepth 2 -type d | sort | head -n 1)"
-python scripts/check_task.py "$TASK"
+TASK="$(find ../conjectures-tasks/pool -mindepth 2 -maxdepth 2 -type d | sort | head -n 1)"
+python ../conjectures-tasks/scripts/check_task.py "$TASK"
 ```
 
 The complete machine-readable admission set and bundle commitments are in
@@ -271,7 +273,7 @@ attackable” is not a guarantee of solvability and does not prove that the info
 correct.
 
 The deterministic pool selection and compiled validation are implemented by
-`scripts/rebuild_task_pool.py`. It loads the exact audited selection and
+`../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
 the 74 audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
@@ -284,17 +286,17 @@ this section is the supported deployment path.
 
 ```bash
 python -m verifier verify \
-  --task tasks/furstenberg-formalized \
+  --task ../conjectures-tasks/scratch/furstenberg-formalized \
   --submission submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
 
-The checked-in examples are deliberately admitted test fixtures. On macOS, their explicit
-development-only invocation is:
+The task repository's fixtures are deliberately admitted for tests. On macOS, their explicit
+development-only invocation with a validator submission example is:
 
 ```bash
 python -m verifier verify \
-  --task examples/simple-direct/task-positive \
+  --task ../conjectures-tasks/fixtures/simple-direct/task-positive \
   --submission examples/valid-submission/Main.lean \
   --allow-test-task \
   --allow-insecure-development
@@ -316,7 +318,7 @@ docker compose build verifier
 docker compose run --rm verifier doctor
 
 FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
-  --task /inputs/tasks/furstenberg-formalized \
+  --task /inputs/tasks/pool/tier-1/erdos-11-formalized \
   --submission /inputs/submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```

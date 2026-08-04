@@ -7,6 +7,7 @@ from verifier.catalog import load_catalog
 from verifier.classification import catalog_statistics
 from verifier.errors import ReasonCode
 from verifier.models import Classification
+from verifier.repository import tasks_repository_root
 from verifier.task_generator import generate_task
 from verifier.task_loader import load_task_bundle
 from verifier.verification import verify
@@ -14,6 +15,7 @@ from verifier.workspace import target_validator
 
 
 ROOT = Path(__file__).resolve().parent.parent
+TASKS_ROOT = tasks_repository_root(ROOT)
 
 
 def repository_area(module: str) -> str:
@@ -64,28 +66,28 @@ def test_generate_ten_real_challenges_from_distinct_areas(tmp_path):
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
 def test_comparator_accepts_valid_fixture_and_rejects_direct_failures():
     accepted = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
         submission_path=ROOT / "examples/valid-submission/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     sorry = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
         submission_path=ROOT / "examples/sorry-submission/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     mismatch = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
         submission_path=ROOT / "examples/invalid-statement/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     unpermitted = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
         submission_path=ROOT / "examples/unpermitted-dependency/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
@@ -101,28 +103,28 @@ def test_comparator_accepts_valid_fixture_and_rejects_direct_failures():
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
 def test_prop_and_numeric_answer_fixtures():
     prop = verify(
-        task_dir=ROOT / "examples/answer-prop/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/answer-prop/task-positive",
         submission_path=ROOT / "examples/answer-prop/Valid.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     numeric = verify(
-        task_dir=ROOT / "examples/numeric-answer/task-answer",
+        task_dir=TASKS_ROOT / "fixtures/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/Valid.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     wrong = verify(
-        task_dir=ROOT / "examples/numeric-answer/task-answer",
+        task_dir=TASKS_ROOT / "fixtures/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/Wrong.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     nonliteral = verify(
-        task_dir=ROOT / "examples/numeric-answer/task-answer",
+        task_dir=TASKS_ROOT / "fixtures/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/NonLiteral.lean",
         project_root=ROOT,
         allow_insecure_development=True,
@@ -137,7 +139,7 @@ def test_prop_and_numeric_answer_fixtures():
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
 def test_counterexample_fixture_accepts_refutation_and_rejects_wrong_or_admitted_proofs():
-    task = ROOT / "examples/counterexample/task-counterexample"
+    task = TASKS_ROOT / "fixtures/counterexample/task-counterexample"
     digest = load_task_bundle(task).sha256
     options = {
         "task_dir": task,

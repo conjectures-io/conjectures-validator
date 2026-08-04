@@ -256,7 +256,7 @@ def task_entry(
         task_bundle_sha256=digest,
         target_type_sha256s=("sha256:" + "11" * 32,),
         # The pool is tiered, so bytes live under the tier, not directly under the root.
-        task_dir=Path("tasks/pool") / tier / task_id,
+        task_dir=Path("/external-task-pool") / tier / task_id,
         manifest=manifest,
         source=source if source is not None else declaration(),
         challenge_lean=challenge_lean,

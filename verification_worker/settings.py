@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
 
 DEVELOPMENT_MODE = "DEV"
 PRODUCTION_MODE = "PROD"
@@ -202,6 +203,7 @@ class WorkerSettings:
 
         container_digest = env.get("VERIFIER_CONTAINER_DIGEST", "").strip()
 
+        tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
@@ -215,10 +217,10 @@ class WorkerSettings:
             task_allowlist_path=_directory(
                 env,
                 "TASK_ALLOWLIST_PATH",
-                PROJECT_ROOT / "tasks" / "allowlist.json",
+                tasks_root / "allowlist.json",
             ),
             task_pool_root=_directory(
-                env, "TASK_POOL_ROOT", PROJECT_ROOT / "tasks" / "pool"
+                env, "TASK_POOL_ROOT", tasks_root / "pool"
             ),
             verifier_project_root=_directory(
                 env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT

@@ -6,12 +6,13 @@ import pytest
 from verifier.cli import _absolute_without_resolving
 from verifier.environment import trusted_environment
 from verifier.errors import ReasonCode, VerifierError
-from verifier.repository import repository_commit
+from verifier.repository import repository_commit, tasks_repository_root
 from verifier.submission import load_submission
 from verifier.verification import verify
 
 
 ROOT = Path(__file__).resolve().parent.parent
+TASKS_ROOT = tasks_repository_root(ROOT)
 
 
 def test_cli_preserves_final_symlink_for_no_follow_validation(tmp_path):
@@ -33,7 +34,7 @@ def test_submission_fifo_is_rejected_without_blocking(tmp_path):
 
 def test_insecure_development_sandbox_fails_closed_by_default():
     report = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
         submission_path=ROOT / "examples/valid-submission/Main.lean",
         project_root=ROOT,
         allow_test_task=True,
@@ -44,7 +45,7 @@ def test_insecure_development_sandbox_fails_closed_by_default():
 
 def test_external_task_commitment_mismatch_fails_before_lean():
     report = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/simple-direct/task-positive",
         submission_path=ROOT / "examples/valid-submission/Main.lean",
         project_root=ROOT,
         expected_task_sha256="sha256:" + "0" * 64,

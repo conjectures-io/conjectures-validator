@@ -287,8 +287,9 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `POSTGRES_USER` / `PASSWORD` / `HOST` / `PORT` / `DB` | `conjectures`, `conjectures`, `localhost`, `5432`, `conjectures` | Used when `DATABASE_URL` is unset |
 | `PAYMENT_RECIPIENT_SS58` | required | The address that must receive the transfer |
 | `PAYMENT_AMOUNT_RAO` | `500000000` | 0.5 TAO |
-| `TASK_ALLOWLIST_PATH` | `./tasks/allowlist.json` | |
-| `TASK_POOL_ROOT` | `./tasks/pool` | Bundles live under `<root>/<tier>/<task_id>` |
+| `CONJECTURES_TASKS_ROOT` | `../conjectures-tasks` | Separate pinned task-repository checkout |
+| `TASK_ALLOWLIST_PATH` | `../conjectures-tasks/allowlist.json` | From the separately pinned task checkout |
+| `TASK_POOL_ROOT` | `../conjectures-tasks/pool` | Bundles live under `<root>/<tier>/<task_id>` |
 | `SUBMISSION_AUTHENTICATOR` | `hotkey-signature` in `PROD` | `development-static-key` refused in `PROD` |
 | `SUBMISSION_PAYMENT_VERIFIER` | `chain` in `PROD` | `development` refused in `PROD` |
 | `SUBMISSION_DISPATCHER` | `queue` | `in-process` refused in `PROD` |

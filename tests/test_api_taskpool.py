@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from submission_api.taskpool import TaskCatalog, TaskNotAllowed
+from verifier.repository import tasks_repository_root
 from verifier.task_policy import COUNTEREXAMPLE_TASK_MODE, EXACT_TASK_MODE
 from verifier.task_pool import (
     DEFAULT_TASK_TIER,
@@ -19,9 +20,10 @@ from verifier.task_pool import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+TASKS_ROOT = tasks_repository_root(ROOT)
 
-ALLOWLIST = ROOT / "tasks/allowlist.json"
-POOL_ROOT = ROOT / "tasks/pool"
+ALLOWLIST = TASKS_ROOT / "allowlist.json"
+POOL_ROOT = TASKS_ROOT / "pool"
 
 
 def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
@@ -73,7 +75,7 @@ def test_a_catalog_entry_carries_the_source_and_challenge_the_public_detail_serv
     """`TaskEntry` keeps the two fields `/v1/catalog/conjectures/{slug}` publishes.
 
     Asserted against a generated task rather than the checked-out pool, so it holds without the
-    pinned task checkout: the tests above need `tasks/pool` materialized by
+    pinned task checkout: the tests above need `conjectures-tasks/pool` materialized by
     `scripts/pin_dependencies.sh`, and this covers the projection `TaskCatalog.load` performs.
 
     What matters is that both come from the bundle whose bytes were hash-verified against the

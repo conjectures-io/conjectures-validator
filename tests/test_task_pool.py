@@ -7,6 +7,7 @@ import pytest
 
 from verifier.catalog import load_catalog
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
+from verifier.repository import tasks_repository_root
 from verifier.task_generator import problem_id
 from verifier.task_pool import (
     DEFAULT_TASK_TIER,
@@ -37,9 +38,10 @@ from verifier.task_policy import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+TASKS_ROOT = tasks_repository_root(ROOT)
 
 
-TIER_METADATA = ROOT / "tasks/tiers/tier-1"
+TIER_METADATA = TASKS_ROOT / "tiers/tier-1"
 
 
 def test_task_selection_is_new_and_audited_erdos_only():
@@ -86,13 +88,13 @@ def test_task_selection_is_new_and_audited_erdos_only():
 
 
 def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
-    allowlist = ROOT / "tasks/allowlist.json"
+    allowlist = TASKS_ROOT / "allowlist.json"
     policy = json.loads(allowlist.read_text(encoding="utf-8"))
     registry = TaskPoolRegistry.load(allowlist)
     task_directories = tuple(
         sorted(
             path
-            for path in (ROOT / "tasks/pool" / DEFAULT_TASK_TIER).iterdir()
+            for path in (TASKS_ROOT / "pool" / DEFAULT_TASK_TIER).iterdir()
             if path.is_dir()
         )
     )
@@ -124,7 +126,7 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     assert len(registry.tasks) == DEFAULT_TIER_TASK_COUNT
     assert len(registry.tasks_for_tier(DEFAULT_TASK_TIER)) == DEFAULT_TIER_TASK_COUNT
     assert len(task_directories) == DEFAULT_TIER_TASK_COUNT
-    assert (ROOT / "tasks/pool").stat().st_mode & 0o005 == 0o005
+    assert (TASKS_ROOT / "pool").stat().st_mode & 0o005 == 0o005
     assert allowlist.stat().st_mode & 0o004 == 0o004
     assert {row["tier"] for row in policy["allowed_source_theorems"]} == {
         DEFAULT_TASK_TIER
