@@ -336,6 +336,20 @@ async def create_submission(
             response.status_code = status.HTTP_200_OK
             return _status(view)
 
+        # Spend the transfer, so it cannot also buy credits. In the same transaction as the
+        # submission above, and after the replay check so an idempotent retry is not refused as a
+        # double spend.
+        #
+        # Both funding paths reach the same treasury address and now share one canonical reference
+        # format, so without this a miner could pay once, cite it here, and have the deposit
+        # watcher credit the same transfer to their account as well. `chain_transfers` is the only
+        # table that can arbitrate: its reference is unique and both sides take the row FOR UPDATE.
+        # A conflict rolls this whole request back, submission included, which is correct — the
+        # money bought something else.
+        await services.payments.spend(
+            session, payment, submission_id=view.submission.id
+        )
+
         # The submission is now queued for verification by virtue of
         # verification_status = 'UNVERIFIED'; the worker claims it from that partial index.
         await services.dispatcher.dispatch(session, view.submission, entry.task_dir)

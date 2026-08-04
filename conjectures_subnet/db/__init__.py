@@ -18,6 +18,9 @@ that schema, not its source of truth:
   row types carry no miner-identifying column at all;
 * ``verification`` — claiming work off the verification queue under a lease, because
   the verifier runs far longer than a transaction may stay open;
+* ``transfers`` — every transfer observed at the treasury and where the chain watcher
+  has read to. Records an arrival before deciding what it is worth, and credits only
+  through ``credits``;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 
@@ -37,6 +40,7 @@ from conjectures_subnet.db import (
     models,
     public,
     submissions,
+    transfers,
 )
 from conjectures_subnet.db.engine import (
     async_session_factory,
@@ -81,4 +85,5 @@ __all__ = [
     "session_factory",
     "session_scope",
     "submissions",
+    "transfers",
 ]

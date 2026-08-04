@@ -21,13 +21,24 @@ pin_repo() {
   local url="$2"
   local commit="$3"
   local destination="$4"
-  if ! git -C "$destination" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  # Not `rev-parse --is-inside-work-tree`: every destination sits inside this
+  # repository's own work tree, so for an absent or empty directory that answers
+  # "yes" about THIS repository. The clone would then be skipped and every command
+  # below would retarget the validator checkout — repointing its origin at the
+  # dependency and detaching its HEAD. Require a repository rooted at exactly
+  # "$destination". Docker creates these directories empty to satisfy a bind mount,
+  # so an empty one is expected rather than an error.
+  if [[ "$(git -C "$destination" rev-parse --show-toplevel 2>/dev/null || true)" != "$ROOT/$destination" ]]; then
     if [[ -e "$destination" ]]; then
-      echo "$destination exists but is not a Git checkout for $name" >&2
-      return 2
+      if [[ -n "$(ls -A "$destination" 2>/dev/null)" ]]; then
+        echo "$destination exists but is not a Git checkout for $name" >&2
+        return 2
+      fi
+      rmdir "$destination"
     fi
     git clone --filter=blob:none --no-checkout "$url" "$destination"
   fi
+  test "$(git -C "$destination" rev-parse --show-toplevel)" = "$ROOT/$destination"
   git -C "$destination" remote set-url origin "$url"
   git -C "$destination" fetch --no-tags origin "$commit"
   git -C "$destination" checkout --detach "$commit"

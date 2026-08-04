@@ -163,6 +163,12 @@ DEFAULT_INTENT_MINUTES = 30
 # How long an account has to make the transfer a deposit expects.
 DEFAULT_DEPOSIT_HOURS = 24
 
+# Which chain the payment verifier reads. `finney` is mainnet. Named rather than defaulted to
+# `local`, because a verifier pointed at a development chain would refuse every real payment.
+# Shared with the deposit watcher under the same variable names, so one setting configures both and
+# they cannot end up reading different chains.
+DEFAULT_BITTENSOR_NETWORK = "finney"
+
 DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
 DEFAULT_TERMS_VERSION = "v1"
 DEFAULT_TERMS_DATE = "2026-08-01"
@@ -355,6 +361,10 @@ class Settings:
     verifier_project_root: Path
     payment_recipient: str
     payment_amount_rao: int
+    # Read by the chain payment verifier only. The archive endpoint is a fallback for a reference
+    # naming a block outside a lite node's pruned-state window; empty means "the same network".
+    bittensor_network: str
+    bittensor_archive_network: str
     authenticator: str
     payment_verifier: str
     dispatcher: str
@@ -594,6 +604,11 @@ class Settings:
             payment_amount_rao=_positive_int(
                 env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
             ),
+            bittensor_network=env.get("BITTENSOR_NETWORK", "").strip()
+            or DEFAULT_BITTENSOR_NETWORK,
+            bittensor_archive_network=env.get(
+                "BITTENSOR_ARCHIVE_NETWORK", ""
+            ).strip(),
             authenticator=authenticator,
             payment_verifier=payment_verifier,
             dispatcher=dispatcher,

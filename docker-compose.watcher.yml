@@ -1,0 +1,139 @@
+# The deposit watcher, on top of the database stack.
+#
+#   just up-watcher                 # db -> migrate -> api -> watcher
+#   just logs watcher
+#
+# or, by hand and in this file order:
+#
+#   docker compose -f docker-compose.api.yml -f docker-compose.watcher.yml up -d --build
+#
+# An overlay, not a project of its own — the same arrangement docker-compose.worker.yml uses, and
+# for the same two reasons. Merged `-f` files form a single Compose project, so the watcher shares
+# the database's network (`db:5432` resolves) and `depends_on` can gate on the Flyway service in
+# the other file. A standalone project would have neither.
+#
+# Deliberately no `name:`. The project name comes from whichever file is passed first, and
+# docker-compose.api.yml sets `name: conjectures-api`; naming this one would start a second, empty
+# database instead of using the migrated one. See the note at the top of the justfile.
+#
+# THE WATCHER HOLDS NO WALLET KEYS. `submission_api/payments.py` requires the finalized-chain
+# reader to be read-only, and nothing below mounts a wallet, a keyfile, or a `~/.bittensor`
+# directory. It reads blocks and writes ledger rows; it cannot move a single rao.
+
+services:
+  watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.watcher
+    image: conjectures-deposit-watcher:local
+    container_name: conjectures_watcher
+    init: true
+
+    # The uid that owns the checkout bind-mounted below, not the image's own `watcher` user.
+    # Unlike the verification worker this container runs no git and needs no write access to the
+    # mount, so a mismatch is harmless here — it is overridable only so the two services can be
+    # started with one pair of variables. Defaults to the image's own uid.
+    user: "${DOCKER_UID:-10102}:${DOCKER_GID:-10102}"
+
+    # SINGLETON. Two watchers are safe — every duplicate collides on
+    # `chain_transfers_reference_idx` or on the deposit's `credited_ledger_id`, so no transfer can
+    # be credited twice — but the second one only ever does wasted work, because they share one
+    # cursor row. Do not scale this service.
+    #
+    # `unless-stopped` rather than the worker's `restart: "no"`: a misconfigured watcher exits 2 and
+    # Compose does not restart on a clean non-zero exit under this policy, while a chain that
+    # briefly refuses connections should be retried rather than left dead.
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+      # Flyway exits 0 on a no-op re-run, so this is safe on every boot — and a failed migration
+      # means the watcher never starts against a schema without `chain_transfers` in it.
+      migrate:
+        condition: service_completed_successfully
+
+    env_file: .env
+    environment:
+      # `db`, not the published 127.0.0.1 port: that publish exists for host tools, and inside the
+      # project the database is reachable by service name.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      APP_MODE: ${APP_MODE:-DEV}
+
+      # --- What money this validator considers its own ----------------------
+      # No defaults, deliberately: every one of these four decides which transfers buy credits, and
+      # a default about money is a mistake waiting to be inherited. `just _check-env` refuses to
+      # start the stack without them.
+      #
+      # The address is the validator's hotkey, and the netuid/uid pair is checked against the chain
+      # at startup — the watcher refuses to run if `SubtensorModule.Keys(netuid, uid)` is not that
+      # address. That check is the only thing standing between a typo and a watcher that reads real
+      # blocks forever and credits nothing.
+      DEPOSIT_WATCH_RECIPIENT_SS58: ${DEPOSIT_WATCH_RECIPIENT_SS58:?set the watched hotkey in .env}
+      DEPOSIT_WATCH_NETUID: ${DEPOSIT_WATCH_NETUID:?set the subnet netuid in .env}
+      DEPOSIT_WATCH_UID: ${DEPOSIT_WATCH_UID:?set the validator uid in .env}
+      # The genesis timestamp. Transfers in blocks before this buy nothing. Must carry a timezone
+      # offset: a bare local time is not an instant.
+      DEPOSIT_WATCH_FROM: ${DEPOSIT_WATCH_FROM:?set the genesis timestamp in .env}
+
+      # --- Pricing ----------------------------------------------------------
+      # One credit is one submission. 0.5 TAO, and it MUST equal the API's PAYMENT_AMOUNT_RAO —
+      # an API quoting one price while the watcher credits at another shows up as a wrong balance.
+      CREDIT_PRICE_RAO: ${CREDIT_PRICE_RAO:-500000000}
+
+      # --- Chain ------------------------------------------------------------
+      # `finney` is mainnet. The archive endpoint is used only by the one-off bisection that
+      # resolves the genesis timestamp to a block, which reads state outside a lite node's pruned
+      # window; following the head does not need it.
+      BITTENSOR_NETWORK: ${BITTENSOR_NETWORK:-finney}
+      BITTENSOR_ARCHIVE_NETWORK: ${BITTENSOR_ARCHIVE_NETWORK:-}
+
+      # --- Pace -------------------------------------------------------------
+      # One batch is one cursor advance per block, so a large backlog is resumable rather than one
+      # transaction a restart throws away. Roughly one block per poll interval once caught up.
+      DEPOSIT_WATCH_BATCH_BLOCKS: ${DEPOSIT_WATCH_BATCH_BLOCKS:-200}
+      DEPOSIT_WATCH_POLL_SECONDS: ${DEPOSIT_WATCH_POLL_SECONDS:-12}
+
+      DEPOSIT_WATCHER_ID: compose-watcher-1
+
+      # The overridden uid may have no passwd entry, so HOME would be unset and bittensor would try
+      # to write its config somewhere the read-only root filesystem denies. Point it at the one
+      # writable mount.
+      HOME: /tmp
+
+    volumes:
+      # Read-only, and only the two packages this process runs. Narrower than the verification
+      # worker's whole-checkout mount because there is nothing else it reads: no task pool, no
+      # allowlist, no Lean toolchain, no pin lock.
+      - ./deposit_watcher:/srv/app/deposit_watcher:ro
+      - ./conjectures_subnet:/srv/app/conjectures_subnet:ro
+      # `deposit_watcher.settings` imports RAO_PER_TAO from the API's settings module, so the one
+      # price constant is defined once. Read-only, and the API package is inert here — nothing in
+      # this container serves HTTP.
+      - ./submission_api:/srv/app/submission_api:ro
+      # For verifier.bundle.SS58_ADDRESS, the address pattern the settings validate against.
+      - ./verifier:/srv/app/verifier:ro
+
+    # Writes nothing but temporary files, so the filesystem is read-only and /tmp is the exception.
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # Nothing to publish: it reads the chain and writes the database, and serves no traffic.
+
+    # A websocket and a handful of decodes per block. The bisection at first start is the heaviest
+    # thing it does and it is bounded by a logarithm.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+          pids: 256
+        reservations:
+          cpus: "0.1"
+          memory: 128M

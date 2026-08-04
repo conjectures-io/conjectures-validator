@@ -93,7 +93,7 @@ X-Conjectures-Signature: 0x4a3f…
 X-Conjectures-Task-Id: fc-379fc029-erdos11-erdos-11-2bde7d8572-formalized-v1
 X-Conjectures-Task-Sha256: sha256:31687f…
 X-Conjectures-Proof-Sha256: sha256:09da51…
-X-Conjectures-Payment-Ref: 0x8b21…
+X-Conjectures-Payment-Ref: 8769916-13-151
 
 <submission.zip bytes>
 ```
@@ -109,7 +109,7 @@ X-Conjectures-Payment-Ref: 0x8b21…
 | `X-Conjectures-Task-Id` | An allowlisted task id |
 | `X-Conjectures-Task-Sha256` | That task's published digest |
 | `X-Conjectures-Proof-Sha256` | Digest of the archived `Main.lean`, recomputed and compared |
-| `X-Conjectures-Payment-Ref` | The finalized extrinsic that funds this attempt |
+| `X-Conjectures-Payment-Ref` | The finalized transfer that funds this attempt, as `block-extrinsic[-event]` |
 
 `201` returns the submission state; an exact replay returns `200`.
 
@@ -128,7 +128,7 @@ X-Conjectures-Payment-Ref: 0x8b21…
   "manual_review_required": true,
   "review_policy_version": "v1",
   "payment": {
-    "reference": "0x8b21…",
+    "reference": "8769916-13-151",
     "sender": "5DAA…",
     "amount_rao": 500000000,
     "block": 4210031
@@ -164,7 +164,7 @@ The signed message is the canonical **request digest**: the 32 raw bytes of the 
 canonical JSON (sorted keys, no spaces, one trailing newline) of exactly these six fields.
 
 ```json
-{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"0x8b21…","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
+{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"8769916-13-151","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
 ```
 
 ```python
@@ -218,12 +218,41 @@ the payment verifier must establish that:
 Amounts are integers in rao, TAO's base unit; 0.5 TAO is `500000000`. No floating point appears
 anywhere in payment accounting.
 
-`SUBMISSION_PAYMENT_VERIFIER=chain` is the production setting. The finalized-transfer reader it
-needs is the remaining piece of the payment component (see the status table in
-[../README.md](../README.md)); until that reader is injected the chain verifier **fails closed**
-and refuses every submission with `503 PAYMENT_VERIFIER_UNAVAILABLE`, rather than admitting an
-unpaid one. `SUBMISSION_PAYMENT_VERIFIER=development` accepts configured references without a
-chain and is refused in production.
+`SUBMISSION_PAYMENT_VERIFIER=chain` is the production setting, and it is wired:
+`submission_api/chain_payments.py` reads finalized Subtensor state through
+`conjectures_subnet/transfers.py`, holding no wallet keys and signing nothing. A verifier built
+without a reader still **fails closed** — `503 PAYMENT_VERIFIER_UNAVAILABLE` on every submission,
+rather than admitting an unpaid one. `SUBMISSION_PAYMENT_VERIFIER=development` accepts configured
+references without a chain and is refused in production.
+
+`BITTENSOR_NETWORK` selects the chain (`finney` is mainnet). `BITTENSOR_ARCHIVE_NETWORK` is an
+optional fallback for a reference naming a block outside a lite node's pruned-state window. The
+deposit watcher reads the same two variables, so one setting configures both and they cannot end up
+reading different chains.
+
+### The payment reference
+
+`block-extrinsic-event`, e.g. `8769916-13-151`. Positional, and **not an extrinsic hash**: a
+substrate node can resolve a position and cannot resolve a hash — "get extrinsic by hash" is an
+indexer's service, not an RPC — so a hash is a reference this validator would have to take somebody
+else's word for. An unresolvable reference is refused with `PAYMENT_NOT_FINALIZED`.
+
+`block-extrinsic` is accepted where that extrinsic moved TAO exactly once, which is the form a block
+explorer shows. Where it moved TAO more than once — a `utility.batch` — it is refused with `400
+PAYMENT_REFERENCE_AMBIGUOUS`, and the message lists the exact references to choose between. Picking
+one would be deciding which payment you meant.
+
+**The canonical three-part form is what gets stored**, whichever form you send. `payment_reference`
+is unique, so two spellings of one transfer cannot fund two submissions.
+
+### One transfer buys one thing
+
+A transfer that funded a submission cannot also be credited as a deposit, and vice versa. Both paths
+arbitrate through `chain_transfers`, whose reference is unique and which both sides lock before
+deciding. Citing a transfer the deposit watcher already credited to an account returns `409
+TRANSFER_ALREADY_CREDITED`: the money became credits, so spend one of those instead — see
+[ACCOUNT_API.md](ACCOUNT_API.md). Citing one that already funded a submission returns `409
+DUPLICATE_PAYMENT`.
 
 ## Idempotency
 

@@ -32,7 +32,8 @@ verification core.
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
 | Shared durable schema and migrations | Implemented |
-| Finalized 0.5 TAO transfer reader for payment-gated intake | To build |
+| Finalized transfer reader, wired into both funding paths | Implemented |
+| Deposit watcher: TAO at the treasury becomes credits | Implemented |
 | Asynchronous verification worker | To build |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
@@ -198,6 +199,64 @@ payment address. Start at [`docs/MINER.md`](docs/MINER.md) for the miner's path 
 The API process must not share a trust domain with the proof verifier; production refuses to start
 if it is configured to run verification in process, to authenticate with the development key, or
 to accept payments without reading the chain.
+
+## Deposit watcher
+
+[`deposit_watcher/`](deposit_watcher/) turns TAO arriving at the treasury into credits. It reads
+`Balances.Transfer` events out of **finalized** blocks, records every arrival at the watched
+address, and credits the account whose coldkey sent it. **Every 0.5 TAO buys one credit, which is
+one submission.**
+
+```bash
+just watcher-check      # confirm the address, resolve the genesis timestamp, credit nothing
+just up-watcher         # db -> migrate -> api -> watcher
+just up-all             # ... and the verification worker
+just logs watcher
+```
+
+Four values decide which money the validator considers its own, and none of them has a default:
+`DEPOSIT_WATCH_RECIPIENT_SS58`, `DEPOSIT_WATCH_NETUID`, `DEPOSIT_WATCH_UID` and
+`DEPOSIT_WATCH_FROM`. The netuid/uid pair is checked against `SubtensorModule.Keys` at startup, so
+the watcher refuses to run against an address that is not this validator's own hotkey — a mistyped
+address otherwise produces a worker that reads real blocks forever and credits nothing.
+
+`DEPOSIT_WATCH_FROM` is the genesis timestamp: transfers in earlier blocks buy nothing. It must
+carry a timezone offset, is bisected to a block height **once**, and that block is then recorded on
+`chain_watch_cursor` and never recomputed — a second search against a re-synced node could land
+either side of the same boundary and change which transfers the validator believes exist.
+
+The credit count is never stored. `credit_ledger` holds the rao that arrived and
+[`conjectures_subnet/db/credits.py`](conjectures_subnet/db/credits.py) divides, so a 0.7 TAO
+transfer buys one credit and leaves 0.2 towards the next instead of discarding it.
+
+An arrival whose sending coldkey belongs to no account is recorded `UNATTRIBUTED` with the reason
+on it, and waits for a human — crediting a best-effort match would hand one account's money to
+another. `chain_transfers` is that queue.
+
+Reads are idempotent by design: the cursor advances per block, after the block's transfers are
+recorded, so a restart re-reads and the unique index on `chain_transfers.extrinsic_reference`
+absorbs it. The process holds database credentials but **no wallet keys and signs nothing** — it
+only asks the chain what happened.
+
+### One transfer buys one thing
+
+The two funding paths — a direct 0.5 TAO payment per submission, and credits bought in bulk — reach
+the same treasury address and share one canonical reference format, `block-extrinsic-event`. So one
+transfer could otherwise fund a submission *and* be credited to an account: one payment, two
+attempts.
+
+`chain_transfers` is the only table both paths touch, and its reference is unique, so it arbitrates.
+Both sides lock the row before deciding, and whichever gets there first wins:
+
+- a transfer the watcher credited cannot fund a submission — `409 TRANSFER_ALREADY_CREDITED`, and
+  the miner spends the credit they were given instead;
+- a transfer that funded a submission is recorded `IGNORED` with the submission on it, so the
+  watcher passes over it and credits nothing.
+
+The reader behind both is [`conjectures_subnet/transfers.py`](conjectures_subnet/transfers.py), read
+through [`submission_api/chain_payments.py`](submission_api/chain_payments.py) on the API side. One
+reader, one idea of what a transfer is — two with two reference formats could not have been
+reconciled.
 
 Build and inspect the real full-repository catalog:
 

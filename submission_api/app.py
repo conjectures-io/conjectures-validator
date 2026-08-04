@@ -152,9 +152,16 @@ def create_app(
         try:
             yield
         finally:
-            # Only dispose an engine this app created; an injected one belongs to the caller.
+            # Only tear down resources this app created; injected ones belong to the caller.
             if services is None:
-                await application.state.services.engine.dispose()
+                built = application.state.services
+                await built.engine.dispose()
+                # The chain payment verifier holds a websocket open between requests — see
+                # SubtensorTransferReader on why it is not opened per submission. Released here.
+                reader = getattr(built.payments, "reader", None)
+                closer = getattr(reader, "aclose", None)
+                if closer is not None:
+                    await closer()
 
     application = FastAPI(
         title="conjectures.io Subnet 66 submission API",

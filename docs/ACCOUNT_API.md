@@ -201,9 +201,24 @@ rather than shown nothing while a transfer settles. Only `AWAITING_TRANSFER` eve
 deposit with real money behind it must be resolved by finality or by a human, never timed out.
 
 `POST /v1/me/deposits/claim` proves the claimant controls the sending coldkey, and **issues no
-credits**. It records the reference as `SEEN_UNFINALIZED` and stops, because finality, recipient
-and amount are chain reads that need the finalized-transfer reader this deployment does not yet
-have. Crediting on a caller's assertion is the one outcome that must never be possible.
+credits**. It records the reference as `SEEN_UNFINALIZED` and stops. Crediting on a caller's
+assertion is the one outcome that must never be possible: finality, recipient and amount are chain
+reads, and the only thing that performs them is the reconciler.
+
+### The reconciler
+
+`deposit_watcher/` is that reconciler. It reads `Balances.Transfer` events out of finalized blocks
+and credits the account whose coldkey sent each one, so the normal path issues credits without a
+declared deposit or a claim at all — one arrives, it is recorded, and it is credited. A declared
+deposit for exactly the amount that arrives is settled by it rather than shadowed by a second row.
+
+**What is credited is the amount observed on chain**, and the credit count stays derived from the
+ledger: 0.7 TAO at a 0.5 TAO price is one credit with 0.2 TAO left towards the next.
+
+An arrival whose sending coldkey belongs to no account is recorded in `chain_transfers` as
+`UNATTRIBUTED`, with the reason on the row, and waits for a human — which is what the claim
+endpoint above and the operator queue are for. Nothing is lost; nothing is guessed. See the
+deposit-watcher section of `README.md` for how it is configured and run.
 
 The `btcli` amount is rendered from integer rao by string arithmetic. `amount_rao / 1e9` is
 exactly the step that silently loses a rao.

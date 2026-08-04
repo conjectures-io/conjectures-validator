@@ -281,7 +281,15 @@ class Harness:
         return self.services.sessions()
 
 
-def harness(*, entries=None, dispatcher=None, **overrides: str) -> Harness:
+def harness(
+    *, entries=None, dispatcher=None, payments=None, **overrides: str
+) -> Harness:
+    """The API under test.
+
+    `payments` injects a payment verifier. Needed for the chain verifier, because
+    `build_payment_verifier` would otherwise construct a real Subtensor reader and the test would
+    reach the live network.
+    """
     settings = build_settings(**overrides)
     engine = create_async_db_engine(settings.database_url)
     catalog = catalog_from_entries(
@@ -294,7 +302,7 @@ def harness(*, entries=None, dispatcher=None, **overrides: str) -> Harness:
         sessions=async_session_factory(engine),
         catalog=catalog,
         authenticator=build_authenticator(settings),
-        payments=build_payment_verifier(settings),
+        payments=payments or build_payment_verifier(settings),
         dispatcher=dispatcher or QueueDispatcher(),
         pricing=FlatBountyPricer(
             amount_rao=settings.bounty_amount_rao,
