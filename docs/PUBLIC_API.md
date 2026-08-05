@@ -156,7 +156,10 @@ identifiers and independent rewards. A solver that satisfies the contract offlin
 against the same values on submission.
 
 Each conjecture carries a live `bounty` object. `amount_rao` is null when `available` is false;
-`reason` distinguishes an open target from one already solved, and `locked` is always false. The
+`amount_usd` is a TaoStats-backed decimal string rounded to cents, or null when the bounty or the
+external rate is unavailable. It is `(amount_rao / 1e9) * alpha_price_tao * tao_price_usd`;
+the Alpha amount remains authoritative when this display-only conversion is absent. `reason`
+distinguishes an open target from one already solved, and `locked` is always false. The
 pool-wide `/v1/catalog/meta` response publishes the balance, open-target count, total age weight,
 and rational policy constant behind those estimates. An accepted submission does not reserve the
 amount displayed on the website.

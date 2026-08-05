@@ -108,6 +108,12 @@ class BountyInfo(Model):
     amount_rao: int | None = Field(
         description="Live Subnet Alpha estimate in base units; null when unavailable."
     )
+    amount_usd: str | None = Field(
+        description=(
+            "Current USD display estimate from TaoStats; null with amount_rao or when the "
+            "external rate is unavailable."
+        )
+    )
     policy_version: str
     available: bool
     reason: str = Field(description="OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL")

@@ -31,6 +31,7 @@ from __future__ import annotations
 import hmac
 from collections.abc import Mapping
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Request, Response
@@ -52,6 +53,7 @@ from submission_api.settings import (
     Settings,
 )
 from submission_api.taskpool import TaskEntry
+from submission_api.taostats import amount_usd
 from verifier.bundle import BUNDLE_FORMAT
 from verifier.hashing import sha256_text
 
@@ -102,9 +104,10 @@ def _reference(raw: str) -> public.Reference:
     return public.Reference(label=raw)
 
 
-def _bounty(quote: LiveBounty) -> public.BountyInfo:
+def _bounty(quote: LiveBounty, *, alpha_usd: Decimal | None) -> public.BountyInfo:
     return public.BountyInfo(
         amount_rao=quote.amount_rao,
+        amount_usd=amount_usd(quote.amount_rao, alpha_usd=alpha_usd),
         policy_version=quote.policy_version,
         available=quote.available,
         reason=quote.reason,
@@ -172,6 +175,7 @@ def _summary(
     quote: LiveBounty,
     attempts: int,
     by_task: Mapping[str, int],
+    alpha_usd: Decimal | None,
 ) -> public.ConjectureSummary:
     return public.ConjectureSummary(
         slug=item.slug,
@@ -189,7 +193,7 @@ def _summary(
         tasks=tuple(
             _task(entry, attempts=by_task.get(entry.task_id, 0)) for entry in item.tasks
         ),
-        bounty=_bounty(quote),
+        bounty=_bounty(quote, alpha_usd=alpha_usd),
         attempts=attempts,
     )
 
@@ -291,6 +295,7 @@ async def list_conjectures(
     # The first pricing read registers any newly pinned stable targets. Subsequent reads are
     # no-ops, but this commit is what makes their original age survive a restart.
     await session.commit()
+    alpha_usd = await services.bounty_usd.alpha_usd() if page.items else None
 
     _cache(response, settings)
     return public.ConjectureListResponse(
@@ -301,6 +306,7 @@ async def list_conjectures(
                 quote=snapshot.quotes[item.reward_target_id],
                 attempts=attempts.get(item.reward_target_id, 0),
                 by_task=by_task,
+                alpha_usd=alpha_usd,
             )
             for item in page.items
         ),
@@ -342,6 +348,7 @@ async def read_conjecture(
         session, reward_target_id=item.reward_target_id
     )
     await session.commit()
+    alpha_usd = await services.bounty_usd.alpha_usd()
     _cache(response, settings)
     return public.ConjectureDetail(
         slug=item.slug,
@@ -367,7 +374,7 @@ async def read_conjecture(
             )
             for entry in item.tasks
         ),
-        bounty=_bounty(quote),
+        bounty=_bounty(quote, alpha_usd=alpha_usd),
         submission_price_rao=settings.payment_amount_rao,
         attempts=attempts,
         repository_commit=services.index.repository_commit,

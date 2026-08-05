@@ -137,6 +137,7 @@ X-Conjectures-Payment-Ref: 8769916-13-151
   },
   "bounty": {
     "amount_rao": 1000000000,
+    "amount_usd": "52.14",
     "policy_version": "dynamic-age-v1",
     "available": true,
     "reason": "OPEN",
@@ -153,7 +154,11 @@ X-Conjectures-Payment-Ref: 8769916-13-151
 the amount. Before that, a replay and a later status read are repriced from the current bounty-wallet
 balance, open-target set, and task ages. If a
 different proof establishes the same `reward_target_id` first, `amount_rao` becomes null,
-`available` becomes false, and `reason` is `ALREADY_SOLVED`. The intake estimate and its inputs
+`available` becomes false, and `reason` is `ALREADY_SOLVED`. `amount_usd` is a current display
+estimate, returned as a decimal string and rounded to cents. It combines TaoStats' Subnet Alpha/TAO
+and TAO/USD prices as `(amount_rao / 1e9) * alpha_price_tao * tao_price_usd`; it is null when
+`amount_rao` is null, no TaoStats key is configured, or the
+external rate is temporarily unavailable. The intake estimate and its inputs
 remain on the submission row only as an audit record; a payout event records its own amount,
 policy version, and inputs.
 
@@ -347,6 +352,8 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `BOUNTY_AGE_PERIOD_SECONDS` | `86400` | One increment in the linear age weight |
 | `BOUNTY_BALANCE_CACHE_SECONDS` | `60` | Maximum chain-read frequency per API process |
 | `BITTENSOR_NETWORK` | `finney` | Network used for the finalized Alpha-stake read |
+| `TAOSTATS_API_KEY` | — | Enables `bounty.amount_usd`; sent only to the TaoStats price endpoints |
+| `TAOSTATS_PRICE_CACHE_SECONDS` | `60` | Maximum TaoStats price-read frequency per API process |
 | `SUBMISSIONS_PAUSED` | `false` | Refuses intake with `503 SUBMISSIONS_PAUSED`; reported on `/v1/system/status` |
 
 The public read surface adds its own variables; they are documented in

@@ -44,6 +44,7 @@ from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
+from submission_api.taostats import UnavailableAlphaUsdPriceReader
 from submission_api.verification import QueueDispatcher
 from verifier.models import CatalogDeclaration, Classification
 from verifier.task_pool import reward_target_identity
@@ -291,7 +292,7 @@ class Harness:
 
 
 def harness(
-    *, entries=None, dispatcher=None, payments=None, **overrides: str
+    *, entries=None, dispatcher=None, payments=None, bounty_usd=None, **overrides: str
 ) -> Harness:
     """The API under test.
 
@@ -332,6 +333,9 @@ def harness(
             settings.credit_packages, credit_price_rao=settings.payment_amount_rao
         ),
         terms=terms(),
+        bounty_usd=(
+            bounty_usd if bounty_usd is not None else UnavailableAlphaUsdPriceReader()
+        ),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings

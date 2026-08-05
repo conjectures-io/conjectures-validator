@@ -10,6 +10,7 @@ skipped without one:
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
 
 import pytest
 
@@ -33,6 +34,7 @@ from conftest_api import (
 )
 
 from submission_api.routers.catalog import PSEUDONYM_LENGTH
+from submission_api.taostats import StaticAlphaUsdPriceReader
 from verifier.models import Classification
 from verifier.task_generator import task_id as build_task_id
 
@@ -114,7 +116,10 @@ def pool():
 
 def test_the_list_publishes_every_conjecture_with_its_facets():
     async def scenario():
-        kit = await harness(entries=pool()).setup()
+        kit = await harness(
+            entries=pool(),
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal("37.50")),
+        ).setup()
         try:
             response = await _get(kit, "/v1/catalog/conjectures")
             assert response.status_code == 200, response.text
@@ -127,6 +132,8 @@ def test_the_list_publishes_every_conjecture_with_its_facets():
                 SOLVED_DIRECT,
                 OPEN_ANSWER,
             ]
+            assert body["items"][0]["bounty"]["amount_rao"] == 1_000_000_000
+            assert body["items"][0]["bounty"]["amount_usd"] == "37.50"
 
             facets = {facet["field"]: facet["values"] for facet in body["facets"]}
             assert {item["value"]: item["count"] for item in facets["category"]} == {
