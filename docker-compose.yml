@@ -2,6 +2,10 @@ services:
   verifier:
     build:
       context: .
+      # One file from the pinned task repository — the audited Formal Conjectures patch — which
+      # a COPY cannot reach from this context. See the Dockerfile and scripts/build_image.sh.
+      additional_contexts:
+        tasks: ../conjectures-tasks
       args:
         ENABLE_NANODA: ${ENABLE_NANODA:-0}
         LEAN_BUILD_THREADS: ${FC_LEAN_BUILD_THREADS:-16}

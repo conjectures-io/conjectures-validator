@@ -1,7 +1,14 @@
 # The network-facing API, on top of the database stack.
 #
 #   cp .env.example .env          # then fill in the secrets marked REQUIRED IN PROD
-#   docker compose -f docker-compose.api.yml up -d --build
+#   just up
+#
+# Use `just up`, not a bare `docker compose ... up`. The recipe runs a preflight this file
+# cannot: the task bundles are a pinned checkout of a separate repository, mounted below from
+# a RELATIVE host path, and Docker creates that path EMPTY when it is absent rather than
+# failing. The API then dies at startup on "task allowlist is unavailable" — which reads like
+# a missing mount even when the checkout is present but unreadable to this container's uid.
+# `just pin-tasks` materializes it; `just up` refuses to start without it.
 #
 # `include` pulls in docker-compose.db.yml, so that one command brings up Postgres, applies
 # every pending Flyway migration, waits for both, and then starts the API. There is no ordering
