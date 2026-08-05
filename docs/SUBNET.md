@@ -18,6 +18,7 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 - Only a proof accepted by the hardened Lean verifier may reach reward review or rewards.
 - Manual review, when enabled, gates reward eligibility after Lean succeeds.
 - Manual review cannot make a Lean-invalid proof valid.
+- Validator emissions are deliberately treasury-only: UID 121 receives 100% every epoch.
 - Every payment, state transition, verification, review, and reward decision is durable and
   auditable.
 
@@ -49,9 +50,9 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
    - if manual review is disabled, it immediately becomes `REWARD_ELIGIBLE`.
 9. A reviewer may approve or reject a held proof for rewards. The decision, reviewer, reason,
    timestamp, and policy version are recorded as a `review_decisions` row.
-10. Approved proofs and automatically eligible proofs enter the same reward pipeline.
-11. The reward process applies a versioned scoring policy, builds the Subnet 66 weight decision,
-    submits it to Bittensor, and records the chain result.
+10. Approved proofs and automatically eligible proofs enter the bounty payout pipeline.
+11. Independently of individual proof results, the emissions worker observes each Subnet 66 epoch
+    and submits one weight: treasury UID 121 receives 100%.
 
 ```text
                        intake (payment confirmed first, or no submission at all)
@@ -93,7 +94,8 @@ All validator source and operational configuration belongs in this repository:
 | Job workers | Advance payment, verification, review, and reward jobs idempotently |
 | Lean verifier | Decide whether the exact submitted proof proves the exact committed task |
 | Review service | Hold and decide Lean-valid submissions when manual review is enabled |
-| Reward process | Convert eligible results into versioned Subnet 66 scores and weights |
+| Bounty process | Pay eligible proofs from the treasury under the versioned bounty policy |
+| Emissions worker | Set 100% of Subnet 66 validator weight to treasury UID 121 every epoch |
 | Operator tooling | Migrations, monitoring, backups, restores, reconciliation, and incident response |
 
 These components share a repository, not a security context. Payment keys, validator wallet keys,
@@ -257,7 +259,9 @@ The repository currently includes:
   [`../conjectures_subnet/db/`](../conjectures_subnet/db/);
 - content-addressed proof storage in the `proofs` table, and the `api_rejection_log` record of
   every refused request;
-- automatic reward eligibility and one-reward-per-theorem-target enforcement.
+- automatic reward eligibility and one-reward-per-theorem-target enforcement;
+- the treasury-only epoch worker in [`../emissions_worker/`](../emissions_worker/), which submits
+  100% of Subnet 66 validator weight to UID 121 after every observed epoch.
 
 The database is a component in its own right, not the API's: every process resolves one URL
 through `conjectures_subnet.db.database_url()`, and the payment, verification, review and reward
@@ -266,7 +270,8 @@ own. Adding a migration is adding a file to `deploy/migrate/sql`; see
 [`../deploy/README.md`](../deploy/README.md).
 
 It does not yet include the payment allocation/reconciliation worker, the reviewer-facing
-decision service, the reward processor, or end-to-end Subnet 66 weight submission.
+decision service, or the automated proof-bounty payout processor. Subnet emissions do not depend
+on proof scoring: they are intentionally routed in full to treasury UID 121 every epoch.
 
 One open operational question the verification worker raises: whatever launches the verifier
 container needs a Docker socket, which is root-equivalent on the host. The boundary above is
@@ -303,12 +308,13 @@ and no credentials all close it.
 5. Add review authorization and the decision API/UI. The per-submission manual-review flag and
    policy version are already captured, and the gate is already applied when a verdict is
    recorded.
-6. Add scoring-policy versions, weight batches, Subnet chain submission, and reconciliation.
-   Automatic eligibility and one-reward-per-theorem-target enforcement are implemented.
+6. ~~Add Subnet chain weight submission.~~ Done as the intentionally simple treasury-only policy:
+   [`../emissions_worker/`](../emissions_worker/) submits one 100% weight to UID 121 every epoch.
+   Proof-specific scoring is not part of the emissions policy; automated bounty payout remains.
 7. Add metrics, alerts, rate limits, secret isolation, migrations in deployment, backups, restore
    drills, upgrades, rollbacks, and incident runbooks.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,
-   weight submission, and chain reconciliation.
+   bounty payout, treasury weight submission, and chain reconciliation.
 
 ## Decisions taken
 
@@ -326,5 +332,4 @@ and no credentials all close it.
    captures one global flag per submission at creation time.
 5. What exact review criteria can reject a Lean-valid proof, and is there an appeal process?
 6. How are duplicate valid proofs, repeat attempts, and multiple solvers scored?
-7. What deterministic rule converts a reward-eligible proof into Subnet 66 weights?
-8. What result proves to the miner that a reward decision was included and finalized on-chain?
+7. What result proves to the miner that a bounty payout was included and finalized on-chain?

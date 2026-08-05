@@ -21,7 +21,8 @@ flowchart TD
         WORK["verification worker<br/>SPEC"]
         REV["reward gating<br/>optional manual review<br/>SPEC"]
         RE["reward_events<br/>SPEC"]
-        WB["weight_batches → set_weights<br/>OPEN"]
+        WB["epoch worker<br/>UID 121 = 100%<br/>BUILT"]
+        CHAIN["Subnet 66<br/>epochs + SetWeights"]
     end
 
     subgraph VER["VERIFICATION DOMAIN — hostile input, no secrets"]
@@ -52,13 +53,13 @@ flowchart TD
     WORK --> LOAD --> SUB --> STAT --> BC --> CMP --> REP
     REP -->|"report bytes"| OBJ
     REP -->|"verdict + reason_code"| DB
-    DB --> REV --> RE --> WB
+    DB --> REV --> RE
+    CHAIN -->|"epoch"| WB -->|"100% treasury weight"| CHAIN
 
     classDef built fill:#0f5132,stroke:#0f5132,color:#fff
     classDef spec fill:#664d03,stroke:#664d03,color:#fff
     classDef open fill:#842029,stroke:#842029,color:#fff
     classDef ext fill:#41464b,stroke:#41464b,color:#fff
-    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP built
+    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP,WB built
     class API,PAY,OBJ,DB,WORK,REV,RE spec
-    class WB open
-    class MINER ext
+    class MINER,CHAIN ext

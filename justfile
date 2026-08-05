@@ -1,10 +1,11 @@
 # The one entrypoint for the operational stack: Postgres, Flyway, the API, and
-# optionally the verification worker and the deposit watcher.
+# optionally the verification worker, deposit watcher, and emissions worker.
 #
 #   just up            # db -> migrate -> api
 #   just up-worker     # ... and the verification worker
 #   just up-watcher    # ... and the deposit watcher
-#   just up-all        # ... and both
+#   just up-emissions  # ... and the Subnet 66 epoch weight setter
+#   just up-all        # ... and all three workers
 #   just logs api
 #   just reset         # destroy the database and start clean
 #
@@ -30,13 +31,14 @@ set positional-arguments := true
 compose := "docker compose -f docker-compose.api.yml"
 compose_worker := compose + " -f docker-compose.worker.yml"
 compose_watcher := compose + " -f docker-compose.watcher.yml"
+compose_emissions := compose + " -f docker-compose.emissions.yml"
 
 # Every overlay at once. `down`, `ps`, `logs` and `reset` use this so a container
 # started by any of the recipes above is visible to — and removable by — all of
 # them. An overlay Compose does not know about is a container `down` leaves
 # running against a database it has just deleted the volume of.
 
-compose_all := compose_worker + " -f docker-compose.watcher.yml"
+compose_all := compose_worker + " -f docker-compose.watcher.yml -f docker-compose.emissions.yml"
 project := "conjectures-api"
 legacy := "conjectures-db"
 
@@ -77,9 +79,15 @@ up-watcher: _preflight _check-watch
     {{ compose_watcher }} up -d --build
     @{{ compose_watcher }} ps
 
-# Build and start everything: api, verification worker, and deposit watcher.
-up-all: _preflight _check-watch
-    @echo "==> starting: db -> migrate -> api -> worker -> watcher (as {{ uid }}:{{ gid }})"
+# Build and start the epoch worker that sends all Subnet 66 weight to treasury UID 121.
+up-emissions: _preflight _check-emissions
+    @echo "==> starting: db -> migrate -> api -> emissions (as {{ uid }}:{{ gid }})"
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} up -d --build
+    @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} ps
+
+# Build and start everything: api, verification worker, deposit watcher, and emissions worker.
+up-all: _preflight _check-watch _check-emissions
+    @echo "==> starting: db -> migrate -> api -> worker -> watcher -> emissions (as {{ uid }}:{{ gid }})"
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} ps
 
@@ -97,7 +105,7 @@ watcher-check: _preflight _check-watch
     {{ compose_watcher }} run --rm --build watcher \
       python -m deposit_watcher --dry-run
 
-# Stop and remove containers, worker and watcher included. The database volume SURVIVES.
+# Stop and remove containers, including all workers. The database volume SURVIVES.
 down:
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} down
 
@@ -121,6 +129,10 @@ build-worker:
 # Build the deposit watcher image without starting anything.
 build-watcher:
     {{ compose_watcher }} build watcher
+
+# Build the epoch weight setter image without starting anything.
+build-emissions: _check-emissions
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} build emissions
 
 # Destroy the database volume and bring the stack back up empty.
 [confirm("This DESTROYS the database volume and every row in it. Continue?")]
@@ -299,6 +311,27 @@ _check-watch:
       echo "error: CREDIT_PRICE_RAO ($price) and PAYMENT_AMOUNT_RAO ($quoted) disagree." >&2
       echo "  They are the same price seen from two sides — the API quotes it, the" >&2
       echo "  watcher credits at it. Set them equal." >&2
+      exit 1
+    fi
+
+# The only service that signs chain calls. Require one explicit host wallet and never infer it
+# from the API or watcher configuration.
+_check-emissions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    missing=()
+    for var in EMISSIONS_WALLET_HOST_PATH EMISSIONS_WALLET_NAME EMISSIONS_WALLET_HOTKEY; do
+      grep -qE "^${var}=.+" .env || missing+=("$var")
+    done
+    if (( ${#missing[@]} )); then
+      echo "error: the emissions worker needs these in .env: ${missing[*]}" >&2
+      echo "  It signs SetWeights for Subnet 66; see .env.example under 'Treasury emissions'." >&2
+      exit 1
+    fi
+    root=$(grep -E '^EMISSIONS_WALLET_HOST_PATH=' .env | tail -1 | cut -d= -f2-)
+    name=$(grep -E '^EMISSIONS_WALLET_NAME=' .env | tail -1 | cut -d= -f2-)
+    if [[ ! -d "$root/$name" ]]; then
+      echo "error: emissions wallet directory is missing: $root/$name" >&2
       exit 1
     fi
 
