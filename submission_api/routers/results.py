@@ -28,16 +28,19 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Any, Callable
 
-from fastapi import APIRouter, Path, Query, Response
+from fastapi import APIRouter, Path, Query, Response, Depends
 
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import public as public_store
 from submission_api import conjectures, schemas_public as public, slugs
-from submission_api.conjectures import ConjectureIndex
-from submission_api.dependencies import ServicesDep, SessionDep
+from submission_api.dependencies import ServicesDep, SessionDep, get_settings
 from submission_api.errors import NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
+from submission_api.taskpool import TaskCatalog, TaskEntry, TaskNotAllowed
+from submission_api.schemas_public import PublicResultItem, PublicResultsPageResponse
+from submission_api.settings import ApiSettings, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
+from submission_api.conjectures import ConjectureIndex
 
 router = APIRouter(prefix="/v1/results", tags=["results"])
 
@@ -317,6 +320,29 @@ def _public_report(raw: bytes) -> dict[str, Any]:
     return {
         field: document[field] for field in PUBLIC_REPORT_FIELDS if field in document
     }
+
+@router.get("/submissions", response_model=PublicResultsPageResponse)
+async def get_all_submissions(
+    session: SessionDep,
+    limit: int = Query(50, ge=1, le=100),
+    cursor: str | None = None,
+    settings: ApiSettings = Depends(get_settings),
+) -> PublicResultsPageResponse:
+    """Public dashboard feed of all submissions, ordered newest-first with signed keyset cursors."""
+    after = decode_cursor(cursor, secret=settings.public_cursor_secret) if cursor else None
+
+    rows = await public.all_submissions_page(session, limit=limit, after=after)
+
+    items = [PublicResultItem.from_db_row(row) for row in rows]
+    next_cursor = None
+    if len(rows) == limit:
+        last_row = rows[-1]
+        next_cursor = encode_cursor(
+            (last_row.created_at, last_row.id),
+            secret=settings.public_cursor_secret,
+        )
+
+    return PublicResultsPageResponse(items=items, next_cursor=next_cursor)
 
 
 __all__ = ["PUBLIC_REPORT_FIELDS", "router"]
