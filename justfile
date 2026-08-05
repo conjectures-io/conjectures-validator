@@ -120,6 +120,10 @@ watcher-check: _preflight _check-watch
 #   just doctor-host       # seconds; the gates that make the rest pointless if unmet
 #   just build-verifier    # ~1 hour, ~72 GiB
 #   just install-worker    # account, venv, env file, unit, preflight
+#
+# A release under /root or /home cannot work: ProtectHome=true hides it from the service
+# whatever its mode bits say. `sudo just relocate-release` moves it, and install-worker
+# refuses until it has been.
 
 # Check the host can host a verifier at all, before anything expensive.
 doctor-host:
@@ -185,6 +189,73 @@ install-worker:
     set -euo pipefail
     exec sudo --preserve-env=CONJECTURES_TASKS_ROOT,VERIFIER_IMAGE_TAG \
       scripts/install_worker.sh
+
+# A release under /root or /home cannot work: the unit sets ProtectHome=true, so systemd
+# presents both as empty to the service whatever the mode bits say. Both trees move together
+# and land as siblings, because compose resolves the task checkout relative to the release and
+# the API and the worker must mount the same pool.
+
+# Move the release and its task checkout out of /root or /home. Prompts first.
+relocate-release destination="/opt/conjectures-validator":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    die() { echo "error: $*" >&2; exit 2; }
+    destination="{{ destination }}"
+    [[ $EUID -eq 0 ]] || die "run as root: it writes under $destination and stops the unit"
+
+    release="$(pwd -P)"
+    case "$release" in
+      /root|/root/*|/home/*) ;;
+      *) echo "$release is already outside /root and /home; nothing to relocate."; exit 0 ;;
+    esac
+    [[ ! -e "$destination/current" ]] || die "$destination/current already exists"
+
+    # From the compose file, like every other recipe here, so a relocation cannot disagree with
+    # the path the API actually mounts.
+    read -r tasks _ < <(just _tasks-paths)
+    [[ -d "$tasks" ]] || die "no task checkout at $tasks; run: just pin-tasks"
+    tasks="$(cd "$tasks" && pwd -P)"
+    [[ "$(dirname "$tasks")" == "$(dirname "$release")" ]] \
+      || die "$tasks is not a sibling of $release; move both by hand and keep them siblings"
+
+    # Within one filesystem `mv` renames, so the inode is unchanged and bind mounts in running
+    # containers follow it. Across filesystems it copies and unlinks, which leaves those mounts
+    # on deleted inodes: the API keeps serving the old bytes until its containers are recreated.
+    same_fs=1
+    if [[ "$(stat -c %d "$(dirname "$release")" 2>/dev/null)" \
+       != "$(stat -c %d "$(dirname "$destination")" 2>/dev/null)" ]]; then
+      same_fs=0
+    fi
+
+    echo "==> relocating the release"
+    printf '    %s\n' "$release  ->  $destination/current" \
+                      "$tasks  ->  $destination/conjectures-tasks"
+    echo ""
+    echo "    The database volume and the verifier image are untouched: the volume belongs to"
+    echo "    the compose project by name, and the image lives in the daemon's store."
+    if (( same_fs )); then
+      echo "    One filesystem, so this is a rename and running containers keep working."
+    else
+      echo "    DIFFERENT FILESYSTEMS: this copies, and afterwards the running api stack holds"
+      echo "    deleted inodes. Recreate it when this finishes."
+    fi
+    echo ""
+    read -rp "Continue? [y/N] " reply
+    [[ "$reply" == [yY] || "$reply" == [yY][eE][sS] ]] || { echo "aborted"; exit 1; }
+
+    systemctl stop conjectures-verification-worker 2>/dev/null || true
+    install -d -m 755 "$destination"
+    # Out of the tree about to be renamed: `..` in this shell would otherwise resolve through
+    # the moved directory and name the destination instead of the source.
+    cd /
+    mv "$release" "$destination/current"
+    mv "$tasks" "$destination/conjectures-tasks"
+
+    echo ""
+    echo "Moved. Continue from the new location:"
+    echo "    cd $destination/current"
+    (( same_fs )) || echo "    just restart          # the api stack is on deleted inodes"
+    echo "    just install-worker"
 
 # Stop and remove containers, including all workers. The database volume SURVIVES.
 down:

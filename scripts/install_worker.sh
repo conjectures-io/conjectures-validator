@@ -14,6 +14,12 @@ set -euo pipefail
 
 RELEASE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TASKS_ROOT="${CONJECTURES_TASKS_ROOT:-$RELEASE/../conjectures-tasks}"
+# Absolute from here on. That variable is commonly relative — .env.example offers
+# `../conjectures-tasks`, and `just install-worker` forwards it through sudo — and a relative
+# path is resolved against the working directory, which every message below outlives.
+if [[ -d "$TASKS_ROOT" ]]; then
+  TASKS_ROOT="$(cd "$TASKS_ROOT" && pwd)"
+fi
 IMAGE_TAG="${VERIFIER_IMAGE_TAG:-formal-conjectures-verifier:release}"
 ENV_FILE=/etc/conjectures/verification-worker.env
 UNIT=/etc/systemd/system/conjectures-verification-worker.service
@@ -31,18 +37,15 @@ step() { echo "==> $*"; }
 # and no chmod can fix it — so refuse here instead of at first start.
 case "$RELEASE" in
   /root/*|/root|/home/*) die "the release is at $RELEASE, under a path the unit's ProtectHome=true
-  hides from the service. Move it and the task checkout together, keeping them siblings:
-      systemctl stop conjectures-verification-worker 2>/dev/null || true
-      install -d -m 755 /opt/conjectures-validator
-      mv $RELEASE /opt/conjectures-validator/current
-      mv $TASKS_ROOT /opt/conjectures-validator/conjectures-tasks
-  then re-run this from /opt/conjectures-validator/current." ;;
+  hides from the service. No mode bits can open it; the release has to move. This does it,
+  carrying the task checkout along so the two stay siblings:
+      sudo just relocate-release
+  then re-run this from the new location." ;;
 esac
 
 # --- the task release --------------------------------------------------------------------
 step "task release"
 [[ -d "$TASKS_ROOT" ]] || die "no task checkout at $TASKS_ROOT; run: just pin-tasks"
-TASKS_ROOT="$(cd "$TASKS_ROOT" && pwd)"
 want_tasks="$(python3 -c 'import json;print(json.load(open("pins.lock.json"))["tasks"]["commit"])')"
 have_tasks="$(git -C "$TASKS_ROOT" rev-parse HEAD 2>/dev/null || echo none)"
 [[ "$have_tasks" == "$want_tasks" ]] || die "$TASKS_ROOT is at $have_tasks but pins.lock.json
@@ -95,9 +98,45 @@ if [[ ! -x "$RELEASE/.venv/bin/python" ]]; then
 fi
 # Root-owned and only these three: the worker orchestrates and talks to Postgres. It has no
 # Lean, no bittensor, and nothing that could compile or execute a submitted proof.
-"$RELEASE/.venv/bin/pip" install --quiet --constraint "$RELEASE/requirements-service.lock" \
+#
+# `python -m pip`, not `.venv/bin/pip`: a virtualenv writes its absolute path into every console
+# script's shebang, so after a release is relocated `bin/pip` names an interpreter that no longer
+# exists. `bin/python` is a symlink and survives the move, and running pip as a module needs no
+# shebang — so a moved environment is reused rather than rebuilt or, worse, silently broken.
+"$RELEASE/.venv/bin/python" -m pip install --quiet \
+  --constraint "$RELEASE/requirements-service.lock" \
   SQLAlchemy greenlet 'psycopg[binary]'
 chown -R root:root "$RELEASE/.venv"
+
+# --- the release source ------------------------------------------------------------------
+step "release source"
+# The same mode trap as the task pool, one level deeper: the worker imports its own source as the
+# service account, and a package directory that account cannot list does not fail as an
+# ImportError anyone can act on. Python reports a namespace package with no `__main__`, naming a
+# module that is plainly present when root looks. Asked behaviourally, as the account, so a mode,
+# an owner, a missing file or a broken interpreter all answer the same question.
+if ! (cd "$RELEASE" && runuser -u "$ACCOUNT" -- \
+      "$RELEASE/.venv/bin/python" -c 'import verification_worker.__main__' 2>/dev/null); then
+  unreadable=$(
+    find "$RELEASE" -maxdepth 0 ! -perm -o=rx
+    for package in verification_worker verifier conjectures_subnet; do
+      find "$RELEASE/$package" \
+        \( -type d ! -perm -o=rx \) -o \( -type f -name '*.py' ! -perm -o=r \)
+    done
+  )
+  echo "error: $ACCOUNT cannot import the worker from $RELEASE" >&2
+  if [[ -n "$unreadable" ]]; then
+    echo "  it cannot reach these paths:" >&2
+    printf '    %s\n' $unreadable >&2
+  fi
+  cat >&2 <<'EOF'
+  This is public source, not secrets. Open those directories and modules, and only those:
+      find verification_worker verifier conjectures_subnet -type d -exec chmod o+rx {} +
+      find verification_worker verifier conjectures_subnet -name '*.py' -exec chmod o+r {} +
+  Not `chmod -R a+rX` on the release: that would expose .env.
+EOF
+  exit 2
+fi
 
 # --- the environment file ----------------------------------------------------------------
 step "environment file"

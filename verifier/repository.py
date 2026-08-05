@@ -17,6 +17,8 @@ PINNED_REPOSITORIES = (
     ("nanoda", "vendor/nanoda"),
 )
 TASKS_ROOT_ENV = "CONJECTURES_TASKS_ROOT"
+# Reported alongside the pins that live in the image, but not one of them: see doctor_report.
+TASKS_PIN = "tasks"
 GIT_EXECUTABLE = Path("/usr/bin/git")
 
 
@@ -138,9 +140,9 @@ def dependency_pin_status(project_root: Path) -> dict[str, dict[str, Any]]:
         expected = str(pins.get(key, {}).get("commit", ""))
         repository = project_root / directory
         statuses[key] = _checkout_status(repository, expected)
-    statuses["tasks"] = _checkout_status(
+    statuses[TASKS_PIN] = _checkout_status(
         tasks_repository_root(project_root),
-        str(pins.get("tasks", {}).get("commit", "")),
+        str(pins.get(TASKS_PIN, {}).get("commit", "")),
     )
     formal_repository = project_root / "vendor" / "formal-conjectures"
     try:
