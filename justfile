@@ -107,6 +107,85 @@ watcher-check: _preflight _check-watch
     {{ compose_watcher }} run --rm --build watcher \
       python -m deposit_watcher --dry-run
 
+# --- production verification worker ------------------------------------------
+#
+# Not compose. The worker launches one verifier container per proof and names host
+# paths for that container's read-only mounts, so it runs on the host under systemd;
+# putting it in a container would mean handing a container the Docker socket, which is
+# host root. docker-compose.worker.yml is the DEVELOPMENT worker and uses the insecure
+# in-process runner instead — WorkerSettings refuses that when APP_MODE=PROD.
+#
+# Three commands, in this order:
+#
+#   just doctor-host       # seconds; the gates that make the rest pointless if unmet
+#   just build-verifier    # ~1 hour, ~72 GiB
+#   just install-worker    # account, venv, env file, unit, preflight
+
+# Check the host can host a verifier at all, before anything expensive.
+doctor-host:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    fail=0
+    note() { printf '  %-26s %s\n' "$1" "$2"; }
+    bad() { printf '  %-26s %s  <-- %s\n' "$1" "$2" "$3"; fail=1; }
+    echo "==> host gates for the production verifier"
+    # Landlock ABI 4 first appeared in Linux 6.7. The verifier's own probe is the
+    # authority — `docker run <image>` runs the doctor — but that needs the image built,
+    # and this catches the common case in a second rather than in an hour.
+    release=$(uname -r); major=${release%%.*}; rest=${release#*.}; minor=${rest%%.*}
+    if (( major > 6 || (major == 6 && minor >= 7) )); then
+      note kernel "$release"
+    else
+      bad kernel "$release" "Landlock ABI 4 needs 6.7+; the verifier refuses to run"
+    fi
+    if grep -qw landlock /sys/kernel/security/lsm 2>/dev/null; then
+      note landlock "enabled"
+    else
+      bad landlock "absent from /sys/kernel/security/lsm" "add lsm=...,landlock to the cmdline"
+    fi
+    cpus=$(nproc)
+    if (( cpus >= 4 )); then note cpus "$cpus"; else bad cpus "$cpus" "one verifier wants 4"; fi
+    # One verifier container is allowed 72g of memory and builds Lean into a tmpfs, so
+    # both the image store and RAM+swap matter.
+    avail=$(df -BG --output=avail /var/lib/docker 2>/dev/null | tail -1 | tr -dc '0-9')
+    if (( ${avail:-0} >= 72 )); then
+      note "docker disk" "${avail}G free"
+    else
+      bad "docker disk" "${avail:-?}G free" "72 GiB needed for one verification"
+    fi
+    if command -v docker >/dev/null && docker info >/dev/null 2>&1; then
+      note docker "reachable"
+    else
+      bad docker "not reachable" "install Docker Engine, or add yourself to the docker group"
+    fi
+    if [[ -f /sys/fs/cgroup/cgroup.controllers ]]; then
+      note cgroups "v2"
+    else
+      bad cgroups "v1" "the memory and pids limits the runner sets need v2"
+    fi
+    echo ""
+    if (( fail )); then
+      echo "This host cannot run the production verifier yet. Nothing above is optional:" >&2
+      echo "the worker's preflight probes the real sandbox and exits 2 rather than" >&2
+      echo "verifying a paid submission without isolation." >&2
+      exit 1
+    fi
+    echo "All gates pass. Next: just build-verifier"
+
+# Build the reviewed verifier image and print its immutable image ID.
+build-verifier: _check-docker _check-tasks
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "==> building the verifier image (about an hour; Lean and Mathlib)"
+    VERIFIER_IMAGE_TAG=formal-conjectures-verifier:release scripts/build_image.sh
+
+# Install or update the production worker as a systemd service. Does not start it.
+install-worker:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    exec sudo --preserve-env=CONJECTURES_TASKS_ROOT,VERIFIER_IMAGE_TAG \
+      scripts/install_worker.sh
+
 # Stop and remove containers, including all workers. The database volume SURVIVES.
 down:
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} down
@@ -178,7 +257,7 @@ pin-tasks: _check-docker _check-env
     # Where the API actually reads tasks from, straight out of the compose file —
     # never a second guess at the path. Populating a directory the container does
     # not mount looks like success and still dies with "task pool tier is missing".
-    read -r root pool_rel _ < <(just _tasks-paths)
+    read -r root pool_rel allow_rel _ < <(just _tasks-paths)
     # Require a repository rooted at exactly $root. `rev-parse --is-inside-work-tree`
     # would not do: for an absent or empty directory it answers about whichever
     # enclosing work tree it finds, and every git -C below would then retarget that
@@ -201,8 +280,18 @@ pin-tasks: _check-docker _check-env
     git -C "$root" fetch --no-tags origin "$commit"
     git -C "$root" checkout --detach "$commit"
     test "$(git -C "$root" rev-parse HEAD)" = "$commit"
-    find "$root/$pool_rel" -type d -exec chmod 755 {} +
-    find "$root/$pool_rel" -type f -exec chmod 644 {} +
+    # The clone root itself, not only the pool under it. The API and worker containers run as a
+    # non-root uid, and the bind mount lands on this directory: without search permission here
+    # every read fails with "task allowlist is unavailable" while the bytes sit there correct
+    # and complete. A root umask of 077 — or an operator's earlier `mkdir` — leaves it 0700.
+    chmod 755 "$root"
+    chmod 644 "$root/$allow_rel"
+    # `tiers` carries the selection audit, which the worker loads and the API does not.
+    for tree in "$root/$pool_rel" "$root/tiers"; do
+      [[ -d "$tree" ]] || continue
+      find "$tree" -type d -exec chmod 755 {} +
+      find "$tree" -type f -exec chmod 644 {} +
+    done
     echo "==> $root pinned at $commit"
 
 # Open a psql shell on the database.
@@ -340,7 +429,7 @@ _check-emissions:
 _check-tasks:
     #!/usr/bin/env bash
     set -euo pipefail
-    read -r root pool_rel allow_rel < <(just _tasks-paths)
+    read -r root pool_rel allow_rel api_user < <(just _tasks-paths)
     pool="$root/$pool_rel"
     allow="$root/$allow_rel"
     fail() {
@@ -368,6 +457,26 @@ _check-tasks:
       [[ -d "$pool/$tier" ]] || missing+=("$tier")
     done
     (( ${#missing[@]} == 0 )) || fail "task pool tier(s) missing under $pool: ${missing[*]}"
+    # Everything above ran as root, for whom every one of these paths is readable. The container
+    # runs as $api_user, and for it the deciding factor is search permission on the directory the
+    # bind mount lands on. Get that wrong and the API dies with "task allowlist is unavailable"
+    # having found a checkout that is present, pinned and complete — which reads like a missing
+    # mount and is not one. Mode bits rather than a probe container, so the preflight stays
+    # offline and needs no image built yet.
+    closed=$(
+      find "$root" -maxdepth 0 ! -perm -o=rx
+      find "$allow" -maxdepth 0 ! -perm -o=r
+      find "$pool" \( -type d ! -perm -o=rx \) -o \( -type f ! -perm -o=r \)
+    )
+    if [[ -n "$closed" ]]; then
+      echo "error: the api container runs as $api_user and cannot read:" >&2
+      printf '  %s\n' $closed >&2
+      echo "  The bytes are fine; the modes are not. This is the one failure that looks" >&2
+      echo "  exactly like an empty mount and is not one." >&2
+      echo "" >&2
+      echo "    just pin-tasks" >&2
+      exit 1
+    fi
 
 # Where the API reads tasks from, derived from docker-compose.api.yml itself: the
 # bind mount's host path, plus the pool and allowlist paths relative to its target.
@@ -388,7 +497,10 @@ _tasks-paths:
     for v in api.get("volumes", []):
         target = (v.get("target") or "").rstrip("/")
         if v.get("type") == "bind" and target and (pool == target or pool.startswith(target + "/")):
-            print(v["source"], os.path.relpath(pool, target), os.path.relpath(allow, target))
+            # The uid the container runs as comes last, so _check-tasks can test the paths the
+            # way the container will see them instead of the way root sees them.
+            print(v["source"], os.path.relpath(pool, target), os.path.relpath(allow, target),
+                  api.get("user") or "-")
             break
     else:
         sys.exit(f"no bind mount on the api service contains {pool}")

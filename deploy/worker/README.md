@@ -15,9 +15,24 @@ service keeps the boundary explicit and lets Docker mount the exact host paths t
 - Ubuntu with a kernel that passes the verifier's Landlock ABI 4+ and seccomp behavioral probe;
 - Docker Engine with the reviewed verifier image already built or pulled;
 - PostgreSQL/Flyway stack running on loopback with all migrations applied;
-- root-owned validator and task releases at `/opt/conjectures-validator/current` and
-  `/opt/conjectures-tasks`, with pins matching `pins.lock.json`;
+- root-owned validator and task releases, with pins matching `pins.lock.json`;
 - at least 72 GiB available to a verifier container and four CPUs.
+
+`just doctor-host` checks the kernel, Landlock, cgroup, CPU and disk gates in a second. Run it
+first: none of them are optional, and the rest of this page is wasted effort if one fails.
+
+The two releases must be **siblings**, because `docker-compose.api.yml` mounts the task
+repository from a relative path and the API and the worker must resolve the same pool:
+
+```
+/opt/conjectures-validator/current/              # validator release
+/opt/conjectures-validator/conjectures-tasks/    # task release at the pinned commit
+```
+
+Keep `current` a real directory rather than a symlink, or Compose resolves that relative mount
+against the physical release path instead. Anything under `/root` or `/home` cannot work at all:
+the unit sets `ProtectHome=true`, so systemd presents those paths to the service as empty
+regardless of ownership or mode bits.
 
 The worker's membership in the `docker` group is privileged host access. Give that membership only
 to this dedicated account. No network-facing service should run as this user.
@@ -26,47 +41,50 @@ Docker must use its local Unix socket, never a remote daemon.
 
 ## Install
 
-Create the service account and Python environment:
-
 ```bash
-sudo useradd --system --home-dir /var/lib/conjectures-worker \
-  --create-home --shell /usr/sbin/nologin conjectures-worker
-sudo usermod --append --groups docker conjectures-worker
-
 cd /opt/conjectures-validator/current
-sudo python3 -m venv .venv
-sudo .venv/bin/pip install --constraint requirements-service.lock \
-  SQLAlchemy greenlet 'psycopg[binary]'
-sudo chown -R root:root .venv
+just doctor-host        # seconds. Stop here if it fails; nothing below can compensate.
+just pin-tasks          # task release at the pinned commit, with modes the service can read
+just build-verifier     # about an hour, ~72 GiB. Prints the immutable image ID.
+just install-worker     # account, venv, environment file, unit, preflight
 ```
 
-Build or pull the reviewed verifier image, then record its local immutable image ID:
+`just install-worker` is idempotent — re-run it after a release, an image rebuild, or a repin. It
+creates the `conjectures-worker` account and its `docker` group membership, builds the root-owned
+`.venv`, installs `/etc/conjectures/verification-worker.env` from the template with this host's
+paths already resolved, refreshes `VERIFIER_CONTAINER_DIGEST` and `VERIFIER_VERSION` from the
+image and the release commit, installs the unit with the real release path substituted in, and
+runs the preflight. It deliberately does **not** start the service.
+
+The one manual step is the secrets. On a first run the script stops and lists every remaining
+placeholder in the installed environment file:
 
 ```bash
-test -z "$(git status --porcelain=v1 --untracked-files=all)"
-git rev-parse HEAD
-sudo docker build --tag formal-conjectures-verifier:release .
-sudo docker image inspect --format '{{.Id}}' formal-conjectures-verifier:release
+sudoedit /etc/conjectures/verification-worker.env
+just install-worker     # again, once the placeholders are filled
+```
+
+The image is pinned by its **local immutable image ID**, never by tag — a tag can be moved onto
+other bytes, and every verdict names the image that produced it.
+
+`build-verifier` refuses to build a release from a dirty tree, which is the same check you can run
+yourself:
+
+```bash
+git status --porcelain=v1 --untracked-files=all   # must be empty
+git rev-parse HEAD                               # becomes VERIFIER_VERSION
 ```
 
 The clean-check includes untracked files because Docker builds from the filesystem, not from Git's
-index. The build context excludes environment files, private-key files, and Bittensor wallet data;
-keep all production credentials outside the release checkout regardless.
+index: an untracked file is in the image while `VERIFIER_VERSION` claims the commit alone. The
+build context excludes environment files, private-key files and Bittensor wallet data; keep all
+production credentials outside the release checkout regardless.
 
-Install the environment template, replace every placeholder in the installed copy, and set the
-digest to that exact `sha256:...` image ID. Then install the unit:
-
-```bash
-sudo install -d -o root -g conjectures-worker -m 0750 /etc/conjectures
-sudo install -o root -g conjectures-worker -m 0640 \
-  deploy/worker/verification-worker.env.example \
-  /etc/conjectures/verification-worker.env
-sudoedit /etc/conjectures/verification-worker.env
-sudo install -o root -g root -m 0644 \
-  deploy/worker/conjectures-verification-worker.service \
-  /etc/systemd/system/conjectures-verification-worker.service
-sudo systemctl daemon-reload
-```
+One file from the task repository enters the build — the audited Formal Conjectures patch, passed
+as a named build context because that repository is a sibling of the build context and a `COPY`
+cannot reach it. It is accepted only if its `sha256` matches `pins.lock.json` and the commit
+derived from applying it equals the pinned `formal_conjectures` commit. No task bundles are baked
+into the image; the verifier receives one task directory read-only, per proof.
 
 ## Required preflight
 

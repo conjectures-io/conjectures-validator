@@ -76,12 +76,29 @@ pin_patched_repo() {
   test -z "$(git -C "$destination" status --porcelain --untracked-files=all)"
 }
 
-if ! git -C "$TASKS_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "task repository is missing at $TASKS_ROOT; clone conjectures-tasks separately" >&2
-  exit 2
+# The audited Formal Conjectures fix-up patch, normally read from the pinned task repository
+# because that is where it is audited. A Docker build cannot reach that checkout: it is a
+# sibling of the build context, and .dockerignore excludes `tasks`. So the Dockerfile passes
+# the single file in through a named build context and names it here.
+#
+# Naming the file directly skips the task-repository preconditions below, and nothing else.
+# What makes this step trustworthy is identical on both paths and asserted in
+# pin_patched_repo: the patch is accepted only if its sha256 matches pins.lock.json, and the
+# commit derived from applying it must equal the pinned formal_conjectures commit.
+AUDIT_PATCH="${FC_AUDIT_PATCH:-}"
+if [[ -z "$AUDIT_PATCH" ]]; then
+  if ! git -C "$TASKS_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "task repository is missing at $TASKS_ROOT; clone conjectures-tasks separately" >&2
+    echo "  (or set FC_AUDIT_PATCH to the audited patch file, as the Docker build does)" >&2
+    exit 2
+  fi
+  test "$(git -C "$TASKS_ROOT" rev-parse HEAD)" = "$(pin_field tasks commit)"
+  test -z "$(git -C "$TASKS_ROOT" status --porcelain --untracked-files=all)"
+  AUDIT_PATCH="$TASKS_ROOT/tiers/tier-1/formal-conjectures-audit-fixes.patch"
 fi
-test "$(git -C "$TASKS_ROOT" rev-parse HEAD)" = "$(pin_field tasks commit)"
-test -z "$(git -C "$TASKS_ROOT" status --porcelain --untracked-files=all)"
+test -f "$AUDIT_PATCH"
+# `git -C <dir> apply` resolves the patch path against <dir>, so a relative one would break.
+AUDIT_PATCH="$(cd "$(dirname "$AUDIT_PATCH")" && pwd)/$(basename "$AUDIT_PATCH")"
 
 pin_patched_repo \
   formal-conjectures \
@@ -89,7 +106,7 @@ pin_patched_repo \
   "$(pin_field formal_conjectures base_commit)" \
   "$(pin_field formal_conjectures commit)" \
   vendor/formal-conjectures \
-  "$TASKS_ROOT/tiers/tier-1/formal-conjectures-audit-fixes.patch" \
+  "$AUDIT_PATCH" \
   "$(pin_field formal_conjectures patch_sha256)"
 
 for dependency in comparator lean4export landrun nanoda; do

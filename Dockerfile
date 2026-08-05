@@ -19,7 +19,13 @@ WORKDIR /opt/fc-verifier
 # security patch does not invalidate the full Formal Conjectures build.
 COPY pins.lock.json lean-toolchain lakefile.toml lake-manifest.json ./
 COPY scripts/pin_dependencies.sh ./scripts/pin_dependencies.sh
-RUN ./scripts/pin_dependencies.sh \
+# The audited Formal Conjectures patch lives in the pinned task repository, a sibling of this
+# build context and so unreachable from a COPY. Passed in as the named context `tasks`; the
+# script still accepts it only against the sha256 in pins.lock.json. Build with
+# `scripts/build_image.sh`, which supplies the context.
+COPY --from=tasks tiers/tier-1/formal-conjectures-audit-fixes.patch ./.build/
+RUN FC_AUDIT_PATCH=/opt/fc-verifier/.build/formal-conjectures-audit-fixes.patch \
+    ./scripts/pin_dependencies.sh \
     && mkdir -p .tools \
     && architecture="$(dpkg --print-architecture)" \
     && case "$architecture" in \
@@ -48,6 +54,7 @@ RUN ./scripts/pin_dependencies.sh \
        fi \
     && cd /opt/fc-verifier \
     && rm -rf /root/.cache/mathlib \
+    && rm -rf /opt/fc-verifier/.build \
     && rm -f .tools/elan.tar.gz .tools/elan-init
 
 COPY . .
