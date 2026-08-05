@@ -172,6 +172,27 @@ async def in_review_page(
     return await _page(session, IN_REVIEW, limit=limit, after=after)
 
 
+async def all_results_page(
+    session: AsyncSession,
+    *,
+    limit: int,
+    after: tuple[datetime, uuid.UUID] | None = None,
+) -> tuple[ResultRow, ...]:
+    """Every publishable result in one feed, newest first, for the public dashboard.
+
+    The union of ``certified_page`` and ``in_review_page`` rather than an unfiltered read of
+    ``submissions``. The filter is ``_or_public()`` — the same predicate ``public_result`` applies
+    — because an unfiltered feed would publish rows this module is not allowed to publish:
+    queued, running, and rejected attempts. Those are not merely uninteresting to a dashboard,
+    they are disclosures. Their existence and their exact timestamps are joinable against the
+    public chain, where the funding transfer for the attempt is visible with its sender, so an
+    unfiltered feed would deanonymise the failed attempts the anonymised activity stream is built
+    to protect — and it would hand out ids that ``public_result`` answers ``404`` for, turning
+    that endpoint's deliberate silence into a contradiction.
+    """
+    return await _page(session, [_or_public()], limit=limit, after=after)
+
+
 async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRow | None:
     """One result, if it is on a public feed.
 
@@ -188,15 +209,6 @@ async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRo
         return None
     rows = await _decorate(session, [submission])
     return rows[0]
-
-async def all_submissions_page(
-    session: AsyncSession,
-    *,
-    limit: int,
-    after: tuple[datetime, uuid.UUID] | None = None,
-) -> tuple[ResultRow, ...]:
-    """All submissions for the dashboard, newest first. `after` is the keyset position, exclusive."""
-    return await _page(session, [], limit=limit, after=after)
 
 
 def _or_public():
@@ -540,6 +552,7 @@ __all__ = [
     "ResultRow",
     "TaskActivity",
     "activity",
+    "all_results_page",
     "attempts_by_conjecture",
     "attempts_by_task",
     "attempts_for_conjecture",

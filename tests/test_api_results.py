@@ -241,6 +241,9 @@ def test_an_unverified_submission_appears_on_no_public_feed():
 
             assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
             assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
+            # Including the dashboard feed. It is the union of the two feeds above, not an
+            # unfiltered read of `submissions`, so "all results" cannot mean "everything".
+            assert (await _get(kit, "/v1/results/submissions")).json()["items"] == []
             # And it cannot be read by id either: not published is reported as absent, so a
             # submission id cannot be probed for the state of unpublished work.
             single = await _get(kit, f"/v1/results/{submission_id}")
@@ -261,6 +264,7 @@ def test_a_rejected_submission_is_never_published():
 
             assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
             assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
+            assert (await _get(kit, "/v1/results/submissions")).json()["items"] == []
             assert (await _get(kit, f"/v1/results/{submission_id}")).status_code == 404
         finally:
             await kit.teardown()
@@ -274,6 +278,106 @@ def test_a_random_uuid_is_a_404_not_a_500():
         try:
             response = await _get(kit, f"/v1/results/{uuid.uuid4()}")
             assert response.status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- the dashboard feed --------------------------------------------------------------------
+
+
+def test_the_dashboard_feed_is_the_union_of_certified_and_in_review():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            certified_id = await _submit(kit, "0020")
+            await _verify(kit, certified_id)
+            await _certify(kit, certified_id)
+
+            in_review_id = await _submit(kit, "0021")
+            await _verify(kit, in_review_id)
+
+            rejected_id = await _submit(kit, "0022")
+            await _verify(kit, rejected_id, accepted=False)
+
+            unverified_id = await _submit(kit, "0023")
+
+            page = (await _get(kit, "/v1/results/submissions")).json()
+            ids = [item["id"] for item in page["items"]]
+
+            # Both published states in one request — that is the point of the endpoint — and
+            # neither of the two unpublishable ones, which is the point of the filter.
+            assert set(ids) == {certified_id, in_review_id}
+            assert rejected_id not in ids
+            assert unverified_id not in ids
+
+            # Certification is visible as a nullable field rather than as a second response
+            # model, so a dashboard reads one shape and branches on `certified_at`.
+            by_id = {item["id"]: item for item in page["items"]}
+            assert by_id[certified_id]["certified_at"] is not None
+            assert by_id[in_review_id]["certified_at"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_dashboard_feed_names_no_miner_and_carries_no_proof():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0024")
+            await _verify(kit, submission_id)
+
+            response = await _get(kit, "/v1/results/submissions")
+            item = response.json()["items"][0]
+
+            # The same disclosure rules the per-result endpoints are held to. This feed reuses
+            # `PublicResult`, so it cannot drift from them by construction — the assertion is
+            # here because "reuses" is a decision a later change could quietly reverse.
+            assert HOTKEY not in response.text
+            assert COLDKEY not in response.text
+            assert "0xpay-0024" not in response.text
+            assert not {"hotkey", "author", "author_credit", "payment"} & set(item)
+
+            assert item["attribution"] == "conjectures.io"
+            assert item["slug"] == CONJECTURE_SLUG
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_dashboard_feed_pages_newest_first_and_ends_with_a_null_cursor():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            created = []
+            for index in range(5):
+                submission_id = await _submit(kit, f"02{index}")
+                await _verify(kit, submission_id)
+                created.append(submission_id)
+
+            seen = []
+            cursor = None
+            pages = 0
+            while True:
+                params = {"limit": 2}
+                if cursor:
+                    params["cursor"] = cursor
+                page = (await _get(kit, "/v1/results/submissions", **params)).json()
+                seen.extend(item["id"] for item in page["items"])
+                pages += 1
+                cursor = page["next_cursor"]
+                if cursor is None:
+                    break
+                assert pages < 10, "cursor did not terminate"
+
+            assert seen == list(reversed(created))
+            # Three pages, not four: the `limit + 1` read means the cursor is null on the page
+            # that exhausts the feed rather than one wasted request later.
+            assert pages == 3
         finally:
             await kit.teardown()
 

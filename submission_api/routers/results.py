@@ -19,6 +19,11 @@ by remembering to omit a field:
 `403`. A submission id is a UUID a miner holds; distinguishing "not published" from "does not
 exist" would turn this endpoint into a probe for the state of submissions that have not been
 published yet.
+
+The three feeds are one predicate apart and share `_feed`: `/certified` is paid out, `/in-review`
+is awaiting the reward decision, and `/submissions` is their union for a dashboard that wants both
+in one request. None of them can widen past what `conjectures_subnet.db.public` will publish —
+each is a named query in that module, and an unfiltered read of `submissions` is not one of them.
 """
 
 from __future__ import annotations
@@ -36,7 +41,7 @@ from conjectures_subnet.db import public as public_store
 from submission_api import conjectures, slugs
 from submission_api import schemas_public as public
 from submission_api.conjectures import ConjectureIndex
-from submission_api.dependencies import ServicesDep, SessionDep, SettingsDep
+from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
@@ -253,34 +258,38 @@ async def list_in_review(
 # follows a `{uuid}` parameter on the same prefix is never reached.
 @router.get(
     "/submissions",
-    response_model=public.PublicResultsPageResponse,
-    summary="Dashboard feed of every submission",
+    response_model=public.CursorPage[public.PublicResult],
+    summary="Every published result in one feed, for the public dashboard",
 )
-async def get_all_submissions(
+async def list_all(
+    response: Response,
+    services: ServicesDep,
     session: SessionDep,
-    settings: SettingsDep,
+    # 50 rather than `DEFAULT_PAGE_SIZE`, unlike the two feeds above: a dashboard renders one
+    # long list, and this is the default both authors of the endpoint chose.
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 50,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
-) -> public.PublicResultsPageResponse:
-    """Public dashboard feed of all submissions, ordered newest-first with signed keyset cursors."""
-    after = None
-    if cursor:
-        position = decode_cursor(settings.cursor_secret, cursor)
-        after = (position.created_at, position.id)
+) -> public.CursorPage[public.PublicResult]:
+    """The certified and in-review feeds interleaved, so a dashboard makes one request.
 
-    rows = await public_store.all_submissions_page(session, limit=limit + 1, after=after)
-    page = rows[:limit]
-    next_cursor = None
-    if len(rows) > limit and page:
-        last = page[-1]
-        next_cursor = encode_cursor(
-            settings.cursor_secret, created_at=last.created_at, id=last.id
-        )
+    Shaped as `PublicResult` in both cases, for the reason `read_result` gives: an in-review row
+    simply has no `certified_at`, and a client that has to branch on which of two response models
+    it got is worse than one that reads a nullable field.
 
-    return public.PublicResultsPageResponse(
-        items=[public.PublicResultItem.from_db_row(row) for row in page],
-        next_cursor=next_cursor,
+    Declared above `/{result_id}` because Starlette matches routes in declaration order and
+    `submissions` is a valid path segment: registered after, every request to this path is parsed
+    as a UUID instead and answered `400`.
+    """
+    page = await _feed(
+        fetch=public_store.all_results_page,
+        shape=_certified,
+        services=services,
+        session=session,
+        response=response,
+        limit=limit,
+        cursor=cursor,
     )
+    return public.CursorPage[public.PublicResult](**page)
 
 
 @router.get(

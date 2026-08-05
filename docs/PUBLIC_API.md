@@ -15,6 +15,7 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/catalog/meta` | `PoolMeta` | Counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out |
 | `GET` | `/v1/results/in-review` | `CursorPage<InReviewResult>` | Lean-verified, awaiting manual review |
+| `GET` | `/v1/results/submissions` | `CursorPage<PublicResult>` | Both of the above in one feed, for a dashboard |
 | `GET` | `/v1/results/{id}` | `PublicResult` | One published result |
 | `GET` | `/v1/results/{id}/report` | `PublicVerificationReport` | The published subset of the verifier report |
 | `GET` | `/v1/system/status` | `SystemStatus` | Submissions open/paused, queue depths, pin rotation window |
