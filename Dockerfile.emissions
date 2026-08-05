@@ -1,0 +1,19 @@
+# Subnet 66 epoch weight setter. This is the only service that mounts a signing hotkey.
+# It has no database, API, task pool, proof bytes, or verifier toolchain.
+
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+
+COPY requirements-service.lock ./
+RUN pip install --no-cache-dir --constraint requirements-service.lock bittensor \
+    && rm -f requirements-service.lock
+
+RUN useradd --create-home --shell /usr/sbin/nologin --uid 10103 emissions
+
+USER emissions
+WORKDIR /srv/app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONNOUSERSITE=1 \
+    PYTHONPATH=/srv/app
+
+CMD ["python", "-m", "emissions_worker", "--log-level", "INFO"]

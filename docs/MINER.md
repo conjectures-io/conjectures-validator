@@ -37,15 +37,15 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
 
 ```json
 {
-  "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
+  "repository_commit": "379fc0298dc146df549e7061c3ede0353a5bb51f",
   "bundle_format": "conjectures-submission/v1",
   "max_bundle_bytes": 2097152,
   "submission_price_rao": 500000000,
   "payment_recipient": "5C4h…",
   "tasks": [
     {
-      "task_id": "fc-e923379e-erdos1094-erdos-1094-e88b987211-formalized-v1",
-      "task_bundle_sha256": "sha256:c70c6d…",
+      "task_id": "fc-379fc029-erdos1094-erdos-1094-1ec3e802ca-formalized-v1",
+      "task_bundle_sha256": "sha256:74937b…",
       "target_type_sha256s": ["sha256:304f28…"]
     }
   ]
@@ -55,9 +55,9 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
 Keep the `task_id` and its `task_bundle_sha256`: both go into your submission, and the
 validator refuses anything that does not match the published commitment.
 
-The task itself is in this repository, at `tasks/pool/<tier>/<task_id>/`. `Challenge.lean` is the
-statement you must prove; `SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your
-file gets wrapped in.
+The task itself is in the separately checked-out `conjectures-tasks` repository, at
+`../conjectures-tasks/pool/<tier>/<task_id>/`. `Challenge.lean` is the statement you must prove;
+`SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your file gets wrapped in.
 
 ## 2. Write your proof
 
@@ -95,7 +95,7 @@ runs:
 
 ```bash
 python3 -m verifier verify \
-  --task tasks/pool/<tier>/<task_id> \
+  --task ../conjectures-tasks/pool/<tier>/<task_id> \
   --submission Main.lean \
   --expected-task-sha256 <task_bundle_sha256>
 ```
@@ -107,7 +107,8 @@ from step 1. Wait for the block to finalize, then keep the **extrinsic reference
 submit without it, and it can fund only one submission ever.
 
 Payment buys one verification attempt. It does not change Lean's verdict and does not guarantee
-a reward.
+a reward. The bounty shown before or after submission is a live estimate (`locked: false`); if an
+earlier proof establishes the same reward target while yours is queued, that bounty is solved.
 
 ## 5. Submit
 

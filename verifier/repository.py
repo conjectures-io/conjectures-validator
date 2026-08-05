@@ -15,8 +15,8 @@ PINNED_REPOSITORIES = (
     ("lean4export", "vendor/lean4export"),
     ("landrun", "vendor/landrun"),
     ("nanoda", "vendor/nanoda"),
-    ("tasks", "tasks"),
 )
+TASKS_ROOT_ENV = "CONJECTURES_TASKS_ROOT"
 GIT_EXECUTABLE = Path("/usr/bin/git")
 
 
@@ -125,6 +125,12 @@ def formal_conjectures_pin(project_root: Path) -> str:
         raise VerifierError(ReasonCode.INVALID_ARGUMENT, "missing formal_conjectures commit pin") from exc
 
 
+def tasks_repository_root(project_root: Path) -> Path:
+    """The separately checked-out task repository consumed by this validator."""
+    configured = os.environ.get(TASKS_ROOT_ENV, "").strip()
+    return Path(configured).resolve() if configured else project_root.parent / "conjectures-tasks"
+
+
 def dependency_pin_status(project_root: Path) -> dict[str, dict[str, Any]]:
     pins = load_pins(project_root)
     statuses: dict[str, dict[str, Any]] = {}
@@ -132,6 +138,10 @@ def dependency_pin_status(project_root: Path) -> dict[str, dict[str, Any]]:
         expected = str(pins.get(key, {}).get("commit", ""))
         repository = project_root / directory
         statuses[key] = _checkout_status(repository, expected)
+    statuses["tasks"] = _checkout_status(
+        tasks_repository_root(project_root),
+        str(pins.get("tasks", {}).get("commit", "")),
+    )
     formal_repository = project_root / "vendor" / "formal-conjectures"
     try:
         actual_mathlib = mathlib_pin(formal_repository)

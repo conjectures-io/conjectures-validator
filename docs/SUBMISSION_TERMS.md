@@ -45,8 +45,15 @@ miner-visible notes.
 Verification, review, and reward are three independent states. A proof can be verified and
 not approved; approved and not yet paid. Reading one says nothing about the others.
 
-One reward is paid per problem. If an earlier submission already established a result,
-a later proof of the same result is valid Lean and still earns nothing.
+One reward is paid per exact theorem target. Its proof and refutation tasks compete for that one
+reward, including across source repins. Independently formalized parents, parts, and variants are
+separate targets and can each earn a reward.
+
+Bounty amounts are dynamic estimates. They are calculated from the live treasury balance and the
+target's age relative to the other open targets. Submitting does not lock the displayed amount or
+reserve the target. If another proof becomes the successful claim while yours is queued, the
+target is solved and your submission is not reward-eligible; if yours wins, the payout amount and
+pricing inputs are recorded on the payout event.
 
 ## Attribution
 

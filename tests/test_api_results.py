@@ -44,6 +44,10 @@ from conjectures_subnet.db.models import (
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.routers.results import PUBLIC_REPORT_FIELDS
 
+# The fixture's conjecture, as a stable slug. `TASK_ID` is one build of one attack direction
+# against it; this is the identity a public link uses.
+CONJECTURE_SLUG = "verifierfixtures-direct"
+
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
     reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
@@ -57,7 +61,7 @@ FULL_REPORT = {
     "task_id": TASK_ID,
     "repository_commit": "e923379e609b9d5987011a1d1f06ec22ea25cd20",
     "source_theorem": "VerifierFixtures.direct",
-    "task_mode": "positive",
+    "task_mode": "formalized",
     "task_bundle_sha256": "sha256:" + "ab" * 32,
     "submission_sha256": "sha256:" + "cd" * 32,
     "accepted": True,
@@ -148,6 +152,8 @@ async def _certify(kit, submission_id: str):
                 submission_id=submission.id,
                 eligibility_reason="REVIEW_APPROVED",
                 amount_rao=submission.bounty_amount_rao,
+                pricing_policy_version=submission.bounty_policy_version,
+                pricing_inputs=submission.bounty_inputs,
                 destination_coldkey=COLDKEY,
                 destination_hotkey=submission.hotkey,
                 status=PayoutState.CONFIRMED,
@@ -181,7 +187,11 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
 
             item = body["items"][0]
             assert item["id"] == submission_id
-            assert item["slug"] == TASK_ID
+            # The stable conjecture slug, derived from the row's own reward target rather than
+            # from its task id, so a result produced under an earlier pin still links to the
+            # live conjecture page. The task it was produced against is a separate field.
+            assert item["slug"] == CONJECTURE_SLUG
+            assert item["task_id"] == TASK_ID
             assert item["attribution"] == "conjectures.io"
             assert item["certified_at"] is not None
             assert item["verified_at"] is not None
@@ -288,7 +298,7 @@ def test_the_public_report_withholds_verifier_output_and_the_proof_digest():
             # The digest is of the full immutable bytes, so it still matches the miner's copy
             # and the row on the run, not of the reduced projection below.
             assert body["report_sha256"].startswith("sha256:")
-            assert body["slug"] == TASK_ID
+            assert body["slug"] == CONJECTURE_SLUG
 
             report = body["report"]
             assert set(report) == set(PUBLIC_REPORT_FIELDS)

@@ -18,23 +18,20 @@ of truth; `scripts/check_schema_drift.py` is what proves the mirror still matche
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
-from datetime import date
 from dataclasses import dataclass, replace
+from datetime import date
 from functools import cache
 from pathlib import Path
 
-from conftest import declaration
-from dataclasses import dataclass
-from pathlib import Path
-
-from conftest import PYTEST_DSN, postgres_dsn
+from conftest import PYTEST_DSN, declaration, postgres_dsn
 from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
 
-from conjectures_subnet.bounty import FlatBountyPricer
+from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import Base
@@ -49,6 +46,7 @@ from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
 from submission_api.verification import QueueDispatcher
 from verifier.models import CatalogDeclaration, Classification
+from verifier.task_pool import reward_target_identity
 
 TASK_ID = "fixture"
 TIER = "tier-1"
@@ -228,6 +226,7 @@ def task_entry(
     classification: Classification | None = None,
     task_mode: str | None = None,
     problem_id: str = PROBLEM_ID,
+    reward_target_id: str | None = None,
     mode: str = "formalized",
     **manifest_kwargs,
 ) -> TaskEntry:
@@ -237,7 +236,15 @@ def task_entry(
     public catalog facets read the manifest, because what a solver filters on is the task's
     contract rather than the upstream declaration's own label, and `conftest.manifest()` has
     neither as a parameter.
+
+    `reward_target_id` defaults to the identity of the source theorem, exactly as
+    `verifier.task_registry` requires of a real allowlist. Two entries built from one declaration
+    therefore group into one conjecture and share a slug — which is what the two attack directions
+    of a conjecture do — and entries built from different declarations do not.
     """
+    resolved_source = source if source is not None else declaration()
+    if reward_target_id is None:
+        reward_target_id = reward_target_identity(resolved_source.theorem)
     manifest = task_manifest(**manifest_kwargs)
     patch = {}
     if classification is not None:
@@ -250,13 +257,14 @@ def task_entry(
         task_id=task_id,
         tier=tier,
         problem_id=problem_id,
+        reward_target_id=reward_target_id,
         mode=mode,
         task_bundle_sha256=digest,
         target_type_sha256s=("sha256:" + "11" * 32,),
         # The pool is tiered, so bytes live under the tier, not directly under the root.
-        task_dir=Path("tasks/pool") / tier / task_id,
+        task_dir=Path("/external-task-pool") / tier / task_id,
         manifest=manifest,
-        source=source if source is not None else declaration(),
+        source=resolved_source,
         challenge_lean=challenge_lean,
     )
 
@@ -282,7 +290,15 @@ class Harness:
         return self.services.sessions()
 
 
-def harness(*, entries=None, dispatcher=None, **overrides: str) -> Harness:
+def harness(
+    *, entries=None, dispatcher=None, payments=None, **overrides: str
+) -> Harness:
+    """The API under test.
+
+    `payments` injects a payment verifier. Needed for the chain verifier, because
+    `build_payment_verifier` would otherwise construct a real Subtensor reader and the test would
+    reach the live network.
+    """
     settings = build_settings(**overrides)
     engine = create_async_db_engine(settings.database_url)
     catalog = catalog_from_entries(
@@ -295,11 +311,20 @@ def harness(*, entries=None, dispatcher=None, **overrides: str) -> Harness:
         sessions=async_session_factory(engine),
         catalog=catalog,
         authenticator=build_authenticator(settings),
-        payments=build_payment_verifier(settings),
+        payments=payments or build_payment_verifier(settings),
         dispatcher=dispatcher or QueueDispatcher(),
-        pricing=FlatBountyPricer(
-            amount_rao=settings.bounty_amount_rao,
+        pricing=DynamicBountyPricer(
+            balance_reader=StaticBalanceReader(settings.bounty_pool_balance_rao),
+            balance_coldkey=settings.bounty_wallet_coldkey,
+            balance_hotkey=settings.bounty_wallet_hotkey,
+            balance_netuid=settings.bounty_netuid,
+            reward_target_ids=tuple(
+                sorted({entry.reward_target_id for entry in catalog.entries.values()})
+            ),
             policy_version=settings.bounty_policy_version,
+            constant_numerator=settings.bounty_constant_numerator,
+            constant_denominator=settings.bounty_constant_denominator,
+            age_period_seconds=settings.bounty_age_period_seconds,
         ),
         pins=pin_set(),
         mail=ConsoleSender(),

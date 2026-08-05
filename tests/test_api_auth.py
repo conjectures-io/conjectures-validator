@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
 
@@ -166,6 +167,7 @@ def test_production_refuses_development_components(override, message):
     environ = {
         "APP_MODE": "PROD",
         "PAYMENT_RECIPIENT_SS58": RECIPIENT,
+        "BOUNTY_WALLET_HOTKEY_SS58": HOTKEY,
         "DEVELOPMENT_HOTKEYS": HOTKEY,
     }
     environ.update(override)
@@ -177,7 +179,7 @@ def production_env(**overrides: str) -> dict[str, str]:
     environ = {
         "APP_MODE": "PROD",
         "PAYMENT_RECIPIENT_SS58": RECIPIENT,
-        "BOUNTY_AMOUNT_RAO": "1000000000",
+        "BOUNTY_WALLET_HOTKEY_SS58": HOTKEY,
         # Required in production, and refused if they are the published development constants;
         # see tests/test_api_public.py for the settings guardrails themselves.
         "PUBLIC_CURSOR_SECRET": "x" * 40,
@@ -198,12 +200,15 @@ def test_production_defaults_are_all_hardened():
     assert settings.production is True
 
 
-def test_production_refuses_to_inherit_a_default_bounty():
-    # The amount is what a verified submission is owed. A default would silently promise
-    # money the operator never chose to promise.
+def test_production_refuses_a_static_bounty_balance():
+    with pytest.raises(SettingsError, match="development-only"):
+        Settings.from_env(production_env(BOUNTY_POOL_BALANCE_RAO="4000000000"))
+
+
+def test_production_requires_the_bounty_stake_hotkey():
     environ = production_env()
-    del environ["BOUNTY_AMOUNT_RAO"]
-    with pytest.raises(SettingsError, match="BOUNTY_AMOUNT_RAO"):
+    del environ["BOUNTY_WALLET_HOTKEY_SS58"]
+    with pytest.raises(SettingsError, match="BOUNTY_WALLET_HOTKEY_SS58"):
         Settings.from_env(environ)
 
 
@@ -214,6 +219,18 @@ def test_development_defaults_are_convenient():
     assert settings.payment_amount_rao == 500_000_000
     assert settings.nonce_window_seconds == 120
     assert settings.review_policy_version == "v1"
+    assert settings.bounty_pool_balance_rao == 4_000_000_000
+    assert settings.bounty_constant_numerator == 1
+    assert settings.bounty_constant_denominator == 4
+    assert settings.bounty_netuid == 66
+
+
+def test_task_repository_root_configures_both_pool_paths(tmp_path: Path):
+    settings = Settings.from_env(
+        base_env(CONJECTURES_TASKS_ROOT=str(tmp_path / "task-repository"))
+    )
+    assert settings.task_allowlist_path == tmp_path / "task-repository/allowlist.json"
+    assert settings.task_pool_root == tmp_path / "task-repository/pool"
 
 
 def test_the_api_does_not_require_its_own_database_url():

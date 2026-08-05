@@ -1,4 +1,0 @@
-import TestFixtures.Counterexample
-import TaskSupport
-
-namespace Bounty

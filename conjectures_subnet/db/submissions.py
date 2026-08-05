@@ -63,7 +63,7 @@ from verifier.hashing import canonical_json_bytes, sha256_bytes
 IDEMPOTENCY_CONSTRAINT = "submissions_idempotency_unique"
 PAYMENT_CONSTRAINT = "submissions_payment_reference_unique"
 PROOF_CONSTRAINT = "submissions_proof_digest_key"
-PROBLEM_REWARD_CONSTRAINT = "submissions_problem_reward_unique"
+REWARD_TARGET_CONSTRAINT = "submissions_reward_target_reward_unique"
 
 PROBLEM_ALREADY_AWARDED = "PROBLEM_ALREADY_AWARDED"
 PROBLEM_CONTRADICTED = "PROBLEM_VERIFIED_IN_BOTH_MODES"
@@ -79,6 +79,7 @@ class NewSubmission:
     task_id: str
     task_bundle_sha256: str  # sha256:<hex>
     problem_id: str  # from the allowlist, not the request: the miner does not choose it
+    reward_target_id: str  # stable across source repins of one exact theorem target
     task_mode: TaskMode
     proof_content: bytes  # the miner's Main.lean, exactly as admitted
     proof_sha256: str  # sha256:<hex>
@@ -89,6 +90,7 @@ class NewSubmission:
     hotkey_signature: bytes  # 64 bytes over request_digest
     manual_review_required: bool
     review_policy_version: str
+    # Indicative snapshot retained for audit. It is not a payout lock.
     bounty_amount_rao: int
     bounty_policy_version: str
     bounty_inputs: Mapping[str, Any] | None = None
@@ -229,6 +231,7 @@ async def create_submission(
         task_id=request.task_id,
         task_bundle_sha256=digests.to_bytes(request.task_bundle_sha256),
         problem_id=request.problem_id,
+        reward_target_id=request.reward_target_id,
         task_mode=request.task_mode,
         proof_digest=digests.to_bytes(request.proof_sha256),
         payment_reference=request.payment_reference,
@@ -339,18 +342,18 @@ async def record_verification_result(
     return RecordedVerdict(run=run, applied=not already_ruled)
 
 
-async def problem_reward_holder(
+async def reward_target_holder(
     session: AsyncSession, submission: Submission
 ) -> uuid.UUID | None:
-    """The other submission already holding this problem's single reward, if any.
+    """The other submission already holding this reward target's single reward, if any.
 
-    Mirrors the predicate of `submissions_problem_reward_unique`. The index is the authority;
+    Mirrors the predicate of `submissions_reward_target_reward_unique`. The index is the authority;
     this only lets the service give the reason instead of surfacing an IntegrityError.
     """
     result = await session.execute(
         select(Submission.id)
         .where(
-            Submission.problem_id == submission.problem_id,
+            Submission.reward_target_id == submission.reward_target_id,
             Submission.id != submission.id,
             Submission.reward_status != RewardState.INELIGIBLE,
         )
@@ -408,7 +411,7 @@ async def approve_automatically(
         await session.flush()
         return advisory
 
-    holder = await problem_reward_holder(session, submission)
+    holder = await reward_target_holder(session, submission)
     if holder is not None:
         superseded = ReviewDecision(
             submission_id=submission.id,
@@ -417,7 +420,7 @@ async def approve_automatically(
             reviewer="system",
             policy_version=submission.review_policy_version,
             reason_code=PROBLEM_ALREADY_AWARDED,
-            notes=f"problem {submission.problem_id} is already held by {holder}",
+            notes=f"reward target {submission.reward_target_id} is already held by {holder}",
         )
         session.add(superseded)
         await session.flush()

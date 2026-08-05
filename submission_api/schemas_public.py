@@ -81,6 +81,7 @@ class MachineContract(Model):
     """
 
     task_id: str
+    reward_target_id: str
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
     bundle_format: str
@@ -101,23 +102,70 @@ class MachineContract(Model):
 
 
 class BountyInfo(Model):
-    """What a verified proof of this conjecture is currently quoted at.
+    """The live estimate for this reward target, or why it is no longer available."""
 
-    Indicative, not a promise: the amount is frozen onto a submission when it is accepted, and
-    this is the rule's answer as of now. `policy_version` names the rule so a reader can tell a
-    reprice from a rule change.
-    """
-
-    amount_rao: int = Field(
-        description="Alpha base units. Not the TAO rao of `submission_price_rao`."
+    amount_rao: int | None = Field(
+        description="Live Subnet Alpha estimate in base units; null when unavailable."
     )
     policy_version: str
+    available: bool
+    reason: str = Field(description="OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL")
+    as_of: datetime
+    locked: bool = Field(
+        default=False,
+        description="Always false: submission acceptance does not reserve this amount.",
+    )
+
+
+class BountyPoolInfo(Model):
+    """The common inputs behind every live task estimate."""
+
+    policy_version: str
+    balance_rao: int
+    wallet_coldkey: str
+    wallet_hotkey: str
+    netuid: int
+    asset: str = Field(description="alpha")
+    open_targets: int
+    total_age_weight: int
+    constant_numerator: int
+    constant_denominator: int
+    as_of: datetime
+    locked_at_submission: bool = False
+
+
+SLUG_DESCRIPTION = (
+    "Stable public identity, derived from the theorem's reward target. Unchanged by a pin "
+    "rotation, so it is safe to link, bookmark and cite. Not the same string as `task_id`"
+)
+
+
+class ConjectureTask(Model):
+    """One task issued against a conjecture: one attack direction, at one pinned revision.
+
+    A conjecture is issued as one task per mode — `formalized` to prove it, `counterexample` to
+    refute it — and a solver commits to `task_id` and `task_bundle_sha256` in a bundle. Both are
+    seeded with the pinned source revision and change on every rotation, which is exactly why
+    they are fields here rather than the conjecture's name.
+    """
+
+    task_id: str = Field(
+        description="What a submission bundle names. Changes on every pin rotation"
+    )
+    task_mode: str = Field(description="formalized | counterexample")
+    task_bundle_sha256: str
+    attempts: int = Field(
+        description="Paid verification attempts recorded against this task alone"
+    )
 
 
 class ConjectureSummary(Model):
-    """One conjecture as it appears in a list. No Lean source, no full statement."""
+    """One conjecture as it appears in a list. No Lean source, no full statement.
 
-    slug: str
+    One entry per conjecture, not per task: the two attack directions are folded into `tasks`.
+    """
+
+    slug: str = Field(description=SLUG_DESCRIPTION)
     title: str = Field(
         description=(
             "The fully-qualified source theorem. An identifier a mathematician can cite, not "
@@ -132,43 +180,65 @@ class ConjectureSummary(Model):
     )
     category: str
     classification: str
-    task_mode: str
+    task_modes: tuple[str, ...] = Field(
+        description="The directions this conjecture can be attacked from"
+    )
     tier: str
     ams_subjects: tuple[int, ...]
     is_open: bool = Field(
         description="True when no formal proof is known upstream, which is what makes it a bounty"
     )
-    task_bundle_sha256: str
+    problem_id: str = Field(
+        description="The pinned per-revision identity of this conjecture. Moves on a rotation"
+    )
+    reward_target_id: str = Field(
+        description="The stable bounty identity `slug` is derived from. One payout per target"
+    )
+    tasks: tuple[ConjectureTask, ...]
     bounty: BountyInfo
-    attempts: int = Field(description="Paid verification attempts recorded against this task")
+    attempts: int = Field(
+        description="Paid verification attempts against this conjecture in either direction"
+    )
+
+
+class ConjectureTaskDetail(ConjectureTask):
+    """One task in full: the Lean a solver compiles against and the contract it is checked by.
+
+    `challenge_lean` is the exact `Challenge.lean` whose bytes are hashed into
+    `machine_contract.task_bundle_sha256`, so a reader can verify the published statement against
+    the published commitment without trusting this response.
+    """
+
+    challenge_lean: str
+    machine_contract: MachineContract
 
 
 class ConjectureDetail(Model):
-    """One conjecture in full: the statement, the Lean the solver compiles against, and the
-    machine contract it is checked by.
+    """One conjecture in full, with every task issued against it.
 
-    `challenge_lean` is the exact `Challenge.lean` whose bytes are hashed into
-    `machine_contract.task_bundle_sha256`, so a reader can verify the published statement
-    against the published commitment without trusting this response.
+    The statement, docstring, category and classification are properties of the conjecture and
+    are published once. The Lean source and the machine contract are properties of a *task* — one
+    per attack direction — and live under `tasks`.
     """
 
-    slug: str
+    slug: str = Field(description=SLUG_DESCRIPTION)
     title: str = Field(description="The fully-qualified source theorem; an identifier, not prose")
     statement: str
     summary: str | None = None
     category: str
     classification: str
-    task_mode: str
+    task_modes: tuple[str, ...]
     tier: str
     ams_subjects: tuple[int, ...]
     is_open: bool
+    problem_id: str
+    reward_target_id: str
     source_theorem: str
     source_module: str
     source_path: str
     supported_modes: tuple[str, ...]
     references: tuple[Reference, ...]
-    challenge_lean: str
-    machine_contract: MachineContract
+    tasks: tuple[ConjectureTaskDetail, ...]
     bounty: BountyInfo
     submission_price_rao: int = Field(
         description="TAO rao for one verification attempt; one credit"
@@ -231,7 +301,7 @@ class PoolMeta(Model):
         description="The payment recipient an attempt is paid to, on finalized chain state"
     )
     max_bundle_bytes: int
-    bounty: BountyInfo
+    bounty: BountyPoolInfo
     pins: tuple[PinInfo, ...]
     pins_sha256: str
 
@@ -242,9 +312,12 @@ class PoolMeta(Model):
 class PublicActivityItem(Model):
     """One anonymised event on a conjecture.
 
-    `solver` is `HMAC(activity_salt, task_id || hotkey)`, truncated — stable within a
-    conjecture so repeat attempts are visibly the same solver, and unlinkable across
-    conjectures because the task id is inside the MAC. `occurred_at` is truncated to the hour:
+    `solver` is `HMAC(activity_salt, reward_target_id || hotkey)`, truncated — stable within a
+    conjecture so repeat attempts are visibly the same solver, and unlinkable across conjectures
+    because the conjecture's identity is inside the MAC. Keyed on the reward target rather than
+    on a task id for two reasons: a solver who attempts both directions of one conjecture must
+    appear as one solver on its page, and a pin rotation must not silently rename everybody.
+    `occurred_at` is truncated to the hour:
     a precise timestamp is joinable against the public chain, where the funding transfer for
     that attempt is visible with its sender, which would undo the pseudonym.
     """
@@ -276,7 +349,16 @@ class PublicResult(Model):
     """
 
     id: uuid.UUID
-    slug: str
+    slug: str = Field(
+        description=(
+            "The conjecture this result is against, as a stable slug. Derived from the row's own "
+            "reward target, so a result produced under an earlier pin still links to the current "
+            "conjecture page"
+        )
+    )
+    task_id: str = Field(
+        description="The task this result was produced against, at the pin then in force"
+    )
     title: str
     statement: str
     task_bundle_sha256: str
@@ -301,7 +383,8 @@ class InReviewResult(Model):
     """
 
     id: uuid.UUID
-    slug: str
+    slug: str = Field(description="The conjecture this result is against, as a stable slug")
+    task_id: str
     title: str
     statement: str
     task_bundle_sha256: str
@@ -397,10 +480,13 @@ class SystemStatus(Model):
 __all__ = [
     "ATTRIBUTION",
     "BountyInfo",
+    "BountyPoolInfo",
     "ConjectureActivity",
     "ConjectureDetail",
     "ConjectureListResponse",
     "ConjectureSummary",
+    "ConjectureTask",
+    "ConjectureTaskDetail",
     "CursorPage",
     "Facet",
     "FacetValue",

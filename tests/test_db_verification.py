@@ -78,10 +78,10 @@ class Kit:
         *,
         problem_id: str | None = None,
     ) -> uuid.UUID:
-        """One paid submission. Each gets its own conjecture unless a test asks them to
-        share: only one submission per problem may hold a reward, so submissions that share
-        a problem exercise that contention rather than the lease behaviour tested here."""
+        """One paid submission. Each gets its own theorem target unless a test asks them to
+        share; only the two modes or source repins of that target share a reward."""
         digest = sha256_bytes(content)
+        resolved_problem_id = problem_id or f"fc-e923379e-fixture-{uuid.uuid4()}-problem"
         async with self.session() as session:
             view = await store.create_submission(
                 session,
@@ -91,7 +91,8 @@ class Kit:
                     request_digest=digest,
                     task_id=TASK_ID,
                     task_bundle_sha256=TASK_DIGEST,
-                    problem_id=problem_id or f"fc-e923379e-fixture-{uuid.uuid4()}-problem",
+                    problem_id=resolved_problem_id,
+                    reward_target_id=resolved_problem_id,
                     task_mode=store.TaskMode.FORMALIZED,
                     proof_content=content,
                     proof_sha256=digest,
@@ -451,7 +452,7 @@ def worker(kit: Kit, runner, env: dict[str, str] | None = None) -> VerificationW
                 ResolvedTask(
                     task_id=TASK_ID,
                     tier="tier-1",
-                    task_dir=Path("tasks/pool/tier-1") / TASK_ID,
+                    task_dir=Path("/external-task-pool/tier-1") / TASK_ID,
                     task_bundle_sha256=TASK_DIGEST,
                     timeout_seconds=30,
                 ),
@@ -638,7 +639,7 @@ def test_a_task_that_left_the_allowlist_is_not_verified_against_new_bytes():
                     ResolvedTask(
                         task_id=TASK_ID,
                         tier="tier-1",
-                        task_dir=Path("tasks/pool/tier-1") / TASK_ID,
+                        task_dir=Path("/external-task-pool/tier-1") / TASK_ID,
                         task_bundle_sha256="sha256:" + "ef" * 32,
                         timeout_seconds=30,
                     ),

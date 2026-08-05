@@ -30,6 +30,7 @@ from pathlib import Path
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
 
 DEVELOPMENT_MODE = "DEV"
 PRODUCTION_MODE = "PROD"
@@ -52,11 +53,17 @@ DISPATCHERS = (QUEUE_DISPATCH, IN_PROCESS_DISPATCH)
 RAO_PER_TAO = 1_000_000_000
 DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 
-# The bounty a verified submission is owed, in alpha base units. There is no defensible
-# default for money owed, so production must state it; development gets one so a local run
-# needs no extra variable.
-DEVELOPMENT_BOUNTY_RAO = RAO_PER_TAO
-DEFAULT_BOUNTY_POLICY_VERSION = "flat-v1"
+# Development has no chain wallet to read, so it uses a deterministic four-Alpha pool. With the
+# default 1/4 policy constant, an average-age task is displayed at one Alpha. Production never
+# uses this value: its balance is read from the configured Subnet 66 stake position.
+DEVELOPMENT_BOUNTY_BALANCE_RAO = 4 * RAO_PER_TAO
+DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v1"
+DEFAULT_BOUNTY_CONSTANT_NUMERATOR = 1
+DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 4
+DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
+DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS = 60
+DEFAULT_BITTENSOR_NETWORK = "finney"
+DEFAULT_BOUNTY_NETUID = 66
 
 POLICY_VERSION = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
 
@@ -161,6 +168,12 @@ DEFAULT_CHALLENGES_PER_HOUR = 30
 DEFAULT_INTENT_MINUTES = 30
 # How long an account has to make the transfer a deposit expects.
 DEFAULT_DEPOSIT_HOURS = 24
+
+# Which chain the payment verifier reads. `finney` is mainnet. Named rather than defaulted to
+# `local`, because a verifier pointed at a development chain would refuse every real payment.
+# Shared with the deposit watcher under the same variable names, so one setting configures both and
+# they cannot end up reading different chains.
+DEFAULT_BITTENSOR_NETWORK = "finney"
 
 DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
 DEFAULT_TERMS_VERSION = "v1"
@@ -354,6 +367,13 @@ class Settings:
     verifier_project_root: Path
     payment_recipient: str
     payment_amount_rao: int
+    # Read by the chain payment verifier only. The archive endpoint is a fallback for a reference
+    # naming a block outside a lite node's pruned-state window; empty means "the same network".
+    bittensor_network: str
+    bittensor_archive_network: str
+    bounty_wallet_coldkey: str
+    bounty_wallet_hotkey: str
+    bounty_netuid: int
     authenticator: str
     payment_verifier: str
     dispatcher: str
@@ -364,9 +384,12 @@ class Settings:
     max_bundle_bytes: int
     manual_review_enabled: bool
     review_policy_version: str
-    bounty_amount_rao: int
+    bounty_pool_balance_rao: int
     bounty_policy_version: str
-
+    bounty_constant_numerator: int
+    bounty_constant_denominator: int
+    bounty_age_period_seconds: int
+    bounty_balance_cache_seconds: int
     # --- Public read surface ---------------------------------------------------------------
     pins_path: Path
     cors_allowed_origins: tuple[str, ...]
@@ -455,6 +478,19 @@ class Settings:
         recipient = _address(
             env, "PAYMENT_RECIPIENT_SS58", _require(env, "PAYMENT_RECIPIENT_SS58")
         )
+        bounty_wallet_coldkey = _address(
+            env,
+            "BOUNTY_WALLET_COLDKEY_SS58",
+            env.get("BOUNTY_WALLET_COLDKEY_SS58", "").strip() or recipient,
+        )
+        bounty_hotkey_raw = env.get("BOUNTY_WALLET_HOTKEY_SS58", "").strip()
+        if production and not bounty_hotkey_raw:
+            raise SettingsError("BOUNTY_WALLET_HOTKEY_SS58 is required in production")
+        bounty_wallet_hotkey = _address(
+            env,
+            "BOUNTY_WALLET_HOTKEY_SS58",
+            bounty_hotkey_raw or recipient,
+        )
 
         review_policy_version = env.get("REVIEW_POLICY_VERSION", "v1").strip()
         if POLICY_VERSION.fullmatch(review_policy_version) is None:
@@ -462,15 +498,16 @@ class Settings:
                 "REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
             )
 
-        # Every accepted submission is quoted a bounty it is then owed, so a production
-        # deployment states the amount rather than inheriting one.
-        if production and not env.get("BOUNTY_AMOUNT_RAO", "").strip():
+        # Production prices from the live bounty stake. A configured balance there would quietly
+        # turn a moving chain value into a stale promise, so the deterministic override is
+        # development-only.
+        if production and env.get("BOUNTY_POOL_BALANCE_RAO", "").strip():
             raise SettingsError(
-                "BOUNTY_AMOUNT_RAO is required in production; it is what a verified "
-                "submission is owed and must not fall back to a default"
+                "BOUNTY_POOL_BALANCE_RAO is development-only; production reads the live "
+                "Subnet Alpha stake"
             )
-        bounty_amount_rao = _positive_int(
-            env, "BOUNTY_AMOUNT_RAO", DEVELOPMENT_BOUNTY_RAO
+        bounty_pool_balance_rao = _positive_int(
+            env, "BOUNTY_POOL_BALANCE_RAO", DEVELOPMENT_BOUNTY_BALANCE_RAO
         )
         bounty_policy_version = env.get(
             "BOUNTY_POLICY_VERSION", DEFAULT_BOUNTY_POLICY_VERSION
@@ -479,6 +516,11 @@ class Settings:
             raise SettingsError(
                 "BOUNTY_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
             )
+        bittensor_network = env.get(
+            "BITTENSOR_NETWORK", DEFAULT_BITTENSOR_NETWORK
+        ).strip()
+        if not bittensor_network or len(bittensor_network) > 255 or "\x00" in bittensor_network:
+            raise SettingsError("BITTENSOR_NETWORK must contain 1 to 255 non-NUL characters")
 
         development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
         invalid = tuple(
@@ -572,18 +614,19 @@ class Settings:
                 "a quoted price with no date cannot be judged for staleness"
             )
 
+        tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
-            # Renamed with the pool itself: neither gold/allowlist.json nor tasks/gold exists
+            # Renamed with the pool itself: neither gold/allowlist.json nor a gold pool exists
             # any more, so the old names could only ever have resolved to nothing.
             task_allowlist_path=_directory(
                 env,
                 "TASK_ALLOWLIST_PATH",
-                PROJECT_ROOT / "task_pool" / "allowlist.json",
+                tasks_root / "allowlist.json",
             ),
             task_pool_root=_directory(
-                env, "TASK_POOL_ROOT", PROJECT_ROOT / "tasks" / "pool"
+                env, "TASK_POOL_ROOT", tasks_root / "pool"
             ),
             verifier_project_root=_directory(
                 env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT
@@ -591,6 +634,15 @@ class Settings:
             payment_recipient=recipient,
             payment_amount_rao=_positive_int(
                 env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
+            ),
+            bittensor_network=bittensor_network,
+            bittensor_archive_network=env.get(
+                "BITTENSOR_ARCHIVE_NETWORK", ""
+            ).strip(),
+            bounty_wallet_coldkey=bounty_wallet_coldkey,
+            bounty_wallet_hotkey=bounty_wallet_hotkey,
+            bounty_netuid=_positive_int(
+                env, "BOUNTY_NETUID", DEFAULT_BOUNTY_NETUID, maximum=65_535
             ),
             authenticator=authenticator,
             payment_verifier=payment_verifier,
@@ -606,8 +658,32 @@ class Settings:
             ),
             manual_review_enabled=_flag(env, "MANUAL_REWARD_REVIEW_ENABLED", True),
             review_policy_version=review_policy_version,
-            bounty_amount_rao=bounty_amount_rao,
+            bounty_pool_balance_rao=bounty_pool_balance_rao,
             bounty_policy_version=bounty_policy_version,
+            bounty_constant_numerator=_positive_int(
+                env,
+                "BOUNTY_CONSTANT_NUMERATOR",
+                DEFAULT_BOUNTY_CONSTANT_NUMERATOR,
+                maximum=1_000_000,
+            ),
+            bounty_constant_denominator=_positive_int(
+                env,
+                "BOUNTY_CONSTANT_DENOMINATOR",
+                DEFAULT_BOUNTY_CONSTANT_DENOMINATOR,
+                maximum=1_000_000,
+            ),
+            bounty_age_period_seconds=_positive_int(
+                env,
+                "BOUNTY_AGE_PERIOD_SECONDS",
+                DEFAULT_BOUNTY_AGE_PERIOD_SECONDS,
+                maximum=31_536_000,
+            ),
+            bounty_balance_cache_seconds=_positive_int(
+                env,
+                "BOUNTY_BALANCE_CACHE_SECONDS",
+                DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS,
+                maximum=3600,
+            ),
             pins_path=_directory(env, "PINS_LOCK_PATH", PROJECT_ROOT / "pins.lock.json"),
             cors_allowed_origins=_cors_origins(
                 env, "CORS_ALLOWED_ORIGINS", production=production

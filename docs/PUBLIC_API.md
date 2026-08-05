@@ -9,8 +9,8 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 
 | Method | Path | Contract | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/v1/catalog/conjectures` | `ConjectureListResponse` | List with filters and facet counts |
-| `GET` | `/v1/catalog/conjectures/{slug}` | `ConjectureDetail` | Statement, `Challenge.lean`, references, bounty, pins, machine contract |
+| `GET` | `/v1/catalog/conjectures` | `ConjectureListResponse` | List with filters and facet counts; one entry per conjecture |
+| `GET` | `/v1/catalog/conjectures/{slug}` | `ConjectureDetail` | Statement, references, bounty, pins, and one `Challenge.lean` plus machine contract per attack direction |
 | `GET` | `/v1/catalog/conjectures/{slug}/activity` | `ConjectureActivity` | Anonymised activity stream |
 | `GET` | `/v1/catalog/meta` | `PoolMeta` | Counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out |
@@ -48,7 +48,7 @@ not by removing the sensitive ones. What that buys is the default: a field added
 | `stdout_tail`, `stderr_tail` | Lean's output quotes the submitted proof back verbatim |
 | `submission_sha256` | `submissions.proof_digest` is globally `UNIQUE`, so publishing it would let anyone test a candidate proof for prior submission and get a definitive answer |
 | `workspace_retained`, `comparator_exit_code` | Operator debugging detail; says nothing about the result |
-| `problem_id` | Duplicates `task_id` without adding anything a reader can act on |
+| `problem_id` | The per-revision identity of the conjecture. It moves on every pin rotation, so publishing it in a report would invite a client to key on it; the response's own `slug` is the stable identity, and `ConjectureDetail` publishes `problem_id` alongside it for anyone who needs the revision-specific name |
 
 `report_sha256` is the digest of the **full** report, not of the reduced projection, so it still
 matches the immutable bytes on the run and the copy the submitting miner can read.
@@ -59,30 +59,100 @@ been published yet.
 
 ## Conjectures
 
-The **slug is the task id** — the same string a miner commits to in a bundle. There is no second
-identifier and therefore no mapping that can drift.
+### The slug is stable, and it is not the task id
 
-`ConjectureDetail` carries both halves of a conjecture. The human half is `summary` (the source
-docstring) and `statement` (Lean's pretty-printed type). `title` is the fully-qualified source
-theorem: an identifier a mathematician can cite, not prose — no human title exists in the upstream
-catalog, and inventing one here would put a name on the website that appears in no audited
-artifact.
+A slug appears in a website URL, so it gets bookmarked, cited and indexed. It has to outlive what
+produced it. `task_id` cannot do that job — it is seeded with the pinned source revision, twice:
 
-`challenge_lean` is the exact `Challenge.lean` whose bytes are hashed into the published
-`task_bundle_sha256`. It is held in memory from startup, not re-read per request, so the published
-statement cannot drift from the audited one between boot and a request — and a reader can verify it
-against the commitment without trusting the response.
+```
+fc-{repository_commit[:8]}-{task_slug(theorem)}-{digest}-{mode}-v{adapter_version}
+```
+
+where `digest` hashes the commit as well. Under the weekly drain-and-rotate pin policy, **every
+task id in the pool changes on every rotation**, even for a conjecture whose statement, docstring
+and Lean bytes are byte-identical. A URL built from one would break weekly.
+
+So the slug is derived from `reward_target_id` (`fc-target:<theorem>`), which names the bounty
+rather than the build — see [`../submission_api/slugs.py`](../submission_api/slugs.py). That
+identity is not new: `verifier.task_pool` already mints it so a re-pin cannot pay the same theorem
+twice. This extends it to the URL space, where the durability requirement is the same.
+
+`Erdos11.erdos_11` → `erdos11-erdos-11`. The *whole* dotted path is used, unlike
+`task_generator.task_slug` which keeps two segments — safe inside a task id because a digest
+disambiguates there, unsafe here.
+
+Two consequences, both deliberate:
+
+* **A refined statement keeps its URL.** If upstream tightens a theorem's phrasing, the page
+  updates and the link still works. A reader following a years-old link about Erdős 11 wants the
+  current Erdős 11, not a 404 next to a new page.
+* **Stability rests on the upstream theorem name.** A rename upstream moves the slug. Far rarer
+  than a weekly pin, but derivation gives no recourse; the durable fix is an explicit slug alias
+  table, which is not built yet.
+
+Slug uniqueness is checked, not assumed. Slugification is lossy — `A.b_c` and `A.b.c` both reduce
+to `a-b-c` — so the grouping refuses to start on a collision. A startup failure during a rotation
+is bad; serving one conjecture at another's cited URL is worse.
+
+**Task-id URLs are redirected, not 404ed.** A `GET` on a task-id-shaped slug answers `301` to the
+stable slug, preserving the `/activity` suffix. Two callers need this: a link minted before slugs
+existed, and a solver who pasted an id out of a bundle or a report. It works for task ids from
+*past* rotations too, because the theorem fragment inside a task id does not depend on the commit.
+An ambiguous fragment answers `404` rather than guessing — a wrong redirect is worse than a dead
+link.
+
+### One entry per conjecture, not per task
+
+Every theorem is issued as one task per production mode: `formalized` to prove it,
+`counterexample` to refute it. Listing tasks would show each conjecture twice, with two unrelated
+ids and near-identical statements, and would make `attempts` mean attempts in one direction.
+
+So both fold into one conjecture, and the per-task facts live under `tasks`:
+
+| Level | Fields |
+| --- | --- |
+| Conjecture | `slug`, `title`, `statement`, `summary`, `category`, `classification`, `tier`, `ams_subjects`, `is_open`, `problem_id`, `reward_target_id`, `task_modes`, `attempts` |
+| Task (one per direction) | `task_id`, `task_mode`, `task_bundle_sha256`, `attempts`, and on the detail endpoint `challenge_lean` and `machine_contract` |
+
+`meta.conjectures` counts conjectures, so it is half what a task count would report.
+
+`attempts` at the conjecture level counts submissions in either direction, and it is keyed on
+`reward_target_id` — so it does not reset to zero at each rotation, which a task-keyed counter
+would. The per-task `attempts` keeps the breakdown a solver choosing a direction actually wants.
+
+### The rest of a conjecture
+
+`ConjectureDetail` carries both halves. The human half is `summary` (the source docstring) and
+`statement` (Lean's pretty-printed type). `title` is the fully-qualified source theorem: an
+identifier a mathematician can cite, not prose — no human title exists in the upstream catalog, and
+inventing one here would put a name on the website that appears in no audited artifact.
+
+Each task's `challenge_lean` is the exact `Challenge.lean` whose bytes are hashed into that task's
+published `task_bundle_sha256`. It is held in memory from startup, not re-read per request, so the
+published statement cannot drift from the audited one between boot and a request — and a reader can
+verify it against the commitment without trusting the response.
 
 `machine_contract` is the solver-facing contract: the identifiers the proof must define, the axioms
-it may depend on, the imports it may not use, and the limits it is checked against. A solver that
-satisfies it offline is checked against the same values on submission.
+it may depend on, the imports it may not use, the stable `reward_target_id`, and the limits it is
+checked against. The reward identifier belongs to one exact theorem target and is shared only by
+its proof/refutation pair and later source repins. Parents, parts, and variants have independent
+identifiers and independent rewards. A solver that satisfies the contract offline is checked
+against the same values on submission.
+
+Each conjecture carries a live `bounty` object. `amount_rao` is null when `available` is false;
+`reason` distinguishes an open target from one already solved, and `locked` is always false. The
+pool-wide `/v1/catalog/meta` response publishes the balance, open-target count, total age weight,
+and rational policy constant behind those estimates. An accepted submission does not reserve the
+amount displayed on the website.
 
 ### Filters and facets
 
 `category`, `classification`, `task_mode`, `tier` and `ams_subject` are repeatable and ANDed
-across fields, ORed within one. `is_open` is its own boolean, and `q` is a case-folded substring
-test over the slug, theorem, module, statement and docstring — a substring test and not a pattern,
-so a catastrophically backtracking regular expression is data rather than free CPU.
+across fields, ORed within one. A conjecture matches `task_mode` if any of its tasks does. `is_open`
+is its own boolean, and `q` is a case-folded substring test over the slug, **every task id**, the
+theorem, module, statement and docstring — so pasting an identifier from a report or an old URL into
+the search box finds its conjecture. A substring test and not a pattern, so a catastrophically
+backtracking regular expression is data rather than free CPU.
 
 Facet counts follow the usual faceted-search rule: each facet is counted over the results matching
 every filter **except its own**. Without that, selecting `category=research open` would collapse
@@ -124,20 +194,30 @@ a client learns nothing about whether it was the shape or the signature that was
 `certified` means paid out — `reward_status = 'REWARDED'` with the review approved. `in-review`
 means Lean-verified and awaiting the reward decision.
 
+A result carries both identities: `slug` names the conjecture, `task_id` names the task it was
+produced against. The slug is derived from the row's own `reward_target_id` rather than looked up
+in the catalog, so a result produced under an earlier pin still links to the live conjecture page
+instead of to a task id the current pool no longer carries.
+
 ## Activity
 
 `GET /v1/catalog/conjectures/{slug}/activity` answers "is anyone working on this" without
 answering "who".
 
-`solver` is `HMAC(PUBLIC_ACTIVITY_SALT, len(task_id) || task_id || len(hotkey) || hotkey)`,
-truncated to 12 hex characters. Two properties follow from where the task id sits:
+`solver` is
+`HMAC(PUBLIC_ACTIVITY_SALT, len(reward_target_id) || reward_target_id || len(hotkey) || hotkey)`,
+truncated to 12 hex characters. Two properties follow from where the conjecture's identity sits:
 
 * **Stable within a conjecture.** Repeat attempts read as the same solver, so `solvers` is a
   meaningful count of distinct participants.
-* **Unlinkable across conjectures.** The task id is inside the MAC, so the same miner gets a
-  different pseudonym on every conjecture and the pseudonyms cannot be joined across the catalog to
-  rebuild one miner's history. Length-prefixed, so `(task, key)` pairs cannot be chosen to collide
-  by shifting the boundary between them.
+* **Unlinkable across conjectures.** The conjecture's identity is inside the MAC, so the same miner
+  gets a different pseudonym on every conjecture and the pseudonyms cannot be joined across the
+  catalog to rebuild one miner's history. Length-prefixed, so `(conjecture, key)` pairs cannot be
+  chosen to collide by shifting the boundary between them.
+
+Keyed on `reward_target_id` rather than on a task id, matching the stream itself. A task-keyed MAC
+would give one miner two pseudonyms on a page that shows both attack directions — making one person
+look like two, and inflating `solvers` — and would rename every solver at each pin rotation.
 
 `occurred_at` is truncated to the hour. An attempt is funded by a transfer that is visible on chain
 with its sender at a known block time; a per-second timestamp would let anyone join the two and

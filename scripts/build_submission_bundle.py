@@ -6,7 +6,7 @@ this file without taking on dependencies.
 
     python3 scripts/build_submission_bundle.py \
       --proof Main.lean \
-      --task-id fc-e923379e-erdos89-erdos-89-918868c888-formalized-v1 \
+      --task-id fc-379fc029-erdos89-erdos-89-c956ed476a-formalized-v1 \
       --task-sha256 sha256:<64 hex> \
       --hotkey 5F... \
       --output submission.zip

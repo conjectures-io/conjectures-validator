@@ -17,7 +17,12 @@ from verifier.task_policy import (
     EXACT_TASK_MODE,
     PRODUCTION_TASK_MODES,
 )
-from verifier.task_pool import ERDOS_SOURCE_PREFIX, TASK_POOL_SCHEMA_VERSION
+from verifier.task_pool import (
+    ERDOS_SOURCE_PREFIX,
+    REWARD_TARGET_POLICY,
+    TASK_POOL_SCHEMA_VERSION,
+    reward_target_identity,
+)
 
 
 MAX_ALLOWLIST_BYTES = 4 * 1024 * 1024
@@ -110,7 +115,10 @@ def _valid_tier_policy(policy: object) -> bool:
         "modes",
         "multi_target_tasks",
         "one_reward_per_problem",
+        "one_reward_per_reward_target",
         "pool_size",
+        "reward_target_count",
+        "reward_target_policy",
         "retired_source_theorems_sha256",
         "selection",
         "selection_audit_sha256",
@@ -120,7 +128,7 @@ def _valid_tier_policy(policy: object) -> bool:
         "target_relations",
         "task_groups_sha256",
         "outcomes_per_problem",
-        "whole_problem_targets_sha256",
+        "task_targets_sha256",
     }
     return (
         isinstance(policy, dict)
@@ -136,8 +144,12 @@ def _valid_tier_policy(policy: object) -> bool:
         and type(policy.get("multi_target_tasks")) is int
         and policy["multi_target_tasks"] >= 0
         and policy.get("one_reward_per_problem") is True
+        and policy.get("one_reward_per_reward_target") is True
         and type(policy.get("pool_size")) is int
         and policy["pool_size"] > 0
+        and type(policy.get("reward_target_count")) is int
+        and policy["reward_target_count"] > 0
+        and policy.get("reward_target_policy") == REWARD_TARGET_POLICY
         and is_sha256(policy.get("retired_source_theorems_sha256"))
         and isinstance(policy.get("selection"), str)
         and bool(policy["selection"])
@@ -145,7 +157,8 @@ def _valid_tier_policy(policy: object) -> bool:
         and policy.get("source_category") == "research open"
         and type(policy.get("source_theorem_count")) is int
         and policy["source_theorem_count"] > 0
-        and policy.get("task_scope") == "whole_problem"
+        and policy.get("task_scope")
+        in {"whole_problem", "part_or_variant", "direct_proposition"}
         and policy.get("target_relations")
         == {
             COUNTEREXAMPLE_TASK_MODE: "logical-negation",
@@ -153,7 +166,7 @@ def _valid_tier_policy(policy: object) -> bool:
         }
         and is_sha256(policy.get("task_groups_sha256"))
         and policy.get("outcomes_per_problem") == len(PRODUCTION_TASK_MODES)
-        and is_sha256(policy.get("whole_problem_targets_sha256"))
+        and is_sha256(policy.get("task_targets_sha256"))
     )
 
 
@@ -161,6 +174,7 @@ def _valid_tier_policy(policy: object) -> bool:
 class AllowedTask:
     task_id: str
     problem_id: str
+    reward_target_id: str
     tier: str
     mode: str
     source_theorems: tuple[str, ...]
@@ -285,6 +299,7 @@ class TaskPoolRegistry:
                 "completion_policy",
                 "mode",
                 "problem_id",
+                "reward_target_id",
                 "source_indices",
                 "source_path",
                 "target_type_sha256s",
@@ -314,6 +329,14 @@ class TaskPoolRegistry:
                 and theorems
                 else None
             )
+            reward_target_id = row.get("reward_target_id")
+            expected_reward_target_id = (
+                reward_target_identity(theorems[0])
+                if isinstance(theorems, list)
+                and len(theorems) == 1
+                and isinstance(theorems[0], str)
+                else None
+            )
             if (
                 not isinstance(task_id, str)
                 or TASK_ID.fullmatch(task_id) is None
@@ -332,6 +355,7 @@ class TaskPoolRegistry:
                 or not isinstance(theorems, list)
                 or tuple(theorems) != tuple(source[0] for source in sources_for_task)
                 or row.get("problem_id") != expected_problem_id
+                or reward_target_id != expected_reward_target_id
                 or (
                     expected_problem_id in problem_sources
                     and problem_sources[expected_problem_id] != tuple(theorems)
@@ -358,6 +382,7 @@ class TaskPoolRegistry:
             tasks[task_id] = AllowedTask(
                 task_id=task_id,
                 problem_id=row["problem_id"],
+                reward_target_id=reward_target_id,
                 tier=tier,
                 mode=mode,
                 source_theorems=tuple(theorems),
@@ -381,8 +406,11 @@ class TaskPoolRegistry:
                 or len(tier_sources) != policy["source_theorem_count"]
                 or len(tier_tasks)
                 != len(tier_sources) * policy["outcomes_per_problem"]
-                or len({source[1] for source in tier_sources.values()})
-                != len(tier_sources)
+                or (
+                    policy["task_scope"] == "whole_problem"
+                    and len({source[1] for source in tier_sources.values()})
+                    != len(tier_sources)
+                )
                 or sum(
                     source[1].startswith(ERDOS_SOURCE_PREFIX)
                     for source in tier_sources.values()
@@ -390,6 +418,8 @@ class TaskPoolRegistry:
                 < policy["minimum_erdos_tasks"]
                 or sum(len(task.target_type_sha256s) > 1 for task in tier_tasks)
                 != policy["multi_target_tasks"]
+                or len({task.reward_target_id for task in tier_tasks})
+                != policy["reward_target_count"]
             ):
                 raise TaskNotAllowed("task tier is empty or violates its declared policy")
         expected_source_modes = {
@@ -421,6 +451,14 @@ class TaskPoolRegistry:
         )
         if not result:
             raise TaskNotAllowed(f"unknown problem: {problem_id}")
+        return result
+
+    def tasks_for_reward_target(self, reward_target_id: str) -> tuple[AllowedTask, ...]:
+        result = tuple(
+            task for task in self.tasks.values() if task.reward_target_id == reward_target_id
+        )
+        if not result:
+            raise TaskNotAllowed(f"unknown reward target: {reward_target_id}")
         return result
 
     def assert_bundle(self, bundle: TaskBundle) -> AllowedTask:

@@ -31,7 +31,7 @@ be at most 2 MiB.
 {
   "schema_version": 1,
   "format": "conjectures-submission/v1",
-  "task_id": "fc-e923379e-erdos89-erdos-89-918868c888-formalized-v1",
+  "task_id": "fc-379fc029-erdos89-erdos-89-c956ed476a-formalized-v1",
   "task_bundle_sha256": "sha256:9f2c…",
   "proof_path": "Main.lean",
   "proof_sha256": "sha256:8a73…",
@@ -129,7 +129,7 @@ is stdlib-only and can be copied into a miner without adding dependencies:
 ```bash
 python3 scripts/build_submission_bundle.py \
   --proof Main.lean \
-  --task-id fc-e923379e-erdos89-erdos-89-918868c888-formalized-v1 \
+  --task-id fc-379fc029-erdos89-erdos-89-c956ed476a-formalized-v1 \
   --task-sha256 sha256:9f2c… \
   --hotkey 5Grw… \
   --output submission.zip

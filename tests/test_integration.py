@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from verifier.catalog import load_catalog
 from verifier.classification import catalog_statistics
 from verifier.errors import ReasonCode
 from verifier.models import Classification
+from verifier.repository import tasks_repository_root
 from verifier.task_generator import generate_task
 from verifier.task_loader import load_task_bundle
 from verifier.verification import verify
@@ -14,6 +16,7 @@ from verifier.workspace import target_validator
 
 
 ROOT = Path(__file__).resolve().parent.parent
+TASKS_ROOT = tasks_repository_root(ROOT)
 
 
 def repository_area(module: str) -> str:
@@ -36,23 +39,27 @@ def test_real_catalog_is_substantial_and_diverse():
 
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
-def test_generate_ten_real_challenges_from_distinct_areas(tmp_path):
+def test_generate_ten_audited_production_challenges(tmp_path):
     catalog = load_catalog(ROOT / "data/catalog.json")
-    by_area = {}
-    for item in catalog.declarations:
-        area = repository_area(item.module)
-        if item.classification == Classification.DIRECT_PROP and item.category == "research open":
-            by_area.setdefault(area, item)
-    selected = tuple(by_area[key] for key in sorted(by_area)[:10])
+    target_policy = json.loads(
+        (TASKS_ROOT / "tiers/tier-1/task-targets.json").read_text(encoding="utf-8")
+    )
+    selected_names = [item["theorem"] for item in target_policy["targets"][:10]]
+    declarations = {item.theorem: item for item in catalog.declarations}
+    selected = tuple(declarations[name] for name in selected_names)
     assert len(selected) == 10
+    assert all(
+        item.classification == Classification.DIRECT_PROP
+        and item.category == "research open"
+        for item in selected
+    )
     validator = target_validator(ROOT)
     tasks = tuple(
         generate_task(
             catalog=catalog,
             declaration=item,
-            mode="positive",
+            mode="formalized",
             output=tmp_path / f"task-{index}",
-            allow_non_open=True,
             validate_target=validator,
         )
         for index, item in enumerate(selected)
@@ -64,28 +71,28 @@ def test_generate_ten_real_challenges_from_distinct_areas(tmp_path):
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
 def test_comparator_accepts_valid_fixture_and_rejects_direct_failures():
     accepted = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
         submission_path=ROOT / "examples/valid-submission/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     sorry = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
         submission_path=ROOT / "examples/sorry-submission/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     mismatch = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
         submission_path=ROOT / "examples/invalid-statement/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     unpermitted = verify(
-        task_dir=ROOT / "examples/simple-direct/task-positive",
+        task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
         submission_path=ROOT / "examples/unpermitted-dependency/Main.lean",
         project_root=ROOT,
         allow_insecure_development=True,
@@ -99,36 +106,28 @@ def test_comparator_accepts_valid_fixture_and_rejects_direct_failures():
 
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
-def test_prop_and_numeric_answer_fixtures():
-    prop = verify(
-        task_dir=ROOT / "examples/answer-prop/task-positive",
-        submission_path=ROOT / "examples/answer-prop/Valid.lean",
-        project_root=ROOT,
-        allow_insecure_development=True,
-        allow_test_task=True,
-    )
+def test_numeric_answer_fixture():
     numeric = verify(
-        task_dir=ROOT / "examples/numeric-answer/task-answer",
+        task_dir=TASKS_ROOT / "fixtures/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/Valid.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     wrong = verify(
-        task_dir=ROOT / "examples/numeric-answer/task-answer",
+        task_dir=TASKS_ROOT / "fixtures/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/Wrong.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
     nonliteral = verify(
-        task_dir=ROOT / "examples/numeric-answer/task-answer",
+        task_dir=TASKS_ROOT / "fixtures/numeric-answer/task-answer",
         submission_path=ROOT / "examples/numeric-answer/NonLiteral.lean",
         project_root=ROOT,
         allow_insecure_development=True,
         allow_test_task=True,
     )
-    assert prop.accepted and prop.reason_code == ReasonCode.VERIFIED
     assert numeric.accepted and numeric.reason_code == ReasonCode.VERIFIED
     assert not wrong.accepted
     assert not nonliteral.accepted and nonliteral.reason_code == ReasonCode.SUBMISSION_POLICY_VIOLATION
@@ -137,7 +136,7 @@ def test_prop_and_numeric_answer_fixtures():
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
 def test_counterexample_fixture_accepts_refutation_and_rejects_wrong_or_admitted_proofs():
-    task = ROOT / "examples/counterexample/task-counterexample"
+    task = TASKS_ROOT / "fixtures/counterexample/task-counterexample"
     digest = load_task_bundle(task).sha256
     options = {
         "task_dir": task,

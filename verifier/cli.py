@@ -49,7 +49,7 @@ def _parser() -> argparse.ArgumentParser:
     task_all = task_commands.add_parser("generate-all")
     task_all.add_argument("--catalog", type=Path, required=True)
     task_all.add_argument("--category", default="research open")
-    task_all.add_argument("--modes", default="positive,negative")
+    task_all.add_argument("--modes", default="formalized,counterexample")
     task_all.add_argument("--output", type=Path, required=True)
     task_all.add_argument("--enable-nanoda", action="store_true")
     task_all.add_argument("--allow-non-open", action="store_true")
@@ -112,7 +112,10 @@ def _run(args: argparse.Namespace) -> int:
             output=args.output.resolve(),
             enable_nanoda=args.enable_nanoda,
             allow_non_open=args.allow_non_open,
-            validate_target=target_validator(PROJECT_ROOT),
+            validate_target=target_validator(
+                PROJECT_ROOT,
+                allow_non_open=args.allow_non_open,
+            ),
         )
         _print({**manifest.to_dict(), "task_bundle_sha256": load_task_bundle(args.output.resolve()).sha256})
         return 0
@@ -131,7 +134,10 @@ def _run(args: argparse.Namespace) -> int:
             output=args.output.resolve(),
             enable_nanoda=args.enable_nanoda,
             allow_non_open=args.allow_non_open,
-            validate_target=target_validator(PROJECT_ROOT),
+            validate_target=target_validator(
+                PROJECT_ROOT,
+                allow_non_open=args.allow_non_open,
+            ),
         )
         result = {
             **result,

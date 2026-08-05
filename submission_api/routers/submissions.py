@@ -27,12 +27,13 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal, Self
 
 from fastapi import APIRouter, Header, Path, Request, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.errors import DatabaseError
-from conjectures_subnet.db.models import Submission, VerificationRun
+from conjectures_subnet.db.models import PayoutState, RewardEvent, Submission, VerificationRun
 from submission_api import schemas
 from submission_api.auth import (
     SignedRequest,
@@ -64,6 +65,8 @@ PAYMENT_REFERENCE = re.compile(r"^[A-Za-z0-9:_.#-]{4,128}$")
 TASK_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,254}$")
 
 REASON_SUBMISSIONS_PAUSED = "SUBMISSIONS_PAUSED"
+REASON_BOUNTY_CLOSED = "BOUNTY_CLOSED"
+REASON_BOUNTY_UNFUNDED = "BOUNTY_UNFUNDED"
 
 
 # --- request parsing -----------------------------------------------------------------
@@ -138,8 +141,48 @@ def _verification(
     )
 
 
-def _status(view: store.SubmissionView) -> schemas.SubmissionStatus:
+async def _status(
+    view: store.SubmissionView,
+    *,
+    services: Services,
+    session: AsyncSession,
+    quote=None,
+) -> schemas.SubmissionStatus:
     submission = view.submission
+    payout = (
+        await session.execute(
+            select(RewardEvent)
+            .where(RewardEvent.submission_id == submission.id)
+            .order_by(RewardEvent.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    live = None
+    if payout is None:
+        live = quote or await services.pricing.quote(
+            session,
+            reward_target_id=submission.reward_target_id,
+            claimant_id=submission.id,
+        )
+        bounty = schemas.BountyQuote(
+            amount_rao=live.amount_rao,
+            policy_version=live.policy_version,
+            available=live.available,
+            reason=live.reason,
+            as_of=live.as_of,
+            locked=False,
+        )
+    else:
+        bounty = schemas.BountyQuote(
+            amount_rao=payout.amount_rao,
+            policy_version=payout.pricing_policy_version,
+            available=payout.status != PayoutState.CONFIRMED,
+            reason=(
+                "PAID" if payout.status == PayoutState.CONFIRMED else "PAYOUT_IN_PROGRESS"
+            ),
+            as_of=payout.confirmed_at or payout.created_at,
+            locked=True,
+        )
     return schemas.SubmissionStatus(
         submission_id=submission.id,
         hotkey=submission.hotkey,
@@ -159,10 +202,7 @@ def _status(view: store.SubmissionView) -> schemas.SubmissionStatus:
             amount_rao=submission.payment_amount_rao,
             block=submission.payment_block,
         ),
-        bounty=schemas.BountyQuote(
-            amount_rao=submission.bounty_amount_rao,
-            policy_version=submission.bounty_policy_version,
-        ),
+        bounty=bounty,
         verification=_verification(view.verification, submission),
         created_at=_utc(submission.created_at),
         updated_at=_utc(submission.updated_at),
@@ -266,7 +306,30 @@ async def create_submission(
                 raise from_database_error(_idempotency_conflict(str(key)))
             audit.disarm()
             response.status_code = status.HTTP_200_OK
-            return _status(await store.load_view(session, existing))
+            return await _status(
+                await store.load_view(session, existing),
+                services=services,
+                session=session,
+            )
+
+        # Checked before reading the bundle and before confirming payment. A target with an
+        # existing successful claim is no longer a bounty; accepting another paid attempt would
+        # charge a miner for work that cannot win. This is still an estimate, not a reservation:
+        # another queued proof can become successful after this check and before this one does.
+        quote = await services.pricing.quote(
+            session, reward_target_id=entry.reward_target_id
+        )
+        if not quote.available:
+            raise Conflict(
+                "this bounty has already been solved",
+                reason_code=REASON_BOUNTY_CLOSED,
+                extra={"reward_target_id": entry.reward_target_id},
+            )
+        if quote.amount_rao is None or quote.amount_rao <= 0:
+            raise ServiceUnavailable(
+                "the bounty treasury currently has no payable balance",
+                reason_code=REASON_BOUNTY_UNFUNDED,
+            )
 
         raw = await read_body(request, content_length, settings.max_bundle_bytes)
         try:
@@ -301,11 +364,6 @@ async def create_submission(
             reference=payment_reference, hotkey=miner
         )
 
-        # Quoted after the payment is confirmed, so a request that never becomes a submission
-        # never consumes a quote, and frozen on the row below: this is the amount the response
-        # promises, and nothing downstream may reprice it.
-        quote = await services.pricing.quote(session, task_id=task_id)
-
         view = await store.create_submission(
             session,
             store.NewSubmission(
@@ -315,6 +373,7 @@ async def create_submission(
                 task_id=task_id,
                 task_bundle_sha256=entry.task_bundle_sha256,
                 problem_id=entry.problem_id,
+                reward_target_id=entry.reward_target_id,
                 task_mode=task_mode,
                 proof_content=bundle.proof.raw,
                 proof_sha256=bundle.proof.sha256,
@@ -333,7 +392,21 @@ async def create_submission(
         if view.replayed:
             audit.disarm()
             response.status_code = status.HTTP_200_OK
-            return _status(view)
+            return await _status(view, services=services, session=session)
+
+        # Spend the transfer, so it cannot also buy credits. In the same transaction as the
+        # submission above, and after the replay check so an idempotent retry is not refused as a
+        # double spend.
+        #
+        # Both funding paths reach the same treasury address and now share one canonical reference
+        # format, so without this a miner could pay once, cite it here, and have the deposit
+        # watcher credit the same transfer to their account as well. `chain_transfers` is the only
+        # table that can arbitrate: its reference is unique and both sides take the row FOR UPDATE.
+        # A conflict rolls this whole request back, submission included, which is correct — the
+        # money bought something else.
+        await services.payments.spend(
+            session, payment, submission_id=view.submission.id
+        )
 
         # The submission is now queued for verification by virtue of
         # verification_status = 'UNVERIFIED'; the worker claims it from that partial index.
@@ -341,7 +414,9 @@ async def create_submission(
         refreshed = await store.load_view(session, view.submission)
         await session.commit()
         audit.disarm()
-        return _status(refreshed)
+        return await _status(
+            refreshed, services=services, session=session, quote=quote
+        )
 
 
 def _idempotency_conflict(key: str) -> DatabaseError:
@@ -484,7 +559,11 @@ async def read_submission(
     miner = _read_authentication(
         services, str(submission_id), hotkey, timestamp, signature
     )
-    return _status(await store.get_for_miner(session, submission_id, miner))
+    return await _status(
+        await store.get_for_miner(session, submission_id, miner),
+        services=services,
+        session=session,
+    )
 
 
 @router.get(

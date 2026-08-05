@@ -171,6 +171,29 @@ class Proof(Base):
     )
 
 
+class BountyTask(Base):
+    """The durable age origin for one stable reward target.
+
+    Catalog pins may change task ids and bundle digests, but a stable reward target keeps the
+    same age.  Rows are therefore inserted once and never reset by a restart or repin.
+    """
+
+    __tablename__ = "bounty_tasks"
+
+    reward_target_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    opened_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(reward_target_id) BETWEEN 1 AND 255",
+            name="bounty_tasks_reward_target_id_nonempty",
+        ),
+        Index("bounty_tasks_opened_idx", "opened_at", "reward_target_id"),
+    )
+
+
 class Submission(Base):
     """One paid submission. Holds current state; history lives in the event tables."""
 
@@ -189,6 +212,7 @@ class Submission(Base):
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
     # Both derived from the allowlist at intake, never sent by the miner.
     problem_id: Mapped[str] = mapped_column(Text, nullable=False)
+    reward_target_id: Mapped[str] = mapped_column(Text, nullable=False)
     task_mode: Mapped[TaskMode] = mapped_column(TASK_MODE, nullable=False)
 
     # Drop the UNIQUE if identical proofs should ever both be payable.
@@ -252,6 +276,8 @@ class Submission(Base):
     )
     review_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # An audit snapshot of what the API displayed at intake. The payout event is the
+    # amount-of-record and may use a later live quote; this column never reserves funds.
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
@@ -275,6 +301,10 @@ class Submission(Base):
         CheckConstraint("length(task_id) BETWEEN 1 AND 255", name="task_id_nonempty"),
         CheckConstraint(
             "length(problem_id) BETWEEN 1 AND 255", name="problem_id_nonempty"
+        ),
+        CheckConstraint(
+            "length(reward_target_id) BETWEEN 1 AND 255",
+            name="reward_target_id_nonempty",
         ),
         CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128",
@@ -337,6 +367,14 @@ class Submission(Base):
         ),
         Index("submissions_task_idx", "task_id", text("created_at DESC")),
         Index("submissions_hotkey_idx", "hotkey", text("created_at DESC")),
+        # V006. The public catalog groups tasks into conjectures by reward target, because that
+        # identity survives a pin rotation and `task_id` does not. The counters and the activity
+        # stream on a conjecture page read through this.
+        Index(
+            "submissions_reward_target_idx",
+            "reward_target_id",
+            text("created_at DESC"),
+        ),
         # No proof_digest index: the UNIQUE above already builds one.
         # Public result feeds, newest first, from V002. Separate from the worker queues above:
         # those are ascending and lack `id`, which the keyset page predicate compares as part
@@ -378,9 +416,10 @@ class Submission(Base):
             "account_id",
             text("created_at DESC"),
             postgresql_where=text("account_id IS NOT NULL"),
+        ),
         Index(
-            "submissions_problem_reward_unique",
-            "problem_id",
+            "submissions_reward_target_reward_unique",
+            "reward_target_id",
             unique=True,
             postgresql_where=text("reward_status <> 'INELIGIBLE'"),
         ),
@@ -483,11 +522,10 @@ class VerificationRun(Base):
 
 
 class RewardEvent(Base):
-    """One payout attempt, paid as a direct alpha transfer.
+    """One payout attempt, paid as a direct transfer.
 
-    Weights go to a fixed treasury uid that funds these, so no per-submission
-    weight exists and nothing here is scored. The amount is not decided here: it was
-    quoted and frozen on the submission at intake.
+    The amount and pricing inputs on this event are the payout facts. The submission's bounty
+    fields are only the estimate displayed at intake and are never copied implicitly here.
 
     The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
     then its chain fields fill in as it progresses. Inserting after the transfer
@@ -511,6 +549,8 @@ class RewardEvent(Base):
     eligibility_reason: Mapped[str] = mapped_column(Text, nullable=False)
 
     amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    pricing_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
+    pricing_inputs: Mapped[dict | None] = mapped_column(JSONB)
 
     # Captured, not derived from submissions: this is where the money actually
     # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
@@ -535,6 +575,10 @@ class RewardEvent(Base):
 
     __table_args__ = (
         CheckConstraint("amount_rao > 0", name="reward_amount_positive"),
+        CheckConstraint(
+            "length(pricing_policy_version) BETWEEN 1 AND 64",
+            name="reward_pricing_policy_version_nonempty",
+        ),
         # PENDING means exactly "no extrinsic exists yet", so status and reference
         # must not drift apart. FAILED is exempt: an attempt can die before broadcast.
         CheckConstraint(
@@ -1387,6 +1431,246 @@ class SubmissionEvent(Base):
     )
 
 
+# --- The chain watcher --------------------------------------------------------
+# Mirrors deploy/migrate/sql/V005__chain_transfer_watch.sql. Two tables: what
+# arrived, and where the watcher has read to.
+
+
+class ChainTransferState(enum.StrEnum):
+    UNATTRIBUTED = "UNATTRIBUTED"  # observed, no account owns the sending coldkey
+    CREDITED = "CREDITED"
+    IGNORED = "IGNORED"  # deliberately not credited, and it says why
+
+
+CHAIN_TRANSFER_STATE = _pg_enum(ChainTransferState, "chain_transfer_state")
+
+
+class ChainTransfer(Base):
+    """One `Balances.Transfer` event into the watched address.
+
+    Separate from `Deposit` because the two answer different questions: a deposit
+    is what an account said it would send, a transfer is what arrived. Most
+    arrivals have no declaration behind them, and an arrival nobody can be
+    matched to is exactly the row an operator has to be able to see.
+
+    Append-mostly. The chain facts — block, sender, amount, reference — are
+    written once and never change; only the attribution columns move, and only
+    ever away from UNATTRIBUTED.
+    """
+
+    __tablename__ = "chain_transfers"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+
+    # `block-extrinsic-event`. The event index and not just the extrinsic: a
+    # `utility.batch` emits several Transfer events under one extrinsic, and
+    # keying on the extrinsic alone would collapse two payments into one row.
+    extrinsic_reference: Mapped[str] = mapped_column(Text, nullable=False)
+
+    block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # The block's own Timestamp.set inherent, not when we read it. This is what
+    # "after the genesis timestamp" is judged against.
+    block_timestamp: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    extrinsic_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_index: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    sender_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    recipient: Mapped[str] = mapped_column(SS58, nullable=False)
+    amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    status: Mapped[ChainTransferState] = mapped_column(
+        CHAIN_TRANSFER_STATE,
+        nullable=False,
+        server_default=ChainTransferState.UNATTRIBUTED.value,
+    )
+
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id")
+    )
+    deposit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("deposits.id"), unique=True
+    )
+
+    # Both are for an operator reading this table; NEITHER is authoritative.
+    # `credit_ledger` holds the rao and `credits.credit_balance` divides it, so a
+    # 0.7 TAO transfer at 0.5 records credits_granted = 1 and leaves 0.2 in the
+    # balance towards the next one. Recomputing a balance from this column would
+    # throw those remainders away.
+    credit_price_rao: Mapped[int | None] = mapped_column(BigInteger)
+    credits_granted: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("0")
+    )
+
+    note: Mapped[str | None] = mapped_column(Text)
+
+    observed_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(extrinsic_reference) BETWEEN 1 AND 128",
+            name="transfer_reference_length",
+        ),
+        CheckConstraint("block > 0", name="transfer_block_positive"),
+        CheckConstraint(
+            "extrinsic_index >= 0", name="transfer_extrinsic_index_nonnegative"
+        ),
+        CheckConstraint("event_index >= 0", name="transfer_event_index_nonnegative"),
+        CheckConstraint("amount_rao > 0", name="transfer_amount_positive"),
+        CheckConstraint(
+            "credit_price_rao IS NULL OR credit_price_rao > 0",
+            name="transfer_price_positive",
+        ),
+        CheckConstraint("credits_granted >= 0", name="transfer_credits_nonnegative"),
+        CheckConstraint(
+            "note IS NULL OR length(note) BETWEEN 1 AND 500",
+            name="transfer_note_length",
+        ),
+        # A credited transfer has all of its attribution, or it is not credited.
+        # The deposit carries the ledger entry, so naming the deposit names the
+        # money.
+        CheckConstraint(
+            "status <> 'CREDITED' "
+            "OR (account_id IS NOT NULL "
+            "AND deposit_id IS NOT NULL "
+            "AND credit_price_rao IS NOT NULL)",
+            name="transfer_credited_needs_attribution",
+        ),
+        CheckConstraint(
+            "status = 'CREDITED' OR credits_granted = 0",
+            name="transfer_uncredited_grants_nothing",
+        ),
+        CheckConstraint(
+            "status <> 'IGNORED' OR note IS NOT NULL",
+            name="transfer_ignored_needs_a_reason",
+        ),
+        CheckConstraint(
+            "updated_at >= observed_at",
+            name="chain_transfers_updated_not_before_observed",
+        ),
+        # The idempotency of the whole watcher. A block re-read after a restart, a
+        # crash between recording and advancing the cursor, or an overlapping
+        # rescan all land here instead of crediting a transfer twice.
+        Index("chain_transfers_reference_idx", "extrinsic_reference", unique=True),
+        # The same fact by its parts, so a malformed reference cannot smuggle a
+        # duplicate past the index above.
+        Index(
+            "chain_transfers_position_idx",
+            "block",
+            "extrinsic_index",
+            "event_index",
+            unique=True,
+        ),
+        Index("chain_transfers_sender_idx", "sender_coldkey", text("block DESC")),
+        Index(
+            "chain_transfers_account_idx",
+            "account_id",
+            text("block DESC"),
+            postgresql_where=text("account_id IS NOT NULL"),
+        ),
+        # The operator's queue: money that arrived and belongs to nobody yet.
+        Index(
+            "chain_transfers_unattributed_idx",
+            "block",
+            postgresql_where=text("status = 'UNATTRIBUTED'"),
+        ),
+    )
+
+
+event.listen(
+    ChainTransfer.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION chain_transfers_touch_updated_at() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    NEW.updated_at := now();\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER chain_transfers_touch_updated_at\n"
+        "    BEFORE UPDATE ON chain_transfers\n"
+        "    FOR EACH ROW EXECUTE FUNCTION chain_transfers_touch_updated_at();"
+    ),
+)
+event.listen(
+    ChainTransfer.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS chain_transfers_touch_updated_at() CASCADE;"),
+)
+
+
+class ChainWatchCursor(Base):
+    """Where the watcher has read to, and what it believes it is watching.
+
+    `recipient`, `netuid`, `uid` and `watch_from` are recorded rather than left to
+    configuration alone, because all four decide which money this validator
+    considers its own. The worker compares its environment against this row at
+    startup and refuses to run when they disagree: adopting a new address
+    silently would leave the old one's arrivals uncredited, and moving
+    `watch_from` earlier silently would re-scan a range whose transfers were
+    never meant to buy credits.
+
+    One high-water mark rather than a ledger of scanned heights. This worker
+    follows the finalized head forwards in one process; a per-block ledger is
+    what a parallel historical backfill needs, which this is not.
+    """
+
+    __tablename__ = "chain_watch_cursor"
+
+    watcher: Mapped[str] = mapped_column(Text, primary_key=True)
+
+    recipient: Mapped[str] = mapped_column(SS58, nullable=False)
+    netuid: Mapped[int] = mapped_column(Integer, nullable=False)
+    uid: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Transfers in blocks before this are not this validator's business.
+    watch_from: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    # The first block at or after `watch_from`, resolved once by bisecting
+    # on-chain block times and then never recomputed — a second bisection against
+    # a re-synced node could land either side of it and change which transfers
+    # exist at all.
+    start_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    start_block_timestamp: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    # `start_block - 1` on a fresh cursor, meaning "nothing scanned yet".
+    last_scanned_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    last_scanned_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "watcher ~ '^[a-z][a-z0-9-]{0,63}$'", name="watcher_name_shape"
+        ),
+        CheckConstraint("netuid >= 0", name="cursor_netuid_nonnegative"),
+        CheckConstraint("uid >= 0", name="cursor_uid_nonnegative"),
+        CheckConstraint("start_block > 0", name="cursor_start_block_positive"),
+        CheckConstraint(
+            "last_scanned_block >= start_block - 1",
+            name="cursor_never_reads_before_its_start",
+        ),
+        CheckConstraint(
+            "start_block_timestamp >= watch_from",
+            name="cursor_start_block_is_at_or_after_watch_from",
+        ),
+    )
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",
@@ -1397,6 +1681,10 @@ __all__ = [
     "AccountWallet",
     "ApiRejectionLog",
     "Base",
+    "BountyTask",
+    "ChainTransfer",
+    "ChainTransferState",
+    "ChainWatchCursor",
     "CreditEntryKind",
     "CreditLedgerEntry",
     "Deposit",

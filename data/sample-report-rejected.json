@@ -34,8 +34,8 @@
   "stdout_tail": "",
   "submission_sha256": "sha256:30e7ff99e368584eb06c4c376b7ba653eb45fe39283507279b6b39a8cb703772",
   "task_bundle_sha256": "sha256:88f5809cca72b33e75a138b5e376b6da412b93014a5e3e34f83020e0bb59adcf",
-  "task_id": "fc-e923379e-verifierfixtures-direct-1247cc26d5-positive-v1",
-  "task_mode": "positive",
+  "task_id": "fc-e923379e-verifierfixtures-direct-a5d1240beb-formalized-v1",
+  "task_mode": "formalized",
   "theorem_names": [
     "Bounty.target"
   ],

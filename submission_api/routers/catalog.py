@@ -2,35 +2,45 @@
 
 Unauthenticated, and read by a browser. The task pool and its digests are already published, so
 there is nothing here a caller could not derive from the repository — but that is a reason these
-endpoints are safe to expose, not a reason to be careless with what they return. Three rules
-shape the module:
+endpoints are safe to expose, not a reason to be careless with what they return. Four rules shape
+the module:
 
-* **The slug is the task id.** A conjecture is identified by the same string a miner commits to
-  in a bundle, so a reader of the website and a solver writing a submission are talking about
-  the same object. Minting a second identifier would create two names for one commitment and a
-  mapping that could drift.
+* **The slug is stable, and it is not the task id.** A URL here gets bookmarked, cited and
+  indexed, so it has to outlive what produced it. `task_id` is seeded with the pinned source
+  revision and changes on every weekly rotation, so the slug is derived from `reward_target_id`
+  instead — see `submission_api/slugs.py`. The task ids stay in the response, because a solver
+  building a bundle commits to one; they are fields of a conjecture rather than its name. A URL
+  built from a task id is redirected rather than 404ed, so links minted before this existed and
+  ids copied out of bundles both still land.
+* **One entry per conjecture, not per task.** Every theorem is issued as one task per mode, so a
+  task list would show each conjecture twice and would make "attempts" mean attempts in one
+  direction. Grouping happens once at startup in `submission_api/conjectures.py`.
 * **Every list is bounded.** `limit` is capped, the free-text filter is length-capped and is a
   substring test rather than a pattern, and the facets are computed over a fixed in-memory list.
   None of these endpoints can be made to do unbounded work.
-* **The statement is served from the audited bytes.** `challenge_lean` is the exact
-  `Challenge.lean` hashed into the published `task_bundle_sha256`, held in memory since startup,
+* **The statement is served from the audited bytes.** Each task's `challenge_lean` is the exact
+  `Challenge.lean` hashed into its published `task_bundle_sha256`, held in memory since startup,
   so what a reader verifies is what the verifier compiles.
 
-Only the attempt counters touch the database. Everything else is a projection of the catalog
-`TaskCatalog.load` built at startup.
+Only the attempt counters touch the database. Everything else is a projection of the conjecture
+index built at startup from `TaskCatalog.load`.
 """
 
 from __future__ import annotations
 
 import hmac
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Request, Response
+from fastapi.responses import RedirectResponse
 
+from conjectures_subnet.bounty import BountyPoolSnapshot, LiveBounty
 from conjectures_subnet.db import public as public_store
 from submission_api import conjectures, credits as credit_config
 from submission_api import schemas_account as account_schemas, schemas_public as public
+from submission_api.conjectures import Conjecture, ConjectureIndex
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound
 from submission_api.pins import PinSet
@@ -41,11 +51,15 @@ from submission_api.settings import (
     MAX_PAGE_SIZE,
     Settings,
 )
-from submission_api.taskpool import TaskEntry, TaskNotAllowed
+from submission_api.taskpool import TaskEntry
 from verifier.bundle import BUNDLE_FORMAT
 from verifier.hashing import sha256_text
 
 router = APIRouter(prefix="/v1/catalog", tags=["catalog"])
+
+# The path pattern for a conjecture slug. Also matches a `task_id`, deliberately: that is what
+# makes the legacy redirect reachable instead of rejected by validation before a handler runs.
+SLUG_PATH = Path(pattern=r"^[a-z0-9][a-z0-9-]{0,254}$")
 
 # One credit buys one verification attempt. The credit ledger itself is Stage 2; until it
 # exists, a credit is exactly the configured submission price and this is the constant that
@@ -88,10 +102,31 @@ def _reference(raw: str) -> public.Reference:
     return public.Reference(label=raw)
 
 
-def _bounty(settings: Settings) -> public.BountyInfo:
+def _bounty(quote: LiveBounty) -> public.BountyInfo:
     return public.BountyInfo(
-        amount_rao=settings.bounty_amount_rao,
-        policy_version=settings.bounty_policy_version,
+        amount_rao=quote.amount_rao,
+        policy_version=quote.policy_version,
+        available=quote.available,
+        reason=quote.reason,
+        as_of=quote.as_of,
+        locked=False,
+    )
+
+
+def _bounty_pool(snapshot: BountyPoolSnapshot) -> public.BountyPoolInfo:
+    return public.BountyPoolInfo(
+        policy_version=snapshot.policy_version,
+        balance_rao=snapshot.balance_rao,
+        wallet_coldkey=snapshot.wallet_coldkey,
+        wallet_hotkey=snapshot.wallet_hotkey,
+        netuid=snapshot.netuid,
+        asset=snapshot.asset,
+        open_targets=snapshot.open_targets,
+        total_age_weight=snapshot.total_age_weight,
+        constant_numerator=snapshot.constant_numerator,
+        constant_denominator=snapshot.constant_denominator,
+        as_of=snapshot.as_of,
+        locked_at_submission=False,
     )
 
 
@@ -109,22 +144,52 @@ def _pins(pins: PinSet) -> tuple[public.PinInfo, ...]:
     )
 
 
-def _summary(
+def _task(entry: TaskEntry, *, attempts: int) -> public.ConjectureTask:
+    return public.ConjectureTask(
+        task_id=entry.task_id,
+        task_mode=entry.manifest.task_mode,
+        task_bundle_sha256=entry.task_bundle_sha256,
+        attempts=attempts,
+    )
+
+
+def _task_detail(
     entry: TaskEntry, *, settings: Settings, attempts: int
+) -> public.ConjectureTaskDetail:
+    return public.ConjectureTaskDetail(
+        task_id=entry.task_id,
+        task_mode=entry.manifest.task_mode,
+        task_bundle_sha256=entry.task_bundle_sha256,
+        attempts=attempts,
+        challenge_lean=entry.challenge_lean,
+        machine_contract=_machine_contract(entry, settings),
+    )
+
+
+def _summary(
+    item: Conjecture,
+    *,
+    quote: LiveBounty,
+    attempts: int,
+    by_task: Mapping[str, int],
 ) -> public.ConjectureSummary:
     return public.ConjectureSummary(
-        slug=entry.task_id,
-        title=conjectures.title(entry),
-        statement=entry.source.type_pretty,
-        summary=entry.source.docstring,
-        category=entry.source.category,
-        classification=entry.manifest.classification.value,
-        task_mode=entry.manifest.task_mode,
-        tier=entry.tier,
-        ams_subjects=entry.source.ams_subjects,
-        is_open=conjectures.is_open(entry),
-        task_bundle_sha256=entry.task_bundle_sha256,
-        bounty=_bounty(settings),
+        slug=item.slug,
+        title=conjectures.title(item),
+        statement=item.source.type_pretty,
+        summary=item.source.docstring,
+        category=item.source.category,
+        classification=item.classification,
+        task_modes=item.task_modes,
+        tier=item.tier,
+        ams_subjects=item.source.ams_subjects,
+        is_open=conjectures.is_open(item),
+        problem_id=item.problem_id,
+        reward_target_id=item.reward_target_id,
+        tasks=tuple(
+            _task(entry, attempts=by_task.get(entry.task_id, 0)) for entry in item.tasks
+        ),
+        bounty=_bounty(quote),
         attempts=attempts,
     )
 
@@ -133,6 +198,7 @@ def _machine_contract(entry: TaskEntry, settings: Settings) -> public.MachineCon
     manifest = entry.manifest
     return public.MachineContract(
         task_id=entry.task_id,
+        reward_target_id=entry.reward_target_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         target_type_sha256s=entry.target_type_sha256s,
         bundle_format=BUNDLE_FORMAT,
@@ -151,6 +217,28 @@ def _machine_contract(entry: TaskEntry, settings: Settings) -> public.MachineCon
         adapter_version=manifest.adapter_version,
         answer_policy=dict(manifest.answer_policy),
     )
+
+
+def _redirect(index: ConjectureIndex, slug: str, settings: Settings, *, suffix: str = "") -> RedirectResponse:
+    """A 301 to the stable slug for a task-id-shaped URL, or 404.
+
+    Reached only when `slug` is not a known conjecture. Two kinds of caller land here: a link
+    minted before stable slugs existed, and a solver who pasted a task id out of a bundle or a
+    report. Both mean one conjecture unambiguously, so a redirect is more useful than a 404.
+
+    301, not 302: the mapping really is permanent. `resolve_legacy` matches on the theorem
+    fragment inside a task id, which does not depend on the pinned revision, so the target does
+    not change at the next rotation either — and it returns None rather than guessing when a
+    fragment is ambiguous, so this cannot make up a destination.
+    """
+    target = index.resolve_legacy(slug)
+    if target is None:
+        raise NotFound("no such conjecture")
+    response = RedirectResponse(
+        url=f"{router.prefix}/conjectures/{target}{suffix}", status_code=301
+    )
+    _cache(response, settings)
+    return response
 
 
 # --- Endpoints -----------------------------------------------------------------------------
@@ -189,18 +277,32 @@ async def list_conjectures(
     # An unknown sort key falls back to slug rather than erroring: the ordering of a public list
     # is not worth a 4xx, and the pattern above already bounds what reaches this.
     page = conjectures.query(
-        services.catalog, filters, sort=sort, limit=limit, offset=offset
+        services.index, filters, sort=sort, limit=limit, offset=offset
     )
-    attempts = await public_store.attempts_by_task(session)
+    # Two grouped scans, both index-only and both for the whole pool: the conjecture total that
+    # the summary reports, and the per-task split that lets a reader see which direction has been
+    # attempted. Cheaper than a per-row count and it keeps the two numbers consistent.
+    attempts = await public_store.attempts_by_conjecture(session)
+    by_task = await public_store.attempts_by_task(session)
+    snapshot = await services.pricing.quote_many(
+        session,
+        reward_target_ids=tuple(item.reward_target_id for item in page.items),
+    )
+    # The first pricing read registers any newly pinned stable targets. Subsequent reads are
+    # no-ops, but this commit is what makes their original age survive a restart.
+    await session.commit()
 
     _cache(response, settings)
     return public.ConjectureListResponse(
         total=page.total,
         items=tuple(
             _summary(
-                entry, settings=settings, attempts=attempts.get(entry.task_id, 0)
+                item,
+                quote=snapshot.quotes[item.reward_target_id],
+                attempts=attempts.get(item.reward_target_id, 0),
+                by_task=by_task,
             )
-            for entry in page.entries
+            for item in page.items
         ),
         facets=tuple(
             public.Facet(
@@ -221,44 +323,54 @@ async def list_conjectures(
 @router.get(
     "/conjectures/{slug}",
     response_model=public.ConjectureDetail,
-    summary="One conjecture in full, with its Lean challenge and machine contract",
+    summary="One conjecture in full, with a Lean challenge per attack direction",
 )
 async def read_conjecture(
-    slug: Annotated[str, Path(pattern=r"^[a-z0-9][a-z0-9-]{0,254}$")],
+    slug: Annotated[str, SLUG_PATH],
     response: Response,
     services: ServicesDep,
     session: SessionDep,
-) -> public.ConjectureDetail:
+) -> public.ConjectureDetail | Response:
     settings = services.settings
-    try:
-        entry = services.catalog.get(slug)
-    except TaskNotAllowed as exc:
-        raise NotFound("no such conjecture") from exc
+    item = services.index.get(slug)
+    if item is None:
+        return _redirect(services.index, slug, settings)
 
-    attempts = await public_store.attempts_for_task(session, entry.task_id)
+    attempts = await public_store.attempts_for_conjecture(session, item.reward_target_id)
+    by_task = await public_store.attempts_by_task(session)
+    quote = await services.pricing.quote(
+        session, reward_target_id=item.reward_target_id
+    )
+    await session.commit()
     _cache(response, settings)
     return public.ConjectureDetail(
-        slug=entry.task_id,
-        title=conjectures.title(entry),
-        statement=entry.source.type_pretty,
-        summary=entry.source.docstring,
-        category=entry.source.category,
-        classification=entry.manifest.classification.value,
-        task_mode=entry.manifest.task_mode,
-        tier=entry.tier,
-        ams_subjects=entry.source.ams_subjects,
-        is_open=conjectures.is_open(entry),
-        source_theorem=entry.source.theorem,
-        source_module=entry.source.module,
-        source_path=entry.source.source_path,
-        supported_modes=entry.source.supported_modes,
-        references=tuple(_reference(item) for item in entry.source.references),
-        challenge_lean=entry.challenge_lean,
-        machine_contract=_machine_contract(entry, settings),
-        bounty=_bounty(settings),
+        slug=item.slug,
+        title=conjectures.title(item),
+        statement=item.source.type_pretty,
+        summary=item.source.docstring,
+        category=item.source.category,
+        classification=item.classification,
+        task_modes=item.task_modes,
+        tier=item.tier,
+        ams_subjects=item.source.ams_subjects,
+        is_open=conjectures.is_open(item),
+        problem_id=item.problem_id,
+        reward_target_id=item.reward_target_id,
+        source_theorem=item.source.theorem,
+        source_module=item.source.module,
+        source_path=item.source.source_path,
+        supported_modes=item.source.supported_modes,
+        references=tuple(_reference(value) for value in item.source.references),
+        tasks=tuple(
+            _task_detail(
+                entry, settings=settings, attempts=by_task.get(entry.task_id, 0)
+            )
+            for entry in item.tasks
+        ),
+        bounty=_bounty(quote),
         submission_price_rao=settings.payment_amount_rao,
         attempts=attempts,
-        repository_commit=services.catalog.repository_commit,
+        repository_commit=services.index.repository_commit,
         pins=_pins(services.pins),
     )
 
@@ -272,21 +384,17 @@ async def read_meta(
     request: Request,
     response: Response,
     services: ServicesDep,
+    session: SessionDep,
 ) -> public.PoolMeta | Response:
-    """Pool metadata, with a strong `ETag`.
-
-    This is the one public endpoint whose payload is derived entirely from startup state — the
-    catalog, the pin set and the settings, none of which move while the process runs — so it can
-    carry a real validator and answer `304` to a repeat read. The website hits it on every page
-    load, and a conditional request there costs a hash rather than a response body.
-
-    The list and detail endpoints deliberately carry no `ETag`: their payloads include live
-    attempt counters, so any honest validator would have to be recomputed from the database on
-    every request and would change constantly.
-    """
+    """Pool metadata and its current dynamic-pricing snapshot, with a strong `ETag`."""
     settings = services.settings
-    entries = services.catalog.summaries()
-    meta = _meta(services, settings, entries)
+    items = services.index.all()
+    snapshot = await services.pricing.quote_many(
+        session,
+        reward_target_ids=tuple(item.reward_target_id for item in items),
+    )
+    await session.commit()
+    meta = _meta(services, settings, items, snapshot)
 
     # Hashed from the serialised payload rather than assembled from the inputs, so the validator
     # cannot drift from the body: any change to what is published changes the tag.
@@ -319,20 +427,24 @@ def _matches(header: str | None, etag: str) -> bool:
     )
 
 
-def _meta(services, settings: Settings, entries) -> public.PoolMeta:
+def _meta(
+    services, settings: Settings, items, snapshot: BountyPoolSnapshot
+) -> public.PoolMeta:
     return public.PoolMeta(
-        repository_commit=services.catalog.repository_commit,
+        repository_commit=services.index.repository_commit,
         bundle_format=BUNDLE_FORMAT,
-        conjectures=len(entries),
-        open_conjectures=sum(1 for entry in entries if conjectures.is_open(entry)),
-        tiers=_counts(entries, conjectures.FACET_TIER),
-        task_modes=_counts(entries, conjectures.FACET_TASK_MODE),
-        categories=_counts(entries, conjectures.FACET_CATEGORY),
+        # Conjectures, not tasks. Halved against what this reported before grouping, because a
+        # theorem issued in two modes was being counted twice.
+        conjectures=len(items),
+        open_conjectures=sum(1 for item in items if conjectures.is_open(item)),
+        tiers=_counts(items, conjectures.FACET_TIER),
+        task_modes=_counts(items, conjectures.FACET_TASK_MODE),
+        categories=_counts(items, conjectures.FACET_CATEGORY),
         credit_price_rao=settings.payment_amount_rao,
         credits_per_attempt=CREDITS_PER_ATTEMPT,
         treasury_address=settings.payment_recipient,
         max_bundle_bytes=settings.max_bundle_bytes,
-        bounty=_bounty(settings),
+        bounty=_bounty_pool(snapshot),
         pins=_pins(services.pins),
         pins_sha256=services.pins.lock_sha256,
     )
@@ -344,27 +456,27 @@ def _meta(services, settings: Settings, entries) -> public.PoolMeta:
     summary="Anonymised activity on one conjecture",
 )
 async def read_activity(
-    slug: Annotated[str, Path(pattern=r"^[a-z0-9][a-z0-9-]{0,254}$")],
+    slug: Annotated[str, SLUG_PATH],
     response: Response,
     services: ServicesDep,
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=MAX_ACTIVITY_ITEMS)] = DEFAULT_ACTIVITY_ITEMS,
-) -> public.ConjectureActivity:
+) -> public.ConjectureActivity | Response:
     settings = services.settings
-    try:
-        entry = services.catalog.get(slug)
-    except TaskNotAllowed as exc:
-        raise NotFound("no such conjecture") from exc
+    item = services.index.get(slug)
+    if item is None:
+        return _redirect(services.index, slug, settings, suffix="/activity")
 
+    target = item.reward_target_id
     activity = await public_store.activity(
         session,
-        entry.task_id,
+        target,
         limit=limit,
-        pseudonymise=lambda hotkey: _pseudonym(settings, entry.task_id, hotkey),
+        pseudonymise=lambda hotkey: _pseudonym(settings, target, hotkey),
     )
     _cache(response, settings)
     return public.ConjectureActivity(
-        slug=entry.task_id,
+        slug=item.slug,
         attempts=activity.attempts,
         solvers=activity.solvers,
         verified=activity.verified,
@@ -447,20 +559,26 @@ async def read_submission_terms(
     )
 
 
-def _pseudonym(settings: Settings, task_id: str, hotkey: str) -> str:
+def _pseudonym(settings: Settings, reward_target_id: str, hotkey: str) -> str:
     """A per-conjecture pseudonym for a hotkey.
 
-    The task id is inside the MAC, not concatenated after it, so the same solver gets a different
-    pseudonym on every conjecture and the pseudonyms cannot be joined across the catalog to
-    rebuild one solver's history. Length-prefixed so `(task, key)` pairs cannot be chosen to
-    collide by shifting the boundary between them.
+    The conjecture's identity is inside the MAC, not concatenated after it, so the same solver
+    gets a different pseudonym on every conjecture and the pseudonyms cannot be joined across the
+    catalog to rebuild one solver's history. Length-prefixed so `(conjecture, key)` pairs cannot
+    be chosen to collide by shifting the boundary between them.
+
+    Keyed on the reward target rather than on a task id, matching the activity query. A task-keyed
+    MAC would give one solver two pseudonyms on a page that now shows both attack directions,
+    making one person look like two, and would rename every solver at each pin rotation.
 
     The salt is `PUBLIC_ACTIVITY_SALT`, which production must set to something that is not the
     published development constant — a hotkey is a 48-character address from a known alphabet, so
     an unsalted or publicly-salted digest is reversible by enumeration for anyone with a list of
     subnet hotkeys.
     """
-    message = f"{len(task_id)}:{task_id}:{len(hotkey)}:{hotkey}".encode("utf-8")
+    message = (
+        f"{len(reward_target_id)}:{reward_target_id}:{len(hotkey)}:{hotkey}"
+    ).encode("utf-8")
     digest = hmac.new(settings.activity_salt.encode("utf-8"), message, "sha256").hexdigest()
     return digest[:PSEUDONYM_LENGTH]
 
@@ -477,11 +595,11 @@ def _to_hour(value: datetime) -> datetime:
     return moment.astimezone(UTC).replace(minute=0, second=0, microsecond=0)
 
 
-def _counts(entries, field: str) -> tuple[public.FacetValue, ...]:
+def _counts(items, field: str) -> tuple[public.FacetValue, ...]:
     return tuple(
-        public.FacetValue(value=item.value, count=item.count)
-        for item in conjectures.tally(entries, field)
+        public.FacetValue(value=value.value, count=value.count)
+        for value in conjectures.tally(items, field)
     )
 
 
-__all__ = ["CREDITS_PER_ATTEMPT", "PSEUDONYM_LENGTH", "router"]
+__all__ = ["CREDITS_PER_ATTEMPT", "PSEUDONYM_LENGTH", "SLUG_PATH", "router"]

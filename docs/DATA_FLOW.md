@@ -2,8 +2,8 @@
 
 How data moves through the validator, what each stage consumes, what it produces, and which values
 are load-bearing for trust. Every number here was computed from the pinned repository state at
-`e923379e609b9d5987011a1d1f06ec22ea25cd20`; the commands are reproducible from `data/catalog.json`
-and `task_pool/**/*.json`.
+`379fc0298dc146df549e7061c3ede0353a5bb51f`; the commands are reproducible from `data/catalog.json`
+and `../conjectures-tasks/{allowlist.json,tiers/**/*.json}`.
 
 Companion documents: [`SUBNET.md`](SUBNET.md) for the service contract,
 [`../SECURITY.md`](../SECURITY.md) for the isolation boundary.
@@ -43,17 +43,17 @@ a read-only task directory, bounded proof bytes, and an expected digest, and ret
 ```mermaid
 flowchart TD
     subgraph GEN["GENERATION DOMAIN — offline, trusted, once per pin"]
-        FC["Formal Conjectures @ e923379e<br/>823 files · 3236 declarations"]
+        FC["Formal Conjectures @ 379fc029<br/>836 files · 3267 declarations"]
         EX["CatalogExtractor.lean<br/>Lean environment introspection"]
-        CAT["data/catalog.json<br/>3236 records × 24 fields"]
+        CAT["data/catalog.json<br/>3267 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
-        AUD["HUMAN AUDIT<br/>task_pool/tiers/tier-1/selection-audit.json · 100 candidates"]
-        PICK["task_pool/tiers/tier-1/whole-problem-targets.json<br/>29 asserted picks"]
+        AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
+        PICK["task target policy<br/>74 asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
-        BUN["tasks/pool/tier-1/TASK_ID/<br/>7 frozen files"]
-        ALLOW["task_pool/allowlist.json<br/>29 bundle digests · default DENY"]
+        BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>148 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -64,7 +64,8 @@ flowchart TD
         WORK["verification worker<br/>SPEC"]
         REV["reward gating<br/>optional manual review<br/>SPEC"]
         RE["reward_events<br/>SPEC"]
-        WB["weight_batches → set_weights<br/>OPEN"]
+        WB["epoch worker<br/>UID 121 = 100%<br/>BUILT"]
+        CHAIN["Subnet 66<br/>epochs + SetWeights"]
     end
 
     subgraph VER["VERIFICATION DOMAIN — hostile input, no secrets"]
@@ -95,16 +96,16 @@ flowchart TD
     WORK --> LOAD --> SUB --> STAT --> BC --> CMP --> REP
     REP -->|"report bytes"| OBJ
     REP -->|"verdict + reason_code"| DB
-    DB --> REV --> RE --> WB
+    DB --> REV --> RE
+    CHAIN -->|"epoch"| WB -->|"100% treasury weight"| CHAIN
 
     classDef built fill:#0f5132,stroke:#0f5132,color:#fff
     classDef spec fill:#664d03,stroke:#664d03,color:#fff
     classDef open fill:#842029,stroke:#842029,color:#fff
     classDef ext fill:#41464b,stroke:#41464b,color:#fff
-    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP built
+    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP,WB built
     class API,PAY,OBJ,DB,WORK,REV,RE spec
-    class WB open
-    class MINER ext
+    class MINER,CHAIN ext
 ```
 
 ---
@@ -117,10 +118,10 @@ flowchart TD
 
 | | |
 | --- | --- |
-| **Primary source** | `vendor/formal-conjectures` at commit `e923379e…`, a Lean 4 project |
+| **Primary source** | `vendor/formal-conjectures` at commit `379fc029…`, a Lean 4 project |
 | **Needs** | The pinned toolchain `leanprover/lean4:v4.27.0`, Mathlib `a3a10db0…`, a full compile |
-| **Produces** | 3,236 declaration records over 823 source files, plus `schema_version`, `repository_commit`, `lean_toolchain`, `mathlib_commit`, `extraction_duration_ms` |
-| **Cost** | `extraction_duration_ms: 728811` — 12.1 minutes, once per pin |
+| **Produces** | 3,267 declaration records over 836 source files, plus `schema_version`, `repository_commit`, `lean_toolchain`, `mathlib_commit`, `extraction_duration_ms` |
+| **Cost** | `extraction_duration_ms: 889692` — 14.8 minutes, once per pin |
 
 The data does not come from parsing text. It comes from asking the compiled Lean environment about
 each declaration, which is why fields like `depends_on_sorry` and `transitive_axioms` can be
@@ -141,16 +142,16 @@ Other fields consumed downstream: `category`, `classification`, `declaration_kin
 `verifier/classification.py` → the `classification` field, one of 11 `Classification` values.
 
 This asks a shape question: *can a proof of this statement be checked mechanically without a human
-deciding what the answer means?* The distribution over 3,236 declarations:
+deciding what the answer means?* The distribution over 3,267 declarations:
 
 | Classification | Count | Usable as a paid task |
 | --- | --- | --- |
-| `DIRECT_PROP` | 2,015 | **yes** — statement is a closed proposition |
-| `PROP_ANSWER_WRAPPER` | 869 | no — wraps an `answer` hole |
-| `POINTER_DECLARATION` | 208 | no — refers elsewhere |
-| `GENERAL_VALUE_ANSWER` | 114 | no — needs an adapter |
+| `DIRECT_PROP` | 2,605 | **yes** — statement is a closed proposition |
+| `PROP_ANSWER_WRAPPER` | 306 | no — wraps an `answer` hole and requires an adapter |
+| `POINTER_DECLARATION` | 211 | no — refers elsewhere |
+| `GENERAL_VALUE_ANSWER` | 116 | no — needs an adapter |
 | `NAT_ANSWER` | 20 | no for production — answer syntax |
-| `UNSUPPORTED` | 9 | no |
+| `UNSUPPORTED` | 8 | no |
 | `DEFINITION_HOLE` | 1 | no |
 | `BOOL_ANSWER`, `INT_ANSWER`, `FINITE_ANSWER`, `MULTIPLE_ANSWER_HOLES` | 0 each | — |
 
@@ -168,38 +169,30 @@ the pipeline.
 
 | Step | Rule | Remaining |
 | --- | --- | --- |
-| 0 | All declarations at the pinned commit | **3,236** |
-| 1 | `category == "research open"` | **1,172** |
-| 2 | `classification == DIRECT_PROP` | **404** |
-| 3 | `declaration_kind == "theorem"` | 404 |
-| 4 | `is_prop` | 404 |
-| 5 | `depends_on_sorry` — no existing proof | 404 |
-| 6 | no `sorry` inside the type itself | 404 |
-| 7 | no `answer` annotation | 404 |
-| 8 | no formal-proof metadata | 404 |
-| 9 | no other *proved* declaration with the same `type_hash` | 404 |
-| 10 | not under `FormalConjectures/WrittenOnTheWallII/` | 381 |
-| 11 | module under `ErdosProblems/` | **121** over 78 files |
-| 12 | human audit reviewed a candidate | **100** over 67 files |
-| 13 | chosen as the one canonical whole-problem target for its file | **29** |
+| 0 | All declarations at the pinned commit | **3,267** |
+| 1 | `category == "research open"` | **1,167** |
+| 2 | `classification == DIRECT_PROP` | **988** |
+| 3 | remaining exact-proposition safety rules | **988** |
+| 4 | module under `ErdosProblems/` | **506** over 320 files |
+| 5 | audited single-tier selection | **74** targets from 55 files |
 
-**Steps 3 through 9 remove nothing.** All 404 declarations that pass the category and classification
-filters also pass the remaining eight production-policy rules. Those rules are defence in depth
+The remaining exact-proposition checks currently remove nothing after the category and
+classification filters. Those rules are defence in depth
 against a future upstream revision, not live selection criteria — a useful thing to know before
 anyone "optimises" them away, and a useful thing to re-measure after every pin bump, because the day
 one of them starts firing is the day upstream changed something that matters.
 
 ### The 178 retired theorems
 
-`task_pool/tiers/tier-1/retired-source-theorems.json` names 178 source theorems that must never be offered again,
+`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 178 source theorems that must never be offered again,
 committed by both `theorem` name **and** `source_type_sha256` — so retiring survives a rename. Of
 those, 88 intersect the eligible pool and 11 intersect the Erdős-eligible 121. Retirement is checked
 by name *or* type hash at selection time (`task_pool.py:467-468`).
 
 ### Human picks, machine proves the pick is legal
 
-The 29 are **not computed** from the 121. They are asserted by hand in
-`task_pool/tiers/tier-1/whole-problem-targets.json`, and `select_task_declarations` (`task_pool.py:407-489`) then
+The 74 targets are **not computed** from the 506. They are asserted by hand in one target file,
+and `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
 - present in the audited selection with matching `source_path` and `erdos_problem_number`;
@@ -209,18 +202,16 @@ refuses to accept any pick that is not simultaneously:
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: at least 29 Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: all 74 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
-Why human judgement is unavoidable here: a source file typically holds several `research open`
-declarations — variants, partial results, restatements — and only one of them is *the problem*.
-`FormalConjectures/ErdosProblems/11.lean` contains six declarations, three of them `research open`;
-exactly one becomes a task. Nothing in the catalog distinguishes "the conjecture" from "a lemma
-someone stated on the way to it".
+Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
+partial results, and restatements. The one active tier admits complete problems and only those
+independently meaningful parts and variants that passed the semantic audit.
 
-The audit record is not a rubber stamp either. Each of the 100 entries carries `upstream_status`,
+The audit record is not a rubber stamp either. Each selected entry carries `upstream_status`,
 `problem_tracker_status`, `open_prs_touching_source`, `active_resolution_prs`, and
-`feasibility_signals`, screened against `teorth/erdosproblems` at commit `1fddae46…` with 281 open
+`feasibility_signals`, screened against `teorth/erdosproblems` at commit `2e7e7a63…` with 281 open
 upstream PRs considered. The file states its own limits:
 
 > Plausibly attackable solver target; this is a comparative screen, not a claim that the conjecture
@@ -234,7 +225,7 @@ The central mechanism, and the thing that makes statement drift structurally imp
 generated `Challenge.lean` **never copies the statement text**. It asks Lean to splice the source
 theorem's type in by name, via the custom elaborator `fcTypeOfName%` in `lean/TaskSupport.lean`.
 
-A complete real bundle — `tasks/pool/tier-1/fc-e923379e-erdos11-erdos-11-7c0303029e-formalized-v1/`:
+A complete real bundle — `../conjectures-tasks/pool/tier-1/erdos-11-formalized/`:
 
 ```lean
 -- Challenge.lean, 160 bytes, the entire task
@@ -303,32 +294,32 @@ against a real Lean compile, not against JSON.
 
 ## 6. Commitment — **BUILT**
 
-`task_pool/allowlist.json`, schema version 5, `default: "DENY"`, enforced by
+`../conjectures-tasks/allowlist.json`, schema version 7, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-29 `allowed_source_theorems` and 29 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+74 `allowed_source_theorems` and 148 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
-  `sha256:c70c6d5c…cf6b4a48`
+  `sha256:31687f89…c903ef7d`
 
 The bundle digest is computed by `sha256_named_bytes` (`verifier/hashing.py`), which
 **length-prefixes each filename and each content block** so bytes cannot be shuffled between files
 to collide.
 
-`pool_policy` additionally commits to a hash of every audit input, so the allowlist cannot be
+The `tier-1` policy additionally commits to a hash of every audit input, so the allowlist cannot be
 combined with a tampered audit file:
 
 | Commitment | Covers |
 | --- | --- |
-| `selection_audit_sha256` | the 100 human reviews |
+| `selection_audit_sha256` | the tier's selected human reviews |
 | `retired_source_theorems_sha256` | the 178 retirements |
-| `whole_problem_targets_sha256` | the 29 picks |
+| `task_targets_sha256` | the tier's exact targets and per-target reward identities |
 | `task_groups_sha256` | the group policy (currently empty) |
 
-`pool_policy` also records the selection rules as data: `one_task_per_source_path: true`,
-`task_scope: whole_problem`, `synthetic_negation: false`, `multi_target_tasks: 0`,
-`minimum_erdos_tasks: 29`.
+The tier policy records its scope, exact target count, proof/refutation modes, and the
+`stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
+all 74 Erdős targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
@@ -466,29 +457,25 @@ duplication, eligibility, or abuse — it may **not** rewrite the Lean verdict.
 **OPEN:** what criteria may reject a Lean-valid proof, whether there is an appeal, and whether
 review is configured globally, per task, or per submission.
 
-## 13. Reward event — **SPEC**, then **OPEN**
+## 13. Reward event — **IMPLEMENTED SCHEMA**, payout execution **OPEN**
 
-`reward_events` needs: submission and miner identity, eligibility reason, scoring-policy version,
-deterministic score inputs, and a deduplication key.
+`reward_events` records the submission, eligibility reason, actual integer payout amount,
+dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
+evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
+targets without a successful reward claim. The intake estimate is retained separately and is not
+the amount-of-record.
 
-**This is where the traceable data flow ends.** Every input above is produced by something that
-exists or is specified. The next step is not.
-
-### What the weight mechanism needs that nothing produces
+### What the remaining bounty payout mechanism needs
 
 | Required input | Status |
 | --- | --- |
-| Deterministic rule converting an eligible proof into Subnet 66 weights | **OPEN** — `SUBNET.md:305` |
-| Scoring of duplicate valid proofs, repeat attempts, multiple solvers | **OPEN** — `SUBNET.md:304` |
-| Per-task difficulty or value signal | **Not produced anywhere.** The catalog has no difficulty field; `feasibility_signals` in the audit is a screening aid, not a score, and covers only the 100 audited candidates |
-| Proof-of-inclusion returned to the miner | **OPEN** — `SUBNET.md:306` |
-| `set_weights` submission and chain reconciliation | **Not implemented.** `chain.py` is read-only |
+| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` produces the versioned age weight; no subjective difficulty score is used |
+| Payout proof-of-inclusion returned to the miner | **OPEN** |
+| Automated bounty transfer and reconciliation | **OPEN** |
 
-The scoring gap is the substantive one. All 29 tasks are currently indistinguishable to a scorer:
-same mode, same classification, same axiom set, same timeout, one target each. A reward rule that
-needs to pay more for a harder problem has no field to read. Whatever rule gets chosen, its inputs
-must be **deterministic and persisted** — `reward_events` records "score inputs" precisely so a
-reward can be recomputed and defended later.
+The payout rule is deterministic and its inputs are persisted. Subnet emissions are independent:
+`emissions_worker` sends one 100% weight to treasury UID 121 after every observed epoch. Executing
+the individual bounty transfer and returning its proof-of-inclusion remain open.
 
 ---
 
@@ -507,7 +494,7 @@ catalog.type_hash ─────────────── sha256:7e9596e7�
 manifest.source_type_hash == manifest.generated_target_type_hash
   │  sha256_named_bytes over 7 length-prefixed files
   ▼
-bundle.sha256 ─────────────────── sha256:c70c6d5c…cf6b4a48
+bundle.sha256 ─────────────────── sha256:31687f89…c903ef7d
   │  committed externally
   ▼
 allowlist.allowed_task_bundles[].task_bundle_sha256
@@ -535,14 +522,14 @@ re-hashing on read is a free integrity check.
 
 Ordered by how much they matter, not by where they appear above.
 
-1. **The reward rule has no input data.** All 29 tasks look identical to a scorer. Decide the rule
-   and the fields it reads before building the reward processor, or the schema will be wrong.
+1. **Payout execution is not automated.** Dynamic pricing and its amount-of-record schema exist,
+   but a production signer/reconciler still has to create and finalize the transfer safely.
 2. **No task publication path.** Miners cannot discover `task_id` + digest, so no submission can be
    well-formed. This blocks the whole right-hand side.
 3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets
    `generated_target_type_hash` from `generated_hashes[0]`, so a multi-source task would not commit
-   its secondary targets. Currently latent: `task_pool/tiers/tier-1/task-groups.json` has 0 groups and
-   `pool_policy.multi_target_tasks` is 0. Closing it needs a manifest schema bump.
+   its secondary targets. Currently latent: `../conjectures-tasks/tiers/tier-1/task-groups.json` has 0 groups and
+   `tier_policies.tier-1.multi_target_tasks` is 0. Closing it needs a manifest schema bump.
 4. **`nanoda` is pinned but disabled.** The second independent kernel is one config flag away and is
    the cheapest available increase in kernel-level assurance.
 5. **8 of 10 production-policy rules currently select nothing.** Correct as defence in depth, but
@@ -552,7 +539,8 @@ Ordered by how much they matter, not by where they appear above.
 
 # Reproducing the numbers
 
-Every count above comes from `data/catalog.json` and `task_pool/**/*.json` at the pinned commit. The funnel
+Every count above comes from `data/catalog.json` and
+`../conjectures-tasks/{allowlist.json,tiers/**/*.json}` at the pinned commit. The funnel
 is `category == "research open"` then `classification == "DIRECT_PROP"`, then the remaining
 `production_policy_violations` rules from `verifier/task_policy.py:53-82`, then the prefix and
 audit-set intersections. Set membership for retirement is by `theorem` **or** `source_type_sha256`.

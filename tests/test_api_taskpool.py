@@ -12,13 +12,18 @@ from pathlib import Path
 import pytest
 
 from submission_api.taskpool import TaskCatalog, TaskNotAllowed
+from verifier.repository import tasks_repository_root
 from verifier.task_policy import COUNTEREXAMPLE_TASK_MODE, EXACT_TASK_MODE
-from verifier.task_pool import DEFAULT_TASK_TIER, DEFAULT_TIER_SIZE
+from verifier.task_pool import (
+    DEFAULT_TASK_TIER,
+    DEFAULT_TIER_SIZE,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
+TASKS_ROOT = tasks_repository_root(ROOT)
 
-ALLOWLIST = ROOT / "task_pool/allowlist.json"
-POOL_ROOT = ROOT / "tasks/pool"
+ALLOWLIST = TASKS_ROOT / "allowlist.json"
+POOL_ROOT = TASKS_ROOT / "pool"
 
 
 def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
@@ -27,7 +32,7 @@ def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
     modes = [entry.manifest.task_mode for entry in catalog.summaries()]
     assert modes.count(EXACT_TASK_MODE) == DEFAULT_TIER_SIZE
     assert modes.count(COUNTEREXAMPLE_TASK_MODE) == DEFAULT_TIER_SIZE
-    assert all(entry.tier == DEFAULT_TASK_TIER for entry in catalog.summaries())
+    assert {entry.tier for entry in catalog.summaries()} == {DEFAULT_TASK_TIER}
     assert all(
         entry.task_id == entry.manifest.task_id for entry in catalog.summaries()
     )
@@ -50,10 +55,10 @@ def test_api_catalog_identifies_tasks_by_manifest_not_directory_name():
 
 def test_api_catalog_refuses_an_allowlisted_task_with_no_bytes_on_disk(tmp_path: Path):
     """A paid submission must never meet a task the pool cannot produce."""
-    tier = tmp_path / DEFAULT_TASK_TIER
-    tier.mkdir(parents=True)
     complete = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)
     kept = complete.summaries()[0]
+    (tmp_path / DEFAULT_TASK_TIER).mkdir(parents=True)
+    tier = tmp_path / kept.tier
     for source in kept.task_dir.iterdir():
         if source.is_file():
             destination = tier / kept.task_dir.name / source.name
@@ -70,7 +75,7 @@ def test_a_catalog_entry_carries_the_source_and_challenge_the_public_detail_serv
     """`TaskEntry` keeps the two fields `/v1/catalog/conjectures/{slug}` publishes.
 
     Asserted against a generated task rather than the checked-out pool, so it holds without the
-    pinned task checkout: the tests above need `tasks/pool` materialized by
+    pinned task checkout: the tests above need `conjectures-tasks/pool` materialized by
     `scripts/pin_dependencies.sh`, and this covers the projection `TaskCatalog.load` performs.
 
     What matters is that both come from the bundle whose bytes were hash-verified against the

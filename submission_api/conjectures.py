@@ -1,13 +1,23 @@
-"""Filtering, faceting and paging over the in-memory task catalog.
+"""The public conjecture view over the audited task pool: grouping, filtering, faceting, paging.
 
-The public conjecture list is served entirely from the catalog `TaskCatalog.load` built at
-startup — no database, because none of it lives in the database. That has two useful
-consequences: the endpoint cannot be made slow by an anonymous caller, and it cannot be made to
-disagree with the audited allowlist, because it is reading the same objects the submission path
-resolves against.
+The pool holds *tasks*; the website shows *conjectures*. Those are not the same count. Every
+theorem is issued as one task per production mode — `formalized` to prove it and
+`counterexample` to refute it — so a pool of N theorems is 2N tasks. Listing tasks would show
+every conjecture twice, with two unrelated ids and near-identical statements, and would make
+"attempts" mean attempts in one direction rather than attempts on the problem.
 
-Kept out of the router so that filter semantics are testable without HTTP, and so the router
-stays about status codes and cache headers.
+So tasks are grouped by `reward_target_id` into a `Conjecture`, keyed by the stable slug
+`submission_api.slugs` derives from that same identity. The grouping is built once at startup, so
+a slug collision or a group whose tasks disagree about their shared facts is a startup failure
+rather than something a reader discovers.
+
+Everything is served from that in-memory index — no database, because none of it lives in the
+database. Two useful consequences: the endpoint cannot be made slow by an anonymous caller, and
+it cannot be made to disagree with the audited allowlist, because it is reading the same objects
+the submission path resolves against.
+
+Kept out of the router so that grouping and filter semantics are testable without HTTP, and so
+the router stays about status codes and cache headers.
 
 Facet counts follow the usual faceted-search rule: each facet is counted over the results
 matching every filter *except its own*. Without that, selecting `category=research open`
@@ -19,10 +29,13 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from submission_api.slugs import legacy_theorem_slug, matches_legacy_slug, slug_for
 from submission_api.taskpool import TaskCatalog, TaskEntry
+from verifier.models import CatalogDeclaration
+from verifier.task_policy import PRODUCTION_TASK_MODES
 
 # The category the upstream catalog uses for a conjecture with no known formal proof. That is
 # exactly the set worth a bounty, so it is the one filter with a dedicated boolean.
@@ -55,6 +68,172 @@ MAX_QUERY_LENGTH = 200
 QUERY_STRIP = re.compile(r"\s+")
 
 
+class CatalogGroupingError(RuntimeError):
+    """The pool cannot be presented as a set of uniquely addressable conjectures.
+
+    Always raised during startup, never in a request: the grouping is built once from immutable
+    catalog state, so if it holds at boot it holds for the life of the process.
+    """
+
+
+@dataclass(frozen=True)
+class Conjecture:
+    """One mathematical conjecture and every task issued against it.
+
+    `slug` is the stable public identity. The task ids are kept — a solver needs them to build a
+    bundle, and they are what a report and a submission record — but they are fields of a
+    conjecture rather than the name of one.
+    """
+
+    slug: str
+    problem_id: str
+    reward_target_id: str
+    tier: str
+    # One per task mode, ordered by `PRODUCTION_TASK_MODES` so `formalized` is first and the
+    # order does not depend on how the pool happened to be walked.
+    tasks: tuple[TaskEntry, ...]
+
+    @property
+    def primary(self) -> TaskEntry:
+        """The task whose shared facts are published for the conjecture as a whole.
+
+        Both modes are generated from one source declaration, so statement, docstring, category,
+        AMS subjects and classification are identical across them; this picks a deterministic
+        one rather than asserting equality on every read. `_grouped` has already checked that
+        the facts published as single values really do agree.
+        """
+        return self.tasks[0]
+
+    @property
+    def source(self) -> CatalogDeclaration:
+        return self.primary.source
+
+    @property
+    def classification(self) -> str:
+        return self.primary.manifest.classification.value
+
+    @property
+    def task_modes(self) -> tuple[str, ...]:
+        return tuple(task.manifest.task_mode for task in self.tasks)
+
+    @property
+    def task_ids(self) -> tuple[str, ...]:
+        return tuple(task.task_id for task in self.tasks)
+
+
+def _mode_order(entry: TaskEntry) -> tuple[int, str]:
+    mode = entry.manifest.task_mode
+    if mode in PRODUCTION_TASK_MODES:
+        return (PRODUCTION_TASK_MODES.index(mode), mode)
+    # A non-production mode should not reach a public catalog, but ordering it last is better
+    # than an exception in a sort key.
+    return (len(PRODUCTION_TASK_MODES), mode)
+
+
+@dataclass(frozen=True)
+class ConjectureIndex:
+    """Slug-addressable conjectures, built once from a `TaskCatalog`."""
+
+    repository_commit: str
+    by_slug: Mapping[str, Conjecture]
+    # Every current task id, so a URL minted from one can be redirected to its slug rather than
+    # 404ing. Only this rotation's ids are in here; older ones go through `resolve_legacy`.
+    slug_by_task_id: Mapping[str, str]
+
+    @classmethod
+    def build(cls, catalog: TaskCatalog) -> ConjectureIndex:
+        by_slug = _grouped(catalog.summaries())
+        slug_by_task_id = {
+            task_id: conjecture.slug
+            for conjecture in by_slug.values()
+            for task_id in conjecture.task_ids
+        }
+        return cls(
+            repository_commit=catalog.repository_commit,
+            by_slug=by_slug,
+            slug_by_task_id=slug_by_task_id,
+        )
+
+    def get(self, slug: str) -> Conjecture | None:
+        return self.by_slug.get(slug)
+
+    def all(self) -> tuple[Conjecture, ...]:
+        return tuple(sorted(self.by_slug.values(), key=lambda item: item.slug))
+
+    def resolve_legacy(self, candidate: str) -> str | None:
+        """The stable slug a task-id-shaped URL should redirect to, or None.
+
+        Two paths. A task id from the *current* pool is an exact lookup. A task id from an
+        earlier rotation is not in the pool at all — that is the whole problem — so it is matched
+        on the theorem fragment embedded in it, which does not depend on the commit.
+
+        A fragment matching more than one theorem returns None, so an ambiguous legacy URL 404s.
+        Sending a reader to the wrong conjecture is worse than telling them the link is dead.
+        """
+        exact = self.slug_by_task_id.get(candidate)
+        if exact is not None:
+            return exact
+        embedded = legacy_theorem_slug(candidate)
+        if embedded is None:
+            return None
+        matched = [
+            conjecture.slug
+            for conjecture in self.by_slug.values()
+            if matches_legacy_slug(conjecture.source.theorem, embedded)
+        ]
+        if len(matched) != 1:
+            return None
+        return matched[0]
+
+
+def _grouped(entries: Sequence[TaskEntry]) -> dict[str, Conjecture]:
+    """Group tasks into slug-keyed conjectures, refusing anything unaddressable.
+
+    Three ways this fails, all at startup:
+
+    * two theorems slugify to one slug, so one would be served at the other's URL;
+    * two reward targets produce the same slug, same reason;
+    * one reward target's tasks disagree on `problem_id` or `tier`, both of which are published
+      as a single value per conjecture and so cannot be picked arbitrarily from a member task.
+    """
+    grouped: dict[str, list[TaskEntry]] = {}
+    for entry in entries:
+        grouped.setdefault(entry.reward_target_id, []).append(entry)
+
+    conjectures: dict[str, Conjecture] = {}
+    owners: dict[str, str] = {}
+    for reward_target_id, members in sorted(grouped.items()):
+        slug = slug_for(reward_target_id)
+        if slug in owners:
+            raise CatalogGroupingError(
+                f"reward targets {owners[slug]!r} and {reward_target_id!r} both produce the "
+                f"slug {slug!r}; one conjecture would be served at the other's URL"
+            )
+        owners[slug] = reward_target_id
+
+        problem_ids = {member.problem_id for member in members}
+        tiers = {member.tier for member in members}
+        if len(problem_ids) != 1:
+            raise CatalogGroupingError(
+                f"reward target {reward_target_id!r} spans problem ids {sorted(problem_ids)}; "
+                "a conjecture publishes one"
+            )
+        if len(tiers) != 1:
+            raise CatalogGroupingError(
+                f"reward target {reward_target_id!r} spans tiers {sorted(tiers)}; "
+                "a conjecture publishes one"
+            )
+        ordered = tuple(sorted(members, key=_mode_order))
+        conjectures[slug] = Conjecture(
+            slug=slug,
+            problem_id=problem_ids.pop(),
+            reward_target_id=reward_target_id,
+            tier=tiers.pop(),
+            tasks=ordered,
+        )
+    return conjectures
+
+
 @dataclass(frozen=True)
 class ConjectureFilters:
     """The filters a caller may apply. Every field is optional and ANDed with the rest."""
@@ -80,64 +259,71 @@ class FacetCount:
 @dataclass(frozen=True)
 class CatalogPage:
     total: int
-    entries: tuple[TaskEntry, ...]
+    items: tuple[Conjecture, ...]
     facets: tuple[tuple[str, tuple[FacetCount, ...]], ...]
 
 
-def is_open(entry: TaskEntry) -> bool:
+def is_open(conjecture: Conjecture) -> bool:
     """Whether the conjecture is still open upstream.
 
     Read from the source declaration's `category`, which is what the catalog extractor recorded,
     rather than inferred from `depends_on_sorry`: a task whose statement happens to depend on an
     admitted lemma is not the same claim as a conjecture nobody has proved.
     """
-    return entry.source.category == OPEN_CATEGORY
+    return conjecture.source.category == OPEN_CATEGORY
 
 
-def title(entry: TaskEntry) -> str:
+def title(conjecture: Conjecture) -> str:
     """The conjecture's citable name: the fully-qualified source theorem.
 
     An identifier, not prose. No human title exists in the upstream catalog and inventing one
     here would mean the website displayed a name that appears in no audited artifact; the
     docstring, carried as `summary`, is the human-readable half.
     """
-    return entry.source.theorem
+    return conjecture.source.theorem
 
 
-def searchable(entry: TaskEntry) -> str:
+def searchable(conjecture: Conjecture) -> str:
+    """The haystack the free-text filter tests against.
+
+    Includes the slug and every task id, so a reader who pastes an identifier from a report, a
+    bundle or an old URL into the search box finds the conjecture it belongs to.
+    """
     parts = (
-        entry.task_id,
-        entry.source.theorem,
-        entry.source.module,
-        entry.source.type_pretty,
-        entry.source.docstring or "",
+        conjecture.slug,
+        *conjecture.task_ids,
+        conjecture.source.theorem,
+        conjecture.source.module,
+        conjecture.source.type_pretty,
+        conjecture.source.docstring or "",
     )
     return " ".join(parts).casefold()
 
 
 # One accessor per facet field. Multi-valued fields return several labels, which is why every
-# one returns a tuple: `ams_subject` puts a conjecture in every subject it is tagged with.
-_FACET_VALUES: dict[str, Callable[[TaskEntry], tuple[str, ...]]] = {
-    FACET_CATEGORY: lambda entry: (entry.source.category,),
-    FACET_CLASSIFICATION: lambda entry: (entry.manifest.classification.value,),
-    FACET_TASK_MODE: lambda entry: (entry.manifest.task_mode,),
-    FACET_TIER: lambda entry: (entry.tier,),
-    FACET_AMS_SUBJECT: lambda entry: tuple(
-        str(subject) for subject in entry.source.ams_subjects
+# one returns a tuple: `ams_subject` puts a conjecture in every subject it is tagged with, and
+# `task_mode` puts it in every direction it can be attacked from.
+_FACET_VALUES: dict[str, Callable[[Conjecture], tuple[str, ...]]] = {
+    FACET_CATEGORY: lambda item: (item.source.category,),
+    FACET_CLASSIFICATION: lambda item: (item.classification,),
+    FACET_TASK_MODE: lambda item: item.task_modes,
+    FACET_TIER: lambda item: (item.tier,),
+    FACET_AMS_SUBJECT: lambda item: tuple(
+        str(subject) for subject in item.source.ams_subjects
     ),
 }
 
 
 def _predicates(
     filters: ConjectureFilters,
-) -> dict[str, Callable[[TaskEntry], bool]]:
+) -> dict[str, Callable[[Conjecture], bool]]:
     """One predicate per filter, keyed by the facet field it constrains.
 
     Keyed rather than combined so a facet can be counted with its own predicate left out.
     `query` and `is_open` are not facets, so they use keys no facet claims and are therefore
     always applied.
     """
-    predicates: dict[str, Callable[[TaskEntry], bool]] = {}
+    predicates: dict[str, Callable[[Conjecture], bool]] = {}
     for field, selected in (
         (FACET_CATEGORY, filters.category),
         (FACET_CLASSIFICATION, filters.classification),
@@ -147,49 +333,46 @@ def _predicates(
         if selected:
             allowed = frozenset(selected)
             accessor = _FACET_VALUES[field]
-            predicates[field] = lambda entry, a=allowed, f=accessor: bool(
-                a.intersection(f(entry))
+            predicates[field] = lambda item, a=allowed, f=accessor: bool(
+                a.intersection(f(item))
             )
     if filters.ams_subject:
         subjects = frozenset(filters.ams_subject)
-        predicates[FACET_AMS_SUBJECT] = lambda entry: bool(
-            subjects.intersection(entry.source.ams_subjects)
+        predicates[FACET_AMS_SUBJECT] = lambda item: bool(
+            subjects.intersection(item.source.ams_subjects)
         )
     if filters.is_open is not None:
         wanted = filters.is_open
-        predicates["_is_open"] = lambda entry: is_open(entry) is wanted
+        predicates["_is_open"] = lambda item: is_open(item) is wanted
     if filters.query:
         needle = filters.query
-        predicates["_query"] = lambda entry: needle in searchable(entry)
+        predicates["_query"] = lambda item: needle in searchable(item)
     return predicates
 
 
 def _matching(
-    entries: Iterable[TaskEntry],
-    predicates: dict[str, Callable[[TaskEntry], bool]],
+    items: Iterable[Conjecture],
+    predicates: dict[str, Callable[[Conjecture], bool]],
     *,
     ignoring: str | None = None,
-) -> list[TaskEntry]:
+) -> list[Conjecture]:
     active = [
         predicate for field, predicate in predicates.items() if field != ignoring
     ]
-    return [entry for entry in entries if all(check(entry) for check in active)]
+    return [item for item in items if all(check(item) for check in active)]
 
 
-_SORT_KEYS: dict[str, Callable[[TaskEntry], tuple]] = {
-    SORT_SLUG: lambda entry: (entry.task_id,),
-    SORT_CATEGORY: lambda entry: (entry.source.category, entry.task_id),
+_SORT_KEYS: dict[str, Callable[[Conjecture], tuple]] = {
+    SORT_SLUG: lambda item: (item.slug,),
+    SORT_CATEGORY: lambda item: (item.source.category, item.slug),
     # `answer` groups the value-producing classifications together, which is what a solver
     # browsing for something they have an adapter for is actually filtering on.
-    SORT_ANSWER: lambda entry: (
-        entry.manifest.classification.value,
-        entry.task_id,
-    ),
+    SORT_ANSWER: lambda item: (item.classification, item.slug),
 }
 
 
 def query(
-    catalog: TaskCatalog,
+    index: ConjectureIndex,
     filters: ConjectureFilters,
     *,
     sort: str = SORT_SLUG,
@@ -198,27 +381,27 @@ def query(
 ) -> CatalogPage:
     """Apply the filters, count the facets, and return one page.
 
-    Sorted before paging and always with `task_id` as the final key, so the order is total and
-    two requests for the same page return the same rows. `offset` paging is safe here, unlike on
-    the result feeds: the catalog is a fixed list of a few hundred entries held in memory, so
+    Sorted before paging and always with `slug` as the final key, so the order is total and two
+    requests for the same page return the same rows. `offset` paging is safe here, unlike on the
+    result feeds: the catalog is a fixed list of a few hundred conjectures held in memory, so
     there is neither a scan to amortise nor an insert to shift the window.
     """
-    entries = catalog.summaries()
+    items = index.all()
     predicates = _predicates(filters.normalised())
-    matched = _matching(entries, predicates)
+    matched = _matching(items, predicates)
     matched.sort(key=_SORT_KEYS.get(sort, _SORT_KEYS[SORT_SLUG]))
 
     facets: list[tuple[str, tuple[FacetCount, ...]]] = []
     for field in FACET_FIELDS:
         accessor = _FACET_VALUES[field]
         counts: Counter[str] = Counter()
-        for entry in _matching(entries, predicates, ignoring=field):
-            counts.update(accessor(entry))
+        for item in _matching(items, predicates, ignoring=field):
+            counts.update(accessor(item))
         if counts:
             facets.append((field, _ordered(field, counts)))
 
     window = matched[offset : offset + limit]
-    return CatalogPage(total=len(matched), entries=tuple(window), facets=tuple(facets))
+    return CatalogPage(total=len(matched), items=tuple(window), facets=tuple(facets))
 
 
 def _ordered(field: str, counts: Counter[str]) -> tuple[FacetCount, ...]:
@@ -234,12 +417,12 @@ def _ordered(field: str, counts: Counter[str]) -> tuple[FacetCount, ...]:
     return tuple(FacetCount(value=value, count=count) for value, count in ordered)
 
 
-def tally(entries: Sequence[TaskEntry], field: str) -> tuple[FacetCount, ...]:
+def tally(items: Sequence[Conjecture], field: str) -> tuple[FacetCount, ...]:
     """Unfiltered counts for one field, for `/v1/catalog/meta`."""
     accessor = _FACET_VALUES[field]
     counts: Counter[str] = Counter()
-    for entry in entries:
-        counts.update(accessor(entry))
+    for item in items:
+        counts.update(accessor(item))
     return _ordered(field, counts)
 
 
@@ -256,8 +439,11 @@ __all__ = [
     "SORT_ANSWER",
     "SORT_CATEGORY",
     "SORT_SLUG",
+    "CatalogGroupingError",
     "CatalogPage",
+    "Conjecture",
     "ConjectureFilters",
+    "ConjectureIndex",
     "FacetCount",
     "is_open",
     "query",

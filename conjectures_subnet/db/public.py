@@ -71,6 +71,12 @@ class ResultRow:
 
     id: uuid.UUID
     task_id: str
+    # The conjecture this result is against, as an identity that outlives the pin it was produced
+    # under. `task_id` names one build of one attack direction and changes on every rotation, so a
+    # public link derived from it would break; `reward_target_id` is what the public slug is
+    # derived from, and it is recorded on the row, so a result from any past rotation still links
+    # to the current conjecture page.
+    reward_target_id: str
     task_bundle_sha256: bytes
     created_at: datetime
     bounty_amount_rao: int
@@ -96,6 +102,13 @@ class _RunFacts:
     sandbox_mode: str
     finished_at: datetime
     has_report: bool
+
+
+@dataclass(frozen=True)
+class _PayoutFacts:
+    amount_rao: int
+    policy_version: str
+    confirmed_at: datetime
 
 
 @dataclass(frozen=True)
@@ -224,17 +237,27 @@ async def _decorate(
     rows = []
     for submission in submissions:
         run = runs.get(submission.id)
+        payout = confirmed.get(submission.id)
         rows.append(
             ResultRow(
                 id=submission.id,
                 task_id=submission.task_id,
+                reward_target_id=submission.reward_target_id,
                 task_bundle_sha256=bytes(submission.task_bundle_sha256),
                 created_at=submission.created_at,
-                bounty_amount_rao=submission.bounty_amount_rao,
-                bounty_policy_version=submission.bounty_policy_version,
+                bounty_amount_rao=(
+                    submission.bounty_amount_rao
+                    if payout is None
+                    else payout.amount_rao
+                ),
+                bounty_policy_version=(
+                    submission.bounty_policy_version
+                    if payout is None
+                    else payout.policy_version
+                ),
                 review_policy_version=submission.review_policy_version,
                 verified_at=None if run is None else run.finished_at,
-                certified_at=confirmed.get(submission.id),
+                certified_at=None if payout is None else payout.confirmed_at,
                 verifier_version=None if run is None else run.verifier_version,
                 sandbox_mode=None if run is None else run.sandbox_mode,
                 report_available=run is not None and run.has_report,
@@ -278,25 +301,39 @@ async def _latest_runs(
 
 async def _confirmed_payouts(
     session: AsyncSession, submission_ids: Sequence[uuid.UUID]
-) -> Mapping[uuid.UUID, datetime]:
+) -> Mapping[uuid.UUID, _PayoutFacts]:
     """When each submission's payout was confirmed on chain.
 
-    ``max`` over confirmed attempts: a submission normally has one payout, but the schema
-    permits several on purpose — a second real transfer must be recordable — and the latest
-    confirmation is the honest answer for "when was this certified".
+    A submission normally has one payout, but the schema permits several on purpose — a second
+    real transfer must be recordable. PostgreSQL ``DISTINCT ON`` selects the latest confirmed
+    attempt and keeps its timestamp, actual amount, and pricing policy together as one fact.
     """
     statement = (
-        select(RewardEvent.submission_id, func.max(RewardEvent.confirmed_at))
+        select(
+            RewardEvent.submission_id,
+            RewardEvent.amount_rao,
+            RewardEvent.pricing_policy_version,
+            RewardEvent.confirmed_at,
+        )
         .where(
             RewardEvent.submission_id.in_(submission_ids),
             RewardEvent.status == PayoutState.CONFIRMED,
         )
-        .group_by(RewardEvent.submission_id)
+        .distinct(RewardEvent.submission_id)
+        .order_by(
+            RewardEvent.submission_id,
+            RewardEvent.confirmed_at.desc(),
+            RewardEvent.id.desc(),
+        )
     )
     return {
-        submission_id: confirmed
-        for submission_id, confirmed in (await session.execute(statement)).all()
-        if confirmed is not None
+        row.submission_id: _PayoutFacts(
+            amount_rao=row.amount_rao,
+            policy_version=row.pricing_policy_version,
+            confirmed_at=row.confirmed_at,
+        )
+        for row in (await session.execute(statement)).all()
+        if row.confirmed_at is not None
     }
 
 
@@ -322,13 +359,42 @@ async def public_report(
 
 
 # --- Per-conjecture counters ---------------------------------------------------------------
+#
+# All three key on ``reward_target_id``, not ``task_id``. Three reasons, and they compound:
+#
+#   * A conjecture is issued as one task per mode, so a task-keyed count answers "attempts at
+#     proving it" rather than "attempts at it", and the public page shows both directions.
+#   * ``task_id`` is seeded with the pinned source revision, so under the weekly rotation a
+#     task-keyed counter silently resets to zero every week.
+#   * The public slug is derived from ``reward_target_id``, so this is the same identity the URL
+#     uses. A counter keyed on anything else could disagree with the page it appears on.
+#
+# ``submissions_reward_target_idx`` (V006) covers all three.
+
+
+async def attempts_by_conjecture(session: AsyncSession) -> Mapping[str, int]:
+    """Paid attempts per conjecture, keyed by reward target, for the conjecture list.
+
+    One grouped scan for the whole pool rather than a count per row on the page. The pool is a
+    few hundred conjectures, so the result is small enough to attach to every summary in the
+    response.
+    """
+    statement = (
+        select(Submission.reward_target_id, func.count())
+        .select_from(Submission)
+        .group_by(Submission.reward_target_id)
+    )
+    return {
+        reward_target_id: count
+        for reward_target_id, count in (await session.execute(statement)).all()
+    }
 
 
 async def attempts_by_task(session: AsyncSession) -> Mapping[str, int]:
-    """Paid attempts per task, for the conjecture list.
+    """Paid attempts per task id, for the miner-facing per-task view.
 
-    One grouped scan for the whole pool rather than a count per row on the page. The pool is a
-    few hundred tasks, so the result is small enough to attach to every summary in the response.
+    Kept alongside the conjecture-keyed count because a solver choosing a bundle to build cares
+    which *direction* has been attempted, which the grouped count deliberately hides.
     """
     statement = (
         select(Submission.task_id, func.count())
@@ -338,22 +404,24 @@ async def attempts_by_task(session: AsyncSession) -> Mapping[str, int]:
     return {task_id: count for task_id, count in (await session.execute(statement)).all()}
 
 
-async def attempts_for_task(session: AsyncSession, task_id: str) -> int:
-    """Paid attempts against one task.
+async def attempts_for_conjecture(session: AsyncSession, reward_target_id: str) -> int:
+    """Paid attempts against one conjecture, in either direction.
 
-    A single count over ``submissions_task_idx``, for the detail page, which needs the number but
-    not the stream. Running ``activity`` for it would add an ordered read and a four-way
-    aggregate for one integer.
+    A single count over ``submissions_reward_target_idx``, for the detail page, which needs the
+    number but not the stream. Running ``activity`` for it would add an ordered read and a
+    four-way aggregate for one integer.
     """
     statement = (
-        select(func.count()).select_from(Submission).where(Submission.task_id == task_id)
+        select(func.count())
+        .select_from(Submission)
+        .where(Submission.reward_target_id == reward_target_id)
     )
     return (await session.execute(statement)).scalar_one()
 
 
 async def activity(
     session: AsyncSession,
-    task_id: str,
+    reward_target_id: str,
     *,
     limit: int,
     pseudonymise: Callable[[str], str],
@@ -378,7 +446,7 @@ async def activity(
             Submission.manual_review_status,
             Submission.reward_status,
         )
-        .where(Submission.task_id == task_id)
+        .where(Submission.reward_target_id == reward_target_id)
         .order_by(Submission.created_at.desc(), Submission.id.desc())
         .limit(bounded)
     )
@@ -402,7 +470,7 @@ async def activity(
                 func.count().filter(Submission.reward_status == RewardState.REWARDED),
             )
             .select_from(Submission)
-            .where(Submission.task_id == task_id)
+            .where(Submission.reward_target_id == reward_target_id)
         )
     ).one()
     return TaskActivity(
@@ -472,8 +540,9 @@ __all__ = [
     "ResultRow",
     "TaskActivity",
     "activity",
+    "attempts_by_conjecture",
     "attempts_by_task",
-    "attempts_for_task",
+    "attempts_for_conjecture",
     "certified_page",
     "in_review_page",
     "public_report",

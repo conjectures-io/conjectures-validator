@@ -17,7 +17,7 @@ This repository is the system boundary for the entire validator, including:
 - immutable proof artifacts and verifier reports;
 - asynchronous verification workers and the hardened Lean verifier;
 - the optional manual reward-review queue;
-- reward eligibility, scoring, and Subnet 66 weight submission; and
+- reward eligibility, dynamic bounty pricing, and treasury-only Subnet 66 weight submission; and
 - deployment, monitoring, backup, and recovery configuration.
 
 Some of those validator components still need to be implemented. The current checkout already
@@ -32,10 +32,13 @@ verification core.
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
 | Shared durable schema and migrations | Implemented |
-| Finalized 0.5 TAO transfer reader for payment-gated intake | To build |
+| Finalized transfer reader, wired into both funding paths | Implemented |
+| Deposit watcher: TAO at the treasury becomes credits | Implemented |
 | Asynchronous verification worker | To build |
 | Manual reward-review decision service | To build |
-| Reward eligibility, scoring, and Subnet 66 weight-setting loop | To build |
+| Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
+| Subnet 66 treasury weight setter (100% to UID 121 every epoch) | Implemented |
+| Proof-specific scoring and automated bounty payout | To build |
 | Production launch and operating runbooks | To build |
 
 The submission API captures the per-submission manual-review policy and records the review gate
@@ -58,8 +61,9 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    against finalized chain state. Intake is payment-gated: a refused request creates no
    submission and is recorded in `api_rejection_log` instead.
 4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
-   submission ID together with the bounty the submission is owed if it verifies, frozen at that
-   moment. The submission is queued for verification by being `UNVERIFIED`.
+   submission ID together with the current bounty estimate. The estimate is explicitly unlocked:
+   the wallet balance, task ages, and winning claim may change while verification is in flight.
+   The submission is queued for verification by being `UNVERIFIED`.
 5. A verification worker claims it under a lease and passes the exact proof bytes and task digest
    to the isolated verifier, in a container holding neither the database nor any key.
 6. A proof rejected by policy, Comparator, or the Lean kernel is recorded as rejected and never
@@ -71,8 +75,10 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
 9. If manual reward review is not required, or if a held proof is approved, the submission becomes
    reward-eligible and is passed to the reward pipeline.
-10. The reward processor pays the amount frozen at intake and records the chain evidence. It
-    never reprices; a payout that disagrees with the frozen amount is a bug, not a repricing.
+10. The first successful proof to hold the reward target is eligible for a payout priced from the
+    then-current policy inputs. Later proofs remain valid verification results but cannot earn the
+    already-solved bounty. The payout event records its own amount, policy, inputs, and chain
+    evidence; the intake estimate is not used as the amount-of-record.
 
 ```text
 miner pays 0.5 TAO
@@ -118,7 +124,7 @@ targets.
 The pinned data flow is:
 
 ```text
-Formal Conjectures e923379e…
+Formal Conjectures 379fc029…
   -> Lean environment catalog extraction
   -> open-source eligibility + versioned adapter
   -> deterministic task payload + externally published SHA-256
@@ -198,6 +204,82 @@ The API process must not share a trust domain with the proof verifier; productio
 if it is configured to run verification in process, to authenticate with the development key, or
 to accept payments without reading the chain.
 
+## Deposit watcher
+
+[`deposit_watcher/`](deposit_watcher/) turns TAO arriving at the treasury into credits. It reads
+`Balances.Transfer` events out of **finalized** blocks, records every arrival at the watched
+address, and credits the account whose coldkey sent it. **Every 0.5 TAO buys one credit, which is
+one submission.**
+
+```bash
+just watcher-check      # confirm the address, resolve the genesis timestamp, credit nothing
+just up-watcher         # db -> migrate -> api -> watcher
+just up-all             # ... and the verification worker
+just logs watcher
+```
+
+Four values decide which money the validator considers its own, and none of them has a default:
+`DEPOSIT_WATCH_RECIPIENT_SS58`, `DEPOSIT_WATCH_NETUID`, `DEPOSIT_WATCH_UID` and
+`DEPOSIT_WATCH_FROM`. The netuid/uid pair is checked against `SubtensorModule.Keys` at startup, so
+the watcher refuses to run against an address that is not this validator's own hotkey — a mistyped
+address otherwise produces a worker that reads real blocks forever and credits nothing.
+
+`DEPOSIT_WATCH_FROM` is the genesis timestamp: transfers in earlier blocks buy nothing. It must
+carry a timezone offset, is bisected to a block height **once**, and that block is then recorded on
+`chain_watch_cursor` and never recomputed — a second search against a re-synced node could land
+either side of the same boundary and change which transfers the validator believes exist.
+
+The credit count is never stored. `credit_ledger` holds the rao that arrived and
+[`conjectures_subnet/db/credits.py`](conjectures_subnet/db/credits.py) divides, so a 0.7 TAO
+transfer buys one credit and leaves 0.2 towards the next instead of discarding it.
+
+An arrival whose sending coldkey belongs to no account is recorded `UNATTRIBUTED` with the reason
+on it, and waits for a human — crediting a best-effort match would hand one account's money to
+another. `chain_transfers` is that queue.
+
+Reads are idempotent by design: the cursor advances per block, after the block's transfers are
+recorded, so a restart re-reads and the unique index on `chain_transfers.extrinsic_reference`
+absorbs it. The process holds database credentials but **no wallet keys and signs nothing** — it
+only asks the chain what happened.
+
+### One transfer buys one thing
+
+The two funding paths — a direct 0.5 TAO payment per submission, and credits bought in bulk — reach
+the same treasury address and share one canonical reference format, `block-extrinsic-event`. So one
+transfer could otherwise fund a submission *and* be credited to an account: one payment, two
+attempts.
+
+`chain_transfers` is the only table both paths touch, and its reference is unique, so it arbitrates.
+Both sides lock the row before deciding, and whichever gets there first wins:
+
+- a transfer the watcher credited cannot fund a submission — `409 TRANSFER_ALREADY_CREDITED`, and
+  the miner spends the credit they were given instead;
+- a transfer that funded a submission is recorded `IGNORED` with the submission on it, so the
+  watcher passes over it and credits nothing.
+
+The reader behind both is [`conjectures_subnet/transfers.py`](conjectures_subnet/transfers.py), read
+through [`submission_api/chain_payments.py`](submission_api/chain_payments.py) on the API side. One
+reader, one idea of what a transfer is — two with two reference formats could not have been
+reconciled.
+
+## Treasury emissions
+
+[`emissions_worker/`](emissions_worker/) observes each Subnet 66 epoch and submits one weight:
+treasury UID **121** receives **100%**. The netuid and destination UID are code constants on
+purpose. The only runtime choices are the Bittensor network and the validator wallet/hotkey that
+signs `SetWeights`.
+
+```bash
+just up-emissions       # api stack plus the epoch worker
+just logs emissions
+```
+
+Set `EMISSIONS_WALLET_HOST_PATH`, `EMISSIONS_WALLET_NAME`, and
+`EMISSIONS_WALLET_HOTKEY` in `.env`. Only that named wallet is mounted into the emissions
+container, read-only; the API, watcher, database, and hostile-proof verifier never receive the
+signing key. A failed chain submission is retried in the same epoch, while the next successful
+submission waits for the next epoch observed on-chain.
+
 Build and inspect the real full-repository catalog:
 
 ```bash
@@ -211,33 +293,38 @@ python -m verifier catalog stats --catalog data/catalog.json
 Generate one target or a category batch:
 
 ```bash
+mkdir -p ../conjectures-tasks/scratch
+
 python -m verifier task generate \
   --catalog data/catalog.json \
   --theorem Arxiv.id2303_01089.conjecture_1_3 \
   --mode formalized \
-  --output tasks/furstenberg-formalized
+  --output ../conjectures-tasks/scratch/furstenberg-formalized
 
 python -m verifier task generate \
   --catalog data/catalog.json \
   --theorem Arxiv.id2303_01089.conjecture_1_3 \
   --mode counterexample \
-  --output tasks/furstenberg-counterexample
+  --output ../conjectures-tasks/scratch/furstenberg-counterexample
 ```
 
 ## Solver task pool
 
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
-the public targets for solver attempts. The task pool is divided into explicit tiers; the current
-audited set is
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1). It is pinned to Formal Conjectures commit
-`e923379e609b9d5987011a1d1f06ec22ea25cd20` and contains 58 committed bundles covering 29
-reward problems from 29 audited Erdős source files. Each source has a `formalized` target `P` and a
-`counterexample` target `¬ P`; the pair shares one `problem_id` and can produce at most one reward.
-Partial results, numbered parts, variants, candidate bounds, and multi-target bundles are excluded
-from this tier. The 178 source declarations and canonical types used by the two previous releases
-are explicitly retired and are not reused. Source families such as Written on the Wall II are not
-globally excluded and may be admitted by a future audited tier.
+the public targets for solver attempts. The pool currently has one compatibility tier:
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains all 74
+audited targets, including complete statements and independently formalized parts or variants. The source
+snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
+derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
+correction patch. The tier contains 148 immutable bundles for 74 theorem targets. Every
+target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
+
+Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
+`reward_target_id` shared by its proof/refutation pair and later source repins. Independently
+formalized parents, parts, and variants have independent rewards. Multi-target bundles and answer
+wrappers remain excluded. The 178 source declarations and canonical types used by the two previous
+releases are explicitly retired and are not reused.
 
 The pool admits only direct propositions. It does not extract one side of an answer wrapper or
 substitute a new answer. Both task variants are compiled and inspected: `formalized` must be
@@ -250,28 +337,28 @@ edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted befor
 time:
 
 ```bash
-TASK="$(find tasks/pool/tier-1 -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
-python scripts/check_task.py "$TASK"
+TASK="$(find ../conjectures-tasks/pool -mindepth 2 -maxdepth 2 -type d | sort | head -n 1)"
+python ../conjectures-tasks/scripts/check_task.py "$TASK"
 ```
 
 The complete machine-readable admission set and bundle commitments are in
-[`task_pool/allowlist.json`](task_pool/allowlist.json). It records a tier for every source and task
+[`tasks/allowlist.json`](https://github.com/conjectures-io/conjectures-tasks/blob/main/allowlist.json).
+It records a tier for every source and task
 bundle. Only an allowlisted, verifier-accepted proof or refutation should
 advance to human mathematical review. Generation compiles and independently inspects every target;
-this proves that the validator has an exact, hole-free target. The separate
-[`tier-1 selection audit`](task_pool/tiers/tier-1/selection-audit.json) records the Formal
-Conjectures status,
+this proves that the validator has an exact, hole-free target. The tier's selection audit records
+the Formal Conjectures status,
 Erdős Problems tracker status, pull-request review, and formal-surface screen. “Plausibly
 attackable” is not a guarantee of solvability and does not prove that the informal statement is
 correct.
 
 The deterministic pool selection and compiled validation are implemented by
-`scripts/rebuild_task_pool.py`. It loads the exact audited selection and
-[`tier-1 whole-problem targets`](task_pool/tiers/tier-1/whole-problem-targets.json), admits exactly
-one canonical whole-problem theorem per source file, generates committed `formalized` and
+`../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
+[`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
+the 74 audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
-[`task_pool/README.md`](task_pool/README.md).
+[`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
 
 The direct CLI form is below. It reports a production sandbox only when the live probe confirms an
 equivalent hardened Linux setup, including a non-executable workspace; the Compose profile later in
@@ -279,17 +366,17 @@ this section is the supported deployment path.
 
 ```bash
 python -m verifier verify \
-  --task tasks/furstenberg-formalized \
+  --task ../conjectures-tasks/scratch/furstenberg-formalized \
   --submission submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
 
-The checked-in examples are deliberately admitted test fixtures. On macOS, their explicit
-development-only invocation is:
+The task repository's fixtures are deliberately admitted for tests. On macOS, their explicit
+development-only invocation with a validator submission example is:
 
 ```bash
 python -m verifier verify \
-  --task examples/simple-direct/task-positive \
+  --task ../conjectures-tasks/fixtures/formalized/task-formalized \
   --submission examples/valid-submission/Main.lean \
   --allow-test-task \
   --allow-insecure-development
@@ -301,7 +388,8 @@ Never expose `--allow-test-task`, `--allow-uncommitted-task`, or
 The exit status is `0` for accepted, `1` for a rejected proof, and `2` for bad verifier/task
 configuration. Reports use sorted JSON keys and stable reason codes. Timing fields are measurements
 and naturally vary. Report schema version 2 includes the deterministic `problem_id` used to join
-the mutually exclusive proof and counterexample outcomes.
+the mutually exclusive proof and counterexample outcomes; reward admission separately uses the
+stable family recorded by the allowlist.
 
 The production container profile runs the same commands without exposing the host toolchain:
 
@@ -310,7 +398,7 @@ docker compose build verifier
 docker compose run --rm verifier doctor
 
 FC_SUBMISSION_FILE=./submissions/Main.lean docker compose run --rm verifier verify \
-  --task /inputs/tasks/furstenberg-formalized \
+  --task /inputs/tasks/pool/tier-1/erdos-11-formalized \
   --submission /inputs/submissions/Main.lean \
   --expected-task-sha256 sha256:<64-lowercase-hex-digits>
 ```
@@ -343,22 +431,21 @@ The production task modes handle:
 The version-1 adapter table also retains the following non-pool generation modes for verifier
 fixtures and offline experiments:
 
-- `DIRECT_PROP`: separate positive `P` and negative `¬P` targets;
-- `PROP_ANSWER_WRAPPER`: removes exactly one annotated side from `answer(...) ↔ P`;
 - `BOOL_ANSWER`: permits only literal `true` or `false`;
 - `NAT_ANSWER`: permits only an ASCII natural numeral;
 - `INT_ANSWER`: permits only a signed integer literal;
 - `FINITE_ANSWER`: permits only cataloged nullary constructors of a known finite inductive type;
 - `POINTER_DECLARATION`: records and skips the duplicate; generate its original declaration instead.
 
-`GENERAL_VALUE_ANSWER`, `MULTIPLE_ANSWER_HOLES`, and `DEFINITION_HOLE` are cataloged but require a
-versioned operator adapter. `UNSUPPORTED` remains visible and is never silently activated.
+`PROP_ANSWER_WRAPPER`, `GENERAL_VALUE_ANSWER`, `MULTIPLE_ANSWER_HOLES`, and `DEFINITION_HOLE` are
+cataloged but require a versioned operator adapter. `UNSUPPORTED` remains visible and is never
+silently activated.
 
 Generated `Challenge.lean` files do not reparse a copied pretty string. Direct propositions use a
 trusted `fcTypeOfName% "..."` elaborator that resolves the pinned declaration by name. Finite-answer
 types are likewise recovered from the compiled environment rather than splicing catalog text into
-Lean source. `lean/TaskSupport.lean` reconstructs proposition answer targets and substitutes value
-answers by walking the elaborated expression tree. After the
+Lean source. `lean/TaskSupport.lean` substitutes value answers by walking the elaborated expression
+tree. After the
 challenge compiles, `lean/TaskInspector.lean` independently reconstructs the intended type, checks
 definitional equality, and emits canonical source and target types for hashing. Generation fails on
 a missing/moved declaration, a source hash change, classification drift, or target mismatch.
@@ -373,8 +460,30 @@ and files that are hashed but do not exactly match output reconstructed by the p
 separate whole-bundle SHA-256 prevents a self-consistent replacement task from being substituted
 after task publication.
 
-The allowlist assigns both variants the same deterministic `problem_id`. Reward storage must use
-that identity to enforce at most one reward across the proof/counterexample pair.
+The allowlist assigns both modes the same deterministic `problem_id` and assigns each exact theorem
+target a stable `reward_target_id`. Reward storage enforces at most one reward across that target's
+proof/refutation pair and source repins; parents, parts, and variants remain independent bounties.
+
+## Dynamic bounty pricing
+
+For each open reward target `i`, the API publishes the integer-RAO estimate
+
+```text
+b_i = c * B * N * w_i / W = c * B * w_i / w_avg
+```
+
+`B` is the finalized Subnet 66 Alpha stake held by the configured bounty coldkey/hotkey, `N` is
+the number of open stable reward targets, `w_i` is `1 + floor(age / age_period)`, and `W` is the
+sum of the open targets'
+weights. The default policy uses `c = 1/4` and a one-day age period. Multiplying by `N` removes the
+otherwise accidental division of every task's bounty by the number of tasks in the pool: an
+average-age task is worth `c * B` regardless of `N`.
+
+`bounty_tasks.opened_at` is inserted once per stable `reward_target_id`, so an API restart or source
+repin does not reset age. A target leaves the pricing pool as soon as one submission holds its
+unique reward claim. Catalog and submission responses publish `available`, `reason`, `as_of`, and
+`locked: false`; accepting a submission never reserves the displayed amount. It becomes locked
+only when a payout event records the actual amount and pricing inputs.
 
 `source-metadata.json` includes a `references` array when the Formal Conjectures module docstring
 has a `*Reference:*` or `*References:*` section. Each entry preserves the source Markdown so clients
@@ -505,8 +614,8 @@ every generated task, adapter-required skip, unsupported skip, and failure.
 ## Adding an adapter
 
 Add a pure generator to `verifier/adapters.py`, give it a new immutable version, define the submitted
-syntax policy and exact `TaskSupport` expression transformation, and add positive/negative unit and
-integration cases. General values must specify the submitted type, canonical syntax, equality or
+syntax policy and exact `TaskSupport` expression transformation, and add acceptance/rejection unit
+and integration cases. General values must specify the submitted type, canonical syntax, equality or
 equivalence semantics, exact verification theorem, and any policy checks. Do not activate arbitrary
 definition holes merely because Comparator can type-check them.
 

@@ -38,7 +38,7 @@ Task discovery is unauthenticated because the task pool and its digests are publ
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/v1/catalog/conjectures` | Conjecture list with filters and facet counts |
-| `GET` | `/v1/catalog/conjectures/{slug}` | Statement, `Challenge.lean`, references, machine contract |
+| `GET` | `/v1/catalog/conjectures/{slug}` | Statement, references, and one `Challenge.lean` plus machine contract per attack direction. `slug` is the stable public identity, **not** the `task_id` a bundle commits to; a task-id URL answers `301` to it |
 | `GET` | `/v1/catalog/conjectures/{slug}/activity` | Anonymised per-conjecture activity |
 | `GET` | `/v1/catalog/meta` | Pool counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | Certified results, keyset-paginated |
@@ -90,10 +90,10 @@ Idempotency-Key: ab0002f6-7a99-4352-b478-9da553dcdc1a
 X-Conjectures-Hotkey: 5Grw…
 X-Conjectures-Timestamp: 1753876543210
 X-Conjectures-Signature: 0x4a3f…
-X-Conjectures-Task-Id: fc-e923379e-erdos11-erdos-11-7c0303029e-formalized-v1
-X-Conjectures-Task-Sha256: sha256:1dfef7…
+X-Conjectures-Task-Id: fc-379fc029-erdos11-erdos-11-2bde7d8572-formalized-v1
+X-Conjectures-Task-Sha256: sha256:31687f…
 X-Conjectures-Proof-Sha256: sha256:09da51…
-X-Conjectures-Payment-Ref: 0x8b21…
+X-Conjectures-Payment-Ref: 8769916-13-151
 
 <submission.zip bytes>
 ```
@@ -109,7 +109,7 @@ X-Conjectures-Payment-Ref: 0x8b21…
 | `X-Conjectures-Task-Id` | An allowlisted task id |
 | `X-Conjectures-Task-Sha256` | That task's published digest |
 | `X-Conjectures-Proof-Sha256` | Digest of the archived `Main.lean`, recomputed and compared |
-| `X-Conjectures-Payment-Ref` | The finalized extrinsic that funds this attempt |
+| `X-Conjectures-Payment-Ref` | The finalized transfer that funds this attempt, as `block-extrinsic[-event]` |
 
 `201` returns the submission state; an exact replay returns `200`.
 
@@ -117,8 +117,8 @@ X-Conjectures-Payment-Ref: 0x8b21…
 {
   "submission_id": "7ee1de44-3708-47ff-a383-9248cdf2b412",
   "hotkey": "5Grw…",
-  "task_id": "fc-e923379e-erdos11-…",
-  "task_bundle_sha256": "sha256:1dfef7…",
+  "task_id": "fc-379fc029-erdos11-…",
+  "task_bundle_sha256": "sha256:31687f…",
   "proof_sha256": "sha256:09da51…",
   "request_digest": "sha256:48ecf3…",
   "verification_status": "UNVERIFIED",
@@ -128,14 +128,18 @@ X-Conjectures-Payment-Ref: 0x8b21…
   "manual_review_required": true,
   "review_policy_version": "v1",
   "payment": {
-    "reference": "0x8b21…",
+    "reference": "8769916-13-151",
     "sender": "5DAA…",
     "amount_rao": 500000000,
     "block": 4210031
   },
   "bounty": {
     "amount_rao": 1000000000,
-    "policy_version": "flat-v1"
+    "policy_version": "dynamic-age-v1",
+    "available": true,
+    "reason": "OPEN",
+    "as_of": "2026-07-30T15:20:00Z",
+    "locked": false
   },
   "verification": { "status": "UNVERIFIED", "report_available": false },
   "created_at": "2026-07-30T15:20:11.025465Z",
@@ -143,11 +147,13 @@ X-Conjectures-Payment-Ref: 0x8b21…
 }
 ```
 
-`bounty` is what this submission is owed if it verifies, quoted at intake and frozen on the row.
-It is in **alpha** base units, unlike `payment.amount_rao`, which is the TAO rao the miner paid.
-A later change to the pricing rule prices later submissions; it never reprices this one, and a
-replay returns the same quote. The inputs the rule read are recorded in the database but not
-returned — the amount is the miner's business, the treasury state behind it is not.
+`bounty` is a live Subnet Alpha estimate, not a promise. `locked` remains false until a payout event fixes
+the amount. Before that, a replay and a later status read are repriced from the current bounty-wallet
+balance, open-target set, and task ages. If a
+different proof establishes the same `reward_target_id` first, `amount_rao` becomes null,
+`available` becomes false, and `reason` is `ALREADY_SOLVED`. The intake estimate and its inputs
+remain on the submission row only as an audit record; a payout event records its own amount,
+policy version, and inputs.
 
 The three statuses are independent axes, not one lifecycle. A submission always has a
 verification status **and** a review status **and** a reward status; collapsing them would imply
@@ -164,7 +170,7 @@ The signed message is the canonical **request digest**: the 32 raw bytes of the 
 canonical JSON (sorted keys, no spaces, one trailing newline) of exactly these six fields.
 
 ```json
-{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"0x8b21…","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:1dfef7…","task_id":"fc-e923379e-…"}
+{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"8769916-13-151","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
 ```
 
 ```python
@@ -218,12 +224,41 @@ the payment verifier must establish that:
 Amounts are integers in rao, TAO's base unit; 0.5 TAO is `500000000`. No floating point appears
 anywhere in payment accounting.
 
-`SUBMISSION_PAYMENT_VERIFIER=chain` is the production setting. The finalized-transfer reader it
-needs is the remaining piece of the payment component (see the status table in
-[../README.md](../README.md)); until that reader is injected the chain verifier **fails closed**
-and refuses every submission with `503 PAYMENT_VERIFIER_UNAVAILABLE`, rather than admitting an
-unpaid one. `SUBMISSION_PAYMENT_VERIFIER=development` accepts configured references without a
-chain and is refused in production.
+`SUBMISSION_PAYMENT_VERIFIER=chain` is the production setting, and it is wired:
+`submission_api/chain_payments.py` reads finalized Subtensor state through
+`conjectures_subnet/transfers.py`, holding no wallet keys and signing nothing. A verifier built
+without a reader still **fails closed** — `503 PAYMENT_VERIFIER_UNAVAILABLE` on every submission,
+rather than admitting an unpaid one. `SUBMISSION_PAYMENT_VERIFIER=development` accepts configured
+references without a chain and is refused in production.
+
+`BITTENSOR_NETWORK` selects the chain (`finney` is mainnet). `BITTENSOR_ARCHIVE_NETWORK` is an
+optional fallback for a reference naming a block outside a lite node's pruned-state window. The
+deposit watcher reads the same two variables, so one setting configures both and they cannot end up
+reading different chains.
+
+### The payment reference
+
+`block-extrinsic-event`, e.g. `8769916-13-151`. Positional, and **not an extrinsic hash**: a
+substrate node can resolve a position and cannot resolve a hash — "get extrinsic by hash" is an
+indexer's service, not an RPC — so a hash is a reference this validator would have to take somebody
+else's word for. An unresolvable reference is refused with `PAYMENT_NOT_FINALIZED`.
+
+`block-extrinsic` is accepted where that extrinsic moved TAO exactly once, which is the form a block
+explorer shows. Where it moved TAO more than once — a `utility.batch` — it is refused with `400
+PAYMENT_REFERENCE_AMBIGUOUS`, and the message lists the exact references to choose between. Picking
+one would be deciding which payment you meant.
+
+**The canonical three-part form is what gets stored**, whichever form you send. `payment_reference`
+is unique, so two spellings of one transfer cannot fund two submissions.
+
+### One transfer buys one thing
+
+A transfer that funded a submission cannot also be credited as a deposit, and vice versa. Both paths
+arbitrate through `chain_transfers`, whose reference is unique and which both sides lock before
+deciding. Citing a transfer the deposit watcher already credited to an account returns `409
+TRANSFER_ALREADY_CREDITED`: the money became credits, so spend one of those instead — see
+[ACCOUNT_API.md](ACCOUNT_API.md). Citing one that already funded a submission returns `409
+DUPLICATE_PAYMENT`.
 
 ## Idempotency
 
@@ -287,8 +322,9 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `POSTGRES_USER` / `PASSWORD` / `HOST` / `PORT` / `DB` | `conjectures`, `conjectures`, `localhost`, `5432`, `conjectures` | Used when `DATABASE_URL` is unset |
 | `PAYMENT_RECIPIENT_SS58` | required | The address that must receive the transfer |
 | `PAYMENT_AMOUNT_RAO` | `500000000` | 0.5 TAO |
-| `TASK_ALLOWLIST_PATH` | `./task_pool/allowlist.json` | |
-| `TASK_POOL_ROOT` | `./tasks/pool` | Bundles live under `<root>/<tier>/<task_id>` |
+| `CONJECTURES_TASKS_ROOT` | `../conjectures-tasks` | Separate pinned task-repository checkout |
+| `TASK_ALLOWLIST_PATH` | `../conjectures-tasks/allowlist.json` | From the separately pinned task checkout |
+| `TASK_POOL_ROOT` | `../conjectures-tasks/pool` | Bundles live under `<root>/<tier>/<task_id>` |
 | `SUBMISSION_AUTHENTICATOR` | `hotkey-signature` in `PROD` | `development-static-key` refused in `PROD` |
 | `SUBMISSION_PAYMENT_VERIFIER` | `chain` in `PROD` | `development` refused in `PROD` |
 | `SUBMISSION_DISPATCHER` | `queue` | `in-process` refused in `PROD` |
@@ -299,20 +335,28 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `MAX_BUNDLE_BYTES` | `2097152` | Cannot exceed the verifier policy |
 | `MANUAL_REWARD_REVIEW_ENABLED` | `true` | Captured per submission at creation |
 | `REVIEW_POLICY_VERSION` | `v1` | |
-| `BOUNTY_AMOUNT_RAO` | `1000000000` in `DEV`, required in `PROD` | Alpha base units. Frozen per submission at intake |
-| `BOUNTY_POLICY_VERSION` | `flat-v1` | The pricing rule the amount came from |
+| `BOUNTY_WALLET_COLDKEY_SS58` | payment recipient | Coldkey owning the bounty stake |
+| `BOUNTY_WALLET_HOTKEY_SS58` | required in `PROD` | Hotkey identifying the bounty stake position |
+| `BOUNTY_NETUID` | `66` | Subnet whose finalized Alpha balance is `B` |
+| `BOUNTY_POOL_BALANCE_RAO` | `4000000000` in `DEV` | Development-only deterministic balance; refused in `PROD` |
+| `BOUNTY_POLICY_VERSION` | `dynamic-age-v1` | Version written with estimates and payouts |
+| `BOUNTY_CONSTANT_NUMERATOR` | `1` | Numerator of `c` |
+| `BOUNTY_CONSTANT_DENOMINATOR` | `4` | Denominator of `c` |
+| `BOUNTY_AGE_PERIOD_SECONDS` | `86400` | One increment in the linear age weight |
+| `BOUNTY_BALANCE_CACHE_SECONDS` | `60` | Maximum chain-read frequency per API process |
+| `BITTENSOR_NETWORK` | `finney` | Network used for the finalized Alpha-stake read |
 | `SUBMISSIONS_PAUSED` | `false` | Refuses intake with `503 SUBMISSIONS_PAUSED`; reported on `/v1/system/status` |
 
 The public read surface adds its own variables; they are documented in
 [PUBLIC_API.md](PUBLIC_API.md#configuration) and in [`../.env.example`](../.env.example).
 
 Every value is validated at startup, so a misconfigured deployment refuses to boot instead of
-failing on the first miner request. Eight refusals are deliberate fail-closed guardrails.
+failing on the first miner request. The deliberate fail-closed guardrails include the following.
 Production will not start with the development authenticator, the development payment verifier,
 or the in-process dispatcher — each would otherwise weaken the boundary
-[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe. It will not start without
-an explicit `BOUNTY_AMOUNT_RAO`, because inheriting a default there promises money the operator
-never chose to promise. And on the public side it will not start with a wildcard or plaintext
+[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe. It refuses a static bounty
+balance in production, where the finalized Alpha stake must be read live. On the public side
+it will not start with a wildcard or plaintext
 CORS origin, with rate limiting disabled, or with either public secret left unset or set to the
 published development constant.
 

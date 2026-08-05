@@ -10,7 +10,7 @@ idempotency and duplicate-proof constraints all apply, and `problem_id` and `tas
 from the audited allowlist rather than from anything passed in here.
 
     python3 scripts/seed_submission.py --list
-    python3 scripts/seed_submission.py --proof my_attempt.lean --task-id fc-e923379e-...-formalized-v1
+    python3 scripts/seed_submission.py --proof my_attempt.lean --task-id fc-379fc029-...-formalized-v1
 
 The proof is spliced between the task's SolutionHeader and SolutionFooter, inside `namespace
 Bounty`, so it must define `theorem target`. The static policy check runs here too, before the row
@@ -26,6 +26,7 @@ import uuid
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from conjectures_subnet.db import submissions as store
@@ -88,15 +89,18 @@ def load_pool(
     this at the same one or it will refuse the task id.
     """
     env = {**read_dotenv(), **os.environ}
+    tasks_root = Path(
+        env.get("CONJECTURES_TASKS_ROOT", str(TASKS_ROOT))
+    ).resolve()
     allowlist_path = (
         allowlist
         or (Path(env["TASK_ALLOWLIST_PATH"]) if env.get("TASK_ALLOWLIST_PATH") else None)
-        or PROJECT_ROOT / "task_pool" / "allowlist.json"
+        or tasks_root / "allowlist.json"
     )
     root = (
         pool_root
         or (Path(env["TASK_POOL_ROOT"]) if env.get("TASK_POOL_ROOT") else None)
-        or PROJECT_ROOT / "tasks" / "pool"
+        or tasks_root / "pool"
     )
     registry = TaskPoolRegistry.load(allowlist_path)
     resolver = PoolTaskResolver.load(allowlist_path=allowlist_path, pool_root=root)
@@ -131,6 +135,7 @@ async def insert(dsn: str, *, allowed, task_dir: Path, proof: bytes, review: boo
                     # From the allowlist, never from the command line: the whole point of these two
                     # columns is that the submitter does not choose which reward they compete for.
                     problem_id=allowed.problem_id,
+                    reward_target_id=allowed.reward_target_id,
                     task_mode=store.TaskMode(allowed.mode),
                     proof_content=proof,
                     proof_sha256=digest,

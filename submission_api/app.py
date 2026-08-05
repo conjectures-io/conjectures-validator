@@ -36,7 +36,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
-from conjectures_subnet.bounty import FlatBountyPricer
+from conjectures_subnet.bounty import (
+    BittensorBalanceReader,
+    CachedBalanceReader,
+    DynamicBountyPricer,
+    StaticBalanceReader,
+)
 from conjectures_subnet.db import (
     async_session_factory,
     create_async_db_engine,
@@ -110,6 +115,19 @@ def build_services(
     # The URL comes from conjectures_subnet.db, so the API, the workers and Flyway can never
     # disagree about which database they are talking to.
     engine = create_async_db_engine(settings.database_url or database_url())
+    balance_reader = (
+        BittensorBalanceReader(
+            network=settings.bittensor_network,
+            coldkey=settings.bounty_wallet_coldkey,
+            hotkey=settings.bounty_wallet_hotkey,
+            netuid=settings.bounty_netuid,
+        )
+        if settings.production
+        else StaticBalanceReader(settings.bounty_pool_balance_rao)
+    )
+    reward_targets = tuple(
+        sorted({entry.reward_target_id for entry in resolved_catalog.entries.values()})
+    )
     return Services(
         settings=settings,
         engine=engine,
@@ -118,9 +136,18 @@ def build_services(
         authenticator=build_authenticator(settings),
         payments=build_payment_verifier(settings),
         dispatcher=build_dispatcher(settings),
-        pricing=FlatBountyPricer(
-            amount_rao=settings.bounty_amount_rao,
+        pricing=DynamicBountyPricer(
+            balance_reader=CachedBalanceReader(
+                balance_reader, ttl_seconds=settings.bounty_balance_cache_seconds
+            ),
+            balance_coldkey=settings.bounty_wallet_coldkey,
+            balance_hotkey=settings.bounty_wallet_hotkey,
+            balance_netuid=settings.bounty_netuid,
+            reward_target_ids=reward_targets,
             policy_version=settings.bounty_policy_version,
+            constant_numerator=settings.bounty_constant_numerator,
+            constant_denominator=settings.bounty_constant_denominator,
+            age_period_seconds=settings.bounty_age_period_seconds,
         ),
         pins=resolved_pins,
         mail=build_mail_sender(settings),
@@ -152,9 +179,16 @@ def create_app(
         try:
             yield
         finally:
-            # Only dispose an engine this app created; an injected one belongs to the caller.
+            # Only tear down resources this app created; injected ones belong to the caller.
             if services is None:
-                await application.state.services.engine.dispose()
+                built = application.state.services
+                await built.engine.dispose()
+                # The chain payment verifier holds a websocket open between requests — see
+                # SubtensorTransferReader on why it is not opened per submission. Released here.
+                reader = getattr(built.payments, "reader", None)
+                closer = getattr(reader, "aclose", None)
+                if closer is not None:
+                    await closer()
 
     application = FastAPI(
         title="conjectures.io Subnet 66 submission API",

@@ -1,0 +1,48 @@
+# The deposit watcher: read finalized transfers into the treasury, credit the accounts behind them.
+#
+# NOT the verifier image. `Dockerfile` builds that one, and it is the hostile-proof sandbox.
+# docs/SUBNET.md forbids the database from ever being reachable inside it; this image is on the
+# other side of that line — it holds the database credentials. It must never gain the verifier's
+# Lean toolchain, and the verifier image must never gain these credentials.
+#
+# It also HOLDS NO WALLET KEYS AND SIGNS NOTHING. `submission_api/payments.py` requires the
+# finalized-chain reader to be read-only, and nothing here mounts a wallet, a keyfile, or a
+# `~/.bittensor` directory. The only privileged thing it can do is write to the credit ledger, and
+# it can only do that in response to a transfer it read off a finalized block.
+#
+# Thin, like Dockerfile.worker: the `db` extra plus bittensor. No git and no Lean — nothing here
+# resolves a task or compiles a proof, so the reasons Dockerfile.worker needs git do not apply.
+# The code arrives on a read-only bind mount at run time, matching the worker, so the image cannot
+# carry a stale copy of the checkout. A production image would COPY the code and be pinned by
+# digest.
+
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+
+# The watcher's whole dependency set, version-pinned by the repository's existing lock so there is
+# one place where a version is decided. bittensor is what reads the chain; SQLAlchemy, greenlet and
+# psycopg are the `db` extra. psycopg[binary] ships its own libpq, so no system postgres client is
+# needed, and bittensor 11 ships its own SS58 codec, so no scalecodec either.
+#
+# The project itself is not installed: its code arrives on the bind mount, and a wheel in
+# site-packages would shadow it confusingly.
+COPY requirements-service.lock ./
+RUN pip install --no-cache-dir --constraint requirements-service.lock \
+      SQLAlchemy greenlet 'psycopg[binary]' bittensor \
+    && rm -f requirements-service.lock
+
+# Unprivileged, and a uid of its own: 10001 belongs to the verifier image and 10101 to the
+# verification worker. Two different processes sharing a uid makes a mount that crosses them look
+# accidental instead of wrong.
+RUN useradd --create-home --shell /usr/sbin/nologin --uid 10102 watcher
+
+USER watcher
+WORKDIR /srv/app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONNOUSERSITE=1 \
+    PYTHONPATH=/srv/app
+
+# No ENTRYPOINT wrapper: the watcher installs its own SIGINT/SIGTERM handlers so a pass in flight
+# finishes its current block and commits the cursor, and it must receive those signals directly.
+# The compose service sets `init: true` for pid-1 reaping.
+CMD ["python", "-m", "deposit_watcher", "--log-level", "INFO"]
