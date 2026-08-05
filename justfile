@@ -136,14 +136,22 @@ build-watcher:
 build-emissions: _check-emissions
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} build emissions
 
+# Prompted in the recipe rather than with `[confirm("...")]`. That attribute's message form needs
+# a recent `just`, and an older one does not skip the recipe — it fails to PARSE THE WHOLE FILE,
+# so every unrelated recipe stops working too. A deployment entrypoint must not carry a version
+# floor that turns `just pin-tasks` on a stock server into a syntax error.
+
 # Destroy the database volume and bring the stack back up empty.
-[confirm("This DESTROYS the database volume and every row in it. Continue?")]
 reset: _check-env
-    @echo "==> removing containers and the database volume"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    read -rp "This DESTROYS the database volume and every row in it. Continue? [y/N] " reply
+    [[ "$reply" == [yY] || "$reply" == [yY][eE][sS] ]] || { echo "aborted"; exit 1; }
+    echo "==> removing containers and the database volume"
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} down -v --remove-orphans
-    @echo "==> starting clean — every migration re-applies from V001"
+    echo "==> starting clean — every migration re-applies from V001"
     {{ compose }} up -d --build
-    @{{ compose }} ps
+    {{ compose }} ps
 
 # --- inspection --------------------------------------------------------------
 
