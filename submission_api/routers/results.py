@@ -36,6 +36,7 @@ import json
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Path, Query, Response
@@ -49,6 +50,7 @@ from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
+from submission_api.taostats import amount_usd
 from verifier.bundle import PROOF_NAME
 
 router = APIRouter(prefix="/v1/results", tags=["results"])
@@ -133,7 +135,11 @@ def _title_and_statement(index: ConjectureIndex, row: public_store.ResultRow) ->
     return conjectures.title(item), item.source.type_pretty
 
 
-def _certified(row: public_store.ResultRow, index: ConjectureIndex) -> public.PublicResult:
+def _certified(
+    row: public_store.ResultRow,
+    index: ConjectureIndex,
+    alpha_usd: Decimal | None,
+) -> public.PublicResult:
     title, statement = _title_and_statement(index, row)
     return public.PublicResult(
         id=row.id,
@@ -146,6 +152,7 @@ def _certified(row: public_store.ResultRow, index: ConjectureIndex) -> public.Pu
         verified_at=_utc(row.verified_at),
         certified_at=_utc(row.certified_at),
         bounty_amount_rao=row.bounty_amount_rao,
+        bounty_amount_usd=amount_usd(row.bounty_amount_rao, alpha_usd=alpha_usd),
         bounty_policy_version=row.bounty_policy_version,
         verifier_version=row.verifier_version,
         sandbox_mode=row.sandbox_mode,
@@ -154,7 +161,11 @@ def _certified(row: public_store.ResultRow, index: ConjectureIndex) -> public.Pu
     )
 
 
-def _in_review(row: public_store.ResultRow, index: ConjectureIndex) -> public.InReviewResult:
+def _in_review(
+    row: public_store.ResultRow,
+    index: ConjectureIndex,
+    _alpha_usd: Decimal | None,
+) -> public.InReviewResult:
     title, statement = _title_and_statement(index, row)
     return public.InReviewResult(
         id=row.id,
@@ -185,6 +196,7 @@ async def _feed(
     response: Response,
     limit: int,
     cursor: str | None,
+    price_bounties: bool,
 ):
     """One page of a keyset feed, and the cursor for the next.
 
@@ -200,6 +212,9 @@ async def _feed(
 
     rows = await fetch(session, limit=limit + 1, after=after)
     page = rows[:limit]
+    alpha_usd = (
+        await services.bounty_usd.alpha_usd() if page and price_bounties else None
+    )
     next_cursor = None
     if len(rows) > limit and page:
         last = page[-1]
@@ -209,7 +224,7 @@ async def _feed(
 
     _cache(response, settings)
     return {
-        "items": tuple(shape(row, services.index) for row in page),
+        "items": tuple(shape(row, services.index, alpha_usd) for row in page),
         "next_cursor": next_cursor,
     }
 
@@ -234,6 +249,7 @@ async def list_certified(
         response=response,
         limit=limit,
         cursor=cursor,
+        price_bounties=True,
     )
     return public.CursorPage[public.PublicResult](**page)
 
@@ -258,6 +274,7 @@ async def list_in_review(
         response=response,
         limit=limit,
         cursor=cursor,
+        price_bounties=False,
     )
     return public.CursorPage[public.InReviewResult](**page)
 
@@ -296,6 +313,7 @@ async def list_all(
         response=response,
         limit=limit,
         cursor=cursor,
+        price_bounties=True,
     )
     return public.CursorPage[public.PublicResult](**page)
 
@@ -314,11 +332,12 @@ async def read_result(
     row = await public_store.public_result(session, result_id)
     if row is None:
         raise NotFound("no such result")
+    alpha_usd = await services.bounty_usd.alpha_usd()
     _cache(response, services.settings)
     # Shaped as a certified result in both cases. An in-review row simply has no `certified_at`,
     # which is the honest representation — the alternative is two response models on one path,
     # and a client that has to branch on which one it got.
-    return _certified(row, services.index)
+    return _certified(row, services.index, alpha_usd)
 
 
 @router.get(

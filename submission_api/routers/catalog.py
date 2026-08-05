@@ -116,10 +116,13 @@ def _bounty(quote: LiveBounty, *, alpha_usd: Decimal | None) -> public.BountyInf
     )
 
 
-def _bounty_pool(snapshot: BountyPoolSnapshot) -> public.BountyPoolInfo:
+def _bounty_pool(
+    snapshot: BountyPoolSnapshot, *, alpha_usd: Decimal | None
+) -> public.BountyPoolInfo:
     return public.BountyPoolInfo(
         policy_version=snapshot.policy_version,
         balance_rao=snapshot.balance_rao,
+        balance_usd=amount_usd(snapshot.balance_rao, alpha_usd=alpha_usd),
         wallet_coldkey=snapshot.wallet_coldkey,
         wallet_hotkey=snapshot.wallet_hotkey,
         netuid=snapshot.netuid,
@@ -401,7 +404,8 @@ async def read_meta(
         reward_target_ids=tuple(item.reward_target_id for item in items),
     )
     await session.commit()
-    meta = _meta(services, settings, items, snapshot)
+    alpha_usd = await services.bounty_usd.alpha_usd()
+    meta = _meta(services, settings, items, snapshot, alpha_usd=alpha_usd)
 
     # Hashed from the serialised payload rather than assembled from the inputs, so the validator
     # cannot drift from the body: any change to what is published changes the tag.
@@ -435,7 +439,12 @@ def _matches(header: str | None, etag: str) -> bool:
 
 
 def _meta(
-    services, settings: Settings, items, snapshot: BountyPoolSnapshot
+    services,
+    settings: Settings,
+    items,
+    snapshot: BountyPoolSnapshot,
+    *,
+    alpha_usd: Decimal | None,
 ) -> public.PoolMeta:
     return public.PoolMeta(
         repository_commit=services.index.repository_commit,
@@ -451,7 +460,7 @@ def _meta(
         credits_per_attempt=CREDITS_PER_ATTEMPT,
         treasury_address=settings.payment_recipient,
         max_bundle_bytes=settings.max_bundle_bytes,
-        bounty=_bounty_pool(snapshot),
+        bounty=_bounty_pool(snapshot, alpha_usd=alpha_usd),
         pins=_pins(services.pins),
         pins_sha256=services.pins.lock_sha256,
     )

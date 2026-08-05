@@ -427,7 +427,10 @@ def test_a_slug_outside_the_task_id_alphabet_never_reaches_the_catalog():
 
 def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
     async def scenario():
-        kit = await harness(entries=pool()).setup()
+        kit = await harness(
+            entries=pool(),
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal("37.50")),
+        ).setup()
         try:
             response = await _get(kit, "/v1/catalog/meta")
             assert response.status_code == 200, response.text
@@ -441,6 +444,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
             assert body["bounty"] == {
                 "policy_version": "dynamic-age-v1",
                 "balance_rao": 4_000_000_000,
+                "balance_usd": "150.00",
                 "wallet_coldkey": kit.settings.bounty_wallet_coldkey,
                 "wallet_hotkey": kit.settings.bounty_wallet_hotkey,
                 "netuid": 66,

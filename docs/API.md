@@ -49,6 +49,11 @@ Task discovery is unauthenticated because the task pool and its digests are publ
 | `GET` | `/v1/results/{id}/solution` | The verified `Main.lean`, for an approved result only |
 | `GET` | `/v1/system/status` | Submissions open/paused, queue depths, pin rotation |
 
+Public result objects expose `bounty_amount_rao` together with `bounty_amount_usd`. The USD field
+is a current TaoStats display conversion, returned as a decimal string rounded to cents, and is
+null when the external rate is unavailable. `/v1/catalog/meta` exposes the same conversion for
+the total bounty-pool balance as `bounty.balance_usd` beside `bounty.balance_rao`.
+
 ### Signed-in account — see [ACCOUNT_API.md](ACCOUNT_API.md)
 
 Session cookie plus a CSRF token. `POST /v1/submissions/preflight` is the one exception: free,
