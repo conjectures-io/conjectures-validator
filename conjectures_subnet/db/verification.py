@@ -6,10 +6,11 @@ import datetime as dt
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db import digests
+from conjectures_subnet.db.models import Submission, VerificationState
 
 # One statement, so the claim is atomic without the caller holding a transaction open. The
 # inner SELECT locks exactly one candidate row and skips any a concurrent worker already holds;
@@ -179,4 +180,33 @@ async def release(
     return released.one_or_none() is not None
 
 
-__all__ = ["ClaimedSubmission", "claim_next", "extend", "release"]
+async def lock_owned_for_recording(
+    session: AsyncSession, submission_id: uuid.UUID, *, owner: str
+) -> Submission | None:
+    """Lock the row only if this live lease still authorizes a final verdict.
+
+    The lock and the caller's verdict write share one transaction. A worker that finishes after
+    expiry, or after another worker reclaimed the row, therefore cannot clear the new lease or
+    apply a stale report.
+    """
+    result = await session.execute(
+        select(Submission)
+        .where(
+            Submission.id == submission_id,
+            Submission.verification_status == VerificationState.UNVERIFIED,
+            Submission.verification_lease_owner == owner,
+            Submission.verification_lease_until.is_not(None),
+            Submission.verification_lease_until >= func.now(),
+        )
+        .with_for_update()
+    )
+    return result.scalar_one_or_none()
+
+
+__all__ = [
+    "ClaimedSubmission",
+    "claim_next",
+    "extend",
+    "lock_owned_for_recording",
+    "release",
+]

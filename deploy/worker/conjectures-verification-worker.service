@@ -43,6 +43,9 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateDevices=true
+PrivateIPC=true
+ProtectProc=invisible
+ProcSubset=pid
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectKernelLogs=true
@@ -56,6 +59,11 @@ LockPersonality=true
 CapabilityBoundingSet=
 AmbientCapabilities=
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# The worker needs only the local PostgreSQL listener and Docker's Unix socket. A compromised
+# orchestration process cannot open an outbound Internet connection.
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+IPAddressAllow=::1/128
 LimitNOFILE=8192
 TasksMax=256
 MemoryMax=1G

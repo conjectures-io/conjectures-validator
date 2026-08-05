@@ -299,6 +299,46 @@ def test_extend_fails_once_the_lease_is_not_ours():
     run(scenario())
 
 
+def test_only_the_current_unexpired_lease_can_lock_a_final_verdict():
+    async def scenario():
+        kit = await Kit.setup()
+        try:
+            submission_id = await kit.submit()
+            await kit.claim(owner=OWNER)
+            async with kit.session() as session:
+                held = await queue.lock_owned_for_recording(
+                    session, submission_id, owner=OWNER
+                )
+                assert held is not None
+                await session.rollback()
+
+            await kit.expire_lease(submission_id)
+            async with kit.session() as session:
+                assert (
+                    await queue.lock_owned_for_recording(
+                        session, submission_id, owner=OWNER
+                    )
+                    is None
+                )
+                await session.rollback()
+
+            await kit.claim(owner=OTHER_OWNER)
+            async with kit.session() as session:
+                # A late result from the first worker cannot clear or overwrite the lease now
+                # held by the second worker.
+                assert (
+                    await queue.lock_owned_for_recording(
+                        session, submission_id, owner=OWNER
+                    )
+                    is None
+                )
+                await session.rollback()
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 # --- recording ----------------------------------------------------------------------
 
 

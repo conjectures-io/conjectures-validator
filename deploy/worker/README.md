@@ -21,6 +21,8 @@ service keeps the boundary explicit and lets Docker mount the exact host paths t
 
 The worker's membership in the `docker` group is privileged host access. Give that membership only
 to this dedicated account. No network-facing service should run as this user.
+The supplied unit denies outbound IP traffic except loopback: PostgreSQL must listen locally and
+Docker must use its local Unix socket, never a remote daemon.
 
 ## Install
 
@@ -41,9 +43,15 @@ sudo chown -R root:root .venv
 Build or pull the reviewed verifier image, then record its local immutable image ID:
 
 ```bash
+test -z "$(git status --porcelain=v1 --untracked-files=all)"
+git rev-parse HEAD
 sudo docker build --tag formal-conjectures-verifier:release .
 sudo docker image inspect --format '{{.Id}}' formal-conjectures-verifier:release
 ```
+
+The clean-check includes untracked files because Docker builds from the filesystem, not from Git's
+index. The build context excludes environment files, private-key files, and Bittensor wallet data;
+keep all production credentials outside the release checkout regardless.
 
 Install the environment template, replace every placeholder in the installed copy, and set the
 digest to that exact `sha256:...` image ID. Then install the unit:
@@ -68,7 +76,9 @@ The unit will not start unless all of these pass together:
 2. the live task pool matches the audited allowlist, task commits, and bundle digests;
 3. the configured image tag still resolves to the configured image ID;
 4. that exact image passes its pin, toolchain, Landlock, seccomp, and non-root doctor probes;
-5. the worker can connect to PostgreSQL.
+5. the worker can connect to PostgreSQL;
+6. every completed report matches the claimed task and stored proof, passes the strict production
+   acceptance contract, and is written only while this process still owns a live database lease.
 
 Run the same non-mutating check manually through systemd, then start the worker:
 

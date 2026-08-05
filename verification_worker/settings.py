@@ -23,6 +23,7 @@ The worker configures no database of its own; `conjectures_subnet.db.database_ur
 from __future__ import annotations
 
 import os
+import secrets
 import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -120,9 +121,17 @@ def _directory(environ: Mapping[str, str], key: str, default: Path) -> Path:
     return Path(os.path.abspath(default if not raw else Path(raw)))
 
 
-def default_owner() -> str:
-    """Identifies the process holding a lease, so an operator can go and look at it."""
-    return f"{socket.gethostname()}/{os.getpid()}"
+def default_owner(label: str | None = None) -> str:
+    """A traceable label plus a per-process token that cannot collide after restart."""
+    prefix = (label or socket.gethostname()).strip()
+    token = f"{os.getpid()}-{secrets.token_hex(8)}"
+    owner = f"{prefix}/{token}"
+    if len(owner) > 128:
+        raise SettingsError(
+            "VERIFICATION_WORKER_ID is too long; its label plus the per-process lease token "
+            "must fit in 128 characters"
+        )
+    return owner
 
 
 @dataclass(frozen=True)
@@ -231,7 +240,7 @@ class WorkerSettings:
             database_url=database_url,
             runner=runner,
             allow_insecure_sandbox=allow_insecure_sandbox,
-            owner=env.get("VERIFICATION_WORKER_ID", "").strip() or default_owner(),
+            owner=default_owner(env.get("VERIFICATION_WORKER_ID", "").strip() or None),
             verifier_image=env.get("VERIFIER_IMAGE", "").strip() or DEFAULT_IMAGE,
             verifier_version=verifier_version or "development",
             container_digest=container_digest,

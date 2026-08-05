@@ -105,10 +105,12 @@ The permitted production axioms are exactly:
 | Read host files, another miner workspace, or trusted verifier metadata | Landlock ABI 4+ exposes only immutable Lean/tool/package paths and the current workspace; the live probe requires sibling-workspace reads and writes to fail |
 | Mutate trusted metadata or contact another process | Workspace-only content writes, safe `/dev` nodes, no `/proc`, and seccomp denial of metadata mutation, sockets, `io_uring`, pidfds, cross-process memory/limits/signals, kernel keyrings, IPC, and namespace/mount syscalls |
 | Refresh or substitute a Lake dependency at runtime | A validated path-only package graph uses immutable pinned checkouts plus writable per-workspace metadata mirrors; no `lake update` runs and the container has no network |
-| Fork, flood output, memory-map the host, or fill disk | One deadline, CPU/address-space/file/open-file/process limits, bounded output tails, container PID/memory/CPU limits, and a bounded tmpfs workspace |
+| Fork, flood output, memory-map the host, thrash swap, or fill disk | One deadline, CPU/address-space/file/open-file/process limits, bounded output tails, container PID/memory/CPU limits with no additional swap allowance, and a bounded tmpfs workspace |
 | Downgrade the sandbox on macOS or an old Linux kernel | Production fails closed; insecure development requires an explicit override and remains visible in the report |
 | Substitute a broken sandbox binary or executable workspace | Production readiness runs a live allow/deny probe through the exact Landrun/seccomp wrapper and requires generated files to be non-executable |
 | Smuggle commands in task payloads | Every trusted Lean/config payload is reconstructed byte-for-byte by the pinned pure generator |
+| Forge, confuse, or flood the verifier's JSON answer | The credential-holding worker caps both container output pipes, requires the exact schema and boolean types, binds task and proof digests, and independently rechecks every production-acceptance field before recording a verdict |
+| Finish after a lease expires or another worker takes over | A random per-process lease identity plus a database row lock requires the same live, unexpired lease in the verdict transaction |
 
 Static checks are defense in depth. The authoritative correctness checks are Comparator's statement
 comparison and axiom closure followed by kernel replay.
@@ -136,7 +138,8 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
    pin changes. The moving operating-system package mirror is part of the image-build trust path;
    the resulting image digest is the deployable artifact. Runtime checks verify every inherited
    Lake package checkout revision and source-tree cleanliness; the image digest commits to the
-   resulting compiled caches as well.
+   resulting compiled caches as well. The Docker context must exclude environment files, private
+   keys, and wallet directories, and the release checkout must contain no dirty or untracked files.
 2. Run one submission per fresh container as UID 10001 with no capabilities, no new privileges,
    `network_mode: none`, a read-only root, and the supplied PID/CPU/memory/tmpfs limits.
 3. Mount only the selected submission file and public task directory read-only. Never mount wallet
@@ -147,8 +150,12 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
    `--retain-workspace` in production.
 6. Never compile a miner submission outside Comparator or reuse a container/workspace between
    miners.
-7. Treat timeouts and resource-limit results as rejections, and apply queue limits and rate limits
+7. Treat the task's declared timeout as a proof verdict, but treat infrastructure resource-limit
+   failures as operator failures that cannot charge the miner. Apply queue limits and rate limits
    in the validator service outside the one-shot verifier.
+8. Run the credential-holding worker with outbound networking denied except for loopback
+   PostgreSQL. Docker access must be through the local Unix socket; never configure a remote Docker
+   daemon for the production worker.
 
 ## Residual risks and non-goals
 

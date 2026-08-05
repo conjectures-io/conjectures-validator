@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from verifier.hashing import canonical_json_bytes, is_sha256
+from verifier.models import DEFAULT_CHECKS
 
 # Inside the image: WORKDIR /opt/fc-verifier, USER verifier (10001), ENTRYPOINT python3 -m
 # verifier. Mount points are ours to choose; these two are the whole input surface.
@@ -45,6 +46,41 @@ CONTAINER_WORK_TMPFS = "/opt/fc-verifier/.work"
 # error shape — `{"accepted": false, "reason_code": ..., "error": ...}` — which is emitted for
 # failures outside verify() and describes the runner, not the proof.
 REPORT_KEYS = ("accepted", "reason_code", "stage", "checks", "sandbox_mode")
+
+# The Docker client is outside the verifier container's memory limit. Keep draining its pipes so
+# the child cannot block, but never let a hostile or compromised container allocate unbounded
+# memory in the credential-holding worker.
+MAX_CONTAINER_STDOUT_BYTES = 1024 * 1024
+MAX_CONTAINER_STDERR_BYTES = 256 * 1024
+
+FULL_REPORT_KEYS = frozenset(
+    {
+        "schema_version",
+        "problem_id",
+        "task_id",
+        "repository_commit",
+        "source_theorem",
+        "task_mode",
+        "task_bundle_sha256",
+        "submission_sha256",
+        "accepted",
+        "stage",
+        "reason_code",
+        "checks",
+        "theorem_names",
+        "permitted_axioms",
+        "duration_ms",
+        "comparator_exit_code",
+        "stdout_tail",
+        "stderr_tail",
+        "workspace_retained",
+        "sandbox_mode",
+    }
+)
+PRODUCTION_ACCEPTANCE_CHECKS = frozenset(DEFAULT_CHECKS) - {
+    "nanoda_enabled",
+    "nanoda_passed",
+}
 
 # Docker needs to find its own socket and credentials; nothing else is inherited.
 PASSTHROUGH_ENV = (
@@ -116,12 +152,109 @@ def _report_from(payload: bytes) -> dict[str, Any]:
         raise RunnerFailure("verifier report is not a JSON object")
     missing = [key for key in REPORT_KEYS if key not in report]
     if missing:
+        raw_detail = report.get("error")
+        detail = (
+            str(raw_detail).replace("\r", "\\r").replace("\n", "\\n")[:1000]
+            if raw_detail is not None
+            else "unexpected CLI response shape"
+        )
         raise RunnerFailure(
             "verifier returned an error rather than a report; missing "
             + ", ".join(missing)
-            + f": {report.get('error') or report}"
+            + f": {detail}"
         )
+    if type(report["accepted"]) is not bool:
+        raise RunnerFailure("verifier report accepted must be a JSON boolean")
+    if not isinstance(report["reason_code"], str) or not report["reason_code"]:
+        raise RunnerFailure("verifier report reason_code must be a non-empty string")
+    if not isinstance(report["stage"], str) or not report["stage"]:
+        raise RunnerFailure("verifier report stage must be a non-empty string")
+    if not isinstance(report["sandbox_mode"], str) or not report["sandbox_mode"]:
+        raise RunnerFailure("verifier report sandbox_mode must be a non-empty string")
+    checks = report["checks"]
+    if not isinstance(checks, dict) or not all(
+        isinstance(key, str) and type(value) is bool for key, value in checks.items()
+    ):
+        raise RunnerFailure("verifier report checks must map strings to JSON booleans")
     return report
+
+
+def assert_production_report(
+    run: VerifierRun,
+    *,
+    expected_task_id: str,
+    expected_task_sha256: str,
+    expected_submission_sha256: str,
+    expected_nanoda_enabled: bool,
+) -> None:
+    """Bind an accepted production verdict to this exact task, proof and contract."""
+    report = run.report
+    missing = sorted(FULL_REPORT_KEYS - set(report))
+    if missing:
+        raise RunnerFailure(
+            "production verifier report is missing " + ", ".join(missing)
+        )
+    unexpected = sorted(set(report) - FULL_REPORT_KEYS)
+    if unexpected:
+        raise RunnerFailure(
+            "production verifier report has unexpected fields: "
+            + ", ".join(unexpected)
+        )
+    if type(report["schema_version"]) is not int or report["schema_version"] != 2:
+        raise RunnerFailure("production verifier report schema_version must be 2")
+    if type(report["accepted"]) is not bool:
+        raise RunnerFailure("production verifier report accepted must be a JSON boolean")
+    if not isinstance(report["reason_code"], str) or not report["reason_code"]:
+        raise RunnerFailure("production verifier report reason_code must be a non-empty string")
+    if not isinstance(report["stage"], str) or not report["stage"]:
+        raise RunnerFailure("production verifier report stage must be a non-empty string")
+    if not isinstance(report["sandbox_mode"], str) or not report["sandbox_mode"]:
+        raise RunnerFailure("production verifier report sandbox_mode must be a non-empty string")
+    if type(report["duration_ms"]) is not int or report["duration_ms"] < 0:
+        raise RunnerFailure("production verifier report duration_ms must be a nonnegative integer")
+    comparator_exit = report["comparator_exit_code"]
+    if comparator_exit is not None and type(comparator_exit) is not int:
+        raise RunnerFailure("production verifier comparator_exit_code must be an integer or null")
+    for key in ("stdout_tail", "stderr_tail"):
+        if not isinstance(report[key], str) or len(report[key]) > 4000:
+            raise RunnerFailure(f"production verifier report {key} is not a bounded string")
+    for key in ("theorem_names", "permitted_axioms"):
+        value = report[key]
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise RunnerFailure(f"production verifier report {key} must be a string array")
+    if report["task_id"] != expected_task_id:
+        raise RunnerFailure("verifier report task_id does not match the claimed submission")
+    if report["task_bundle_sha256"] != expected_task_sha256:
+        raise RunnerFailure("verifier report task digest does not match the claimed submission")
+    if report["submission_sha256"] != expected_submission_sha256:
+        raise RunnerFailure("verifier report proof digest does not match the stored proof")
+    if report["workspace_retained"] is not False:
+        raise RunnerFailure("production verifier report says the hostile workspace was retained")
+    checks = report["checks"]
+    if not isinstance(checks, dict) or not all(
+        isinstance(key, str) and type(value) is bool for key, value in checks.items()
+    ):
+        raise RunnerFailure("production verifier report checks must be strict JSON booleans")
+    if set(checks) != set(DEFAULT_CHECKS):
+        raise RunnerFailure("production verifier report check set does not match schema version 2")
+    if checks["nanoda_enabled"] is not expected_nanoda_enabled:
+        raise RunnerFailure("verifier report Nanoda policy does not match the committed task")
+    if report["accepted"]:
+        if report["reason_code"] != "VERIFIED" or report["stage"] != "COMPLETED":
+            raise RunnerFailure("accepted verifier report has an inconsistent verdict or stage")
+        if type(report["comparator_exit_code"]) is not int or report["comparator_exit_code"] != 0:
+            raise RunnerFailure("accepted verifier report has a nonzero comparator exit code")
+        if report["sandbox_mode"] != "landrun+seccomp":
+            raise RunnerFailure("accepted verifier report was not produced by the production sandbox")
+        failed = sorted(key for key in PRODUCTION_ACCEPTANCE_CHECKS if checks[key] is not True)
+        if checks["nanoda_enabled"] and checks["nanoda_passed"] is not True:
+            failed.append("nanoda_passed")
+        if failed:
+            raise RunnerFailure(
+                "accepted verifier report has failed production checks: " + ", ".join(failed)
+            )
+    elif report["reason_code"] == "VERIFIED":
+        raise RunnerFailure("rejected verifier report cannot carry reason_code VERIFIED")
 
 
 def _docker_env() -> dict[str, str]:
@@ -192,6 +325,10 @@ class ContainerVerifierRunner:
             # detaches the client and would leave the Lean build burning a core.
             "--name",
             name,
+            "--log-driver",
+            "none",
+            "--ipc",
+            "none",
             "--network",
             "none",
             "--read-only",
@@ -205,10 +342,14 @@ class ContainerVerifierRunner:
             str(self.pids_limit),
             "--memory",
             self.memory,
+            "--memory-swap",
+            self.memory,
             "--cpus",
             self.cpus,
             "--ulimit",
             "nofile=1024:1024",
+            "--ulimit",
+            "core=0:0",
             "--tmpfs",
             "/tmp:rw,nosuid,nodev,noexec,size=2g",
             "--tmpfs",
@@ -297,8 +438,15 @@ class ContainerVerifierRunner:
             )
         except OSError as exc:
             raise RunnerFailure(f"cannot start {self.docker_binary!r}: {exc}") from exc
+        assert process.stdout is not None and process.stderr is not None
+        stdout_reader = asyncio.create_task(
+            _read_bounded(process.stdout, MAX_CONTAINER_STDOUT_BYTES)
+        )
+        stderr_reader = asyncio.create_task(
+            _read_bounded(process.stderr, MAX_CONTAINER_STDERR_BYTES)
+        )
         try:
-            return await asyncio.wait_for(process.communicate(), timeout_seconds)
+            await asyncio.wait_for(process.wait(), timeout_seconds)
         except TimeoutError as exc:
             # The verifier enforces the task's own deadline internally, so reaching this one
             # means the container itself is stuck. Kill the container, not just our client.
@@ -306,9 +454,19 @@ class ContainerVerifierRunner:
             with contextlib.suppress(ProcessLookupError):
                 process.kill()
             await process.wait()
+            await asyncio.gather(stdout_reader, stderr_reader)
             raise RunnerFailure(
                 f"verifier container exceeded its {timeout_seconds}s outer bound"
             ) from exc
+        (stdout, stdout_overflow), (stderr, stderr_overflow) = await asyncio.gather(
+            stdout_reader, stderr_reader
+        )
+        if stdout_overflow or stderr_overflow:
+            raise RunnerFailure(
+                "verifier container output exceeded the host capture limit "
+                f"(stdout={MAX_CONTAINER_STDOUT_BYTES}, stderr={MAX_CONTAINER_STDERR_BYTES})"
+            )
+        return stdout, stderr
 
     async def _kill(self, name: str) -> None:
         with contextlib.suppress(OSError):
@@ -321,7 +479,27 @@ class ContainerVerifierRunner:
                 stderr=asyncio.subprocess.DEVNULL,
                 env=_docker_env(),
             )
-            await killer.wait()
+            try:
+                await asyncio.wait_for(killer.wait(), 30)
+            except TimeoutError:
+                with contextlib.suppress(ProcessLookupError):
+                    killer.kill()
+                await killer.wait()
+
+
+async def _read_bounded(
+    stream: asyncio.StreamReader, limit: int
+) -> tuple[bytes, bool]:
+    """Drain a child pipe completely while retaining at most ``limit`` bytes."""
+    value = bytearray()
+    overflow = False
+    while chunk := await stream.read(64 * 1024):
+        remaining = limit - len(value)
+        if remaining > 0:
+            value.extend(chunk[:remaining])
+        if len(chunk) > remaining:
+            overflow = True
+    return bytes(value), overflow
 
 
 def assert_container_ready(runner: ContainerVerifierRunner) -> None:
@@ -457,5 +635,6 @@ __all__ = [
     "VerifierRunner",
     "build_runner",
     "assert_container_ready",
+    "assert_production_report",
     "resolve_container_digest",
 ]
