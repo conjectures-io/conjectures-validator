@@ -5,12 +5,16 @@ one at a time. Mirrors `submission_api/settings.py` deliberately — same `APP_M
 `SettingsError`, same production refusals — because the two processes are configured by the same
 operator from the same `.env`.
 
-Two refusals matter in production:
+Four refusals matter in production:
 
 * the in-process runner, which would compile hostile Lean inside the process holding the
   database credentials, the exact thing `docs/SUBNET.md` and `SECURITY.md` forbid; and
 * an unstated `VERIFIER_VERSION`, because `verification_runs.verifier_version` is the record of
-  what decided a submission and a default would make every report claim the same thing.
+  what decided a submission and a default would make every report claim the same thing;
+* an unstated verifier image digest, because a mutable tag can point at different code after a
+  restart; and
+* an implicit database URL, because a production worker must never fall back to development
+  connection defaults.
 
 The worker configures no database of its own; `conjectures_subnet.db.database_url()` resolves
 `DATABASE_URL` or the `POSTGRES_*` variables `.env.example` already defines.
@@ -19,10 +23,13 @@ The worker configures no database of its own; `conjectures_subnet.db.database_ur
 from __future__ import annotations
 
 import os
+import secrets
 import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+from verifier.hashing import is_sha256
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
@@ -114,9 +121,17 @@ def _directory(environ: Mapping[str, str], key: str, default: Path) -> Path:
     return Path(os.path.abspath(default if not raw else Path(raw)))
 
 
-def default_owner() -> str:
-    """Identifies the process holding a lease, so an operator can go and look at it."""
-    return f"{socket.gethostname()}/{os.getpid()}"
+def default_owner(label: str | None = None) -> str:
+    """A traceable label plus a per-process token that cannot collide after restart."""
+    prefix = (label or socket.gethostname()).strip()
+    token = f"{os.getpid()}-{secrets.token_hex(8)}"
+    owner = f"{prefix}/{token}"
+    if len(owner) > 128:
+        raise SettingsError(
+            "VERIFICATION_WORKER_ID is too long; its label plus the per-process lease token "
+            "must fit in 128 characters"
+        )
+    return owner
 
 
 @dataclass(frozen=True)
@@ -128,7 +143,7 @@ class WorkerSettings:
     owner: str
     verifier_image: str
     verifier_version: str
-    container_digest: str  # empty means "ask the image at startup"
+    container_digest: str  # expected local image ID; production requires it explicitly
     docker_binary: str
     task_allowlist_path: Path
     task_pool_root: Path
@@ -202,14 +217,30 @@ class WorkerSettings:
             )
 
         container_digest = env.get("VERIFIER_CONTAINER_DIGEST", "").strip()
+        if production and not container_digest:
+            raise SettingsError(
+                "VERIFIER_CONTAINER_DIGEST is required in production; pin the local image ID "
+                "reported by `docker image inspect --format '{{.Id}}'`"
+            )
+        if container_digest and not is_sha256(container_digest):
+            raise SettingsError(
+                "VERIFIER_CONTAINER_DIGEST must be a sha256:<64 lowercase hex digits> image ID"
+            )
+
+        database_url = env.get("DATABASE_URL", "").strip()
+        if production and not database_url:
+            raise SettingsError(
+                "DATABASE_URL is required in production; the worker must not use development "
+                "database defaults"
+            )
 
         tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
         return cls(
             app_mode=app_mode,
-            database_url=env.get("DATABASE_URL", "").strip(),
+            database_url=database_url,
             runner=runner,
             allow_insecure_sandbox=allow_insecure_sandbox,
-            owner=env.get("VERIFICATION_WORKER_ID", "").strip() or default_owner(),
+            owner=default_owner(env.get("VERIFICATION_WORKER_ID", "").strip() or None),
             verifier_image=env.get("VERIFIER_IMAGE", "").strip() or DEFAULT_IMAGE,
             verifier_version=verifier_version or "development",
             container_digest=container_digest,

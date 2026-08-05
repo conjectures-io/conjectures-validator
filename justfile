@@ -2,7 +2,7 @@
 # optionally the verification worker, deposit watcher, and emissions worker.
 #
 #   just up            # db -> migrate -> api
-#   just up-worker     # ... and the verification worker
+#   just up-worker     # ... and the development verification worker
 #   just up-watcher    # ... and the deposit watcher
 #   just up-emissions  # ... and the Subnet 66 epoch weight setter
 #   just up-all        # ... and all three workers
@@ -62,7 +62,8 @@ up: _preflight
     {{ compose }} up -d --build
     @{{ compose }} ps
 
-# Build and start the whole stack including the verification worker.
+# Build and start the development stack including the insecure in-process verification worker.
+# Production uses deploy/worker/conjectures-verification-worker.service instead.
 up-worker: _preflight
     @echo "==> starting: db -> migrate -> api -> worker (as {{ uid }}:{{ gid }})"
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_worker }} up -d --build
@@ -85,7 +86,8 @@ up-emissions: _preflight _check-emissions
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} ps
 
-# Build and start everything: api, verification worker, deposit watcher, and emissions worker.
+# Build and start the complete development stack, including emissions. This is not a production
+# launcher because its verification worker intentionally uses the insecure in-process sandbox path.
 up-all: _preflight _check-watch _check-emissions
     @echo "==> starting: db -> migrate -> api -> worker -> watcher -> emissions (as {{ uid }}:{{ gid }})"
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} up -d --build

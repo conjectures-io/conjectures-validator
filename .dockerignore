@@ -1,4 +1,11 @@
 .git
+.env
+.env.*
+**/.env
+**/.env.*
+**/*.key
+**/*.pem
+**/.bittensor
 .elan
 .venv
 .tools

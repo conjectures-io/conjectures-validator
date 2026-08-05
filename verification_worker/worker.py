@@ -23,9 +23,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db import verification as queue
 from conjectures_subnet.db.engine import async_session_scope
-from conjectures_subnet.db.models import Submission
 from verification_worker.outcomes import Outcome, classify
-from verification_worker.runner import RunnerFailure, VerifierRunner
+from verification_worker.runner import (
+    RunnerFailure,
+    VerifierRunner,
+    assert_production_report,
+)
 from verification_worker.settings import WorkerSettings
 from verification_worker.tasks import TaskNotAllowed, TaskResolver
 from verifier.errors import ReasonCode
@@ -131,6 +134,18 @@ class VerificationWorker:
             return await self._operator(claim, ReasonCode.INTERNAL_ERROR, str(exc))
         finished_at = datetime.now(UTC)
 
+        if self.settings.production:
+            try:
+                assert_production_report(
+                    run,
+                    expected_task_id=claim.task_id,
+                    expected_task_sha256=claim.task_bundle_sha256,
+                    expected_submission_sha256=claim.proof_digest,
+                    expected_nanoda_enabled=task.enable_nanoda,
+                )
+            except RunnerFailure as exc:
+                return await self._operator(claim, ReasonCode.INTERNAL_ERROR, str(exc))
+
         outcome = self._outcome_of(run.reason_code)
         if outcome is Outcome.OPERATOR:
             return await self._operator(claim, run.reason_code, f"stage={run.stage}")
@@ -156,10 +171,18 @@ class VerificationWorker:
             )
 
         async with async_session_scope(self.sessions) as session:
-            submission = await session.get(Submission, claim.submission_id)
-            if submission is None:  # pragma: no cover - it was claimed moments ago
-                return await self._operator(
-                    claim, ReasonCode.INTERNAL_ERROR, "submission disappeared"
+            submission = await queue.lock_owned_for_recording(
+                session, claim.submission_id, owner=self.settings.owner
+            )
+            if submission is None:
+                logger.warning(
+                    "lost lease before recording submission=%s", claim.submission_id
+                )
+                return Processed(
+                    submission_id=claim.submission_id,
+                    outcome=Outcome.OPERATOR,
+                    reason_code=LEASE_LOST,
+                    attempts=claim.attempts,
                 )
             verdict = await store.record_verification_result(
                 session,

@@ -33,6 +33,7 @@ class ResolvedTask:
     task_dir: Path
     task_bundle_sha256: str  # sha256:<hex>, as published in the allowlist
     timeout_seconds: int  # the manifest's own deadline, which the verifier enforces
+    enable_nanoda: bool = False
 
 
 class TaskResolver(Protocol):
@@ -83,6 +84,7 @@ class PoolTaskResolver:
                     task_dir=task_dir,
                     task_bundle_sha256=allowed.task_bundle_sha256,
                     timeout_seconds=bundle.manifest.timeout_seconds,
+                    enable_nanoda=bundle.manifest.enable_nanoda,
                 )
         missing = sorted(set(registry.tasks) - set(resolved))
         if missing:

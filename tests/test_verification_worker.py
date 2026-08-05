@@ -8,6 +8,8 @@ from silently defaulting either way.
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -21,13 +23,22 @@ from verification_worker.outcomes import (
 from verification_worker.runner import (
     CONTAINER_PROOF_PATH,
     CONTAINER_TASK_DIR,
+    MAX_CONTAINER_STDERR_BYTES,
+    MAX_CONTAINER_STDOUT_BYTES,
     ContainerVerifierRunner,
     RunnerFailure,
+    VerifierRun,
+    _read_bounded,
     _report_from,
+    assert_container_ready,
+    assert_production_report,
+    build_runner,
 )
 from verification_worker.settings import SettingsError, WorkerSettings
 from verification_worker.tasks import PoolTaskResolver, TaskNotAllowed
 from verifier.errors import ReasonCode
+from verifier.hashing import canonical_json_bytes
+from verifier.models import DEFAULT_CHECKS
 from verifier.repository import tasks_repository_root
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,6 +110,45 @@ def report(**overrides) -> dict:
     return payload
 
 
+def production_report(**overrides) -> dict:
+    checks = {key: True for key in DEFAULT_CHECKS}
+    checks["nanoda_enabled"] = False
+    checks["nanoda_passed"] = False
+    payload = {
+        "schema_version": 2,
+        "problem_id": "fc-fixture-problem",
+        "task_id": "fc-fixture-task",
+        "repository_commit": "ab" * 20,
+        "source_theorem": "Fixture.target",
+        "task_mode": "formalized",
+        "task_bundle_sha256": TASK_DIGEST,
+        "submission_sha256": "sha256:" + "ef" * 32,
+        "accepted": True,
+        "stage": "COMPLETED",
+        "reason_code": "VERIFIED",
+        "checks": checks,
+        "theorem_names": ["Bounty.target"],
+        "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"],
+        "duration_ms": 1,
+        "comparator_exit_code": 0,
+        "stdout_tail": "",
+        "stderr_tail": "",
+        "workspace_retained": False,
+        "sandbox_mode": "landrun+seccomp",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def verifier_run(payload: dict) -> VerifierRun:
+    return VerifierRun(
+        report=payload,
+        report_bytes=canonical_json_bytes(payload),
+        container_digest="sha256:" + "cd" * 32,
+        verifier_version="test",
+    )
+
+
 def test_a_full_report_is_read_back():
     import json
 
@@ -115,9 +165,94 @@ def test_the_cli_error_shape_is_a_runner_failure_not_a_rejection():
         _report_from(payload)
 
 
+def test_hostile_cli_error_cannot_inject_multiline_worker_logs():
+    payload = json.dumps(
+        {
+            "accepted": False,
+            "reason_code": "INTERNAL_ERROR",
+            "error": "miner-controlled\nforged-log-line",
+        }
+    ).encode()
+    with pytest.raises(RunnerFailure) as failure:
+        _report_from(payload)
+    assert "miner-controlled\\nforged-log-line" in str(failure.value)
+    assert "miner-controlled\nforged-log-line" not in str(failure.value)
+
+
 def test_output_that_is_not_json_is_a_runner_failure():
     with pytest.raises(RunnerFailure, match="no JSON report"):
         _report_from(b"Traceback (most recent call last):")
+
+
+@pytest.mark.parametrize(
+    "overrides, message",
+    [
+        ({"accepted": 1}, "accepted must be a JSON boolean"),
+        ({"checks": {"lean_kernel_passed": "true"}}, "JSON booleans"),
+    ],
+)
+def test_report_type_confusion_is_refused(overrides, message):
+    with pytest.raises(RunnerFailure, match=message):
+        _report_from(json.dumps(report(**overrides)).encode())
+
+
+def test_production_acceptance_is_bound_to_the_exact_task_and_proof():
+    run = verifier_run(production_report())
+    assert_production_report(
+        run,
+        expected_task_id="fc-fixture-task",
+        expected_task_sha256=TASK_DIGEST,
+        expected_submission_sha256="sha256:" + "ef" * 32,
+        expected_nanoda_enabled=False,
+    )
+
+    with pytest.raises(RunnerFailure, match="proof digest"):
+        assert_production_report(
+            run,
+            expected_task_id="fc-fixture-task",
+            expected_task_sha256=TASK_DIGEST,
+            expected_submission_sha256="sha256:" + "11" * 32,
+            expected_nanoda_enabled=False,
+        )
+
+
+def test_production_acceptance_requires_every_security_check():
+    checks = dict(production_report()["checks"])
+    checks["axioms_permitted"] = False
+    run = verifier_run(production_report(checks=checks))
+
+    with pytest.raises(RunnerFailure, match="axioms_permitted"):
+        assert_production_report(
+            run,
+            expected_task_id="fc-fixture-task",
+            expected_task_sha256=TASK_DIGEST,
+            expected_submission_sha256="sha256:" + "ef" * 32,
+            expected_nanoda_enabled=False,
+        )
+
+
+def test_production_rejects_retained_hostile_workspaces():
+    run = verifier_run(production_report(workspace_retained=True))
+    with pytest.raises(RunnerFailure, match="workspace was retained"):
+        assert_production_report(
+            run,
+            expected_task_id="fc-fixture-task",
+            expected_task_sha256=TASK_DIGEST,
+            expected_submission_sha256="sha256:" + "ef" * 32,
+            expected_nanoda_enabled=False,
+        )
+
+
+def test_production_report_cannot_disable_the_tasks_second_kernel():
+    run = verifier_run(production_report())
+    with pytest.raises(RunnerFailure, match="Nanoda policy"):
+        assert_production_report(
+            run,
+            expected_task_id="fc-fixture-task",
+            expected_task_sha256=TASK_DIGEST,
+            expected_submission_sha256="sha256:" + "ef" * 32,
+            expected_nanoda_enabled=True,
+        )
 
 
 # --- the container invocation --------------------------------------------------------
@@ -147,6 +282,10 @@ def test_the_container_command_matches_the_hardened_profile():
     assert "--security-opt no-new-privileges:true" in joined
     assert "--cap-drop ALL" in joined
     assert "--rm" in argv
+    assert "--log-driver none" in joined
+    assert "--ipc none" in joined
+    assert "core=0:0" in argv
+    assert argv[argv.index("--memory-swap") + 1] == container_runner().memory
 
     # Exactly one task, read-only, rather than the whole pool.
     assert f"/pool/tier-1/task:{CONTAINER_TASK_DIR}:ro" in argv
@@ -171,6 +310,45 @@ def test_the_container_is_named_so_a_timeout_can_kill_it():
     assert argv[argv.index("--name") + 1] == "conjectures-verify-abc"
 
 
+def test_the_doctor_uses_the_same_hardened_container_profile():
+    argv = container_runner().doctor_argv(name="conjectures-verifier-doctor-test")
+    joined = " ".join(argv)
+
+    assert "--network none" in joined
+    assert "--read-only" in argv
+    assert "--user 10001:10001" in joined
+    assert "--security-opt no-new-privileges:true" in joined
+    assert "--cap-drop ALL" in joined
+    assert argv[-2:] == ("formal-conjectures-verifier:local", "doctor")
+
+
+def test_production_preflight_requires_the_live_sandbox_probe(monkeypatch):
+    payload = {"ready": True, "sandbox": {"production_ready": False}}
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout=json.dumps(payload).encode(), stderr=b""
+        ),
+    )
+
+    with pytest.raises(RunnerFailure, match="sandbox_production_ready=False"):
+        assert_container_ready(container_runner())
+
+
+def test_production_preflight_accepts_a_ready_hardened_image(monkeypatch):
+    payload = {"ready": True, "sandbox": {"production_ready": True}}
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout=json.dumps(payload).encode(), stderr=b""
+        ),
+    )
+
+    assert_container_ready(container_runner())
+
+
 def test_a_bad_task_digest_never_reaches_the_container():
     import asyncio
 
@@ -181,6 +359,40 @@ def test_a_bad_task_digest_never_reaches_the_container():
                 proof=b"theorem x : True := trivial",
                 expected_task_sha256="not-a-digest",
                 timeout_seconds=5,
+            )
+        )
+
+
+def test_container_output_is_drained_but_never_buffered_without_bound():
+    import asyncio
+
+    async def scenario():
+        stream = asyncio.StreamReader()
+        stream.feed_data(b"a" * 17)
+        stream.feed_eof()
+        return await _read_bounded(stream, 8)
+
+    value, overflow = asyncio.run(scenario())
+    assert value == b"a" * 8
+    assert overflow
+    assert MAX_CONTAINER_STDOUT_BYTES <= 1024 * 1024
+    assert MAX_CONTAINER_STDERR_BYTES <= 256 * 1024
+
+
+def test_host_runner_refuses_a_container_that_floods_stdout():
+    import asyncio
+    import sys
+
+    with pytest.raises(RunnerFailure, match="output exceeded"):
+        asyncio.run(
+            container_runner()._communicate(
+                (
+                    sys.executable,
+                    "-c",
+                    f"import sys; sys.stdout.write('x' * {MAX_CONTAINER_STDOUT_BYTES + 1})",
+                ),
+                "not-a-container",
+                5,
             )
         )
 
@@ -207,6 +419,70 @@ def test_production_requires_an_explicit_verifier_version():
         WorkerSettings.from_env({"APP_MODE": "PROD"})
 
 
+def production_env(**overrides: str) -> dict[str, str]:
+    values = {
+        "APP_MODE": "PROD",
+        "DATABASE_URL": "postgresql+psycopg://worker:test@127.0.0.1/conjectures",
+        "VERIFICATION_RUNNER": "container",
+        "VERIFIER_VERSION": "release-test",
+        "VERIFIER_IMAGE": "formal-conjectures-verifier:release",
+        "VERIFIER_CONTAINER_DIGEST": "sha256:" + "cd" * 32,
+    }
+    values.update(overrides)
+    return values
+
+
+def test_production_requires_an_explicit_container_digest():
+    values = production_env()
+    del values["VERIFIER_CONTAINER_DIGEST"]
+    with pytest.raises(SettingsError, match="VERIFIER_CONTAINER_DIGEST"):
+        WorkerSettings.from_env(values)
+
+
+def test_production_requires_an_explicit_database_url():
+    values = production_env()
+    del values["DATABASE_URL"]
+    with pytest.raises(SettingsError, match="DATABASE_URL"):
+        WorkerSettings.from_env(values)
+
+
+def test_production_preflight_refuses_development_mode(monkeypatch):
+    import argparse
+    import asyncio
+
+    from verification_worker.__main__ import _run
+
+    monkeypatch.delenv("APP_MODE", raising=False)
+    with pytest.raises(SettingsError, match="requires APP_MODE=PROD"):
+        asyncio.run(_run(argparse.Namespace(check=True, once=False, limit=None)))
+
+
+def test_the_worker_runs_the_inspected_image_id_not_its_mutable_tag(monkeypatch):
+    from verification_worker import runner as runner_module
+
+    digest = "sha256:" + "cd" * 32
+    checked = []
+    monkeypatch.setattr(runner_module, "resolve_container_digest", lambda *_: digest)
+    monkeypatch.setattr(runner_module, "assert_container_ready", checked.append)
+
+    runner = build_runner(WorkerSettings.from_env(production_env()))
+
+    assert isinstance(runner, ContainerVerifierRunner)
+    assert runner.image == digest
+    assert runner.container_digest == digest
+    assert checked == [runner]
+
+
+def test_production_refuses_an_image_that_does_not_match_the_pin(monkeypatch):
+    from verification_worker import runner as runner_module
+
+    actual = "sha256:" + "ef" * 32
+    monkeypatch.setattr(runner_module, "resolve_container_digest", lambda *_: actual)
+
+    with pytest.raises(RunnerFailure, match="not configured VERIFIER_CONTAINER_DIGEST"):
+        build_runner(WorkerSettings.from_env(production_env()))
+
+
 def test_development_needs_no_configuration_at_all():
     settings = WorkerSettings.from_env({})
     assert not settings.production
@@ -214,6 +490,19 @@ def test_development_needs_no_configuration_at_all():
     assert settings.owner  # host/pid, so a lease can be traced to a process
     # The isolation override is opt-in. A deployment that says nothing gets the real sandbox.
     assert settings.allow_insecure_sandbox is False
+
+
+def test_each_worker_process_gets_a_unique_lease_owner_token():
+    first = WorkerSettings.from_env({"VERIFICATION_WORKER_ID": "validator-a"})
+    second = WorkerSettings.from_env({"VERIFICATION_WORKER_ID": "validator-a"})
+    assert first.owner.startswith("validator-a/")
+    assert second.owner.startswith("validator-a/")
+    assert first.owner != second.owner
+
+
+def test_worker_label_cannot_overflow_the_database_lease_field():
+    with pytest.raises(SettingsError, match="too long"):
+        WorkerSettings.from_env({"VERIFICATION_WORKER_ID": "x" * 128})
 
 
 def test_task_repository_root_configures_both_worker_pool_paths(tmp_path: Path):
@@ -262,6 +551,40 @@ def test_the_lease_covers_the_container_which_covers_the_task_deadline():
     # gets written under an expired lease.
     assert settings.container_timeout(3600) > 3600
     assert settings.lease_seconds(3600) > settings.container_timeout(3600)
+
+
+def test_final_verdict_query_requires_a_live_owned_lease_and_row_lock():
+    import asyncio
+    import uuid
+
+    from sqlalchemy.dialects import postgresql
+
+    from conjectures_subnet.db import verification as queue
+
+    captured = {}
+
+    class EmptyResult:
+        def scalar_one_or_none(self):
+            return None
+
+    class Session:
+        async def execute(self, statement):
+            captured["sql"] = str(statement.compile(dialect=postgresql.dialect()))
+            return EmptyResult()
+
+    result = asyncio.run(
+        queue.lock_owned_for_recording(
+            Session(),  # type: ignore[arg-type]
+            uuid.uuid4(),
+            owner="worker/session-token",
+        )
+    )
+    assert result is None
+    sql = captured["sql"]
+    assert "verification_status" in sql
+    assert "verification_lease_owner" in sql
+    assert "verification_lease_until >= now()" in sql
+    assert "FOR UPDATE" in sql
 
 
 def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
