@@ -34,11 +34,19 @@ from conftest_api import (
 
 from submission_api.routers.catalog import PSEUDONYM_LENGTH
 from verifier.models import Classification
+from verifier.task_generator import task_id as build_task_id
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
     reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
 )
+
+# The stable slugs of the three fixture conjectures, derived from their theorems rather than from
+# their task ids. Spelled out rather than computed, so a change to slug derivation shows up here
+# as a diff a reviewer has to agree with — these strings are a public contract.
+OPEN_DIRECT = "erdos11-erdos-11"
+SOLVED_DIRECT = "erdos12-erdos-12"
+OPEN_ANSWER = "erdos13-erdos-13"
 
 
 def run(coroutine):
@@ -112,9 +120,9 @@ def test_the_list_publishes_every_conjecture_with_its_facets():
             assert body["total"] == 3
             assert body["repository_commit"] == REPOSITORY_COMMIT
             assert [item["slug"] for item in body["items"]] == [
-                "open-answer",
-                "open-direct",
-                "solved-direct",
+                OPEN_DIRECT,
+                SOLVED_DIRECT,
+                OPEN_ANSWER,
             ]
 
             facets = {facet["field"]: facet["values"] for facet in body["facets"]}
@@ -172,10 +180,10 @@ def test_filters_combine_and_the_open_flag_is_its_own_axis():
             both = await _get(
                 kit, "/v1/catalog/conjectures", is_open="true", classification="DIRECT_PROP"
             )
-            assert [item["slug"] for item in both.json()["items"]] == ["open-direct"]
+            assert [item["slug"] for item in both.json()["items"]] == [OPEN_DIRECT]
 
             closed = await _get(kit, "/v1/catalog/conjectures", is_open="false")
-            assert [item["slug"] for item in closed.json()["items"]] == ["solved-direct"]
+            assert [item["slug"] for item in closed.json()["items"]] == [SOLVED_DIRECT]
             assert closed.json()["items"][0]["is_open"] is False
         finally:
             await kit.teardown()
@@ -188,7 +196,7 @@ def test_the_free_text_filter_is_a_substring_test_over_published_fields():
         kit = await harness(entries=pool()).setup()
         try:
             hit = await _get(kit, "/v1/catalog/conjectures", q="ERDOS13")
-            assert [item["slug"] for item in hit.json()["items"]] == ["open-answer"]
+            assert [item["slug"] for item in hit.json()["items"]] == [OPEN_ANSWER]
 
             # Not a pattern. A regular expression is data, not syntax, so it matches nothing
             # rather than being compiled — an anonymous caller cannot spend CPU on backtracking.
@@ -227,19 +235,27 @@ def test_the_detail_serves_the_audited_challenge_and_the_machine_contract():
     async def scenario():
         kit = await harness(entries=pool()).setup()
         try:
-            response = await _get(kit, "/v1/catalog/conjectures/open-direct")
+            response = await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")
             assert response.status_code == 200, response.text
             body = response.json()
 
-            assert body["slug"] == "open-direct"
+            assert body["slug"] == OPEN_DIRECT
             assert body["title"] == "Erdos11.erdos_11"
             assert body["is_open"] is True
-            # The exact bytes hashed into the published commitment, not a re-read from disk.
-            assert body["challenge_lean"] == CHALLENGE_LEAN
+            # The stable identity the slug comes from, and the per-revision one that moves.
+            assert body["reward_target_id"] == "fc-target:Erdos11.erdos_11"
+            assert body["problem_id"]
 
-            contract = body["machine_contract"]
+            # The Lean source and the contract belong to a *task*, one per attack direction, so
+            # they live under `tasks` rather than on the conjecture.
+            assert [task["task_id"] for task in body["tasks"]] == ["open-direct"]
+            task = body["tasks"][0]
+            # The exact bytes hashed into the published commitment, not a re-read from disk.
+            assert task["challenge_lean"] == CHALLENGE_LEAN
+
+            contract = task["machine_contract"]
             assert contract["reward_target_id"] == "fc-target:Erdos11.erdos_11"
-            assert contract["task_bundle_sha256"] == body["machine_contract"]["task_bundle_sha256"]
+            assert contract["task_bundle_sha256"] == task["task_bundle_sha256"]
             assert contract["bundle_format"] == "conjectures-submission/v1"
             assert contract["target_theorem"]
             assert contract["permitted_axioms"]
@@ -272,7 +288,7 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
         )
         kit = await harness(entries=(task_entry(task_id="cited", source=source),)).setup()
         try:
-            body = (await _get(kit, "/v1/catalog/conjectures/cited")).json()
+            body = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
             assert body["references"] == [
                 {
                     "label": "erdosproblems.com/11",
@@ -281,6 +297,88 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
                 # A reference that is not a link still arrives usable rather than dropped.
                 {"label": "Erdős, 1950", "url": None},
             ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_both_attack_directions_appear_on_one_conjecture_page():
+    """A conjecture is issued as two tasks. The website shows one page with two directions on it,
+    not two pages that look like duplicates.
+    """
+
+    async def scenario():
+        source = declaration(
+            theorem="Erdos11.erdos_11",
+            classification=Classification.DIRECT_PROP,
+            category="research open",
+        )
+        entries = (
+            task_entry(task_id="prove-it", source=source, task_mode="formalized"),
+            task_entry(
+                task_id="refute-it",
+                digest="sha256:" + "cd" * 32,
+                source=source,
+                task_mode="counterexample",
+                mode="counterexample",
+            ),
+        )
+        kit = await harness(entries=entries).setup()
+        try:
+            listing = (await _get(kit, "/v1/catalog/conjectures")).json()
+            assert listing["total"] == 1
+            item = listing["items"][0]
+            assert item["slug"] == OPEN_DIRECT
+            assert item["task_modes"] == ["formalized", "counterexample"]
+            assert [task["task_id"] for task in item["tasks"]] == ["prove-it", "refute-it"]
+
+            # Both task ids resolve to the same page, because they are the same conjecture.
+            for task_id in ("prove-it", "refute-it"):
+                moved = await _get(kit, f"/v1/catalog/conjectures/{task_id}")
+                assert moved.status_code == 301, moved.text
+                assert moved.headers["location"] == f"/v1/catalog/conjectures/{OPEN_DIRECT}"
+
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
+            assert len(detail["tasks"]) == 2
+            assert {task["task_mode"] for task in detail["tasks"]} == {
+                "formalized",
+                "counterexample",
+            }
+            # `meta` counts conjectures, so two tasks are one conjecture here.
+            assert (await _get(kit, "/v1/catalog/meta")).json()["conjectures"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_task_id_url_from_an_earlier_pin_is_redirected_not_404ed():
+    """The cutover case. A link built from a task id — either one this API published before slugs
+    existed, or one copied out of a bundle — must survive, including after the rotation that
+    retires that task id.
+    """
+
+    async def scenario():
+        kit = await harness(entries=pool()).setup()
+        try:
+            # A task id naming a commit this pool has never seen.
+            stale = build_task_id("f" * 40, "Erdos11.erdos_11", "formalized", 1)
+            moved = await _get(kit, f"/v1/catalog/conjectures/{stale}")
+            assert moved.status_code == 301, moved.text
+            assert moved.headers["location"] == f"/v1/catalog/conjectures/{OPEN_DIRECT}"
+
+            # The suffix is preserved, so a bookmarked activity URL lands on activity.
+            moved = await _get(kit, f"/v1/catalog/conjectures/{stale}/activity")
+            assert moved.status_code == 301
+            assert (
+                moved.headers["location"]
+                == f"/v1/catalog/conjectures/{OPEN_DIRECT}/activity"
+            )
+
+            # A task id for a theorem this pool does not carry is still a 404, not a guess.
+            absent = build_task_id("f" * 40, "Erdos99.erdos_99", "formalized", 1)
+            assert (await _get(kit, f"/v1/catalog/conjectures/{absent}")).status_code == 404
         finally:
             await kit.teardown()
 
@@ -458,7 +556,7 @@ def test_activity_counts_attempts_and_never_names_a_solver():
             first = await _submit(kit, hotkey=HOTKEY, payment_reference="0xpay-0001")
             assert first.status_code == 201, first.text
 
-            response = await _get(kit, "/v1/catalog/conjectures/open-direct/activity")
+            response = await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}/activity")
             assert response.status_code == 200, response.text
             body = response.json()
 
@@ -486,9 +584,13 @@ def test_activity_counts_attempts_and_never_names_a_solver():
 def test_a_solver_pseudonym_is_stable_per_conjecture_and_unlinkable_across_them():
     """Two attempts by one miner on one conjecture read as the same solver.
 
-    The same miner on a different conjecture must not. The task id is inside the MAC, so a
-    reader can count distinct solvers per conjecture without being able to rebuild one miner's
-    history across the catalog.
+    The same miner on a different conjecture must not. The conjecture's reward target is inside
+    the MAC, so a reader can count distinct solvers per conjecture without being able to rebuild
+    one miner's history across the catalog.
+
+    Keyed on the reward target rather than on a task id, which matters now that a conjecture page
+    shows both attack directions: a task-keyed MAC would give one miner two pseudonyms on one
+    page, and would rename every solver at each pin rotation.
     """
 
     async def scenario():
@@ -498,7 +600,7 @@ def test_a_solver_pseudonym_is_stable_per_conjecture_and_unlinkable_across_them(
             await _submit(kit, hotkey=OTHER_HOTKEY, payment_reference="0xpay-0002")
 
             here = (
-                await _get(kit, "/v1/catalog/conjectures/open-direct/activity")
+                await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}/activity")
             ).json()
             pseudonyms = {item["solver"] for item in here["items"]}
             assert len(pseudonyms) == 2
@@ -507,9 +609,9 @@ def test_a_solver_pseudonym_is_stable_per_conjecture_and_unlinkable_across_them(
             # Same salt, same hotkey, different conjecture: a different pseudonym.
             from submission_api.routers.catalog import _pseudonym
 
-            assert _pseudonym(kit.settings, "open-direct", HOTKEY) != _pseudonym(
-                kit.settings, "open-answer", HOTKEY
-            )
+            assert _pseudonym(
+                kit.settings, "fc-target:Erdos11.erdos_11", HOTKEY
+            ) != _pseudonym(kit.settings, "fc-target:Erdos13.erdos_13", HOTKEY)
         finally:
             await kit.teardown()
 
@@ -521,10 +623,10 @@ def test_activity_for_a_conjecture_with_no_attempts_is_empty_not_missing():
         kit = await harness(entries=pool()).setup()
         try:
             body = (
-                await _get(kit, "/v1/catalog/conjectures/open-answer/activity")
+                await _get(kit, f"/v1/catalog/conjectures/{OPEN_ANSWER}/activity")
             ).json()
             assert body == {
-                "slug": "open-answer",
+                "slug": OPEN_ANSWER,
                 "attempts": 0,
                 "solvers": 0,
                 "verified": 0,

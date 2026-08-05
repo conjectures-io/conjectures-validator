@@ -46,6 +46,7 @@ from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
 from submission_api.verification import QueueDispatcher
 from verifier.models import CatalogDeclaration, Classification
+from verifier.task_pool import reward_target_identity
 
 TASK_ID = "fixture"
 TIER = "tier-1"
@@ -225,7 +226,7 @@ def task_entry(
     classification: Classification | None = None,
     task_mode: str | None = None,
     problem_id: str = PROBLEM_ID,
-    reward_target_id: str = "fc-target:Erdos11.erdos_11",
+    reward_target_id: str | None = None,
     mode: str = "formalized",
     **manifest_kwargs,
 ) -> TaskEntry:
@@ -235,7 +236,15 @@ def task_entry(
     public catalog facets read the manifest, because what a solver filters on is the task's
     contract rather than the upstream declaration's own label, and `conftest.manifest()` has
     neither as a parameter.
+
+    `reward_target_id` defaults to the identity of the source theorem, exactly as
+    `verifier.task_registry` requires of a real allowlist. Two entries built from one declaration
+    therefore group into one conjecture and share a slug — which is what the two attack directions
+    of a conjecture do — and entries built from different declarations do not.
     """
+    resolved_source = source if source is not None else declaration()
+    if reward_target_id is None:
+        reward_target_id = reward_target_identity(resolved_source.theorem)
     manifest = task_manifest(**manifest_kwargs)
     patch = {}
     if classification is not None:
@@ -255,7 +264,7 @@ def task_entry(
         # The pool is tiered, so bytes live under the tier, not directly under the root.
         task_dir=Path("/external-task-pool") / tier / task_id,
         manifest=manifest,
-        source=source if source is not None else declaration(),
+        source=resolved_source,
         challenge_lean=challenge_lean,
     )
 

@@ -38,7 +38,7 @@ Task discovery is unauthenticated because the task pool and its digests are publ
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/v1/catalog/conjectures` | Conjecture list with filters and facet counts |
-| `GET` | `/v1/catalog/conjectures/{slug}` | Statement, `Challenge.lean`, references, machine contract |
+| `GET` | `/v1/catalog/conjectures/{slug}` | Statement, references, and one `Challenge.lean` plus machine contract per attack direction. `slug` is the stable public identity, **not** the `task_id` a bundle commits to; a task-id URL answers `301` to it |
 | `GET` | `/v1/catalog/conjectures/{slug}/activity` | Anonymised per-conjecture activity |
 | `GET` | `/v1/catalog/meta` | Pool counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | Certified results, keyset-paginated |
