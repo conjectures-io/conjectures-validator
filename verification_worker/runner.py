@@ -129,7 +129,13 @@ class VerifierRun:
 
 
 class VerifierRunner(Protocol):
-    container_digest: str
+    # A property, not `container_digest: str`. The bare annotation declares a WRITABLE attribute,
+    # which no frozen dataclass can satisfy — and both implementations are frozen on purpose: the
+    # digest identifies the bytes that decide a verdict and must not be reassignable at runtime.
+    @property
+    def container_digest(self) -> str:
+        """The immutable image ID this runner records against every verdict."""
+        ...
 
     async def run(
         self,
@@ -226,7 +232,14 @@ def assert_production_report(
         raise RunnerFailure("verifier report task_id does not match the claimed submission")
     if report["task_bundle_sha256"] != expected_task_sha256:
         raise RunnerFailure("verifier report task digest does not match the claimed submission")
-    if report["submission_sha256"] != expected_submission_sha256:
+    # An accept must name the exact proof; that binding is what a payout rests on. A rejection may
+    # legitimately not name it: the verifier reports an empty digest for anything decided before it
+    # reads the submission — a task that fails to load, a file over the size cap — because it has
+    # not hashed anything yet. Treating that as a mismatch replaced the real reason_code with
+    # INTERNAL_ERROR and parked paid submissions at the attempt limit. A non-empty digest still has
+    # to agree, so a rejection about the wrong proof is still refused.
+    reported_proof = report["submission_sha256"]
+    if reported_proof != expected_submission_sha256 and (report["accepted"] or reported_proof):
         raise RunnerFailure("verifier report proof digest does not match the stored proof")
     if report["workspace_retained"] is not False:
         raise RunnerFailure("production verifier report says the hostile workspace was retained")

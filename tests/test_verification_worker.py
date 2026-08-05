@@ -628,3 +628,62 @@ def test_the_resolver_refuses_a_pool_missing_an_allowlisted_task(tmp_path: Path)
         PoolTaskResolver.load(
             allowlist_path=TASKS_ROOT / "allowlist.json", pool_root=tmp_path
         )
+
+
+def test_a_rejection_decided_before_the_submission_was_read_is_not_a_digest_mismatch():
+    """The verifier hashes the submission only once it loads it, and reports "" until then.
+
+    A task that fails to load, or a file over the size cap, is a rejection the verifier reached
+    honestly. Refusing it for naming no proof turned every such verdict into INTERNAL_ERROR and
+    parked paid submissions at the attempt limit instead of recording the reason.
+    """
+    run = verifier_run(
+        production_report(
+            accepted=False,
+            reason_code="REPOSITORY_COMMIT_MISMATCH",
+            stage="LOAD_TASK",
+            submission_sha256="",
+            comparator_exit_code=None,
+            sandbox_mode="not-started",
+        )
+    )
+    assert_production_report(
+        run,
+        expected_task_id="fc-fixture-task",
+        expected_task_sha256=TASK_DIGEST,
+        expected_submission_sha256="sha256:" + "ef" * 32,
+        expected_nanoda_enabled=False,
+    )
+
+
+def test_an_accept_must_still_name_the_exact_proof():
+    """The empty-digest allowance is for rejections only; an accept is what a payout rests on."""
+    run = verifier_run(production_report(submission_sha256=""))
+    with pytest.raises(RunnerFailure, match="proof digest"):
+        assert_production_report(
+            run,
+            expected_task_id="fc-fixture-task",
+            expected_task_sha256=TASK_DIGEST,
+            expected_submission_sha256="sha256:" + "ef" * 32,
+            expected_nanoda_enabled=False,
+        )
+
+
+def test_a_rejection_about_a_different_proof_is_still_refused():
+    """Only an absent digest is tolerated. A present one that disagrees is a real mismatch."""
+    run = verifier_run(
+        production_report(
+            accepted=False,
+            reason_code="LEAN_KERNEL_FAILED",
+            stage="COMPARATOR",
+            submission_sha256="sha256:" + "11" * 32,
+        )
+    )
+    with pytest.raises(RunnerFailure, match="proof digest"):
+        assert_production_report(
+            run,
+            expected_task_id="fc-fixture-task",
+            expected_task_sha256=TASK_DIGEST,
+            expected_submission_sha256="sha256:" + "ef" * 32,
+            expected_nanoda_enabled=False,
+        )
