@@ -33,6 +33,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header, Path, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import intents as intent_store
@@ -319,6 +320,19 @@ async def create_intent(
         now=_now(),
     )
     await session.commit()
+    # A held credit is money committed, so the three intent events are the funnel an operator
+    # reads: opened, bundle stored, committed. A gap between the first and the last is either
+    # abandoned intents or a step that is failing.
+    get_axiom().info(
+        source="api-intents",
+        event_type="intent_opened",
+        intent_id=str(intent.id),
+        account_id=str(principal.account.id),
+        hotkey=payload.hotkey,
+        task_id=entry.task_id,
+        credit_price_rao=settings.payment_amount_rao,
+        expires_in_minutes=settings.intent_minutes,
+    )
     return _intent(intent)
 
 
@@ -375,6 +389,16 @@ async def upload_bundle(
         now=_now(),
     )
     await session.commit()
+    get_axiom().info(
+        source="api-intents",
+        event_type="intent_bundle_stored",
+        intent_id=str(intent.id),
+        account_id=str(principal.account.id),
+        hotkey=intent.hotkey,
+        task_id=intent.task_id,
+        proof_sha256=bundle.proof.sha256,
+        proof_bytes=len(bundle.proof.raw),
+    )
     return schemas.IntentBundleResult(
         intent=_intent(intent),
         proof_sha256=bundle.proof.sha256,
@@ -467,6 +491,35 @@ async def confirm_intent(
 
     await services.dispatcher.dispatch(session, confirmed.submission, entry.task_dir)
     await session.commit()
+
+    # After the commit that made the debit and the submission atomic, so this is never reported
+    # for a spend that rolled back. Two events rather than one: `intent_committed` closes the
+    # intent funnel, `submission_accepted` opens the verification one, and the two paths into
+    # intake — this one and the extrinsic one in `submissions.py` — share the second.
+    get_axiom().info(
+        source="api-intents",
+        event_type="intent_committed",
+        intent_id=str(identifier),
+        account_id=str(principal.account.id),
+        submission_id=str(confirmed.submission.id),
+        credits_available=confirmed.balance.credits_available,
+        low_balance=confirmed.balance.low_balance,
+    )
+    get_axiom().info(
+        source="api-intents",
+        event_type="submission_accepted",
+        submission_id=str(confirmed.submission.id),
+        account_id=str(principal.account.id),
+        hotkey=intent.hotkey,
+        task_id=intent.task_id,
+        problem_id=entry.problem_id,
+        reward_target_id=entry.reward_target_id,
+        task_mode=entry.mode,
+        funding="credit-intent",
+        bounty_amount_rao=quote.amount_rao,
+        bounty_policy_version=quote.policy_version,
+        manual_review_required=settings.manual_review_enabled,
+    )
 
     view = await _reload(session, confirmed.submission)
     return schemas.ConfirmedSubmission(

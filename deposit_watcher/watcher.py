@@ -23,6 +23,13 @@ threw away the first — and the cursor then advanced past both. `_scan_block` h
 **Attribution never guesses.** A transfer whose sending coldkey belongs to no account is recorded
 `UNATTRIBUTED` with the reason written on it, and it stays there for a human. Crediting a
 best-effort match would mean handing one account's money to another on a coincidence.
+
+The Axiom events here follow the same order, and are per *arrival* rather than per pass for the
+same reason the transactions are: `transfer_credited`, `transfer_unattributed`, `transfer_ignored`
+and `transfer_conflict` are emitted only after the transaction that decided them committed, so the
+dataset never claims a credit that was rolled back. `blocks_scanned` reports the pass itself, and
+is `debug` on a quiet range for the reason `_log_pass` gives — at one line per twelve seconds the
+empty ones would bury the rest.
 """
 
 from __future__ import annotations
@@ -35,6 +42,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from conjectures_subnet import transfers as chain
+from conjectures_subnet.axiom import Severity, get_axiom
 from conjectures_subnet.db import transfers as store
 from conjectures_subnet.db.engine import async_session_scope
 from conjectures_subnet.db.errors import RecordConflict
@@ -200,6 +208,18 @@ class DepositWatcher:
                 cursor.start_block,
                 cursor.start_block_timestamp.isoformat(),
             )
+            # Once in the lifetime of a deployment, and it fixes which transfers can ever buy
+            # credits — so it is worth a row that outlives the container that wrote it.
+            get_axiom().info(
+                source="deposit-watcher",
+                event_type="cursor_opened",
+                recipient=cursor.recipient,
+                netuid=cursor.netuid,
+                uid=cursor.uid,
+                watch_from=cursor.watch_from.isoformat(),
+                start_block=cursor.start_block,
+                start_block_timestamp=cursor.start_block_timestamp.isoformat(),
+            )
             return cursor
 
     def _require_same_watch(self, cursor: ChainWatchCursor) -> None:
@@ -325,6 +345,18 @@ class DepositWatcher:
             logger.info(
                 "transfer %s could not be settled: %s", arrival.reference, exc.message
             )
+            # `warning`: money has arrived that nothing could decide, and it now sits in the
+            # operator queue. Not an error — the row survived and the design says this is where
+            # such an arrival belongs — but not a routine info either.
+            get_axiom().warn(
+                source="deposit-watcher",
+                event_type="transfer_conflict",
+                extrinsic_reference=arrival.reference,
+                block=arrival.block,
+                amount_rao=arrival.amount_rao,
+                sender_coldkey=arrival.sender,
+                conflict=exc.message,
+            )
             async with async_session_scope(self.sessions) as session:
                 transfer = await session.get(ChainTransfer, transfer_id)
                 if transfer is not None:
@@ -367,6 +399,14 @@ class DepositWatcher:
 
         if arrival.sender == arrival.recipient:
             await store.ignore(session, transfer, note=SELF_TRANSFER)
+            get_axiom().info(
+                source="deposit-watcher",
+                event_type="transfer_ignored",
+                extrinsic_reference=arrival.reference,
+                block=arrival.block,
+                amount_rao=arrival.amount_rao,
+                reason="self_transfer",
+            )
             return Admitted(recorded=recorded, ignored=True)
 
         account_id = await store.account_for_coldkey(session, arrival.sender)
@@ -377,6 +417,18 @@ class DepositWatcher:
                 arrival.reference,
                 arrival.amount_rao,
                 arrival.sender,
+            )
+            # `warning` rather than `info`, unlike the log line above. Someone has sent this
+            # validator money it cannot attribute, and every one of these is a person waiting for
+            # credits that will not arrive until an operator works the queue.
+            get_axiom().warn(
+                source="deposit-watcher",
+                event_type="transfer_unattributed",
+                extrinsic_reference=arrival.reference,
+                block=arrival.block,
+                amount_rao=arrival.amount_rao,
+                sender_coldkey=arrival.sender,
+                reason="unknown_sender",
             )
             return Admitted(recorded=recorded, unattributed=True)
 
@@ -398,6 +450,20 @@ class DepositWatcher:
             account_id,
             transfer.credits_granted,
             arrival.amount_rao % self.settings.credit_price_rao,
+        )
+        get_axiom().info(
+            source="deposit-watcher",
+            event_type="transfer_credited",
+            extrinsic_reference=arrival.reference,
+            block=arrival.block,
+            amount_rao=arrival.amount_rao,
+            sender_coldkey=arrival.sender,
+            account_id=str(account_id),
+            credits_granted=transfer.credits_granted,
+            # Integer arithmetic all the way, as docs/SUBNET.md requires of amounts: this is the
+            # remainder in rao, never a fractional credit.
+            remainder_rao=arrival.amount_rao % self.settings.credit_price_rao,
+            credit_price_rao=self.settings.credit_price_rao,
         )
         return Admitted(
             recorded=recorded, credited=True, credits_granted=transfer.credits_granted
@@ -432,6 +498,16 @@ class DepositWatcher:
                 raise
             except Exception:
                 logger.exception("scan pass failed; the cursor did not move, retrying")
+                # `warning`, not `error`: a chain read that fails is expected of a node that is
+                # syncing or briefly unreachable, the cursor did not move, and the same blocks are
+                # read again next pass. What would be an error is this never stopping, which is a
+                # rate on this event rather than any single one of them.
+                get_axiom().exception(
+                    source="deposit-watcher",
+                    event_type="unexpected_error",
+                    severity=Severity.WARNING,
+                    watcher_id=self.settings.watcher_id,
+                )
                 scanned = None
             if scanned is not None:
                 self._log_pass(scanned)
@@ -460,6 +536,25 @@ class DepositWatcher:
             scanned.credits_granted,
             scanned.unattributed,
             scanned.ignored,
+        )
+        # Same severity rule as the log line, for the same reason — and it is why the bridge is not
+        # left to forward this one: a `debug`-severity event on an empty range keeps "is the watcher
+        # keeping up with the head" queryable without an event per twelve seconds at `info`.
+        get_axiom().emit(
+            severity=Severity.INFO if scanned.observed else Severity.DEBUG,
+            source="deposit-watcher",
+            event_type="blocks_scanned",
+            from_block=scanned.from_block,
+            through_block=scanned.through_block,
+            blocks=scanned.blocks,
+            observed=scanned.observed,
+            recorded=scanned.recorded,
+            credited=scanned.credited,
+            credits_granted=scanned.credits_granted,
+            unattributed=scanned.unattributed,
+            ignored=scanned.ignored,
+            errors=len(scanned.errors),
+            watcher_id=self.settings.watcher_id,
         )
 
 

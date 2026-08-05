@@ -30,6 +30,7 @@ from fastapi import APIRouter, Header, Path, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.axiom import Severity, get_axiom
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.errors import DatabaseError
@@ -360,8 +361,36 @@ async def create_submission(
         assert_fresh_nonce(nonce_ms, settings.nonce_window_seconds)
 
         # Payment last, and before any write: the schema has no unpaid state.
-        payment = await services.payments.confirm(
-            reference=payment_reference, hotkey=miner
+        try:
+            payment = await services.payments.confirm(
+                reference=payment_reference, hotkey=miner
+            )
+        except ApiError as exc:
+            # Recorded here rather than left to `_Audit`, which sees the same failure as a generic
+            # `submission_rejected`. The distinction matters: a refused payment can mean the
+            # miner cited a bad reference, or it can mean the chain reader cannot see finalized
+            # state — and only one of those is the validator's problem. `severity` follows the
+            # status, so a `503` from an unreachable node is an error and a `402` is a warning.
+            get_axiom().emit(
+                severity=Severity.ERROR if exc.status_code >= 500 else Severity.WARNING,
+                source="api-payments",
+                event_type="payment_rejected",
+                hotkey=miner,
+                payment_reference=payment_reference,
+                reason_code=exc.reason_code,
+                http_status=exc.status_code,
+                verifier=settings.payment_verifier,
+            )
+            raise
+        get_axiom().info(
+            source="api-payments",
+            event_type="payment_accepted",
+            hotkey=miner,
+            payment_reference=payment.reference,
+            payment_sender=payment.sender,
+            amount_rao=payment.amount_rao,
+            block=payment.block,
+            verifier=settings.payment_verifier,
         )
 
         view = await store.create_submission(
@@ -413,6 +442,27 @@ async def create_submission(
         await services.dispatcher.dispatch(session, view.submission, entry.task_dir)
         refreshed = await store.load_view(session, view.submission)
         await session.commit()
+        # After the commit that made the submission and the spend atomic. Same event type as the
+        # intent path emits, distinguished by `funding`, so "how many submissions did we take" is
+        # one query across both ways in.
+        get_axiom().info(
+            source="api-submissions",
+            event_type="submission_accepted",
+            submission_id=str(view.submission.id),
+            hotkey=miner,
+            task_id=task_id,
+            problem_id=entry.problem_id,
+            reward_target_id=entry.reward_target_id,
+            task_mode=str(task_mode),
+            funding="chain-extrinsic",
+            payment_reference=payment.reference,
+            payment_amount_rao=payment.amount_rao,
+            proof_sha256=bundle.proof.sha256,
+            proof_bytes=len(bundle.proof.raw),
+            bounty_amount_rao=quote.amount_rao,
+            bounty_policy_version=quote.policy_version,
+            manual_review_required=settings.manual_review_enabled,
+        )
         audit.disarm()
         return await _status(
             refreshed, services=services, session=session, quote=quote
@@ -504,6 +554,24 @@ class _Audit:
             await self._session.commit()
         except Exception:  # noqa: BLE001 - telemetry must never mask the real refusal
             await self._session.rollback()
+        # Outside the try: an Axiom emit is a queue put that cannot raise, and the event should be
+        # recorded whether or not the `api_rejection_log` write survived — the case where the
+        # database refused the row is precisely when the event is the only trace left.
+        #
+        # `warning`, matching the severity the request event gets for the same 4xx. A refused
+        # submission is usually the miner's bundle to fix; what makes it worth recording is that a
+        # payment-gated refusal may mean somebody paid and got nothing.
+        get_axiom().warn(
+            source="api-submissions",
+            event_type="submission_rejected",
+            reason_code=problem.reason_code,
+            http_status=problem.status_code,
+            hotkey=self.hotkey_claimed,
+            task_id=self.task_id,
+            payment_reference=self.payment_reference,
+            proof_digest=_bare_hex(self.proof_digest),
+            proof_byte_length=self.proof_byte_length,
+        )
         # Re-raise the original: the handler's own exception handlers shape the response.
         return False
 

@@ -24,6 +24,7 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import credits as credit_store
 from conjectures_subnet.db import digests
@@ -300,6 +301,17 @@ async def link_hotkey(
         session, principal.account, hotkey=hotkey, signature=signature
     )
     await session.commit()
+    # After the commit. A hotkey decides submission attribution and reward ownership, so the fact
+    # that this account now owns it is worth a durable record beyond the row itself. The address
+    # is on the event because a hotkey is already published with verified results — see
+    # DEFAULT_TERMS_VERSION in settings.py — unlike the email addresses in `api-auth`.
+    get_axiom().info(
+        source="api-me",
+        event_type="wallet_linked",
+        account_id=str(principal.account.id),
+        kind="hotkey",
+        hotkey=hotkey,
+    )
     return await account_response(session, principal.account)
 
 

@@ -28,6 +28,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db.models import Account, LoginChallengeKind
 from submission_api import login, mail, schemas_account as account_schemas, sessions
@@ -103,6 +104,7 @@ async def _sign_in(
     account: Account,
     settings: Settings,
     *,
+    method: str,
     user_agent: str | None,
     source_ip: str | None,
 ) -> account_schemas.SessionEnvelope:
@@ -122,6 +124,20 @@ async def _sign_in(
     )
     await session.commit()
     _set_session_cookies(response, issued, settings)
+    # After the commit, so a rolled-back sign-in is never reported as one. Both ways in funnel
+    # through here, so `method` is what distinguishes them.
+    #
+    # The account id, never the email address. An id is meaningless outside this database; an
+    # address is a person, and this endpoint is deliberately built so that not even its status
+    # code discloses who has an account here — shipping the address to a telemetry backend would
+    # undo that from the inside.
+    get_axiom().info(
+        source="api-auth",
+        event_type="login_completed",
+        account_id=str(account.id),
+        method=method,
+        email_verified=account.email_verified,
+    )
     return account_schemas.SessionEnvelope(
         account=await account_response(session, account)
     )
@@ -200,6 +216,11 @@ async def logout(
     """
     await account_store.revoke_session(session, principal.session.id)
     await session.commit()
+    get_axiom().info(
+        source="api-auth",
+        event_type="logout",
+        account_id=str(principal.account.id),
+    )
     for cookie in sessions.cleared_cookies(secure=services.settings.production):
         response.headers.append("Set-Cookie", cookie)
 
@@ -235,6 +256,18 @@ async def request_email_link(
         since=now - dt.timedelta(hours=1),
         email=payload.email,
     )
+    if sent >= settings.email_links_per_hour:
+        # No address on the event, for the reason `_sign_in` gives. What is worth recording is
+        # that the per-address ceiling is being hit at all: the response cannot say so — it is
+        # 202 either way, deliberately — so this is the only place it is visible.
+        get_axiom().warn(
+            source="api-auth",
+            event_type="login_link_sent",
+            delivered=False,
+            reason="rate_limited",
+            recent_requests=sent,
+            limit=settings.email_links_per_hour,
+        )
     if sent < settings.email_links_per_hour:
         token = sessions.new_token()
         await account_store.create_challenge(
@@ -257,7 +290,19 @@ async def request_email_link(
             # No mail transport on this deployment. Surfaced, because a caller who is never
             # going to receive a link should not be told to check their inbox — and unlike
             # the existence of an account, this is not a fact about anyone.
+            get_axiom().error(
+                source="api-mail",
+                event_type="login_link_sent",
+                delivered=False,
+                reason="no_mail_transport",
+            )
             raise
+        get_axiom().info(
+            source="api-auth",
+            event_type="login_link_sent",
+            delivered=True,
+            expires_in_minutes=settings.email_link_minutes,
+        )
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
@@ -312,6 +357,7 @@ async def verify_email(
         response,
         account,
         services.settings,
+        method="email-link",
         user_agent=user_agent,
         source_ip=_client_ip(request),
     )
@@ -439,6 +485,7 @@ async def verify_wallet(
         response,
         account,
         services.settings,
+        method="wallet-signature",
         user_agent=user_agent,
         source_ip=_client_ip(request),
     )

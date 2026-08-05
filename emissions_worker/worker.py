@@ -7,6 +7,8 @@ from typing import Any, Callable, Protocol
 
 import bittensor as bt
 
+from conjectures_subnet.axiom import Severity, get_axiom
+
 
 logger = logging.getLogger("emissions_worker")
 
@@ -52,19 +54,37 @@ class TreasuryWeightWorker:
     def run_epoch(self) -> tuple[Any, ExtrinsicResult]:
         """Wait for the next observed epoch, then keep trying until its weight is set."""
         epoch = self.client.wait_for_epoch(NETUID)
+        block = getattr(epoch, "block", None)
         logger.info(
             "Subnet %s epoch observed at block %s; setting treasury UID %s to 100%%",
             NETUID,
-            getattr(epoch, "block", "unknown"),
+            block if block is not None else "unknown",
             TREASURY_UID,
         )
+        get_axiom().info(
+            source="emissions-worker",
+            event_type="epoch_observed",
+            netuid=NETUID,
+            block=block,
+            treasury_uid=TREASURY_UID,
+        )
+        attempt = 0
         while True:
+            attempt += 1
             try:
                 result = self.submit()
                 logger.info(
                     "Subnet %s weights set: treasury UID %s = 100%%",
                     NETUID,
                     TREASURY_UID,
+                )
+                get_axiom().info(
+                    source="emissions-worker",
+                    event_type="weights_set",
+                    netuid=NETUID,
+                    block=block,
+                    treasury_uid=TREASURY_UID,
+                    attempt=attempt,
                 )
                 return epoch, result
             except KeyboardInterrupt:
@@ -73,6 +93,19 @@ class TreasuryWeightWorker:
                 logger.exception(
                     "Treasury weight submission failed; retrying in %s seconds",
                     self.retry_seconds,
+                )
+                # `warning` while it is still retrying: a rejected extrinsic on a busy block is
+                # ordinary, and this loop does not give up. The condition worth an alert is a
+                # streak of these covering a whole epoch, which is a rate over `attempt`.
+                get_axiom().exception(
+                    source="emissions-worker",
+                    event_type="weights_failed",
+                    severity=Severity.WARNING,
+                    netuid=NETUID,
+                    block=block,
+                    treasury_uid=TREASURY_UID,
+                    attempt=attempt,
+                    retry_seconds=self.retry_seconds,
                 )
                 self.sleep(self.retry_seconds)
 
@@ -87,6 +120,17 @@ class TreasuryWeightWorker:
                 logger.exception(
                     "Epoch watch failed; reconnecting in %s seconds",
                     self.retry_seconds,
+                )
+                # `error` here, unlike the retry above: the epoch watch failing means no weight
+                # will be set for the epoch that just passed, and an epoch's emissions cannot be
+                # set retroactively.
+                get_axiom().exception(
+                    source="emissions-worker",
+                    event_type="weights_failed",
+                    netuid=NETUID,
+                    treasury_uid=TREASURY_UID,
+                    stage="epoch_watch",
+                    retry_seconds=self.retry_seconds,
                 )
                 self.sleep(self.retry_seconds)
 

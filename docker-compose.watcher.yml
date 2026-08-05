@@ -101,6 +101,15 @@ services:
       # writable mount.
       HOME: /tmp
 
+      # --- Observability ----------------------------------------------------
+      # Optional: unset means the sink is a no-op and stderr logging is
+      # unchanged. Same variables in every service, so all four cannot end up
+      # writing to different datasets.
+      AXIOM_TOKEN: ${AXIOM_TOKEN:-}
+      AXIOM_DATASET: ${AXIOM_DATASET:-}
+      AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
+
     volumes:
       # Read-only, and only the two packages this process runs. Narrower than the verification
       # worker's whole-checkout mount because there is nothing else it reads: no task pool, no

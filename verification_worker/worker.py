@@ -8,6 +8,10 @@ not available to us.
 Nothing here decides anything about a proof. The verifier decides, `outcomes.classify` decides
 whether the answer is about the proof at all, and this module's only judgement is the refusal to
 record an accept that was not produced under the real sandbox.
+
+Every pass runs inside a `work_context`, so the Axiom events below and every log record the pass
+produces underneath them share one `request_id`. That is what makes a single submission's journey
+— claimed, verified, recorded, or handed back — one query rather than a timestamp correlation.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from conjectures_subnet.axiom import get_axiom, work_context
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db import verification as queue
 from conjectures_subnet.db.engine import async_session_scope
@@ -69,6 +74,10 @@ class VerificationWorker:
 
     async def process_one(self) -> Processed | None:
         """Verify at most one submission. None means the queue is empty."""
+        with work_context():
+            return await self._process_one()
+
+    async def _process_one(self) -> Processed | None:
         async with async_session_scope(self.sessions) as session:
             claim = await queue.claim_next(
                 session,
@@ -83,6 +92,14 @@ class VerificationWorker:
             claim.submission_id,
             claim.task_id,
             claim.attempts,
+        )
+        get_axiom().info(
+            source="verification-worker",
+            event_type="submission_claimed",
+            submission_id=str(claim.submission_id),
+            task_id=claim.task_id,
+            attempt=claim.attempts,
+            owner=self.settings.owner,
         )
 
         # The digest comes from the row, not the request: a task whose published bundle has
@@ -108,12 +125,7 @@ class VerificationWorker:
             # Someone else owns this row now. Do not start work whose verdict we could not
             # write, and do not touch the row — the lease we would clear is theirs.
             logger.warning("lost lease before starting submission=%s", claim.submission_id)
-            return Processed(
-                submission_id=claim.submission_id,
-                outcome=Outcome.OPERATOR,
-                reason_code=LEASE_LOST,
-                attempts=claim.attempts,
-            )
+            return self._lease_lost(claim, stage="before_start")
 
         async with async_session_scope(self.sessions) as session:
             proof = await store.proof_bytes(session, claim.proof_digest_bytes)
@@ -169,6 +181,17 @@ class VerificationWorker:
                 claim.submission_id,
                 run.sandbox_mode,
             )
+            # `warning` and not `info`, even though it is a configured allowance: an accept that
+            # nothing isolated is a verdict whose provenance an operator needs to be able to find
+            # later, and finding it should not depend on having grepped the right container's logs.
+            get_axiom().warn(
+                source="verification-worker",
+                event_type="insecure_sandbox_accept",
+                submission_id=str(claim.submission_id),
+                task_id=claim.task_id,
+                sandbox_mode=run.sandbox_mode,
+                attempt=claim.attempts,
+            )
 
         async with async_session_scope(self.sessions) as session:
             submission = await queue.lock_owned_for_recording(
@@ -178,12 +201,10 @@ class VerificationWorker:
                 logger.warning(
                     "lost lease before recording submission=%s", claim.submission_id
                 )
-                return Processed(
-                    submission_id=claim.submission_id,
-                    outcome=Outcome.OPERATOR,
-                    reason_code=LEASE_LOST,
-                    attempts=claim.attempts,
-                )
+                # The worse of the two lease losses: the proof has already been compiled, so this
+                # is work paid for and thrown away. Reported at the same severity, distinguished
+                # by `stage`.
+                return self._lease_lost(claim, stage="before_recording")
             verdict = await store.record_verification_result(
                 session,
                 submission,
@@ -204,6 +225,23 @@ class VerificationWorker:
             run.accepted,
             run.reason_code,
             verdict.applied,
+        )
+        # The event the subnet is actually judged by. `applied` matters as much as `accepted`: a
+        # verdict this run computed but did not decide the submission with is a different fact.
+        get_axiom().info(
+            source="verification-worker",
+            event_type="verdict_recorded",
+            submission_id=str(claim.submission_id),
+            task_id=claim.task_id,
+            accepted=run.accepted,
+            reason_code=run.reason_code,
+            stage=run.stage,
+            applied=verdict.applied,
+            attempt=claim.attempts,
+            sandbox_mode=run.sandbox_mode,
+            verifier_version=run.verifier_version,
+            container_digest=run.container_digest,
+            duration_ms=round((finished_at - started_at).total_seconds() * 1000, 3),
         )
         return Processed(
             submission_id=claim.submission_id,
@@ -235,6 +273,15 @@ class VerificationWorker:
                 # A submission must never be able to end the worker. The lease it holds expires
                 # on its own, so the row returns to the queue without our help.
                 logger.exception("verification pass failed; continuing")
+                # Emitted explicitly rather than left to the logging bridge, because this is the
+                # one place a worker swallows a crash and keeps going: an operator has to be able
+                # to alert on it, and `event_type == "unexpected_error"` is a sharper predicate
+                # than "a log record whose severity happens to be error".
+                get_axiom().exception(
+                    source="verification-worker",
+                    event_type="unexpected_error",
+                    owner=self.settings.owner,
+                )
                 processed = None
             if processed is not None:
                 continue
@@ -254,7 +301,36 @@ class VerificationWorker:
             # rejection: guessing wrong here would charge a miner for a code we do not
             # understand. outcomes.py explains why the safe side is OPERATOR.
             logger.error("unclassified verifier reason_code=%r", reason_code)
+            get_axiom().error(
+                source="verification-worker",
+                event_type="unclassified_reason_code",
+                reason_code=reason_code,
+            )
             return Outcome.OPERATOR
+
+    def _lease_lost(
+        self, claim: queue.ClaimedSubmission, *, stage: str
+    ) -> Processed:
+        """Report a lease that expired under us and hand the pass back undecided.
+
+        The row is deliberately not touched — the lease now belongs to whoever took it — so this
+        event is the only record on our side that the work happened.
+        """
+        get_axiom().warn(
+            source="verification-worker",
+            event_type="lease_lost",
+            submission_id=str(claim.submission_id),
+            task_id=claim.task_id,
+            attempt=claim.attempts,
+            owner=self.settings.owner,
+            stage=stage,
+        )
+        return Processed(
+            submission_id=claim.submission_id,
+            outcome=Outcome.OPERATOR,
+            reason_code=LEASE_LOST,
+            attempts=claim.attempts,
+        )
 
     async def _operator(
         self,
@@ -271,6 +347,16 @@ class VerificationWorker:
             claim.attempts,
             detail,
         )
+        get_axiom().error(
+            source="verification-worker",
+            event_type="verification_operator_failure",
+            submission_id=str(claim.submission_id),
+            task_id=claim.task_id,
+            reason_code=reason_code,
+            attempt=claim.attempts,
+            detail=detail,
+            owner=self.settings.owner,
+        )
         async with async_session_scope(self.sessions) as session:
             await queue.release(
                 session, claim.submission_id, owner=self.settings.owner
@@ -281,6 +367,18 @@ class VerificationWorker:
                 "an operator must decide whether it is owed a refund",
                 claim.submission_id,
                 claim.attempts,
+            )
+            # `critical`, and the only place in the codebase that uses it. A submission stuck here
+            # is a miner who paid, got no verdict, and will not get one without a person looking:
+            # it is the one condition that should page rather than accumulate on a dashboard.
+            get_axiom().critical(
+                source="verification-worker",
+                event_type="attempts_exhausted",
+                submission_id=str(claim.submission_id),
+                task_id=claim.task_id,
+                reason_code=reason_code,
+                attempts=claim.attempts,
+                max_attempts=self.settings.max_attempts,
             )
         return Processed(
             submission_id=claim.submission_id,

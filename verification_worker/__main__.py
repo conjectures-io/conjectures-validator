@@ -14,6 +14,7 @@ import signal
 import sys
 from collections.abc import Sequence
 
+from conjectures_subnet.axiom import configure_logging, get_axiom
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -72,6 +73,20 @@ async def _run(args: argparse.Namespace) -> int:
         settings.runner,
         len(tasks.tasks),
     )
+    get_axiom().info(
+        source="verification-worker",
+        event_type="service_started",
+        owner=settings.owner,
+        runner=settings.runner,
+        tasks=len(tasks.tasks),
+        app_mode=settings.app_mode,
+        container_digest=runner.container_digest,
+        max_attempts=settings.max_attempts,
+        # Loud in the dataset rather than only in the container's logs. An operator asking "was
+        # this deployment ever able to produce a trustworthy accept" should not have to infer it.
+        allow_insecure_sandbox=settings.allow_insecure_sandbox,
+        mode="check" if args.check else ("once" if args.once else "poll"),
+    )
     try:
         if args.check:
             async with engine.connect() as connection:
@@ -87,6 +102,7 @@ async def _run(args: argparse.Namespace) -> int:
             processed = await worker.drain(limit=args.limit)
             logger.info("drained %d submissions", len(processed))
             return 0
+
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()
         for signal_name in (signal.SIGINT, signal.SIGTERM):
@@ -97,23 +113,35 @@ async def _run(args: argparse.Namespace) -> int:
         await worker.run_forever(stop=stop)
         return 0
     finally:
+        get_axiom().info(source="verification-worker", event_type="service_stopped")
         await engine.dispose()
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    logging.basicConfig(
-        level=args.log_level.upper(),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+    # In place of `logging.basicConfig`. Same stderr format as before, plus the Axiom bridge when
+    # AXIOM_TOKEN and AXIOM_DATASET are set — so the existing `logger.*` calls in this worker
+    # arrive as events with a severity and this worker's source, without being rewritten.
+    configure_logging(source="verification-worker", level=args.log_level)
     try:
         return asyncio.run(_run(args))
     except (SettingsError, RunnerFailure, TaskNotAllowed, SQLAlchemyError) as exc:
         # Configuration, not a submission: say so plainly and do not start.
         logger.error("%s", exc)
+        get_axiom().error(
+            source="verification-worker",
+            event_type="service_misconfigured",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
         return 2
     except KeyboardInterrupt:  # pragma: no cover - signal handlers cover the normal path
         return 0
+    finally:
+        # The transport batches on a background thread, so an exit that does not flush loses the
+        # last few seconds — which for a worker that just refused to start is the only interesting
+        # part. `atexit` would catch it too; this makes the ordering explicit.
+        get_axiom().close()
 
 
 if __name__ == "__main__":

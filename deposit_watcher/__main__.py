@@ -19,6 +19,7 @@ import sys
 from collections.abc import Sequence
 
 from conjectures_subnet import transfers as chain
+from conjectures_subnet.axiom import configure_logging, get_axiom
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from deposit_watcher.settings import SettingsError, WatcherSettings
 from deposit_watcher.watcher import DepositWatcher
@@ -77,6 +78,15 @@ async def _run(args: argparse.Namespace) -> int:
                 settings.netuid,
                 settings.uid,
             )
+            get_axiom().warn(
+                source="deposit-watcher",
+                event_type="service_misconfigured",
+                error="DEPOSIT_WATCH_VERIFY_REGISTRATION is off; the watched address is not "
+                "confirmed to be this validator's own hotkey",
+                recipient=settings.recipient,
+                netuid=settings.netuid,
+                uid=settings.uid,
+            )
 
         cursor = await watcher.resolve_cursor()
         logger.info(
@@ -89,6 +99,22 @@ async def _run(args: argparse.Namespace) -> int:
             cursor.start_block,
             cursor.last_scanned_block,
             settings.credit_price_rao,
+        )
+        get_axiom().info(
+            source="deposit-watcher",
+            event_type="service_started",
+            watcher_id=settings.watcher_id,
+            network=settings.network,
+            recipient=settings.recipient,
+            netuid=settings.netuid,
+            uid=settings.uid,
+            watch_from=settings.watch_from.isoformat(),
+            start_block=cursor.start_block,
+            last_scanned_block=cursor.last_scanned_block,
+            credit_price_rao=settings.credit_price_rao,
+            batch_blocks=settings.batch_blocks,
+            verify_registration=settings.verify_registration,
+            mode="dry-run" if args.dry_run else ("once" if args.once else "poll"),
         )
         if args.dry_run:
             head = await source.finalized_head()
@@ -117,6 +143,11 @@ async def _run(args: argparse.Namespace) -> int:
         await watcher.run_forever(stop=stop)
         return 0
     finally:
+        get_axiom().info(
+            source="deposit-watcher",
+            event_type="service_stopped",
+            watcher_id=settings.watcher_id,
+        )
         # The source holds a websocket open across the whole run — see BittensorTransferSource on
         # why it is not opened per call — so it is closed here rather than left to collection.
         await source.close()
@@ -125,10 +156,9 @@ async def _run(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    logging.basicConfig(
-        level=args.log_level.upper(),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+    # In place of `logging.basicConfig`: same stderr output, plus the Axiom bridge. See
+    # `conjectures_subnet.axiom.handler`.
+    configure_logging(source="deposit-watcher", level=args.log_level)
     try:
         return asyncio.run(_run(args))
     except SettingsError as exc:
@@ -136,9 +166,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         # the compose service can leave it dead and visible instead of crash-looping the message
         # out of the scrollback — the same contract the verification worker has.
         logger.error("%s", exc)
+        get_axiom().error(
+            source="deposit-watcher",
+            event_type="service_misconfigured",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
         return 2
     except KeyboardInterrupt:  # pragma: no cover - signal handlers cover the normal path
         return 0
+    finally:
+        # Flush before exit; the transport batches on a background thread. See the same call in
+        # verification_worker/__main__.py.
+        get_axiom().close()
 
 
 if __name__ == "__main__":

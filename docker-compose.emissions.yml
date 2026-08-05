@@ -21,6 +21,15 @@ services:
       EMISSIONS_RETRY_SECONDS: ${EMISSIONS_RETRY_SECONDS:-30}
       HOME: /tmp
 
+      # --- Observability ----------------------------------------------------
+      # Optional: unset means the sink is a no-op and stderr logging is
+      # unchanged. Same variables in every service, so all four cannot end up
+      # writing to different datasets.
+      AXIOM_TOKEN: ${AXIOM_TOKEN:-}
+      AXIOM_DATASET: ${AXIOM_DATASET:-}
+      AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
+
     volumes:
       - ./emissions_worker:/srv/app/emissions_worker:ro
       # Mount one wallet only. The hotkey signs SetWeights; no service besides this one receives it.
