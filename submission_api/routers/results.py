@@ -37,9 +37,7 @@ from submission_api.dependencies import ServicesDep, SessionDep, get_settings
 from submission_api.errors import NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
-from submission_api.taskpool import TaskCatalog, TaskEntry, TaskNotAllowed
 from submission_api.schemas_public import PublicResultItem, PublicResultsPageResponse
-from submission_api.settings import ApiSettings, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
 from submission_api.conjectures import ConjectureIndex
 
 router = APIRouter(prefix="/v1/results", tags=["results"])
@@ -324,13 +322,14 @@ def _public_report(raw: bytes) -> dict[str, Any]:
 @router.get("/submissions", response_model=PublicResultsPageResponse)
 async def get_all_submissions(
     session: SessionDep,
+    services: ServicesDep,
     limit: int = Query(50, ge=1, le=100),
-    cursor: str | None = None,
-    settings: ApiSettings = Depends(get_settings),
+    cursor: str | None = None
+    
 ) -> PublicResultsPageResponse:
     """Public dashboard feed of all submissions, ordered newest-first with signed keyset cursors."""
+    settings: Settings = services.settings
     after = decode_cursor(cursor, secret=settings.public_cursor_secret) if cursor else None
-
     rows = await public.all_submissions_page(session, limit=limit, after=after)
 
     items = [PublicResultItem.from_db_row(row) for row in rows]
