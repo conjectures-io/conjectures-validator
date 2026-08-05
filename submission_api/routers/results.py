@@ -25,20 +25,21 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Path, Query, Response, Depends
+from fastapi import APIRouter, Path, Query, Response
 
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import public as public_store
-from submission_api import conjectures, schemas_public as public, slugs
-from submission_api.dependencies import ServicesDep, SessionDep, get_settings
+from submission_api import conjectures, slugs
+from submission_api import schemas_public as public
+from submission_api.conjectures import ConjectureIndex
+from submission_api.dependencies import ServicesDep, SessionDep, SettingsDep
 from submission_api.errors import NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
-from submission_api.schemas_public import PublicResultItem, PublicResultsPageResponse
-from submission_api.conjectures import ConjectureIndex
 
 router = APIRouter(prefix="/v1/results", tags=["results"])
 
@@ -248,6 +249,40 @@ async def list_in_review(
     return public.CursorPage[public.InReviewResult](**page)
 
 
+# Declared before `/{result_id}`: FastAPI matches in declaration order, and a literal path that
+# follows a `{uuid}` parameter on the same prefix is never reached.
+@router.get(
+    "/submissions",
+    response_model=public.PublicResultsPageResponse,
+    summary="Dashboard feed of every submission",
+)
+async def get_all_submissions(
+    session: SessionDep,
+    settings: SettingsDep,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 50,
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
+) -> public.PublicResultsPageResponse:
+    """Public dashboard feed of all submissions, ordered newest-first with signed keyset cursors."""
+    after = None
+    if cursor:
+        position = decode_cursor(settings.cursor_secret, cursor)
+        after = (position.created_at, position.id)
+
+    rows = await public_store.all_submissions_page(session, limit=limit + 1, after=after)
+    page = rows[:limit]
+    next_cursor = None
+    if len(rows) > limit and page:
+        last = page[-1]
+        next_cursor = encode_cursor(
+            settings.cursor_secret, created_at=last.created_at, id=last.id
+        )
+
+    return public.PublicResultsPageResponse(
+        items=[public.PublicResultItem.from_db_row(row) for row in page],
+        next_cursor=next_cursor,
+    )
+
+
 @router.get(
     "/{result_id}",
     response_model=public.PublicResult,
@@ -318,30 +353,6 @@ def _public_report(raw: bytes) -> dict[str, Any]:
     return {
         field: document[field] for field in PUBLIC_REPORT_FIELDS if field in document
     }
-
-@router.get("/submissions", response_model=PublicResultsPageResponse)
-async def get_all_submissions(
-    session: SessionDep,
-    services: ServicesDep,
-    limit: int = Query(50, ge=1, le=100),
-    cursor: str | None = None
-    
-) -> PublicResultsPageResponse:
-    """Public dashboard feed of all submissions, ordered newest-first with signed keyset cursors."""
-    settings: Settings = services.settings
-    after = decode_cursor(cursor, secret=settings.public_cursor_secret) if cursor else None
-    rows = await public.all_submissions_page(session, limit=limit, after=after)
-
-    items = [PublicResultItem.from_db_row(row) for row in rows]
-    next_cursor = None
-    if len(rows) == limit:
-        last_row = rows[-1]
-        next_cursor = encode_cursor(
-            (last_row.created_at, last_row.id),
-            secret=settings.public_cursor_secret,
-        )
-
-    return PublicResultsPageResponse(items=items, next_cursor=next_cursor)
 
 
 __all__ = ["PUBLIC_REPORT_FIELDS", "router"]
