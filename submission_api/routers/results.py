@@ -3,12 +3,16 @@
 The strictest disclosure surface in the API. Three rules, each enforced structurally rather than
 by remembering to omit a field:
 
-* **No author credit, ever.** `conjectures_subnet.db.public.ResultRow` has no hotkey, coldkey,
-  payment reference or extrinsic on it, so this module cannot publish one — it was never handed
-  one. Results are attributed to conjectures.io.
-* **No proof bytes.** `Main.lean` is not served here at any state. An in-review result carries no
-  artifact at all: the proof has passed the Lean kernel but not the reward decision, and handing
-  the artifact out before that decision would let anyone take a pending result elsewhere.
+* **Solver credit, but no money trail.** `conjectures_subnet.db.public.ResultRow` carries the
+  submitting `hotkey`, and every result here is credited to it. It still has no coldkey, payment
+  reference or extrinsic, so this module cannot publish those — it was never handed them.
+* **Proof bytes only after approval.** `Main.lean` is served by `/{id}/solution`, and only once
+  review has approved the submission. An in-review result carries no artifact: the proof has
+  passed the Lean kernel but not the reward decision, and handing the artifact out before that
+  decision would let anyone take a pending result elsewhere. The gate is
+  `conjectures_subnet.db.public.accepted_solution`, which filters in the query, so a handler
+  cannot serve an unapproved proof by forgetting to check. Verifier *output* is still withheld at
+  every state — see the allowlist below.
 * **The report is an allowlist, not a redaction.** `_public_report` names the fields it copies.
   `stdout_tail` and `stderr_tail` are excluded because Lean's output quotes the submitted proof
   back verbatim — but the point of the allowlist is that a field added to `VerificationReport`
@@ -45,6 +49,7 @@ from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
+from verifier.bundle import PROOF_NAME
 
 router = APIRouter(prefix="/v1/results", tags=["results"])
 
@@ -132,6 +137,7 @@ def _certified(row: public_store.ResultRow, index: ConjectureIndex) -> public.Pu
     title, statement = _title_and_statement(index, row)
     return public.PublicResult(
         id=row.id,
+        hotkey=row.hotkey,
         slug=_slug(row),
         task_id=row.task_id,
         title=title,
@@ -144,6 +150,7 @@ def _certified(row: public_store.ResultRow, index: ConjectureIndex) -> public.Pu
         verifier_version=row.verifier_version,
         sandbox_mode=row.sandbox_mode,
         report_available=row.report_available,
+        solution_available=row.solution_available,
     )
 
 
@@ -151,6 +158,7 @@ def _in_review(row: public_store.ResultRow, index: ConjectureIndex) -> public.In
     title, statement = _title_and_statement(index, row)
     return public.InReviewResult(
         id=row.id,
+        hotkey=row.hotkey,
         slug=_slug(row),
         task_id=row.task_id,
         title=title,
@@ -342,6 +350,52 @@ async def read_report(
         # immutable bytes recorded on the run and the miner's own copy of the same report.
         report_sha256=digests.to_prefixed(digest),
         report=_public_report(raw),
+    )
+
+
+@router.get(
+    "/{result_id}/solution",
+    response_model=public.PublicSolution,
+    summary="The proof that closed the conjecture, for an approved result",
+)
+async def read_solution(
+    result_id: Annotated[uuid.UUID, Path()],
+    response: Response,
+    services: ServicesDep,
+    session: SessionDep,
+) -> public.PublicSolution:
+    """The verified `Main.lean`, published once review has approved the submission.
+
+    Two lookups rather than one, and the order matters. `public_result` establishes that the id
+    names something on a public feed at all; `accepted_solution` applies the stricter approval
+    gate. Both answer `404`, and that is deliberate — a listed-but-unapproved result and an
+    unpublished one are reported identically, so the response cannot be used to tell whether a
+    pending submission exists.
+    """
+    row = await public_store.public_result(session, result_id)
+    if row is None:
+        raise NotFound("no such result")
+    found = await public_store.accepted_solution(session, result_id)
+    if found is None:
+        # Listed, but review has not approved it. Same 404 as an id that is not published at
+        # all: the proof is the one disclosure here that cannot be taken back, so "not yet" and
+        # "never" look the same from outside.
+        raise NotFound("no solution is published for this result")
+    content, digest, byte_length = found
+
+    _cache(response, services.settings)
+    return public.PublicSolution(
+        id=row.id,
+        hotkey=row.hotkey,
+        slug=_slug(row),
+        # The name the bytes carry inside the verified bundle, from the module that enforces it,
+        # so the published filename cannot drift from the one intake accepted.
+        filename=PROOF_NAME,
+        # Decoded rather than served as bytes: intake already rejected anything that is not
+        # UTF-8, so this cannot fail on bytes that reached the durable record.
+        source=content.decode("utf-8"),
+        proof_sha256=digests.to_prefixed(digest),
+        byte_length=byte_length,
     )
 
 

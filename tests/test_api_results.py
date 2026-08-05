@@ -1,8 +1,11 @@
-"""The public result feeds: certified, in review, one result, and the published report.
+"""The public result feeds: certified, in review, one result, the report, and the solution.
 
-This is the surface with the strictest disclosure rules, so most of these tests are about what
-does *not* appear: no hotkey, no coldkey, no payment reference, no proof bytes, and no verifier
-stdout or stderr. Needs a real PostgreSQL server:
+This is the surface with the strictest disclosure rules, so most of these tests are about the
+boundary. What *is* published: the submitting hotkey on every result, and the proof itself once
+review has approved it. What is not, at any state: the paying coldkey, the payment reference, the
+funding extrinsic, and the verifier's stdout or stderr. The proof of a submission that is
+unverified, rejected, or still in review is not published either, and the tests below pin each of
+those three cases. Needs a real PostgreSQL server:
 
     docker compose -f docker-compose.pytest-db.yml up -d
 """
@@ -19,6 +22,7 @@ pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra
 pytest.importorskip("httpx", reason="submission API tests need the service extra")
 pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
+import hashlib
 import json
 from datetime import UTC, datetime
 
@@ -199,18 +203,20 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert item["verifier_version"] == "verifier-1.2.3"
             assert item["report_available"] is True
 
-            # No author credit, and nothing joinable back to a miner anywhere in the payload.
-            assert HOTKEY not in response.text
+            # Credited to the submitting hotkey.
+            assert item["hotkey"] == HOTKEY
+            # But nothing that reaches the miner's money: no paying coldkey, no payment
+            # reference, no extrinsic. That is the boundary the row type still enforces.
             assert COLDKEY not in response.text
             assert "0xpay-0001" not in response.text
-            assert not {"hotkey", "author", "author_credit", "payment"} & set(item)
+            assert not {"coldkey", "payment_reference", "payment", "extrinsic"} & set(item)
         finally:
             await kit.teardown()
 
     run(scenario())
 
 
-def test_an_in_review_result_carries_no_proof_and_no_identity():
+def test_an_in_review_result_names_its_solver_but_carries_no_proof():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -224,9 +230,11 @@ def test_an_in_review_result_carries_no_proof_and_no_identity():
             item = body["items"][0]
             assert item["review_policy_version"] == "v1"
             assert item["attribution"] == "conjectures.io"
-            # No proof file, and no digest of one.
+            # No proof file, and no digest of one: review has not approved it yet.
             assert not {"proof", "proof_sha256", "challenge_lean"} & set(item)
-            assert HOTKEY not in response.text
+            # The solver is named even in review — being listed is what publishes the hotkey.
+            assert item["hotkey"] == HOTKEY
+            assert COLDKEY not in response.text
         finally:
             await kit.teardown()
 
@@ -278,6 +286,98 @@ def test_a_random_uuid_is_a_404_not_a_500():
         try:
             response = await _get(kit, f"/v1/results/{uuid.uuid4()}")
             assert response.status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- the published solution ----------------------------------------------------------------
+
+
+def test_the_solution_is_published_once_review_approves_it():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0030")
+            await _verify(kit, submission_id)
+
+            # Lean-verified but unreviewed: listed, with nothing to fetch. The feed says so
+            # rather than making a client discover it by getting a 404.
+            listed = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert listed["solution_available"] is False
+            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
+
+            await _certify(kit, submission_id)
+
+            listed = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert listed["solution_available"] is True
+
+            response = await _get(kit, f"/v1/results/{submission_id}/solution")
+            assert response.status_code == 200, response.text
+            body = response.json()
+            assert body["filename"] == "Main.lean"
+            assert body["byte_length"] == len(body["source"].encode("utf-8"))
+            assert body["attribution"] == "conjectures.io"
+            # The proof is now public, so its digest can be published too — it can no longer be
+            # used to test an unpublished candidate for prior submission.
+            assert body["proof_sha256"].startswith("sha256:")
+            # Credited to the solver who submitted it, with no path to their money.
+            assert body["hotkey"] == HOTKEY
+            assert COLDKEY not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_rejected_submissions_proof_is_never_published():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0031")
+            await _verify(kit, submission_id, accepted=False)
+
+            # Not on a feed at all, so the first gate already answers. Asserted anyway: this is
+            # the case where publishing the bytes would be irreversible.
+            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unverified_submissions_proof_is_never_published():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0032")
+            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
+            assert (await _get(kit, f"/v1/results/{uuid.uuid4()}/solution")).status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_published_solution_is_the_exact_bytes_that_were_verified():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0033")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id)
+
+            body = (await _get(kit, f"/v1/results/{submission_id}/solution")).json()
+
+            # Byte-exact against the digest the fixture submitted under: a reader must be able
+            # to recompile precisely what the kernel accepted, so the served source has to hash
+            # to the same value `submissions.proof_digest` holds.
+            _, submitted_digest = distinct_bundle("0033")
+            served = body["source"].encode("utf-8")
+            assert body["proof_sha256"] == submitted_digest
+            assert "sha256:" + hashlib.sha256(served).hexdigest() == submitted_digest
+            assert body["byte_length"] == len(served)
         finally:
             await kit.teardown()
 
@@ -336,10 +436,10 @@ def test_the_dashboard_feed_names_no_miner_and_carries_no_proof():
             # The same disclosure rules the per-result endpoints are held to. This feed reuses
             # `PublicResult`, so it cannot drift from them by construction — the assertion is
             # here because "reuses" is a decision a later change could quietly reverse.
-            assert HOTKEY not in response.text
+            assert item["hotkey"] == HOTKEY
             assert COLDKEY not in response.text
             assert "0xpay-0024" not in response.text
-            assert not {"hotkey", "author", "author_credit", "payment"} & set(item)
+            assert not {"coldkey", "payment_reference", "payment", "extrinsic"} & set(item)
 
             assert item["attribution"] == "conjectures.io"
             assert item["slug"] == CONJECTURE_SLUG
@@ -578,7 +678,7 @@ def test_the_feed_page_size_is_capped():
     run(scenario())
 
 
-def test_two_solvers_on_one_conjecture_both_appear_without_being_distinguishable():
+def test_two_solvers_on_one_conjecture_are_each_credited_to_their_own_hotkey():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -588,10 +688,13 @@ def test_two_solvers_on_one_conjecture_both_appear_without_being_distinguishable
             await _verify(kit, theirs)
 
             response = await _get(kit, "/v1/results/in-review")
-            assert {item["id"] for item in response.json()["items"]} == {mine, theirs}
-            # Nothing in the payload tells the two results apart by author.
-            assert HOTKEY not in response.text
-            assert OTHER_HOTKEY not in response.text
+            items = {item["id"]: item for item in response.json()["items"]}
+            assert set(items) == {mine, theirs}
+            # Each row credited to the hotkey that actually submitted it. The pairing is what
+            # matters: the rows are decorated from two separate queries keyed by id, so a join
+            # that lost its ordering would attribute a proof to the wrong solver.
+            assert items[mine]["hotkey"] == HOTKEY
+            assert items[theirs]["hotkey"] == OTHER_HOTKEY
         finally:
             await kit.teardown()
 

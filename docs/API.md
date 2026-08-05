@@ -46,6 +46,7 @@ Task discovery is unauthenticated because the task pool and its digests are publ
 | `GET` | `/v1/results/submissions` | Certified and in-review in one feed, for a dashboard |
 | `GET` | `/v1/results/{id}` | One published result |
 | `GET` | `/v1/results/{id}/report` | The published subset of the verifier report |
+| `GET` | `/v1/results/{id}/solution` | The verified `Main.lean`, for an approved result only |
 | `GET` | `/v1/system/status` | Submissions open/paused, queue depths, pin rotation |
 
 ### Signed-in account — see [ACCOUNT_API.md](ACCOUNT_API.md)

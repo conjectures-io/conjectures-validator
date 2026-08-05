@@ -18,26 +18,41 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/results/submissions` | `CursorPage<PublicResult>` | Both of the above in one feed, for a dashboard |
 | `GET` | `/v1/results/{id}` | `PublicResult` | One published result |
 | `GET` | `/v1/results/{id}/report` | `PublicVerificationReport` | The published subset of the verifier report |
+| `GET` | `/v1/results/{id}/solution` | `PublicSolution` | The proof itself — only once review has approved it |
 | `GET` | `/v1/system/status` | `SystemStatus` | Submissions open/paused, queue depths, pin rotation window |
 
 Response models are in [`../submission_api/schemas_public.py`](../submission_api/schemas_public.py),
 kept separate from the miner-facing `schemas.py` so that the rules below are enforced by which
 module a field lives in rather than by remembering to leave it out.
 
-## What is never published
+## What is published, and what is not
 
 Three rules, each enforced structurally rather than by convention.
 
-**No miner identity.** Not the hotkey, not the paying coldkey, not the payment reference, not the
-extrinsic. A verified result is attributed to conjectures.io; there is no author credit.
-[`../conjectures_subnet/db/public.py`](../conjectures_subnet/db/public.py) is the only query layer
-these endpoints use, and its row types have no such column on them — a router cannot leak what it
-was never handed. `submissions.hotkey` is read in exactly one function, and it is passed straight
-through a caller-supplied pseudonymiser and never stored on the returned row.
+**Solver credit, but no money trail.** Every result names the `hotkey` that submitted it: a result
+is credited to its solver. Not published: the paying coldkey, the payment reference, the funding
+extrinsic. [`../conjectures_subnet/db/public.py`](../conjectures_subnet/db/public.py) is the only
+query layer these endpoints use, and its row types have no column for any of those three — a router
+cannot leak what it was never handed.
 
-**No proof bytes.** `Main.lean` is not served publicly at any state. An in-review result carries no
-artifact at all: the proof has passed the Lean kernel but not the reward decision, and publishing
-it before that decision would hand a pending result to anyone who wanted to resubmit it elsewhere.
+> Publishing the hotkey weakens the activity pseudonyms below, and the two are no longer
+> independent. A verified result names its solver and carries `verified_at`; an activity event
+> carries the same transition, on the same conjecture, at hour resolution. Matching them names the
+> solver behind a pseudonym — and then that solver's failed attempts on that conjecture too. The
+> pseudonyms still protect solvers with no verified result, and nothing more than that.
+
+**Proof bytes only after approval.** `Main.lean` is served by `GET /v1/results/{id}/solution`, and
+only once review has approved the submission. An in-review result carries no artifact: the proof
+has passed the Lean kernel but not the reward decision, and publishing it before that decision
+would hand a pending result to anyone who wanted to resubmit it elsewhere. Approval *is* that
+decision, so the gate is approval rather than payout — a confirmed transfer is not a disclosure
+question. The check lives in `accepted_solution` in
+[`../conjectures_subnet/db/public.py`](../conjectures_subnet/db/public.py), i.e. in the query, so a
+handler cannot serve an unapproved proof by forgetting it. Both "not approved yet" and "not
+published at all" answer `404`, so the endpoint cannot be used to detect a pending submission.
+
+`PublicResult.solution_available` says which rows have one, so a client does not discover it by
+collecting `404`s.
 
 **No verifier output.** The public report is built by *allowlisting* fields
 (`PUBLIC_REPORT_FIELDS` in [`../submission_api/routers/results.py`](../submission_api/routers/results.py)),
@@ -203,7 +218,10 @@ instead of to a task id the current pool no longer carries.
 ## Activity
 
 `GET /v1/catalog/conjectures/{slug}/activity` answers "is anyone working on this" without
-answering "who".
+answering "who" — but only for a solver who has no verified result on that conjecture. Since the
+results feed names the submitting hotkey, the properties below hold against a reader who works only
+from this endpoint, not against one who joins it to `/v1/results` on `verified_at`. Read this
+section as the construction's design, not as a guarantee the surface as a whole still makes.
 
 `solver` is
 `HMAC(PUBLIC_ACTIVITY_SALT, len(reward_target_id) || reward_target_id || len(hotkey) || hotkey)`,
@@ -410,5 +428,7 @@ docker compose -f docker-compose.pytest-db.yml up -d
 ```
 
 [`../tests/test_api_results.py`](../tests/test_api_results.py) is largely about absence — that no
-hotkey, coldkey, payment reference, proof digest or verifier output appears in any public payload,
-and that a field added to the verifier report is withheld by default.
+hotkey, coldkey, payment reference or verifier output appears in any public payload, and that a
+field added to the verifier report is withheld by default. The proof and its digest are the one
+deliberate exception, and only for an approved submission: the tests assert that an unverified,
+rejected, or still-in-review submission publishes neither.

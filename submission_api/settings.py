@@ -176,8 +176,11 @@ DEFAULT_DEPOSIT_HOURS = 24
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
 DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
-DEFAULT_TERMS_VERSION = "v1"
-DEFAULT_TERMS_DATE = "2026-08-01"
+# Bumped to v2 by the change that publishes the submitting hotkey and the approved proof.
+# `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
+# leaving it at v1 would serve rewritten terms under the version string a miner already accepted.
+DEFAULT_TERMS_VERSION = "v2"
+DEFAULT_TERMS_DATE = "2026-08-05"
 
 # The domain that goes into a signed login message, binding the signature to this
 # deployment so one produced for another instance is not valid here.

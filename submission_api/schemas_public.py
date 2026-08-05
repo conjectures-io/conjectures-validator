@@ -5,17 +5,21 @@ hotkey signature and is reading their own submission; these are served to anyone
 credential at all, and are rendered by a public website. The two sets have different rules, and
 mixing them in one module is how a field that belongs to one ends up on the other.
 
-**Nothing on this surface may identify a miner.** Not the hotkey, not the paying coldkey, not
-the payment reference, not the extrinsic. A verified result is attributed to conjectures.io;
-there is no author credit. Per-task activity is published as salted, per-task pseudonyms, so a
-reader can see that four distinct solvers attempted a conjecture without learning who, and
-cannot join those pseudonyms across conjectures.
+**A result names its solver's hotkey; nothing here reaches their money.** The hotkey is
+published on `PublicResult`, `InReviewResult` and `PublicSolution` by product decision — a result
+is credited to the hotkey that produced it. The paying coldkey, the payment reference and the
+extrinsic remain absent from every model on this surface, and that is the boundary still enforced
+structurally: a hotkey is the public identity a miner signs with, while those three lead to the
+funds behind it. Per-task activity is still published as salted pseudonyms, but they are only as
+strong as the solver's absence from the results feed — see `conjectures_subnet.db.public.activity`.
 
-**Nothing on this surface may carry proof bytes or verifier output.** `Main.lean` is never
-served publicly, in-review results carry no proof file, and the public verification report is
-built by *allowlisting* fields rather than by removing `stdout_tail` and `stderr_tail` — so a
-field added to `VerificationReport` later is withheld by default instead of published by
-accident.
+**Proof bytes are published only for an approved submission, and verifier output never is.**
+`Main.lean` is served by `PublicSolution`, and only once review has approved the submission —
+the gate lives in `conjectures_subnet.db.public.accepted_solution`, so a row that is merely
+Lean-verified is listed on the feed with no proof to fetch. Verifier output remains withheld at
+every state: the public report is built by *allowlisting* fields rather than by removing
+`stdout_tail` and `stderr_tail`, so a field added to `VerificationReport` later is withheld by
+default instead of published by accident.
 
 `extra="forbid"` and `frozen=True` are inherited from the same `Model` base the miner surface
 uses, so a typo in a field name fails at construction rather than silently serialising nothing.
@@ -341,11 +345,14 @@ ATTRIBUTION = "conjectures.io"
 class PublicResult(Model):
     """A certified result: Lean-verified, human-approved, and paid out.
 
-    Attributed to conjectures.io. There is no author credit, and no field here can be joined
-    back to the miner who submitted it.
+    Credited to the `hotkey` that submitted it. Nothing here reaches that miner's funds: no
+    paying coldkey, no payment reference, no extrinsic.
     """
 
     id: uuid.UUID
+    hotkey: str = Field(
+        description="The hotkey that submitted this proof, as an SS58 address"
+    )
     slug: str = Field(
         description=(
             "The conjecture this result is against, as a stable slug. Derived from the row's own "
@@ -369,6 +376,14 @@ class PublicResult(Model):
     verifier_version: str | None = None
     sandbox_mode: str | None = None
     report_available: bool = False
+    solution_available: bool = Field(
+        default=False,
+        description=(
+            "Whether the proof is published for this result, at "
+            "GET /v1/results/{id}/solution. True once review has approved the submission, so a "
+            "result that is Lean-verified but still in review is listed here with no solution"
+        ),
+    )
 
 
 class InReviewResult(Model):
@@ -380,6 +395,9 @@ class InReviewResult(Model):
     """
 
     id: uuid.UUID
+    hotkey: str = Field(
+        description="The hotkey that submitted this proof, as an SS58 address"
+    )
     slug: str = Field(description="The conjecture this result is against, as a stable slug")
     task_id: str
     title: str
@@ -389,6 +407,35 @@ class InReviewResult(Model):
     verified_at: datetime | None = None
     review_policy_version: str
     report_available: bool = False
+
+
+class PublicSolution(Model):
+    """The proof that closed a conjecture, as the miner submitted it.
+
+    Published only for an approved submission. Served as text rather than as the original zip
+    bundle: the bundle also carries the manifest the miner sent, and the proof is what a reader
+    wants — `Main.lean` is guaranteed UTF-8 and NUL-free by `verifier.submission`, so it survives
+    a JSON string intact.
+
+    Credited to the `hotkey` that submitted it, alongside the site attribution.
+    """
+
+    id: uuid.UUID
+    hotkey: str = Field(
+        description="The hotkey that submitted this proof, as an SS58 address"
+    )
+    slug: str = Field(description="The conjecture this proof closes, as a stable slug")
+    filename: str = Field(description="The path the bytes occupy in the verified bundle")
+    source: str = Field(description="The Lean source, verbatim as verified")
+    proof_sha256: str = Field(
+        description=(
+            "The digest of these exact bytes. Published here because the proof itself is now "
+            "public, so it can no longer be used to test an unpublished candidate for prior "
+            "submission — the reason it is withheld from the verification report"
+        )
+    )
+    byte_length: int
+    attribution: str = ATTRIBUTION
 
 
 class PublicVerificationReport(Model):
@@ -460,6 +507,7 @@ __all__ = [
     "PoolMeta",
     "PublicActivityItem",
     "PublicResult",
+    "PublicSolution",
     "PublicVerificationReport",
     "QueueDepths",
     "Reference",

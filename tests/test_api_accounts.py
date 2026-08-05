@@ -1213,8 +1213,12 @@ def test_credit_pricing_and_terms_are_public():
 
                 terms = await http.get("/v1/catalog/submission-terms")
                 assert terms.status_code == 200
-                assert terms.json()["version"] == "v1"
+                # v2 publishes the submitting hotkey and the approved proof. The version moves
+                # with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so the
+                # two must not drift.
+                assert terms.json()["version"] == "v2"
                 assert "One credit buys" in terms.json()["body_md"]
+                assert "Your hotkey is published" in terms.json()["body_md"]
                 codes = {
                     item["code"] for item in terms.json()["disqualification_reasons"]
                 }

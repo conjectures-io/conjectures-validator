@@ -55,13 +55,23 @@ reserve the target. If another proof becomes the successful claim while yours is
 target is solved and your submission is not reward-eligible; if yours wins, the payout amount and
 pricing inputs are recorded on the payout event.
 
-## Attribution
+## Attribution and publication
 
-Certified results are published attributed to conjectures.io. There is no author credit,
-and no public endpoint discloses which hotkey produced a result. Per-conjecture activity
-is published as salted pseudonyms that cannot be linked across conjectures.
+**Your hotkey is published with your result.** Every result on the public feeds — certified or
+awaiting review — names the hotkey that submitted it. Submitting is a public act: assume that
+anyone can see which hotkey attempted which conjecture, and when.
 
-If you need your work attributed to you by name, this is not the right venue for it.
+**An approved proof is published in full.** Once review approves your submission, the exact
+`Main.lean` you sent is served at `GET /v1/results/{id}/solution`, together with its digest. A
+proof that is still in review, was refused, or failed the kernel is not published.
+
+Per-conjecture activity is still served as salted pseudonyms, but they are weak now and you should
+not rely on them: because a verified result names your hotkey and carries its verification time,
+the pseudonyms on a conjecture you have a verified result for can be matched back to you by
+timing — and with that, your unsuccessful attempts on that conjecture too.
+
+What is still never published: your paying coldkey, your payment reference, the funding extrinsic,
+and the verifier's stdout or stderr.
 
 ## Your keys and your money
 

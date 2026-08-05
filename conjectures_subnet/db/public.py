@@ -4,11 +4,14 @@ Separate from ``submissions`` because the audience is different and the rules th
 follow from that are worth enforcing in the query layer rather than trusting a
 router to remember. Two invariants hold for everything in this module:
 
-* **Nothing returned identifies a miner.** The row types below carry no hotkey, no
-  paying coldkey, no payment reference and no extrinsic. `submissions.hotkey` is
-  read in exactly one place — ``activity`` — and it is passed straight through a
-  caller-supplied pseudonymiser and never stored in the returned row, so the
-  hotkey cannot reach a response even by mistake.
+* **The submitting hotkey is published; the money is not.** ``ResultRow.hotkey`` names the
+  solver, by product decision — a result is credited to the hotkey that produced it. Nothing
+  here carries the paying coldkey, the payment reference or the extrinsic, and that boundary is
+  the one still worth enforcing structurally: the hotkey is a public chain identity a miner
+  signs with, whereas the coldkey and the payment reference lead to the funds behind it.
+  ``activity`` still pseudonymises, but see the caveat on that function — publishing the hotkey
+  on a result makes those pseudonyms correlatable by timing, so the two are no longer
+  independent.
 * **Nothing here can be made expensive.** Every feed is keyset-paginated over a
   partial index (``deploy/migrate/sql/V002__public_feeds.sql``), the page size is
   bounded by the caller, and there is no total-count query: ``COUNT(*)`` over a
@@ -35,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from conjectures_subnet.db.models import (
     ManualReviewState,
     PayoutState,
+    Proof,
     RewardEvent,
     RewardState,
     Submission,
@@ -57,6 +61,21 @@ IN_REVIEW = (
     Submission.manual_review_status == ManualReviewState.UNREVIEWED,
 )
 
+# Lean-verified and approved by review — the gate on publishing the proof itself.
+#
+# Deliberately not `CERTIFIED`: this omits `REWARDED`, so an approved submission whose payout has
+# not yet confirmed still publishes its proof. The reason the artifact was withheld was that
+# handing it out *before the reward decision* would let anyone take a pending result elsewhere;
+# approval is that decision. Waiting for the payout as well would withhold the proof over a
+# chain confirmation, which is a transfer's problem and not a disclosure question.
+#
+# APPROVED covers both paths that reach it — a human approval, and the recorded AUTOMATIC
+# decision when manual review is disabled.
+ACCEPTED = (
+    Submission.verification_status == VerificationState.VERIFIED,
+    Submission.manual_review_status == ManualReviewState.APPROVED,
+)
+
 MAX_ACTIVITY_ROWS = 500
 
 
@@ -64,12 +83,15 @@ MAX_ACTIVITY_ROWS = 500
 class ResultRow:
     """One publishable result.
 
-    Every field here is either a property of the task, a property of the verdict, or the money
-    owed. Deliberately no miner-identifying field exists on this type: a router cannot leak what
-    it was never handed.
+    Every field here is either a property of the task, a property of the verdict, the money owed,
+    or the solver who submitted it. The paying coldkey, the payment reference and the extrinsic
+    are still absent by construction: a router cannot leak what it was never handed, and those
+    three lead to a miner's funds rather than to their public signing identity.
     """
 
     id: uuid.UUID
+    # The hotkey that submitted this proof. Published: a result is credited to its solver.
+    hotkey: str
     task_id: str
     # The conjecture this result is against, as an identity that outlives the pin it was produced
     # under. `task_id` names one build of one attack direction and changes on every rotation, so a
@@ -87,6 +109,11 @@ class ResultRow:
     verifier_version: str | None
     sandbox_mode: str | None
     report_available: bool
+    # Whether review has approved this submission, and therefore whether its proof is published.
+    # Carried on the row so a feed can advertise the solution link without a second query per
+    # item, and so the router never re-derives the disclosure gate from `certified_at` — the two
+    # are not the same test, and an approved-but-unpaid row would be got wrong by that shortcut.
+    solution_available: bool
 
 
 @dataclass(frozen=True)
@@ -253,6 +280,7 @@ async def _decorate(
         rows.append(
             ResultRow(
                 id=submission.id,
+                hotkey=submission.hotkey,
                 task_id=submission.task_id,
                 reward_target_id=submission.reward_target_id,
                 task_bundle_sha256=bytes(submission.task_bundle_sha256),
@@ -273,6 +301,9 @@ async def _decorate(
                 verifier_version=None if run is None else run.verifier_version,
                 sandbox_mode=None if run is None else run.sandbox_mode,
                 report_available=run is not None and run.has_report,
+                solution_available=(
+                    submission.manual_review_status == ManualReviewState.APPROVED
+                ),
             )
         )
     return tuple(rows)
@@ -370,6 +401,31 @@ async def public_report(
     return bytes(row.report), bytes(row.report_digest)
 
 
+async def accepted_solution(
+    session: AsyncSession, result_id: uuid.UUID
+) -> tuple[bytes, bytes, int] | None:
+    """The proof bytes, digest and length for an approved submission, or None.
+
+    The one place in this module that reads `proofs.content`, and it is gated on ``ACCEPTED``
+    rather than on ``_or_public()``. That difference is the whole disclosure rule: a submission is
+    *listed* once it is Lean-verified, but its proof is published only once review has approved
+    it. An in-review row is on the feed with no solution to fetch.
+
+    The filter is in the query, not in the caller. A router that forgot the check would otherwise
+    publish the proof of a submission still awaiting review, and the bytes are the one thing here
+    that cannot be un-published.
+    """
+    statement = (
+        select(Proof.content, Proof.digest, Proof.byte_length)
+        .join(Submission, Submission.proof_digest == Proof.digest)
+        .where(Submission.id == result_id, *ACCEPTED)
+    )
+    row = (await session.execute(statement)).first()
+    if row is None:
+        return None
+    return bytes(row.content), bytes(row.digest), row.byte_length
+
+
 # --- Per-conjecture counters ---------------------------------------------------------------
 #
 # All three key on ``reward_target_id``, not ``task_id``. Three reasons, and they compound:
@@ -440,10 +496,16 @@ async def activity(
 ) -> TaskActivity:
     """The anonymised activity stream for one conjecture.
 
-    ``pseudonymise`` is required, not optional: it is the only thing standing between
-    ``submissions.hotkey`` and a public response, so it is a parameter rather than a default that
-    could be forgotten. The hotkey is read here, mapped, and dropped — it never lands on
-    ``ActivityRow``.
+    ``pseudonymise`` is required, not optional: the hotkey is read here, mapped, and dropped — it
+    never lands on ``ActivityRow``.
+
+    The pseudonyms are no longer unlinkable in practice, and this docstring should not pretend
+    otherwise. ``ResultRow.hotkey`` publishes the solver of every verified result, and a result
+    carries ``verified_at``; an activity event carries the same transition at hour resolution on
+    the same conjecture. Correlating the two names the solver behind a pseudonym, and once named,
+    that solver's *other* events on this conjecture — including the failed attempts the pseudonym
+    was there to protect — are attributed too. The mapping is still applied because it is what
+    the stream is shaped around, but it protects only solvers who have no verified result here.
 
     The counters are computed from the same rows as the stream when the stream covers the whole
     history, and from a separate aggregate when it does not, so a truncated stream never implies
@@ -544,6 +606,7 @@ async def queue_depths(session: AsyncSession) -> QueueDepths:
 
 
 __all__ = [
+    "ACCEPTED",
     "CERTIFIED",
     "IN_REVIEW",
     "MAX_ACTIVITY_ROWS",
@@ -551,6 +614,7 @@ __all__ = [
     "QueueDepths",
     "ResultRow",
     "TaskActivity",
+    "accepted_solution",
     "activity",
     "all_results_page",
     "attempts_by_conjecture",
