@@ -32,7 +32,8 @@ repository from a relative path and the API and the worker must resolve the same
 Keep `current` a real directory rather than a symlink, or Compose resolves that relative mount
 against the physical release path instead. Anything under `/root` or `/home` cannot work at all:
 the unit sets `ProtectHome=true`, so systemd presents those paths to the service as empty
-regardless of ownership or mode bits.
+regardless of ownership or mode bits. If a release is already there, `sudo just relocate-release`
+moves both trees and keeps them siblings; `just install-worker` refuses until it has been run.
 
 The worker's membership in the `docker` group is privileged host access. Give that membership only
 to this dedicated account. No network-facing service should run as this user.
