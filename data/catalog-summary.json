@@ -1,6 +1,6 @@
 {
-  "adapter_required": 423,
-  "automatically_taskable": 2625,
+  "adapter_required": 394,
+  "automatically_taskable": 2654,
   "by_category": {
     "API": 205,
     "research open": 1167,
@@ -11,14 +11,14 @@
   "by_classification": {
     "BOOL_ANSWER": 0,
     "DEFINITION_HOLE": 1,
-    "DIRECT_PROP": 2605,
+    "DIRECT_PROP": 2634,
     "FINITE_ANSWER": 0,
     "GENERAL_VALUE_ANSWER": 116,
     "INT_ANSWER": 0,
     "MULTIPLE_ANSWER_HOLES": 0,
     "NAT_ANSWER": 20,
     "POINTER_DECLARATION": 211,
-    "PROP_ANSWER_WRAPPER": 306,
+    "PROP_ANSWER_WRAPPER": 277,
     "UNSUPPORTED": 8
   },
   "total_declarations": 3267,

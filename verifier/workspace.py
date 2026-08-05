@@ -37,14 +37,15 @@ def _lakefile(project_root: Path) -> str:
         'name = "formal_conjectures_verifier"\n'
         f"path = {root}\n\n"
         '[[lean_lib]]\nname = "Challenge"\n\n'
-        '[lean_lib.leanOptions]\nweak.google.answer = "postpone"\n\n'
+        '[lean_lib.leanOptions]\nweak.google.answer = "always_true"\n\n'
         '[[lean_lib]]\nname = "Solution"\n'
-        '[lean_lib.leanOptions]\nweak.google.answer = "postpone"\n'
+        '[lean_lib.leanOptions]\nweak.google.answer = "always_true"\n'
     )
 
 
 PackageSource = tuple[str, Path, str, str, str]
 ROOT_PACKAGE_NAME = "formal_conjectures_verifier"
+FORMAL_CONJECTURES_PACKAGE_NAME = "formal_conjectures"
 MIRROR_EXCLUDED_NAMES = frozenset({".git", ".home", ".lake", ".work"})
 
 
@@ -207,6 +208,40 @@ def _materialize_package_mirror(source: Path, destination: Path) -> None:
             shutil.copytree(trusted_config, mirror_lake / "config", symlinks=True)
 
 
+def _remove_answer_postpone_library(config_path: Path) -> None:
+    """Keep dependency module resolution on Formal Conjectures' default answer mode."""
+    marker = '\n[[lean_lib]]\nname = "FormalConjecturesAnswerPostpone"\n'
+    next_section = "\n\n[[lean_exe]]\n"
+    config = config_path.read_text(encoding="utf-8")
+    if config.count(marker) != 1:
+        raise VerifierError(
+            ReasonCode.WORKSPACE_ERROR,
+            "Formal Conjectures config has an unexpected answer-postpone library layout",
+        )
+    before, remainder = config.split(marker, maxsplit=1)
+    if next_section not in remainder:
+        raise VerifierError(
+            ReasonCode.WORKSPACE_ERROR,
+            "Formal Conjectures config is missing the section after answer-postpone",
+        )
+    _removed, after = remainder.split(next_section, maxsplit=1)
+    config_path.unlink()
+    config_path.write_text(before + next_section + after, encoding="utf-8")
+
+
+def _pin_formal_conjectures_to_default_answer_mode(
+    package: PackageSource,
+    destination: Path,
+) -> None:
+    name, _source, config_file, _manifest, _scope = package
+    if name != FORMAL_CONJECTURES_PACKAGE_NAME:
+        return
+    _remove_answer_postpone_library(destination / config_file)
+    cached_config = destination / ".lake" / "config"
+    if cached_config.exists():
+        shutil.rmtree(cached_config)
+
+
 def _materialize_package_graph(
     sources: tuple[PackageSource, ...], packages_dir: Path
 ) -> tuple[dict[str, object], ...]:
@@ -215,6 +250,7 @@ def _materialize_package_graph(
         name, source, _config, _manifest, _scope = package
         destination = packages_dir / name
         _materialize_package_mirror(source.resolve(), destination)
+        _pin_formal_conjectures_to_default_answer_mode(package, destination)
         entries.append(_path_package_entry(package, destination, inherited=index != 0))
     return tuple(entries)
 

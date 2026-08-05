@@ -11357,6 +11357,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.Dubner",
       "pointer_target": null,
+      "references": [
+        "[Every even number greater than 4208 is the sum of two t-primes](https://scispace.com/pdf/twin-prime-conjectures-3icaxy6b0m.pdf)"
+      ],
       "source_path": "FormalConjectures/Paper/Dubner.lean",
       "supported_modes": [
         "formalized",
@@ -11390,6 +11393,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.Dubner",
       "pointer_target": "of_eq_true",
+      "references": [
+        "[Every even number greater than 4208 is the sum of two t-primes](https://scispace.com/pdf/twin-prime-conjectures-3icaxy6b0m.pdf)"
+      ],
       "source_path": "FormalConjectures/Paper/Dubner.lean",
       "supported_modes": [],
       "theorem": "DubnerConjecture.t1",
@@ -11421,6 +11427,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.Dubner",
       "pointer_target": "of_eq_true",
+      "references": [
+        "[Every even number greater than 4208 is the sum of two t-primes](https://scispace.com/pdf/twin-prime-conjectures-3icaxy6b0m.pdf)"
+      ],
       "source_path": "FormalConjectures/Paper/Dubner.lean",
       "supported_modes": [],
       "theorem": "DubnerConjecture.t2",
@@ -11452,6 +11461,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.Dubner",
       "pointer_target": "of_eq_true",
+      "references": [
+        "[Every even number greater than 4208 is the sum of two t-primes](https://scispace.com/pdf/twin-prime-conjectures-3icaxy6b0m.pdf)"
+      ],
       "source_path": "FormalConjectures/Paper/Dubner.lean",
       "supported_modes": [],
       "theorem": "DubnerConjecture.t3",
@@ -11483,6 +11495,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.Dubner",
       "pointer_target": "of_eq_true",
+      "references": [
+        "[Every even number greater than 4208 is the sum of two t-primes](https://scispace.com/pdf/twin-prime-conjectures-3icaxy6b0m.pdf)"
+      ],
       "source_path": "FormalConjectures/Paper/Dubner.lean",
       "supported_modes": [],
       "theorem": "DubnerConjecture.t4",
@@ -11514,6 +11529,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.Dubner",
       "pointer_target": "of_eq_true",
+      "references": [
+        "[Every even number greater than 4208 is the sum of two t-primes](https://scispace.com/pdf/twin-prime-conjectures-3icaxy6b0m.pdf)"
+      ],
       "source_path": "FormalConjectures/Paper/Dubner.lean",
       "supported_modes": [],
       "theorem": "DubnerConjecture.t5",
@@ -13064,17 +13082,11 @@
         5,
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -13090,15 +13102,18 @@
         "[erdosproblems.com/10](https://www.erdosproblems.com/10)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/10.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos10.erdos_10",
       "transitive_axioms": [
         "propext",
         "sorryAx",
         "Quot.sound"
       ],
-      "type_hash": "sha256:877262cfc76705f843a9ee766ad4fa40347b6c104b71c5e3351894c687402eec",
-      "type_pretty": "sorry ↔ ∃ k, Erdos10.sumPrimeAndTwoPows k = Set.univ \\ {0, 1}"
+      "type_hash": "sha256:fad033e8100f8378cc36ab4c4599f1b6fb30fc44a752fb0613230db4a59343ff",
+      "type_pretty": "True ↔ ∃ k, Erdos10.sumPrimeAndTwoPows k = Set.univ \\ {0, 1}"
     },
     {
       "ams_subjects": [
@@ -16983,17 +16998,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -17009,7 +17018,10 @@
         "[erdosproblems.com/1074](https://www.erdosproblems.com/1074)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/1074.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos1074.erdos_1074.parts.i",
       "transitive_axioms": [
         "propext",
@@ -17017,8 +17029,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9fb13bb32cfb5162503aa406837a295dcd52d5222768405a343cd0e088519c14",
-      "type_pretty": "sorry ↔ ∃ c, Erdos1074.EHSNumbers.HasDensity c"
+      "type_hash": "sha256:a2f8f85142950edc1fcb41dfcb808f1da0443c57dab3d531c41747e15098d4fd",
+      "type_pretty": "True ↔ ∃ c, Erdos1074.EHSNumbers.HasDensity c"
     },
     {
       "ams_subjects": [
@@ -17058,24 +17070,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:caa8e53f519d322c3be00b86a612625d777224f14e16776719c028d7dd22c2c7",
+      "type_hash": "sha256:9c01c27486b0782ce4981d684292b733ee3247514e4a2cde572423aba23a55a3",
       "type_pretty": "Erdos1074.EHSNumbers.HasDensity sorry"
     },
     {
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -17091,7 +17097,10 @@
         "[erdosproblems.com/1074](https://www.erdosproblems.com/1074)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/1074.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos1074.erdos_1074.parts.iii",
       "transitive_axioms": [
         "propext",
@@ -17099,8 +17108,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:ee011425808321898cdf6fbbfb763b9eeee9bdf10c475716ec26ba046ba9999b",
-      "type_pretty": "sorry ↔ ∃ c, Erdos1074.PillaiPrimes.HasDensity c {p | Nat.Prime p}"
+      "type_hash": "sha256:1e2eeeab5743d21e6e620be253e54e6a0b05f7d46a0c771dfab5083271f0d4b8",
+      "type_pretty": "True ↔ ∃ c, Erdos1074.PillaiPrimes.HasDensity c {p | Nat.Prime p}"
     },
     {
       "ams_subjects": [
@@ -17140,7 +17149,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e5a133b99090206327ba79fdcce4e6e8756844f08293ce0c880d14809a15a3bc",
+      "type_hash": "sha256:e2b7ae873802b4627ebd0c3c8d1e0286af91cc2c7b22f036dbde655f92cf24b0",
       "type_pretty": "Erdos1074.PillaiPrimes.HasDensity sorry {p | Nat.Prime p}"
     },
     {
@@ -18267,17 +18276,11 @@
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -18293,7 +18296,10 @@
         "[erdosproblems.com/1093](https://www.erdosproblems.com/1093)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/1093.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos1093.erdos_1093.parts.i",
       "transitive_axioms": [
         "propext",
@@ -18301,8 +18307,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:138a0463a09f82a83c431a068e8fc6411a0007f6be9527be1472b743dcf2840f",
-      "type_pretty": "sorry ↔\n  {x |\n      have k := x.1;\n      have n := x.2;\n      2 * k ≤ n ∧ Erdos1093.deficiency n k = 1 ∧ ∀ (p : ℕ), Nat.Prime p → p ∣ n.choose k → k < p}.Infinite"
+      "type_hash": "sha256:3b1dcf3a2a0bedf21f6ecedfadbb28f756dcbd65d7089c69b633667a295e754e",
+      "type_pretty": "True ↔\n  {x |\n      have k := x.1;\n      have n := x.2;\n      2 * k ≤ n ∧ Erdos1093.deficiency n k = 1 ∧ ∀ (p : ℕ), Nat.Prime p → p ∣ n.choose k → k < p}.Infinite"
     },
     {
       "ams_subjects": [
@@ -24063,17 +24069,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -24089,7 +24089,10 @@
         "[erdosproblems.com/126](https://www.erdosproblems.com/126)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/126.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos126.erdos_126",
       "transitive_axioms": [
         "propext",
@@ -24097,8 +24100,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:728d5bf95dc484e3f5de31a8d158e4b70933c1d05eb972a57ce08a398084f7d9",
-      "type_pretty": "sorry ↔\n  ∀ (f : ℕ → ℕ),\n    Erdos126.IsMaximalAddFactorsCard f → Filter.Tendsto (fun n => ↑(f n) / Real.log ↑n) Filter.atTop Filter.atTop"
+      "type_hash": "sha256:baceba31bace2d3c4aefa7abde6d6d4ad6e742acfe0dfdae6302fcf177f793d0",
+      "type_pretty": "True ↔\n  ∀ (f : ℕ → ℕ),\n    Erdos126.IsMaximalAddFactorsCard f → Filter.Tendsto (fun n => ↑(f n) / Real.log ↑n) Filter.atTop Filter.atTop"
     },
     {
       "ams_subjects": [
@@ -24338,17 +24341,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -24364,7 +24361,10 @@
         "[erdosproblems.com/137](https://www.erdosproblems.com/137)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/137.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos137.erdos_137",
       "transitive_axioms": [
         "propext",
@@ -24372,8 +24372,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4cae18d8d3eab3d26ba1d6404f77dfceae70bd0b63a60039248c8fd5dcded3a3",
-      "type_pretty": "sorry ↔ ∀ k ≥ 3, ∀ (n : ℕ), ¬(∏ x ∈ Finset.Ioc n (n + k), x).Powerful"
+      "type_hash": "sha256:580b950aaaaacb14e036e42584d13f2e7c7980f278baffa24b4c26d10a4442bc",
+      "type_pretty": "True ↔ ∀ k ≥ 3, ∀ (n : ℕ), ¬(∏ x ∈ Finset.Ioc n (n + k), x).Powerful"
     },
     {
       "ams_subjects": [
@@ -25263,7 +25263,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2e30b0764ee27dc0c4bd63209254700c91bde20e316dc8c082854979647dea84",
+      "type_hash": "sha256:bc1817ec52a8dc30ca1215c3144c39a2b9ba30eb659279db59c8d991a337c577",
       "type_pretty": "∀ (k : ℕ), (fun N => ↑(Erdos142.r k N)) =Θ[Filter.atTop] sorry"
     },
     {
@@ -25342,7 +25342,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:bf3158908918331c40f444041dcc5eebed002bf9522c457dc667213371b87688",
+      "type_hash": "sha256:06a2b190fda850af30c1dc3654a5f64cf408e4a39b5c4ef2fd1028a4f13abcf4",
       "type_pretty": "(fun N => ↑(Erdos142.r 3 N)) =Θ[Filter.atTop] sorry"
     },
     {
@@ -25383,24 +25383,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:5ed488d16018f29848cc844994a4cab38fa9f019efdcad5fac21004c4260930c",
+      "type_hash": "sha256:c2774fcab5f76fca769e72057f88161e0af21f3e1a5f5f6b63b3249d896a446c",
       "type_pretty": "∀ (k : ℕ), (fun N => ↑(Erdos142.r k N)) =O[Filter.atTop] sorry"
     },
     {
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -25416,7 +25410,10 @@
         "[erdosproblems.com/143](https://www.erdosproblems.com/143)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/143.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos143.erdos_143.parts.i",
       "transitive_axioms": [
         "propext",
@@ -25424,8 +25421,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4d1783a50d01b5748decd008ac003307e367d023583cae928a508b993322f130",
-      "type_pretty": "sorry ↔\n  ∀ (A : Set ℝ), Erdos143.WellSeparatedSet A → Filter.liminf (fun x => ↑(A ∩ Set.Icc 1 x).ncard / x) Filter.atTop = 0"
+      "type_hash": "sha256:0a1019bd3b9d99f765e7da5efe510614b2cc16122087bb5a1912ba02447ea4eb",
+      "type_pretty": "True ↔\n  ∀ (A : Set ℝ), Erdos143.WellSeparatedSet A → Filter.liminf (fun x => ↑(A ∩ Set.Icc 1 x).ncard / x) Filter.atTop = 0"
     },
     {
       "ams_subjects": [
@@ -27751,17 +27748,11 @@
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -27781,7 +27772,10 @@
         "[Er71](https://users.renyi.hu/~p_erdos/1971-25.pdf) Erdős, P., Some unsolved problems in graph theory and combinatorial analysis. Combinatorial Mathematics and its Applications (Proc. Conf., Oxford, 1969) (1971), 97-109."
       ],
       "source_path": "FormalConjectures/ErdosProblems/184.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos184.erdos_184.variants.covering",
       "transitive_axioms": [
         "propext",
@@ -27789,8 +27783,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f3ede761acdbdafa41fd9ec832e2f6ebdcf8311eb278bcf6729b49e932e4cac8",
-      "type_pretty": "sorry ↔\n  ∀ {V : Type} [inst : Fintype V] [DecidableEq V] [Nonempty V] (G : SimpleGraph V),\n    ∃ D, (∀ H ∈ D, Erdos184.IsCycleOrEdge H.coe) ∧ ⋃ H ∈ D, H.edgeSet = G.edgeSet ∧ ↑D.card ≤ ↑(Fintype.card V) - 1"
+      "type_hash": "sha256:f9707da7ba0a2bc4b4a26057cd9ff0079a9b0e931037ed7abf63e378067b33a7",
+      "type_pretty": "True ↔\n  ∀ {V : Type} [inst : Fintype V] [DecidableEq V] [Nonempty V] (G : SimpleGraph V),\n    ∃ D, (∀ H ∈ D, Erdos184.IsCycleOrEdge H.coe) ∧ ⋃ H ∈ D, H.edgeSet = G.edgeSet ∧ ↑D.card ≤ ↑(Fintype.card V) - 1"
     },
     {
       "ams_subjects": [
@@ -28141,6 +28135,11 @@
       "is_prop": true,
       "module": "FormalConjectures.ErdosProblems.«193»",
       "pointer_target": null,
+      "references": [
+        "[erdosproblems.com/193](https://www.erdosproblems.com/193)",
+        "[ErGr80] Erdős, P. and Graham, R., Old and new problems and results in combinatorial number theory. Monographies de L'Enseignement Mathematique (1980).",
+        "[GeRa79] Gerver, Joseph L. and Ramsey, L. Thomas, \"On certain sequences of lattice points.\" Pacific J. Math. (1979), 357-363."
+      ],
       "source_path": "FormalConjectures/ErdosProblems/193.lean",
       "supported_modes": [
         "formalized",
@@ -28176,6 +28175,11 @@
       "is_prop": true,
       "module": "FormalConjectures.ErdosProblems.«193»",
       "pointer_target": null,
+      "references": [
+        "[erdosproblems.com/193](https://www.erdosproblems.com/193)",
+        "[ErGr80] Erdős, P. and Graham, R., Old and new problems and results in combinatorial number theory. Monographies de L'Enseignement Mathematique (1980).",
+        "[GeRa79] Gerver, Joseph L. and Ramsey, L. Thomas, \"On certain sequences of lattice points.\" Pacific J. Math. (1979), 357-363."
+      ],
       "source_path": "FormalConjectures/ErdosProblems/193.lean",
       "supported_modes": [
         "formalized",
@@ -28957,17 +28961,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -28983,7 +28981,10 @@
         "[erdosproblems.com/208](https://www.erdosproblems.com/208)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/208.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos208.erdos_208.parts.i",
       "transitive_axioms": [
         "propext",
@@ -28991,24 +28992,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:ed5d900da383c70b4fb9003a7b5b1ff63a9921ab676c0ebae52a10f085933df8",
-      "type_pretty": "sorry ↔\n  ∀ ε > 0,\n    (fun n => ↑(Erdos208.erdos208.s (n + 1)) - ↑(Erdos208.erdos208.s n)) =O[Filter.atTop] fun n =>\n      ↑(Erdos208.erdos208.s n) ^ ε"
+      "type_hash": "sha256:57916fe812a5b9151741e1e447d8ff89ae94b42ba15d37e6dbe2818315159477",
+      "type_pretty": "True ↔\n  ∀ ε > 0,\n    (fun n => ↑(Erdos208.erdos208.s (n + 1)) - ↑(Erdos208.erdos208.s n)) =O[Filter.atTop] fun n =>\n      ↑(Erdos208.erdos208.s n) ^ ε"
     },
     {
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -29024,7 +29019,10 @@
         "[erdosproblems.com/208](https://www.erdosproblems.com/208)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/208.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos208.erdos_208.parts.ii",
       "transitive_axioms": [
         "propext",
@@ -29032,8 +29030,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c14f8bc2937a471ef1bdfc363f1b3fcd2b863e4fb679cdd84610bcaaf9d02c50",
-      "type_pretty": "sorry ↔\n  ∃ c,\n    c =o[Filter.atTop] 1 ∧\n      ∀ᶠ (n : ℕ) in Filter.atTop,\n        ↑(Erdos208.erdos208.s (n + 1)) - ↑(Erdos208.erdos208.s n) ≤\n          (1 + c n) * (Real.pi ^ 2 / 6) * Real.log ↑(Erdos208.erdos208.s n) /\n            Real.log (Real.log ↑(Erdos208.erdos208.s n))"
+      "type_hash": "sha256:22412de3d71f86427a232a54f2ef1815c5517c01c0b6a5623abacc07542460ef",
+      "type_pretty": "True ↔\n  ∃ c,\n    c =o[Filter.atTop] 1 ∧\n      ∀ᶠ (n : ℕ) in Filter.atTop,\n        ↑(Erdos208.erdos208.s (n + 1)) - ↑(Erdos208.erdos208.s n) ≤\n          (1 + c n) * (Real.pi ^ 2 / 6) * Real.log ↑(Erdos208.erdos208.s n) /\n            Real.log (Real.log ↑(Erdos208.erdos208.s n))"
     },
     {
       "ams_subjects": [
@@ -30603,17 +30601,11 @@
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -30633,7 +30625,10 @@
         "[Gu04] Guy, Richard K., Unsolved problems in number theory. (2004), xviii+437."
       ],
       "source_path": "FormalConjectures/ErdosProblems/241.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos241.erdos_241",
       "transitive_axioms": [
         "propext",
@@ -30641,8 +30636,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:759a43889ecaaa30f397733b8a8c51ef0217d8c6f03f0d5686d5bc82600549d0",
-      "type_pretty": "sorry ↔ Asymptotics.IsEquivalent Filter.atTop (fun N => ↑(Erdos241.f N 3)) fun N => ↑N ^ (1 / 3)"
+      "type_hash": "sha256:856e813bc4667cd303f0c4819d68cc3764fc1ee92459157d5c0099e547b3cdf1",
+      "type_pretty": "True ↔ Asymptotics.IsEquivalent Filter.atTop (fun N => ↑(Erdos241.f N 3)) fun N => ↑N ^ (1 / 3)"
     },
     {
       "ams_subjects": [
@@ -33454,7 +33449,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0e4753954688bf5ccdfd5397421fb92e802366c585f5afae0cfeea4b01379dd8",
+      "type_hash": "sha256:d544c8d0d840bfa0623e8d379c7f679d4eb8c5dd5feb1a92da019e6c1d189dda",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun N => ↑(Erdos272.maxArithInterCard N)) sorry"
     },
     {
@@ -33654,17 +33649,11 @@
       "ams_subjects": [
         20
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -33685,7 +33674,10 @@
         "[arXiv:1804.11103](https://arxiv.org/abs/1804.11103)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/274.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos274.erdos_274",
       "transitive_axioms": [
         "propext",
@@ -33693,8 +33685,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:efd55e4824d4db686d45714668be59cfb5f7c961fce4977b13bee50ec7f68681",
-      "type_pretty": "sorry ↔\n  ∀ (G : Type u_1) [inst : Group G],\n    1 < ENat.card G →\n      ∀ (ι : Type u_2) [inst_1 : Fintype ι] (P : Erdos274.Group.ExactCovering G ι),\n        1 < Fintype.card ι → ∃ i j, i ≠ j ∧ Cardinal.mk ↥(P.parts i) = Cardinal.mk ↥(P.parts j)"
+      "type_hash": "sha256:7ceb7ac738ac5fdd8307f90847a6ed02765b66a0366a1c00bed6283d5b8b2760",
+      "type_pretty": "True ↔\n  ∀ (G : Type u_1) [inst : Group G],\n    1 < ENat.card G →\n      ∀ (ι : Type u_2) [inst_1 : Fintype ι] (P : Erdos274.Group.ExactCovering G ι),\n        1 < Fintype.card ι → ∃ i j, i ≠ j ∧ Cardinal.mk ↥(P.parts i) = Cardinal.mk ↥(P.parts j)"
     },
     {
       "ams_subjects": [
@@ -34173,24 +34165,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:127d01c40ed3ed5d77c2d718834e6749fbc3c4b8163868a0223bb029de97e622",
+      "type_hash": "sha256:982f1b8c052dbe383833ab5eb91517133ccfc3b8f1e56c8230dcfcdc53a26be8",
       "type_pretty": "∀ (x : ℚ) (A : Set ℕ), Erdos282.greedyUnitFractionRem A x =ᶠ[Filter.atTop] 0 ↔ (x, A) ∈ sorry"
     },
     {
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -34206,7 +34192,10 @@
         "[erdosproblems.com/282](https://www.erdosproblems.com/282)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/282.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos282.erdos_282.variants.graham",
       "transitive_axioms": [
         "propext",
@@ -34214,24 +34203,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:68966fb570d0c2f356b24bb3077bb97801e5c0a1d5f2c15fc452f83d79c104c7",
-      "type_pretty": "∀ {x : ℚ},\n  x ∈ Set.Ioo 0 1 →\n    ∀ {a d : ℕ},\n      1 < d →\n        (x.den / x.den.gcd (a.gcd d)).gcd (d / a.gcd d) = 1 →\n          (Erdos282.greedyUnitFractionRem {n | n ≡ a [MOD d]} x =ᶠ[Filter.atTop] 0 ↔ sorry)"
+      "type_hash": "sha256:f6ab6eb7e431c28c6caf02eb725fbfb531c624c2d948a6b7002ac1f3e502af48",
+      "type_pretty": "∀ {x : ℚ},\n  x ∈ Set.Ioo 0 1 →\n    ∀ {a d : ℕ},\n      1 < d →\n        (x.den / x.den.gcd (a.gcd d)).gcd (d / a.gcd d) = 1 →\n          (Erdos282.greedyUnitFractionRem {n | n ≡ a [MOD d]} x =ᶠ[Filter.atTop] 0 ↔ True)"
     },
     {
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -34247,7 +34230,10 @@
         "[erdosproblems.com/282](https://www.erdosproblems.com/282)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/282.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos282.erdos_282.variants.sq",
       "transitive_axioms": [
         "propext",
@@ -34255,8 +34241,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0fa7c39c95785a84459e5db14071ab5e02a6a8c537bbd070d180788e18b3e906",
-      "type_pretty": "sorry ↔\n  ∀ (x : ℚ),\n    ↑x ∈ Set.Ico 0 (Real.pi ^ 2 / 6 - 1) ∪ Set.Ico 1 (Real.pi ^ 2 / 6) →\n      Erdos282.greedyUnitFractionRem {n | IsSquare n} x =ᶠ[Filter.atTop] 0"
+      "type_hash": "sha256:c4e5ac381d3804cddc18b385fbbd4e16bd7b01c782bdaa32010232c1e9392ea3",
+      "type_pretty": "True ↔\n  ∀ (x : ℚ),\n    ↑x ∈ Set.Ico 0 (Real.pi ^ 2 / 6 - 1) ∪ Set.Ico 1 (Real.pi ^ 2 / 6) →\n      Erdos282.greedyUnitFractionRem {n | IsSquare n} x =ᶠ[Filter.atTop] 0"
     },
     {
       "ams_subjects": [
@@ -36856,17 +36842,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -36883,7 +36863,10 @@
         "[A54377](https://oeis.org/A54377) (Primary pseudoperfect numbers)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/313.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos313.erdos_313",
       "transitive_axioms": [
         "propext",
@@ -36891,8 +36874,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:424d9792dfdeb1e62d2784dadd360e0d9d5764141e558374cbedc343ec4b38e2",
-      "type_pretty": "sorry ↔ Erdos313.erdos313Solutions.Infinite"
+      "type_hash": "sha256:274fcf6675964a12fec185d8b2ef0b75ef88a3bfa24eebf2ca0429b006ec0a48",
+      "type_pretty": "True ↔ Erdos313.erdos313Solutions.Infinite"
     },
     {
       "ams_subjects": [
@@ -38425,17 +38408,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -38451,15 +38428,18 @@
         "[erdosproblems.com/324](https://www.erdosproblems.com/324)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/324.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos324.erdos_324",
       "transitive_axioms": [
         "propext",
         "sorryAx",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8da0c85cf474148f25be50e514dfa62e9f2a4f4481c8c65d74cc4d743e713fd7",
-      "type_pretty": "sorry ↔\n  ∃ f,\n    Set.InjOn\n      (fun x =>\n        match x with\n        | (a, b) => Polynomial.eval (↑a) f + Polynomial.eval (↑b) f)\n      {(a, b) | a < b}"
+      "type_hash": "sha256:47eb17ff8935dc52cb23ed8d5ffb981880fa0615ef9556dbbbc3f3b83cc158f2",
+      "type_pretty": "True ↔\n  ∃ f,\n    Set.InjOn\n      (fun x =>\n        match x with\n        | (a, b) => Polynomial.eval (↑a) f + Polynomial.eval (↑b) f)\n      {(a, b) | a < b}"
     },
     {
       "ams_subjects": [
@@ -39383,17 +39363,11 @@
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -39409,7 +39383,10 @@
         "[erdosproblems.com/340](https://www.erdosproblems.com/340)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/340.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos340.erdos_340.variants._33_mem_sub",
       "transitive_axioms": [
         "propext",
@@ -39417,24 +39394,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f9af3f1797d00b689479a26630b41c649830c2cd4c3eb1d9b931511895347f8b",
-      "type_pretty": "sorry ↔ 33 ∈ Set.range Finset.greedySidon - Set.range Finset.greedySidon"
+      "type_hash": "sha256:7c4eccd36f9e1ed3f45b2553725c7fe188149993430bdbad0435bef2a7ee0ccc",
+      "type_pretty": "True ↔ 33 ∈ Set.range Finset.greedySidon - Set.range Finset.greedySidon"
     },
     {
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -39450,7 +39421,10 @@
         "[erdosproblems.com/340](https://www.erdosproblems.com/340)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/340.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos340.erdos_340.variants.co_density_zero_sub",
       "transitive_axioms": [
         "propext",
@@ -39458,24 +39432,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:df1356f60dc7ee75c7ea6e75b6a85dd4dc7bd88776a1871f8435856260fbcfd2",
-      "type_pretty": "sorry ↔ ∃ S, S.HasDensity 0 ∧ ∀ n ∈ Sᶜ, n ∈ Set.range Finset.greedySidon - Set.range Finset.greedySidon"
+      "type_hash": "sha256:2e201abb9b8a29fdc4b4cb96135dcca2fc42c11882bd56db7a9c51bfef1ac79a",
+      "type_pretty": "True ↔ ∃ S, S.HasDensity 0 ∧ ∀ n ∈ Sᶜ, n ∈ Set.range Finset.greedySidon - Set.range Finset.greedySidon"
     },
     {
       "ams_subjects": [
         5
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -39491,7 +39459,10 @@
         "[erdosproblems.com/340](https://www.erdosproblems.com/340)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/340.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos340.erdos_340.variants.cofinite_sub",
       "transitive_axioms": [
         "propext",
@@ -39499,8 +39470,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4c1b4262a5fae3c13817a8f527a057a99be62513247054ebd4e15d9c64f710f6",
-      "type_pretty": "sorry ↔ ∀ᶠ (n : ℕ) in Filter.cofinite, n ∈ Set.range Finset.greedySidon - Set.range Finset.greedySidon"
+      "type_hash": "sha256:0d51643c11951132fa401c796a3dd4effb35841a411ec1961a577ba6b29c0eba",
+      "type_pretty": "True ↔ ∀ᶠ (n : ℕ) in Filter.cofinite, n ∈ Set.range Finset.greedySidon - Set.range Finset.greedySidon"
     },
     {
       "ams_subjects": [
@@ -39540,7 +39511,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:cf3d884083da95d9cb937ca4fc470645c0c58e357de5c70e3bc1f3f5ceea0d7f",
+      "type_hash": "sha256:7230fc858b49286a3567e1e36ccb44c1145d6680a7731ff6596ca612f97012ce",
       "type_pretty": "∀ ε > 0, (fun n => ↑(Set.range Finset.greedySidon ∩ Set.Icc 1 n).ncard) =Θ[Filter.atTop] sorry"
     },
     {
@@ -41822,7 +41793,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:7dad163d3c6fb081c9cdb51d00076470512b3f10054240a15cb4cf646d87d975",
+      "type_hash": "sha256:975d7373d6af88c3bf9184bccc42e4d1f2a2053e98ceb64396ad72b92c5bb40b",
       "type_pretty": "sorry =O[Filter.atTop] fun n => ↑(Erdos357.f n)"
     },
     {
@@ -41863,7 +41834,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e33ea2efaba1ae5c10568d9bfa4618c0fbab654a17cb6db448e8024117caf261",
+      "type_hash": "sha256:013e0c36ee5499c71a808d13044e1179a631208898b4aada1f7aaa4b936f23d3",
       "type_pretty": "(fun n => ↑(Erdos357.f n)) =O[Filter.atTop] sorry"
     },
     {
@@ -41904,7 +41875,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8d182c2d1407d0cc609b5d34caf5f10dac8ba3d6c2bb1b1fe554e76ab68cdf22",
+      "type_hash": "sha256:78f22ff40e7e9530b0b1a0d888d629c707e6d64446e55596d98aba1b2eaeb25c",
       "type_pretty": "(fun n => ↑(Erdos357.f n)) =Θ[Filter.atTop] sorry"
     },
     {
@@ -41945,7 +41916,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:12b1d1e71c2121f3ba430238d2e7a181914108b2f2517bae22b26ccb58a6319f",
+      "type_hash": "sha256:59720feb798dbe463eedc4e2febad30922fc80515fa3b00d197f29aa52c8cab4",
       "type_pretty": "sorry =o[Filter.atTop] fun n => ↑(Erdos357.f n)"
     },
     {
@@ -41986,7 +41957,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2dd08e7b669b278f5eeeafb908bc033f8a4c16a948a2898388a110233e5cfcd2",
+      "type_hash": "sha256:da8c70bb584c1c3b716eaa341f6ffb6724425a0716be4b280d3cde122a923cb7",
       "type_pretty": "(fun n => ↑(Erdos357.f n)) =o[Filter.atTop] sorry"
     },
     {
@@ -42217,7 +42188,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:cea0a3daae3544fbb70835824bf041fabb8c074564a1e827b9bdc00f16645e4b",
+      "type_hash": "sha256:63079cbb845de2392832f9a061fc5fd951e9d79ee0ab5a329cd9697ab4a0b1c2",
       "type_pretty": "sorry =O[Filter.atTop] fun n => ↑(Erdos357.h n)"
     },
     {
@@ -42258,7 +42229,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:7629d55527b8e53057527047bc3b9c00255f554834d1e77cab5d8d3ef1a7806b",
+      "type_hash": "sha256:91ce7a6da6cf52289af1c795a834a7f574502948c5571b195e72036805239822",
       "type_pretty": "(fun n => ↑(Erdos357.h n)) =O[Filter.atTop] sorry"
     },
     {
@@ -42299,7 +42270,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4603b6e3a1a9eca5bbee368a3be48243f48c0c626b74806d0ca68d7540d7c434",
+      "type_hash": "sha256:5fdb66fd977463618b677e9f1199e8391b42f4a9b9c9b790c8ac978d7d5879ed",
       "type_pretty": "(fun n => ↑(Erdos357.h n)) =Θ[Filter.atTop] sorry"
     },
     {
@@ -42340,7 +42311,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c8103e35fbfa19b33301fd10bf8c3051cce5c9323182aa14723bf110c30fe22f",
+      "type_hash": "sha256:49d883146a6ca1df28b7a42b7e6e37be44d65d147d328d798f505dd9c784ae6b",
       "type_pretty": "sorry =o[Filter.atTop] fun n => ↑(Erdos357.h n)"
     },
     {
@@ -42381,7 +42352,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:53c701c090c374a8435c946236ede2de6f09712d3ba0dde2187a6108cc4a2305",
+      "type_hash": "sha256:cfbb39e77ae4c40dc5d3aae1f45248ac072e52736736538b450991c252cc0093",
       "type_pretty": "(fun n => ↑(Erdos357.h n)) =o[Filter.atTop] sorry"
     },
     {
@@ -46633,17 +46604,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -46659,7 +46624,10 @@
         "[erdosproblems.com/406](https://www.erdosproblems.com/406)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/406.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos406.erdos_406",
       "transitive_axioms": [
         "propext",
@@ -46667,8 +46635,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:377611ef295e51cf40291c5244f1cbe82f7ac6bec7ff3b9d7a4aca3057b6c15f",
-      "type_pretty": "sorry ↔ {n | n.isPowerOfTwo ∧ Nat.digits 3 n ⊆ [0, 1]}.Finite"
+      "type_hash": "sha256:ca3da13256a1add3f8612e109588006cc05338a93845e3d2968eb0a074bdf4e5",
+      "type_pretty": "True ↔ {n | n.isPowerOfTwo ∧ Nat.digits 3 n ⊆ [0, 1]}.Finite"
     },
     {
       "ams_subjects": [
@@ -46748,7 +46716,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:61ade2fa03e1f9841ae6b480d34164e8dfafad3751be782daf2dc0e6a90e49f0",
+      "type_hash": "sha256:6ee4e6030f6da89f90f10aeaf4f1d98cefae24311ef0742d9034ad6fd7b81844",
       "type_pretty": "∀ (n : ℕ), 0 < n → IsLeast {i | Nat.Prime ((fun x => x.totient + 1)^[i] n)} sorry"
     },
     {
@@ -46789,7 +46757,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:efbe6d311c898ae1b2b0d96ca57ff3cd0d03a0e39ef1cd7815cc312dd11e63ac",
+      "type_hash": "sha256:5628cea48c982084a09a3c8e10cc000a0b50ed30437ee1cda8a07adf740a7056",
       "type_pretty": "∀ (c : ℕ → ℕ),\n  (∀ n > 0, IsLeast {i | Nat.Prime ((fun x => x.totient + 1)^[i] n)} (c n)) → (fun n => ↑(c n)) =O[Filter.atTop] sorry"
     },
     {
@@ -46830,7 +46798,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e066d506d756ad33722065012b20e73e50502c51208d9bbc318d73932e4e53ca",
+      "type_hash": "sha256:7e950c2fda09f23ec010caf00455c1bc1b222ffaa08b9165fb5824165541b9d7",
       "type_pretty": "∀ (c : ℕ → ℕ),\n  (∀ n > 0, IsLeast {i | Nat.Prime ((fun x => x.totient + 1)^[i] n)} (c n)) → (fun n => ↑(c n)) =o[Filter.atTop] sorry"
     },
     {
@@ -46871,24 +46839,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f4a0ca74378d09fdd02b28426f40dab2a2d6e6dc971923b9fb554c71c02c3fd7",
+      "type_hash": "sha256:587b6754eab9506f54eacff5904895fe00937554f7cf809526468d9c49597b4a",
       "type_pretty": "∀ (c : ℕ → ℕ),\n  (∀ n > 0, IsLeast {i | Nat.Prime ((fun x => x.totient + 1)^[i] n)} (c n)) → (fun n => ↑(c n)) =Θ[Filter.atTop] sorry"
     },
     {
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -46904,7 +46866,10 @@
         "[erdosproblems.com/409](https://www.erdosproblems.com/409)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/409.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos409.erdos_409.parts.ii",
       "transitive_axioms": [
         "propext",
@@ -46912,8 +46877,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:ef51eebefb513f63478e9484cd8bd1760d34fd6f0544e248c3948ed183035074",
-      "type_pretty": "sorry ↔ ∃ p, ∃ (_ : Nat.Prime p), {n | ∃ i, (fun x => x.totient + 1)^[i] n = p}.Infinite"
+      "type_hash": "sha256:f1f131d35657da27bfdc326821a3e252710fa311567bacfb0aef0fa5ed402ad4",
+      "type_pretty": "True ↔ ∃ p, ∃ (_ : Nat.Prime p), {n | ∃ i, (fun x => x.totient + 1)^[i] n = p}.Infinite"
     },
     {
       "ams_subjects": [
@@ -46996,7 +46961,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:055daef34b56b2b4b41ba06cbee2b6998134a25160b459c75cc59ae120f2d50c",
+      "type_hash": "sha256:cade1a1f6efa189683529dd18d96023e798219daf5205dc51a49f9021b25cf49",
       "type_pretty": "∀ n > 1, IsLeast {i | Nat.Prime ((fun x => (ArithmeticFunction.sigma 1) x - 1)^[i] n)} sorry"
     },
     {
@@ -47037,7 +47002,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:83d9402d43c18ebcc0f91328756609d81e1cc17b24d2e16fa0c13e055a256770",
+      "type_hash": "sha256:c80ff8ee407a2e7710ae228dd5deb6a0abbe5d7ee799751a3e60113eb6bf3bbc",
       "type_pretty": "∀ (c : ℕ → ℕ),\n  (∀ n > 1, IsLeast {i | Nat.Prime ((fun x => (ArithmeticFunction.sigma 1) x - 1)^[i] n)} (c n)) →\n    (fun n => ↑(c n)) =O[Filter.atTop] sorry"
     },
     {
@@ -47078,7 +47043,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:06be776ca5d6b8581ad939a1acf47351b17857f402d2bcea873a5dd14f87eded",
+      "type_hash": "sha256:30de941a279ff195f1bea36713aff4a35b9e82327e571705780ec7c6aa2a1676",
       "type_pretty": "∀ (c : ℕ → ℕ),\n  (∀ n > 1, IsLeast {i | Nat.Prime ((fun x => (ArithmeticFunction.sigma 1) x - 1)^[i] n)} (c n)) →\n    (fun n => ↑(c n)) =o[Filter.atTop] sorry"
     },
     {
@@ -47119,24 +47084,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:dc0e3305ee3fb862982c3d89f13f966b513eceabbd9c8079a93b608bfe4b18af",
+      "type_hash": "sha256:3b388f7de7db3596ffac02746d8cf463564d3be4a06e93dc184bec043f32e1c4",
       "type_pretty": "∀ (c : ℕ → ℕ),\n  (∀ n > 1, IsLeast {i | Nat.Prime ((fun x => (ArithmeticFunction.sigma 1) x - 1)^[i] n)} (c n)) →\n    (fun n => ↑(c n)) =Θ[Filter.atTop] sorry"
     },
     {
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -47152,7 +47111,10 @@
         "[erdosproblems.com/409](https://www.erdosproblems.com/409)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/409.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos409.erdos_409.variants.sigma_prime_termination",
       "transitive_axioms": [
         "propext",
@@ -47160,8 +47122,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:30733256a571801a1c898d6e51ee98ecf9ada548bbc0dc3c72891dfb51b3b19c",
-      "type_pretty": "sorry ↔ ∀ n > 1, ∃ i, Nat.Prime ((fun x => (ArithmeticFunction.sigma 1) x - 1)^[i] n)"
+      "type_hash": "sha256:8cd9ad7c180a47014a73666579f1c7fa31d9fafa3332a2388da6ef84d5ef14ed",
+      "type_pretty": "True ↔ ∀ n > 1, ∃ i, Nat.Prime ((fun x => (ArithmeticFunction.sigma 1) x - 1)^[i] n)"
     },
     {
       "ams_subjects": [
@@ -47696,7 +47658,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:26970912e3ffab189076ba85102b39179cf980c07f7e0cc302ead59a685e7ead",
+      "type_hash": "sha256:d2a47f472734a4ed237c59b0438283495da9cab504e62c3c0030fe971be308d0",
       "type_pretty": "have f := sorry;\nFilter.Tendsto (fun x => Erdos416.V x / f x) Filter.atTop (nhds 1)"
     },
     {
@@ -47775,7 +47737,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0c0ad0072e90759a7d4c2e09d4bd07d8ff7b9493a4720cdddd0cc83a579ac7f0",
+      "type_hash": "sha256:90d2554806fb8b2e70f3d8b83760f1408b411e9ff91066d0817901aa7bc6dccf",
       "type_pretty": "match sorry with\n| (C₁, C₂, C₃) =>\n  0 < C₁ ∧\n    0 < C₂ ∧\n      0 < C₃ ∧\n        have G := fun x =>\n          x / Real.log x *\n            Real.exp\n              (C₁ * (Real.log (Real.log (Real.log x)) - Real.log (Real.log (Real.log (Real.log x)))) ^ 2 +\n                  C₂ * Real.log (Real.log (Real.log x)) -\n                C₃ * Real.log (Real.log (Real.log (Real.log x))));\n        Erdos416.V =Θ[Filter.atTop] G"
     },
     {
@@ -47816,7 +47778,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:28c16bf01c4a1f7c84d3e98ca33b35adbc93625d024c60533854f8a2e37099a6",
+      "type_hash": "sha256:accf47378625688fdc10afda03b87c1bbfb871c5e9fdeee1dab526dcf9ec9f9b",
       "type_pretty": "have C := sorry;\n0 < C ∧\n  ∃ f,\n    f =o[Filter.atTop] 1 ∧\n      ∀ᶠ (x : ℝ) in Filter.atTop,\n        Erdos416.V x = x / Real.log x * Real.exp ((C + f x) * Real.log (Real.log (Real.log x)) ^ 2)"
     },
     {
@@ -51075,17 +51037,11 @@
       "ams_subjects": [
         12
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -51102,7 +51058,10 @@
         "[Sek59](http://dml.cz/dmlcz/100376) Milan Sekanina, Замечания к фактoризации беcкoнечнoй цикличеcкoй группы, Czechoslovak Mathematical Journal, Vol. 9 (1959), No. 4, 485–495"
       ],
       "source_path": "FormalConjectures/ErdosProblems/477.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos477.erdos_477",
       "transitive_axioms": [
         "propext",
@@ -51110,8 +51069,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:32720ea32a9f02e631cefde38d15e45c666397c0a8fd93ca2795435bfcdc63a7",
-      "type_pretty": "sorry ↔ ∃ f, 2 ≤ f.degree ∧ ∃ A, ∀ (z : ℤ), ∃! ab, (ab ∈ A ×ˢ Set.range fun x => Polynomial.eval x f) ∧ z = ab.1 + ab.2"
+      "type_hash": "sha256:a36a673a02b4c254eaa2381828123300e74a128d584dc9fe1fed77e8cdafb075",
+      "type_pretty": "True ↔ ∃ f, 2 ≤ f.degree ∧ ∃ A, ∀ (z : ℤ), ∃! ab, (ab ∈ A ×ˢ Set.range fun x => Polynomial.eval x f) ∧ z = ab.1 + ab.2"
     },
     {
       "ams_subjects": [
@@ -56313,6 +56272,10 @@
       "is_prop": true,
       "module": "FormalConjectures.ErdosProblems.«566»",
       "pointer_target": null,
+      "references": [
+        "[erdosproblems.com/566](https://www.erdosproblems.com/566)",
+        "[EFRS93] Erdős, Faudree, Rousseau and Schelp, _Ramsey size linear graphs_."
+      ],
       "source_path": "FormalConjectures/ErdosProblems/566.lean",
       "supported_modes": [
         "formalized",
@@ -65213,17 +65176,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -65241,7 +65198,10 @@
         "[Ma66] Matsuyama, Noboru. \"On the strong law of large numbers.\" Tohoku Mathematical Journal, Second Series 18.3 (1966): 259-269."
       ],
       "source_path": "FormalConjectures/ErdosProblems/770.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos770.erdos_770.parts.i",
       "transitive_axioms": [
         "propext",
@@ -65249,24 +65209,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:984109c3fadda3e7885e79c41364da12f8fee55ea891a29228d01c14027ef75a",
-      "type_pretty": "sorry ↔ ∀ (p : ℕ), Nat.Prime p → ∃ a, {n | Erdos770.h n = ↑p}.HasDensity a"
+      "type_hash": "sha256:a8f0660ebc5a135f015f1c1406d602b85bef75ae588faf302c9d6918d0bd8804",
+      "type_pretty": "True ↔ ∀ (p : ℕ), Nat.Prime p → ∃ a, {n | Erdos770.h n = ↑p}.HasDensity a"
     },
     {
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -65284,7 +65238,10 @@
         "[Ma66] Matsuyama, Noboru. \"On the strong law of large numbers.\" Tohoku Mathematical Journal, Second Series 18.3 (1966): 259-269."
       ],
       "source_path": "FormalConjectures/ErdosProblems/770.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos770.erdos_770.parts.ii",
       "transitive_axioms": [
         "propext",
@@ -65292,24 +65249,18 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a45aa9f1777d95606177f0779dc077693c6ccf5e95e4abd60fbb382831d8a8b7",
-      "type_pretty": "sorry ↔ Filter.liminf Erdos770.h Filter.atTop = ⊤"
+      "type_hash": "sha256:52dbe4c69aeb707d6b63b29fa74a497f6ed04832ce7dec57d33059ba30d8dca0",
+      "type_pretty": "True ↔ Filter.liminf Erdos770.h Filter.atTop = ⊤"
     },
     {
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -65327,7 +65278,10 @@
         "[Ma66] Matsuyama, Noboru. \"On the strong law of large numbers.\" Tohoku Mathematical Journal, Second Series 18.3 (1966): 259-269."
       ],
       "source_path": "FormalConjectures/ErdosProblems/770.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos770.erdos_770.parts.iii",
       "transitive_axioms": [
         "propext",
@@ -65335,8 +65289,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:68eaefe27b5cc4085452656f865fc01709bb82e33cc23493316b127c70e9abc1",
-      "type_pretty": "sorry ↔\n  ∀ ε > 0,\n    ∀ᶠ (n : ℕ) in Filter.atTop,\n      have p := sSup {m | Nat.Prime m ∧ m - 1 ∣ n};\n      ↑p > ↑n ^ ε → Erdos770.h n = ↑p"
+      "type_hash": "sha256:91d08aa750fd03cc228fba17f509bd3b4a6ab9091c8742cd4cc10fa1716aec24",
+      "type_pretty": "True ↔\n  ∀ ε > 0,\n    ∀ᶠ (n : ℕ) in Filter.atTop,\n      have p := sSup {m | Nat.Prime m ∧ m - 1 ∣ n};\n      ↑p > ↑n ^ ε → Erdos770.h n = ↑p"
     },
     {
       "ams_subjects": [
@@ -69921,17 +69875,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -69947,7 +69895,10 @@
         "[erdosproblems.com/889](https://www.erdosproblems.com/889)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/889.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos889.erdos_889.variants.V1_eq_1_finite",
       "transitive_axioms": [
         "propext",
@@ -69955,8 +69906,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:d94c400e6a92a950c6a40751edd8ce2223fb1cd479b50519cdd865a72f680710",
-      "type_pretty": "sorry ↔ {n | Erdos889.V_l 1 n = 1}.Finite"
+      "type_hash": "sha256:7928cd208d09d5f5efaa4144b5892e31b70ca7a8bf763289b9c61ac6bd833ee6",
+      "type_pretty": "True ↔ {n | Erdos889.V_l 1 n = 1}.Finite"
     },
     {
       "ams_subjects": [
@@ -70038,17 +69989,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -70064,7 +70009,10 @@
         "[erdosproblems.com/889](https://www.erdosproblems.com/889)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/889.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos889.erdos_889.variants.v1_eq_1_finite",
       "transitive_axioms": [
         "propext",
@@ -70072,8 +70020,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:3568cc21845d534c3bc3626f833aceac92a887e75d078aef763b7dd3ee1b36cd",
-      "type_pretty": "sorry ↔ {n | Erdos889.v_l 1 n = 1}.Finite"
+      "type_hash": "sha256:bba888966115eed5683ae7a4b463953e321213b20fc6bd2f53b77e977422c90f",
+      "type_pretty": "True ↔ {n | Erdos889.v_l 1 n = 1}.Finite"
     },
     {
       "ams_subjects": [
@@ -72147,17 +72095,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": true,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -72173,7 +72115,10 @@
         "[erdosproblems.com/913](https://www.erdosproblems.com/913)"
       ],
       "source_path": "FormalConjectures/ErdosProblems/913.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos913.erdos_913",
       "transitive_axioms": [
         "propext",
@@ -72181,8 +72126,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:20dfff3c4aab2e2174963cf9af6237c90107dc6ac8160dcb25e50049d839aa82",
-      "type_pretty": "sorry ↔ {n | Set.InjOn ⇑(n * (n + 1)).factorization ↑(n * (n + 1)).primeFactors}.Infinite"
+      "type_hash": "sha256:eab843e6621a253b850e4c7d5cf887707f0b11e1812f4b22b267d642a9fc9888",
+      "type_pretty": "True ↔ {n | Set.InjOn ⇑(n * (n + 1)).factorization ↑(n * (n + 1)).primeFactors}.Infinite"
     },
     {
       "ams_subjects": [
@@ -80358,6 +80303,9 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«12»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.12)"
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/12.lean",
       "supported_modes": [
         "formalized",
@@ -82562,6 +82510,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«15»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.15)",
+        "[BJP14] T. Brown, V. Jungić and A. Poelstra, \"On double 3-term arithmetic progressions\", Integers 14 (2014), Paper No. A43.",
+        "[CCS14] J. Cassaigne, J. D. Currie, L. Schaeffer and J. Shallit, \"Avoidance of additive cubes and related results\", Adv. in Appl. Math. 56 (2014), 25–66."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/15.lean",
       "supported_modes": [
         "formalized",
@@ -82598,6 +82551,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«15»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.15)",
+        "[BJP14] T. Brown, V. Jungić and A. Poelstra, \"On double 3-term arithmetic progressions\", Integers 14 (2014), Paper No. A43.",
+        "[CCS14] J. Cassaigne, J. D. Currie, L. Schaeffer and J. Shallit, \"Avoidance of additive cubes and related results\", Adv. in Appl. Math. 56 (2014), 25–66."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/15.lean",
       "supported_modes": [
         "formalized",
@@ -83060,6 +83018,14 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«2»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.2)",
+        "[Er65] P. Erdős. Extremal problems in number theory, In Proc. Sympos. Pure Math., Vol. VIII, pages 181–189. Amer. Math. Soc., Providence, R.I., 1965.",
+        "[Sa21] Sanders, Tom. \"The Erdős–Moser Sum-free Set Problem.\" Canadian Journal of Mathematics 73.1 (2021): 63-107.",
+        "[Ru05] I. Z. Ruzsa, Sum-avoiding subsets. Ramanujan J., 9 (2005) (1-2):77–82.",
+        "[Ch71] S. L. G. Choi. On a combinatorial problem in number theory. Proc. London Math. Soc. (3), 23:629–642, 1971. doi:10.1112/plms/s3-23.4.629.",
+        "[BSS00] A. Baltz, T. Schoen, and A. Srivastav. Probabilistic construction of small strongly sum-free sets via large Sidon sets. Colloq. Math., 86(2):171–176, 2000. doi:10.4064/cm-86-2-171-176."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/2.lean",
       "supported_modes": [
         "formalized",
@@ -83095,6 +83061,14 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«2»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.2)",
+        "[Er65] P. Erdős. Extremal problems in number theory, In Proc. Sympos. Pure Math., Vol. VIII, pages 181–189. Amer. Math. Soc., Providence, R.I., 1965.",
+        "[Sa21] Sanders, Tom. \"The Erdős–Moser Sum-free Set Problem.\" Canadian Journal of Mathematics 73.1 (2021): 63-107.",
+        "[Ru05] I. Z. Ruzsa, Sum-avoiding subsets. Ramanujan J., 9 (2005) (1-2):77–82.",
+        "[Ch71] S. L. G. Choi. On a combinatorial problem in number theory. Proc. London Math. Soc. (3), 23:629–642, 1971. doi:10.1112/plms/s3-23.4.629.",
+        "[BSS00] A. Baltz, T. Schoen, and A. Srivastav. Probabilistic construction of small strongly sum-free sets via large Sidon sets. Colloq. Math., 86(2):171–176, 2000. doi:10.4064/cm-86-2-171-176."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/2.lean",
       "supported_modes": [
         "formalized",
@@ -83130,6 +83104,14 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«2»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.2)",
+        "[Er65] P. Erdős. Extremal problems in number theory, In Proc. Sympos. Pure Math., Vol. VIII, pages 181–189. Amer. Math. Soc., Providence, R.I., 1965.",
+        "[Sa21] Sanders, Tom. \"The Erdős–Moser Sum-free Set Problem.\" Canadian Journal of Mathematics 73.1 (2021): 63-107.",
+        "[Ru05] I. Z. Ruzsa, Sum-avoiding subsets. Ramanujan J., 9 (2005) (1-2):77–82.",
+        "[Ch71] S. L. G. Choi. On a combinatorial problem in number theory. Proc. London Math. Soc. (3), 23:629–642, 1971. doi:10.1112/plms/s3-23.4.629.",
+        "[BSS00] A. Baltz, T. Schoen, and A. Srivastav. Probabilistic construction of small strongly sum-free sets via large Sidon sets. Colloq. Math., 86(2):171–176, 2000. doi:10.4064/cm-86-2-171-176."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/2.lean",
       "supported_modes": [
         "formalized",
@@ -83165,6 +83147,14 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«2»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.2)",
+        "[Er65] P. Erdős. Extremal problems in number theory, In Proc. Sympos. Pure Math., Vol. VIII, pages 181–189. Amer. Math. Soc., Providence, R.I., 1965.",
+        "[Sa21] Sanders, Tom. \"The Erdős–Moser Sum-free Set Problem.\" Canadian Journal of Mathematics 73.1 (2021): 63-107.",
+        "[Ru05] I. Z. Ruzsa, Sum-avoiding subsets. Ramanujan J., 9 (2005) (1-2):77–82.",
+        "[Ch71] S. L. G. Choi. On a combinatorial problem in number theory. Proc. London Math. Soc. (3), 23:629–642, 1971. doi:10.1112/plms/s3-23.4.629.",
+        "[BSS00] A. Baltz, T. Schoen, and A. Srivastav. Probabilistic construction of small strongly sum-free sets via large Sidon sets. Colloq. Math., 86(2):171–176, 2000. doi:10.4064/cm-86-2-171-176."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/2.lean",
       "supported_modes": [
         "formalized",
@@ -83200,6 +83190,14 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«2»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.2)",
+        "[Er65] P. Erdős. Extremal problems in number theory, In Proc. Sympos. Pure Math., Vol. VIII, pages 181–189. Amer. Math. Soc., Providence, R.I., 1965.",
+        "[Sa21] Sanders, Tom. \"The Erdős–Moser Sum-free Set Problem.\" Canadian Journal of Mathematics 73.1 (2021): 63-107.",
+        "[Ru05] I. Z. Ruzsa, Sum-avoiding subsets. Ramanujan J., 9 (2005) (1-2):77–82.",
+        "[Ch71] S. L. G. Choi. On a combinatorial problem in number theory. Proc. London Math. Soc. (3), 23:629–642, 1971. doi:10.1112/plms/s3-23.4.629.",
+        "[BSS00] A. Baltz, T. Schoen, and A. Srivastav. Probabilistic construction of small strongly sum-free sets via large Sidon sets. Colloq. Math., 86(2):171–176, 2000. doi:10.4064/cm-86-2-171-176."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/2.lean",
       "supported_modes": [
         "formalized",
@@ -83422,6 +83420,10 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«23»",
       "pointer_target": null,
+      "references": [
+        "[Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.23)",
+        "[FrKlMo25] Frantzikinakis, N., O. Klurman, and J. Moreira. \"Partition regularity of Pythagorean pairs.\" Forum of Mathematics, Pi 13. Cambridge University Press (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/23.lean",
       "supported_modes": [],
       "theorem": "Green23.green_23",
@@ -83459,6 +83461,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«24»",
       "pointer_target": null,
+      "references": [
+        "[Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.24)",
+        "[Aa19] Aaronson, James. \"Maximising the number of solutions to a linear equation in a set of integers.\" Bulletin of the London Mathematical Society 51.4 (2019): 577-594.",
+        "[HaL28] Hardy, G. H., and J. E. Littlewood. \"Notes on the theory of series (VIII): an inequality.\" Journal of the London Mathematical Society 1.2 (1928): 105-110."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
       "supported_modes": [
         "answer"
@@ -83494,6 +83501,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«24»",
       "pointer_target": null,
+      "references": [
+        "[Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.24)",
+        "[Aa19] Aaronson, James. \"Maximising the number of solutions to a linear equation in a set of integers.\" Bulletin of the London Mathematical Society 51.4 (2019): 577-594.",
+        "[HaL28] Hardy, G. H., and J. E. Littlewood. \"Notes on the theory of series (VIII): an inequality.\" Journal of the London Mathematical Society 1.2 (1928): 105-110."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
       "supported_modes": [
         "formalized",
@@ -83530,6 +83542,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«24»",
       "pointer_target": null,
+      "references": [
+        "[Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.24)",
+        "[Aa19] Aaronson, James. \"Maximising the number of solutions to a linear equation in a set of integers.\" Bulletin of the London Mathematical Society 51.4 (2019): 577-594.",
+        "[HaL28] Hardy, G. H., and J. E. Littlewood. \"Notes on the theory of series (VIII): an inequality.\" Journal of the London Mathematical Society 1.2 (1928): 105-110."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
       "supported_modes": [
         "formalized",
@@ -83566,6 +83583,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«24»",
       "pointer_target": null,
+      "references": [
+        "[Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.24)",
+        "[Aa19] Aaronson, James. \"Maximising the number of solutions to a linear equation in a set of integers.\" Bulletin of the London Mathematical Society 51.4 (2019): 577-594.",
+        "[HaL28] Hardy, G. H., and J. E. Littlewood. \"Notes on the theory of series (VIII): an inequality.\" Journal of the London Mathematical Society 1.2 (1928): 105-110."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
       "supported_modes": [
         "formalized",
@@ -83602,6 +83624,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«24»",
       "pointer_target": "csSup_le",
+      "references": [
+        "[Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.24)",
+        "[Aa19] Aaronson, James. \"Maximising the number of solutions to a linear equation in a set of integers.\" Bulletin of the London Mathematical Society 51.4 (2019): 577-594.",
+        "[HaL28] Hardy, G. H., and J. E. Littlewood. \"Notes on the theory of series (VIII): an inequality.\" Journal of the London Mathematical Society 1.2 (1928): 105-110."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/24.lean",
       "supported_modes": [],
       "theorem": "Green24.variants.upper_trivial",
@@ -83640,6 +83667,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«25»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.25)",
+        "[ESS89] Erdős, Pál, András Sárközy, and V. T. Sós. \"On a conjecture of Roth and some related problems I.\" Irregularities of partitions. Berlin, Heidelberg: Springer Berlin Heidelberg, 1989. 47-59.",
+        "[Ru04] Ruzsa, Imre Z. \"A problem on restricted sumsets.\" CONTEMPORARY MATHEMATICS 342 (2004): 245-248."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/25.lean",
       "supported_modes": [],
       "theorem": "Green25.green_25",
@@ -83679,6 +83711,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«25»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.25)",
+        "[ESS89] Erdős, Pál, András Sárközy, and V. T. Sós. \"On a conjecture of Roth and some related problems I.\" Irregularities of partitions. Berlin, Heidelberg: Springer Berlin Heidelberg, 1989. 47-59.",
+        "[Ru04] Ruzsa, Imre Z. \"A problem on restricted sumsets.\" CONTEMPORARY MATHEMATICS 342 (2004): 245-248."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/25.lean",
       "supported_modes": [],
       "theorem": "Green25.green_25.lower",
@@ -83718,6 +83755,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«25»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.25)",
+        "[ESS89] Erdős, Pál, András Sárközy, and V. T. Sós. \"On a conjecture of Roth and some related problems I.\" Irregularities of partitions. Berlin, Heidelberg: Springer Berlin Heidelberg, 1989. 47-59.",
+        "[Ru04] Ruzsa, Imre Z. \"A problem on restricted sumsets.\" CONTEMPORARY MATHEMATICS 342 (2004): 245-248."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/25.lean",
       "supported_modes": [],
       "theorem": "Green25.green_25.upper",
@@ -83751,6 +83793,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«25»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.25)",
+        "[ESS89] Erdős, Pál, András Sárközy, and V. T. Sós. \"On a conjecture of Roth and some related problems I.\" Irregularities of partitions. Berlin, Heidelberg: Springer Berlin Heidelberg, 1989. 47-59.",
+        "[Ru04] Ruzsa, Imre Z. \"A problem on restricted sumsets.\" CONTEMPORARY MATHEMATICS 342 (2004): 245-248."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/25.lean",
       "supported_modes": [
         "formalized",
@@ -83787,6 +83834,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«25»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.25)",
+        "[ESS89] Erdős, Pál, András Sárközy, and V. T. Sós. \"On a conjecture of Roth and some related problems I.\" Irregularities of partitions. Berlin, Heidelberg: Springer Berlin Heidelberg, 1989. 47-59.",
+        "[Ru04] Ruzsa, Imre Z. \"A problem on restricted sumsets.\" CONTEMPORARY MATHEMATICS 342 (2004): 245-248."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/25.lean",
       "supported_modes": [
         "formalized",
@@ -83823,6 +83875,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«25»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.25)",
+        "[ESS89] Erdős, Pál, András Sárközy, and V. T. Sós. \"On a conjecture of Roth and some related problems I.\" Irregularities of partitions. Berlin, Heidelberg: Springer Berlin Heidelberg, 1989. 47-59.",
+        "[Ru04] Ruzsa, Imre Z. \"A problem on restricted sumsets.\" CONTEMPORARY MATHEMATICS 342 (2004): 245-248."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/25.lean",
       "supported_modes": [
         "formalized",
@@ -83860,6 +83917,12 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«26»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.26)",
+        "[JLP92] Jaeger, François, et al. \"Group connectivity of graphs—a nonhomogeneous analogue of nowhere-zero flow properties.\" Journal of Combinatorial Theory, Series B 56.2 (1992): 165-182.",
+        "[ALM91] Alon, Noga, Nathan Linial, and Roy Meshulam. \"Additive bases of vector spaces over prime fields.\" Journal of Combinatorial Theory, Series A 57.2 (1991): 203-210.",
+        "[Yu25] Yu, Yang. \"Note on the Additive Basis Conjecture.\" arXiv preprint arXiv:2510.01300 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/26.lean",
       "supported_modes": [
         "formalized",
@@ -83897,6 +83960,12 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«26»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.26)",
+        "[JLP92] Jaeger, François, et al. \"Group connectivity of graphs—a nonhomogeneous analogue of nowhere-zero flow properties.\" Journal of Combinatorial Theory, Series B 56.2 (1992): 165-182.",
+        "[ALM91] Alon, Noga, Nathan Linial, and Roy Meshulam. \"Additive bases of vector spaces over prime fields.\" Journal of Combinatorial Theory, Series A 57.2 (1991): 203-210.",
+        "[Yu25] Yu, Yang. \"Note on the Additive Basis Conjecture.\" arXiv preprint arXiv:2510.01300 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/26.lean",
       "supported_modes": [
         "formalized",
@@ -83934,6 +84003,12 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«26»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.26)",
+        "[JLP92] Jaeger, François, et al. \"Group connectivity of graphs—a nonhomogeneous analogue of nowhere-zero flow properties.\" Journal of Combinatorial Theory, Series B 56.2 (1992): 165-182.",
+        "[ALM91] Alon, Noga, Nathan Linial, and Roy Meshulam. \"Additive bases of vector spaces over prime fields.\" Journal of Combinatorial Theory, Series A 57.2 (1991): 203-210.",
+        "[Yu25] Yu, Yang. \"Note on the Additive Basis Conjecture.\" arXiv preprint arXiv:2510.01300 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/26.lean",
       "supported_modes": [
         "formalized",
@@ -83971,6 +84046,12 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«26»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.26)",
+        "[JLP92] Jaeger, François, et al. \"Group connectivity of graphs—a nonhomogeneous analogue of nowhere-zero flow properties.\" Journal of Combinatorial Theory, Series B 56.2 (1992): 165-182.",
+        "[ALM91] Alon, Noga, Nathan Linial, and Roy Meshulam. \"Additive bases of vector spaces over prime fields.\" Journal of Combinatorial Theory, Series A 57.2 (1991): 203-210.",
+        "[Yu25] Yu, Yang. \"Note on the Additive Basis Conjecture.\" arXiv preprint arXiv:2510.01300 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/26.lean",
       "supported_modes": [
         "formalized",
@@ -84013,6 +84094,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«27»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.27)",
+        "[Be23] Bedert, Benjamin. \"On unique sums in Abelian groups.\" Combinatorica 44.2 (2024): 269-298.",
+        "[St76] Straus, E. G. \"Differences of residues (mod p).\" Journal of Number Theory 8.1 (1976): 40-42."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/27.lean",
       "supported_modes": [],
       "theorem": "Green27.green_27.equivalent",
@@ -84052,6 +84138,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«27»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.27)",
+        "[Be23] Bedert, Benjamin. \"On unique sums in Abelian groups.\" Combinatorica 44.2 (2024): 269-298.",
+        "[St76] Straus, E. G. \"Differences of residues (mod p).\" Journal of Number Theory 8.1 (1976): 40-42."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/27.lean",
       "supported_modes": [],
       "theorem": "Green27.green_27.lower",
@@ -84091,6 +84182,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«27»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.27)",
+        "[Be23] Bedert, Benjamin. \"On unique sums in Abelian groups.\" Combinatorica 44.2 (2024): 269-298.",
+        "[St76] Straus, E. G. \"Differences of residues (mod p).\" Journal of Number Theory 8.1 (1976): 40-42."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/27.lean",
       "supported_modes": [],
       "theorem": "Green27.green_27.upper",
@@ -84124,6 +84220,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«27»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.27)",
+        "[Be23] Bedert, Benjamin. \"On unique sums in Abelian groups.\" Combinatorica 44.2 (2024): 269-298.",
+        "[St76] Straus, E. G. \"Differences of residues (mod p).\" Journal of Number Theory 8.1 (1976): 40-42."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/27.lean",
       "supported_modes": [
         "formalized",
@@ -84160,6 +84261,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«27»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.27)",
+        "[Be23] Bedert, Benjamin. \"On unique sums in Abelian groups.\" Combinatorica 44.2 (2024): 269-298.",
+        "[St76] Straus, E. G. \"Differences of residues (mod p).\" Journal of Number Theory 8.1 (1976): 40-42."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/27.lean",
       "supported_modes": [
         "formalized",
@@ -84196,6 +84302,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«27»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.27)",
+        "[Be23] Bedert, Benjamin. \"On unique sums in Abelian groups.\" Combinatorica 44.2 (2024): 269-298.",
+        "[St76] Straus, E. G. \"Differences of residues (mod p).\" Journal of Number Theory 8.1 (1976): 40-42."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/27.lean",
       "supported_modes": [
         "formalized",
@@ -84232,6 +84343,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«27»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.27)",
+        "[Be23] Bedert, Benjamin. \"On unique sums in Abelian groups.\" Combinatorica 44.2 (2024): 269-298.",
+        "[St76] Straus, E. G. \"Differences of residues (mod p).\" Journal of Number Theory 8.1 (1976): 40-42."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/27.lean",
       "supported_modes": [
         "formalized",
@@ -84267,6 +84383,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«28»",
       "pointer_target": null,
+      "references": [
+        "[Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.28)",
+        "[Mathoverflow/339137](https://mathoverflow.net/questions/339137/why-do-polynomials-with-coefficients-0-1-like-to-have-only-factors-with-0-1) asked by user [Sil](https://mathoverflow.net/users/136794/sil)",
+        "[MathStackexchange/3325163](https://math.stackexchange.com/questions/3325163/) asked by user [Emmanuel Amiot](https://math.stackexchange.com/users/403309/emmanuel-amiot)"
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/28.lean",
       "supported_modes": [
         "formalized",
@@ -87267,6 +87388,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«41»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Ben Green's Open Problem 41](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.41)",
+        "[Ma15] Manners, Freddie. \"A solution to the pyjama problem.\" Inventiones mathematicae 202.1 (2015): 239-270.",
+        "[KrLe25] Kravitz, Noah, and James Leng. \"Quantitative pyjama.\" arXiv preprint arXiv:2510.17744 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/41.lean",
       "supported_modes": [],
       "theorem": "Green41.green_41",
@@ -87300,6 +87426,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«41»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Ben Green's Open Problem 41](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.41)",
+        "[Ma15] Manners, Freddie. \"A solution to the pyjama problem.\" Inventiones mathematicae 202.1 (2015): 239-270.",
+        "[KrLe25] Kravitz, Noah, and James Leng. \"Quantitative pyjama.\" arXiv preprint arXiv:2510.17744 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/41.lean",
       "supported_modes": [
         "formalized",
@@ -87336,6 +87467,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«41»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Ben Green's Open Problem 41](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.41)",
+        "[Ma15] Manners, Freddie. \"A solution to the pyjama problem.\" Inventiones mathematicae 202.1 (2015): 239-270.",
+        "[KrLe25] Kravitz, Noah, and James Leng. \"Quantitative pyjama.\" arXiv preprint arXiv:2510.17744 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/41.lean",
       "supported_modes": [
         "formalized",
@@ -87372,6 +87508,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«41»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Ben Green's Open Problem 41](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.41)",
+        "[Ma15] Manners, Freddie. \"A solution to the pyjama problem.\" Inventiones mathematicae 202.1 (2015): 239-270.",
+        "[KrLe25] Kravitz, Noah, and James Leng. \"Quantitative pyjama.\" arXiv preprint arXiv:2510.17744 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/41.lean",
       "supported_modes": [
         "formalized",
@@ -87408,6 +87549,11 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«41»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Ben Green's Open Problem 41](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.41)",
+        "[Ma15] Manners, Freddie. \"A solution to the pyjama problem.\" Inventiones mathematicae 202.1 (2015): 239-270.",
+        "[KrLe25] Kravitz, Noah, and James Leng. \"Quantitative pyjama.\" arXiv preprint arXiv:2510.17744 (2025)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/41.lean",
       "supported_modes": [
         "formalized",
@@ -89312,6 +89458,14 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«85»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.85)",
+        "[CCW99] Carbery, Anthony, Michael Christ, and James Wright. \"Multidimensional van der Corput and sublevel set estimates.\" Journal of the American Mathematical Society 12.4 (1999): 981-1015 Section 6.",
+        "[Ke00] Keleti, Tamás. \"Density and covering properties of intervals of ℝn.\" Mathematika 47.1-2 (2000): 229-242.",
+        "[KKM02] Katz, Nets Hawk, Elliot Krop, and Mauro Maggioni. \"Remarks on the box problem.\" Mathematical Research Letters 9.4 (2002): 515-520.",
+        "[Mu02] Mubayi, Dhruv. \"Some exact results and new asymptotics for hypergraph Turán numbers.\" Combinatorics, Probability and Computing 11.3 (2002): 299-309 Conjecture 1.4.",
+        "[CPZ20] Conlon, David, Cosmin Pohoata, and Dmitriy Zakharov. \"Random multilinear maps and the Erd\\H {o} s box problem.\" arXiv preprint arXiv:2011.09024 (2020)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/85.lean",
       "supported_modes": [
         "formalized",
@@ -89348,6 +89502,14 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«85»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.85)",
+        "[CCW99] Carbery, Anthony, Michael Christ, and James Wright. \"Multidimensional van der Corput and sublevel set estimates.\" Journal of the American Mathematical Society 12.4 (1999): 981-1015 Section 6.",
+        "[Ke00] Keleti, Tamás. \"Density and covering properties of intervals of ℝn.\" Mathematika 47.1-2 (2000): 229-242.",
+        "[KKM02] Katz, Nets Hawk, Elliot Krop, and Mauro Maggioni. \"Remarks on the box problem.\" Mathematical Research Letters 9.4 (2002): 515-520.",
+        "[Mu02] Mubayi, Dhruv. \"Some exact results and new asymptotics for hypergraph Turán numbers.\" Combinatorics, Probability and Computing 11.3 (2002): 299-309 Conjecture 1.4.",
+        "[CPZ20] Conlon, David, Cosmin Pohoata, and Dmitriy Zakharov. \"Random multilinear maps and the Erd\\H {o} s box problem.\" arXiv preprint arXiv:2011.09024 (2020)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/85.lean",
       "supported_modes": [
         "formalized",
@@ -89383,6 +89545,10 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«9»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.9)",
+        "[BlSi20] Bloom, Thomas F., and Olof Sisask. \"Breaking the logarithmic barrier in Roth's theorem on arithmetic progressions.\" arXiv preprint arXiv:2007.03528 (2020)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/9.lean",
       "supported_modes": [
         "formalized",
@@ -89418,6 +89584,10 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«9»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.9)",
+        "[BlSi20] Bloom, Thomas F., and Olof Sisask. \"Breaking the logarithmic barrier in Roth's theorem on arithmetic progressions.\" arXiv preprint arXiv:2007.03528 (2020)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/9.lean",
       "supported_modes": [
         "formalized",
@@ -89453,6 +89623,10 @@
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«9»",
       "pointer_target": null,
+      "references": [
+        "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.9)",
+        "[BlSi20] Bloom, Thomas F., and Olof Sisask. \"Breaking the logarithmic barrier in Roth's theorem on arithmetic progressions.\" arXiv preprint arXiv:2007.03528 (2020)."
+      ],
       "source_path": "FormalConjectures/GreensOpenProblems/9.lean",
       "supported_modes": [
         "formalized",
@@ -93984,6 +94158,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Wikipedia.LanderParkinAndSelfridgeConjecture",
       "pointer_target": null,
+      "references": [
+        "https://en.wikipedia.org/wiki/Lander,_Parkin,_and_Selfridge_conjecture"
+      ],
       "source_path": "FormalConjectures/Wikipedia/LanderParkinAndSelfridgeConjecture.lean",
       "supported_modes": [
         "formalized",
@@ -94019,6 +94196,9 @@
       "is_prop": true,
       "module": "FormalConjectures.Wikipedia.LanderParkinAndSelfridgeConjecture",
       "pointer_target": null,
+      "references": [
+        "https://en.wikipedia.org/wiki/Lander,_Parkin,_and_Selfridge_conjecture"
+      ],
       "source_path": "FormalConjectures/Wikipedia/LanderParkinAndSelfridgeConjecture.lean",
       "supported_modes": [
         "formalized",
@@ -114564,6 +114744,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114600,6 +114786,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114636,6 +114828,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114672,6 +114870,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114708,6 +114912,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114744,6 +114954,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114780,6 +114996,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114816,6 +115038,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -114852,6 +115080,12 @@
       "is_prop": true,
       "module": "FormalConjectures.Millenium.Poincare",
       "pointer_target": null,
+      "references": [
+        "[Miln2022](https://www.claymath.org/wp-content/uploads/2022/06/poincare.pdf)",
+        "[Wang2017](https://annals.math.princeton.edu/2017/186-2/p03).",
+        "[mo296171](https://mathoverflow.net/questions/296171/unique-smooth-structure-on-3-manifolds)",
+        "[mathlib4](https://github.com/leanprover-community/mathlib4)"
+      ],
       "source_path": "FormalConjectures/Millenium/Poincare.lean",
       "supported_modes": [
         "formalized",
@@ -115726,6 +115960,11 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.ReedOmegaDeltaChi",
       "pointer_target": null,
+      "references": [
+        "[B. Reed,  ω Δ and χ, J. Graph Theory 27 (1998) 177-212.](https://onlinelibrary.wiley.com/doi/10.1002/(SICI)1097-0118(199804)27:4%3C177::AID-JGT1%3E3.0.CO;2-K)",
+        "[openproblemgarden](http://www.openproblemgarden.org/op/reeds_omega_delta_and_chi_conjecture)",
+        "[mathoverflow/37923](https://mathoverflow.net/questions/37923) asked by user [Andrew D. King](https://mathoverflow.net/users/4580/andrew-d-king)"
+      ],
       "source_path": "FormalConjectures/Paper/ReedOmegaDeltaChi.lean",
       "supported_modes": [
         "formalized",
@@ -115761,6 +116000,11 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.ReedOmegaDeltaChi",
       "pointer_target": null,
+      "references": [
+        "[B. Reed,  ω Δ and χ, J. Graph Theory 27 (1998) 177-212.](https://onlinelibrary.wiley.com/doi/10.1002/(SICI)1097-0118(199804)27:4%3C177::AID-JGT1%3E3.0.CO;2-K)",
+        "[openproblemgarden](http://www.openproblemgarden.org/op/reeds_omega_delta_and_chi_conjecture)",
+        "[mathoverflow/37923](https://mathoverflow.net/questions/37923) asked by user [Andrew D. King](https://mathoverflow.net/users/4580/andrew-d-king)"
+      ],
       "source_path": "FormalConjectures/Paper/ReedOmegaDeltaChi.lean",
       "supported_modes": [
         "formalized",
@@ -115796,6 +116040,11 @@
       "is_prop": true,
       "module": "FormalConjectures.Paper.ReedOmegaDeltaChi",
       "pointer_target": null,
+      "references": [
+        "[B. Reed,  ω Δ and χ, J. Graph Theory 27 (1998) 177-212.](https://onlinelibrary.wiley.com/doi/10.1002/(SICI)1097-0118(199804)27:4%3C177::AID-JGT1%3E3.0.CO;2-K)",
+        "[openproblemgarden](http://www.openproblemgarden.org/op/reeds_omega_delta_and_chi_conjecture)",
+        "[mathoverflow/37923](https://mathoverflow.net/questions/37923) asked by user [Andrew D. King](https://mathoverflow.net/users/4580/andrew-d-king)"
+      ],
       "source_path": "FormalConjectures/Paper/ReedOmegaDeltaChi.lean",
       "supported_modes": [
         "formalized",
@@ -122584,6 +122833,10 @@
       "is_prop": true,
       "module": "FormalConjectures.Wikipedia.WoodalPrimes",
       "pointer_target": null,
+      "references": [
+        "[Wikipedia/Woodall Number](https://en.wikipedia.org/wiki/Woodall_number#Woodall_primes)",
+        "[A2234](https://oeis.org/A2234)"
+      ],
       "source_path": "FormalConjectures/Wikipedia/WoodalPrimes.lean",
       "supported_modes": [
         "formalized",
@@ -128614,7 +128867,7 @@
       "type_pretty": "∀ {p : EuclideanSpace ℝ (Fin 2)}, p ∈ MovingSofa.unitSquare → ∀ (i : Fin 2), p.ofLp i ∈ Set.Icc 0 1"
     }
   ],
-  "extraction_duration_ms": 903411,
+  "extraction_duration_ms": 910755,
   "generated_by": "lean/CatalogExtractor.lean",
   "lean_toolchain": "leanprover/lean4:v4.27.0",
   "mathlib_commit": "a3a10db0e9d66acbebf76c5e6a135066525ac900",

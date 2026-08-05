@@ -20,17 +20,17 @@ from verifier.task_policy import (
 )
 
 
-TASK_POOL_SCHEMA_VERSION = 7
-SELECTION_AUDIT_SCHEMA_VERSION = 1
+TASK_POOL_SCHEMA_VERSION = 8
+SELECTION_AUDIT_SCHEMA_VERSION = 2
 TASK_GROUP_SCHEMA_VERSION = 1
-TASK_TARGET_SCHEMA_VERSION = 2
+TASK_TARGET_SCHEMA_VERSION = 3
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 74
+DEFAULT_TIER_SIZE = 146
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
-MINIMUM_ERDOS_TASKS = DEFAULT_TIER_SIZE
-TASK_POOL_SELECTION = "audited-erdos-direct-propositions-v1"
-SUBPROBLEM_POOL_SELECTION = "audited-erdos-part-or-variant-v1"
+MINIMUM_ERDOS_TASKS = 124
+TASK_POOL_SELECTION = "audited-direct-propositions-v2"
+SUBPROBLEM_POOL_SELECTION = "audited-part-or-variant-v2"
 TASK_POOL_GROUPING = "none-single-target-v1"
 TASK_POOL_TASK_SCOPE = "direct_proposition"
 SUBPROBLEM_TASK_SCOPE = "part_or_variant"
@@ -40,6 +40,33 @@ DIRECT_PROPOSITION_POLICY = "one_task_one_audited_proposition"
 REWARD_TARGET_POLICY = "stable-theorem-target-v1"
 REWARD_TARGET_PREFIX = "fc-target:"
 ERDOS_SOURCE_PREFIX = "FormalConjectures/ErdosProblems/"
+GREENS_OPEN_PROBLEMS_SOURCE_PREFIX = "FormalConjectures/GreensOpenProblems/"
+ERDOS_SOURCE_FAMILY = "erdos"
+GREENS_OPEN_PROBLEMS_SOURCE_FAMILY = "greens-open-problems"
+SOURCE_FAMILY_PREFIXES = {
+    ERDOS_SOURCE_FAMILY: ERDOS_SOURCE_PREFIX,
+    GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: GREENS_OPEN_PROBLEMS_SOURCE_PREFIX,
+}
+SOURCE_FAMILY_THEOREM_PREFIXES = {
+    ERDOS_SOURCE_FAMILY: "Erdos",
+    GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: "Green",
+}
+SOURCE_FAMILY_STATUSES = {
+    ERDOS_SOURCE_FAMILY: frozenset({"decidable", "falsifiable", "open", "verifiable"}),
+    GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: frozenset({"open"}),
+}
+SOURCE_STATUS_SPECS = (
+    {
+        "family": ERDOS_SOURCE_FAMILY,
+        "locator": "teorth/erdosproblems",
+        "revision_kind": "commit",
+    },
+    {
+        "family": GREENS_OPEN_PROBLEMS_SOURCE_FAMILY,
+        "locator": "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+        "revision_kind": "document-update",
+    },
+)
 EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
 FEASIBILITY_SIGNALS = frozenset(
     {
@@ -50,14 +77,7 @@ FEASIBILITY_SIGNALS = frozenset(
         "standard-mathlib-surface",
     }
 )
-UNSOLVED_ERDOS_STATUSES = frozenset(
-    {
-        "decidable",
-        "falsifiable",
-        "open",
-        "verifiable",
-    }
-)
+UNSOLVED_ERDOS_STATUSES = SOURCE_FAMILY_STATUSES[ERDOS_SOURCE_FAMILY]
 
 
 def reward_target_identity(theorem: str) -> str:
@@ -83,8 +103,9 @@ class RetiredSources:
 class AuditedSelectionEntry:
     theorem: str
     source_path: str
-    erdos_problem_number: int
-    problem_tracker_status: str
+    source_family: str
+    source_problem_number: int
+    source_status: str
     feasibility_signals: tuple[str, ...]
     open_prs_touching_source: tuple[int, ...]
 
@@ -93,7 +114,6 @@ class AuditedSelectionEntry:
 class SelectionAudit:
     repository_commit: str
     source_main_commit: str
-    problem_tracker_commit: str
     audit_date_utc: str
     github_open_pr_count: int
     entries: tuple[AuditedSelectionEntry, ...]
@@ -121,7 +141,8 @@ class TaskGrouping:
 class TaskTarget:
     theorem: str
     source_path: str
-    erdos_problem_number: int
+    source_family: str
+    source_problem_number: int
     reward_target_id: str
 
 
@@ -150,6 +171,63 @@ def _is_commit(value: object) -> bool:
     )
 
 
+def source_family_from_path(source_path: object) -> str | None:
+    """Return the audited family only for a canonical numbered source path."""
+    if not isinstance(source_path, str):
+        return None
+    for family, prefix in SOURCE_FAMILY_PREFIXES.items():
+        if not source_path.startswith(prefix) or not source_path.endswith(".lean"):
+            continue
+        problem_number = source_path.removeprefix(prefix).removesuffix(".lean")
+        if problem_number.isdecimal() and int(problem_number) > 0:
+            return family
+    return None
+
+
+def _valid_source_identity(
+    family: object,
+    problem_number: object,
+    source_path: object,
+    theorem: object,
+) -> bool:
+    if (
+        not isinstance(family, str)
+        or family not in SOURCE_FAMILY_PREFIXES
+        or type(problem_number) is not int
+        or problem_number <= 0
+        or not isinstance(source_path, str)
+        or not isinstance(theorem, str)
+    ):
+        return False
+    return (
+        source_path == f"{SOURCE_FAMILY_PREFIXES[family]}{problem_number}.lean"
+        and theorem.startswith(f"{SOURCE_FAMILY_THEOREM_PREFIXES[family]}{problem_number}.")
+    )
+
+
+def _valid_source_status_sources(value: object) -> bool:
+    if not isinstance(value, list) or len(value) != len(SOURCE_STATUS_SPECS):
+        return False
+    expected_families = [item["family"] for item in SOURCE_STATUS_SPECS]
+    if [item.get("family") for item in value if isinstance(item, dict)] != expected_families:
+        return False
+    for item, expected in zip(value, SOURCE_STATUS_SPECS, strict=True):
+        if not isinstance(item, dict) or set(item) != {"family", "locator", "revision"}:
+            return False
+        if item["family"] != expected["family"] or item["locator"] != expected["locator"]:
+            return False
+        revision = item["revision"]
+        if expected["revision_kind"] == "commit":
+            if not _is_commit(revision):
+                return False
+        elif not (
+            isinstance(revision, str)
+            and re.fullmatch(r"[0-9]{4}-[0-9]{2}", revision) is not None
+        ):
+            return False
+    return True
+
+
 def load_selection_audit(path: Path) -> SelectionAudit:
     try:
         content = path.read_bytes()
@@ -157,14 +235,13 @@ def load_selection_audit(path: Path) -> SelectionAudit:
         if not isinstance(value, dict) or set(value) != {
             "audit_date_utc",
             "github_open_pr_count",
-            "problem_tracker_commit",
-            "problem_tracker_repository",
             "repository_commit",
             "schema_version",
             "screening_statement",
             "selected",
             "source_main_commit",
             "source_repository",
+            "source_status_sources",
         }:
             raise ValueError("selection audit field set is not exact")
         audit_date_utc = value["audit_date_utc"]
@@ -174,9 +251,8 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             or value["schema_version"] != SELECTION_AUDIT_SCHEMA_VERSION
             or not _is_commit(value["repository_commit"])
             or not _is_commit(value["source_main_commit"])
-            or not _is_commit(value["problem_tracker_commit"])
-            or value["problem_tracker_repository"] != "teorth/erdosproblems"
             or value["source_repository"] != "google-deepmind/formal-conjectures"
+            or not _valid_source_status_sources(value["source_status_sources"])
             or value["screening_statement"] != SCREENING_STATEMENT
             or type(value["github_open_pr_count"]) is not int
             or value["github_open_pr_count"] <= 0
@@ -190,8 +266,9 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             AuditedSelectionEntry(
                 theorem=item["theorem"],
                 source_path=item["source_path"],
-                erdos_problem_number=item["erdos_problem_number"],
-                problem_tracker_status=item["problem_tracker_status"],
+                source_family=item["source_family"],
+                source_problem_number=item["source_problem_number"],
+                source_status=item["source_status"],
                 feasibility_signals=tuple(item["feasibility_signals"]),
                 open_prs_touching_source=tuple(item["open_prs_touching_source"]),
             )
@@ -200,25 +277,26 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             and set(item)
             == {
                 "active_resolution_prs",
-                "erdos_problem_number",
                 "feasibility_signals",
                 "open_prs_touching_source",
-                "problem_tracker_status",
+                "source_family",
+                "source_problem_number",
                 "source_path",
+                "source_status",
                 "theorem",
                 "upstream_status",
             }
             and isinstance(item["theorem"], str)
             and item["theorem"]
-            and isinstance(item["source_path"], str)
-            and item["source_path"].startswith(ERDOS_SOURCE_PREFIX)
-            and item["source_path"].endswith(".lean")
-            and type(item["erdos_problem_number"]) is int
-            and item["erdos_problem_number"] > 0
-            and item["source_path"]
-            == f"{ERDOS_SOURCE_PREFIX}{item['erdos_problem_number']}.lean"
-            and isinstance(item["problem_tracker_status"], str)
-            and item["problem_tracker_status"] in UNSOLVED_ERDOS_STATUSES
+            and _valid_source_identity(
+                item["source_family"],
+                item["source_problem_number"],
+                item["source_path"],
+                item["theorem"],
+            )
+            and isinstance(item["source_status"], str)
+            and item["source_status"]
+            in SOURCE_FAMILY_STATUSES[item["source_family"]]
             and isinstance(item["feasibility_signals"], list)
             and item["feasibility_signals"]
             and item["feasibility_signals"] == sorted(item["feasibility_signals"])
@@ -251,7 +329,6 @@ def load_selection_audit(path: Path) -> SelectionAudit:
     return SelectionAudit(
         repository_commit=value["repository_commit"],
         source_main_commit=value["source_main_commit"],
-        problem_tracker_commit=value["problem_tracker_commit"],
         audit_date_utc=audit_date_utc,
         github_open_pr_count=value["github_open_pr_count"],
         entries=entries,
@@ -294,43 +371,53 @@ def load_task_targets(path: Path) -> TaskTargets:
             TaskTarget(
                 theorem=item["theorem"],
                 source_path=item["source_path"],
-                erdos_problem_number=item["erdos_problem_number"],
+                source_family=item["source_family"],
+                source_problem_number=item["source_problem_number"],
                 reward_target_id=item["reward_target_id"],
             )
             for item in targets
             if isinstance(item, dict)
             and set(item)
-            == {"erdos_problem_number", "reward_target_id", "source_path", "theorem"}
-            and type(item.get("erdos_problem_number")) is int
-            and item["erdos_problem_number"] > 0
-            and isinstance(item.get("source_path"), str)
-            and item["source_path"]
-            == f"{ERDOS_SOURCE_PREFIX}{item['erdos_problem_number']}.lean"
-            and isinstance(item.get("theorem"), str)
+            == {
+                "reward_target_id",
+                "source_family",
+                "source_path",
+                "source_problem_number",
+                "theorem",
+            }
+            and _valid_source_identity(
+                item.get("source_family"),
+                item.get("source_problem_number"),
+                item.get("source_path"),
+                item.get("theorem"),
+            )
             and isinstance(item.get("reward_target_id"), str)
             and item["reward_target_id"] == reward_target_identity(item["theorem"])
             and (
                 (
                     value.get("policy") == WHOLE_PROBLEM_POLICY
+                    and item["source_family"] == ERDOS_SOURCE_FAMILY
                     and item["theorem"]
                     in {
                         (
-                            f"Erdos{item['erdos_problem_number']}."
-                            f"erdos_{item['erdos_problem_number']}"
+                            f"Erdos{item['source_problem_number']}."
+                            f"erdos_{item['source_problem_number']}"
                         ),
                         "Erdos274.herzog_schonheim",
                     }
                 )
                 or (
                     value.get("policy") == SUBPROBLEM_POLICY
+                    and item["source_family"] == ERDOS_SOURCE_FAMILY
                     and item["theorem"].startswith(
-                        f"Erdos{item['erdos_problem_number']}.erdos_{item['erdos_problem_number']}."
+                        f"Erdos{item['source_problem_number']}.erdos_{item['source_problem_number']}."
                     )
                 )
                 or (
                     value.get("policy") == DIRECT_PROPOSITION_POLICY
                     and item["theorem"].startswith(
-                        f"Erdos{item['erdos_problem_number']}."
+                        f"{SOURCE_FAMILY_THEOREM_PREFIXES[item['source_family']]}"
+                        f"{item['source_problem_number']}."
                     )
                 )
             )
@@ -344,7 +431,13 @@ def load_task_targets(path: Path) -> TaskTargets:
                 value.get("policy") == WHOLE_PROBLEM_POLICY
                 and (
                     len({target.source_path for target in parsed}) != len(parsed)
-                    or len({target.erdos_problem_number for target in parsed}) != len(parsed)
+                    or len(
+                        {
+                            (target.source_family, target.source_problem_number)
+                            for target in parsed
+                        }
+                    )
+                    != len(parsed)
                 )
             )
         ):
@@ -403,8 +496,7 @@ def load_task_grouping(path: Path) -> TaskGrouping:
                 for character in item["id"]
             )
             and isinstance(item.get("source_path"), str)
-            and item["source_path"].startswith(ERDOS_SOURCE_PREFIX)
-            and item["source_path"].endswith(".lean")
+            and source_family_from_path(item["source_path"]) is not None
             and isinstance(item.get("theorems"), list)
             and len(item["theorems"]) >= 2
             and all(isinstance(theorem, str) and theorem for theorem in item["theorems"])
@@ -529,7 +621,8 @@ def select_task_declarations(
         if (
             entry is None
             or entry.source_path != target.source_path
-            or entry.erdos_problem_number != target.erdos_problem_number
+            or entry.source_family != target.source_family
+            or entry.source_problem_number != target.source_problem_number
         ):
             raise VerifierError(
                 ReasonCode.INVALID_ARGUMENT,
@@ -788,6 +881,9 @@ def build_task_allowlist(
                 }[task_targets.policy],
                 "selection_audit_sha256": selection_audit.sha256,
                 "source_category": "research open",
+                "source_families": sorted(
+                    {target.source_family for target in task_targets.targets}
+                ),
                 "source_theorem_count": len(declarations),
                 "task_scope": task_targets.task_scope,
                 "target_relations": {

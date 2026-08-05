@@ -278,7 +278,7 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     )
 
     tasks = tuple(resolver.tasks.values())
-    assert len(tasks) == 148  # 74 targets, each as a proof and a counterexample task
+    assert len(tasks) == 292  # 146 targets, each as a proof and a counterexample task
     assert all(task.task_dir.is_dir() for task in tasks)
     assert all(task.task_dir.name != task.task_id for task in tasks)
     # The worker sizes its lease from this, so a manifest that declares nothing usable would

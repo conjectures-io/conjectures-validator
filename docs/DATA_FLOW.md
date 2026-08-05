@@ -48,12 +48,12 @@ flowchart TD
         CAT["data/catalog.json<br/>3267 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>74 asserted picks"]
+        PICK["task target policy<br/>146 asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>148 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>292 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -174,7 +174,7 @@ the pipeline.
 | 2 | `classification == DIRECT_PROP` | **988** |
 | 3 | remaining exact-proposition safety rules | **988** |
 | 4 | module under `ErdosProblems/` | **506** over 320 files |
-| 5 | audited single-tier selection | **74** targets from 55 files |
+| 5 | audited single-tier selection | **146** targets from 124 files (124 Erdős over 105 files, 22 Green over 19) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -182,27 +182,29 @@ against a future upstream revision, not live selection criteria — a useful thi
 anyone "optimises" them away, and a useful thing to re-measure after every pin bump, because the day
 one of them starts firing is the day upstream changed something that matters.
 
-### The 178 retired theorems
+### Retired theorems
 
-`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 178 source theorems that must never be offered again,
-committed by both `theorem` name **and** `source_type_sha256` — so retiring survives a rename. Of
-those, 88 intersect the eligible pool and 11 intersect the Erdős-eligible 121. Retirement is checked
-by name *or* type hash at selection time (`task_pool.py:467-468`).
+`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 165 source theorems and 177
+canonical types that must not be offered again, committed by both `theorem` name **and**
+`source_type_sha256` — so retiring survives a rename. An audited target may explicitly supersede a
+prior theorem-name retirement; all remaining retirement entries are checked by name *or* type hash at
+selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 74 targets are **not computed** from the 506. They are asserted by hand in one target file,
+The 146 targets are **not computed** from the 506. They are asserted by hand in one target file,
 and `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
-- present in the audited selection with matching `source_path` and `erdos_problem_number`;
+- present in the audited selection with matching `source_family`, `source_path`, and
+  `source_problem_number`;
 - present in the pinned catalog;
 - passing all 10 production-eligibility rules;
 - not retired by name and not retired by type hash;
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: all 74 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: at least 124 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
 Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
@@ -210,9 +212,9 @@ partial results, and restatements. The one active tier admits complete problems 
 independently meaningful parts and variants that passed the semantic audit.
 
 The audit record is not a rubber stamp either. Each selected entry carries `upstream_status`,
-`problem_tracker_status`, `open_prs_touching_source`, `active_resolution_prs`, and
-`feasibility_signals`, screened against `teorth/erdosproblems` at commit `2e7e7a63…` with 281 open
-upstream PRs considered. The file states its own limits:
+the family-specific `source_status`, `open_prs_touching_source`, `active_resolution_prs`, and
+`feasibility_signals`. The selection audit pins the status source separately for the Erdős Problems
+database and Green's Open Problems document. The file states its own limits:
 
 > Plausibly attackable solver target; this is a comparative screen, not a claim that the conjecture
 > is easy or guaranteed solvable.
@@ -294,10 +296,10 @@ against a real Lean compile, not against JSON.
 
 ## 6. Commitment — **BUILT**
 
-`../conjectures-tasks/allowlist.json`, schema version 7, `default: "DENY"`, enforced by
+`../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-74 `allowed_source_theorems` and 148 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+146 `allowed_source_theorems` and 292 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
@@ -319,7 +321,7 @@ combined with a tampered audit file:
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 74 Erdős targets.
+all 124 Erdős targets and 22 Green targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it

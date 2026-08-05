@@ -11,21 +11,21 @@ name = "VerifierLean"
 srcDir = "lean"
 [lean_lib.leanOptions]
 warn.sorry = false
-weak.google.answer = "postpone"
+weak.google.answer = "always_true"
 
 [[lean_lib]]
 name = "TaskSupport"
 srcDir = "lean"
 [lean_lib.leanOptions]
 warn.sorry = false
-weak.google.answer = "postpone"
+weak.google.answer = "always_true"
 
 [[lean_lib]]
 name = "TestFixtures"
 srcDir = "lean"
 [lean_lib.leanOptions]
 warn.sorry = false
-weak.google.answer = "postpone"
+weak.google.answer = "always_true"
 
 [[lean_exe]]
 name = "catalog_extractor"
