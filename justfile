@@ -235,9 +235,9 @@ _check-env:
     mode=$(grep -E '^APP_MODE=' .env | tail -1 | cut -d= -f2- | tr '[:lower:]' '[:upper:]' || true)
     if [[ "$mode" == "PROD" ]]; then
       # submission_api settings refuses to start without these in production.
-      # BOUNTY_AMOUNT_RAO has a development default that production must not inherit:
-      # it is what a verified submission is owed.
-      for var in PUBLIC_CURSOR_SECRET PUBLIC_ACTIVITY_SALT WEBSITE_BASE_URL MAIL_SENDER BOUNTY_AMOUNT_RAO; do
+      # Dynamic pricing reads one live Subnet Alpha stake position. Development can reuse the
+      # payment recipient as a dummy hotkey, but production must name the real stake hotkey.
+      for var in PUBLIC_CURSOR_SECRET PUBLIC_ACTIVITY_SALT WEBSITE_BASE_URL MAIL_SENDER BOUNTY_WALLET_HOTKEY_SS58; do
         grep -qE "^${var}=.+" .env || missing+=("$var")
       done
     else

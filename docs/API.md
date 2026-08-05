@@ -135,7 +135,11 @@ X-Conjectures-Payment-Ref: 8769916-13-151
   },
   "bounty": {
     "amount_rao": 1000000000,
-    "policy_version": "flat-v1"
+    "policy_version": "dynamic-age-v1",
+    "available": true,
+    "reason": "OPEN",
+    "as_of": "2026-07-30T15:20:00Z",
+    "locked": false
   },
   "verification": { "status": "UNVERIFIED", "report_available": false },
   "created_at": "2026-07-30T15:20:11.025465Z",
@@ -143,11 +147,13 @@ X-Conjectures-Payment-Ref: 8769916-13-151
 }
 ```
 
-`bounty` is what this submission is owed if it verifies, quoted at intake and frozen on the row.
-It is in **alpha** base units, unlike `payment.amount_rao`, which is the TAO rao the miner paid.
-A later change to the pricing rule prices later submissions; it never reprices this one, and a
-replay returns the same quote. The inputs the rule read are recorded in the database but not
-returned — the amount is the miner's business, the treasury state behind it is not.
+`bounty` is a live Subnet Alpha estimate, not a promise. `locked` remains false until a payout event fixes
+the amount. Before that, a replay and a later status read are repriced from the current bounty-wallet
+balance, open-target set, and task ages. If a
+different proof establishes the same `reward_target_id` first, `amount_rao` becomes null,
+`available` becomes false, and `reason` is `ALREADY_SOLVED`. The intake estimate and its inputs
+remain on the submission row only as an audit record; a payout event records its own amount,
+policy version, and inputs.
 
 The three statuses are independent axes, not one lifecycle. A submission always has a
 verification status **and** a review status **and** a reward status; collapsing them would imply
@@ -329,20 +335,28 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `MAX_BUNDLE_BYTES` | `2097152` | Cannot exceed the verifier policy |
 | `MANUAL_REWARD_REVIEW_ENABLED` | `true` | Captured per submission at creation |
 | `REVIEW_POLICY_VERSION` | `v1` | |
-| `BOUNTY_AMOUNT_RAO` | `1000000000` in `DEV`, required in `PROD` | Alpha base units. Frozen per submission at intake |
-| `BOUNTY_POLICY_VERSION` | `flat-v1` | The pricing rule the amount came from |
+| `BOUNTY_WALLET_COLDKEY_SS58` | payment recipient | Coldkey owning the bounty stake |
+| `BOUNTY_WALLET_HOTKEY_SS58` | required in `PROD` | Hotkey identifying the bounty stake position |
+| `BOUNTY_NETUID` | `66` | Subnet whose finalized Alpha balance is `B` |
+| `BOUNTY_POOL_BALANCE_RAO` | `4000000000` in `DEV` | Development-only deterministic balance; refused in `PROD` |
+| `BOUNTY_POLICY_VERSION` | `dynamic-age-v1` | Version written with estimates and payouts |
+| `BOUNTY_CONSTANT_NUMERATOR` | `1` | Numerator of `c` |
+| `BOUNTY_CONSTANT_DENOMINATOR` | `4` | Denominator of `c` |
+| `BOUNTY_AGE_PERIOD_SECONDS` | `86400` | One increment in the linear age weight |
+| `BOUNTY_BALANCE_CACHE_SECONDS` | `60` | Maximum chain-read frequency per API process |
+| `BITTENSOR_NETWORK` | `finney` | Network used for the finalized Alpha-stake read |
 | `SUBMISSIONS_PAUSED` | `false` | Refuses intake with `503 SUBMISSIONS_PAUSED`; reported on `/v1/system/status` |
 
 The public read surface adds its own variables; they are documented in
 [PUBLIC_API.md](PUBLIC_API.md#configuration) and in [`../.env.example`](../.env.example).
 
 Every value is validated at startup, so a misconfigured deployment refuses to boot instead of
-failing on the first miner request. Eight refusals are deliberate fail-closed guardrails.
+failing on the first miner request. The deliberate fail-closed guardrails include the following.
 Production will not start with the development authenticator, the development payment verifier,
 or the in-process dispatcher — each would otherwise weaken the boundary
-[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe. It will not start without
-an explicit `BOUNTY_AMOUNT_RAO`, because inheriting a default there promises money the operator
-never chose to promise. And on the public side it will not start with a wildcard or plaintext
+[SUBNET.md](SUBNET.md) and [../SECURITY.md](../SECURITY.md) describe. It refuses a static bounty
+balance in production, where the finalized Alpha stake must be read live. On the public side
+it will not start with a wildcard or plaintext
 CORS origin, with rate limiting disabled, or with either public secret left unset or set to the
 published development constant.
 

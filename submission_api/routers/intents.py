@@ -422,14 +422,29 @@ async def confirm_intent(
         _signed_request(intent, signature)
     )
 
-    # Resolved before the debit, not after. The submission row cannot exist without the
-    # reward identity this entry carries, and a task that has left the allowlist between
-    # upload and confirm must fail before the credit moves rather than after.
+    # Preserve the intent endpoint's idempotency contract before consulting live bounty state.
+    # In particular, retrying an already-confirmed intent must continue to return the original
+    # submission id even if that submission has since won (and therefore closed) the bounty.
+    # ``confirm`` repeats this check under the account/intent locks to close the race.
+    intent_store.assert_usable(intent, now=_now())
+
     entry = _resolve_task(
         services, intent.task_id, digests.to_prefixed(intent.task_bundle_sha256)
     )
-
-    quote = await services.pricing.quote(session, task_id=intent.task_id)
+    quote = await services.pricing.quote(
+        session, reward_target_id=entry.reward_target_id
+    )
+    if not quote.available:
+        raise Conflict(
+            "this bounty has already been solved",
+            reason_code="BOUNTY_CLOSED",
+            extra={"reward_target_id": entry.reward_target_id},
+        )
+    if quote.amount_rao is None or quote.amount_rao <= 0:
+        raise Conflict(
+            "the bounty treasury currently has no payable balance",
+            reason_code="BOUNTY_UNFUNDED",
+        )
     try:
         confirmed = await intent_store.confirm(
             session,

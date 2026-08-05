@@ -90,6 +90,7 @@ class NewSubmission:
     hotkey_signature: bytes  # 64 bytes over request_digest
     manual_review_required: bool
     review_policy_version: str
+    # Indicative snapshot retained for audit. It is not a payout lock.
     bounty_amount_rao: int
     bounty_policy_version: str
     bounty_inputs: Mapping[str, Any] | None = None

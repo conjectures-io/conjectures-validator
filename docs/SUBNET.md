@@ -165,6 +165,13 @@ Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotenc
 one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
 payment accounting.
 
+**Bounty estimates are live, not submission locks.** For open target `i`, the versioned policy is
+`b_i = c * B * N * w_i / W`, evaluated with integer arithmetic. `B` is the finalized bounty-wallet
+balance; `N` and `W` cover only open stable reward targets; and task age comes from the durable
+`bounty_tasks.opened_at` row. The submission stores the estimate shown at intake for audit, while
+the payout event stores the amount, policy, and inputs actually used. If another queued proof wins
+the target first, the later proof can still verify but the bounty is already solved.
+
 **One reward per exact theorem target is a constraint, not a convention.** The pool issues a
 `formalized` and a `counterexample` task for each theorem target. `submissions` carries both its
 source-pinned `problem_id` and stable `reward_target_id`, derived from the allowlist at intake so a

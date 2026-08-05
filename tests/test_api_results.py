@@ -152,6 +152,8 @@ async def _certify(kit, submission_id: str):
                 submission_id=submission.id,
                 eligibility_reason="REVIEW_APPROVED",
                 amount_rao=submission.bounty_amount_rao,
+                pricing_policy_version=submission.bounty_policy_version,
+                pricing_inputs=submission.bounty_inputs,
                 destination_coldkey=COLDKEY,
                 destination_hotkey=submission.hotkey,
                 status=PayoutState.CONFIRMED,

@@ -49,6 +49,12 @@ One reward is paid per exact theorem target. Its proof and refutation tasks comp
 reward, including across source repins. Independently formalized parents, parts, and variants are
 separate targets and can each earn a reward.
 
+Bounty amounts are dynamic estimates. They are calculated from the live treasury balance and the
+target's age relative to the other open targets. Submitting does not lock the displayed amount or
+reserve the target. If another proof becomes the successful claim while yours is queued, the
+target is solved and your submission is not reward-eligible; if yours wins, the payout amount and
+pricing inputs are recorded on the payout event.
+
 ## Attribution
 
 Certified results are published attributed to conjectures.io. There is no author credit,

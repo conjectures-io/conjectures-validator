@@ -78,6 +78,7 @@ def pool():
     return (
         task_entry(
             task_id="open-direct",
+            reward_target_id="fc-target:Erdos11.erdos_11",
             classification=Classification.DIRECT_PROP,
             source=declaration(
                 theorem="Erdos11.erdos_11",
@@ -87,6 +88,7 @@ def pool():
         ),
         task_entry(
             task_id="solved-direct",
+            reward_target_id="fc-target:Erdos12.erdos_12",
             classification=Classification.DIRECT_PROP,
             source=declaration(
                 theorem="Erdos12.erdos_12",
@@ -96,6 +98,7 @@ def pool():
         ),
         task_entry(
             task_id="open-answer",
+            reward_target_id="fc-target:Erdos13.erdos_13",
             classification=Classification.NAT_ANSWER,
             source=declaration(
                 theorem="Erdos13.erdos_13",
@@ -429,8 +432,18 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
             assert body["credits_per_attempt"] == 1
             assert body["treasury_address"] == kit.settings.payment_recipient
             assert body["bounty"] == {
-                "amount_rao": 1_000_000_000,
-                "policy_version": "flat-v1",
+                "policy_version": "dynamic-age-v1",
+                "balance_rao": 4_000_000_000,
+                "wallet_coldkey": kit.settings.bounty_wallet_coldkey,
+                "wallet_hotkey": kit.settings.bounty_wallet_hotkey,
+                "netuid": 66,
+                "asset": "alpha",
+                "open_targets": 3,
+                "total_age_weight": 3,
+                "constant_numerator": 1,
+                "constant_denominator": 4,
+                "as_of": body["bounty"]["as_of"],
+                "locked_at_submission": False,
             }
             assert body["pins_sha256"].startswith("sha256:")
             assert {item["value"]: item["count"] for item in body["categories"]} == {
@@ -444,7 +457,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
 
 
 def test_meta_carries_a_strong_etag_and_answers_a_repeat_read_with_304():
-    """Meta is derived entirely from startup state, so it can carry a real validator.
+    """Meta is stable within a pricing minute unless balance or solved state changes.
 
     The website hits it on every page load; a conditional request there costs a hash instead of
     a response body.
@@ -490,7 +503,9 @@ def test_the_meta_etag_tracks_what_is_actually_published():
 
     async def scenario():
         one = await harness(entries=pool()).setup()
-        two = await harness(entries=pool(), BOUNTY_AMOUNT_RAO="4200000000").setup()
+        two = await harness(
+            entries=pool(), BOUNTY_POOL_BALANCE_RAO="16800000000"
+        ).setup()
         try:
             first = (await _get(one, "/v1/catalog/meta")).headers["etag"]
             second = (await _get(two, "/v1/catalog/meta")).headers["etag"]

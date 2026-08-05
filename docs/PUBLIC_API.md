@@ -139,6 +139,12 @@ its proof/refutation pair and later source repins. Parents, parts, and variants 
 identifiers and independent rewards. A solver that satisfies the contract offline is checked
 against the same values on submission.
 
+Each conjecture carries a live `bounty` object. `amount_rao` is null when `available` is false;
+`reason` distinguishes an open target from one already solved, and `locked` is always false. The
+pool-wide `/v1/catalog/meta` response publishes the balance, open-target count, total age weight,
+and rational policy constant behind those estimates. An accepted submission does not reserve the
+amount displayed on the website.
+
 ### Filters and facets
 
 `category`, `classification`, `task_mode`, `tier` and `ams_subject` are repeatable and ANDed

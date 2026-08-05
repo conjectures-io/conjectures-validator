@@ -60,8 +60,9 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    against finalized chain state. Intake is payment-gated: a refused request creates no
    submission and is recorded in `api_rejection_log` instead.
 4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
-   submission ID together with the bounty the submission is owed if it verifies, frozen at that
-   moment. The submission is queued for verification by being `UNVERIFIED`.
+   submission ID together with the current bounty estimate. The estimate is explicitly unlocked:
+   the wallet balance, task ages, and winning claim may change while verification is in flight.
+   The submission is queued for verification by being `UNVERIFIED`.
 5. A verification worker claims it under a lease and passes the exact proof bytes and task digest
    to the isolated verifier, in a container holding neither the database nor any key.
 6. A proof rejected by policy, Comparator, or the Lean kernel is recorded as rejected and never
@@ -73,8 +74,10 @@ configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the subm
    approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
 9. If manual reward review is not required, or if a held proof is approved, the submission becomes
    reward-eligible and is passed to the reward pipeline.
-10. The reward processor pays the amount frozen at intake and records the chain evidence. It
-    never reprices; a payout that disagrees with the frozen amount is a bug, not a repricing.
+10. The first successful proof to hold the reward target is eligible for a payout priced from the
+    then-current policy inputs. Later proofs remain valid verification results but cannot earn the
+    already-solved bounty. The payout event records its own amount, policy, inputs, and chain
+    evidence; the intake estimate is not used as the amount-of-record.
 
 ```text
 miner pays 0.5 TAO
@@ -441,6 +444,27 @@ after task publication.
 The allowlist assigns both modes the same deterministic `problem_id` and assigns each exact theorem
 target a stable `reward_target_id`. Reward storage enforces at most one reward across that target's
 proof/refutation pair and source repins; parents, parts, and variants remain independent bounties.
+
+## Dynamic bounty pricing
+
+For each open reward target `i`, the API publishes the integer-RAO estimate
+
+```text
+b_i = c * B * N * w_i / W = c * B * w_i / w_avg
+```
+
+`B` is the finalized Subnet 66 Alpha stake held by the configured bounty coldkey/hotkey, `N` is
+the number of open stable reward targets, `w_i` is `1 + floor(age / age_period)`, and `W` is the
+sum of the open targets'
+weights. The default policy uses `c = 1/4` and a one-day age period. Multiplying by `N` removes the
+otherwise accidental division of every task's bounty by the number of tasks in the pool: an
+average-age task is worth `c * B` regardless of `N`.
+
+`bounty_tasks.opened_at` is inserted once per stable `reward_target_id`, so an API restart or source
+repin does not reset age. A target leaves the pricing pool as soon as one submission holds its
+unique reward claim. Catalog and submission responses publish `available`, `reason`, `as_of`, and
+`locked: false`; accepting a submission never reserves the displayed amount. It becomes locked
+only when a payout event records the actual amount and pricing inputs.
 
 `source-metadata.json` includes a `references` array when the Formal Conjectures module docstring
 has a `*Reference:*` or `*References:*` section. Each entry preserves the source Markdown so clients

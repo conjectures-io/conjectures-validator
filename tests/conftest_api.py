@@ -31,7 +31,7 @@ from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
 
-from conjectures_subnet.bounty import FlatBountyPricer
+from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import Base
@@ -313,9 +313,18 @@ def harness(
         authenticator=build_authenticator(settings),
         payments=payments or build_payment_verifier(settings),
         dispatcher=dispatcher or QueueDispatcher(),
-        pricing=FlatBountyPricer(
-            amount_rao=settings.bounty_amount_rao,
+        pricing=DynamicBountyPricer(
+            balance_reader=StaticBalanceReader(settings.bounty_pool_balance_rao),
+            balance_coldkey=settings.bounty_wallet_coldkey,
+            balance_hotkey=settings.bounty_wallet_hotkey,
+            balance_netuid=settings.bounty_netuid,
+            reward_target_ids=tuple(
+                sorted({entry.reward_target_id for entry in catalog.entries.values()})
+            ),
             policy_version=settings.bounty_policy_version,
+            constant_numerator=settings.bounty_constant_numerator,
+            constant_denominator=settings.bounty_constant_denominator,
+            age_period_seconds=settings.bounty_age_period_seconds,
         ),
         pins=pin_set(),
         mail=ConsoleSender(),

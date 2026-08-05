@@ -55,7 +55,7 @@ def production_env(**overrides: str) -> dict[str, str]:
     environ = {
         "APP_MODE": "PROD",
         "PAYMENT_RECIPIENT_SS58": RECIPIENT,
-        "BOUNTY_AMOUNT_RAO": "1000000000",
+        "BOUNTY_WALLET_HOTKEY_SS58": RECIPIENT,
         "PUBLIC_CURSOR_SECRET": "c" * 40,
         "PUBLIC_ACTIVITY_SALT": "s" * 40,
         # Stage 2 additions production also refuses to start without.
@@ -181,7 +181,7 @@ def test_a_production_configured_app_emits_hsts_and_alt_svc():
     async def scenario():
         from conftest_api import PYTEST_DSN, REPOSITORY_COMMIT, pin_set, task_entry, terms
 
-        from conjectures_subnet.bounty import FlatBountyPricer
+        from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
         from conjectures_subnet.db.engine import (
             async_session_factory,
             create_async_db_engine,
@@ -218,9 +218,26 @@ def test_a_production_configured_app_emits_hsts_and_alt_svc():
             authenticator=build_authenticator(settings),
             payments=build_payment_verifier(settings),
             dispatcher=QueueDispatcher(),
-            pricing=FlatBountyPricer(
-                amount_rao=settings.bounty_amount_rao,
+            pricing=DynamicBountyPricer(
+                balance_reader=StaticBalanceReader(4_000_000_000),
+                balance_coldkey=settings.bounty_wallet_coldkey,
+                balance_hotkey=settings.bounty_wallet_hotkey,
+                balance_netuid=settings.bounty_netuid,
+                reward_target_ids=tuple(
+                    sorted(
+                        {
+                            entry.reward_target_id
+                            for entry in catalog_from_entries(
+                                repository_commit=REPOSITORY_COMMIT,
+                                entries=(task_entry(),),
+                            ).entries.values()
+                        }
+                    )
+                ),
                 policy_version=settings.bounty_policy_version,
+                constant_numerator=settings.bounty_constant_numerator,
+                constant_denominator=settings.bounty_constant_denominator,
+                age_period_seconds=settings.bounty_age_period_seconds,
             ),
             pins=pin_set(),
             mail=build_mail_sender(settings),

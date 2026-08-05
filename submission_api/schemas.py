@@ -33,20 +33,20 @@ class PaymentRecord(Model):
 
 
 class BountyQuote(Model):
-    """What this submission is owed if it verifies, frozen when it was accepted.
+    """The current estimate for this submission's reward target."""
 
-    Present unconditionally: a submission is quoted at intake, so the miner learns the amount
-    with the submission id rather than at payout. It does not move afterwards — a later change
-    to the pricing rule prices later submissions, not this one.
-
-    `bounty_inputs` is deliberately not exposed: the amount is what the miner is owed, while the
-    inputs describe treasury state.
-    """
-
-    amount_rao: int = Field(
-        description="Frozen bounty in alpha base units; not the TAO rao of `payment.amount_rao`"
+    amount_rao: int | None = Field(
+        description=(
+            "Live Subnet Alpha estimate in base units; null if another proof solved the target."
+        )
     )
     policy_version: str
+    available: bool
+    reason: str
+    as_of: datetime
+    locked: bool = Field(
+        description="False for a live estimate; true once a payout event fixes the amount."
+    )
 
 
 class VerificationStatus(Model):

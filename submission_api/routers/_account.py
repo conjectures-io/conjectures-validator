@@ -110,6 +110,8 @@ def submission_summary(submission) -> schemas.SubmissionSummary:
         reward_status=str(submission.reward_status),
         failure_reason=submission.failure_reason,
         bounty_amount_rao=submission.bounty_amount_rao,
+        bounty_policy_version=submission.bounty_policy_version,
+        bounty_locked=False,
         created_at=_utc(submission.created_at),
         updated_at=_utc(submission.updated_at),
     )
@@ -150,6 +152,7 @@ async def submission_detail(session: AsyncSession, view) -> schemas.SubmissionDe
         review_policy_version=submission.review_policy_version,
         bounty_amount_rao=submission.bounty_amount_rao,
         bounty_policy_version=submission.bounty_policy_version,
+        bounty_locked=False,
         funding=funding_summary(submission),
         verification=verification_summary(view),
         review=await latest_review(session, submission.id),
