@@ -1,0 +1,42 @@
+# Epoch weight setter overlay. Pass this after docker-compose.api.yml so it joins the same
+# Compose project, while remaining deliberately independent from the database and API.
+
+services:
+  emissions:
+    build:
+      context: .
+      dockerfile: Dockerfile.emissions
+    image: conjectures-emissions-worker:local
+    container_name: conjectures_emissions
+    init: true
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    restart: unless-stopped
+
+    env_file: .env
+    environment:
+      EMISSIONS_NETWORK: ${EMISSIONS_NETWORK:-finney}
+      EMISSIONS_WALLET_NAME: ${EMISSIONS_WALLET_NAME:?set the validator wallet name in .env}
+      EMISSIONS_WALLET_HOTKEY: ${EMISSIONS_WALLET_HOTKEY:?set the validator hotkey name in .env}
+      EMISSIONS_WALLET_PATH: /wallets
+      EMISSIONS_RETRY_SECONDS: ${EMISSIONS_RETRY_SECONDS:-30}
+      HOME: /tmp
+
+    volumes:
+      - ./emissions_worker:/srv/app/emissions_worker:ro
+      # Mount one wallet only. The hotkey signs SetWeights; no service besides this one receives it.
+      - ${EMISSIONS_WALLET_HOST_PATH:?set the host wallet root in .env}/${EMISSIONS_WALLET_NAME:?set the validator wallet name in .env}:/wallets/${EMISSIONS_WALLET_NAME}:ro
+
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+          pids: 128

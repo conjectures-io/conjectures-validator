@@ -17,7 +17,7 @@ This repository is the system boundary for the entire validator, including:
 - immutable proof artifacts and verifier reports;
 - asynchronous verification workers and the hardened Lean verifier;
 - the optional manual reward-review queue;
-- reward eligibility, scoring, and Subnet 66 weight submission; and
+- reward eligibility, dynamic bounty pricing, and treasury-only Subnet 66 weight submission; and
 - deployment, monitoring, backup, and recovery configuration.
 
 Some of those validator components still need to be implemented. The current checkout already
@@ -37,7 +37,8 @@ verification core.
 | Asynchronous verification worker | To build |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
-| Scoring and Subnet 66 weight-setting loop | To build |
+| Subnet 66 treasury weight setter (100% to UID 121 every epoch) | Implemented |
+| Proof-specific scoring and automated bounty payout | To build |
 | Production launch and operating runbooks | To build |
 
 The submission API captures the per-submission manual-review policy and records the review gate
@@ -260,6 +261,24 @@ The reader behind both is [`conjectures_subnet/transfers.py`](conjectures_subnet
 through [`submission_api/chain_payments.py`](submission_api/chain_payments.py) on the API side. One
 reader, one idea of what a transfer is — two with two reference formats could not have been
 reconciled.
+
+## Treasury emissions
+
+[`emissions_worker/`](emissions_worker/) observes each Subnet 66 epoch and submits one weight:
+treasury UID **121** receives **100%**. The netuid and destination UID are code constants on
+purpose. The only runtime choices are the Bittensor network and the validator wallet/hotkey that
+signs `SetWeights`.
+
+```bash
+just up-emissions       # api stack plus the epoch worker
+just logs emissions
+```
+
+Set `EMISSIONS_WALLET_HOST_PATH`, `EMISSIONS_WALLET_NAME`, and
+`EMISSIONS_WALLET_HOTKEY` in `.env`. Only that named wallet is mounted into the emissions
+container, read-only; the API, watcher, database, and hostile-proof verifier never receive the
+signing key. A failed chain submission is retried in the same epoch, while the next successful
+submission waits for the next epoch observed on-chain.
 
 Build and inspect the real full-repository catalog:
 

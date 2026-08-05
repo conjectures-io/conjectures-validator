@@ -64,7 +64,8 @@ flowchart TD
         WORK["verification worker<br/>SPEC"]
         REV["reward gating<br/>optional manual review<br/>SPEC"]
         RE["reward_events<br/>SPEC"]
-        WB["weight_batches → set_weights<br/>OPEN"]
+        WB["epoch worker<br/>UID 121 = 100%<br/>BUILT"]
+        CHAIN["Subnet 66<br/>epochs + SetWeights"]
     end
 
     subgraph VER["VERIFICATION DOMAIN — hostile input, no secrets"]
@@ -95,16 +96,16 @@ flowchart TD
     WORK --> LOAD --> SUB --> STAT --> BC --> CMP --> REP
     REP -->|"report bytes"| OBJ
     REP -->|"verdict + reason_code"| DB
-    DB --> REV --> RE --> WB
+    DB --> REV --> RE
+    CHAIN -->|"epoch"| WB -->|"100% treasury weight"| CHAIN
 
     classDef built fill:#0f5132,stroke:#0f5132,color:#fff
     classDef spec fill:#664d03,stroke:#664d03,color:#fff
     classDef open fill:#842029,stroke:#842029,color:#fff
     classDef ext fill:#41464b,stroke:#41464b,color:#fff
-    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP built
+    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP,WB built
     class API,PAY,OBJ,DB,WORK,REV,RE spec
-    class WB open
-    class MINER ext
+    class MINER,CHAIN ext
 ```
 
 ---
@@ -464,18 +465,17 @@ evidence. The live policy reads the finalized bounty-wallet balance, durable tar
 targets without a successful reward claim. The intake estimate is retained separately and is not
 the amount-of-record.
 
-### What the remaining weight/funding mechanism needs
+### What the remaining bounty payout mechanism needs
 
 | Required input | Status |
 | --- | --- |
-| Deterministic rule converting an eligible proof into Subnet 66 weights | **OPEN** — `SUBNET.md:305` |
-| Scoring of duplicate valid proofs, repeat attempts, multiple solvers | **OPEN** — `SUBNET.md:304` |
 | Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` produces the versioned age weight; no subjective difficulty score is used |
-| Proof-of-inclusion returned to the miner | **OPEN** — `SUBNET.md:306` |
-| `set_weights` submission and chain reconciliation | **Not implemented.** `chain.py` is read-only |
+| Payout proof-of-inclusion returned to the miner | **OPEN** |
+| Automated bounty transfer and reconciliation | **OPEN** |
 
-The payout rule is deterministic and its inputs are persisted. Converting validator funding into
-Subnet 66 weights and returning proof-of-inclusion to the miner remain separate open components.
+The payout rule is deterministic and its inputs are persisted. Subnet emissions are independent:
+`emissions_worker` sends one 100% weight to treasury UID 121 after every observed epoch. Executing
+the individual bounty transfer and returning its proof-of-inclusion remain open.
 
 ---
 
