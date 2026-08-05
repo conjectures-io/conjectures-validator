@@ -35,7 +35,7 @@ RUN ./scripts/pin_dependencies.sh \
     && .tools/elan-init -y --default-toolchain leanprover/lean4:v4.27.0 \
     && cd vendor/formal-conjectures \
     && lake exe cache get \
-    && lake build FormalConjecturesAnswerPostpone extract_names \
+    && lake build FormalConjectures extract_names \
     && cd /opt/fc-verifier/vendor/lean4export \
     && lake build lean4export \
     && cd /opt/fc-verifier/vendor/comparator \

@@ -174,7 +174,7 @@ the pipeline.
 | 2 | `classification == DIRECT_PROP` | **988** |
 | 3 | remaining exact-proposition safety rules | **988** |
 | 4 | module under `ErdosProblems/` | **506** over 320 files |
-| 5 | audited single-tier selection | **146** targets from 74 files (124 Erdős and 22 Green) |
+| 5 | audited single-tier selection | **146** targets from 124 files (124 Erdős over 105 files, 22 Green over 19) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
