@@ -176,6 +176,15 @@ async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRo
     rows = await _decorate(session, [submission])
     return rows[0]
 
+async def all_submissions_page(
+    session: AsyncSession,
+    *,
+    limit: int,
+    after: tuple[datetime, uuid.UUID] | None = None,
+) -> tuple[ResultRow, ...]:
+    """All submissions for the dashboard, newest first. `after` is the keyset position, exclusive."""
+    return await _page(session, [], limit=limit, after=after)
+
 
 def _or_public():
     return or_(and_(*CERTIFIED), and_(*IN_REVIEW))

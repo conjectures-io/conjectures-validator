@@ -29,6 +29,9 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from conjectures_subnet.db.digests import to_prefixed
+from conjectures_subnet.db.public import ResultRow
+
 
 class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -322,6 +325,41 @@ class PublicVerificationReport(Model):
     report_sha256: str
     report: dict[str, Any]
 
+class PublicResultItem(BaseModel):
+    id: uuid.UUID
+    task_id: str
+    task_bundle_sha256: str
+    created_at: datetime
+    bounty_amount_rao: int
+    bounty_policy_version: str
+    review_policy_version: str
+    verified_at: datetime | None = None
+    certified_at: datetime | None = None
+    verifier_version: str | None = None
+    sandbox_mode: str | None = None
+    report_available: bool
+
+    @classmethod
+    def from_db_row(cls, row: ResultRow) -> "PublicResultItem":
+        return cls(
+            id=row.id,
+            task_id=row.task_id,
+            task_bundle_sha256=to_prefixed(row.task_bundle_sha256),
+            created_at=row.created_at,
+            bounty_amount_rao=row.bounty_amount_rao,
+            bounty_policy_version=row.bounty_policy_version,
+            review_policy_version=row.review_policy_version,
+            verified_at=row.verified_at,
+            certified_at=row.certified_at,
+            verifier_version=row.verifier_version,
+            sandbox_mode=row.sandbox_mode,
+            report_available=row.report_available,
+        )
+
+
+class PublicResultsPageResponse(BaseModel):
+    items: list[PublicResultItem]
+    next_cursor: str | None = None
 
 # --- System --------------------------------------------------------------------------------
 
