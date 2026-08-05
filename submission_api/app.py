@@ -14,14 +14,19 @@ applies only to `/v1`, and the response models, which live in two modules with t
 Middleware order is load-bearing. `add_middleware` prepends, so the layer added *last* is the
 outermost one, and the stack is:
 
-    SecurityHeaders  →  ScopedCORS  →  RateLimit  →  routes
+    AxiomRequest  →  SecurityHeaders  →  ScopedCORS  →  RateLimit  →  routes
 
 Two layers generate responses of their own — the rate limiter's `429` and the CORS layer's
 preflight answer — and a response only passes through the layers *outside* the one that made it.
 That fixes the order:
 
-* `SecurityHeaders` outermost, so the hardening reaches every response this process emits,
-  including the `429` and the preflight, not just the ones a route returned.
+* `AxiomRequest` outermost, so the one event per request sees the final status of every response
+  the process emits — including the `429` and the `403` that middleware produces without a route
+  ever running. It is also where the correlation id is set, so every log record from every layer
+  inside it shares one `request_id`.
+* `SecurityHeaders` next, so the hardening reaches every response this process emits, including
+  the `429` and the preflight, not just the ones a route returned. Outside it there is only
+  observability, which adds one header and generates no responses of its own.
 * `ScopedCORS` outside the limiter, so a `429` still carries `Access-Control-Allow-Origin`. A
   browser that cannot read the body reports an opaque CORS failure instead of the rate limit,
   and the site's error handling never sees the real cause.
@@ -29,6 +34,7 @@ That fixes the order:
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from datetime import date
 from contextlib import asynccontextmanager
@@ -36,6 +42,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
+from conjectures_subnet.axiom import attach_axiom_handler, get_axiom
 from conjectures_subnet.bounty import (
     BittensorBalanceReader,
     CachedBalanceReader,
@@ -60,6 +67,10 @@ from submission_api.middleware import (
     ScopedCORSMiddleware,
     SecurityHeadersMiddleware,
     cors_options,
+)
+from submission_api.observability import (
+    AxiomRequestMiddleware,
+    request_event_mode,
 )
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
@@ -174,11 +185,33 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        # Attached before the service graph is built, so a failure in `build_services` is itself
+        # reported. uvicorn configures logging before lifespan runs, which is why the API attaches
+        # the bridge here rather than calling `configure_logging` the way the workers' entry
+        # points do — there is no `basicConfig` of ours to make.
+        attach_axiom_handler(source="api")
         if not hasattr(application.state, "services"):
             application.state.services = build_services(resolved_settings)
+        get_axiom().info(
+            source="api",
+            event_type="service_started",
+            version=__version__,
+            app_mode=resolved_settings.app_mode,
+            authenticator=resolved_settings.authenticator,
+            payment_verifier=resolved_settings.payment_verifier,
+            dispatcher=resolved_settings.dispatcher,
+            tasks=len(application.state.services.catalog.entries),
+            docs_exposed=resolved_settings.expose_docs,
+            cors_origins=len(resolved_settings.cors_allowed_origins),
+            rate_limit_enabled=resolved_settings.rate_limit_enabled,
+            submissions_paused=resolved_settings.submissions_paused,
+        )
         try:
             yield
         finally:
+            get_axiom().info(
+                source="api", event_type="service_stopped", version=__version__
+            )
             # Only tear down resources this app created; injected ones belong to the caller.
             if services is None:
                 built = application.state.services
@@ -189,6 +222,10 @@ def create_app(
                 closer = getattr(reader, "aclose", None)
                 if closer is not None:
                     await closer()
+            # Last, so the shutdown event above and anything logged during teardown are flushed
+            # before the process exits. `atexit` would do it too; doing it here means it happens
+            # while the loop is still running rather than during interpreter shutdown.
+            get_axiom().close()
 
     application = FastAPI(
         title="conjectures.io Subnet 66 submission API",
@@ -243,6 +280,14 @@ def create_app(
         SessionCookieRefreshMiddleware, settings=resolved_settings
     )
     application.add_middleware(SecurityHeadersMiddleware, settings=resolved_settings)
+    # Outermost. It observes the final status of every response, including the ones the layers
+    # below generate without a route running, and it owns the correlation id every log record
+    # produced inside it is tagged with.
+    application.add_middleware(
+        AxiomRequestMiddleware,
+        trusted_proxy_hops=resolved_settings.trusted_proxy_hops,
+        mode=request_event_mode(os.environ),
+    )
 
     application.include_router(health.router)
     application.include_router(tasks.router)

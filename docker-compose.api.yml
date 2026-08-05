@@ -94,6 +94,18 @@ services:
       STATUS_BANNER: ${STATUS_BANNER:-}
       MANUAL_REWARD_REVIEW_ENABLED: ${MANUAL_REWARD_REVIEW_ENABLED:-true}
 
+      # --- Observability ----------------------------------------------------
+      # Optional: unset means the sink is a no-op and stderr logging is
+      # unchanged. Listed explicitly, like everything else here, so which
+      # process ships events is visible in the compose file rather than
+      # inherited invisibly from .env. Same variables in every service, so all
+      # four cannot end up writing to different datasets.
+      AXIOM_TOKEN: ${AXIOM_TOKEN:-}
+      AXIOM_DATASET: ${AXIOM_DATASET:-}
+      AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
+      AXIOM_REQUEST_EVENTS: ${AXIOM_REQUEST_EVENTS:-all}
+
     ports:
       # Loopback only. TLS, HTTP/2 and HTTP/3 terminate at the edge — this
       # process speaks HTTP/1.1 and must not be the thing facing the internet.

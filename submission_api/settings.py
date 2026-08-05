@@ -98,12 +98,18 @@ CORS_REQUEST_HEADERS = (
 )
 # Exposed so a browser can actually read them off a cross-origin response. Without this the
 # rate-limit budget and ETag are invisible to the page that is subject to them.
+#
+# `X-Request-Id` is here so a failing page can quote the id of the request that failed. It is the
+# key the same request's Axiom event and every log record underneath it are tagged with, which
+# turns "the site is broken" into one lookup. Reading it grants nothing: the value is minted by
+# this process per request, identifies no account, and is not accepted as input.
 CORS_EXPOSED_HEADERS = (
     "ETag",
     "RateLimit-Limit",
     "RateLimit-Remaining",
     "RateLimit-Reset",
     "Retry-After",
+    "X-Request-Id",
 )
 CORS_MAX_AGE_SECONDS = 600
 

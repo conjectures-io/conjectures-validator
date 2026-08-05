@@ -7,6 +7,14 @@ miner can act on it without scraping prose. Responses use RFC 9457
 
 The same `reason_code` is what `api_rejection_log` records, which is the only trace a refused
 request leaves, since payment-gated intake creates no submission.
+
+It is also what these handlers hand to observability. Rather than emitting a second Axiom event
+per rejection — every request already produces exactly one — each handler notes its reason code on
+the ASGI scope, and `AxiomRequestMiddleware` folds it into that request's `request_completed`
+event. So "which endpoint is refusing miners, and why" is one query over one event type. The two
+handlers that mean the validator is broken rather than the request being wrong, `DatabaseError`
+mapped to a `503` and an unhandled exception, additionally emit an `unexpected_error` carrying the
+traceback, because otherwise the stack exists nowhere a query can reach.
 """
 
 from __future__ import annotations
@@ -17,6 +25,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db.errors import (
     DatabaseError,
     DuplicatePayment,
@@ -49,6 +58,22 @@ _REASON_STATUS: Mapping[ReasonCode, int] = {
 REASON_MALFORMED_REQUEST = "MALFORMED_REQUEST"
 REASON_TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED"
 REASON_INTERNAL = "INTERNAL_ERROR"
+
+# The two request-scoped facts these handlers and `AxiomRequestMiddleware` pass to each other. The
+# scope is the one object both hold a reference to, and both keys are namespaced so they cannot
+# collide with an ASGI or Starlette key.
+#
+# `SCOPE_REASON_CODE` goes handler → middleware: the middleware runs outermost and reads it after
+# the handler has written it, so a refusal's reason lands on that request's own event.
+#
+# `SCOPE_REQUEST_ID` goes middleware → handler, and exists because of where Starlette puts the
+# `Exception` handler. `build_middleware_stack` wraps everything in `ServerErrorMiddleware`, which
+# is therefore *outside* every layer added with `add_middleware` — including the observability one
+# that sets the correlation `ContextVar`. So `unhandled_error_handler` runs with that variable
+# already reset, and reads the id off the scope instead. Without this a 500's traceback would be
+# the one event that could not be joined to the request it came from.
+SCOPE_REASON_CODE = "conjectures.reason_code"
+SCOPE_REQUEST_ID = "conjectures.request_id"
 
 
 class ApiError(Exception):
@@ -201,22 +226,47 @@ def problem_response(error: ApiError) -> JSONResponse:
     )
 
 
-async def api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+def note_reason(request: Request, error: ApiError) -> ApiError:
+    """Record the refusal's reason code on the scope, for the request's Axiom event.
+
+    Returns the error so a handler can wrap `problem_response(note_reason(request, ...))` in one
+    expression. Best-effort by construction: a scope that cannot be written to costs a field on an
+    event, and must not turn a `422` into a `500`.
+    """
+    try:
+        request.scope[SCOPE_REASON_CODE] = error.reason_code
+    except Exception:  # noqa: BLE001 — a telemetry field is never worth failing a response over
+        pass
+    return error
+
+
+async def api_error_handler(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, ApiError)
-    return problem_response(exc)
+    return problem_response(note_reason(request, exc))
 
 
-async def verifier_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+async def verifier_error_handler(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, VerifierError)
-    return problem_response(from_verifier_error(exc))
+    return problem_response(note_reason(request, from_verifier_error(exc)))
 
 
-async def database_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+async def database_error_handler(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, DatabaseError)
-    return problem_response(from_database_error(exc))
+    error = from_database_error(exc)
+    if error.status_code >= 500:
+        # A `RecordNotFound` or a conflict is the request's problem and the reason code says so.
+        # Anything that mapped to a 503 is the store being unreachable or refusing the write, which
+        # is the validator's problem, and the traceback is the only thing that says which.
+        get_axiom().exception(
+            source="api",
+            event_type="unexpected_error",
+            reason_code=error.reason_code,
+            **_request_fields(request),
+        )
+    return problem_response(note_reason(request, error))
 
 
-async def validation_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Report which inputs were invalid without echoing the framework's internals.
 
     `str(RequestValidationError)` embeds absolute source paths and line numbers from the
@@ -233,15 +283,57 @@ async def validation_error_handler(_request: Request, exc: Exception) -> JSONRes
             }
         )
     return problem_response(
-        BadRequest(
-            "request is missing or has malformed fields",
-            extra={"errors": errors} if errors else None,
+        note_reason(
+            request,
+            BadRequest(
+                "request is missing or has malformed fields",
+                extra={"errors": errors} if errors else None,
+            ),
         )
     )
 
 
-async def unhandled_error_handler(_request: Request, _exc: Exception) -> JSONResponse:
-    # Never leak internals to a miner. The traceback goes to the logs via the ASGI server.
-    return problem_response(
-        ApiError("internal error", status_code=500, reason_code=REASON_INTERNAL)
+async def unhandled_error_handler(request: Request, _exc: Exception) -> JSONResponse:
+    # Never leak internals to a miner. The traceback goes to the logs via the ASGI server — and,
+    # now, to Axiom, which is the only copy a query can reach. This is the one place in the API
+    # that knows both that a request failed for a reason nobody anticipated and what the stack was.
+    get_axiom().exception(
+        source="api",
+        event_type="unexpected_error",
+        reason_code=REASON_INTERNAL,
+        **_request_fields(request),
     )
+    response = problem_response(
+        note_reason(
+            request,
+            ApiError("internal error", status_code=500, reason_code=REASON_INTERNAL),
+        )
+    )
+    # Set here and nowhere else. Every other response gets this header from
+    # `AxiomRequestMiddleware`, but a `500` is sent by `ServerErrorMiddleware` from outside that
+    # layer — and a `500` is precisely when someone wants the id to look the failure up with.
+    correlation = request.scope.get(SCOPE_REQUEST_ID)
+    if correlation is not None:
+        response.headers["X-Request-Id"] = str(correlation)
+    return response
+
+
+def _request_fields(request: Request) -> dict[str, Any]:
+    """Which endpoint, which verb, which request — the identity an error event needs.
+
+    `endpoint` is the matched route template, never the raw path with its parameter values: see
+    `submission_api.observability._endpoint` on why an endpoint label is the shape and not the
+    values. `request_id` is read off the scope for the reason `SCOPE_REQUEST_ID` documents.
+    """
+    route = request.scope.get("route")
+    template = getattr(route, "path", None)
+    fields: dict[str, Any] = {
+        "endpoint": template
+        if isinstance(template, str) and template
+        else request.url.path[:200],
+        "method": request.method,
+    }
+    correlation = request.scope.get(SCOPE_REQUEST_ID)
+    if correlation is not None:
+        fields["request_id"] = correlation
+    return fields

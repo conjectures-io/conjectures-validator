@@ -47,8 +47,10 @@ decision, but the reviewer-facing decision service itself is still to build.
 Miners should start at [`docs/MINER.md`](docs/MINER.md): what to do, in order, to get one proof
 submitted, verified and paid. [`docs/API.md`](docs/API.md) documents the API surface and its
 configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the submission format,
-[`deploy/README.md`](deploy/README.md) the database deployment, and
-[`docs/SUBNET.md`](docs/SUBNET.md) the service contract, trust boundaries, and remaining work.
+[`deploy/README.md`](deploy/README.md) the database deployment,
+[`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) the structured events every process emits and how
+to read them, and [`docs/SUBNET.md`](docs/SUBNET.md) the service contract, trust boundaries, and
+remaining work.
 
 ## Validator flow
 

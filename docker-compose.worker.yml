@@ -100,6 +100,15 @@ services:
       # write to a path the read-only root filesystem denies. Point it at the one writable mount.
       HOME: /tmp
 
+      # --- Observability ----------------------------------------------------
+      # Optional: unset means the sink is a no-op and stderr logging is
+      # unchanged. Same variables in every service, so all four cannot end up
+      # writing to different datasets.
+      AXIOM_TOKEN: ${AXIOM_TOKEN:-}
+      AXIOM_DATASET: ${AXIOM_DATASET:-}
+      AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
+
     volumes:
       # Read-only, and the whole checkout: the worker resolves the task pool, the audited allowlist
       # and the verifier toolchain by path, and mounting them from the host is what guarantees the
