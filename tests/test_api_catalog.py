@@ -10,6 +10,7 @@ skipped without one:
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
 
 import pytest
 
@@ -33,6 +34,7 @@ from conftest_api import (
 )
 
 from submission_api.routers.catalog import PSEUDONYM_LENGTH
+from submission_api.taostats import StaticAlphaUsdPriceReader
 from verifier.models import Classification
 from verifier.task_generator import task_id as build_task_id
 
@@ -114,7 +116,10 @@ def pool():
 
 def test_the_list_publishes_every_conjecture_with_its_facets():
     async def scenario():
-        kit = await harness(entries=pool()).setup()
+        kit = await harness(
+            entries=pool(),
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal("37.50")),
+        ).setup()
         try:
             response = await _get(kit, "/v1/catalog/conjectures")
             assert response.status_code == 200, response.text
@@ -127,6 +132,8 @@ def test_the_list_publishes_every_conjecture_with_its_facets():
                 SOLVED_DIRECT,
                 OPEN_ANSWER,
             ]
+            assert body["items"][0]["bounty"]["amount_rao"] == 1_000_000_000
+            assert body["items"][0]["bounty"]["amount_usd"] == "37.50"
 
             facets = {facet["field"]: facet["values"] for facet in body["facets"]}
             assert {item["value"]: item["count"] for item in facets["category"]} == {
@@ -420,7 +427,10 @@ def test_a_slug_outside_the_task_id_alphabet_never_reaches_the_catalog():
 
 def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
     async def scenario():
-        kit = await harness(entries=pool()).setup()
+        kit = await harness(
+            entries=pool(),
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal("37.50")),
+        ).setup()
         try:
             response = await _get(kit, "/v1/catalog/meta")
             assert response.status_code == 200, response.text
@@ -434,6 +444,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
             assert body["bounty"] == {
                 "policy_version": "dynamic-age-v1",
                 "balance_rao": 4_000_000_000,
+                "balance_usd": "150.00",
                 "wallet_coldkey": kit.settings.bounty_wallet_coldkey,
                 "wallet_hotkey": kit.settings.bounty_wallet_hotkey,
                 "netuid": 66,

@@ -55,6 +55,7 @@ from submission_api.errors import (
     from_database_error,
     from_verifier_error,
 )
+from submission_api.taostats import amount_usd
 from verifier.bundle import BUNDLE_MEDIA_TYPE, ProofBundle, admit_proof_bundle
 from verifier.errors import VerifierError
 from verifier.hashing import is_sha256, sha256_bytes
@@ -159,6 +160,7 @@ async def _status(
         )
     ).scalar_one_or_none()
     live = None
+    alpha_usd = await services.bounty_usd.alpha_usd()
     if payout is None:
         live = quote or await services.pricing.quote(
             session,
@@ -167,6 +169,7 @@ async def _status(
         )
         bounty = schemas.BountyQuote(
             amount_rao=live.amount_rao,
+            amount_usd=amount_usd(live.amount_rao, alpha_usd=alpha_usd),
             policy_version=live.policy_version,
             available=live.available,
             reason=live.reason,
@@ -176,6 +179,7 @@ async def _status(
     else:
         bounty = schemas.BountyQuote(
             amount_rao=payout.amount_rao,
+            amount_usd=amount_usd(payout.amount_rao, alpha_usd=alpha_usd),
             policy_version=payout.pricing_policy_version,
             available=payout.status != PayoutState.CONFIRMED,
             reason=(

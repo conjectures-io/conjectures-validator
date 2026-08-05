@@ -31,6 +31,7 @@ from submission_api.payments import PaymentVerifier
 from submission_api.pins import PinSet
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
+from submission_api.taostats import AlphaUsdPriceReader, UnavailableAlphaUsdPriceReader
 from submission_api.verification import VerificationDispatcher
 
 
@@ -52,6 +53,7 @@ class Services:
     mail: MailSender
     packages: tuple[CreditPackage, ...]
     terms: SubmissionTerms
+    bounty_usd: AlphaUsdPriceReader = field(default_factory=UnavailableAlphaUsdPriceReader)
     # The public view of `catalog`: tasks grouped into slug-addressable conjectures. Derived
     # rather than passed so that building a `Services` at all runs the slug collision check —
     # including in tests, which construct this directly. A pool that cannot be addressed by

@@ -25,6 +25,7 @@ pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 import hashlib
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from conftest_api import (
     COLDKEY,
@@ -47,6 +48,7 @@ from conjectures_subnet.db.models import (
 )
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.routers.results import PUBLIC_REPORT_FIELDS
+from submission_api.taostats import StaticAlphaUsdPriceReader
 
 # The fixture's conjecture, as a stable slug. `TASK_ID` is one build of one attack direction
 # against it; this is the identity a public link uses.
@@ -178,7 +180,9 @@ async def _certify(kit, submission_id: str):
 
 def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
     async def scenario():
-        kit = await harness().setup()
+        kit = await harness(
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal("50"))
+        ).setup()
         try:
             submission_id = await _submit(kit, "0001")
             await _verify(kit, submission_id)
@@ -200,6 +204,7 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert item["certified_at"] is not None
             assert item["verified_at"] is not None
             assert item["bounty_amount_rao"] == 1_000_000_000
+            assert item["bounty_amount_usd"] == "50.00"
             assert item["verifier_version"] == "verifier-1.2.3"
             assert item["report_available"] is True
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from decimal import Decimal
 
 import pytest
 
@@ -47,6 +48,7 @@ from conjectures_subnet.db.models import (
     Submission,
     VerificationState,
 )
+from submission_api.taostats import StaticAlphaUsdPriceReader
 from verifier.errors import ReasonCode
 from verifier.hashing import sha256_bytes
 
@@ -125,6 +127,7 @@ def test_the_bounty_is_estimated_at_intake_but_not_locked():
         kit = await harness(
             BOUNTY_POOL_BALANCE_RAO="16800000000",
             BOUNTY_POLICY_VERSION="dynamic-age-v1",
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal("50")),
         ).setup()
         try:
             bundle = valid_bundle()
@@ -135,6 +138,7 @@ def test_the_bounty_is_estimated_at_intake_but_not_locked():
             # reservation of either the target or this amount.
             assert first.json()["bounty"] == {
                 "amount_rao": 4_200_000_000,
+                "amount_usd": "210.00",
                 "policy_version": "dynamic-age-v1",
                 "available": True,
                 "reason": "OPEN",

@@ -108,6 +108,12 @@ class BountyInfo(Model):
     amount_rao: int | None = Field(
         description="Live Subnet Alpha estimate in base units; null when unavailable."
     )
+    amount_usd: str | None = Field(
+        description=(
+            "Current USD display estimate from TaoStats; null with amount_rao or when the "
+            "external rate is unavailable."
+        )
+    )
     policy_version: str
     available: bool
     reason: str = Field(description="OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL")
@@ -123,6 +129,12 @@ class BountyPoolInfo(Model):
 
     policy_version: str
     balance_rao: int
+    balance_usd: str | None = Field(
+        description=(
+            "Current USD display value of balance_rao from TaoStats; null when the external "
+            "rate is unavailable."
+        )
+    )
     wallet_coldkey: str
     wallet_hotkey: str
     netuid: int
@@ -372,6 +384,12 @@ class PublicResult(Model):
         default=None, description="When the payout for this result was confirmed on chain"
     )
     bounty_amount_rao: int
+    bounty_amount_usd: str | None = Field(
+        description=(
+            "Current USD display value of bounty_amount_rao from TaoStats; null when the "
+            "external rate is unavailable."
+        )
+    )
     bounty_policy_version: str
     verifier_version: str | None = None
     sandbox_mode: str | None = None

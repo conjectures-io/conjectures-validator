@@ -156,10 +156,14 @@ identifiers and independent rewards. A solver that satisfies the contract offlin
 against the same values on submission.
 
 Each conjecture carries a live `bounty` object. `amount_rao` is null when `available` is false;
-`reason` distinguishes an open target from one already solved, and `locked` is always false. The
-pool-wide `/v1/catalog/meta` response publishes the balance, open-target count, total age weight,
-and rational policy constant behind those estimates. An accepted submission does not reserve the
-amount displayed on the website.
+`amount_usd` is a TaoStats-backed decimal string rounded to cents, or null when the bounty or the
+external rate is unavailable. It is `(amount_rao / 1e9) * alpha_price_tao * tao_price_usd`;
+the Alpha amount remains authoritative when this display-only conversion is absent. `reason`
+distinguishes an open target from one already solved, and `locked` is always false. The
+pool-wide `/v1/catalog/meta` response publishes `bounty.balance_rao` and its display-only
+`bounty.balance_usd` conversion, plus the open-target count, total age weight, and rational policy
+constant behind the task estimates. An accepted submission does not reserve the amount displayed
+on the website.
 
 ### Filters and facets
 
@@ -209,6 +213,10 @@ a client learns nothing about whether it was the shape or the signature that was
 
 `certified` means paid out — `reward_status = 'REWARDED'` with the review approved. `in-review`
 means Lean-verified and awaiting the reward decision.
+
+Every `PublicResult` carries the payout's `bounty_amount_rao` and a current
+`bounty_amount_usd` display conversion using the same formula as catalog bounties. The USD value
+is null when TaoStats is unavailable and is not a historical fiat valuation of the payout.
 
 A result carries both identities: `slug` names the conjecture, `task_id` names the task it was
 produced against. The slug is derived from the row's own `reward_target_id` rather than looked up

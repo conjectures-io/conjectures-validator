@@ -40,6 +40,12 @@ class BountyQuote(Model):
             "Live Subnet Alpha estimate in base units; null if another proof solved the target."
         )
     )
+    amount_usd: str | None = Field(
+        description=(
+            "Current USD display estimate from TaoStats; null with amount_rao or when the "
+            "external rate is unavailable."
+        )
+    )
     policy_version: str
     available: bool
     reason: str

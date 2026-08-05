@@ -88,6 +88,10 @@ from submission_api.routers import (
 )
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
+from submission_api.taostats import (
+    TaoStatsAlphaUsdPriceReader,
+    UnavailableAlphaUsdPriceReader,
+)
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
 
@@ -173,6 +177,15 @@ def build_services(
             version=settings.submission_terms_version,
             effective_from=date.fromisoformat(settings.submission_terms_effective_from),
         ),
+        bounty_usd=(
+            TaoStatsAlphaUsdPriceReader(
+                api_key=settings.taostats_api_key,
+                netuid=settings.bounty_netuid,
+                ttl_seconds=settings.taostats_price_cache_seconds,
+            )
+            if settings.taostats_api_key
+            else UnavailableAlphaUsdPriceReader()
+        ),
     )
 
 
@@ -222,6 +235,7 @@ def create_app(
                 closer = getattr(reader, "aclose", None)
                 if closer is not None:
                     await closer()
+                await built.bounty_usd.aclose()
             # Last, so the shutdown event above and anything logged during teardown are flushed
             # before the process exits. `atexit` would do it too; doing it here means it happens
             # while the loop is still running rather than during interpreter shutdown.

@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
@@ -64,6 +64,7 @@ DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
 DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS = 60
 DEFAULT_BITTENSOR_NETWORK = "finney"
 DEFAULT_BOUNTY_NETUID = 66
+DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS = 60
 
 POLICY_VERSION = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
 
@@ -399,6 +400,10 @@ class Settings:
     bounty_constant_denominator: int
     bounty_age_period_seconds: int
     bounty_balance_cache_seconds: int
+    # Optional because USD is display metadata: without a key (or during an upstream outage),
+    # bounty `amount_usd` is null while the Alpha-denominated quote remains available.
+    taostats_api_key: str = field(repr=False)
+    taostats_price_cache_seconds: int
     # --- Public read surface ---------------------------------------------------------------
     pins_path: Path
     cors_allowed_origins: tuple[str, ...]
@@ -530,6 +535,13 @@ class Settings:
         ).strip()
         if not bittensor_network or len(bittensor_network) > 255 or "\x00" in bittensor_network:
             raise SettingsError("BITTENSOR_NETWORK must contain 1 to 255 non-NUL characters")
+        taostats_api_key = env.get("TAOSTATS_API_KEY", "").strip()
+        if len(taostats_api_key) > 512 or any(
+            ord(char) < 32 for char in taostats_api_key
+        ):
+            raise SettingsError(
+                "TAOSTATS_API_KEY must not exceed 512 characters or contain control characters"
+            )
 
         development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
         invalid = tuple(
@@ -691,6 +703,13 @@ class Settings:
                 env,
                 "BOUNTY_BALANCE_CACHE_SECONDS",
                 DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS,
+                maximum=3600,
+            ),
+            taostats_api_key=taostats_api_key,
+            taostats_price_cache_seconds=_positive_int(
+                env,
+                "TAOSTATS_PRICE_CACHE_SECONDS",
+                DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS,
                 maximum=3600,
             ),
             pins_path=_directory(env, "PINS_LOCK_PATH", PROJECT_ROOT / "pins.lock.json"),
