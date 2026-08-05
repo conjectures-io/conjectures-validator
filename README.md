@@ -153,10 +153,10 @@ python -m verifier doctor
 The bootstrap script materializes the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) checkout and the other
 commits in `pins.lock.json`, installs the pinned Lean toolchains, downloads Mathlib's trusted binary
-cache, builds Formal Conjectures in `answer` postpone mode, and builds Comparator, the Lean-4.27
-`lean4export` backport, and Landrun. Nanoda is optional: set `ENABLE_NANODA=1` during bootstrap to
-build it. Bootstrap also installs the pinned service and Subnet 66 dependencies; it does not
-install the removed legacy miner transport.
+cache, builds Formal Conjectures in the default `answer` mode used by the catalog, and builds
+Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is optional: set
+`ENABLE_NANODA=1` during bootstrap to build it. Bootstrap also installs the pinned service and
+Subnet 66 dependencies; it does not install the removed legacy miner transport.
 
 ## Submission API
 
@@ -313,18 +313,19 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains all 74
-audited targets, including complete statements and independently formalized parts or variants. The source
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains all 146
+audited targets (124 Erdős targets and 22 Green's Open Problems targets), including complete statements
+and independently formalized parts or variants. The source
 snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
 derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
-correction patch. The tier contains 148 immutable bundles for 74 theorem targets. Every
+correction patch. The tier contains 292 immutable bundles for 146 theorem targets. Every
 target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
 
 Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
 `reward_target_id` shared by its proof/refutation pair and later source repins. Independently
 formalized parents, parts, and variants have independent rewards. Multi-target bundles and answer
-wrappers remain excluded. The 178 source declarations and canonical types used by the two previous
-releases are explicitly retired and are not reused.
+wrappers remain excluded. Previously retired source declarations and canonical types remain excluded
+unless an audited target explicitly supersedes that retirement.
 
 The pool admits only direct propositions. It does not extract one side of an answer wrapper or
 substitute a new answer. Both task variants are compiled and inspected: `formalized` must be
@@ -347,15 +348,15 @@ It records a tier for every source and task
 bundle. Only an allowlisted, verifier-accepted proof or refutation should
 advance to human mathematical review. Generation compiles and independently inspects every target;
 this proves that the validator has an exact, hole-free target. The tier's selection audit records
-the Formal Conjectures status,
-Erdős Problems tracker status, pull-request review, and formal-surface screen. “Plausibly
+the Formal Conjectures status, family-specific source status, pull-request review, and formal-surface
+screen. “Plausibly
 attackable” is not a guarantee of solvability and does not prove that the informal statement is
 correct.
 
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 74 audited direct propositions, generates committed `formalized` and
+the 146 audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).

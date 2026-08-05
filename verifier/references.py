@@ -4,7 +4,9 @@ import re
 from pathlib import Path
 
 
-REFERENCE_HEADING = re.compile(r"^\s*\*Reference(s?):\*\s*(.*?)\s*$")
+REFERENCE_HEADING = re.compile(
+    r"^\s*(?:\*{1,2}References?(?::\*{1,2}|\*{1,2}:?)|References?:)\s*(.*?)\s*$"
+)
 REFERENCE_ITEM = re.compile(r"^\s*[-*]\s+(.+?)\s*$")
 REFERENCE_KEY = re.compile(r"^\[([^\]]+)\](\s+.+)$")
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(https?://[^)\s]+\)")
@@ -56,7 +58,7 @@ def extract_module_references(source: Path) -> tuple[str, ...]:
         heading = REFERENCE_HEADING.fullmatch(line)
         if heading is None:
             continue
-        inline = heading.group(2)
+        inline = heading.group(1)
         if inline:
             return (_with_reference_link(inline),)
 

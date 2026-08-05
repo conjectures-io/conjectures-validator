@@ -8,6 +8,7 @@ from verifier.submission import Submission
 from verifier.workspace import (
     WorkspacePaths,
     _local_package_sources,
+    _remove_answer_postpone_library,
     build_challenge,
     cleanup_workspace,
     create_workspace,
@@ -51,6 +52,19 @@ def test_workspace_is_fresh_and_packages_only_one_submission(tmp_path):
         assert not any("url" in package or "rev" in package for package in overrides["packages"])
         assert all((Path(package["dir"]) / ".lake").is_dir() for package in overrides["packages"])
         assert not (Path(overrides["packages"][0]["dir"]) / ".work").exists()
+        workspace_lakefile = (first.root / "lakefile.toml").read_text(encoding="utf-8")
+        assert workspace_lakefile.count('weak.google.answer = "always_true"') == 2
+        assert 'weak.google.answer = "postpone"' not in workspace_lakefile
+        formal_conjectures = next(
+            package for package in overrides["packages"]
+            if package["name"] == "formal_conjectures"
+        )
+        formal_config = (
+            Path(formal_conjectures["dir"]) / formal_conjectures["configFile"]
+        ).read_text(encoding="utf-8")
+        assert 'name = "FormalConjectures"' in formal_config
+        assert 'name = "FormalConjecturesAnswerPostpone"' not in formal_config
+        assert not (Path(formal_conjectures["dir"]) / ".lake" / "config").exists()
     finally:
         cleanup_workspace(first)
         cleanup_workspace(second)
@@ -79,6 +93,14 @@ def test_challenge_build_does_not_update_dependencies(tmp_path, monkeypatch):
             {"cwd": tmp_path, "timeout_seconds": 17, "env": {"HOME": "/tmp/home"}},
         )
     ]
+
+
+def test_answer_mode_sanitizer_fails_closed_on_unknown_layout(tmp_path):
+    config = tmp_path / "lakefile.toml"
+    config.write_text('name = "formal_conjectures"\n', encoding="utf-8")
+
+    with pytest.raises(VerifierError, match="unexpected answer-postpone library layout"):
+        _remove_answer_postpone_library(config)
 
 
 def test_local_package_graph_rejects_path_escape(tmp_path):

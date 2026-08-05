@@ -15,13 +15,14 @@ from verifier.task_pool import (
     DEFAULT_TIER_TASK_COUNT,
     ERDOS_SOURCE_PREFIX,
     EXCLUDED_SOURCE_PREFIXES,
+    GREENS_OPEN_PROBLEMS_SOURCE_PREFIX,
     MINIMUM_ERDOS_TASKS,
+    SOURCE_FAMILY_STATUSES,
     TASK_POOL_GROUPING,
     TASK_POOL_SCHEMA_VERSION,
     TASK_POOL_SELECTION,
     TASK_POOL_TASK_SCOPE,
     REWARD_TARGET_POLICY,
-    UNSOLVED_ERDOS_STATUSES,
     group_task_declarations,
     load_retired_sources,
     load_selection_audit,
@@ -44,7 +45,7 @@ TASKS_ROOT = tasks_repository_root(ROOT)
 TIER_METADATA = TASKS_ROOT / "tiers/tier-1"
 
 
-def test_task_selection_is_new_and_audited_erdos_only():
+def test_task_selection_is_new_and_audited_across_source_families():
     catalog = load_catalog(ROOT / "data/catalog.json")
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
     audit = load_selection_audit(TIER_METADATA / "selection-audit.json")
@@ -67,7 +68,11 @@ def test_task_selection_is_new_and_audited_erdos_only():
     assert sum(
         item.source_path.startswith(ERDOS_SOURCE_PREFIX)
         for item in selected
-    ) >= MINIMUM_ERDOS_TASKS
+    ) == MINIMUM_ERDOS_TASKS
+    assert sum(
+        item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
+        for item in selected
+    ) == 22
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -75,9 +80,9 @@ def test_task_selection_is_new_and_audited_erdos_only():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 55
+    assert len({item.source_path for item in selected}) == 124
     assert all(
-        entry.problem_tracker_status in UNSOLVED_ERDOS_STATUSES
+        entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
     )
     grouping = load_task_grouping(TIER_METADATA / "task-groups.json")
@@ -120,6 +125,7 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     assert tier_policy["selection_audit_sha256"] == audit.sha256
     assert tier_policy["task_targets_sha256"] == targets.sha256
     assert tier_policy["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
+    assert tier_policy["source_families"] == ["erdos", "greens-open-problems"]
     assert tier_policy["task_scope"] == TASK_POOL_TASK_SCOPE
     assert tier_policy["multi_target_tasks"] == 0
     assert tier_policy["excluded_source_prefixes"] == list(EXCLUDED_SOURCE_PREFIXES)
@@ -220,7 +226,7 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
                     "source_path": source["source_path"],
                     "task_id": f"fc-test-{source['index'] + 1}-{mode}-v1",
                     "task_bundle_sha256": (
-                        f"sha256:{source['index'] + 1001 + mode_index * 100:064x}"
+                        f"sha256:{source['index'] + 1001 + mode_index * 1000:064x}"
                     ),
                     "target_type_sha256s": [target_hash],
                     "theorems": [source["theorem"]],
@@ -251,6 +257,7 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
                 "selection": TASK_POOL_SELECTION,
                 "selection_audit_sha256": "sha256:" + "e" * 64,
                 "source_category": "research open",
+                "source_families": ["erdos"],
                 "source_theorem_count": MINIMUM_ERDOS_TASKS,
                 "task_scope": TASK_POOL_TASK_SCOPE,
                 "target_relations": {
@@ -275,6 +282,17 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
     assert {task.mode for task in registry.tasks_for_problem(first_problem)} == set(
         PRODUCTION_TASK_MODES
     )
+
+    unapproved_source_family = json.loads(json.dumps(base))
+    unapproved_source_family["allowed_source_theorems"][0]["source_path"] = (
+        "FormalConjectures/GreensOpenProblems/3.lean"
+    )
+    unapproved_path = tmp_path / "unapproved-source-family.json"
+    unapproved_path.write_text(
+        json.dumps(unapproved_source_family), encoding="utf-8"
+    )
+    with pytest.raises(TaskNotAllowed):
+        TaskPoolRegistry.load(unapproved_path)
 
     incorrect_multi_target_count = json.loads(json.dumps(base))
     incorrect_multi_target_count["tier_policies"][DEFAULT_TASK_TIER][

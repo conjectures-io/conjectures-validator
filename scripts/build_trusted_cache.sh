@@ -7,8 +7,18 @@ export PATH="$ELAN_HOME/bin:$PATH"
 export LEAN_NUM_THREADS="${FC_LEAN_BUILD_THREADS:-2}"
 
 cd "$ROOT/vendor/formal-conjectures"
+# `FormalConjectures` and `FormalConjecturesAnswerPostpone` emit the same module
+# names into the same Lake build directory. A postpone-mode build can therefore
+# leave source theorem types that disagree with the default-mode catalog. Clean
+# legacy/unmarked caches once, then keep the verifier cache exclusively in the
+# default `always_true` mode.
+answer_mode_stamp=".lake/build/.formal-conjectures-always-true-v1"
+if [[ ! -f "$answer_mode_stamp" ]]; then
+  lake clean
+fi
 lake exe cache get
-lake build FormalConjecturesAnswerPostpone extract_names
+lake build FormalConjectures
+touch "$answer_mode_stamp"
 
 cd "$ROOT"
 lake update

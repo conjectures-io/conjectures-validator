@@ -69,6 +69,32 @@ def test_generate_ten_audited_production_challenges(tmp_path):
 
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
+@pytest.mark.parametrize("mode", ("formalized", "counterexample"))
+def test_generate_direct_prop_with_answer_placeholder_from_live_source(tmp_path, mode):
+    catalog = load_catalog(ROOT / "data/catalog.json")
+    declaration = next(
+        item
+        for item in catalog.declarations
+        if item.theorem == "Erdos375.erdos_375"
+    )
+    assert declaration.type_pretty == "True ↔ Erdos375.Erdos375Prop"
+
+    manifest = generate_task(
+        catalog=catalog,
+        declaration=declaration,
+        mode=mode,
+        output=tmp_path / f"erdos-375-{mode}",
+        validate_target=target_validator(ROOT),
+    )
+
+    assert manifest.source_type_hash == declaration.type_hash
+    assert (manifest.generated_target_type_hash == declaration.type_hash) == (
+        mode == "formalized"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(os.environ.get("FC_RUN_INTEGRATION") != "1", reason="set FC_RUN_INTEGRATION=1")
 def test_comparator_accepts_valid_fixture_and_rejects_direct_failures():
     accepted = verify(
         task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",

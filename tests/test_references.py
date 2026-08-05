@@ -18,6 +18,42 @@ def test_extracts_inline_reference(tmp_path):
     )
 
 
+def test_extracts_plain_reference_heading(tmp_path):
+    source = tmp_path / "Problem.lean"
+    source.write_text(
+        """/-!
+# Problem
+
+References:
+- [A source](https://example.com/source)
+-/
+""",
+        encoding="utf-8",
+    )
+
+    assert extract_module_references(source) == (
+        "[A source](https://example.com/source)",
+    )
+
+
+def test_extracts_italic_reference_heading_without_colon(tmp_path):
+    source = tmp_path / "Problem.lean"
+    source.write_text(
+        """/-!
+# Problem
+
+*References*
+- [A source](https://example.com/source)
+-/
+""",
+        encoding="utf-8",
+    )
+
+    assert extract_module_references(source) == (
+        "[A source](https://example.com/source)",
+    )
+
+
 def test_extracts_unbulleted_reference_below_singular_heading(tmp_path):
     source = tmp_path / "Problem.lean"
     source.write_text(

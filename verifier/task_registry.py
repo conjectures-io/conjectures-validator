@@ -20,8 +20,10 @@ from verifier.task_policy import (
 from verifier.task_pool import (
     ERDOS_SOURCE_PREFIX,
     REWARD_TARGET_POLICY,
+    SOURCE_FAMILY_PREFIXES,
     TASK_POOL_SCHEMA_VERSION,
     reward_target_identity,
+    source_family_from_path,
 )
 
 
@@ -105,6 +107,19 @@ def _valid_source_prefixes(value: object) -> bool:
     )
 
 
+def _valid_source_families(value: object) -> bool:
+    return (
+        isinstance(value, list)
+        and bool(value)
+        and value == sorted(value)
+        and len(value) == len(set(value))
+        and all(
+            isinstance(family, str) and family in SOURCE_FAMILY_PREFIXES
+            for family in value
+        )
+    )
+
+
 def _valid_tier_policy(policy: object) -> bool:
     expected_fields = {
         "classification",
@@ -123,6 +138,7 @@ def _valid_tier_policy(policy: object) -> bool:
         "selection",
         "selection_audit_sha256",
         "source_category",
+        "source_families",
         "source_theorem_count",
         "task_scope",
         "target_relations",
@@ -155,6 +171,7 @@ def _valid_tier_policy(policy: object) -> bool:
         and bool(policy["selection"])
         and is_sha256(policy.get("selection_audit_sha256"))
         and policy.get("source_category") == "research open"
+        and _valid_source_families(policy.get("source_families"))
         and type(policy.get("source_theorem_count")) is int
         and policy["source_theorem_count"] > 0
         and policy.get("task_scope")
@@ -267,6 +284,12 @@ class TaskPoolRegistry:
                 if isinstance(tier, str) and tier in tier_policies
                 else ()
             )
+            source_family = source_family_from_path(source_path)
+            allowed_families = (
+                tier_policies[tier]["source_families"]
+                if isinstance(tier, str) and tier in tier_policies
+                else ()
+            )
             if (
                 type(index) is not int
                 or index < 0
@@ -278,6 +301,7 @@ class TaskPoolRegistry:
                 or tier not in tier_policies
                 or not isinstance(source_path, str)
                 or not source_path.startswith(SOURCE_PREFIX)
+                or source_family not in allowed_families
                 or source_path.startswith(tuple(excluded_prefixes))
                 or parsed_path.is_absolute()
                 or ".." in parsed_path.parts
