@@ -18,9 +18,9 @@ from verifier.comparator import (
 )
 from verifier.environment import tool_path
 from verifier.repository import (
-    TASKS_PIN,
     dependency_pin_status,
     formal_conjectures_pin,
+    image_pin_statuses,
     load_pins,
     repository_commit,
 )
@@ -43,17 +43,12 @@ def _version_output(path: Path) -> str:
 def image_pins_satisfied(dependency_pins: Mapping[str, Mapping[str, Any]]) -> bool:
     """Whether every pin carried inside this image matches. The task pool is not one of them.
 
-    `ready` answers one question: is THIS image fit to verify a proof. The task pool is not in the
-    image and must not be — a verification mounts the single task directory it was asked about,
-    never the pool — so a container's doctor run, which mounts nothing at all, can never see it.
-    Requiring it here made `ready` unsatisfiable for the container runner. The pool's pin is
-    asserted where the pool exists: by `just pin-tasks` before it is mounted, by
-    scripts/install_worker.sh before the service starts, and per job by the task bundle digest the
-    worker passes in and the verifier re-derives.
+    `ready` answers one question: is THIS image fit to verify a proof. Which pins that covers is
+    `image_pin_statuses`, shared with `assert_dependency_pins` so readiness and verification cannot
+    disagree about it — they did, and the result was an image that reported itself unready and,
+    once past that, failed every verification at LOAD_TASK for the same reason.
     """
-    return all(
-        status["pinned"] for name, status in dependency_pins.items() if name != TASKS_PIN
-    )
+    return all(status["pinned"] for status in image_pin_statuses(dependency_pins).values())
 
 
 def doctor_report(project_root: Path) -> dict[str, Any]:

@@ -27,3 +27,18 @@ def test_readiness_still_requires_every_pin_inside_the_image():
     assert image_pins_satisfied(_pins(mathlib=False)) is False
     assert image_pins_satisfied(_pins(formal_conjectures=False)) is False
     assert image_pins_satisfied(_pins(lean=False)) is False
+
+
+def test_verification_and_readiness_agree_on_which_pins_matter():
+    """They disagreed once, and the verifier then failed every proof at LOAD_TASK.
+
+    `assert_dependency_pins` runs inside the container on the verification path; `ready` runs on
+    the doctor path. Both must exclude the task pool, or one gate passes and the other rejects
+    every submission for a reason that has nothing to do with the submission.
+    """
+    from verifier.repository import image_pin_statuses
+
+    statuses = _pins(tasks=False)
+    assert "tasks" not in image_pin_statuses(statuses)
+    assert set(image_pin_statuses(statuses)) == {"formal_conjectures", "mathlib", "lean"}
+    assert image_pins_satisfied(statuses) is True

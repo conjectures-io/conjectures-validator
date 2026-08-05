@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -200,9 +201,25 @@ def dependency_pin_status(project_root: Path) -> dict[str, dict[str, Any]]:
     return statuses
 
 
+def image_pin_statuses(
+    statuses: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Mapping[str, Any]]:
+    """Only the pins that sit alongside the verifier. The task pool is not one of them.
+
+    A verification is handed the single task directory it was asked about, never the pool, so the
+    pool's own checkout is absent — inside the verifier image, always. What binds a verification to
+    its task is `task_bundle_sha256`, asserted against the digest the caller committed to, and that
+    is a stronger statement than a repository commit. Requiring the pool's pin here failed every
+    verification at LOAD_TASK on any deployment where the pool is not a sibling checkout.
+    """
+    return {name: status for name, status in statuses.items() if name != TASKS_PIN}
+
+
 def assert_dependency_pins(project_root: Path) -> dict[str, dict[str, Any]]:
     statuses = dependency_pin_status(project_root)
-    drifted = tuple(name for name, status in statuses.items() if not status["pinned"])
+    drifted = tuple(
+        name for name, status in image_pin_statuses(statuses).items() if not status["pinned"]
+    )
     if drifted:
         raise VerifierError(
             ReasonCode.REPOSITORY_COMMIT_MISMATCH,
