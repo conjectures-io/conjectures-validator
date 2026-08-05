@@ -93,6 +93,8 @@ class VerifierRun:
 
 
 class VerifierRunner(Protocol):
+    container_digest: str
+
     async def run(
         self,
         *,
@@ -181,7 +183,7 @@ class ContainerVerifierRunner:
     cpus: str = "4"
     pids_limit: int = 512
 
-    def argv(self, *, task_dir: Path, proof_path: Path, expected_task_sha256: str, name: str) -> tuple[str, ...]:
+    def _base_argv(self, *, name: str) -> tuple[str, ...]:
         return (
             self.docker_binary,
             "run",
@@ -212,11 +214,25 @@ class ContainerVerifierRunner:
             "--tmpfs",
             (f"{CONTAINER_WORK_TMPFS}:rw,nosuid,nodev,noexec,size=2g,"
             f"uid=10001,gid=10001,mode=0700"),
+            self.image,
+        )
+
+    def argv(
+        self,
+        *,
+        task_dir: Path,
+        proof_path: Path,
+        expected_task_sha256: str,
+        name: str,
+    ) -> tuple[str, ...]:
+        base = self._base_argv(name=name)
+        return (
+            *base[:-1],
             "--volume",
             f"{task_dir}:{CONTAINER_TASK_DIR}:ro",
             "--volume",
             f"{proof_path}:{CONTAINER_PROOF_PATH}:ro",
-            self.image,
+            base[-1],
             "verify",
             "--task",
             CONTAINER_TASK_DIR,
@@ -225,6 +241,10 @@ class ContainerVerifierRunner:
             "--expected-task-sha256",
             expected_task_sha256,
         )
+
+    def doctor_argv(self, *, name: str) -> tuple[str, ...]:
+        """Run the image's live pin, toolchain, Landlock and seccomp probes."""
+        return (*self._base_argv(name=name), "doctor")
 
     async def run(
         self,
@@ -304,6 +324,42 @@ class ContainerVerifierRunner:
             await killer.wait()
 
 
+def assert_container_ready(runner: ContainerVerifierRunner) -> None:
+    """Refuse startup unless the exact hardened image passes its live production probe."""
+    name = f"conjectures-verifier-doctor-{os.getpid()}"
+    try:
+        result = subprocess.run(
+            runner.doctor_argv(name=name),
+            capture_output=True,
+            check=False,
+            env=_docker_env(),
+            timeout=300,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RunnerFailure(f"cannot run verifier image production preflight: {exc}") from exc
+
+    try:
+        report = json.loads(result.stdout)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        detail = result.stderr.decode("utf-8", "replace").strip()[-2000:]
+        raise RunnerFailure(
+            f"verifier image doctor produced no JSON report: {exc}; {detail}"
+        ) from exc
+    if not isinstance(report, dict):
+        raise RunnerFailure("verifier image doctor report is not a JSON object")
+
+    sandbox = report.get("sandbox")
+    production_sandbox = (
+        isinstance(sandbox, dict) and sandbox.get("production_ready") is True
+    )
+    if result.returncode != 0 or report.get("ready") is not True or not production_sandbox:
+        raise RunnerFailure(
+            "verifier image failed production preflight: "
+            f"exit={result.returncode} ready={report.get('ready')!r} "
+            f"sandbox_production_ready={production_sandbox!r}"
+        )
+
+
 @dataclass(frozen=True)
 class InProcessVerifierRunner:
     """Run the verifier in this process. Development and tests only.
@@ -359,22 +415,30 @@ def build_runner(settings: Any) -> VerifierRunner:
     from verification_worker.settings import CONTAINER_RUNNER, IN_PROCESS_RUNNER
 
     if settings.runner == CONTAINER_RUNNER:
-        digest = settings.container_digest or resolve_container_digest(
+        actual_digest = resolve_container_digest(
             settings.docker_binary, settings.verifier_image
         )
-        if not is_sha256(digest):
+        if settings.container_digest and settings.container_digest != actual_digest:
             raise RunnerFailure(
-                "VERIFIER_CONTAINER_DIGEST must be a sha256:<hex> digest"
+                f"verifier image {settings.verifier_image!r} resolved to {actual_digest}, "
+                f"not configured VERIFIER_CONTAINER_DIGEST {settings.container_digest}"
             )
-        return ContainerVerifierRunner(
-            image=settings.verifier_image,
-            container_digest=digest,
+        if not is_sha256(actual_digest):  # pragma: no cover - resolver enforces this
+            raise RunnerFailure("verifier image did not resolve to a sha256 image ID")
+        runner = ContainerVerifierRunner(
+            # Run the inspected image ID, never the mutable tag used to locate it. This closes
+            # the inspect/run race and makes the bytes that run equal the digest we record.
+            image=actual_digest,
+            container_digest=actual_digest,
             verifier_version=settings.verifier_version,
             docker_binary=settings.docker_binary,
             memory=settings.memory,
             cpus=settings.cpus,
             pids_limit=settings.pids_limit,
         )
+        if settings.production:
+            assert_container_ready(runner)
+        return runner
     if settings.runner == IN_PROCESS_RUNNER:
         if settings.production:  # pragma: no cover - WorkerSettings already refuses this
             raise RuntimeError("the in-process runner is not permitted in production")
@@ -392,5 +456,6 @@ __all__ = [
     "VerifierRun",
     "VerifierRunner",
     "build_runner",
+    "assert_container_ready",
     "resolve_container_digest",
 ]

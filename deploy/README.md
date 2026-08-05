@@ -1,5 +1,9 @@
 # Database deployment
 
+This directory also contains the production host deployment for the isolated verification worker;
+see [`worker/README.md`](worker/README.md). The database Compose stack must be healthy and migrated
+before that unit starts.
+
 ```
 deploy/
   db/

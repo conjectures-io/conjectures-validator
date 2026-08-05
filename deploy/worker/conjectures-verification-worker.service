@@ -1,0 +1,64 @@
+[Unit]
+Description=Conjectures production verification worker
+Documentation=file:/opt/conjectures-validator/current/deploy/worker/README.md
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=conjectures-worker
+Group=conjectures-worker
+SupplementaryGroups=docker
+WorkingDirectory=/opt/conjectures-validator/current
+EnvironmentFile=/etc/conjectures/verification-worker.env
+Environment=HOME=/var/lib/conjectures-worker
+Environment=TMPDIR=/var/lib/conjectures-worker
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONNOUSERSITE=1
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# This checks the production-only settings, exact task pool, configured image ID, live
+# Landlock/seccomp probe, and database connection without claiming a submission.
+ExecStartPre=/opt/conjectures-validator/current/.venv/bin/python -m verification_worker --check
+ExecStart=/opt/conjectures-validator/current/.venv/bin/python -m verification_worker --log-level INFO
+
+# Exit 2 is a deliberate configuration refusal. Keep it dead and visible instead of hiding the
+# useful error in a restart loop. Runtime failures still restart with a bounded delay.
+Restart=on-failure
+RestartPreventExitStatus=2
+RestartSec=10s
+TimeoutStopSec=75min
+KillMode=mixed
+UMask=0077
+
+# The worker is trusted orchestration code. It can read the task release and reach PostgreSQL and
+# Docker, but it cannot write the release checkout or host filesystem. Host Docker access is why
+# this service must run directly on the host instead of receiving docker.sock inside a container.
+StateDirectory=conjectures-worker
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/conjectures-worker
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LimitNOFILE=8192
+TasksMax=256
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

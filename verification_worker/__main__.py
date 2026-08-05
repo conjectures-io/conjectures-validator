@@ -15,6 +15,8 @@ import sys
 from collections.abc import Sequence
 
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from verification_worker.runner import RunnerFailure, build_runner
 from verification_worker.settings import SettingsError, WorkerSettings
 from verification_worker.tasks import PoolTaskResolver, TaskNotAllowed
@@ -25,10 +27,16 @@ logger = logging.getLogger("verification_worker")
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m verification_worker")
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--once",
         action="store_true",
         help="drain the queue and exit, instead of polling",
+    )
+    mode.add_argument(
+        "--check",
+        action="store_true",
+        help="validate production config, task pool, verifier image and database, then exit",
     )
     parser.add_argument(
         "--limit",
@@ -42,6 +50,8 @@ def _parser() -> argparse.ArgumentParser:
 
 async def _run(args: argparse.Namespace) -> int:
     settings = WorkerSettings.from_env()
+    if args.check and not settings.production:
+        raise SettingsError("--check is a production preflight and requires APP_MODE=PROD")
     # Loaded before any work: it validates every task id, repository commit and bundle digest
     # against the audited allowlist, and a pool that fails that is not one to verify against.
     tasks = PoolTaskResolver.load(
@@ -63,6 +73,16 @@ async def _run(args: argparse.Namespace) -> int:
         len(tasks.tasks),
     )
     try:
+        if args.check:
+            async with engine.connect() as connection:
+                await connection.execute(text("SELECT 1"))
+            logger.info(
+                "production preflight passed owner=%s image=%s tasks=%d",
+                settings.owner,
+                runner.container_digest,
+                len(tasks.tasks),
+            )
+            return 0
         if args.once:
             processed = await worker.drain(limit=args.limit)
             logger.info("drained %d submissions", len(processed))
@@ -88,7 +108,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     try:
         return asyncio.run(_run(args))
-    except (SettingsError, RunnerFailure, TaskNotAllowed) as exc:
+    except (SettingsError, RunnerFailure, TaskNotAllowed, SQLAlchemyError) as exc:
         # Configuration, not a submission: say so plainly and do not start.
         logger.error("%s", exc)
         return 2

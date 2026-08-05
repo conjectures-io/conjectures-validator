@@ -34,7 +34,7 @@ verification core.
 | Shared durable schema and migrations | Implemented |
 | Finalized transfer reader, wired into both funding paths | Implemented |
 | Deposit watcher: TAO at the treasury becomes credits | Implemented |
-| Asynchronous verification worker | To build |
+| Asynchronous verification worker | Implemented |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
 | Subnet 66 treasury weight setter (100% to UID 121 every epoch) | Implemented |
@@ -203,6 +203,20 @@ payment address. Start at [`docs/MINER.md`](docs/MINER.md) for the miner's path 
 The API process must not share a trust domain with the proof verifier; production refuses to start
 if it is configured to run verification in process, to authenticate with the development key, or
 to accept payments without reading the chain.
+
+## Verification worker
+
+[`verification_worker/`](verification_worker/) claims paid submissions and launches one fresh,
+networkless verifier container per proof. The worker holds the database credential; the hostile
+container receives only one task and the submitted Lean file. An accepted report advances to the
+configured review policy, while infrastructure and sandbox failures return the submission to the
+queue instead of charging the miner for an operator failure.
+
+`docker-compose.worker.yml` is the explicitly insecure development loop. Production runs the
+worker directly on the host under the hardened systemd unit in
+[`deploy/worker/`](deploy/worker/README.md). Every production start checks the exact task release,
+immutable verifier image ID, live Landlock/seccomp sandbox, and PostgreSQL connection before it can
+claim a submission.
 
 ## Deposit watcher
 

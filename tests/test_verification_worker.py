@@ -8,6 +8,8 @@ from silently defaulting either way.
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -24,6 +26,8 @@ from verification_worker.runner import (
     ContainerVerifierRunner,
     RunnerFailure,
     _report_from,
+    assert_container_ready,
+    build_runner,
 )
 from verification_worker.settings import SettingsError, WorkerSettings
 from verification_worker.tasks import PoolTaskResolver, TaskNotAllowed
@@ -171,6 +175,45 @@ def test_the_container_is_named_so_a_timeout_can_kill_it():
     assert argv[argv.index("--name") + 1] == "conjectures-verify-abc"
 
 
+def test_the_doctor_uses_the_same_hardened_container_profile():
+    argv = container_runner().doctor_argv(name="conjectures-verifier-doctor-test")
+    joined = " ".join(argv)
+
+    assert "--network none" in joined
+    assert "--read-only" in argv
+    assert "--user 10001:10001" in joined
+    assert "--security-opt no-new-privileges:true" in joined
+    assert "--cap-drop ALL" in joined
+    assert argv[-2:] == ("formal-conjectures-verifier:local", "doctor")
+
+
+def test_production_preflight_requires_the_live_sandbox_probe(monkeypatch):
+    payload = {"ready": True, "sandbox": {"production_ready": False}}
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout=json.dumps(payload).encode(), stderr=b""
+        ),
+    )
+
+    with pytest.raises(RunnerFailure, match="sandbox_production_ready=False"):
+        assert_container_ready(container_runner())
+
+
+def test_production_preflight_accepts_a_ready_hardened_image(monkeypatch):
+    payload = {"ready": True, "sandbox": {"production_ready": True}}
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout=json.dumps(payload).encode(), stderr=b""
+        ),
+    )
+
+    assert_container_ready(container_runner())
+
+
 def test_a_bad_task_digest_never_reaches_the_container():
     import asyncio
 
@@ -205,6 +248,70 @@ def test_production_requires_an_explicit_verifier_version():
     # would make every report claim the same thing.
     with pytest.raises(SettingsError, match="VERIFIER_VERSION"):
         WorkerSettings.from_env({"APP_MODE": "PROD"})
+
+
+def production_env(**overrides: str) -> dict[str, str]:
+    values = {
+        "APP_MODE": "PROD",
+        "DATABASE_URL": "postgresql+psycopg://worker:test@127.0.0.1/conjectures",
+        "VERIFICATION_RUNNER": "container",
+        "VERIFIER_VERSION": "release-test",
+        "VERIFIER_IMAGE": "formal-conjectures-verifier:release",
+        "VERIFIER_CONTAINER_DIGEST": "sha256:" + "cd" * 32,
+    }
+    values.update(overrides)
+    return values
+
+
+def test_production_requires_an_explicit_container_digest():
+    values = production_env()
+    del values["VERIFIER_CONTAINER_DIGEST"]
+    with pytest.raises(SettingsError, match="VERIFIER_CONTAINER_DIGEST"):
+        WorkerSettings.from_env(values)
+
+
+def test_production_requires_an_explicit_database_url():
+    values = production_env()
+    del values["DATABASE_URL"]
+    with pytest.raises(SettingsError, match="DATABASE_URL"):
+        WorkerSettings.from_env(values)
+
+
+def test_production_preflight_refuses_development_mode(monkeypatch):
+    import argparse
+    import asyncio
+
+    from verification_worker.__main__ import _run
+
+    monkeypatch.delenv("APP_MODE", raising=False)
+    with pytest.raises(SettingsError, match="requires APP_MODE=PROD"):
+        asyncio.run(_run(argparse.Namespace(check=True, once=False, limit=None)))
+
+
+def test_the_worker_runs_the_inspected_image_id_not_its_mutable_tag(monkeypatch):
+    from verification_worker import runner as runner_module
+
+    digest = "sha256:" + "cd" * 32
+    checked = []
+    monkeypatch.setattr(runner_module, "resolve_container_digest", lambda *_: digest)
+    monkeypatch.setattr(runner_module, "assert_container_ready", checked.append)
+
+    runner = build_runner(WorkerSettings.from_env(production_env()))
+
+    assert isinstance(runner, ContainerVerifierRunner)
+    assert runner.image == digest
+    assert runner.container_digest == digest
+    assert checked == [runner]
+
+
+def test_production_refuses_an_image_that_does_not_match_the_pin(monkeypatch):
+    from verification_worker import runner as runner_module
+
+    actual = "sha256:" + "ef" * 32
+    monkeypatch.setattr(runner_module, "resolve_container_digest", lambda *_: actual)
+
+    with pytest.raises(RunnerFailure, match="not configured VERIFIER_CONTAINER_DIGEST"):
+        build_runner(WorkerSettings.from_env(production_env()))
 
 
 def test_development_needs_no_configuration_at_all():
