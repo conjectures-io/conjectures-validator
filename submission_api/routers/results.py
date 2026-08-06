@@ -19,10 +19,10 @@ by remembering to omit a field:
   later is withheld by default rather than published because nobody remembered to add it to a
   denylist.
 
-`GET /v1/results/{id}` answers `404` for a submission that is not on a public feed, rather than
-`403`. A submission id is a UUID a miner holds; distinguishing "not published" from "does not
-exist" would turn this endpoint into a probe for the state of submissions that have not been
-published yet.
+`GET /v1/results/{id}` publishes every Lean-verified submission, whatever manual review later
+decides. Everything outside that gate answers `404`, rather than `403`. A submission id is a UUID
+a miner holds, so distinguishing "not published" from "does not exist" would turn this endpoint
+into a probe for queued or Lean-failed work.
 
 The three feeds share `_feed` and differ only in the query they read: `/certified` is paid out,
 `/in-review` is awaiting the reward decision, and `/submissions` is every submission in every
@@ -32,8 +32,8 @@ that module offers.
 
 `/submissions` listing rejected and unverified rows does not loosen any of the three rules above.
 It publishes *that* an attempt exists and where it got to — the three `*_status` fields — and
-nothing more: its proof is still gated on approval, its report on the row being certified or in
-review, and the money trail is absent from the row type either way.
+nothing more: its proof is still gated on approval, its report on Lean verification, and the money
+trail is absent from the row type either way.
 """
 
 from __future__ import annotations

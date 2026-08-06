@@ -43,6 +43,7 @@ from conftest_api import (
 
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.models import (
+    ManualReviewState,
     PayoutState,
     ReviewDecision,
     ReviewerKind,
@@ -199,6 +200,15 @@ async def _certify(
             )
         )
         submission.reward_status = RewardState.REWARDED
+        await session.commit()
+
+
+async def _approve(kit, submission_id: str, *, notes_public: str | None = None):
+    """Approve a verified result without recording a payout."""
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        decision = await store.approve_automatically(session, submission)
+        decision.notes_public = notes_public
         await session.commit()
 
 
@@ -373,7 +383,7 @@ def test_a_random_uuid_is_a_404_not_a_500():
 # --- the published solution ----------------------------------------------------------------
 
 
-def test_the_solution_is_published_once_review_approves_it():
+def test_an_approved_unpaid_result_publishes_its_record_report_and_solution():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -386,10 +396,29 @@ def test_the_solution_is_published_once_review_approves_it():
             assert listed["solution_available"] is False
             assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
 
-            await _certify(kit, submission_id)
+            await _approve(
+                kit,
+                submission_id,
+                notes_public="Lean passed and the binding review approved this result.",
+            )
 
             listed = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
             assert listed["solution_available"] is True
+            assert listed["report_available"] is True
+            assert listed["reward_status"] == "ELIGIBLE"
+            assert listed["certified_at"] is None
+
+            # Approval ends the disclosure hold. Chain settlement is what promotes the row to
+            # the certified feed, not what makes its record and artifacts public.
+            assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
+            assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
+
+            record = await _get(kit, f"/v1/results/{submission_id}")
+            assert record.status_code == 200, record.text
+            assert record.json()["review"]["reason_code"] == "AUTO_REVIEW_DISABLED"
+
+            report = await _get(kit, f"/v1/results/{submission_id}/report")
+            assert report.status_code == 200, report.text
 
             response = await _get(kit, f"/v1/results/{submission_id}/solution")
             assert response.status_code == 200, response.text
@@ -403,6 +432,47 @@ def test_the_solution_is_published_once_review_approves_it():
             # Credited to the solver who submitted it, with no path to their money.
             assert body["hotkey"] == HOTKEY
             assert COLDKEY not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_review_rejected_result_publishes_its_record_and_report_but_not_solution():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0034")
+            await _verify(kit, submission_id)
+
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                session.add(
+                    ReviewDecision(
+                        submission_id=submission.id,
+                        decision=ReviewOutcome.REJECTED,
+                        kind=ReviewerKind.HUMAN,
+                        reviewer="test-reviewer",
+                        policy_version=submission.review_policy_version,
+                        reason_code="DUPLICATE_OF_EARLIER_SUBMISSION",
+                        notes_public="A prior eligible result holds this reward target.",
+                    )
+                )
+                submission.manual_review_status = ManualReviewState.REJECTED
+                await session.commit()
+
+            listed = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert listed["review"]["reason_code"] == "DUPLICATE_OF_EARLIER_SUBMISSION"
+            assert listed["report_available"] is True
+            assert listed["solution_available"] is False
+
+            record = await _get(kit, f"/v1/results/{submission_id}")
+            assert record.status_code == 200, record.text
+            assert record.json()["review"]["reason_code"] == "DUPLICATE_OF_EARLIER_SUBMISSION"
+
+            report = await _get(kit, f"/v1/results/{submission_id}/report")
+            assert report.status_code == 200, report.text
+            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
         finally:
             await kit.teardown()
 
