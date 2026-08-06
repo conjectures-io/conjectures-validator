@@ -72,7 +72,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
-    ) == 19
+    ) == 18
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -80,7 +80,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 116
+    assert len({item.source_path for item in selected}) == 115
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -210,6 +210,7 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
         # repository's RETIREMENTS.md for the reason attached to each.
         "Erdos10.erdos_10.variants.grechuk",
         "Erdos939.erdos_939",
+        "Green29.green_29",
         "Green42.green_42",
     }
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
