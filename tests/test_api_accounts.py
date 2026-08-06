@@ -35,7 +35,16 @@ from conftest_api import (
 )
 
 from conjectures_subnet.db import credits as credit_store
-from conjectures_subnet.db.models import CreditEntryKind, IntentState
+from conjectures_subnet.db.models import (
+    CreditEntryKind,
+    IntentState,
+    ManualReviewState,
+    ReviewDecision,
+    ReviewerKind,
+    ReviewOutcome,
+    Submission,
+    VerificationState,
+)
 from submission_api.auth import development_signature
 from submission_api.credits import btcli_command, parse_packages
 from submission_api.sessions import CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE
@@ -1111,6 +1120,63 @@ def test_the_panel_shows_only_the_accounts_own_submissions():
     run(scenario())
 
 
+def test_submission_detail_returns_public_review_notes_but_never_internal_evidence():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                account = await sign_in_by_email(kit, http)
+                await link(kit, http, HOTKEY)
+                intent_id, _ = await full_intent(kit, http, uuid.UUID(account["id"]))
+                confirmed = await http.post(
+                    f"/v1/submissions/intents/{intent_id}/confirm",
+                    json={"signature": development_signature()},
+                    headers=csrf(http),
+                )
+                submission_id = confirmed.json()["submission"]["id"]
+
+                async with kit.session() as session:
+                    submission = await session.get(Submission, uuid.UUID(submission_id))
+                    submission.verification_status = VerificationState.VERIFIED
+                    submission.manual_review_status = ManualReviewState.APPROVED
+                    session.add(
+                        ReviewDecision(
+                            submission_id=submission.id,
+                            decision=ReviewOutcome.APPROVED,
+                            kind=ReviewerKind.HUMAN,
+                            reviewer="private-team-identity",
+                            policy_version=submission.review_policy_version,
+                            reason_code="FORMALIZATION_DEFECT_AWARD",
+                            notes="internal security and reviewer discussion",
+                            notes_public=(
+                                "Lean verified the published task, but it did not match the "
+                                "informal conjecture."
+                            ),
+                            evidence={"private_agent_trace": "never publish this"},
+                        )
+                    )
+                    await session.commit()
+
+                response = await http.get(f"/v1/me/submissions/{submission_id}")
+                assert response.status_code == 200, response.text
+                review = response.json()["review"]
+                assert review["decision"] == "APPROVED"
+                assert review["reason_code"] == "FORMALIZATION_DEFECT_AWARD"
+                assert review["policy_version"] == "v1"
+                assert review["decided_at"] is not None
+                assert review["notes_public"] == (
+                    "Lean verified the published task, but it did not match the informal "
+                    "conjecture."
+                )
+                assert "internal security" not in response.text
+                assert "private-team-identity" not in response.text
+                assert "private_agent_trace" not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_intake_endpoints_refuse_while_submissions_are_paused():
     async def scenario():
         kit = await harness(SUBMISSIONS_PAUSED="true").setup()
@@ -1219,6 +1285,13 @@ def test_credit_pricing_and_terms_are_public():
                 assert terms.json()["version"] == "v2"
                 assert "One credit buys" in terms.json()["body_md"]
                 assert "Your hotkey is published" in terms.json()["body_md"]
+                approval_codes = {
+                    item["code"] for item in terms.json()["approval_reasons"]
+                }
+                assert approval_codes == {
+                    "FORMALIZATION_DEFECT_AWARD",
+                    "REVIEW_APPROVED",
+                }
                 codes = {
                     item["code"] for item in terms.json()["disqualification_reasons"]
                 }

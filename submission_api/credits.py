@@ -109,15 +109,16 @@ def btcli_command(*, treasury: str, amount_rao: int, rao_per_tao: int) -> str:
 
 @dataclass(frozen=True)
 class SubmissionTerms:
-    """The terms a miner accepts by submitting, and the reasons a review may reject.
+    """The terms a miner accepts by submitting, and the reasons a review may decide.
 
-    The disqualification list is shared with the Stage 3 review page on purpose: a
-    reviewer must not be able to reject for a reason a miner was never shown.
+    Both reason lists are shared with the Stage 3 review page on purpose: the page may
+    offer only these codes, and a reviewer must not be able to invent a reason.
     """
 
     version: str
     body_md: str
     effective_from: dt.date
+    approval_reasons: tuple[tuple[str, str], ...]
     disqualification_reasons: tuple[tuple[str, str], ...]
 
     @classmethod
@@ -146,8 +147,29 @@ class SubmissionTerms:
             version=version,
             body_md=body,
             effective_from=effective_from,
+            approval_reasons=APPROVAL_REASONS,
             disqualification_reasons=DISQUALIFICATION_REASONS,
         )
+
+
+# The complete set of reason codes a human reviewer may use with an APPROVED
+# decision. These are published beside the rejection codes so the review page and
+# the policy document consume the same allowlist.
+APPROVAL_REASONS: tuple[tuple[str, str], ...] = (
+    (
+        "REVIEW_APPROVED",
+        "The Lean-valid submission passed manual review and earns the displayed "
+        "conjecture bounty.",
+    ),
+    (
+        "FORMALIZATION_DEFECT_AWARD",
+        "The exact published Lean task was proved or refuted through a material "
+        "formalization defect; the submission earns the $750 USD-equivalent award "
+        "paid in Subnet 66 Alpha instead of the displayed conjecture bounty.",
+    ),
+)
+
+APPROVAL_CODES = frozenset(code for code, _ in APPROVAL_REASONS)
 
 
 # The complete set of reasons a Lean-valid proof may still be refused a reward, as shown
@@ -197,6 +219,8 @@ DISQUALIFICATION_CODES = frozenset(code for code, _ in DISQUALIFICATION_REASONS)
 
 
 __all__ = [
+    "APPROVAL_CODES",
+    "APPROVAL_REASONS",
     "DISQUALIFICATION_CODES",
     "DISQUALIFICATION_REASONS",
     "MAX_PACKAGES",

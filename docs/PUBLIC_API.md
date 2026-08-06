@@ -27,7 +27,7 @@ module a field lives in rather than by remembering to leave it out.
 
 ## What is published, and what is not
 
-Three rules, each enforced structurally rather than by convention.
+Four rules, each enforced structurally rather than by convention.
 
 **Solver credit, but no money trail.** Every result names the `hotkey` that submitted it: a result
 is credited to its solver. Not published: the paying coldkey, the payment reference, the funding
@@ -53,6 +53,13 @@ published at all" answer `404`, so the endpoint cannot be used to detect a pendi
 
 `PublicResult.solution_available` says which rows have one, so a client does not discover it by
 collecting `404`s.
+
+**Only the reviewed public rationale crosses the review boundary.** A certified
+`PublicResult.review` contains the binding outcome, reason code, policy version, decision time,
+and `notes_public`. The database's internal `notes`, reviewer identity, and raw advisory-agent
+`evidence` are not selected by the public query layer and therefore cannot be serialized by the
+router. An in-review result has no binding review and returns `review: null` on response shapes
+that include the field.
 
 **No verifier output.** The public report is built by *allowlisting* fields
 (`PUBLIC_REPORT_FIELDS` in [`../submission_api/routers/results.py`](../submission_api/routers/results.py)),
@@ -217,6 +224,23 @@ means Lean-verified and awaiting the reward decision.
 Every `PublicResult` carries the payout's `bounty_amount_rao` and a current
 `bounty_amount_usd` display conversion using the same formula as catalog bounties. The USD value
 is null when TaoStats is unavailable and is not a historical fiat valuation of the payout.
+
+For a reviewed result it also carries the latest binding decision:
+
+```json
+{
+  "review": {
+    "decision": "APPROVED",
+    "reason_code": "FORMALIZATION_DEFECT_AWARD",
+    "notes_public": "Lean verified the published task, but the formal statement did not match the informal conjecture.",
+    "policy_version": "v1",
+    "decided_at": "2026-08-05T21:00:00Z"
+  }
+}
+```
+
+`notes_public` is null for a historical or automatic decision that has no publishable rationale.
+It is never populated from the internal `notes` field.
 
 A result carries both identities: `slug` names the conjecture, `task_id` names the task it was
 produced against. The slug is derived from the row's own `reward_target_id` rather than looked up

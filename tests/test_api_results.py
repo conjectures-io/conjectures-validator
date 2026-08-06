@@ -42,6 +42,9 @@ from conftest_api import (
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.models import (
     PayoutState,
+    ReviewDecision,
+    ReviewerKind,
+    ReviewOutcome,
     RewardEvent,
     RewardState,
     Submission,
@@ -142,7 +145,14 @@ async def _verify(kit, submission_id: str, *, accepted: bool = True, report=None
         await session.commit()
 
 
-async def _certify(kit, submission_id: str):
+async def _certify(
+    kit,
+    submission_id: str,
+    *,
+    notes_public: str | None = None,
+    notes_internal: str | None = None,
+    later_advisory: bool = False,
+):
     """Drive a verified submission all the way to paid out.
 
     Approves the review, records a confirmed payout, and flips `reward_status`. Done directly
@@ -151,7 +161,22 @@ async def _certify(kit, submission_id: str):
     """
     async with kit.session() as session:
         submission = await session.get(Submission, uuid.UUID(submission_id))
-        await store.approve_automatically(session, submission)
+        decision = await store.approve_automatically(session, submission)
+        decision.notes_public = notes_public
+        decision.notes = notes_internal
+        if later_advisory:
+            session.add(
+                ReviewDecision(
+                    submission_id=submission.id,
+                    decision=ReviewOutcome.REJECTED,
+                    kind=ReviewerKind.ADVISORY,
+                    reviewer="private-model-id",
+                    policy_version=submission.review_policy_version,
+                    reason_code="PRIVATE_ADVISORY_CODE",
+                    notes="later private advisory notes",
+                    evidence={"private_prompt": "must never cross the public API"},
+                )
+            )
         now = datetime.now(UTC)
         session.add(
             RewardEvent(
@@ -186,7 +211,13 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
         try:
             submission_id = await _submit(kit, "0001")
             await _verify(kit, submission_id)
-            await _certify(kit, submission_id)
+            await _certify(
+                kit,
+                submission_id,
+                notes_public="Lean passed; the reviewed result earns the published award.",
+                notes_internal="internal reviewer discussion must remain private",
+                later_advisory=True,
+            )
 
             response = await _get(kit, "/v1/results/certified")
             assert response.status_code == 200, response.text
@@ -207,6 +238,13 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert item["bounty_amount_usd"] == "50.00"
             assert item["verifier_version"] == "verifier-1.2.3"
             assert item["report_available"] is True
+            assert item["review"]["decision"] == "APPROVED"
+            assert item["review"]["reason_code"] == "AUTO_REVIEW_DISABLED"
+            assert item["review"]["policy_version"] == "v1"
+            assert item["review"]["decided_at"] is not None
+            assert item["review"]["notes_public"] == (
+                "Lean passed; the reviewed result earns the published award."
+            )
 
             # Credited to the submitting hotkey.
             assert item["hotkey"] == HOTKEY
@@ -214,6 +252,10 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             # reference, no extrinsic. That is the boundary the row type still enforces.
             assert COLDKEY not in response.text
             assert "0xpay-0001" not in response.text
+            assert "internal reviewer discussion" not in response.text
+            assert "private-model-id" not in response.text
+            assert "private_prompt" not in response.text
+            assert "PRIVATE_ADVISORY_CODE" not in response.text
             assert not {"coldkey", "payment_reference", "payment", "extrinsic"} & set(item)
         finally:
             await kit.teardown()
@@ -398,7 +440,6 @@ def test_the_dashboard_feed_is_the_union_of_certified_and_in_review():
         try:
             certified_id = await _submit(kit, "0020")
             await _verify(kit, certified_id)
-            await _certify(kit, certified_id)
 
             in_review_id = await _submit(kit, "0021")
             await _verify(kit, in_review_id)
@@ -407,6 +448,10 @@ def test_the_dashboard_feed_is_the_union_of_certified_and_in_review():
             await _verify(kit, rejected_id, accepted=False)
 
             unverified_id = await _submit(kit, "0023")
+
+            # Certify only after the other attempts have entered intake. Once a reward target is
+            # paid, the API correctly closes it to later submissions.
+            await _certify(kit, certified_id)
 
             page = (await _get(kit, "/v1/results/submissions")).json()
             ids = [item["id"] for item in page["items"]]
@@ -421,7 +466,9 @@ def test_the_dashboard_feed_is_the_union_of_certified_and_in_review():
             # model, so a dashboard reads one shape and branches on `certified_at`.
             by_id = {item["id"]: item for item in page["items"]}
             assert by_id[certified_id]["certified_at"] is not None
+            assert by_id[certified_id]["review"] is not None
             assert by_id[in_review_id]["certified_at"] is None
+            assert by_id[in_review_id]["review"] is None
         finally:
             await kit.teardown()
 

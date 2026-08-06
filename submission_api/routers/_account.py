@@ -169,8 +169,8 @@ async def latest_review(
 
     ADVISORY decisions are excluded: an LLM pre-check is recorded as evidence and is never
     binding, so showing one to a miner would present a non-decision as one. The reviewer's free
-    -text `notes` are not returned either — `notes_public` is a separate Stage 3 field, and
-    until it exists the honest answer is the reason code alone.
+    -text `notes` are not returned either; only the separately reviewed and redacted
+    `notes_public` field may cross the API boundary.
     """
     statement = (
         select(ReviewDecision)
@@ -187,7 +187,7 @@ async def latest_review(
     return schemas.ReviewDecisionView(
         decision=str(decision.decision),
         reason_code=decision.reason_code,
-        notes_public=None,
+        notes_public=decision.notes_public,
         policy_version=decision.policy_version,
         decided_at=_utc(decision.created_at),
     )

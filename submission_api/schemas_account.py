@@ -200,16 +200,22 @@ class DisqualificationReason(Model):
     description: str
 
 
-class SubmissionTerms(Model):
-    """The terms, and the complete list of reasons a review may refuse a reward.
+class ApprovalReason(Model):
+    code: str
+    description: str
 
-    The list is shared with the Stage 3 review page: a reviewer must not be able to reject
-    for a reason a miner was never shown.
+
+class SubmissionTerms(Model):
+    """The terms, and the complete lists of reasons a review may decide.
+
+    The lists are shared with the Stage 3 review page: a reviewer must use one published
+    approval or disqualification code and cannot invent a reason.
     """
 
     version: str
     body_md: str
     effective_from: dt.date
+    approval_reasons: tuple[ApprovalReason, ...]
     disqualification_reasons: tuple[DisqualificationReason, ...]
 
 
@@ -333,7 +339,7 @@ class ReviewDecisionView(Model):
 
     `notes_public` only. A reviewer's internal notes and the advisory evidence stay
     internal; `reason_code` is the machine-readable part, and it is always one of the
-    published disqualification codes.
+    published approval or disqualification codes.
     """
 
     decision: str
@@ -437,6 +443,7 @@ ConfirmedSubmission.model_rebuild()
 
 __all__ = [
     "Account",
+    "ApprovalReason",
     "ConfirmedSubmission",
     "CreditBalance",
     "CreditLedgerEntry",

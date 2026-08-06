@@ -18,10 +18,10 @@ router to remember. Two invariants hold for everything in this module:
   growing table on every page read is a scan an anonymous caller should not be
   able to ask for.
 
-A page is read in three statements rather than one join with two lateral
+A page is read in four statements rather than one join with three lateral
 subqueries: the submissions for the page, then their latest verification runs,
-then their confirmed payouts, each by primary or unique index over at most
-``limit`` ids. It is not an N+1 — the count is fixed at three — and the intent
+confirmed payouts, and latest binding reviews, each by an indexed key over at most
+``limit`` ids. It is not an N+1 — the count is fixed at four — and the intent
 survives being read six months from now.
 """
 
@@ -39,6 +39,9 @@ from conjectures_subnet.db.models import (
     ManualReviewState,
     PayoutState,
     Proof,
+    ReviewDecision,
+    ReviewerKind,
+    ReviewOutcome,
     RewardEvent,
     RewardState,
     Submission,
@@ -109,11 +112,25 @@ class ResultRow:
     verifier_version: str | None
     sandbox_mode: str | None
     report_available: bool
+    # The latest binding decision, reduced to its explicitly public fields. Internal reviewer
+    # notes, reviewer identity, and advisory evidence never land on this public row.
+    review: ReviewRow | None
     # Whether review has approved this submission, and therefore whether its proof is published.
     # Carried on the row so a feed can advertise the solution link without a second query per
     # item, and so the router never re-derives the disclosure gate from `certified_at` — the two
     # are not the same test, and an approved-but-unpaid row would be got wrong by that shortcut.
     solution_available: bool
+
+
+@dataclass(frozen=True)
+class ReviewRow:
+    """The allowlisted, publishable portion of one binding review decision."""
+
+    decision: ReviewOutcome
+    reason_code: str
+    notes_public: str | None
+    policy_version: str
+    decided_at: datetime
 
 
 @dataclass(frozen=True)
@@ -273,10 +290,12 @@ async def _decorate(
     ids = [submission.id for submission in submissions]
     runs = await _latest_runs(session, ids)
     confirmed = await _confirmed_payouts(session, ids)
+    reviews = await _latest_reviews(session, ids)
     rows = []
     for submission in submissions:
         run = runs.get(submission.id)
         payout = confirmed.get(submission.id)
+        review = reviews.get(submission.id)
         rows.append(
             ResultRow(
                 id=submission.id,
@@ -301,12 +320,51 @@ async def _decorate(
                 verifier_version=None if run is None else run.verifier_version,
                 sandbox_mode=None if run is None else run.sandbox_mode,
                 report_available=run is not None and run.has_report,
+                review=review,
                 solution_available=(
                     submission.manual_review_status == ManualReviewState.APPROVED
                 ),
             )
         )
     return tuple(rows)
+
+
+async def _latest_reviews(
+    session: AsyncSession, submission_ids: Sequence[uuid.UUID]
+) -> Mapping[uuid.UUID, ReviewRow]:
+    """The latest binding review per submission, with only fields safe to publish.
+
+    Advisory model assessments are evidence, not decisions. They are excluded before selecting
+    the greatest id so a later advisory row cannot hide the human or automatic decision. The
+    query does not select internal ``notes``, reviewer identity, or raw advisory ``evidence``.
+    """
+    latest = (
+        select(func.max(ReviewDecision.id))
+        .where(
+            ReviewDecision.submission_id.in_(submission_ids),
+            ReviewDecision.kind != ReviewerKind.ADVISORY,
+        )
+        .group_by(ReviewDecision.submission_id)
+        .scalar_subquery()
+    )
+    statement = select(
+        ReviewDecision.submission_id,
+        ReviewDecision.decision,
+        ReviewDecision.reason_code,
+        ReviewDecision.notes_public,
+        ReviewDecision.policy_version,
+        ReviewDecision.created_at,
+    ).where(ReviewDecision.id.in_(latest))
+    return {
+        row.submission_id: ReviewRow(
+            decision=row.decision,
+            reason_code=row.reason_code,
+            notes_public=row.notes_public,
+            policy_version=row.policy_version,
+            decided_at=row.created_at,
+        )
+        for row in (await session.execute(statement)).all()
+    }
 
 
 async def _latest_runs(
@@ -612,6 +670,7 @@ __all__ = [
     "MAX_ACTIVITY_ROWS",
     "ActivityRow",
     "QueueDepths",
+    "ReviewRow",
     "ResultRow",
     "TaskActivity",
     "accepted_solution",
