@@ -550,17 +550,16 @@ async def read_credit_pricing(
 @router.get(
     "/submission-terms",
     response_model=account_schemas.SubmissionTerms,
-    summary="The submission terms and the disqualification reasons",
+    summary="The submission terms and manual-review reason codes",
 )
 async def read_submission_terms(
     response: Response, services: ServicesDep
 ) -> account_schemas.SubmissionTerms:
-    """The terms a miner accepts by submitting, and the complete list of reasons a review may
-    refuse a reward.
+    """The terms a miner accepts by submitting, and the complete lists of reasons a review may
+    approve or refuse a reward.
 
-    The list is shared with the Stage 3 review page deliberately: a reviewer must not be able to
-    reject for a reason the miner was never shown, and one list in one place is what guarantees
-    that.
+    The lists are shared with the Stage 3 review page deliberately: a reviewer must choose a
+    published code, and one source in one place is what guarantees that.
     """
     terms = services.terms
     _cache(response, services.settings)
@@ -568,6 +567,10 @@ async def read_submission_terms(
         version=terms.version,
         body_md=terms.body_md,
         effective_from=terms.effective_from,
+        approval_reasons=tuple(
+            account_schemas.ApprovalReason(code=code, description=description)
+            for code, description in terms.approval_reasons
+        ),
         disqualification_reasons=tuple(
             account_schemas.DisqualificationReason(code=code, description=description)
             for code, description in terms.disqualification_reasons

@@ -354,6 +354,21 @@ class ConjectureActivity(Model):
 ATTRIBUTION = "conjectures.io"
 
 
+class PublicReviewDecision(Model):
+    """The binding review decision and its deliberately public rationale.
+
+    Internal reviewer notes, reviewer identity, and raw agent evidence are absent by
+    construction. ``notes_public`` is null for historical or automatic decisions that did not
+    record a publishable explanation.
+    """
+
+    decision: str = Field(description="APPROVED | REJECTED")
+    reason_code: str
+    notes_public: str | None = None
+    policy_version: str
+    decided_at: datetime
+
+
 class PublicResult(Model):
     """A certified result: Lean-verified, human-approved, and paid out.
 
@@ -394,6 +409,12 @@ class PublicResult(Model):
     verifier_version: str | None = None
     sandbox_mode: str | None = None
     report_available: bool = False
+    review: PublicReviewDecision | None = Field(
+        default=None,
+        description=(
+            "Latest binding review and its public rationale; null while review is pending"
+        ),
+    )
     solution_available: bool = Field(
         default=False,
         description=(
@@ -525,6 +546,7 @@ __all__ = [
     "PoolMeta",
     "PublicActivityItem",
     "PublicResult",
+    "PublicReviewDecision",
     "PublicSolution",
     "PublicVerificationReport",
     "QueueDepths",

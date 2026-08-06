@@ -274,6 +274,11 @@ included — the output quotes the owner's own proof back at them, which is what
 and is not a disclosure to anyone else. Contrast the public subset in
 [PUBLIC_API.md](PUBLIC_API.md#what-is-never-published).
 
+`/v1/me/submissions/{id}` returns the latest binding review with its reason code and
+`notes_public`. It never returns the reviewer's internal `notes`, identity, or raw advisory-agent
+evidence. Keeping the two note fields separate lets the team write an audit trail without making
+those internal bytes part of the API contract.
+
 ## Two ways to fund a submission
 
 Both paths still require money to have been confirmed before a submission row exists. What changed

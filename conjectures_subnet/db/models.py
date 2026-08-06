@@ -661,7 +661,10 @@ class ReviewDecision(Base):
     policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     # Structured, because a rejection is shown to the miner.
     reason_code: Mapped[str] = mapped_column(Text, nullable=False)
+    # Internal audit trail. Never returned from an API.
     notes: Mapped[str | None] = mapped_column(Text)
+    # V008. Deliberately separate from `notes`: only reviewed, redacted text belongs here.
+    notes_public: Mapped[str | None] = mapped_column(Text)
     # ADVISORY output kept as-is: model, verdict, and what it was asked.
     evidence: Mapped[dict | None] = mapped_column(JSONB)
 
@@ -675,6 +678,10 @@ class ReviewDecision(Base):
 
     __table_args__ = (
         CheckConstraint("length(reviewer) BETWEEN 1 AND 255", name="reviewer_nonempty"),
+        CheckConstraint(
+            "notes_public IS NULL OR length(notes_public) BETWEEN 1 AND 100000",
+            name="review_notes_public_length",
+        ),
         # Free (id is already the primary key). Needed as a foreign-key target by
         # the self-reference below, and it doubles as the per-submission history
         # index — btree scans backwards, so latest-first needs no DESC index.

@@ -157,6 +157,17 @@ def _certified(
         verifier_version=row.verifier_version,
         sandbox_mode=row.sandbox_mode,
         report_available=row.report_available,
+        review=(
+            None
+            if row.review is None
+            else public.PublicReviewDecision(
+                decision=str(row.review.decision),
+                reason_code=row.review.reason_code,
+                notes_public=row.review.notes_public,
+                policy_version=row.review.policy_version,
+                decided_at=_utc(row.review.decided_at),
+            )
+        ),
         solution_available=row.solution_available,
     )
 
