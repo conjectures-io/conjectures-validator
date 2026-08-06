@@ -2,7 +2,12 @@ from pathlib import Path
 
 from verifier.comparator import (
     COMPARATOR_MEMORY_BYTES,
+    COMPARATOR_PROCESSES,
+    DEVELOPMENT_SANDBOX_MODE,
+    PRODUCTION_SANDBOX_MODE,
+    ComparatorTools,
     missing_tools,
+    process_cap,
     production_sandbox_available,
     rejection_reason,
     resolve_tools,
@@ -13,6 +18,11 @@ from verifier.models import ProcessResult
 
 def failed(stdout: str = "", stderr: str = "") -> ProcessResult:
     return ProcessResult(("comparator",), 1, stdout, stderr, 1)
+
+
+def tools_in(mode: str) -> ComparatorTools:
+    unused = Path("/nonexistent")
+    return ComparatorTools(unused, unused, unused, None, None, mode)
 
 
 def test_comparator_reason_mapping_matches_upstream_messages():
@@ -53,3 +63,13 @@ def test_sandbox_helpers_keep_default_call_compatibility():
 
 def test_comparator_memory_budget_covers_large_kernel_checked_certificates():
     assert COMPARATOR_MEMORY_BYTES == 64 * 1024 * 1024 * 1024
+
+
+def test_the_process_cap_applies_under_production_isolation_only():
+    """RLIMIT_NPROC is per UID, so a development host shares the budget with everything it runs.
+
+    Production keeps it: a container's uid 10001 owns almost nothing, and the container's own
+    `--pids-limit` is the control that bounds the tree either way.
+    """
+    assert process_cap(tools_in(PRODUCTION_SANDBOX_MODE)) == COMPARATOR_PROCESSES
+    assert process_cap(tools_in(DEVELOPMENT_SANDBOX_MODE)) is None

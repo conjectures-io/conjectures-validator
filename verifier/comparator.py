@@ -29,6 +29,8 @@ RESOURCE_FAILURE_MARKERS = (
 PRODUCTION_SANDBOX_MODE = "landrun+seccomp"
 DEVELOPMENT_SANDBOX_MODE = "development-fake-landrun"
 
+COMPARATOR_PROCESSES = 512
+
 
 @dataclass(frozen=True)
 class ComparatorTools:
@@ -69,6 +71,10 @@ def resolve_tools(
     default_nanoda = root / "vendor/nanoda/target/release/nanoda_bin"
     nanoda = default_nanoda if default_nanoda.is_file() else None
     return ComparatorTools(comparator, exporter, landrun, launcher, nanoda, mode)
+
+
+def process_cap(tools: ComparatorTools) -> int | None:
+    return COMPARATOR_PROCESSES if tools.sandbox_mode == PRODUCTION_SANDBOX_MODE else None
 
 
 def _safe_executable(path: Path | None) -> bool:
@@ -230,7 +236,7 @@ def run_comparator(
         cpu_seconds=timeout_seconds,
         file_bytes=2 * 1024 * 1024 * 1024,
         open_files=1024,
-        processes=512,
+        processes=process_cap(tools),
     )
     return result, tools
 
