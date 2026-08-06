@@ -10,7 +10,7 @@ ENV LEAN_NUM_THREADS=${LEAN_BUILD_THREADS}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git build-essential zstd python3 \
-      golang-go cargo pkg-config libssl-dev jq tini \
+      golang-go cargo pkg-config libssl-dev tini \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/fc-verifier
@@ -18,53 +18,23 @@ WORKDIR /opt/fc-verifier
 # Expensive, immutable inputs are isolated from verifier-source edits so a
 # security patch does not invalidate the full Formal Conjectures build.
 COPY pins.lock.json lean-toolchain lakefile.toml lake-manifest.json ./
-COPY scripts/pin_dependencies.sh ./scripts/pin_dependencies.sh
+COPY scripts/pin_dependencies.sh scripts/install_elan.sh scripts/build_trusted_cache.sh ./scripts/
 # The audited Formal Conjectures patch lives in the pinned task repository, a sibling of this
 # build context and so unreachable from a COPY. Passed in as the named context `tasks`; the
 # script still accepts it only against the sha256 in pins.lock.json. Build with
 # `scripts/build_image.sh`, which supplies the context.
 COPY --from=tasks tiers/tier-1/formal-conjectures-audit-fixes.patch ./.build/
+# The build itself lives in scripts/, not here. Two copies of the recipe is how the verifier a
+# miner builds from source drifts from the one that decides their submission; `--stage` is what
+# lets a single script keep the layer split this Dockerfile depends on.
 RUN FC_AUDIT_PATCH=/opt/fc-verifier/.build/formal-conjectures-audit-fixes.patch \
     ./scripts/pin_dependencies.sh \
-    && mkdir -p .tools \
-    && architecture="$(dpkg --print-architecture)" \
-    && case "$architecture" in \
-         amd64) platform=x86_64-unknown-linux-gnu ;; \
-         arm64) platform=aarch64-unknown-linux-gnu ;; \
-         *) echo "unsupported architecture: $architecture" >&2; exit 2 ;; \
-       esac \
-    && version="$(jq -r '.elan.version' pins.lock.json)" \
-    && digest="$(jq -r --arg platform "$platform" '.elan.assets[$platform]' pins.lock.json)" \
-    && curl -fsSL "https://github.com/leanprover/elan/releases/download/v$version/elan-$platform.tar.gz" -o .tools/elan.tar.gz \
-    && echo "$digest  .tools/elan.tar.gz" | sha256sum --check --strict \
-    && tar -xzf .tools/elan.tar.gz -C .tools elan-init \
-    && .tools/elan-init -y --default-toolchain leanprover/lean4:v4.27.0 \
-    && cd vendor/formal-conjectures \
-    && lake exe cache get \
-    && lake build FormalConjectures extract_names \
-    && cd /opt/fc-verifier/vendor/lean4export \
-    && lake build lean4export \
-    && cd /opt/fc-verifier/vendor/comparator \
-    && lake build comparator \
-    && mkdir -p /opt/fc-verifier/vendor/landrun/bin \
-    && cd /opt/fc-verifier/vendor/landrun \
-    && go build -trimpath -o bin/landrun ./cmd/landrun \
-    && if [ "$ENABLE_NANODA" = 1 ]; then \
-         cd /opt/fc-verifier/vendor/nanoda && cargo build --release --locked; \
-       fi \
-    && cd /opt/fc-verifier \
-    && rm -rf /root/.cache/mathlib \
-    && rm -rf /opt/fc-verifier/.build \
-    && rm -f .tools/elan.tar.gz .tools/elan-init
+    && ./scripts/install_elan.sh \
+    && ENABLE_NANODA="${ENABLE_NANODA}" ./scripts/build_trusted_cache.sh --stage vendor \
+    && rm -rf /root/.cache/mathlib /opt/fc-verifier/.build
 
 COPY . .
-RUN mkdir -p .lake/packages \
-    && for package in vendor/formal-conjectures/.lake/packages/*; do \
-         ln -s "../../$package" ".lake/packages/$(basename "$package")"; \
-       done \
-    && lake exe cache get \
-    && lake build VerifierLean TaskSupport TestFixtures catalog_extractor task_inspector \
-    && cc -O2 -Wall -Wextra -Werror -o .tools/seccomp-launcher security/seccomp-launcher.c \
+RUN ./scripts/build_trusted_cache.sh --stage root \
     && rm -rf /root/.cache/mathlib \
     && for directory in formal-conjectures comparator lean4export landrun nanoda; do \
          git config --system --add safe.directory "/opt/fc-verifier/vendor/$directory"; \

@@ -143,22 +143,39 @@ contract.
 
 ## Quick start
 
-On Ubuntu 24.04 (or an equivalent Linux host with Python 3.11+, Git, curl, a C toolchain, Go, Rust,
-and Landlock support):
+Ubuntu 24.04, or an equivalent Linux host. There is no list of packages to read first: bootstrap
+begins with `scripts/check_prerequisites.py`, which reports everything missing at once and prints
+the command to install it, rather than failing partway through an hour-long build.
+
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) is a sibling checkout and
+bootstrap does not create it. The audited Formal Conjectures patch is read from there, so
+`pin_dependencies.sh` requires it at the commit `pins.lock.json` names:
 
 ```bash
+git clone https://github.com/conjectures-io/conjectures-tasks.git ../conjectures-tasks
+git -C ../conjectures-tasks checkout --detach \
+  "$(python3 -c 'import json; print(json.load(open("pins.lock.json"))["tasks"]["commit"])')"
+
 ./scripts/bootstrap.sh
 export PATH="$PWD/.venv/bin:$PWD/.elan/bin:$PATH"
 python -m verifier doctor
 ```
 
-The bootstrap script materializes the pinned
-[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) checkout and the other
-commits in `pins.lock.json`, installs the pinned Lean toolchains, downloads Mathlib's trusted binary
-cache, builds Formal Conjectures in the default `answer` mode used by the catalog, and builds
-Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is optional: set
-`ENABLE_NANODA=1` during bootstrap to build it. Bootstrap also installs the pinned service and
-Subnet 66 dependencies; it does not install the removed legacy miner transport.
+Set `CONJECTURES_TASKS_ROOT` if that checkout lives anywhere other than a sibling directory.
+
+The bootstrap script clones the other commits in `pins.lock.json`, installs the pinned Elan and Lean
+toolchains, downloads Mathlib's trusted binary cache, builds Formal Conjectures in the default
+`answer` mode used by the catalog, and builds Comparator, the Lean-4.27 `lean4export` backport,
+Landrun and the seccomp launcher. Nanoda is optional: set `ENABLE_NANODA=1` during bootstrap to
+build it. Bootstrap also installs the pinned service and Subnet 66 dependencies; it does not install
+the removed legacy miner transport.
+
+`./scripts/bootstrap.sh --miner` builds the same verifier without any of that: no service, subnet or
+database extras, and no Landrun or seccomp launcher, because those protect a validator from hostile
+proofs rather than a miner from their own. Such a host reports readiness with `python -m verifier
+doctor --allow-insecure-development`. Nothing that decides a verdict differs between the two, which
+is the point — see
+[docs/mine/07-miner-verification-design.md](docs/mine/07-miner-verification-design.md).
 
 ## Submission API
 
