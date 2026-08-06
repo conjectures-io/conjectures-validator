@@ -72,7 +72,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
-    ) == 22
+    ) == 20
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -80,7 +80,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 124
+    assert len({item.source_path for item in selected}) == 119
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -195,6 +195,32 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
             "fc-target:Erdos340.erdos_340.variants.sub_hasPosDensity"
         )
     ) == len(PRODUCTION_TASK_MODES)
+
+
+def test_newly_retired_targets_are_recorded_but_not_admitted():
+    newly_retired = {
+        "Erdos1055.erdos_1055.variants.erdos_limit",
+        "Erdos1055.erdos_1055.variants.selfridge_limit",
+        "Erdos1093.erdos_1093.parts.ii",
+        "Erdos15.erdos_15",
+        "Green54.green_54",
+        "Green77.green_77",
+    }
+    policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
+    retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
+    targets = load_task_targets(TIER_METADATA / "task-targets.json")
+    retirement_log = (TIER_METADATA / "RETIREMENTS.md").read_text(encoding="utf-8")
+
+    assert newly_retired <= retired.theorems
+    assert newly_retired.isdisjoint(targets.theorems)
+    assert newly_retired.isdisjoint(
+        row["theorem"] for row in policy["allowed_source_theorems"]
+    )
+    assert all(
+        newly_retired.isdisjoint(row["theorems"])
+        for row in policy["allowed_task_bundles"]
+    )
+    assert all(f"`{theorem}`" in retirement_log for theorem in newly_retired)
 
 
 def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path):

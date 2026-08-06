@@ -40,6 +40,7 @@ from verifier.errors import ReasonCode
 from verifier.hashing import canonical_json_bytes
 from verifier.models import DEFAULT_CHECKS
 from verifier.repository import tasks_repository_root
+from verifier.task_pool import DEFAULT_TIER_TASK_COUNT
 
 ROOT = Path(__file__).resolve().parents[1]
 TASKS_ROOT = tasks_repository_root(ROOT)
@@ -601,7 +602,7 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     )
 
     tasks = tuple(resolver.tasks.values())
-    assert len(tasks) == 292  # 146 targets, each as a proof and a counterexample task
+    assert len(tasks) == DEFAULT_TIER_TASK_COUNT
     assert all(task.task_dir.is_dir() for task in tasks)
     assert all(task.task_dir.name != task.task_id for task in tasks)
     # The worker sizes its lease from this, so a manifest that declares nothing usable would
