@@ -24,10 +24,16 @@ by remembering to omit a field:
 exist" would turn this endpoint into a probe for the state of submissions that have not been
 published yet.
 
-The three feeds are one predicate apart and share `_feed`: `/certified` is paid out, `/in-review`
-is awaiting the reward decision, and `/submissions` is their union for a dashboard that wants both
-in one request. None of them can widen past what `conjectures_subnet.db.public` will publish —
-each is a named query in that module, and an unfiltered read of `submissions` is not one of them.
+The three feeds share `_feed` and differ only in the query they read: `/certified` is paid out,
+`/in-review` is awaiting the reward decision, and `/submissions` is every submission in every
+state, for a dashboard that reports the whole pipeline rather than only its successes. Each is a
+named query in `conjectures_subnet.db.public`, so a handler here cannot compose a wider read than
+that module offers.
+
+`/submissions` listing rejected and unverified rows does not loosen any of the three rules above.
+It publishes *that* an attempt exists and where it got to — the three `*_status` fields — and
+nothing more: its proof is still gated on approval, its report on the row being certified or in
+review, and the money trail is absent from the row type either way.
 """
 
 from __future__ import annotations
@@ -135,7 +141,7 @@ def _title_and_statement(index: ConjectureIndex, row: public_store.ResultRow) ->
     return conjectures.title(item), item.source.type_pretty
 
 
-def _certified(
+def _result(
     row: public_store.ResultRow,
     index: ConjectureIndex,
     alpha_usd: Decimal | None,
@@ -144,6 +150,11 @@ def _certified(
     return public.PublicResult(
         id=row.id,
         hotkey=row.hotkey,
+        # Serialised as the enum's value, matching `/v1/submissions/{id}` and the account panel,
+        # so a client reads one vocabulary of state names across the whole API.
+        verification_status=str(row.verification_status),
+        manual_review_status=str(row.manual_review_status),
+        reward_status=str(row.reward_status),
         slug=_slug(row),
         task_id=row.task_id,
         title=title,
@@ -254,7 +265,7 @@ async def list_certified(
 ) -> public.CursorPage[public.PublicResult]:
     page = await _feed(
         fetch=public_store.certified_page,
-        shape=_certified,
+        shape=_result,
         services=services,
         session=session,
         response=response,
@@ -295,7 +306,7 @@ async def list_in_review(
 @router.get(
     "/submissions",
     response_model=public.CursorPage[public.PublicResult],
-    summary="Every published result in one feed, for the public dashboard",
+    summary="Every submission in every state, newest first, for the public dashboard",
 )
 async def list_all(
     response: Response,
@@ -306,11 +317,19 @@ async def list_all(
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 50,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
 ) -> public.CursorPage[public.PublicResult]:
-    """The certified and in-review feeds interleaved, so a dashboard makes one request.
+    """Every submission, newest first, whatever state it is in.
 
-    Shaped as `PublicResult` in both cases, for the reason `read_result` gives: an in-review row
-    simply has no `certified_at`, and a client that has to branch on which of two response models
-    it got is worse than one that reads a nullable field.
+    Unfiltered, so a dashboard reports the whole pipeline in one request: queued and running
+    attempts, rejected ones, proofs in review, and certified payouts. `verification_status`,
+    `manual_review_status` and `reward_status` on each item say which. A feed that dropped
+    rejections would show a reader only the successes and read as the complete history.
+
+    Ordered by `(created_at, id)` descending — newest first, the same order the two narrower feeds
+    use, and the order the keyset cursor pages through.
+
+    One shape for every state, for the reason `read_result` gives: a row that is not yet certified
+    simply has no `certified_at`, and a client that has to branch on which of several response
+    models it got is worse than one that reads nullable fields and a status.
 
     Declared above `/{result_id}` because Starlette matches routes in declaration order and
     `submissions` is a valid path segment: registered after, every request to this path is parsed
@@ -318,7 +337,7 @@ async def list_all(
     """
     page = await _feed(
         fetch=public_store.all_results_page,
-        shape=_certified,
+        shape=_result,
         services=services,
         session=session,
         response=response,
@@ -348,7 +367,7 @@ async def read_result(
     # Shaped as a certified result in both cases. An in-review row simply has no `certified_at`,
     # which is the honest representation — the alternative is two response models on one path,
     # and a client that has to branch on which one it got.
-    return _certified(row, services.index, alpha_usd)
+    return _result(row, services.index, alpha_usd)
 
 
 @router.get(

@@ -12,11 +12,21 @@ router to remember. Two invariants hold for everything in this module:
   ``activity`` still pseudonymises, but see the caveat on that function — publishing the hotkey
   on a result makes those pseudonyms correlatable by timing, so the two are no longer
   independent.
-* **Nothing here can be made expensive.** Every feed is keyset-paginated over a
-  partial index (``deploy/migrate/sql/V002__public_feeds.sql``), the page size is
+* **Nothing here can be made expensive.** Every feed is keyset-paginated over an
+  index built for it — the two state-filtered feeds over partial indexes
+  (``deploy/migrate/sql/V002__public_feeds.sql``), the unfiltered dashboard feed over a
+  full one (``deploy/migrate/sql/V010__dashboard_feed_index.sql``) — the page size is
   bounded by the caller, and there is no total-count query: ``COUNT(*)`` over a
   growing table on every page read is a scan an anonymous caller should not be
   able to ask for.
+
+The one thing this module does *not* keep behind a state filter is the dashboard feed:
+``all_results_page`` lists every submission, whatever state it is in, and each row carries its
+three state columns. ``certified_page`` and ``in_review_page`` are still one predicate each. The
+disclosure rules the state filter used to carry incidentally are enforced where they belong
+instead — ``accepted_solution`` gates the proof bytes on review approval, ``public_report`` gates
+the report on the row being on one of the two published feeds, and ``ReviewRow`` carries only the
+explicitly public half of a review decision.
 
 A page is read in four statements rather than one join with three lateral
 subqueries: the submissions for the page, then their latest verification runs,
@@ -95,6 +105,13 @@ class ResultRow:
     id: uuid.UUID
     # The hotkey that submitted this proof. Published: a result is credited to its solver.
     hotkey: str
+    # Where this submission has got to on each of the three axes the schema tracks. Carried on the
+    # row because the dashboard feed is unfiltered: a client that reads a queued, rejected and
+    # certified row from one feed needs the row itself to say which it is, and re-deriving that
+    # from the nullable timestamps below cannot distinguish "rejected" from "not verified yet".
+    verification_status: VerificationState
+    manual_review_status: ManualReviewState
+    reward_status: RewardState
     task_id: str
     # The conjecture this result is against, as an identity that outlives the pin it was produced
     # under. `task_id` names one build of one attack direction and changes on every rotation, so a
@@ -107,10 +124,16 @@ class ResultRow:
     bounty_amount_rao: int
     bounty_policy_version: str
     review_policy_version: str
+    # When the verifier finished with this submission, whatever it decided. Set on a rejected row
+    # too: Lean did run and did reach a verdict, so the timestamp is the real one, and
+    # `verification_status` says which verdict it was. Null only while no run has finished.
     verified_at: datetime | None
     certified_at: datetime | None
     verifier_version: str | None
     sandbox_mode: str | None
+    # Whether a verifier report exists *and* may be served. The second half is why this is not
+    # simply "a run recorded a report": the dashboard feed lists rows `public_report` refuses, and
+    # advertising a report the fetch answers 404 for would send a client hunting for it.
     report_available: bool
     # The latest binding decision, reduced to its explicitly public fields. Internal reviewer
     # notes, reviewer identity, and advisory evidence never land on this public row.
@@ -222,19 +245,34 @@ async def all_results_page(
     limit: int,
     after: tuple[datetime, uuid.UUID] | None = None,
 ) -> tuple[ResultRow, ...]:
-    """Every publishable result in one feed, newest first, for the public dashboard.
+    """Every submission in one feed, newest first, for the public dashboard.
 
-    The union of ``certified_page`` and ``in_review_page`` rather than an unfiltered read of
-    ``submissions``. The filter is ``_or_public()`` — the same predicate ``public_result`` applies
-    — because an unfiltered feed would publish rows this module is not allowed to publish:
-    queued, running, and rejected attempts. Those are not merely uninteresting to a dashboard,
-    they are disclosures. Their existence and their exact timestamps are joinable against the
-    public chain, where the funding transfer for the attempt is visible with its sender, so an
-    unfiltered feed would deanonymise the failed attempts the anonymised activity stream is built
-    to protect — and it would hand out ids that ``public_result`` answers ``404`` for, turning
-    that endpoint's deliberate silence into a contradiction.
+    Unfiltered by state, unlike the two feeds above. A queued, running or rejected attempt is
+    listed alongside a certified one, and the row's ``verification_status``,
+    ``manual_review_status`` and ``reward_status`` say which it is. The dashboard reports the whole
+    pipeline, and an attempt that vanished from it on rejection would misreport the work done —
+    a reader would see only successes and read the feed as the complete history.
+
+    Listing a row publishes its state, not its contents. The three gates that matter are unchanged
+    and none of them lives in this query:
+
+    * the proof bytes — ``accepted_solution`` still requires review approval, in the query;
+    * the verifier report — ``report_available`` is false for a row that is not on one of the two
+      published feeds, and ``public_report`` still refuses to serve one;
+    * the money — ``ResultRow`` has no column for the coldkey, the payment reference or the
+      extrinsic, so widening the row set cannot expose them.
+
+    One side effect worth knowing rather than guarding against: a failed attempt's existence and
+    timing are now public, and the ``activity`` pseudonyms are correspondingly weaker for solvers
+    who appear here. Those pseudonyms were already correlatable through verified results — see the
+    caveat on ``activity`` — and reporting the real pipeline is worth more than tightening them.
+
+    ``public_result`` is deliberately *not* widened with this: reading one submission by id stays
+    restricted to the published feeds, so an id alone still cannot be turned into a probe for the
+    state of someone else's work. A dashboard that already holds the row does not need to re-fetch
+    it, so the asymmetry costs nothing.
     """
-    return await _page(session, [_or_public()], limit=limit, after=after)
+    return await _page(session, [], limit=limit, after=after)
 
 
 async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRow | None:
@@ -257,6 +295,24 @@ async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRo
 
 def _or_public():
     return or_(and_(*CERTIFIED), and_(*IN_REVIEW))
+
+
+def _is_public(submission: Submission) -> bool:
+    """``_or_public()`` evaluated against a row already loaded.
+
+    Needed because ``all_results_page`` no longer filters on it: the predicate still decides
+    whether a row's *report* may be served, and that has to be answered per row rather than by the
+    query. Written out rather than simplified to "verified and not review-rejected" — that
+    shortcut would also admit an approved-but-unpaid row, which ``CERTIFIED`` does not.
+    """
+    if submission.verification_status != VerificationState.VERIFIED:
+        return False
+    if submission.manual_review_status == ManualReviewState.UNREVIEWED:
+        return True
+    return (
+        submission.manual_review_status == ManualReviewState.APPROVED
+        and submission.reward_status == RewardState.REWARDED
+    )
 
 
 async def _page(
@@ -300,6 +356,9 @@ async def _decorate(
             ResultRow(
                 id=submission.id,
                 hotkey=submission.hotkey,
+                verification_status=submission.verification_status,
+                manual_review_status=submission.manual_review_status,
+                reward_status=submission.reward_status,
                 task_id=submission.task_id,
                 reward_target_id=submission.reward_target_id,
                 task_bundle_sha256=bytes(submission.task_bundle_sha256),
@@ -319,7 +378,13 @@ async def _decorate(
                 certified_at=None if payout is None else payout.confirmed_at,
                 verifier_version=None if run is None else run.verifier_version,
                 sandbox_mode=None if run is None else run.sandbox_mode,
-                report_available=run is not None and run.has_report,
+                report_available=(
+                    run is not None and run.has_report and _is_public(submission)
+                ),
+                # Not gated on `_is_public`, unlike the report: `ReviewRow` is an allowlist of a
+                # decision's public half, so a review-rejected row on the dashboard feed publishes
+                # its outcome and `notes_public` and still cannot leak the reviewer, the internal
+                # notes, or advisory evidence — `_latest_reviews` never selects them.
                 review=review,
                 solution_available=(
                     submission.manual_review_status == ManualReviewState.APPROVED

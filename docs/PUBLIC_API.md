@@ -15,7 +15,7 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/catalog/meta` | `PoolMeta` | Counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out |
 | `GET` | `/v1/results/in-review` | `CursorPage<InReviewResult>` | Lean-verified, awaiting manual review |
-| `GET` | `/v1/results/submissions` | `CursorPage<PublicResult>` | Both of the above in one feed, for a dashboard |
+| `GET` | `/v1/results/submissions` | `CursorPage<PublicResult>` | Every submission in every state — including rejected and still-queued — newest first, for a dashboard |
 | `GET` | `/v1/results/{id}` | `PublicResult` | One published result |
 | `GET` | `/v1/results/{id}/report` | `PublicVerificationReport` | The published subset of the verifier report |
 | `GET` | `/v1/results/{id}/solution` | `PublicSolution` | The proof itself — only once review has approved it |
@@ -78,7 +78,9 @@ matches the immutable bytes on the run and the copy the submitting miner can rea
 
 A submission that is on no public feed is `404`, never `403`. Distinguishing "not published" from
 "does not exist" would turn `/v1/results/{id}` into a probe for the state of work that has not
-been published yet.
+been published yet. That is unaffected by the dashboard feed listing every submission: the feed
+publishes each row's *state*, and the by-id read stays restricted to the certified and in-review
+rows — see [The dashboard feed is unfiltered](#the-dashboard-feed-is-unfiltered).
 
 ## Conjectures
 
@@ -206,8 +208,11 @@ the end. There is deliberately no total: `COUNT(*)` over a growing table on ever
 scan an anonymous caller should not be able to ask for.
 
 **Keyset, not `OFFSET`.** The predicate is a row-value comparison `(created_at, id) < (cursor)`
-over a partial index ([`../deploy/migrate/sql/V002__public_feeds.sql`](../deploy/migrate/sql/V002__public_feeds.sql)),
-so it reads one index range whatever page you are on. `OFFSET 50000` reads and discards fifty
+over an index built for the feed — partial for the two narrow ones
+([`../deploy/migrate/sql/V002__public_feeds.sql`](../deploy/migrate/sql/V002__public_feeds.sql)),
+full for the unfiltered dashboard feed
+([`../deploy/migrate/sql/V010__dashboard_feed_index.sql`](../deploy/migrate/sql/V010__dashboard_feed_index.sql))
+— so it reads one index range whatever page you are on. `OFFSET 50000` reads and discards fifty
 thousand rows. It is also correct under concurrent inserts, which an offset is not: a result
 certified between two page reads shifts every subsequent offset by one and silently hides a row.
 The pair rather than the timestamp alone because `created_at` is not unique — two submissions
@@ -241,6 +246,45 @@ For a reviewed result it also carries the latest binding decision:
 
 `notes_public` is null for a historical or automatic decision that has no publishable rationale.
 It is never populated from the internal `notes` field.
+
+### The dashboard feed is unfiltered
+
+`/v1/results/submissions` lists **every** submission, whatever state it reached: queued, running,
+rejected, in review, certified. It is not the union of the two feeds above. A dashboard reports the
+pipeline, and one that dropped an attempt on rejection would show a reader only the successes and
+read as the complete history.
+
+Three fields say where each row got to, using the same vocabulary as the miner-facing
+`GET /v1/submissions/{id}`:
+
+| Field | Values |
+| --- | --- |
+| `verification_status` | `UNVERIFIED` (queued or running), `VERIFIED`, `REJECTED` |
+| `manual_review_status` | `UNREVIEWED`, `APPROVED`, `REJECTED` — `APPROVED` covers both a human approval and the recorded automatic decision when manual review is disabled |
+| `reward_status` | `INELIGIBLE`, `ELIGIBLE` (owed, not yet paid), `REWARDED` (confirmed on chain), `FAILED` |
+
+One response model for every state, so a client reads one shape and branches on those fields and
+on the nullable timestamps rather than on which of several models it got back. `verified_at` is
+when the verifier finished, whatever the verdict — a rejected submission carries it too, since Lean
+did run and did reach one — and `certified_at` is null until a payout confirms.
+
+**Being listed is not being published.** Widening the feed publishes *that* an attempt exists and
+where it got to, and nothing else. The artifact gates are unchanged and are enforced in the query,
+not by this feed: `solution_available` is still false until review approves, `report_available` is
+false for a row that is on neither of the two narrow feeds, and `GET /v1/results/{id}`,
+`/report` and `/solution` all still answer `404` for a rejected or unverified id. So a dashboard
+that already holds a row does not need to re-fetch it, and an id alone is still not a probe for the
+state of someone else's work.
+
+`review` is the exception, and deliberately so: a review-rejected row on this feed carries its
+binding decision and `notes_public`, because a rejection whose published rationale is withheld is
+the one state a dashboard cannot explain. That discloses nothing extra — `ReviewRow` in the query
+layer is an allowlist, so the reviewer's identity, the internal `notes` and advisory `evidence` are
+not selected for any row, rejected or not.
+
+One side effect to know about: a failed attempt's existence and timing are now public, so the
+activity pseudonyms are weaker for any solver who appears on a feed. They were already correlatable
+through verified results — see the caveat under [Activity](#activity).
 
 A result carries both identities: `slug` names the conjecture, `task_id` names the task it was
 produced against. The slug is derived from the row's own `reward_target_id` rather than looked up

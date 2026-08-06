@@ -1,11 +1,13 @@
-"""The public result feeds: certified, in review, one result, the report, and the solution.
+"""The public result feeds: certified, in review, the dashboard feed, one result, report, solution.
 
 This is the surface with the strictest disclosure rules, so most of these tests are about the
-boundary. What *is* published: the submitting hotkey on every result, and the proof itself once
-review has approved it. What is not, at any state: the paying coldkey, the payment reference, the
-funding extrinsic, and the verifier's stdout or stderr. The proof of a submission that is
-unverified, rejected, or still in review is not published either, and the tests below pin each of
-those three cases. Needs a real PostgreSQL server:
+boundary. What *is* published: the submitting hotkey on every result, every submission's three
+state fields on the dashboard feed, and the proof itself once review has approved it. What is not,
+at any state: the paying coldkey, the payment reference, the funding extrinsic, and the verifier's
+stdout or stderr. The proof of a submission that is unverified, rejected, or still in review is not
+published either, and the tests below pin each of those three cases — a rejected submission is
+*listed* on the dashboard feed, which is a different thing from its artifacts being served, and the
+tests hold that line separately. Needs a real PostgreSQL server:
 
     docker compose -f docker-compose.pytest-db.yml up -d
 """
@@ -288,7 +290,7 @@ def test_an_in_review_result_names_its_solver_but_carries_no_proof():
     run(scenario())
 
 
-def test_an_unverified_submission_appears_on_no_public_feed():
+def test_an_unverified_submission_is_on_the_dashboard_feed_but_not_the_narrow_ones():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -296,11 +298,21 @@ def test_an_unverified_submission_appears_on_no_public_feed():
 
             assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
             assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
-            # Including the dashboard feed. It is the union of the two feeds above, not an
-            # unfiltered read of `submissions`, so "all results" cannot mean "everything".
-            assert (await _get(kit, "/v1/results/submissions")).json()["items"] == []
-            # And it cannot be read by id either: not published is reported as absent, so a
-            # submission id cannot be probed for the state of unpublished work.
+
+            # The dashboard feed is unfiltered, so a queued attempt is listed — with its state
+            # saying so, and with nothing to fetch.
+            item = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert item["id"] == submission_id
+            assert item["verification_status"] == "UNVERIFIED"
+            assert item["manual_review_status"] == "UNREVIEWED"
+            assert item["reward_status"] == "INELIGIBLE"
+            assert item["verified_at"] is None
+            assert item["certified_at"] is None
+            assert item["report_available"] is False
+            assert item["solution_available"] is False
+
+            # Reading it by id is still 404: not published is reported as absent, so an id alone
+            # cannot be probed for the state of unpublished work.
             single = await _get(kit, f"/v1/results/{submission_id}")
             assert single.status_code == 404
             assert single.json()["reason_code"] == "NOT_FOUND"
@@ -310,7 +322,7 @@ def test_an_unverified_submission_appears_on_no_public_feed():
     run(scenario())
 
 
-def test_a_rejected_submission_is_never_published():
+def test_a_rejected_submission_is_listed_but_publishes_no_artifact():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -319,7 +331,26 @@ def test_a_rejected_submission_is_never_published():
 
             assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
             assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
-            assert (await _get(kit, "/v1/results/submissions")).json()["items"] == []
+
+            # Listed on the dashboard feed: a rejected attempt is part of the history, and a feed
+            # that dropped it would report only successes.
+            item = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert item["id"] == submission_id
+            assert item["verification_status"] == "REJECTED"
+            # `verified_at` is set: Lean ran and reached a verdict, so the timestamp is real and
+            # `verification_status` is what says the verdict was a rejection. Not certified,
+            # though — that needs a confirmed payout.
+            assert item["verified_at"] is not None
+            assert item["certified_at"] is None
+
+            # Being listed publishes the state and nothing else. The report exists on the run but
+            # is not served for a row on neither published feed, and the feed says so rather than
+            # letting a client discover it by collecting 404s.
+            assert item["report_available"] is False
+            assert item["solution_available"] is False
+            assert (await _get(kit, f"/v1/results/{submission_id}/report")).status_code == 404
+            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
+            # And the by-id read stays restricted to the published feeds.
             assert (await _get(kit, f"/v1/results/{submission_id}")).status_code == 404
         finally:
             await kit.teardown()
@@ -434,41 +465,69 @@ def test_the_published_solution_is_the_exact_bytes_that_were_verified():
 # --- the dashboard feed --------------------------------------------------------------------
 
 
-def test_the_dashboard_feed_is_the_union_of_certified_and_in_review():
+def test_the_dashboard_feed_lists_every_submission_whatever_state_it_reached():
     async def scenario():
         kit = await harness().setup()
         try:
+            # Every submission first, then the verdicts. Certifying one closes the bounty on the
+            # fixture's conjecture, and intake answers `409 BOUNTY_CLOSED` to anything after that
+            # — so a scenario that needs four attempts on one conjecture has to pay for them all
+            # before the first payout confirms.
             certified_id = await _submit(kit, "0020")
-            await _verify(kit, certified_id)
-
             in_review_id = await _submit(kit, "0021")
-            await _verify(kit, in_review_id)
-
             rejected_id = await _submit(kit, "0022")
-            await _verify(kit, rejected_id, accepted=False)
-
             unverified_id = await _submit(kit, "0023")
 
-            # Certify only after the other attempts have entered intake. Once a reward target is
-            # paid, the API correctly closes it to later submissions.
+            await _verify(kit, rejected_id, accepted=False)
+            await _verify(kit, in_review_id)
+            await _verify(kit, certified_id)
             await _certify(kit, certified_id)
 
             page = (await _get(kit, "/v1/results/submissions")).json()
             ids = [item["id"] for item in page["items"]]
 
-            # Both published states in one request — that is the point of the endpoint — and
-            # neither of the two unpublishable ones, which is the point of the filter.
-            assert set(ids) == {certified_id, in_review_id}
-            assert rejected_id not in ids
-            assert unverified_id not in ids
+            # All four states in one request — that is the point of the endpoint. A dashboard
+            # showing only the two publishable ones would report successes as the whole history.
+            assert set(ids) == {certified_id, in_review_id, rejected_id, unverified_id}
+
+            # Newest first, and the four were created in order, so this is the reverse of it.
+            assert ids == [unverified_id, rejected_id, in_review_id, certified_id]
+
+            # The three state axes are what a client branches on. One shape for every row.
+            by_id = {item["id"]: item for item in page["items"]}
+            assert [
+                (
+                    by_id[submission_id]["verification_status"],
+                    by_id[submission_id]["manual_review_status"],
+                    by_id[submission_id]["reward_status"],
+                )
+                for submission_id in (certified_id, in_review_id, rejected_id, unverified_id)
+            ] == [
+                ("VERIFIED", "APPROVED", "REWARDED"),
+                ("VERIFIED", "UNREVIEWED", "INELIGIBLE"),
+                ("REJECTED", "UNREVIEWED", "INELIGIBLE"),
+                ("UNVERIFIED", "UNREVIEWED", "INELIGIBLE"),
+            ]
 
             # Certification is visible as a nullable field rather than as a second response
             # model, so a dashboard reads one shape and branches on `certified_at`.
-            by_id = {item["id"]: item for item in page["items"]}
             assert by_id[certified_id]["certified_at"] is not None
             assert by_id[certified_id]["review"] is not None
             assert by_id[in_review_id]["certified_at"] is None
             assert by_id[in_review_id]["review"] is None
+
+            # And the artifact gates are unchanged by the widening: only the approved row
+            # publishes a proof, and only the two rows on a published feed publish a report.
+            assert [by_id[i]["solution_available"] for i in ids] == [
+                False,
+                False,
+                False,
+                True,
+            ]
+            assert by_id[rejected_id]["report_available"] is False
+            assert by_id[unverified_id]["report_available"] is False
+            assert by_id[in_review_id]["report_available"] is True
+            assert by_id[certified_id]["report_available"] is True
         finally:
             await kit.teardown()
 

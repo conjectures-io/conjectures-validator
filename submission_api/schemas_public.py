@@ -370,7 +370,12 @@ class PublicReviewDecision(Model):
 
 
 class PublicResult(Model):
-    """A certified result: Lean-verified, human-approved, and paid out.
+    """One submission on a public feed, at whatever state it has reached.
+
+    Named for its original use — the certified feed — but the shape every result endpoint answers
+    with, including `GET /v1/results/submissions`, which lists every submission whether it is
+    queued, rejected, in review, or paid out. The three `*_status` fields are how a client tells
+    those apart; the timestamps below say when, and are null until the state they name is reached.
 
     Credited to the `hotkey` that submitted it. Nothing here reaches that miner's funds: no
     paying coldkey, no payment reference, no extrinsic.
@@ -379,6 +384,24 @@ class PublicResult(Model):
     id: uuid.UUID
     hotkey: str = Field(
         description="The hotkey that submitted this proof, as an SS58 address"
+    )
+    verification_status: str = Field(
+        description=(
+            "Where Lean got to: UNVERIFIED (queued or running), VERIFIED, or REJECTED"
+        )
+    )
+    manual_review_status: str = Field(
+        description=(
+            "The reward decision on a Lean-verified proof: UNREVIEWED, APPROVED, or REJECTED. "
+            "APPROVED covers both a human approval and the recorded automatic decision when "
+            "manual review is disabled"
+        )
+    )
+    reward_status: str = Field(
+        description=(
+            "Where the payout got to: INELIGIBLE, ELIGIBLE (owed, not yet paid), REWARDED "
+            "(confirmed on chain), or FAILED"
+        )
     )
     slug: str = Field(
         description=(
@@ -394,7 +417,14 @@ class PublicResult(Model):
     statement: str
     task_bundle_sha256: str
     attribution: str = ATTRIBUTION
-    verified_at: datetime | None = None
+    verified_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When the verifier finished with this submission, whatever the verdict. Set for a "
+            "rejected submission too — Lean ran and reached one; verification_status says which. "
+            "Null only while no run has finished"
+        ),
+    )
     certified_at: datetime | None = Field(
         default=None, description="When the payout for this result was confirmed on chain"
     )
@@ -408,11 +438,19 @@ class PublicResult(Model):
     bounty_policy_version: str
     verifier_version: str | None = None
     sandbox_mode: str | None = None
-    report_available: bool = False
+    report_available: bool = Field(
+        default=False,
+        description=(
+            "Whether the verifier report is published for this result, at "
+            "GET /v1/results/{id}/report. False for a submission that is not certified or in "
+            "review, so a rejected row is listed with no report to fetch"
+        ),
+    )
     review: PublicReviewDecision | None = Field(
         default=None,
         description=(
-            "Latest binding review and its public rationale; null while review is pending"
+            "Latest binding review and its public rationale; null while review is pending. "
+            "Present on a review-rejected row too — the rationale is the point of publishing it"
         ),
     )
     solution_available: bool = Field(

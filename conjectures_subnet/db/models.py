@@ -393,6 +393,14 @@ class Submission(Base):
                 "verification_status = 'VERIFIED' AND manual_review_status = 'UNREVIEWED'"
             ),
         ),
+        # V010. The dashboard feed lists every submission whatever state it is in, so neither
+        # partial index above covers it. Not partial and it cannot be: the predicate is the empty
+        # one. Same columns and direction, so the keyset page predicate reads one index range.
+        Index(
+            "submissions_dashboard_feed_idx",
+            text("created_at DESC"),
+            text("id DESC"),
+        ),
         # V003: exactly one funding source. Neither path admits an unfunded submission; they
         # differ only in what names the money — an extrinsic, or a credit ledger entry.
         CheckConstraint(

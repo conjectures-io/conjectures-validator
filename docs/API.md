@@ -43,7 +43,7 @@ Task discovery is unauthenticated because the task pool and its digests are publ
 | `GET` | `/v1/catalog/meta` | Pool counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | Certified results, keyset-paginated |
 | `GET` | `/v1/results/in-review` | Lean-verified, awaiting manual review |
-| `GET` | `/v1/results/submissions` | Certified and in-review in one feed, for a dashboard |
+| `GET` | `/v1/results/submissions` | Every submission in every state, newest first, for a dashboard |
 | `GET` | `/v1/results/{id}` | One published result |
 | `GET` | `/v1/results/{id}/report` | The published subset of the verifier report |
 | `GET` | `/v1/results/{id}/solution` | The verified `Main.lean`, for an approved result only |
