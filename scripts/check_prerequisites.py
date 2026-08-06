@@ -39,6 +39,7 @@ EGRESS_URLS = (
     "https://objects.githubusercontent.com",
     "https://pypi.org",
     "https://files.pythonhosted.org",
+    "https://releases.lean-lang.org",
     "https://mathlib4.lean-cache.cloud",
     "https://lakecache.blob.core.windows.net",
 )
