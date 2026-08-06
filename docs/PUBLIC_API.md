@@ -76,11 +76,11 @@ not by removing the sensitive ones. What that buys is the default: a field added
 `report_sha256` is the digest of the **full** report, not of the reduced projection, so it still
 matches the immutable bytes on the run and the copy the submitting miner can read.
 
-A submission that is on no public feed is `404`, never `403`. Distinguishing "not published" from
+A submission that has not passed Lean is `404`, never `403`. Distinguishing "not published" from
 "does not exist" would turn `/v1/results/{id}` into a probe for the state of work that has not
 been published yet. That is unaffected by the dashboard feed listing every submission: the feed
-publishes each row's *state*, and the by-id read stays restricted to the certified and in-review
-rows — see [The dashboard feed is unfiltered](#the-dashboard-feed-is-unfiltered).
+publishes each row's *state*, while the by-id read stays restricted to Lean-verified work, whatever
+manual review later decides — see [The dashboard feed is unfiltered](#the-dashboard-feed-is-unfiltered).
 
 ## Conjectures
 
@@ -270,11 +270,14 @@ did run and did reach one — and `certified_at` is null until a payout confirms
 
 **Being listed is not being published.** Widening the feed publishes *that* an attempt exists and
 where it got to, and nothing else. The artifact gates are unchanged and are enforced in the query,
-not by this feed: `solution_available` is still false until review approves, `report_available` is
-false for a row that is on neither of the two narrow feeds, and `GET /v1/results/{id}`,
-`/report` and `/solution` all still answer `404` for a rejected or unverified id. So a dashboard
-that already holds a row does not need to re-fetch it, and an id alone is still not a probe for the
-state of someone else's work.
+not by this feed: `solution_available` is still false until review approves, and
+`report_available` is true after Lean verification, whatever manual review later decides.
+`GET /v1/results/{id}` and `/report` follow that same gate; `/solution` is stricter and additionally
+requires approval. All three still answer `404` for queued or Lean-rejected ids, while a
+review-rejected result has a record and report but no solution. So an id alone is still not a probe
+for the state of unpublished work. Payout is deliberately not part of this publication gate: an
+approved result stays readable while its reward is `ELIGIBLE`, and only enters the certified feed
+after the transfer is confirmed.
 
 `review` is the exception, and deliberately so: a review-rejected row on this feed carries its
 binding decision and `notes_public`, because a rejection whose published rationale is withheld is
