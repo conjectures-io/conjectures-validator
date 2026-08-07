@@ -26,19 +26,20 @@ conjectures tasks sync                                  # cache the task list
 conjectures tasks challenge erdos1094                   # what you have to prove
                                                         # ... write Main.lean ...
 conjectures build --proof Main.lean --task erdos1094    # seals submission.zip
-conjectures check                                       # free; last step before money moves
+conjectures verify                                      # is the proof correct?
+conjectures check                                       # is the envelope acceptable?
 conjectures pay                                         # 0.5 TAO, coldkey -> treasury
 conjectures submit
 conjectures submissions show <id> --watch
 ```
 
-`check` asks whether the envelope is acceptable. Whether the **proof** is correct is a different
-question, and only the verifier answers it — `verify` builds this repository's verifier on your
-machine and runs it:
+`check` never reads the proof: it is the zip, the manifest and a static policy scan. Whether the
+**proof** is correct is a different question, and only the verifier answers it — `verify` builds
+this repository's verifier on your machine and runs it over the sealed `submission.zip`:
 
 ```bash
 conjectures verify --setup                              # once: ~20 GB, 30-60 minutes
-conjectures verify --proof Main.lean --task erdos1094   # exit 0 correct, 1 rejected
+conjectures verify                                      # exit 0 correct, 1 rejected
 ```
 
 Linux only (WSL2 on Windows). It runs the development sandbox rather than the isolation a
