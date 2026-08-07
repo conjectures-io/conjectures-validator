@@ -45,7 +45,10 @@ The submission API captures the per-submission manual-review policy and records 
 decision, but the reviewer-facing decision service itself is still to build.
 
 Miners should start at [`docs/MINER.md`](docs/MINER.md): what to do, in order, to get one proof
-submitted, verified and paid. [`docs/API.md`](docs/API.md) documents the API surface and its
+submitted, verified and paid. In short, install
+[`conjectures-miner`](https://github.com/conjectures-io/conjectures-miner) — it does the whole
+flow, including building this verifier locally so a proof can be checked before any TAO moves.
+[`docs/API.md`](docs/API.md) documents the API surface and its
 configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the submission format,
 [`deploy/README.md`](deploy/README.md) the database deployment,
 [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) the structured events every process emits and how

@@ -25,17 +25,28 @@ if [[ "$miner" = 1 ]]; then
   profile=(--miner)
 fi
 
-# First, and from here rather than from a README: a prerequisite check nobody runs is a
-# prerequisite check that rots.
+step_number=0
+step() {
+  step_number=$((step_number + 1))
+  printf 'bootstrap.sh: step %d/7 -- %s\n' "$step_number" "$1"
+}
+
+step "check this host can finish the build"
 python3 scripts/check_prerequisites.py "${profile[@]}"
 
+step "clone the pinned dependencies -- quiet, and the largest download of the run"
 ./scripts/pin_dependencies.sh
+
+step "install Elan and the pinned Lean toolchain -- another gigabyte, also quiet"
 ./scripts/install_elan.sh
 
 export ELAN_HOME="${ELAN_HOME:-$ROOT/.elan}"
 export PATH="$ELAN_HOME/bin:$PATH"
 
+step "create the virtualenv"
 python3 -m venv "$ROOT/.venv"
+
+step "install the verifier package"
 if [[ "$miner" = 1 ]]; then
   "$ROOT/.venv/bin/pip" install -e .
 else
@@ -45,8 +56,10 @@ else
 fi
 "$ROOT/.venv/bin/pip" check
 
+step "build the trusted Lean cache -- most of the wall clock is here"
 ./scripts/build_trusted_cache.sh "${profile[@]}"
 
+step "readiness check"
 doctor=()
 if [[ "$miner" = 1 ]]; then
   # Without this, doctor judges the host against production isolation it deliberately did not

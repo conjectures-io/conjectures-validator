@@ -39,6 +39,23 @@ if [[ "$miner" = 1 || "$(uname -s)" != Linux ]]; then
   sandbox_tools=0
 fi
 
+substep_total=0
+if [[ "$stage" = vendor || "$stage" = all ]]; then
+  substep_total=$((substep_total + 4))
+  if [[ "$sandbox_tools" = 1 ]]; then substep_total=$((substep_total + 1)); fi
+  if [[ "${ENABLE_NANODA:-0}" = 1 ]]; then substep_total=$((substep_total + 1)); fi
+fi
+if [[ "$stage" = root || "$stage" = all ]]; then
+  substep_total=$((substep_total + 2))
+  if [[ "$sandbox_tools" = 1 ]]; then substep_total=$((substep_total + 1)); fi
+fi
+
+substep_number=0
+substep() {
+  substep_number=$((substep_number + 1))
+  printf 'build_trusted_cache.sh: step %d/%d -- %s\n' "$substep_number" "$substep_total" "$1"
+}
+
 if [[ "$stage" = vendor || "$stage" = all ]]; then
   cd "$ROOT/vendor/formal-conjectures"
   # `FormalConjectures` and `FormalConjecturesAnswerPostpone` emit the same module
@@ -50,23 +67,30 @@ if [[ "$stage" = vendor || "$stage" = all ]]; then
   if [[ ! -f "$answer_mode_stamp" ]]; then
     lake clean
   fi
+  substep "fetch and unpack the Mathlib build cache -- about 5 GB, and the unpacking is silent"
   lake exe cache get
+
+  substep "build Formal Conjectures -- around 8000 modules"
   lake build FormalConjectures
   touch "$answer_mode_stamp"
 
+  substep "build lean4export"
   cd "$ROOT/vendor/lean4export"
   lake build lean4export
 
+  substep "build the comparator -- installs a second Lean toolchain, about 3 GB"
   cd "$ROOT/vendor/comparator"
   lake build comparator
 
   if [[ "$sandbox_tools" = 1 ]]; then
+    substep "build landrun"
     mkdir -p "$ROOT/vendor/landrun/bin"
     cd "$ROOT/vendor/landrun"
     go build -trimpath -o bin/landrun ./cmd/landrun
   fi
 
   if [[ "${ENABLE_NANODA:-0}" = 1 ]]; then
+    substep "build nanoda"
     cd "$ROOT/vendor/nanoda"
     cargo build --release --locked
   fi
@@ -86,7 +110,10 @@ if [[ "$stage" = root || "$stage" = all ]]; then
       ln -s "../../$package" "$link"
     fi
   done
+  substep "fetch and unpack the root build cache"
   lake exe cache get
+
+  substep "build the verifier's own Lean targets"
   # TestFixtures.Counterexample is named explicitly: the TestFixtures lean_lib has no globs, so
   # building it compiles only the root module and its imports, and TestFixtures.lean does not import
   # Counterexample. Without it the external counterexample task fixture cannot build its challenge,
@@ -95,6 +122,7 @@ if [[ "$stage" = root || "$stage" = all ]]; then
     catalog_extractor task_inspector
 
   if [[ "$sandbox_tools" = 1 ]]; then
+    substep "build the seccomp launcher"
     mkdir -p "$ROOT/.tools"
     cc -O2 -Wall -Wextra -Werror \
       -o "$ROOT/.tools/seccomp-launcher" "$ROOT/security/seccomp-launcher.c"
