@@ -183,11 +183,12 @@ DEFAULT_DEPOSIT_HOURS = 24
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
 DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
-# Bumped to v2 by the change that publishes the submitting hotkey and the approved proof.
+# Bumped to v3 by the v2 manual-review rule that expands `NOT_NOVEL`. The terms version and
+# manual-review version are separate counters because terms v2 was already published.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
-# leaving it at v1 would serve rewritten terms under the version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v2"
-DEFAULT_TERMS_DATE = "2026-08-05"
+# leaving it at v2 would serve rewritten terms under a version string a miner already accepted.
+DEFAULT_TERMS_VERSION = "v3"
+DEFAULT_TERMS_DATE = "2026-08-07"
 
 # The domain that goes into a signed login message, binding the signature to this
 # deployment so one produced for another instance is not valid here.
@@ -506,7 +507,7 @@ class Settings:
             bounty_hotkey_raw or recipient,
         )
 
-        review_policy_version = env.get("REVIEW_POLICY_VERSION", "v1").strip()
+        review_policy_version = env.get("REVIEW_POLICY_VERSION", "v2").strip()
         if POLICY_VERSION.fullmatch(review_policy_version) is None:
             raise SettingsError(
                 "REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"

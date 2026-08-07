@@ -1,8 +1,16 @@
 # Manual reward-review policy
 
-**Policy version:** `v1`
-**Effective date:** 2026-08-05
-**Applies to:** submissions recorded with `review_policy_version = "v1"`
+**Policy version:** `v2`<br>
+**Effective date:** 2026-08-07<br>
+**Applies to:** submissions accepted with `review_policy_version = "v2"` on or after
+this date
+
+## Relationship to v1
+
+This is a prospective successor to the [v1 manual reward-review policy](https://github.com/conjectures-io/conjectures-validator/blob/19c4d29becb5e24bff480446fd741d891f041b4c/docs/MANUAL_REVIEW_CRITERIA.md).
+The policy version captured when a submission is accepted is its contract. This policy
+does not alter the outcome or available reason codes for a submission accepted under
+v1.
 
 ## Purpose
 
@@ -42,6 +50,11 @@ agents should test the proof and review evidence from different angles, includin
 - whether the Lean theorem matches the intended informal conjecture;
 - whether the proof relies on a task defect, forbidden dependency, or unpermitted assumption;
 - whether the result was already present in the pinned environment;
+- whether a dated public source had already solved the same direct mathematical problem;
+- whether the submitted proof substantially implements that earlier source's solution for the
+  exact submitted target;
+- whether a claimed external formalization is public and specific enough to establish the exact
+  reward target;
 - whether concrete chronology or attribution evidence affects eligibility; and
 - which published outcome and reason code the evidence supports.
 
@@ -64,7 +77,10 @@ Approve the displayed conjecture bounty when:
 - the Lean statement faithfully represents the intended conjecture;
 - no earlier eligible submission holds the same reward target;
 - the work is not shown to have been copied or falsely attributed;
-- the result was not already available in the pinned environment; and
+- the result was not already available in the pinned environment;
+- no qualifying earlier public solution was substantially used to prove the exact submitted
+  target;
+- the target was not already established by a qualifying external formalization; and
 - no abuse or other published disqualification reason is established.
 
 If the evidence is insufficient to establish either a formalization defect or a disqualification
@@ -120,7 +136,8 @@ record evidence that directly supports the selected code.
 | `TRIVIALISED_STATEMENT` | The submitted artifact weakened, replaced, restated, or made the challenge vacuous | A diff or elaborated declaration showing how the submitted artifact changed the target |
 | `FORBIDDEN_IMPORT` | The proof imports a source declaration or module forbidden by the machine contract | The import trace and violated machine-contract entry |
 | `UNPERMITTED_AXIOM` | The proof's transitive axiom closure contains an axiom outside `permitted_axioms` | Kernel or export evidence identifying the axiom |
-| `NOT_NOVEL` | The result was already available in the pinned environment | The existing declaration and exact pinned revision |
+| `NOT_NOVEL` | The result was already available in the pinned environment, or a dated public source had already solved the same direct problem and the submission substantially implements that source's solution for the exact submitted target | The existing declaration and pinned revision, or the public source, chronology, exact target-match analysis, and concrete correspondence between the source and submission |
+| `PRIOR_EXTERNAL_FORMALIZATION` | Before acceptance, the same reward target had already been formally established in a publicly documented external proof system | A public, dated proof record identifying the formal system and completed result, plus an explanation that it matches the exact reward target |
 | `DUPLICATE_OF_EARLIER_SUBMISSION` | An earlier eligible submission already holds the same stable reward target | The earlier submission, its acceptance time, and the matching reward target |
 | `MISATTRIBUTED_WORK` | Reliable evidence shows that the submission substantially reproduces work the submitter is not entitled to claim | The earlier source, public timestamp, and distinctive overlap |
 | `ABUSE` | The submission attempts to overload, probe, escape, or otherwise game the validator | Relevant request, rate-limit, sandbox, or incident evidence |
@@ -144,21 +161,51 @@ miner. Approve the submission if it otherwise qualifies, even when the two proof
 
 ### A solution was published before submission
 
-Prior publication is not enough by itself to reject a submission. Use `MISATTRIBUTED_WORK` only
-when reliable evidence shows that the submitted proof substantially reproduces work the submitter
-is not entitled to claim.
+Under v2, prior publication can support `NOT_NOVEL` only when both of the following are established:
 
-Distinctive overlap may include the same unusual construction, intermediate lemmas, ordering,
-errors, notation, or other choices unlikely to arise independently. Merely proving the same target,
-using standard library lemmas, following a conventional strategy, or producing a necessary witness
-is not sufficient evidence of copying.
+1. the earlier source resolves the same direct informal problem represented by the submitted Lean
+   target; and
+2. the submission substantially uses, implements, or reproduces that source's mathematical
+   resolution to prove the exact target.
+
+The reviewer must establish more than a shared conclusion or a conventional strategy. Concrete
+correspondence may include the same distinctive transformation, nonstandard intermediate lemma,
+case division, ordering of reductions, construction, or other choices unlikely to arise merely
+from the theorem statement. The review must cite corresponding locations in both the public source
+and the submitted proof.
+
+`NOT_NOVEL` under this branch is a bounty-eligibility classification, not an accusation of
+plagiarism. It does not require proof that the submitter falsely claimed authorship. It requires
+proof that the exact submission derives its solution from mathematics already publicly used to
+solve that same problem.
+
+Use `MISATTRIBUTED_WORK` separately only when reliable evidence shows that the submission
+substantially reproduces work the submitter is not entitled to claim. Distinctive overlap may
+include the same unusual construction, intermediate lemmas, ordering, errors, notation, or other
+choices unlikely to arise independently. Merely proving the same target, using standard library
+lemmas, following a conventional strategy, or producing a necessary witness is not sufficient
+evidence of misattribution.
 
 The reviewer must cite the earlier source, establish that it was public before submission, and
-explain the distinctive overlap. If authorship, access, chronology, or independence remains
-genuinely uncertain, do not reject for misattribution.
+explain the distinctive overlap. If chronology, target match, substantial use, attribution, or
+independence remains genuinely uncertain, do not reject under the corresponding code.
 
-`NOT_NOVEL` is narrower: it applies when the result was already present in the exact pinned Lean
-environment, not merely somewhere in mathematical literature.
+## Ambiguous external-formalization evidence
+
+A public statement that a paper was formalized does not by itself establish
+`PRIOR_EXTERNAL_FORMALIZATION` when the formal artifact, theorem statement, certificate, or other
+target-specific record is unavailable. In that situation, the completion and exact target match
+remain ambiguous, even if the statement is attributable and credible.
+
+An ambiguous formalization announcement may be retained as supporting context, but it cannot be
+the decisive evidence for `PRIOR_EXTERNAL_FORMALIZATION`. A separate public mathematical paper can
+still support `NOT_NOVEL` when the paper directly resolves the exact problem and the required
+source-to-submission correspondence establishes that the submission uses its solution.
+
+A stated intention to formalize, a claim that code will be published later, an informal proof of a
+related claim, or a formal proof under materially different hypotheses does not qualify as a prior
+external formalization. If the timestamp, completion, accessibility, or target match remains
+genuinely uncertain, do not reject under that code.
 
 ## Required review record
 
@@ -169,7 +216,9 @@ Review the immutable submission record, including:
 - proof digest and exact submitted `Main.lean`;
 - pinned source and dependency revisions;
 - verifier version, sandbox mode, report, checks, and axiom closure;
-- earlier claims on the same reward target; and
+- earlier claims on the same reward target;
+- any earlier public mathematical source asserted under `NOT_NOVEL`;
+- the exact source-to-submission correspondence asserted by the reviewer; and
 - any source, attribution, or formalization evidence relevant to the decision.
 
 Every binding decision must record:
@@ -196,16 +245,22 @@ disqualification code with `REJECTED`.
 4. Check whether an earlier eligible submission holds the reward target.
 5. Compare the committed Lean statement with the intended conjecture closely enough to identify a
    material formalization defect.
-6. Evaluate concrete prior-publication, attribution, or abuse evidence. Do not conduct an
-   open-ended search merely to create doubt after a valid result arrives.
-7. Resolve material disagreements among the agent assessments. If specialist mathematical
+6. For `NOT_NOVEL`, determine whether the earlier source solved the exact direct problem and cite
+   the concrete correspondence showing that the submission uses that source's solution.
+7. For `PRIOR_EXTERNAL_FORMALIZATION`, distinguish a target-specific public proof record from an
+   ambiguous announcement that a formalization exists.
+8. Evaluate concrete attribution or abuse evidence. Do not conduct an open-ended search merely to
+   create doubt after a valid result arrives.
+9. Resolve material disagreements among the agent assessments. If specialist mathematical
    judgment is necessary, record the authoritative source or qualified expert basis used.
    Unresolved uncertainty favors `REVIEW_APPROVED`.
-8. Record one of the three outcomes and its corresponding reason code. The team reviewer, not an
-   agent, signs the binding decision.
-9. Publish the decision rationale with supporting links.
-10. If a formalization defect was found, quarantine or correct the task independently of the
+10. Record one of the three outcomes and its corresponding reason code. The team reviewer, not an
+    agent, signs the binding decision.
+11. Publish the decision rationale with supporting links.
+12. If a formalization defect was found, quarantine or correct the task independently of the
     payout.
+13. If a qualifying prior public solution was found, suspend or retire the affected task before
+    accepting another v2 submission for it.
 
 ## Public explanation
 
@@ -215,14 +270,15 @@ Publish a concise rationale for every binding approval and rejection. It must st
 - which reason code and policy version were used;
 - the decisive facts and timestamps;
 - whether the displayed bounty or $750 formalization-defect award applies;
+- for `NOT_NOVEL`, the exact earlier result and the concrete source-to-submission correspondence;
 - how the independent agent assessments agreed or materially disagreed;
 - how the team resolved any material disagreement;
 - supporting public links where available; and
 - how the miner can submit contrary evidence or request reconsideration.
 
-Do not use vague conclusions such as “not meaningful,” “too similar,” or “not novel enough.” State
-the concrete facts that satisfy the selected outcome. Do not publish a pending or rejected proof
-unless a separate publication policy permits it.
+Do not use vague conclusions such as "not meaningful," "too similar," or "not novel enough."
+State the concrete facts that satisfy the selected outcome. Do not publish a pending or rejected
+proof unless a separate publication policy permits it.
 
 Publish the review team's decision rationale and the evidence needed to understand it. Do not
 publish private model chain-of-thought, hidden reasoning traces, security-sensitive validator
@@ -264,4 +320,4 @@ original remains available for audit.
 - Verification, review, reward eligibility, and payout are separate states.
 
 Any material change to this policy requires a new `REVIEW_POLICY_VERSION`. Do not reinterpret
-`v1` retroactively for submissions already accepted under it.
+`v2` retroactively for submissions accepted under an earlier version.

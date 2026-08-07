@@ -218,7 +218,7 @@ def test_development_defaults_are_convenient():
     assert isinstance(build_payment_verifier(settings), DevelopmentPaymentVerifier)
     assert settings.payment_amount_rao == 500_000_000
     assert settings.nonce_window_seconds == 120
-    assert settings.review_policy_version == "v1"
+    assert settings.review_policy_version == "v2"
     assert settings.bounty_pool_balance_rao == 4_000_000_000
     assert settings.bounty_constant_numerator == 1
     assert settings.bounty_constant_denominator == 4

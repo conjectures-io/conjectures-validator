@@ -1162,7 +1162,7 @@ def test_submission_detail_returns_public_review_notes_but_never_internal_eviden
                 review = response.json()["review"]
                 assert review["decision"] == "APPROVED"
                 assert review["reason_code"] == "FORMALIZATION_DEFECT_AWARD"
-                assert review["policy_version"] == "v1"
+                assert review["policy_version"] == "v2"
                 assert review["decided_at"] is not None
                 assert review["notes_public"] == (
                     "Lean verified the published task, but it did not match the informal "
@@ -1279,10 +1279,10 @@ def test_credit_pricing_and_terms_are_public():
 
                 terms = await http.get("/v1/catalog/submission-terms")
                 assert terms.status_code == 200
-                # v2 publishes the submitting hotkey and the approved proof. The version moves
+                # v3 publishes the expanded v2 `NOT_NOVEL` contract. The version moves
                 # with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so the
                 # two must not drift.
-                assert terms.json()["version"] == "v2"
+                assert terms.json()["version"] == "v3"
                 assert "One credit buys" in terms.json()["body_md"]
                 assert "Your hotkey is published" in terms.json()["body_md"]
                 approval_codes = {
