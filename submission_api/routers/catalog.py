@@ -17,7 +17,9 @@ the module:
   direction. Grouping happens once at startup in `submission_api/conjectures.py`.
 * **Every list is bounded.** `limit` is capped, the free-text filter is length-capped and is a
   substring test rather than a pattern, and the facets are computed over a fixed in-memory list.
-  None of these endpoints can be made to do unbounded work.
+  Each repeatable filter is bounded twice — on how many times it may repeat and on the length of
+  one value — because those are two different limits and only one of them can live on the `Query`.
+  See `MAX_FILTER_VALUES`. None of these endpoints can be made to do unbounded work.
 * **The statement is served from the audited bytes.** Each task's `challenge_lean` is the exact
   `Challenge.lean` hashed into its published `task_bundle_sha256`, held in memory since startup,
   so what a reader verifies is what the verifier compiles.
@@ -37,6 +39,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Request, Response
 from fastapi.responses import RedirectResponse
+from pydantic import Field, StringConstraints
 
 from conjectures_subnet.bounty import BountyPoolSnapshot, LiveBounty
 from conjectures_subnet.db import public as public_store
@@ -92,6 +95,24 @@ REFERENCE_LINK = re.compile(
     r"(?P<url>https?://(?:[^\s()]|\([^\s()]*\))+)"
     r"(?:\s+[^)]*)?\)"
 )
+
+# The repeatable filters are bounded on two axes, and the distinction is the whole point of these
+# two names. `Query(max_length=...)` on a `list` parameter bounds *how many times* the filter may
+# repeat; a bound on each value has to sit on the item type inside the list, which is what the
+# aliases below carry. Writing one and meaning the other is how `ams_subject` came to 500 on every
+# request that used it: `Query(ge=0, le=99)` on `list[int]` asked Pydantic to compare a *list*
+# against 0, which raises `TypeError: Unable to apply constraint 'ge' to supplied value [11]` —
+# after validation, so the error surfaced as an unhandled 500 rather than a 422.
+MAX_FILTER_VALUES = 64
+MAX_FILTER_VALUE_LENGTH = 64
+
+# One value of a repeatable string filter. The length bound is on the string, not on the list.
+FilterValue = Annotated[str, StringConstraints(max_length=MAX_FILTER_VALUE_LENGTH)]
+
+# One AMS subject: the top-level MSC classification, two digits. The pinned pool uses 3 through
+# 94, so the range is the classification scheme's, not the data's — a subject the next rotation
+# introduces must not be rejected for being new.
+AmsSubject = Annotated[int, Field(ge=0, le=99)]
 
 
 def _cache(response: Response, settings: Settings, *, seconds: int | None = None) -> None:
@@ -298,11 +319,17 @@ async def list_conjectures(
     response: Response,
     services: ServicesDep,
     session: SessionDep,
-    category: Annotated[list[str] | None, Query(max_length=64)] = None,
-    classification: Annotated[list[str] | None, Query(max_length=64)] = None,
-    task_mode: Annotated[list[str] | None, Query(max_length=64)] = None,
-    tier: Annotated[list[str] | None, Query(max_length=64)] = None,
-    ams_subject: Annotated[list[int] | None, Query(ge=0, le=99)] = None,
+    # Each of these is repeatable, so every bound is spelled twice on purpose: `max_length` on the
+    # `Query` caps how many times the filter may appear, and the item alias caps one value. See
+    # `MAX_FILTER_VALUES` for why putting a value's bound on the `Query` is not a shorthand for
+    # this but a different, broken thing.
+    category: Annotated[list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
+    classification: Annotated[
+        list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)
+    ] = None,
+    task_mode: Annotated[list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
+    tier: Annotated[list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
+    ams_subject: Annotated[list[AmsSubject] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
     is_open: bool | None = None,
     q: Annotated[str | None, Query(max_length=conjectures.MAX_QUERY_LENGTH)] = None,
     sort: Annotated[str, Query(pattern="^[a-z]{1,16}$")] = conjectures.SORT_SLUG,

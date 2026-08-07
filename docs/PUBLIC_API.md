@@ -203,6 +203,11 @@ theorem, module, statement and docstring — so pasting an identifier from a rep
 the search box finds its conjecture. A substring test and not a pattern, so a catastrophically
 backtracking regular expression is data rather than free CPU.
 
+`ams_subject` is an integer: the top-level MSC classification, `0`–`99` (the pinned pool uses 3
+through 94). The four string filters accept values up to 64 characters. Every repeatable filter may
+appear at most 64 times per request; a value outside its range, an unparseable integer, or a 65th
+repetition is a `400 MALFORMED_REQUEST`.
+
 Facet counts follow the usual faceted-search rule: each facet is counted over the results matching
 every filter **except its own**. Without that, selecting `category=research open` would collapse
 the category facet to one row and a reader could filter in but never out.
