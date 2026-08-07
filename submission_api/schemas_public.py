@@ -442,8 +442,8 @@ class PublicResult(Model):
         default=False,
         description=(
             "Whether the verifier report is published for this result, at "
-            "GET /v1/results/{id}/report. False for a submission that is not certified or in "
-            "review, so a rejected row is listed with no report to fetch"
+            "GET /v1/results/{id}/report. True for every Lean-verified submission, whatever "
+            "manual review later decides; false for queued or Lean-rejected rows"
         ),
     )
     review: PublicReviewDecision | None = Field(

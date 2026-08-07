@@ -76,11 +76,11 @@ not by removing the sensitive ones. What that buys is the default: a field added
 `report_sha256` is the digest of the **full** report, not of the reduced projection, so it still
 matches the immutable bytes on the run and the copy the submitting miner can read.
 
-A submission that is on no public feed is `404`, never `403`. Distinguishing "not published" from
+A submission that has not passed Lean is `404`, never `403`. Distinguishing "not published" from
 "does not exist" would turn `/v1/results/{id}` into a probe for the state of work that has not
 been published yet. That is unaffected by the dashboard feed listing every submission: the feed
-publishes each row's *state*, and the by-id read stays restricted to the certified and in-review
-rows — see [The dashboard feed is unfiltered](#the-dashboard-feed-is-unfiltered).
+publishes each row's *state*, while the by-id read stays restricted to Lean-verified work, whatever
+manual review later decides — see [The dashboard feed is unfiltered](#the-dashboard-feed-is-unfiltered).
 
 ## Conjectures
 
@@ -157,6 +157,26 @@ published `task_bundle_sha256`. It is held in memory from startup, not re-read p
 published statement cannot drift from the audited one between boot and a request — and a reader can
 verify it against the commitment without trusting the response.
 
+### References are split, not shipped as Markdown
+
+Each entry in `references` is a `{label, url}` pair, so a client renders a link without parsing
+Markdown. The upstream bibliography records a free-form citation that *may contain* a Markdown
+link rather than a string that is one, so the link is searched for wherever the citation puts it:
+
+| Upstream entry | `label` | `url` |
+| --- | --- | --- |
+| `[erdosproblems.com/11](https://www.erdosproblems.com/11)` | `erdosproblems.com/11` | `https://www.erdosproblems.com/11` |
+| `[Er46](https://doi.org/10.2307/2305092) Erdős, P. On sets. (1946)` | `Er46 Erdős, P. On sets. (1946)` | `https://doi.org/10.2307/2305092` |
+| `Leinster, Tom (2001). [arXiv:math/0104012](https://arxiv.org/abs/math/0104012)` | `Leinster, Tom (2001). arXiv:math/0104012` | `https://arxiv.org/abs/math/0104012` |
+| `Arora, Sanjeev, and Boaz Barak. Computational complexity. Cambridge, 2009.` | *(verbatim)* | `null` |
+
+`label` is the whole citation with every link flattened to its own text, so no words are lost and
+no Markdown link syntax reaches a client. `url` is the **first** link's target — a few entries cite
+both a paper and its arXiv mirror, and one field holds one address. `url` is `null` for the ~40% of
+entries with no link, including the handful whose parenthesised part is prose (`[Kanold](No
+references found)`) rather than an address; those keep their text verbatim rather than being handed
+a fabricated link. Emphasis markers (`*…*`) and inline TeX are left as the bibliography wrote them.
+
 `machine_contract` is the solver-facing contract: the identifiers the proof must define, the axioms
 it may depend on, the imports it may not use, the stable `reward_target_id`, and the limits it is
 checked against. The reward identifier belongs to one exact theorem target and is shared only by
@@ -182,6 +202,11 @@ is its own boolean, and `q` is a case-folded substring test over the slug, **eve
 theorem, module, statement and docstring — so pasting an identifier from a report or an old URL into
 the search box finds its conjecture. A substring test and not a pattern, so a catastrophically
 backtracking regular expression is data rather than free CPU.
+
+`ams_subject` is an integer: the top-level MSC classification, `0`–`99` (the pinned pool uses 3
+through 94). The four string filters accept values up to 64 characters. Every repeatable filter may
+appear at most 64 times per request; a value outside its range, an unparseable integer, or a 65th
+repetition is a `400 MALFORMED_REQUEST`.
 
 Facet counts follow the usual faceted-search rule: each facet is counted over the results matching
 every filter **except its own**. Without that, selecting `category=research open` would collapse
@@ -270,11 +295,14 @@ did run and did reach one — and `certified_at` is null until a payout confirms
 
 **Being listed is not being published.** Widening the feed publishes *that* an attempt exists and
 where it got to, and nothing else. The artifact gates are unchanged and are enforced in the query,
-not by this feed: `solution_available` is still false until review approves, `report_available` is
-false for a row that is on neither of the two narrow feeds, and `GET /v1/results/{id}`,
-`/report` and `/solution` all still answer `404` for a rejected or unverified id. So a dashboard
-that already holds a row does not need to re-fetch it, and an id alone is still not a probe for the
-state of someone else's work.
+not by this feed: `solution_available` is still false until review approves, and
+`report_available` is true after Lean verification, whatever manual review later decides.
+`GET /v1/results/{id}` and `/report` follow that same gate; `/solution` is stricter and additionally
+requires approval. All three still answer `404` for queued or Lean-rejected ids, while a
+review-rejected result has a record and report but no solution. So an id alone is still not a probe
+for the state of unpublished work. Payout is deliberately not part of this publication gate: an
+approved result stays readable while its reward is `ELIGIBLE`, and only enters the certified feed
+after the transfer is confirmed.
 
 `review` is the exception, and deliberately so: a review-rejected row on this feed carries its
 binding decision and `notes_public`, because a rejection whose published rationale is withheld is

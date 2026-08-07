@@ -218,6 +218,188 @@ def test_the_free_text_filter_is_a_substring_test_over_published_fields():
     run(scenario())
 
 
+def _with_subjects(theorem: str, subjects: tuple[int, ...]):
+    """A source declaration tagged with specific AMS subjects.
+
+    The shared `declaration()` fixture tags everything `(5,)`, which cannot show that a subject
+    filter discriminates rather than merely returning something.
+    """
+    source = declaration(theorem=theorem)
+    return type(source)(
+        **{
+            **{field: getattr(source, field) for field in source.__dataclass_fields__},
+            "ams_subjects": subjects,
+        }
+    )
+
+
+def subject_pool():
+    return (
+        task_entry(
+            task_id="open-direct",
+            reward_target_id="fc-target:Erdos11.erdos_11",
+            source=_with_subjects("Erdos11.erdos_11", (5, 11)),
+        ),
+        task_entry(
+            task_id="open-answer",
+            reward_target_id="fc-target:Erdos13.erdos_13",
+            source=_with_subjects("Erdos13.erdos_13", (94,)),
+        ),
+    )
+
+
+def test_the_ams_subject_filter_selects_by_subject():
+    """`?ams_subject=11` answered `500` for every value a caller could send.
+
+    `Query(ge=0, le=99)` sat on `list[int]`, so the bound was applied to the *list* rather than to
+    its items: Pydantic raised `TypeError: Unable to apply constraint 'ge' to supplied value [11]`,
+    which is not a validation error and so escaped as an unhandled server error. The filter was
+    unreachable — there was no value that worked, only values that crashed.
+    """
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            one = await _get(kit, "/v1/catalog/conjectures", ams_subject=11)
+            assert one.status_code == 200, one.text
+            assert [item["slug"] for item in one.json()["items"]] == [OPEN_DIRECT]
+
+            other = await _get(kit, "/v1/catalog/conjectures", ams_subject=94)
+            assert [item["slug"] for item in other.json()["items"]] == [OPEN_ANSWER]
+
+            # A subject nothing is tagged with is an empty result, not an error.
+            assert (await _get(kit, "/v1/catalog/conjectures", ams_subject=42)).json()[
+                "total"
+            ] == 0
+
+            # The boundary values of the MSC range are ordinary inputs.
+            for edge in (0, 99):
+                assert (
+                    await _get(kit, "/v1/catalog/conjectures", ams_subject=edge)
+                ).status_code == 200, edge
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_ams_subject_filter_is_repeatable_and_ored_within_the_field():
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            async with await _client(kit) as client:
+                both = await client.get(
+                    "/v1/catalog/conjectures", params=[("ams_subject", 11), ("ams_subject", 94)]
+                )
+            assert both.status_code == 200, both.text
+            assert {item["slug"] for item in both.json()["items"]} == {
+                OPEN_DIRECT,
+                OPEN_ANSWER,
+            }
+
+            # And the facet is counted over the other filters, so it still offers the alternative.
+            facets = {facet["field"]: facet["values"] for facet in both.json()["facets"]}
+            assert {item["value"] for item in facets["ams_subject"]} >= {"11", "94"}
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("value", [100, -1, "abc", ""])
+def test_an_unusable_ams_subject_is_a_400_and_never_a_500(value):
+    """The distinction the bug erased: a bad value is the caller's error, not the server's."""
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            response = await _get(kit, "/v1/catalog/conjectures", ams_subject=value)
+            assert response.status_code == 400, (value, response.status_code, response.text)
+            assert response.json()["reason_code"] == "MALFORMED_REQUEST"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_repeatable_filter_bounds_both_its_length_and_its_repetitions():
+    """Two different limits, and the older annotation only ever expressed one of them.
+
+    `Query(max_length=64)` on a `list[str]` is valid, so it never crashed — but it means "at most
+    64 values", not "at most 64 characters each". The per-value bound the module claims was
+    therefore not in force at all, and a single filter value of any length was accepted.
+    """
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            async with await _client(kit) as client:
+                at_limit = await client.get(
+                    "/v1/catalog/conjectures", params={"category": "x" * 64}
+                )
+                assert at_limit.status_code == 200, at_limit.text
+
+                too_long = await client.get(
+                    "/v1/catalog/conjectures", params={"category": "x" * 65}
+                )
+                assert too_long.status_code == 400, too_long.text
+                assert too_long.json()["reason_code"] == "MALFORMED_REQUEST"
+
+                # The repetition bound is still enforced, and separately.
+                many = await client.get(
+                    "/v1/catalog/conjectures",
+                    params=[("ams_subject", 5)] * 65,
+                )
+                assert many.status_code == 400, many.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_no_query_parameter_carries_a_constraint_pydantic_could_not_apply():
+    """An app-wide guard for the class of bug `ams_subject` was an instance of.
+
+    A numeric bound that Pydantic *could* apply becomes `minimum`/`maximum` in the schema. One it
+    could not — because it was attached to a container instead of to the container's items — is
+    left in the document as a raw `ge`/`le`/`gt`/`lt` key, which is not a JSON Schema keyword. So
+    a stray one of those names is exactly the signature of a constraint that will raise at request
+    time instead of validating, on any endpoint, including ones added later.
+    """
+    unapplied = ("ge", "le", "gt", "lt", "multiple_of", "min_length", "max_length")
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            schema = kit.app.openapi()
+            offenders = []
+            for path, operations in schema["paths"].items():
+                for method, operation in operations.items():
+                    for parameter in operation.get("parameters", ()):
+                        for node in _schema_nodes(parameter.get("schema", {})):
+                            for name in unapplied:
+                                if name in node:
+                                    offenders.append(
+                                        f"{method.upper()} {path} "
+                                        f"{parameter['name']}: stray {name!r}"
+                                    )
+            assert not offenders, offenders
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def _schema_nodes(node):
+    """Every subschema of a parameter schema, including through `anyOf` and `items`."""
+    if not isinstance(node, dict) or not node:
+        return
+    yield node
+    for branch in node.get("anyOf") or ():
+        yield from _schema_nodes(branch)
+    yield from _schema_nodes(node.get("items"))
+
+
 def test_the_page_size_is_capped():
     async def scenario():
         kit = await harness(entries=pool()).setup()
@@ -293,6 +475,10 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
                 "references": (
                     "[erdosproblems.com/11](https://www.erdosproblems.com/11)",
                     "Erdős, 1950",
+                    # A citation that merely *contains* a link, and ends in a year. The shape
+                    # most of the pinned catalog uses, and the one this endpoint used to publish
+                    # as raw Markdown with the URL run on through the authors.
+                    "[Er46](https://doi.org/10.2307/2305092) Erdős, P. On sets. (1946)",
                 ),
             }
         )
@@ -306,6 +492,12 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
                 },
                 # A reference that is not a link still arrives usable rather than dropped.
                 {"label": "Erdős, 1950", "url": None},
+                # The link is found mid-citation and the surrounding words are kept, so a client
+                # gets one clickable address and a label with no Markdown left in it.
+                {
+                    "label": "Er46 Erdős, P. On sets. (1946)",
+                    "url": "https://doi.org/10.2307/2305092",
+                },
             ]
         finally:
             await kit.teardown()

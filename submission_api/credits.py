@@ -197,8 +197,14 @@ DISQUALIFICATION_REASONS: tuple[tuple[str, str], ...] = (
     ),
     (
         "NOT_NOVEL",
-        "The result was already available in the pinned environment, so the proof "
-        "establishes nothing new.",
+        "The result was already available in the pinned environment, or a dated public "
+        "source had already solved the same direct problem and the submission substantially "
+        "implements that source's solution for the exact target.",
+    ),
+    (
+        "PRIOR_EXTERNAL_FORMALIZATION",
+        "Before this submission was accepted, the same reward target had already been "
+        "formally established in a publicly documented external proof system.",
     ),
     (
         "DUPLICATE_OF_EARLIER_SUBMISSION",

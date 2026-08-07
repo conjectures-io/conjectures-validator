@@ -24,9 +24,9 @@ The one thing this module does *not* keep behind a state filter is the dashboard
 ``all_results_page`` lists every submission, whatever state it is in, and each row carries its
 three state columns. ``certified_page`` and ``in_review_page`` are still one predicate each. The
 disclosure rules the state filter used to carry incidentally are enforced where they belong
-instead — ``accepted_solution`` gates the proof bytes on review approval, ``public_report`` gates
-the report on the row being on one of the two published feeds, and ``ReviewRow`` carries only the
-explicitly public half of a review decision.
+instead — ``accepted_solution`` gates proof bytes on review approval, ``public_report`` gates the
+report on Lean verification, and ``ReviewRow`` carries only the explicitly public half of a review
+decision.
 
 A page is read in four statements rather than one join with three lateral
 subqueries: the submissions for the page, then their latest verification runs,
@@ -42,7 +42,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, and_, func, or_, select, tuple_
+from sqlalchemy import Select, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.models import (
@@ -87,6 +87,13 @@ IN_REVIEW = (
 ACCEPTED = (
     Submission.verification_status == VerificationState.VERIFIED,
     Submission.manual_review_status == ManualReviewState.APPROVED,
+)
+
+# A result record and its allowlisted verifier report become public once Lean accepts the
+# submission, whatever manual review later decides. Review approval remains the separate gate on
+# proof bytes, and payout remains the stricter boundary for the certified feed.
+PUBLISHED = (
+    Submission.verification_status == VerificationState.VERIFIED,
 )
 
 MAX_ACTIVITY_ROWS = 500
@@ -257,8 +264,8 @@ async def all_results_page(
     and none of them lives in this query:
 
     * the proof bytes — ``accepted_solution`` still requires review approval, in the query;
-    * the verifier report — ``report_available`` is false for a row that is not on one of the two
-      published feeds, and ``public_report`` still refuses to serve one;
+    * the verifier report — ``report_available`` is false until Lean verifies the submission, and
+      ``public_report`` enforces the same gate;
     * the money — ``ResultRow`` has no column for the coldkey, the payment reference or the
       extrinsic, so widening the row set cannot expose them.
 
@@ -268,9 +275,9 @@ async def all_results_page(
     caveat on ``activity`` — and reporting the real pipeline is worth more than tightening them.
 
     ``public_result`` is deliberately *not* widened with this: reading one submission by id stays
-    restricted to the published feeds, so an id alone still cannot be turned into a probe for the
-    state of someone else's work. A dashboard that already holds the row does not need to re-fetch
-    it, so the asymmetry costs nothing.
+    restricted to Lean-verified work, so an id alone still cannot be turned into a probe for queued
+    or Lean-failed submissions. A dashboard that already holds those rows does not need to re-fetch
+    them, so the asymmetry costs nothing.
     """
     return await _page(session, [], limit=limit, after=after)
 
@@ -278,13 +285,13 @@ async def all_results_page(
 async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRow | None:
     """One result, if it is on a public feed.
 
-    A submission that is neither certified nor in review is reported as absent rather than
-    forbidden — the same rule ``get_for_miner`` follows, so a submission id cannot be probed for
-    the state of something not yet published.
+    A submission that Lean has not verified is reported as absent rather than forbidden — the same
+    rule ``get_for_miner`` follows, so a submission id cannot be probed for the state of something
+    not published.
     """
     statement = select(Submission).where(
         Submission.id == result_id,
-        _or_public(),
+        *PUBLISHED,
     )
     submission = (await session.execute(statement)).scalar_one_or_none()
     if submission is None:
@@ -293,26 +300,14 @@ async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRo
     return rows[0]
 
 
-def _or_public():
-    return or_(and_(*CERTIFIED), and_(*IN_REVIEW))
-
-
 def _is_public(submission: Submission) -> bool:
-    """``_or_public()`` evaluated against a row already loaded.
+    """``PUBLISHED`` evaluated against a row already loaded.
 
     Needed because ``all_results_page`` no longer filters on it: the predicate still decides
     whether a row's *report* may be served, and that has to be answered per row rather than by the
-    query. Written out rather than simplified to "verified and not review-rejected" — that
-    shortcut would also admit an approved-but-unpaid row, which ``CERTIFIED`` does not.
+    query.
     """
-    if submission.verification_status != VerificationState.VERIFIED:
-        return False
-    if submission.manual_review_status == ManualReviewState.UNREVIEWED:
-        return True
-    return (
-        submission.manual_review_status == ManualReviewState.APPROVED
-        and submission.reward_status == RewardState.REWARDED
-    )
+    return submission.verification_status == VerificationState.VERIFIED
 
 
 async def _page(
@@ -514,7 +509,7 @@ async def public_report(
     statement = (
         select(VerificationRun.report, VerificationRun.report_digest)
         .join(Submission, Submission.id == VerificationRun.submission_id)
-        .where(VerificationRun.submission_id == result_id, _or_public())
+        .where(VerificationRun.submission_id == result_id, *PUBLISHED)
         .order_by(VerificationRun.id.desc())
         .limit(1)
     )
@@ -530,7 +525,7 @@ async def accepted_solution(
     """The proof bytes, digest and length for an approved submission, or None.
 
     The one place in this module that reads `proofs.content`, and it is gated on ``ACCEPTED``
-    rather than on ``_or_public()``. That difference is the whole disclosure rule: a submission is
+    rather than on ``PUBLISHED``. That difference is the whole disclosure rule: a submission is
     *listed* once it is Lean-verified, but its proof is published only once review has approved
     it. An in-review row is on the feed with no solution to fetch.
 
@@ -732,6 +727,7 @@ __all__ = [
     "ACCEPTED",
     "CERTIFIED",
     "IN_REVIEW",
+    "PUBLISHED",
     "MAX_ACTIVITY_ROWS",
     "ActivityRow",
     "QueueDepths",

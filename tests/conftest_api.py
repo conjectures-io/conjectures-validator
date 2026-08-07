@@ -127,8 +127,8 @@ def terms() -> SubmissionTerms:
     """
     return SubmissionTerms.load(
         ROOT / "docs" / "SUBMISSION_TERMS.md",
-        version="v2",
-        effective_from=date(2026, 8, 5),
+        version="v3",
+        effective_from=date(2026, 8, 7),
     )
 
 
