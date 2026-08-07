@@ -218,7 +218,7 @@ async def _approve(kit, submission_id: str, *, notes_public: str | None = None):
 def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
     async def scenario():
         kit = await harness(
-            bounty_usd=StaticAlphaUsdPriceReader(Decimal("50"))
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal(50))
         ).setup()
         try:
             submission_id = await _submit(kit, "0001")
@@ -252,7 +252,6 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert item["report_available"] is True
             assert item["review"]["decision"] == "APPROVED"
             assert item["review"]["reason_code"] == "AUTO_REVIEW_DISABLED"
-            assert item["review"]["policy_version"] == "v1"
             assert item["review"]["decided_at"] is not None
             assert item["review"]["notes_public"] == (
                 "Lean passed; the reviewed result earns the published award."
@@ -287,13 +286,46 @@ def test_an_in_review_result_names_its_solver_but_carries_no_proof():
             assert [item["id"] for item in body["items"]] == [submission_id]
 
             item = body["items"][0]
-            assert item["review_policy_version"] == "v1"
             assert item["attribution"] == "conjectures.io"
             # No proof file, and no digest of one: review has not approved it yet.
             assert not {"proof", "proof_sha256", "challenge_lean"} & set(item)
             # The solver is named even in review — being listed is what publishes the hotkey.
             assert item["hotkey"] == HOTKEY
             assert COLDKEY not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_result_publishes_the_review_policy_that_governed_it_not_the_one_in_force_now():
+    """The policy version is read off the row, so bumping the setting cannot rewrite history.
+
+    `MANUAL_REVIEW_CRITERIA.md` says a material change needs a new version rather than a
+    reinterpretation of the old one. That only holds if an already-published result keeps naming
+    the version it was judged under: a reader checking what a payout was made against has to land
+    on the rules as they stood, not as they stand.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        retired = "v0-retired"
+        assert retired != kit.settings.review_policy_version
+        try:
+            submission_id = await _submit(kit, "0003")
+            # Accepted under the older policy. Set before review, so the decision copies it too.
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                submission.review_policy_version = retired
+                await session.commit()
+            await _verify(kit, submission_id)
+
+            in_review = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
+            assert in_review["review_policy_version"] == retired
+
+            await _certify(kit, submission_id)
+            certified = (await _get(kit, "/v1/results/certified")).json()["items"][0]
+            assert certified["review"]["policy_version"] == retired
         finally:
             await kit.teardown()
 
