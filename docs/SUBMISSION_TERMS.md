@@ -1,5 +1,12 @@
 # Submission terms
 
+**Terms version:** `v3`<br>
+**Effective date:** 2026-08-07<br>
+**Manual review policy:** `v2`
+
+These terms apply only to submissions accepted on or after the effective date. A submission
+accepted earlier remains governed by the terms and review-policy version recorded at acceptance.
+
 Served as `body_md` by `GET /v1/catalog/submission-terms`, alongside the machine-readable
 disqualification list from `submission_api/credits.py`. The prose here explains those
 codes; the list is the authority on what they are. Shown to a miner before they spend a
@@ -48,6 +55,26 @@ not approved; approved and not yet paid. Reading one says nothing about the othe
 One reward is paid per exact theorem target. Its proof and refutation tasks compete for that one
 reward, including across source repins. Independently formalized parents, parts, and variants are
 separate targets and can each earn a reward.
+
+A reward may be refused as `NOT_NOVEL` when either the result was already available in the exact
+pinned environment or, before we accepted the submission, a dated public source had already solved
+the same direct mathematical problem and the submitted proof substantially implements that
+source's solution for the exact target. The second branch requires the source and its date, an
+exact comparison of the source result with the submitted target, and concrete correspondence
+between the source's distinctive mathematical argument and the submitted proof. A shared
+conclusion, standard library use, or conventional strategy is not enough.
+
+`NOT_NOVEL` is a bounty-eligibility classification, not an accusation of plagiarism. It does not
+require a finding that the submitter falsely claimed authorship. If the chronology, exact target
+match, or source-to-submission correspondence is genuinely uncertain, this reason does not apply.
+
+A reward may also be refused when public, dated evidence shows that the same target had already
+been completed in an external formal proof system before we accepted the submission. This is
+recorded as `PRIOR_EXTERNAL_FORMALIZATION`; it is not an accusation that the miner copied anyone's
+work. A claim or announcement that a paper was formalized does not by itself meet this standard
+when no inspectable artifact, theorem statement, certificate, or other target-specific record is
+available. A mathematical paper may instead be evaluated under `NOT_NOVEL` using the requirements
+above.
 
 Bounty amounts are dynamic estimates. They are calculated from the live treasury balance and the
 target's age relative to the other open targets. Submitting does not lock the displayed amount or
