@@ -293,6 +293,10 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
                 "references": (
                     "[erdosproblems.com/11](https://www.erdosproblems.com/11)",
                     "Erdős, 1950",
+                    # A citation that merely *contains* a link, and ends in a year. The shape
+                    # most of the pinned catalog uses, and the one this endpoint used to publish
+                    # as raw Markdown with the URL run on through the authors.
+                    "[Er46](https://doi.org/10.2307/2305092) Erdős, P. On sets. (1946)",
                 ),
             }
         )
@@ -306,6 +310,12 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
                 },
                 # A reference that is not a link still arrives usable rather than dropped.
                 {"label": "Erdős, 1950", "url": None},
+                # The link is found mid-citation and the surrounding words are kept, so a client
+                # gets one clickable address and a label with no Markdown left in it.
+                {
+                    "label": "Er46 Erdős, P. On sets. (1946)",
+                    "url": "https://doi.org/10.2307/2305092",
+                },
             ]
         finally:
             await kit.teardown()

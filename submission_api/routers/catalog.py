@@ -29,6 +29,7 @@ index built at startup from `TaskCatalog.load`.
 from __future__ import annotations
 
 import hmac
+import re
 from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -73,7 +74,24 @@ CREDITS_PER_ATTEMPT = 1
 # an offline guessing attack recovers even if the salt leaked.
 PSEUDONYM_LENGTH = 12
 
-REFERENCE_MARKDOWN = "]("
+# One Markdown inline link, found anywhere in a reference rather than assumed to span all of it.
+#
+# Three details, each forced by what the pinned catalog actually contains:
+#
+#   * **The URL may contain balanced parentheses.** `Diameter_(group_theory)` and DOIs like
+#     `10.1002/(SICI)1097-0118(199804)27:4…` are both real, so a plain `[^)\s]+` would truncate
+#     them — and half a URL is worse than none, because it looks usable and 404s.
+#   * **`https?://` is required, not just "something in parentheses".** Entries like
+#     `[Er56](Erdős, P., Problems and results…)` and `[Kanold](No references found)` put prose
+#     where a link goes. Matching those would publish a sentence as a `url`.
+#   * **A Markdown title after the URL is dropped.** `[…](https://…/open-problems.pdf#section.1
+#     Problem 1)` is the title form written without quotes. The link is the part before the
+#     whitespace; the rest is a label for the link, not part of the address.
+REFERENCE_LINK = re.compile(
+    r"\[(?P<text>[^\]]*)\]\(\s*"
+    r"(?P<url>https?://(?:[^\s()]|\([^\s()]*\))+)"
+    r"(?:\s+[^)]*)?\)"
+)
 
 
 def _cache(response: Response, settings: Settings, *, seconds: int | None = None) -> None:
@@ -92,16 +110,36 @@ def _cache(response: Response, settings: Settings, *, seconds: int | None = None
 
 
 def _reference(raw: str) -> public.Reference:
-    """Split the catalog's Markdown link into a label and a URL.
+    """Split a catalog reference into a display label and a link.
 
-    The upstream catalog records references as `[label](url)`. Parsed here rather than shipped
-    raw so a website does not have to render Markdown to show a link, and so a reference that is
-    *not* a link still arrives as a usable label.
+    A reference *may contain* a Markdown link; it is not a string that *is* one. The pinned
+    catalog records free-form citations, and the link sits wherever the bibliography put it:
+
+        [Er64](https://users.renyi.hu/~p_erdos/1964-10.pdf) P. Erdős, Some problem (1964)
+        J. Černý, [*Poznámka…*](https://dml.cz/…), Matematicko-fyzikálny 14 (1964)
+        Arora, Sanjeev, and Boaz Barak. Computational complexity. Cambridge, 2009.
+
+    So the link is *searched for*, not assumed to span the whole string. Anchoring on the string's
+    own ends is what the earlier version did, and it failed both ways on real data: a citation
+    whose link is in the middle was published as raw Markdown with no URL, and one that merely
+    *ended* in `)` — every `… (1970)` — was split at its first `](`, which ran the URL on through
+    the author list. Roughly 8% of the pool hit one case or the other.
+
+    `url` is the first link's target; `label` is the whole citation with every link flattened to
+    its own text, so no words are dropped and no Markdown reaches a client that asked for none.
+    First rather than only, because a handful of entries cite a paper and its arXiv mirror; one
+    `url` field can hold one of them, and the leading link is the one the bibliography led with.
+
+    A reference with no link — 40% of the pool, and every entry whose parenthesised part is prose
+    rather than an address — keeps its text verbatim and reports `url=None`. Inventing a link for
+    those would be worse than admitting there is none.
     """
-    if raw.startswith("[") and REFERENCE_MARKDOWN in raw and raw.endswith(")"):
-        label, _, remainder = raw[1:-1].partition(REFERENCE_MARKDOWN)
-        return public.Reference(label=label, url=remainder or None)
-    return public.Reference(label=raw)
+    match = REFERENCE_LINK.search(raw)
+    if match is None:
+        return public.Reference(label=raw)
+    label = REFERENCE_LINK.sub(lambda found: found.group("text"), raw).strip()
+    # `or raw` guards the degenerate `[](https://…)`, where flattening leaves nothing to show.
+    return public.Reference(label=label or raw, url=match.group("url"))
 
 
 def _bounty(quote: LiveBounty, *, alpha_usd: Decimal | None) -> public.BountyInfo:

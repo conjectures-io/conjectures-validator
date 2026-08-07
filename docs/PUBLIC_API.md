@@ -157,6 +157,26 @@ published `task_bundle_sha256`. It is held in memory from startup, not re-read p
 published statement cannot drift from the audited one between boot and a request — and a reader can
 verify it against the commitment without trusting the response.
 
+### References are split, not shipped as Markdown
+
+Each entry in `references` is a `{label, url}` pair, so a client renders a link without parsing
+Markdown. The upstream bibliography records a free-form citation that *may contain* a Markdown
+link rather than a string that is one, so the link is searched for wherever the citation puts it:
+
+| Upstream entry | `label` | `url` |
+| --- | --- | --- |
+| `[erdosproblems.com/11](https://www.erdosproblems.com/11)` | `erdosproblems.com/11` | `https://www.erdosproblems.com/11` |
+| `[Er46](https://doi.org/10.2307/2305092) Erdős, P. On sets. (1946)` | `Er46 Erdős, P. On sets. (1946)` | `https://doi.org/10.2307/2305092` |
+| `Leinster, Tom (2001). [arXiv:math/0104012](https://arxiv.org/abs/math/0104012)` | `Leinster, Tom (2001). arXiv:math/0104012` | `https://arxiv.org/abs/math/0104012` |
+| `Arora, Sanjeev, and Boaz Barak. Computational complexity. Cambridge, 2009.` | *(verbatim)* | `null` |
+
+`label` is the whole citation with every link flattened to its own text, so no words are lost and
+no Markdown link syntax reaches a client. `url` is the **first** link's target — a few entries cite
+both a paper and its arXiv mirror, and one field holds one address. `url` is `null` for the ~40% of
+entries with no link, including the handful whose parenthesised part is prose (`[Kanold](No
+references found)`) rather than an address; those keep their text verbatim rather than being handed
+a fabricated link. Emphasis markers (`*…*`) and inline TeX are left as the bibliography wrote them.
+
 `machine_contract` is the solver-facing contract: the identifiers the proof must define, the axioms
 it may depend on, the imports it may not use, the stable `reward_target_id`, and the limits it is
 checked against. The reward identifier belongs to one exact theorem target and is shared only by
