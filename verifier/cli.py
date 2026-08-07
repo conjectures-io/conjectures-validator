@@ -26,7 +26,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m verifier")
     subcommands = parser.add_subparsers(dest="command", required=True)
-    subcommands.add_parser("doctor")
+    doctor = subcommands.add_parser("doctor")
+    doctor.add_argument("--allow-insecure-development", action="store_true")
 
     catalog = subcommands.add_parser("catalog")
     catalog_commands = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -81,7 +82,9 @@ def _print(value: object) -> None:
 
 def _run(args: argparse.Namespace) -> int:
     if args.command == "doctor":
-        report = doctor_report(PROJECT_ROOT)
+        report = doctor_report(
+            PROJECT_ROOT, insecure_development=args.allow_insecure_development
+        )
         _print(report)
         return 0 if report["ready"] else 2
     if args.command == "catalog" and args.catalog_command == "build":

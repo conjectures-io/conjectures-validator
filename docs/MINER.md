@@ -1,12 +1,53 @@
 # Miner guide
 
-How to get one Lean proof submitted, verified, and paid. Everything here is doable with the
-scripts in this repository and a Bittensor wallet.
+How to get one Lean proof submitted, verified, and paid.
 
-The short version: **pick a task, write `Main.lean`, check it locally, pay 0.5 TAO, submit the
-bundle, poll the status.** A submission is only created once the transfer is confirmed on
-finalized chain state, so a failed request costs nothing but a refused one costs the transfer.
-Check locally before you pay.
+A submission is only created once the transfer is confirmed on finalized chain state, so a failed
+request costs nothing but a refused one costs the transfer. **Check locally before you pay.**
+
+---
+
+## Start here: the CLI
+
+[`conjectures-miner`](https://github.com/conjectures-io/conjectures-miner) does everything on this
+page, and is the supported way to mine.
+
+```bash
+git clone https://github.com/conjectures-io/conjectures-miner && cd conjectures-miner
+./install.sh
+conjectures config set wallet_name my-wallet     # names only -- no key material, ever
+conjectures config set wallet_hotkey my-hotkey
+```
+
+Then the whole flow:
+
+```bash
+conjectures tasks sync                                  # cache the task list
+conjectures tasks challenge erdos1094                   # what you have to prove
+                                                        # ... write Main.lean ...
+conjectures build --proof Main.lean --task erdos1094    # seals submission.zip
+conjectures verify                                      # is the proof correct?
+conjectures check                                       # is the envelope acceptable?
+conjectures pay                                         # 0.5 TAO, coldkey -> treasury
+conjectures submit
+conjectures submissions show <id> --watch
+```
+
+`check` never reads the proof: it is the zip, the manifest and a static policy scan. Whether the
+**proof** is correct is a different question, and only the verifier answers it — `verify` builds
+this repository's verifier on your machine and runs it over the sealed `submission.zip`:
+
+```bash
+conjectures verify --setup                              # once: ~20 GB, 30-60 minutes
+conjectures verify                                      # exit 0 correct, 1 rejected
+```
+
+Linux only (WSL2 on Windows). It runs the development sandbox rather than the isolation a
+validator applies to a proof it did not write, so it answers whether the proof is correct — not
+whether the submission will be accepted.
+
+**The rest of this page is the same flow by hand**, for anyone not installing the CLI. It needs a
+checkout of this repository and a Bittensor wallet.
 
 ---
 
@@ -90,15 +131,21 @@ python3 -m verifier bundle scan --bundle submission.zip
 a `reason_code` and costs you nothing to fix. The builder also prints the `proof_sha256` you
 will need next.
 
-You can go further and run the real verifier locally, which is the same check the validator
-runs:
+You can go further and run the real verifier, which is the same check the validator runs. This
+needs a built checkout — `scripts/bootstrap.sh --miner`, about an hour — which is what
+`conjectures verify --setup` does for you:
 
 ```bash
 python3 -m verifier verify \
   --task ../conjectures-tasks/pool/<tier>/<task_id> \
   --submission Main.lean \
-  --expected-task-sha256 <task_bundle_sha256>
+  --expected-task-sha256 <task_bundle_sha256> \
+  --allow-insecure-development
 ```
+
+Without `--allow-insecure-development` this refuses to start on any host below Landlock ABI 4,
+which is most of them. The flag changes the isolation, not the verdict, and the report names
+which one ran.
 
 ## 4. Pay
 
