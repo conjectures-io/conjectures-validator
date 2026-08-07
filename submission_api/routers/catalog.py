@@ -17,7 +17,9 @@ the module:
   direction. Grouping happens once at startup in `submission_api/conjectures.py`.
 * **Every list is bounded.** `limit` is capped, the free-text filter is length-capped and is a
   substring test rather than a pattern, and the facets are computed over a fixed in-memory list.
-  None of these endpoints can be made to do unbounded work.
+  Each repeatable filter is bounded twice — on how many times it may repeat and on the length of
+  one value — because those are two different limits and only one of them can live on the `Query`.
+  See `MAX_FILTER_VALUES`. None of these endpoints can be made to do unbounded work.
 * **The statement is served from the audited bytes.** Each task's `challenge_lean` is the exact
   `Challenge.lean` hashed into its published `task_bundle_sha256`, held in memory since startup,
   so what a reader verifies is what the verifier compiles.
@@ -29,6 +31,7 @@ index built at startup from `TaskCatalog.load`.
 from __future__ import annotations
 
 import hmac
+import re
 from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -36,6 +39,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Request, Response
 from fastapi.responses import RedirectResponse
+from pydantic import Field, StringConstraints
 
 from conjectures_subnet.bounty import BountyPoolSnapshot, LiveBounty
 from conjectures_subnet.db import public as public_store
@@ -73,7 +77,42 @@ CREDITS_PER_ATTEMPT = 1
 # an offline guessing attack recovers even if the salt leaked.
 PSEUDONYM_LENGTH = 12
 
-REFERENCE_MARKDOWN = "]("
+# One Markdown inline link, found anywhere in a reference rather than assumed to span all of it.
+#
+# Three details, each forced by what the pinned catalog actually contains:
+#
+#   * **The URL may contain balanced parentheses.** `Diameter_(group_theory)` and DOIs like
+#     `10.1002/(SICI)1097-0118(199804)27:4…` are both real, so a plain `[^)\s]+` would truncate
+#     them — and half a URL is worse than none, because it looks usable and 404s.
+#   * **`https?://` is required, not just "something in parentheses".** Entries like
+#     `[Er56](Erdős, P., Problems and results…)` and `[Kanold](No references found)` put prose
+#     where a link goes. Matching those would publish a sentence as a `url`.
+#   * **A Markdown title after the URL is dropped.** `[…](https://…/open-problems.pdf#section.1
+#     Problem 1)` is the title form written without quotes. The link is the part before the
+#     whitespace; the rest is a label for the link, not part of the address.
+REFERENCE_LINK = re.compile(
+    r"\[(?P<text>[^\]]*)\]\(\s*"
+    r"(?P<url>https?://(?:[^\s()]|\([^\s()]*\))+)"
+    r"(?:\s+[^)]*)?\)"
+)
+
+# The repeatable filters are bounded on two axes, and the distinction is the whole point of these
+# two names. `Query(max_length=...)` on a `list` parameter bounds *how many times* the filter may
+# repeat; a bound on each value has to sit on the item type inside the list, which is what the
+# aliases below carry. Writing one and meaning the other is how `ams_subject` came to 500 on every
+# request that used it: `Query(ge=0, le=99)` on `list[int]` asked Pydantic to compare a *list*
+# against 0, which raises `TypeError: Unable to apply constraint 'ge' to supplied value [11]` —
+# after validation, so the error surfaced as an unhandled 500 rather than a 422.
+MAX_FILTER_VALUES = 64
+MAX_FILTER_VALUE_LENGTH = 64
+
+# One value of a repeatable string filter. The length bound is on the string, not on the list.
+FilterValue = Annotated[str, StringConstraints(max_length=MAX_FILTER_VALUE_LENGTH)]
+
+# One AMS subject: the top-level MSC classification, two digits. The pinned pool uses 3 through
+# 94, so the range is the classification scheme's, not the data's — a subject the next rotation
+# introduces must not be rejected for being new.
+AmsSubject = Annotated[int, Field(ge=0, le=99)]
 
 
 def _cache(response: Response, settings: Settings, *, seconds: int | None = None) -> None:
@@ -92,16 +131,36 @@ def _cache(response: Response, settings: Settings, *, seconds: int | None = None
 
 
 def _reference(raw: str) -> public.Reference:
-    """Split the catalog's Markdown link into a label and a URL.
+    """Split a catalog reference into a display label and a link.
 
-    The upstream catalog records references as `[label](url)`. Parsed here rather than shipped
-    raw so a website does not have to render Markdown to show a link, and so a reference that is
-    *not* a link still arrives as a usable label.
+    A reference *may contain* a Markdown link; it is not a string that *is* one. The pinned
+    catalog records free-form citations, and the link sits wherever the bibliography put it:
+
+        [Er64](https://users.renyi.hu/~p_erdos/1964-10.pdf) P. Erdős, Some problem (1964)
+        J. Černý, [*Poznámka…*](https://dml.cz/…), Matematicko-fyzikálny 14 (1964)
+        Arora, Sanjeev, and Boaz Barak. Computational complexity. Cambridge, 2009.
+
+    So the link is *searched for*, not assumed to span the whole string. Anchoring on the string's
+    own ends is what the earlier version did, and it failed both ways on real data: a citation
+    whose link is in the middle was published as raw Markdown with no URL, and one that merely
+    *ended* in `)` — every `… (1970)` — was split at its first `](`, which ran the URL on through
+    the author list. Roughly 8% of the pool hit one case or the other.
+
+    `url` is the first link's target; `label` is the whole citation with every link flattened to
+    its own text, so no words are dropped and no Markdown reaches a client that asked for none.
+    First rather than only, because a handful of entries cite a paper and its arXiv mirror; one
+    `url` field can hold one of them, and the leading link is the one the bibliography led with.
+
+    A reference with no link — 40% of the pool, and every entry whose parenthesised part is prose
+    rather than an address — keeps its text verbatim and reports `url=None`. Inventing a link for
+    those would be worse than admitting there is none.
     """
-    if raw.startswith("[") and REFERENCE_MARKDOWN in raw and raw.endswith(")"):
-        label, _, remainder = raw[1:-1].partition(REFERENCE_MARKDOWN)
-        return public.Reference(label=label, url=remainder or None)
-    return public.Reference(label=raw)
+    match = REFERENCE_LINK.search(raw)
+    if match is None:
+        return public.Reference(label=raw)
+    label = REFERENCE_LINK.sub(lambda found: found.group("text"), raw).strip()
+    # `or raw` guards the degenerate `[](https://…)`, where flattening leaves nothing to show.
+    return public.Reference(label=label or raw, url=match.group("url"))
 
 
 def _bounty(quote: LiveBounty, *, alpha_usd: Decimal | None) -> public.BountyInfo:
@@ -260,11 +319,17 @@ async def list_conjectures(
     response: Response,
     services: ServicesDep,
     session: SessionDep,
-    category: Annotated[list[str] | None, Query(max_length=64)] = None,
-    classification: Annotated[list[str] | None, Query(max_length=64)] = None,
-    task_mode: Annotated[list[str] | None, Query(max_length=64)] = None,
-    tier: Annotated[list[str] | None, Query(max_length=64)] = None,
-    ams_subject: Annotated[list[int] | None, Query(ge=0, le=99)] = None,
+    # Each of these is repeatable, so every bound is spelled twice on purpose: `max_length` on the
+    # `Query` caps how many times the filter may appear, and the item alias caps one value. See
+    # `MAX_FILTER_VALUES` for why putting a value's bound on the `Query` is not a shorthand for
+    # this but a different, broken thing.
+    category: Annotated[list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
+    classification: Annotated[
+        list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)
+    ] = None,
+    task_mode: Annotated[list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
+    tier: Annotated[list[FilterValue] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
+    ams_subject: Annotated[list[AmsSubject] | None, Query(max_length=MAX_FILTER_VALUES)] = None,
     is_open: bool | None = None,
     q: Annotated[str | None, Query(max_length=conjectures.MAX_QUERY_LENGTH)] = None,
     sort: Annotated[str, Query(pattern="^[a-z]{1,16}$")] = conjectures.SORT_SLUG,
