@@ -338,6 +338,98 @@ class ConjectureListResponse(Model):
     offset: int
 
 
+class ConjectureVariantRef(Model):
+    """One direction of one variant conjecture, as a pointer into the catalog.
+
+    A `slug` rather than a `task_id`: the point of the index is to be linkable, and a task id
+    moves on every pin rotation. `GET /v1/catalog/conjectures/{slug}` is where the statement, the
+    Lean and the machine contract live, which is why none of them are repeated here.
+
+    One row per attack direction, so a variant that can be both proved and refuted appears twice
+    with the same slug and a different `task_mode`. That is the pairing a solver picks: a slug on
+    its own does not say which direction has a task issued against it.
+    """
+
+    slug: str = Field(description=SLUG_DESCRIPTION)
+    task_mode: str = Field(description="formalized | counterexample")
+    retired: bool = Field(
+        default=False,
+        description=(
+            "True when this variant has been withdrawn from the pool. Its page stays readable and "
+            "the results earned against it stay citable, but nothing can be submitted against it. "
+            "Filter on this to get the directions still worth attempting"
+        ),
+    )
+
+
+class ConjectureIndexEntry(Model):
+    """One upstream problem, and every pooled variant of it.
+
+    Coarser than `ConjectureSummary`, which is one row per conjecture. Upstream formalises a
+    problem as a root theorem plus any number of `.variants.*` siblings, each of which is its own
+    reward target — so Erdős 1 is eight conjectures and one problem. This is the problem-level
+    view, for a caller building a table of contents rather than a bounty list.
+
+    Retired conjectures appear here, flagged, at both levels. That is the one place this surface
+    differs from `/v1/catalog/conjectures`, which lists only what may be submitted against: a
+    problem that has left the pool is still part of what the pool has covered, and its page is
+    still readable. `retired` is what keeps that from reading as an offer.
+    """
+
+    slug: str = Field(description=SLUG_DESCRIPTION)
+    source_theorem: str = Field(
+        description="The fully-qualified theorem at `slug`; an identifier, not prose"
+    )
+    erdos_problem_number: int | None = Field(
+        default=None,
+        description=(
+            "The erdosproblems.com problem number, read from the source module. Null for every "
+            "other collection in the pool — Wikipedia, OEIS, the Millennium problems — which is "
+            "an ordinary thing for a conjecture to be rather than missing data. Not unique and "
+            "not a key: one problem is often formalised as several independent root theorems in "
+            "one module, so many entries share a number. `slug` is the identity"
+        ),
+    )
+    qualifier: str | None = Field(
+        default=None,
+        description=(
+            "Which variant `slug` names, when the problem is represented by one. Null when the "
+            "root theorem itself is in the pool; set when only variants are, in which case the "
+            "best-precedence variant stands in for the problem"
+        ),
+    )
+    retired: bool = Field(
+        default=False,
+        description=(
+            "True when the conjecture at `slug` has been withdrawn from the pool. Describes that "
+            "one conjecture and never the family: a problem whose root is retired can still hold "
+            "submittable variants, so do not filter problems on this — read `variants[].retired`"
+        ),
+    )
+    variants: tuple[ConjectureVariantRef, ...] = Field(
+        default=(),
+        description=(
+            "The family's other members, live and retired alike, one row per attack direction. "
+            "Never includes `slug` itself, so a problem with no pooled variants reports an empty "
+            "list"
+        ),
+    )
+
+
+class ConjectureIndexResponse(Model):
+    """Every problem in the pool, in one response.
+
+    Unpaginated on purpose. It is a few hundred rows of identifiers with no statements, no Lean
+    and no database read, and a table of contents that arrives in pages is not one — a caller
+    would have to reassemble it before it was usable. `repository_commit` names the pinned
+    revision the index describes, so a client can tell one rotation's index from the next.
+    """
+
+    total: int = Field(description="Problems in the pool; the length of `items`")
+    items: tuple[ConjectureIndexEntry, ...]
+    repository_commit: str
+
+
 class PinInfo(Model):
     component: str
     repository: str | None = None

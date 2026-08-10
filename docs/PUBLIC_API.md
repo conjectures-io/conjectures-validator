@@ -12,6 +12,7 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/catalog/conjectures` | `ConjectureListResponse` | List with filters and facet counts; one entry per conjecture |
 | `GET` | `/v1/catalog/conjectures/{slug}` | `ConjectureDetail` | Statement, references, bounty, pins, and one `Challenge.lean` plus machine contract per attack direction |
 | `GET` | `/v1/catalog/conjectures/{slug}/activity` | `ConjectureActivity` | Anonymised activity stream |
+| `GET` | `/v1/catalog/index` | `ConjectureIndexResponse` | Flat table of contents; one entry per *problem*, with its variants, retired ones flagged |
 | `GET` | `/v1/catalog/meta` | `PoolMeta` | Counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out |
 | `GET` | `/v1/results/in-review` | `CursorPage<InReviewResult>` | Lean-verified, awaiting manual review |
@@ -144,6 +145,104 @@ So both fold into one conjecture, and the per-task facts live under `tasks`:
 `attempts` at the conjecture level counts submissions in either direction, and it is keyed on
 `reward_target_id` — so it does not reset to zero at each rotation, which a task-keyed counter
 would. The per-task `attempts` keeps the breakdown a solver choosing a direction actually wants.
+
+### One index entry per problem, not per conjecture
+
+`GET /v1/catalog/index` groups one level coarser than everything above. Upstream formalises a
+problem as a root theorem plus any number of `.variants.*` siblings — weaker forms, one-sided
+bounds, named special cases — and each of those is its own reward target, its own slug and its own
+bounty. Correct for a bounty list, wrong for a table of contents: Erdős 1 alone is eight rows.
+
+So the index reports one entry per *problem*, keyed on the root theorem the family shares:
+
+```json
+{
+  "total": 4,
+  "repository_commit": "e923379e…",
+  "items": [
+    {
+      "slug": "erdos1-erdos-1",
+      "source_theorem": "Erdos1.erdos_1",
+      "erdos_problem_number": 1,
+      "qualifier": null,
+      "retired": false,
+      "variants": [
+        {"slug": "erdos1-erdos-1-variants-lb", "task_mode": "formalized", "retired": false},
+        {"slug": "erdos1-erdos-1-variants-lb", "task_mode": "counterexample", "retired": false},
+        {"slug": "erdos1-erdos-1-variants-real", "task_mode": "formalized", "retired": false},
+        {"slug": "erdos1-erdos-1-variants-weaker", "task_mode": "formalized", "retired": true}
+      ]
+    }
+  ]
+}
+```
+
+Five details, each forced by what the pinned catalog contains:
+
+* **`erdos_problem_number` is read from the module, never from the theorem name.** Upstream files
+  each Erdős problem under `FormalConjectures.ErdosProblems.«N»`, and all 509 such modules match
+  that shape. Twenty theorem *names* are mangled by Lean's private-declaration scheme into
+  `_private.FormalConjectures.ErdosProblems.«1049».0.Erdos1049.lambert_convergent`, which a
+  name parser reads wrong rather than not at all. It is null for every other collection —
+  Wikipedia, OEIS, the Millennium problems — because "not an Erdős problem" is an ordinary thing
+  for a conjecture to be, and null for an unrecognised module shape too: publishing no number is
+  recoverable, publishing a wrong one is not.
+* **`erdos_problem_number` is not a key.** 934 problems carry one and only 509 are distinct,
+  because upstream regularly formalises one problem as several independent root theorems in one
+  module. `slug` is the identity.
+* **`qualifier` says when a variant is standing in for its problem.** It is null when the root
+  theorem is itself in the pool. 241 of the catalog's 942 variants have no root declaration at
+  all, leaving 70 problems headed by a variant; there the best-precedence variant represents the
+  problem — see below — and `qualifier` names it. Qualifiers are kept whole, dots included —
+  upstream nests the qualifier, not the variant, so `…variants.monotone.parts.i` qualifies as
+  `monotone.parts.i`.
+* **`variants` is one row per attack direction, and never contains `slug` itself.** A variant
+  that can be both proved and refuted appears twice with the same slug and a different
+  `task_mode`, because a slug alone does not say which direction has a task issued against it. A
+  problem with no pooled variants reports `[]`.
+* **Retired conjectures are included, flagged at both levels.** This is the one catalog list that
+  shows them, and the reason is that it is a table of contents rather than an offer: a problem that
+  has left the pool is still part of what the pool has covered, its detail page is still readable,
+  and the results earned against it are still citable. An index that omitted them would disagree
+  with the pages it links to. `retired` is what keeps their presence from reading as an offer.
+
+### `retired` describes one conjecture, never a family
+
+`retired` on an entry is about the conjecture at `slug` and nothing else. **Do not filter problems
+on it.** A problem whose root has been retired can still hold submittable variants:
+
+```json
+{
+  "slug": "erdos99-erdos-99",
+  "source_theorem": "Erdos99.erdos_99",
+  "erdos_problem_number": 99,
+  "qualifier": null,
+  "retired": true,
+  "variants": [
+    {"slug": "erdos99-erdos-99-variants-weak", "task_mode": "formalized", "retired": false}
+  ]
+}
+```
+
+Dropping that row loses a target that is still open. To list what can be attempted, read the
+members' own flags.
+
+A retired root still heads its family, which is the deliberate half of this. Handing the header to
+a live variant instead would move the entry's `slug` and `source_theorem`, so retiring one target
+would silently renumber a published table of contents — the opposite of what a stable slug is for.
+The header stays put and `retired` reports what happened to it. Precedence within a family is the
+root theorem first, then a live conjecture before a retired one, then slug; `variants` is ordered by
+slug alone, so retiring a variant does not reorder a list a reader has already seen.
+
+Nothing here widens admission. `TaskCatalog` is built from `allowlist.json` alone and never consults
+the retired index, so a retired slug published here resolves to nothing on the grouping the
+submission path uses — and a retired conjecture has no `MachineContract`, so there is not even a
+shape in which a submission for one could be assembled. See [`../submission_api/retired.py`](../submission_api/retired.py).
+
+The index is unpaginated, and it is the one catalog endpoint that reads no database at all — not
+even the attempt counters. It is a grouping of the startup index into a few hundred rows of
+identifiers, with no statement, no Lean and no bounty quote, so the work is bounded by the pool
+rather than by the caller. Follow a slug to `/v1/catalog/conjectures/{slug}` for any of those.
 
 ### The rest of a conjecture
 
@@ -380,6 +479,7 @@ Never cached: this is the endpoint a client polls to learn whether what it was t
 | Endpoint | `Cache-Control` | `ETag` |
 | --- | --- | --- |
 | `/v1/catalog/meta` | `public, max-age=PUBLIC_CACHE_SECONDS` (60 by default) | yes |
+| `/v1/catalog/index` | `public, max-age=PUBLIC_CACHE_SECONDS` | yes |
 | Other catalog reads | `public, max-age=PUBLIC_CACHE_SECONDS` | no |
 | Results | `public, max-age=PUBLIC_CACHE_SECONDS / 2` | no |
 | `/v1/system/status` | `no-store` | no |
@@ -389,11 +489,21 @@ a shared cache in front of the API may serve one copy to everyone. It is also th
 rate-limit relief available. Anything that ever becomes caller-dependent has to lose the header in
 the same change.
 
-`/v1/catalog/meta` carries a strong `ETag` and honours `If-None-Match` with a `304`. It is the one
-public endpoint whose payload comes entirely from startup state — the catalog, the pin set and the
-settings, none of which move while the process runs — and the one a website hits on every page
-load. The tag is hashed from the serialised payload rather than assembled from its inputs, so it
-cannot drift from the body.
+`/v1/catalog/meta` carries a strong `ETag` and honours `If-None-Match` with a `304`. Its payload
+comes entirely from startup state — the catalog, the pin set and the settings, none of which move
+while the process runs — and a website hits it on every page load. The tag is hashed from the
+serialised payload rather than assembled from its inputs, so it cannot drift from the body.
+
+`/v1/catalog/index` carries one too, on a stronger version of the same argument. Its body holds no
+counter, no bounty quote and no price, so it is a pure function of the pinned pool: byte-identical
+on every request until a rotation replaces the pool. A table of contents is also the thing a site
+re-fetches most, and without a validator a client re-downloads the whole index each time `max-age`
+lapses only to be handed the same bytes.
+
+Both share one helper, `_conditional`, so the tag and the `304` cannot disagree between them. It
+hashes the serialised payload, attaches the `ETag`, and returns a bodiless `304` — repeating the
+validator and the caching headers, per RFC 9110 — when `If-None-Match` names that body. Weak
+comparison prefixes are stripped and `*` matches anything.
 
 The list, detail and result endpoints carry no `ETag` on purpose: their payloads include live
 attempt counters, so any honest validator would have to be recomputed from the database on every

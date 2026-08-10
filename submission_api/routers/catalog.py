@@ -559,6 +559,66 @@ async def read_conjecture(
 
 
 @router.get(
+    "/index",
+    response_model=public.ConjectureIndexResponse,
+    summary="Every problem in the pool, with its variants, as one flat index",
+)
+async def read_index(
+    request: Request, response: Response, services: ServicesDep
+) -> public.ConjectureIndexResponse | Response:
+    """A problem-level table of contents over the pool.
+
+    The one endpoint here that reads nothing but the startup index — no database at all, not even
+    the attempt counters. That is what makes it safe to leave unpaginated: the work is a grouping
+    of a few hundred in-memory objects into a response of identifiers, with no statement, no Lean
+    and no bounty quote in it. A caller that wants any of those follows a slug to
+    `/v1/catalog/conjectures/{slug}`.
+
+    It carries a strong `ETag` and honours `If-None-Match`, and this is the endpoint that argument
+    fits best. The body is a pure function of the pinned pool: it holds no counter, no bounty quote
+    and no price, so it is byte-identical on every request until a pin rotation replaces the pool —
+    and a table of contents is the thing a site re-fetches most. Without a validator a client
+    re-downloads the whole index every time `max-age` lapses, to be handed the same bytes.
+
+    Retired targets are present and flagged, at both levels — the one place this surface differs
+    from `/v1/catalog/conjectures`, which lists only what may be submitted against. A table of
+    contents that omitted them would disagree with the detail pages it links to, since a retired
+    conjecture stays readable so the results earned against it remain citable. `retired` is what
+    keeps their presence from reading as an offer, and it describes one conjecture rather than a
+    family: a problem headed by a retired root can still hold submittable variants.
+    """
+    settings = services.settings
+    grouped = conjectures.families(services.index)
+    index = public.ConjectureIndexResponse(
+        total=len(grouped),
+        items=tuple(_index_entry(family) for family in grouped),
+        repository_commit=services.index.repository_commit,
+    )
+    not_modified = _conditional(request, response, settings, index)
+    return not_modified if not_modified is not None else index
+
+
+def _index_entry(family: conjectures.ProblemFamily) -> public.ConjectureIndexEntry:
+    return public.ConjectureIndexEntry(
+        slug=family.slug,
+        source_theorem=family.source_theorem,
+        erdos_problem_number=family.erdos_problem_number,
+        qualifier=family.qualifier,
+        retired=family.retired,
+        variants=tuple(
+            public.ConjectureVariantRef(
+                slug=variant.slug, task_mode=mode, retired=variant.retired
+            )
+            # `task_modes` is already ordered by `PRODUCTION_TASK_MODES` on both a live conjecture
+            # and a retired one, so `formalized` precedes `counterexample` regardless of how the
+            # pool was walked or whether the target has left it.
+            for variant in family.variants
+            for mode in variant.task_modes
+        ),
+    )
+
+
+@router.get(
     "/meta",
     response_model=public.PoolMeta,
     summary="Pool metadata: counts, credit price, treasury, bounty model, pins",
@@ -579,22 +639,38 @@ async def read_meta(
     await session.commit()
     alpha_usd = await services.bounty_usd.alpha_usd()
     meta = _meta(services, settings, items, snapshot, alpha_usd=alpha_usd)
+    not_modified = _conditional(request, response, settings, meta)
+    return not_modified if not_modified is not None else meta
 
-    # Hashed from the serialised payload rather than assembled from the inputs, so the validator
-    # cannot drift from the body: any change to what is published changes the tag.
-    etag = '"' + sha256_text(meta.model_dump_json())[len("sha256:") :][:32] + '"'
+
+def _conditional(
+    request: Request, response: Response, settings: Settings, payload: public.Model
+) -> Response | None:
+    """Tag `response` with a strong `ETag`, and answer `304` when the caller already has that body.
+
+    Returns the 304 to send instead of the payload, or None to send the payload.
+
+    The tag is hashed from the *serialised payload* rather than assembled from the inputs that
+    built it, which is what makes it impossible for the validator to drift from the body: anything
+    that changes what is published changes the tag, including a field added to the model later.
+    Truncated to 32 hex characters — 128 bits, far past where an accidental collision between two
+    revisions of one endpoint's body is a practical concern.
+
+    Correctness does not depend on where the payload came from; usefulness does. A body that is
+    recomputed from the database on every request and changes constantly would be tagged honestly
+    and never hit, so the caller would pay the hash and get nothing back. Worth attaching only
+    where the body is stable between requests — which is why the result feeds do not have one.
+    """
+    etag = '"' + sha256_text(payload.model_dump_json())[len("sha256:") :][:32] + '"'
     _cache(response, settings)
     response.headers["ETag"] = etag
-    if _matches(request.headers.get("if-none-match"), etag):
-        # 304 must repeat the validator and the caching headers, and must carry no body.
-        return Response(
-            status_code=304,
-            headers={
-                "ETag": etag,
-                "Cache-Control": response.headers["Cache-Control"],
-            },
-        )
-    return meta
+    if not _matches(request.headers.get("if-none-match"), etag):
+        return None
+    # A 304 must repeat the validator and the caching headers, and must carry no body.
+    return Response(
+        status_code=304,
+        headers={"ETag": etag, "Cache-Control": response.headers["Cache-Control"]},
+    )
 
 
 def _matches(header: str | None, etag: str) -> bool:
