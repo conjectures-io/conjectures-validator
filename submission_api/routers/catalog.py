@@ -49,6 +49,7 @@ from submission_api.conjectures import Conjecture, ConjectureIndex
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound
 from submission_api.pins import PinSet
+from submission_api.retired import RetiredConjecture
 from submission_api.settings import (
     DEFAULT_ACTIVITY_ITEMS,
     DEFAULT_PAGE_SIZE,
@@ -307,6 +308,95 @@ def _redirect(index: ConjectureIndex, slug: str, settings: Settings, *, suffix: 
     return response
 
 
+def _withdrawn_bounty(settings: Settings) -> public.BountyInfo:
+    """The bounty block for a conjecture that has left the pool.
+
+    The pricer is not consulted at all. A retired target is not among the reward targets it was
+    built with, so asking it would mean asking a question with no defined answer and then
+    discarding it — and quoting an amount, even a stale one, next to a target nothing can be
+    submitted against is the one number on this page that could mislead a solver into work.
+
+    `as_of` is the moment of the response rather than a cached snapshot, because the statement
+    being made — this target is closed — is true now and was true when it was retired.
+    """
+    return public.BountyInfo(
+        amount_rao=None,
+        amount_usd=None,
+        policy_version=settings.bounty_policy_version,
+        available=False,
+        reason="WITHDRAWN",
+        as_of=datetime.now(UTC),
+        locked=False,
+    )
+
+
+def _retired_detail(
+    item: RetiredConjecture,
+    *,
+    services,
+    settings: Settings,
+    attempts: int,
+    by_task: Mapping[str, int],
+) -> public.ConjectureDetail:
+    """A retired conjecture rendered as a detail page.
+
+    Every field a live conjecture publishes about the *problem* is here, recovered from the
+    bundles at the commit that deleted them: statement, docstring, category, AMS subjects,
+    references, and the exact `Challenge.lean`. What is deliberately absent is everything about
+    *submitting*: `machine_contract` is null on each task and `bounty.reason` is `WITHDRAWN`.
+
+    Attempt counts are read from the database exactly as they are for a live target. They are the
+    reason the page exists — the work recorded against this conjecture does not stop being real
+    when the target closes.
+    """
+    return public.ConjectureDetail(
+        slug=item.slug,
+        title=item.source.theorem,
+        statement=item.source.type_pretty,
+        summary=item.source.docstring,
+        category=item.source.category,
+        classification=item.classification,
+        task_modes=item.task_modes,
+        tier=item.tier,
+        ams_subjects=item.source.ams_subjects,
+        # Read from the source declaration, exactly as `conjectures.is_open` does for a live
+        # target: whether the conjecture is open *upstream* is a fact about mathematics, and it
+        # does not change because this pool stopped issuing tasks for it. Whether it can be
+        # submitted against is what `retirement` and `bounty.reason` report.
+        is_open=item.source.category == conjectures.OPEN_CATEGORY,
+        problem_id=item.problem_id,
+        reward_target_id=item.reward_target_id,
+        source_theorem=item.source.theorem,
+        source_module=item.source.module,
+        source_path=item.source.source_path,
+        supported_modes=item.source.supported_modes,
+        references=tuple(_reference(value) for value in item.source.references),
+        tasks=tuple(
+            public.ConjectureTaskDetail(
+                task_id=task.task_id,
+                task_mode=task.task_mode,
+                task_bundle_sha256=task.task_bundle_sha256,
+                attempts=by_task.get(task.task_id, 0),
+                challenge_lean=task.challenge_lean,
+                machine_contract=None,
+            )
+            for task in item.tasks
+        ),
+        bounty=_withdrawn_bounty(settings),
+        retirement=public.RetirementInfo(
+            retired_on=item.retired_on,
+            reason_code=item.reason_code,
+            reason=item.reason,
+            decision_url=item.decision_url,
+            recovered_from_commit=item.recovered_from_commit,
+        ),
+        submission_price_rao=settings.payment_amount_rao,
+        attempts=attempts,
+        repository_commit=services.index.repository_commit,
+        pins=_pins(services.pins),
+    )
+
+
 # --- Endpoints -----------------------------------------------------------------------------
 
 
@@ -408,6 +498,24 @@ async def read_conjecture(
     settings = services.settings
     item = services.index.get(slug)
     if item is None:
+        # A miss on the live index is not necessarily a dead URL. A retired target keeps its page
+        # so the results and attribution already earned against it stay citable; only then does a
+        # miss fall through to the legacy-slug redirect and finally to 404.
+        withdrawn = services.index.get_retired(slug)
+        if withdrawn is not None:
+            attempts = await public_store.attempts_for_conjecture(
+                session, withdrawn.reward_target_id
+            )
+            by_task = await public_store.attempts_by_task(session)
+            await session.commit()
+            _cache(response, settings)
+            return _retired_detail(
+                withdrawn,
+                services=services,
+                settings=settings,
+                attempts=attempts,
+                by_task=by_task,
+            )
         return _redirect(services.index, slug, settings)
 
     attempts = await public_store.attempts_for_conjecture(session, item.reward_target_id)
@@ -545,6 +653,10 @@ async def read_activity(
 ) -> public.ConjectureActivity | Response:
     settings = services.settings
     item = services.index.get(slug)
+    if item is None:
+        # Activity is the whole point of keeping a retired page: it is where the attempts,
+        # solvers and verified results earned against the target are shown.
+        item = services.index.get_retired(slug)
     if item is None:
         return _redirect(services.index, slug, settings, suffix="/activity")
 

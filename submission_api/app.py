@@ -74,6 +74,7 @@ from submission_api.observability import (
 )
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
+from submission_api.retired import RetiredIndex
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.routers import catalog as catalog_router
 from submission_api.routers import (
@@ -114,11 +115,21 @@ def build_services(
     catalog: TaskCatalog | None = None,
     pins: PinSet | None = None,
     terms: SubmissionTerms | None = None,
+    retired: RetiredIndex | None = None,
 ) -> Services:
     """Assemble the service graph. Tests inject a catalog, pin set and terms directly."""
     resolved_catalog = catalog or TaskCatalog.load(
         allowlist_path=settings.task_allowlist_path,
         pool_root=settings.task_pool_root,
+    )
+    # Read from the same checkout as the allowlist and verified against the digest that
+    # allowlist's tier policy publishes, so a pool and its retired set cannot come from
+    # different releases. Only loaded when the catalog was read from disk: an injected catalog
+    # has no checkout behind it to read a retired set from.
+    resolved_retired = retired or (
+        RetiredIndex.load(allowlist_path=settings.task_allowlist_path)
+        if catalog is None
+        else RetiredIndex.empty()
     )
     resolved_pins = pins or PinSet.load(settings.pins_path)
     if catalog is None and pins is None:
@@ -148,6 +159,7 @@ def build_services(
         engine=engine,
         sessions=async_session_factory(engine),
         catalog=resolved_catalog,
+        retired=resolved_retired,
         authenticator=build_authenticator(settings),
         payments=build_payment_verifier(settings),
         dispatcher=build_dispatcher(settings),
