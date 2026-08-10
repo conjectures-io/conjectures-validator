@@ -744,6 +744,534 @@ def test_meta_never_publishes_the_elan_asset_digests():
     run(scenario())
 
 
+# --- index -------------------------------------------------------------------------------
+
+
+def _in_module(theorem: str, module: str):
+    """A source declaration with a specific module.
+
+    The module matters here and nowhere else in this file. `erdos_problem_number` is read from it
+    rather than from the theorem name, so a fixture that left every module as `TestFixtures` could
+    not tell a correct implementation from one that scraped the digits out of `Erdos1.erdos_1`.
+    """
+    source = declaration(theorem=theorem)
+    return type(source)(
+        **{
+            **{field: getattr(source, field) for field in source.__dataclass_fields__},
+            "module": module,
+        }
+    )
+
+
+def _conjecture(theorem: str, module: str, *, modes=("formalized", "counterexample")):
+    """One conjecture's tasks: one per attack direction, sharing a reward target.
+
+    Sharing the reward target is what makes them one conjecture rather than several — the same
+    grouping the rest of the catalog relies on — and it is why `variants` can report a slug and a
+    mode without the two ever disagreeing.
+    """
+    return tuple(
+        task_entry(
+            task_id=f"{theorem}-{mode}",
+            reward_target_id=f"fc-target:{theorem}",
+            task_mode=mode,
+            mode=mode,
+            source=_in_module(theorem, module),
+        )
+        for mode in modes
+    )
+
+
+ERDOS_1 = "FormalConjectures.ErdosProblems.«1»"
+
+
+def family_pool():
+    """A pool whose problems differ along every axis the index reports.
+
+    Four problems out of six conjectures, which is the whole point of the endpoint: a pool listed
+    per conjecture would be six rows and would not say that three of them are one problem.
+    """
+    return (
+        # A problem whose root is pooled, with two variants — one attackable both ways, one only
+        # provable, so the mode expansion cannot be faked by doubling every row.
+        *_conjecture("Erdos1.erdos_1", ERDOS_1),
+        *_conjecture("Erdos1.erdos_1.variants.lb", ERDOS_1),
+        *_conjecture("Erdos1.erdos_1.variants.real", ERDOS_1, modes=("formalized",)),
+        # A problem pooled *only* as a variant. 241 of the pinned catalog's variants have no root
+        # declaration, leaving 70 problems headed by one, so this is an ordinary case with real
+        # data behind it — and `qualifier` is what reports that it happened.
+        *_conjecture(
+            "Erdos1062.erdos_1062.variants.lower_bound",
+            "FormalConjectures.ErdosProblems.«1062»",
+        ),
+        # A dotted qualifier: upstream nests the qualifier, not the variant.
+        *_conjecture(
+            "Erdos357.erdos_357.variants.monotone.parts.i",
+            "FormalConjectures.ErdosProblems.«357»",
+        ),
+        # Not an Erdős problem at all, so it must report a null number rather than be omitted.
+        *_conjecture("ABC.abc", "FormalConjectures.Wikipedia.ABC"),
+    )
+
+
+def test_the_index_publishes_one_entry_per_problem_with_its_variants():
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            response = await _get(kit, "/v1/catalog/index")
+            assert response.status_code == 200, response.text
+            body = response.json()
+
+            assert body["repository_commit"] == REPOSITORY_COMMIT
+            # Six conjectures, four problems. `total` counts problems and agrees with `items`.
+            assert body["total"] == 4 == len(body["items"])
+            assert body["items"] == [
+                {
+                    "slug": "abc-abc",
+                    "source_theorem": "ABC.abc",
+                    "erdos_problem_number": None,
+                    "qualifier": None,
+                    "retired": False,
+                    "variants": [],
+                },
+                {
+                    "slug": "erdos1-erdos-1",
+                    "source_theorem": "Erdos1.erdos_1",
+                    "erdos_problem_number": 1,
+                    # The root itself is pooled, so nothing qualifies the entry.
+                    "qualifier": None,
+                    "retired": False,
+                    "variants": [
+                        {
+                            "slug": "erdos1-erdos-1-variants-lb",
+                            "task_mode": "formalized",
+                            "retired": False,
+                        },
+                        {
+                            "slug": "erdos1-erdos-1-variants-lb",
+                            "task_mode": "counterexample",
+                            "retired": False,
+                        },
+                        # Only one row: this variant has one direction issued against it.
+                        {
+                            "slug": "erdos1-erdos-1-variants-real",
+                            "task_mode": "formalized",
+                            "retired": False,
+                        },
+                    ],
+                },
+                {
+                    "slug": "erdos1062-erdos-1062-variants-lower-bound",
+                    "source_theorem": "Erdos1062.erdos_1062.variants.lower_bound",
+                    "erdos_problem_number": 1062,
+                    # No root in the pool, so the variant stands in and says which one it is.
+                    "qualifier": "lower_bound",
+                    "retired": False,
+                    "variants": [],
+                },
+                {
+                    "slug": "erdos357-erdos-357-variants-monotone-parts-i",
+                    "source_theorem": "Erdos357.erdos_357.variants.monotone.parts.i",
+                    "erdos_problem_number": 357,
+                    # Kept whole rather than truncated at its first dot.
+                    "qualifier": "monotone.parts.i",
+                    "retired": False,
+                    "variants": [],
+                },
+            ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_never_lists_a_conjecture_as_its_own_variant():
+    """Whatever represents a problem must not also appear underneath it.
+
+    The representative is picked out of the same family it heads, so the obvious implementation
+    lists it twice — once as `slug` and once in its own `variants`. Checked with retired members
+    mixed in too, where the family is assembled from two separate indexes and the duplicate is
+    that much easier to reintroduce.
+    """
+
+    async def scenario():
+        for entries, retired in (
+            (family_pool(), None),
+            (mixed_pool(), mixed_retired()),
+        ):
+            kit = await harness(entries=entries, retired=retired).setup()
+            try:
+                body = (await _get(kit, "/v1/catalog/index")).json()
+                assert body["items"]
+                for item in body["items"]:
+                    assert item["slug"] not in {
+                        variant["slug"] for variant in item["variants"]
+                    }
+                # And no conjecture is grouped under two problems, which is what the live/retired
+                # slug disjointness `ConjectureIndex.build` enforces buys here.
+                owners: dict[str, set[str]] = {}
+                for item in body["items"]:
+                    for variant in item["variants"]:
+                        owners.setdefault(variant["slug"], set()).add(item["slug"])
+                assert all(len(problems) == 1 for problems in owners.values()), owners
+            finally:
+                await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_carries_a_strong_etag_and_answers_a_repeat_read_with_304():
+    """The index is byte-identical until a pin rotation, so a repeat read should cost no body.
+
+    A stronger claim than meta's: this payload holds no counter, no bounty quote and no price, so
+    nothing but a new pool can change it.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            async with await _client(kit) as client:
+                first = await client.get("/v1/catalog/index")
+                etag = first.headers["etag"]
+                assert etag.startswith('"') and etag.endswith('"')
+
+                unchanged = await client.get(
+                    "/v1/catalog/index", headers={"If-None-Match": etag}
+                )
+                assert unchanged.status_code == 304
+                assert unchanged.content == b""
+                # A 304 must repeat the validator and the caching headers.
+                assert unchanged.headers["etag"] == etag
+                assert unchanged.headers["cache-control"] == "public, max-age=60"
+
+                # A list, per RFC 9110, and the wildcard.
+                for header in (f'"stale", {etag}', f"W/{etag}", "*"):
+                    assert (
+                        await client.get(
+                            "/v1/catalog/index", headers={"If-None-Match": header}
+                        )
+                    ).status_code == 304, header
+
+                stale = await client.get(
+                    "/v1/catalog/index", headers={"If-None-Match": '"not-the-tag"'}
+                )
+                assert stale.status_code == 200
+                assert stale.json() == first.json()
+
+                # Nothing moves between two unconditional reads, which is the property the tag is
+                # claiming. A counter in the body would break this.
+                assert (await client.get("/v1/catalog/index")).headers["etag"] == etag
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_etag_tracks_what_is_actually_published():
+    """Hashed from the serialised payload, so the validator cannot drift from the body.
+
+    Retiring a conjecture changes a flag inside `variants` and nothing else — no slug appears or
+    disappears at the top level — so a tag assembled from the pool's inputs rather than from the
+    response could easily miss it.
+    """
+
+    async def scenario():
+        one = await harness(entries=mixed_pool()).setup()
+        two = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            async with await _client(one) as client:
+                without = await client.get("/v1/catalog/index")
+            async with await _client(two) as client:
+                with_retired = await client.get("/v1/catalog/index")
+
+            assert without.json() != with_retired.json()
+            assert without.headers["etag"] != with_retired.headers["etag"]
+        finally:
+            await one.teardown()
+            await two.teardown()
+
+    run(scenario())
+
+
+def test_the_index_is_cacheable_and_reads_no_database():
+    """Unpaginated is only defensible because the work is bounded and the database is untouched.
+
+    The engine is disposed before the request, so any query at all fails rather than merely being
+    slow — which is what makes this a test of the claim and not a restatement of it.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            await kit.engine.dispose()
+            response = await _get(kit, "/v1/catalog/index")
+            assert response.status_code == 200, response.text
+            assert response.json()["total"] == 4
+            assert response.headers["Cache-Control"] == "public, max-age=60"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def _retired(theorem: str, module: str, *, modes=("formalized", "counterexample")):
+    """One retired conjecture, shaped like a real recovered entry.
+
+    A `RetiredTask` rather than a `TaskEntry`, matching the production type: the bundle is gone, so
+    there is no manifest and no machine contract to carry — which is exactly why the index reports
+    a flag rather than pretending the target is submittable.
+    """
+    from submission_api.retired import RetiredConjecture, RetiredTask
+    from submission_api.slugs import slug_for
+
+    return RetiredConjecture(
+        slug=slug_for(f"fc-target:{theorem}"),
+        problem_id="fixture-problem",
+        reward_target_id=f"fc-target:{theorem}",
+        tier="tier-1",
+        retired_on="2026-08-06",
+        reason_code="SOLVED + NOT_OPEN",
+        reason="SOLVED + NOT_OPEN (settled by a verified submission)",
+        decision_url=None,
+        recovered_from_commit="c" * 40,
+        source=_in_module(theorem, module),
+        tasks=tuple(
+            RetiredTask(
+                task_id=f"{theorem}-{mode}-retired",
+                task_mode=mode,
+                task_bundle_sha256="sha256:" + "a" * 64,
+                target_type_sha256="sha256:" + "b" * 64,
+                challenge_lean="-- recovered from the deleted bundle\n",
+            )
+            for mode in modes
+        ),
+    )
+
+
+ERDOS_99 = "FormalConjectures.ErdosProblems.«99»"
+
+
+def mixed_pool():
+    """`family_pool` plus a live variant of a problem whose root is retired.
+
+    Erdős 99 is the case that decides the precedence rule: its root has left the pool but a variant
+    of it is still submittable, so something has to head the family and the choice is visible.
+    """
+    return (*family_pool(), *_conjecture("Erdos99.erdos_99.variants.weak", ERDOS_99))
+
+
+def mixed_retired():
+    from submission_api.retired import RetiredIndex
+
+    items = (
+        # A retired variant of a problem whose root is live: belongs under `erdos1-erdos-1`.
+        _retired("Erdos1.erdos_1.variants.weaker", ERDOS_1),
+        # A retired root whose problem still has a live variant.
+        _retired("Erdos99.erdos_99", ERDOS_99),
+    )
+    return RetiredIndex(
+        by_slug={item.slug: item for item in items},
+        slug_by_task_id={
+            task_id: item.slug for item in items for task_id in item.task_ids
+        },
+    )
+
+
+def test_the_index_includes_a_retired_variant_under_its_live_problem():
+    async def scenario():
+        kit = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            entries = {item["slug"]: item for item in body["items"]}
+
+            # A retired variant adds no problem of its own — it joins the family it belongs to.
+            assert body["total"] == 5
+            erdos_1 = entries["erdos1-erdos-1"]
+            assert erdos_1["retired"] is False
+            assert erdos_1["variants"] == [
+                {
+                    "slug": "erdos1-erdos-1-variants-lb",
+                    "task_mode": "formalized",
+                    "retired": False,
+                },
+                {
+                    "slug": "erdos1-erdos-1-variants-lb",
+                    "task_mode": "counterexample",
+                    "retired": False,
+                },
+                {
+                    "slug": "erdos1-erdos-1-variants-real",
+                    "task_mode": "formalized",
+                    "retired": False,
+                },
+                # Ordered by slug like the rest, not pushed to the end: retiring a variant must
+                # not reorder a list a reader has already seen.
+                {
+                    "slug": "erdos1-erdos-1-variants-weaker",
+                    "task_mode": "formalized",
+                    "retired": True,
+                },
+                {
+                    "slug": "erdos1-erdos-1-variants-weaker",
+                    "task_mode": "counterexample",
+                    "retired": True,
+                },
+            ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_retired_root_still_heads_its_problem_and_keeps_its_live_variants():
+    """Retiring a root must not rename the problem it belongs to.
+
+    Handing the header to a live variant instead would move the entry's `slug` and
+    `source_theorem`, so one retirement would silently renumber a published table of contents —
+    the opposite of what a stable slug is for. The header stays put and `retired` reports it.
+    """
+
+    async def scenario():
+        kit = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            entries = {item["slug"]: item for item in body["items"]}
+
+            assert entries["erdos99-erdos-99"] == {
+                "slug": "erdos99-erdos-99",
+                "source_theorem": "Erdos99.erdos_99",
+                "erdos_problem_number": 99,
+                "qualifier": None,
+                "retired": True,
+                "variants": [
+                    {
+                        "slug": "erdos99-erdos-99-variants-weak",
+                        "task_mode": "formalized",
+                        "retired": False,
+                    },
+                    {
+                        "slug": "erdos99-erdos-99-variants-weak",
+                        "task_mode": "counterexample",
+                        "retired": False,
+                    },
+                ],
+            }
+            # Which is why `retired` on the entry is not a filter for "nothing to do here": this
+            # problem is headed by a closed target and still has two directions open.
+            assert [
+                variant
+                for variant in entries["erdos99-erdos-99"]["variants"]
+                if not variant["retired"]
+            ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_wholly_retired_problem_is_its_own_entry_and_still_readable():
+    async def scenario():
+        from test_api_retired import RETIRED_SLUG, retired_index
+
+        kit = await harness(entries=family_pool(), retired=retired_index()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            entries = {item["slug"]: item for item in body["items"]}
+
+            # Erdős 10 is carried by nothing but this retired variant, so it is a problem of its
+            # own — a fifth entry beside `family_pool`'s four.
+            assert body["total"] == 5
+            assert entries[RETIRED_SLUG] == {
+                "slug": RETIRED_SLUG,
+                "source_theorem": "Erdos10.erdos_10.variants.grechuk",
+                # `retired_index` builds its declaration with the shared fixture module, which is
+                # not an Erdős module — so the number is null here, and that is the honest answer
+                # for a module this cannot recognise.
+                "erdos_problem_number": None,
+                "qualifier": "grechuk",
+                "retired": True,
+                "variants": [],
+            }
+
+            # The index agrees with the page it links to, which is the reason to publish it here.
+            detail = await _get(kit, f"/v1/catalog/conjectures/{RETIRED_SLUG}")
+            assert detail.status_code == 200, detail.text
+            assert detail.json()["retirement"]["reason_code"] == "SOLVED + NOT_OPEN"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_never_offers_a_retired_conjecture_as_submittable():
+    """Whatever the index publishes, the submission path must still refuse a retired target.
+
+    The flag is a display concern; this is the boundary underneath it. `TaskCatalog` is built from
+    the allowlist alone and never consults the retired index, so every retired slug in the index
+    resolves to nothing on the live grouping the submission path uses.
+    """
+
+    async def scenario():
+        kit = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            retired_slugs = {
+                item["slug"] for item in body["items"] if item["retired"]
+            } | {
+                variant["slug"]
+                for item in body["items"]
+                for variant in item["variants"]
+                if variant["retired"]
+            }
+            assert retired_slugs == {
+                "erdos1-erdos-1-variants-weaker",
+                "erdos99-erdos-99",
+            }
+            for slug in retired_slugs:
+                assert kit.services.index.get(slug) is None
+                detail = (await _get(kit, f"/v1/catalog/conjectures/{slug}")).json()
+                # No bundle, so no contract a submission could even be assembled against.
+                assert detail["retirement"] is not None
+                assert detail["bounty"]["reason"] == "WITHDRAWN"
+                assert all(
+                    task["machine_contract"] is None for task in detail["tasks"]
+                )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_erdos_number_comes_from_the_module_not_the_theorem_name():
+    """Lean mangles private declarations, and the mangled name carries a misleading number.
+
+    `_private.FormalConjectures.ErdosProblems.«1049».0.Erdos1049.lambert_convergent` is a real
+    catalog entry. Twenty of them exist, and a theorem-name parser reads them wrong or not at all;
+    the module is unambiguous for all 509 Erdős modules in the pinned catalog.
+    """
+    from submission_api.conjectures import (
+        erdos_problem_number,
+        root_theorem,
+        variant_qualifier,
+    )
+
+    assert erdos_problem_number("FormalConjectures.ErdosProblems.«1049»") == 1049
+    assert erdos_problem_number("FormalConjectures.ErdosProblems.«9»") == 9
+    # Every other collection, and anything a future rotation invents, reports no number rather
+    # than a wrong one or an exception.
+    assert erdos_problem_number("FormalConjectures.Wikipedia.ABC") is None
+    assert erdos_problem_number("FormalConjectures.ErdosProblems.«12a»") is None
+    assert erdos_problem_number("TestFixtures") is None
+
+    assert root_theorem("Erdos1.erdos_1.variants.lb") == "Erdos1.erdos_1"
+    assert root_theorem("Erdos1.erdos_1") == "Erdos1.erdos_1"
+    assert variant_qualifier("Erdos1.erdos_1") is None
+    assert (
+        variant_qualifier("Erdos357.erdos_357.variants.monotone.parts.i")
+        == "monotone.parts.i"
+    )
+
+
 # --- activity ----------------------------------------------------------------------------
 
 
