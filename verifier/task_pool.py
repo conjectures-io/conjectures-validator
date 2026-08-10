@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable, Mapping
 
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import pretty_json, sha256_bytes
@@ -24,6 +24,7 @@ TASK_POOL_SCHEMA_VERSION = 8
 SELECTION_AUDIT_SCHEMA_VERSION = 2
 TASK_GROUP_SCHEMA_VERSION = 1
 TASK_TARGET_SCHEMA_VERSION = 3
+RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
 DEFAULT_TIER_SIZE = 136
@@ -96,6 +97,23 @@ class RetiredSources:
     repository_commit: str
     theorems: frozenset[str]
     type_hashes: frozenset[str]
+    sha256: str
+
+
+@dataclass(frozen=True)
+class RetiredConjectures:
+    """The display payload for targets that left the pool, keyed by reward target.
+
+    Deliberately not part of `RetiredSources`. That file is an admission input: membership in it
+    excludes a theorem from selection. This one is presentation only — the API serves it so a
+    retired problem keeps a readable page — and nothing in the submission or verification path
+    reads it. Keeping the two apart is what stops a display concern from ever widening the
+    deny-by-default boundary.
+    """
+
+    repository_commit: str
+    # reward_target_id -> the entry as published, passed through to the public catalog.
+    entries: Mapping[str, Mapping[str, Any]]
     sha256: str
 
 
@@ -574,6 +592,67 @@ def load_retired_sources(path: Path) -> RetiredSources:
     )
 
 
+def load_retired_conjectures(path: Path) -> RetiredConjectures:
+    """Load the read-only display payload for retired targets.
+
+    Validated on the same terms as every other pinned metadata file — exact field set, one
+    pinned revision, no duplicate targets — because it is published from the task repository and
+    reaches the public catalog. What it is *not* is an admission input: no caller may use it to
+    decide that a task can be submitted or verified.
+    """
+    try:
+        content = path.read_bytes()
+        value = json.loads(content.decode("utf-8", errors="strict"))
+        if not isinstance(value, dict) or set(value) != {
+            "repository_commit",
+            "retired",
+            "schema_version",
+        }:
+            raise ValueError("retired conjecture field set is not exact")
+        repository_commit = value["repository_commit"]
+        rows = value["retired"]
+        if (
+            type(value["schema_version"]) is not int
+            or value["schema_version"] != RETIRED_CONJECTURE_SCHEMA_VERSION
+            or not isinstance(repository_commit, str)
+            or len(repository_commit) != 40
+            or any(character not in "0123456789abcdef" for character in repository_commit)
+            or not isinstance(rows, list)
+        ):
+            raise ValueError("retired conjecture data is invalid")
+
+        entries: dict[str, Mapping[str, Any]] = {}
+        for row in rows:
+            if (
+                not isinstance(row, dict)
+                or not isinstance(row.get("reward_target_id"), str)
+                or not row["reward_target_id"].startswith(REWARD_TARGET_PREFIX)
+                or not isinstance(row.get("theorem"), str)
+                or not row["theorem"]
+                or not isinstance(row.get("retired_on"), str)
+                or not isinstance(row.get("source"), dict)
+                or not isinstance(row.get("tasks"), list)
+                or not row["tasks"]
+            ):
+                raise ValueError("a retired conjecture entry is malformed")
+            target = row["reward_target_id"]
+            if target in entries:
+                raise ValueError(f"duplicate retired conjecture {target}")
+            if target != REWARD_TARGET_PREFIX + row["theorem"]:
+                raise ValueError(f"{target} does not name its own theorem")
+            entries[target] = row
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"cannot load retired conjectures: {exc}",
+        ) from exc
+    return RetiredConjectures(
+        repository_commit=repository_commit,
+        entries=entries,
+        sha256=sha256_bytes(content),
+    )
+
+
 def select_task_declarations(
     *,
     catalog: Catalog,
@@ -730,6 +809,7 @@ def build_task_allowlist(
     *,
     catalog: Catalog,
     retired: RetiredSources,
+    retired_conjectures: RetiredConjectures,
     selection_audit: SelectionAudit,
     task_targets: TaskTargets,
     grouping: TaskGrouping,
@@ -873,6 +953,7 @@ def build_task_allowlist(
                 "pool_size": len(tasks),
                 "reward_target_count": len(set(reward_targets.values())),
                 "reward_target_policy": REWARD_TARGET_POLICY,
+                "retired_conjectures_sha256": retired_conjectures.sha256,
                 "retired_source_theorems_sha256": retired.sha256,
                 "selection": {
                     WHOLE_PROBLEM_POLICY: "audited-erdos-whole-problem-v1",
