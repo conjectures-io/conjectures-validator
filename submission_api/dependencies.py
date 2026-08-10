@@ -29,6 +29,7 @@ from submission_api.mail import MailSender
 from submission_api.sessions import Principal
 from submission_api.payments import PaymentVerifier
 from submission_api.pins import PinSet
+from submission_api.retired import RetiredIndex
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
 from submission_api.taostats import AlphaUsdPriceReader, UnavailableAlphaUsdPriceReader
@@ -54,6 +55,11 @@ class Services:
     packages: tuple[CreditPackage, ...]
     terms: SubmissionTerms
     bounty_usd: AlphaUsdPriceReader = field(default_factory=UnavailableAlphaUsdPriceReader)
+    # Targets that have left the pool, kept readable so results already earned against them stay
+    # citable. Separate from `catalog` on purpose: `catalog` is what a submission resolves
+    # against, and nothing in this field can ever reach that path. Empty by default, so a test
+    # that cares about admission does not have to know this exists.
+    retired: RetiredIndex = field(default_factory=RetiredIndex.empty)
     # The public view of `catalog`: tasks grouped into slug-addressable conjectures. Derived
     # rather than passed so that building a `Services` at all runs the slug collision check —
     # including in tests, which construct this directly. A pool that cannot be addressed by
@@ -61,7 +67,9 @@ class Services:
     index: ConjectureIndex = field(init=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "index", ConjectureIndex.build(self.catalog))
+        object.__setattr__(
+            self, "index", ConjectureIndex.build(self.catalog, retired=self.retired)
+        )
 
 
 def get_services(request: Request) -> Services:

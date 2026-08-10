@@ -42,6 +42,7 @@ from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.mail import ConsoleSender
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet
+from submission_api.retired import RetiredIndex
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
 from submission_api.taostats import UnavailableAlphaUsdPriceReader
@@ -292,13 +293,23 @@ class Harness:
 
 
 def harness(
-    *, entries=None, dispatcher=None, payments=None, bounty_usd=None, **overrides: str
+    *,
+    entries=None,
+    dispatcher=None,
+    payments=None,
+    bounty_usd=None,
+    retired=None,
+    **overrides: str,
 ) -> Harness:
     """The API under test.
 
     `payments` injects a payment verifier. Needed for the chain verifier, because
     `build_payment_verifier` would otherwise construct a real Subtensor reader and the test would
     reach the live network.
+
+    `retired` injects a `RetiredIndex`. Empty unless a test asks for one, which is the point:
+    every other test in the suite then proves that adding retired conjectures changed nothing
+    about the live pool.
     """
     settings = build_settings(**overrides)
     engine = create_async_db_engine(settings.database_url)
@@ -336,6 +347,7 @@ def harness(
         bounty_usd=(
             bounty_usd if bounty_usd is not None else UnavailableAlphaUsdPriceReader()
         ),
+        retired=retired if retired is not None else RetiredIndex.empty(),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings

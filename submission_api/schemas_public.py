@@ -116,7 +116,12 @@ class BountyInfo(Model):
     )
     policy_version: str
     available: bool
-    reason: str = Field(description="OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL")
+    reason: str = Field(
+        description=(
+            "OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL | WITHDRAWN. "
+            "WITHDRAWN means the conjecture has left the pool; see `retirement`"
+        )
+    )
     as_of: datetime
     locked: bool = Field(
         default=False,
@@ -223,7 +228,45 @@ class ConjectureTaskDetail(ConjectureTask):
     """
 
     challenge_lean: str
-    machine_contract: MachineContract
+    machine_contract: MachineContract | None = Field(
+        default=None,
+        description=(
+            "The contract a submission is checked against; null on a retired conjecture, whose "
+            "bundle no longer exists and which therefore has nothing to submit against"
+        ),
+    )
+
+
+class RetirementInfo(Model):
+    """Why a conjecture stopped accepting submissions, and where that was decided.
+
+    Present only on a retired conjecture. Its presence — not a status string — is what tells a
+    client the target is closed; `bounty.reason` reports `WITHDRAWN` for the same reason, so a
+    client reading only the bounty still gets a correct answer.
+    """
+
+    retired_on: str = Field(description="ISO date the target was withdrawn from the pool")
+    reason_code: str = Field(
+        description=(
+            "The retirement code, e.g. SOLVED, SOURCE_MISMATCH + EXPLOITABLE. Not a reward "
+            "review outcome: a target can close without any submission having been rewarded"
+        )
+    )
+    reason: str = Field(description="The recorded reason, code and detail together")
+    decision_url: str | None = Field(
+        default=None,
+        description=(
+            "The published reward-review decision behind this retirement, when one exists. A "
+            "dependency or audit retirement has none"
+        ),
+    )
+    recovered_from_commit: str = Field(
+        description=(
+            "The task-repository commit that deleted the bundles. The statement and Lean served "
+            "here were recovered from its parent and checked against the digest the bundle's own "
+            "manifest published"
+        )
+    )
 
 
 class ConjectureDetail(Model):
@@ -253,6 +296,14 @@ class ConjectureDetail(Model):
     references: tuple[Reference, ...]
     tasks: tuple[ConjectureTaskDetail, ...]
     bounty: BountyInfo
+    retirement: RetirementInfo | None = Field(
+        default=None,
+        description=(
+            "Set when this conjecture has been withdrawn from the pool. The page stays readable "
+            "so results and attribution earned against it remain citable, but no submission is "
+            "accepted: every task reports a null `machine_contract`"
+        ),
+    )
     submission_price_rao: int = Field(
         description="TAO rao for one verification attempt; one credit"
     )
@@ -589,4 +640,5 @@ __all__ = [
     "PublicVerificationReport",
     "QueueDepths",
     "Reference",
+    "RetirementInfo",
 ]

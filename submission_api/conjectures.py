@@ -32,6 +32,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from submission_api.retired import RetiredConjecture, RetiredIndex
 from submission_api.slugs import legacy_theorem_slug, matches_legacy_slug, slug_for
 from submission_api.taskpool import TaskCatalog, TaskEntry
 from verifier.models import CatalogDeclaration
@@ -139,10 +140,26 @@ class ConjectureIndex:
     # Every current task id, so a URL minted from one can be redirected to its slug rather than
     # 404ing. Only this rotation's ids are in here; older ones go through `resolve_legacy`.
     slug_by_task_id: Mapping[str, str]
+    # Targets that have left the pool. Held beside the live grouping rather than merged into it:
+    # `all()` and `query()` describe what can be submitted against, and a retired target must
+    # never appear in either. Only `get_retired` reaches this, and only after `get` has missed.
+    retired: RetiredIndex = RetiredIndex.empty()
 
     @classmethod
-    def build(cls, catalog: TaskCatalog) -> ConjectureIndex:
+    def build(
+        cls, catalog: TaskCatalog, *, retired: RetiredIndex | None = None
+    ) -> ConjectureIndex:
         by_slug = _grouped(catalog.summaries())
+        resolved = retired or RetiredIndex.empty()
+        # A live target and a retired one at the same URL would make which page a reader gets
+        # depend on lookup order. It cannot happen — retirement removes the target from the
+        # allowlist that built `by_slug` — so if it does, the pin is inconsistent.
+        collisions = sorted(set(by_slug) & set(resolved.by_slug))
+        if collisions:
+            raise CatalogGroupingError(
+                f"slugs are both live and retired: {collisions}; the pinned task checkout "
+                "disagrees with its own allowlist"
+            )
         slug_by_task_id = {
             task_id: conjecture.slug
             for conjecture in by_slug.values()
@@ -152,10 +169,19 @@ class ConjectureIndex:
             repository_commit=catalog.repository_commit,
             by_slug=by_slug,
             slug_by_task_id=slug_by_task_id,
+            retired=resolved,
         )
 
     def get(self, slug: str) -> Conjecture | None:
+        """The live conjecture at this slug, or None. Never returns a retired one.
+
+        Callers that serve a page fall through to `get_retired`; callers that decide whether
+        something may be submitted against must not, which is why this stays live-only.
+        """
         return self.by_slug.get(slug)
+
+    def get_retired(self, slug: str) -> RetiredConjecture | None:
+        return self.retired.get(slug)
 
     def all(self) -> tuple[Conjecture, ...]:
         return tuple(sorted(self.by_slug.values(), key=lambda item: item.slug))
@@ -167,10 +193,17 @@ class ConjectureIndex:
         earlier rotation is not in the pool at all — that is the whole problem — so it is matched
         on the theorem fragment embedded in it, which does not depend on the commit.
 
+        Retired targets participate in both paths. A task id naming a bundle that was deleted is
+        precisely the link most likely to be in circulation — it is on every report and every
+        result already published against that target — and it now resolves to the page that
+        explains why the target closed rather than to a 404.
+
         A fragment matching more than one theorem returns None, so an ambiguous legacy URL 404s.
         Sending a reader to the wrong conjecture is worse than telling them the link is dead.
         """
-        exact = self.slug_by_task_id.get(candidate)
+        exact = self.slug_by_task_id.get(candidate) or self.retired.slug_by_task_id.get(
+            candidate
+        )
         if exact is not None:
             return exact
         embedded = legacy_theorem_slug(candidate)
@@ -178,7 +211,7 @@ class ConjectureIndex:
             return None
         matched = [
             conjecture.slug
-            for conjecture in self.by_slug.values()
+            for conjecture in (*self.by_slug.values(), *self.retired.by_slug.values())
             if matches_legacy_slug(conjecture.source.theorem, embedded)
         ]
         if len(matched) != 1:
