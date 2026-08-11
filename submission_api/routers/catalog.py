@@ -240,8 +240,11 @@ def _summary(
     by_task: Mapping[str, int],
     alpha_usd: Decimal | None,
 ) -> public.ConjectureSummary:
+    name = conjectures.display_name(item)
     return public.ConjectureSummary(
         slug=item.slug,
+        display_title=name.display_title,
+        title_parts=public.TitleParts.of(name),
         title=conjectures.title(item),
         statement=item.source.type_pretty,
         summary=item.source.docstring,
@@ -349,9 +352,14 @@ def _retired_detail(
     reason the page exists — the work recorded against this conjecture does not stop being real
     when the target closes.
     """
+    name = conjectures.display_name(item)
     return public.ConjectureDetail(
         slug=item.slug,
-        title=item.source.theorem,
+        # Named by the same two functions a live conjecture is, so the two cannot drift: a reader
+        # must not see a conjecture renamed by the event that closed it.
+        display_title=name.display_title,
+        title_parts=public.TitleParts.of(name),
+        title=conjectures.title(item),
         statement=item.source.type_pretty,
         summary=item.source.docstring,
         category=item.source.category,
@@ -526,8 +534,11 @@ async def read_conjecture(
     await session.commit()
     alpha_usd = await services.bounty_usd.alpha_usd()
     _cache(response, settings)
+    name = conjectures.display_name(item)
     return public.ConjectureDetail(
         slug=item.slug,
+        display_title=name.display_title,
+        title_parts=public.TitleParts.of(name),
         title=conjectures.title(item),
         statement=item.source.type_pretty,
         summary=item.source.docstring,
@@ -601,6 +612,11 @@ async def read_index(
 def _index_entry(family: conjectures.ProblemFamily) -> public.ConjectureIndexEntry:
     return public.ConjectureIndexEntry(
         slug=family.slug,
+        # Read off the family rather than derived here: `families` computed it from the same
+        # declaration it picked the representative from, and re-deriving it at serialisation time is
+        # how an index entry comes to disagree with the detail page it links to.
+        display_title=family.name.display_title,
+        title_parts=public.TitleParts.of(family.name),
         source_theorem=family.source_theorem,
         erdos_problem_number=family.erdos_problem_number,
         qualifier=family.qualifier,

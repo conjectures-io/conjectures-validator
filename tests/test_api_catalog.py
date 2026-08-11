@@ -825,7 +825,8 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
             assert body["repository_commit"] == REPOSITORY_COMMIT
             # Six conjectures, four problems. `total` counts problems and agrees with `items`.
             assert body["total"] == 4 == len(body["items"])
-            assert body["items"] == [
+            # Naming is asserted on its own below, so this stays about the grouping.
+            assert [_without_naming(item) for item in body["items"]] == [
                 {
                     "slug": "abc-abc",
                     "source_theorem": "ABC.abc",
@@ -883,6 +884,137 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
             await kit.teardown()
 
     run(scenario())
+
+
+def test_the_list_and_the_detail_page_name_a_conjecture_identically():
+    """One derivation, so a card and the page it opens cannot disagree about what this is called.
+
+    The list and the detail page are built by two separate functions from two separate handlers, so
+    the honest way to hold them together is to check them against each other rather than against a
+    literal in one place.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            listed = (await _get(kit, "/v1/catalog/conjectures", limit=100)).json()
+            for card in listed["items"]:
+                detail = (await _get(kit, f"/v1/catalog/conjectures/{card['slug']}")).json()
+                assert detail["display_title"] == card["display_title"], card["slug"]
+                assert detail["title_parts"] == card["title_parts"], card["slug"]
+                # `title` is unchanged and still the citable identifier. `display_title` is the
+                # heading; publishing one is not a licence to stop publishing the other.
+                assert detail["title"] == card["title"]
+                assert "." in card["title"], card["title"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_listed_conjecture_is_named_without_a_lean_identifier():
+    """The FE's actual complaint: `title` is a Lean name, so a card rendered one."""
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/conjectures", limit=100)).json()
+            named = {item["slug"]: item["display_title"] for item in body["items"]}
+
+            assert named["erdos1-erdos-1-variants-lb"] == "Erdős problem 1 — lb"
+            assert named["abc-abc"] == "ABC"
+            for slug, title in named.items():
+                assert "_" not in title and "«" not in title, (slug, title)
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def _without_naming(entry: dict) -> dict:
+    """An index entry minus the display name, which has its own tests."""
+    return {key: value for key, value in entry.items() if key not in NAMING_KEYS}
+
+
+NAMING_KEYS = ("display_title", "title_parts")
+
+
+def test_the_index_names_every_problem_without_leaving_a_lean_identifier():
+    """The reason `display_title` exists: a client should never have to parse `source_theorem`.
+
+    Four rows covering the shapes that broke a client-side parser — a numbered collection, a named
+    one, a variant standing in for its problem, and a variant nested inside a part.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            named = {item["slug"]: item["display_title"] for item in body["items"]}
+
+            assert named == {
+                # A named collection: the module tail *is* the name, re-spaced.
+                "abc-abc": "ABC",
+                "erdos1-erdos-1": "Erdős problem 1",
+                # The root is not pooled, so the variant stands in — and says which one it is
+                # rather than publishing the problem's bare name twice.
+                "erdos1062-erdos-1062-variants-lower-bound": "Erdős problem 1062 — lower bound",
+                # `variants.monotone.parts.i` is part i of the monotone variant. Both markers
+                # survive as words; neither survives as Lean.
+                "erdos357-erdos-357-variants-monotone-parts-i": (
+                    "Erdős problem 357 — monotone, part i"
+                ),
+            }
+            for title in named.values():
+                assert "_" not in title and "«" not in title, title
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_publishes_the_parts_its_display_title_was_built_from():
+    """The alternative the FE offered: compose your own wording without parsing Lean.
+
+    `reference` is the general form of `erdos_problem_number` — every collection identifies its
+    problems, and only one of them does it with an Erdős number.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            parts = {item["slug"]: item["title_parts"] for item in body["items"]}
+
+            assert parts["erdos1-erdos-1"] == {
+                "collection": "erdos_problems",
+                "collection_label": "Erdős problems",
+                "reference": "1",
+                "qualifier": None,
+            }
+            # Not an Erdős problem, so `erdos_problem_number` is null — and `reference` is not.
+            entry = next(item for item in body["items"] if item["slug"] == "abc-abc")
+            assert entry["erdos_problem_number"] is None
+            assert parts["abc-abc"] == {
+                "collection": "wikipedia",
+                "collection_label": "Wikipedia",
+                "reference": "ABC",
+                "qualifier": None,
+            }
+            # The entry's own `qualifier` stays the raw `.variants.` fragment it has always been;
+            # the one under `title_parts` is the same thing in words. Both are published, and a
+            # client that reads the wrong one gets a wrong-looking string rather than a silent bug.
+            nested = "erdos357-erdos-357-variants-monotone-parts-i"
+            assert entry_of(body, nested)["qualifier"] == "monotone.parts.i"
+            assert parts[nested]["qualifier"] == "monotone, part i"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def entry_of(body: dict, slug: str) -> dict:
+    return next(item for item in body["items"] if item["slug"] == slug)
 
 
 def test_the_index_never_lists_a_conjecture_as_its_own_variant():
@@ -1137,7 +1269,7 @@ def test_a_retired_root_still_heads_its_problem_and_keeps_its_live_variants():
             body = (await _get(kit, "/v1/catalog/index")).json()
             entries = {item["slug"]: item for item in body["items"]}
 
-            assert entries["erdos99-erdos-99"] == {
+            assert _without_naming(entries["erdos99-erdos-99"]) == {
                 "slug": "erdos99-erdos-99",
                 "source_theorem": "Erdos99.erdos_99",
                 "erdos_problem_number": 99,
@@ -1181,7 +1313,7 @@ def test_a_wholly_retired_problem_is_its_own_entry_and_still_readable():
             # Erdős 10 is carried by nothing but this retired variant, so it is a problem of its
             # own — a fifth entry beside `family_pool`'s four.
             assert body["total"] == 5
-            assert entries[RETIRED_SLUG] == {
+            assert _without_naming(entries[RETIRED_SLUG]) == {
                 "slug": RETIRED_SLUG,
                 "source_theorem": "Erdos10.erdos_10.variants.grechuk",
                 # `retired_index` builds its declaration with the shared fixture module, which is
@@ -1197,6 +1329,12 @@ def test_a_wholly_retired_problem_is_its_own_entry_and_still_readable():
             detail = await _get(kit, f"/v1/catalog/conjectures/{RETIRED_SLUG}")
             assert detail.status_code == 200, detail.text
             assert detail.json()["retirement"]["reason_code"] == "SOLVED + NOT_OPEN"
+            # And agrees about the name, which is the reason to derive it in one place: a retired
+            # conjecture is named by the same two functions a live one is.
+            assert (
+                detail.json()["display_title"] == entries[RETIRED_SLUG]["display_title"]
+            )
+            assert detail.json()["title_parts"] == entries[RETIRED_SLUG]["title_parts"]
         finally:
             await kit.teardown()
 

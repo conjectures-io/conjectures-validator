@@ -32,6 +32,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from submission_api.naming import ProblemName, problem_name
 from submission_api.retired import RetiredConjecture, RetiredIndex
 from submission_api.slugs import legacy_theorem_slug, matches_legacy_slug, slug_for
 from submission_api.taskpool import TaskCatalog, TaskEntry
@@ -227,6 +228,10 @@ class ProblemFamily:
     erdos_problem_number: int | None
     qualifier: str | None
     retired: bool
+    # Read from the representative's declaration, and flattened on for the reason above: an entry
+    # publishes one name, and deriving it at serialisation time is how the index and the detail page
+    # come to disagree about what a problem is called.
+    name: ProblemName
     # The other members of the family, ordered by slug, never including the one at `slug` above.
     variants: tuple[FamilyMember, ...]
 
@@ -287,6 +292,9 @@ def families(index: ConjectureIndex) -> tuple[ProblemFamily, ...]:
                 erdos_problem_number=erdos_problem_number(representative.module),
                 qualifier=variant_qualifier(representative.theorem),
                 retired=representative.retired,
+                name=problem_name(
+                    module=representative.module, theorem=representative.theorem
+                ),
                 # Ordered by slug alone, deliberately not with the retired ones pushed to the end:
                 # retiring a variant must not reorder the list a reader has already seen.
                 variants=tuple(
@@ -484,14 +492,34 @@ def is_open(conjecture: Conjecture) -> bool:
     return conjecture.source.category == OPEN_CATEGORY
 
 
-def title(conjecture: Conjecture) -> str:
+def title(conjecture: Conjecture | RetiredConjecture) -> str:
     """The conjecture's citable name: the fully-qualified source theorem.
 
     An identifier, not prose. No human title exists in the upstream catalog and inventing one
     here would mean the website displayed a name that appears in no audited artifact; the
-    docstring, carried as `summary`, is the human-readable half.
+    docstring, carried as `summary`, is the human-readable half, and `display_name` below is the
+    same identifier re-spaced for a heading.
+
+    Accepts a retired conjecture as well as a live one, and answers identically for both. That is
+    the point of taking the union type rather than leaving each caller to reach for
+    `.source.theorem` when the live lookup misses: retirement deletes the bundles, not the name of
+    the theorem they contained, so a page or a result row that named the conjecture yesterday must
+    name it the same way today. Nothing here reads a `TaskManifest`, which is precisely the field a
+    `RetiredConjecture` does not and must not have.
     """
     return conjecture.source.theorem
+
+
+def display_name(conjecture: Conjecture | RetiredConjecture) -> ProblemName:
+    """The same conjecture as a heading a reader can use, with the parts it was built from.
+
+    Derived from the source declaration alone — module and theorem — so it holds for a retired
+    target too, and so it cannot disagree with `title`, which reads the same declaration. See
+    `submission_api.naming` for what is derived and what is deliberately not invented.
+    """
+    return problem_name(
+        module=conjecture.source.module, theorem=conjecture.source.theorem
+    )
 
 
 def searchable(conjecture: Conjecture) -> str:
@@ -660,6 +688,7 @@ __all__ = [
     "FacetCount",
     "FamilyMember",
     "ProblemFamily",
+    "display_name",
     "erdos_problem_number",
     "families",
     "is_open",
