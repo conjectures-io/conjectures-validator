@@ -351,7 +351,9 @@ def _retired_detail(
     """
     return public.ConjectureDetail(
         slug=item.slug,
-        title=item.source.theorem,
+        # The same function a live conjecture's title comes from, so the two cannot drift: a
+        # reader must not see the name change when the target closes.
+        title=conjectures.title(item),
         statement=item.source.type_pretty,
         summary=item.source.docstring,
         category=item.source.category,

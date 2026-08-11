@@ -34,6 +34,12 @@ that module offers.
 It publishes *that* an attempt exists and where it got to — the three `*_status` fields — and
 nothing more: its proof is still gated on approval, its report on Lean verification, and the money
 trail is absent from the row type either way.
+
+The conjecture each result names is resolved through `_title_and_statement`, which reads the live
+index and then the retired one — the same two-step `GET /v1/catalog/conjectures/{slug}` takes. A
+result outlives the pin it was produced under and can outlive the target itself, and neither event
+may change how it is labelled: what a solver earned credit for is the theorem, and the theorem does
+not move.
 """
 
 from __future__ import annotations
@@ -130,14 +136,22 @@ def _title_and_statement(index: ConjectureIndex, row: public_store.ResultRow) ->
     """The conjecture a result is against, as the catalog states it.
 
     Looked up by slug rather than by `task_id`, so a result produced under an earlier pin still
-    gets its current statement and title instead of degrading. A conjecture that has since left
-    the pool entirely is not in the index at all; that is a normal state, not an error — the
-    durable record keeps the old digests and reports — so the labels degrade to the slug rather
-    than failing the read.
+    gets its current statement and title instead of degrading. The reward target is stable across
+    rotations; the task ids built from it are not.
+
+    Falls through to the retired index on a miss, in the same order and for the same reason
+    `GET /v1/catalog/conjectures/{slug}` does — a retirement deletes the bundles, not the
+    conjecture. Without this, retiring a target silently rewrote every result already earned
+    against it: the row kept its `slug`, so the link still worked, but `title` fell back to that
+    slug and `statement` emptied, and a solver's certified proof came to be listed under a URL
+    fragment rather than the theorem it closed. The one case that reaches the fallback below is a
+    `reward_target_id` in neither index, which is the `V004` backfill's `ELSE problem_id` rows —
+    those name no conjecture in any pin, so there is nothing to look up.
     """
-    item = index.get(_slug(row))
+    slug = _slug(row)
+    item = index.get(slug) or index.get_retired(slug)
     if item is None:
-        return _slug(row), ""
+        return slug, ""
     return conjectures.title(item), item.source.type_pretty
 
 

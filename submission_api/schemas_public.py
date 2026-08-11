@@ -496,6 +496,19 @@ class ConjectureActivity(Model):
 
 ATTRIBUTION = "conjectures.io"
 
+# Shared by both result models, because both resolve them the same way and a client that renders a
+# feed and a detail page must not find them described differently.
+TITLE_DESCRIPTION = (
+    "The conjecture's name: the fully-qualified source theorem, an identifier rather than prose. "
+    "Resolved by slug through the live catalog and then the retired one, so a result against a "
+    "withdrawn target is still named after the theorem it closed. Falls back to the slug only for "
+    "a pre-V004 row whose reward target names no conjecture in any pin"
+)
+STATEMENT_DESCRIPTION = (
+    "The conjecture as Lean pretty-prints its type, from the same lookup as `title`. Empty string "
+    "in the one case `title` falls back to the slug"
+)
+
 
 class PublicReviewDecision(Model):
     """The binding review decision and its deliberately public rationale.
@@ -556,8 +569,8 @@ class PublicResult(Model):
     task_id: str = Field(
         description="The task this result was produced against, at the pin then in force"
     )
-    title: str
-    statement: str
+    title: str = Field(description=TITLE_DESCRIPTION)
+    statement: str = Field(description=STATEMENT_DESCRIPTION)
     task_bundle_sha256: str
     attribution: str = ATTRIBUTION
     verified_at: datetime | None = Field(
@@ -620,8 +633,8 @@ class InReviewResult(Model):
     )
     slug: str = Field(description="The conjecture this result is against, as a stable slug")
     task_id: str
-    title: str
-    statement: str
+    title: str = Field(description=TITLE_DESCRIPTION)
+    statement: str = Field(description=STATEMENT_DESCRIPTION)
     task_bundle_sha256: str
     attribution: str = ATTRIBUTION
     verified_at: datetime | None = None

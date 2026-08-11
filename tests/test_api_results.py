@@ -891,6 +891,162 @@ def test_the_feed_page_size_is_capped():
     run(scenario())
 
 
+# --- the conjecture a result names outlives the pool ------------------------------------------
+#
+# A result is durable and the pool is not. Retiring a target deletes its bundles, and every feed
+# here resolves its `title` and `statement` through the catalog index — so before the retired index
+# was consulted, retiring a target quietly relabelled every result already earned against it: the
+# slug survived, so the link still worked, but the name a solver's certified proof was listed under
+# decayed into a URL fragment and the statement emptied.
+
+
+def _retired_index():
+    """One withdrawn target, distinct from the live fixture conjecture.
+
+    Built here rather than imported from `test_api_retired` because what this module is about is
+    the *result* rows pointing at it; that module is about the catalog page.
+    """
+    from conftest import declaration
+
+    from submission_api.retired import RetiredConjecture, RetiredIndex, RetiredTask
+    from submission_api.slugs import slug_for
+
+    item = RetiredConjecture(
+        slug=slug_for(RETIRED_TARGET),
+        problem_id="withdrawn-problem",
+        reward_target_id=RETIRED_TARGET,
+        tier="tier-1",
+        retired_on="2026-08-06",
+        reason_code="SOLVED + NOT_OPEN",
+        reason="SOLVED + NOT_OPEN (settled by a verified submission)",
+        decision_url=None,
+        recovered_from_commit="c" * 40,
+        source=declaration(theorem=RETIRED_THEOREM),
+        tasks=(
+            RetiredTask(
+                task_id="withdrawn-formalized",
+                task_mode="formalized",
+                task_bundle_sha256="sha256:" + "a" * 64,
+                target_type_sha256="sha256:" + "b" * 64,
+                challenge_lean="-- recovered from the deleted bundle\n",
+            ),
+        ),
+    )
+    return RetiredIndex(
+        by_slug={item.slug: item},
+        slug_by_task_id={task.task_id: item.slug for task in item.tasks},
+    )
+
+
+RETIRED_THEOREM = "VerifierFixtures.withdrawn"
+RETIRED_TARGET = f"fc-target:{RETIRED_THEOREM}"
+RETIRED_SLUG = "verifierfixtures-withdrawn"
+# A target in neither index: what `V004` left behind when it could not map a row's `problem_id` to
+# a known reward target. There is no conjecture to look up, so the labels have nowhere to go.
+UNKNOWN_TARGET = "legacy-problem-id-nobody-recognises"
+
+
+async def _retarget(kit, submission_id: str, target: str) -> None:
+    """Point a recorded submission at another reward target.
+
+    Which is the real sequence, not a shortcut around intake: a submission is admitted against a
+    live target and the retirement happens afterwards, so by the time a reader loads the feed the
+    row names something the pool no longer issues tasks for. Editing the row is how a test reaches
+    that state without a second pin rotation.
+    """
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        submission.reward_target_id = target
+        await session.commit()
+
+
+def test_a_result_against_a_retired_conjecture_is_named_not_slugged():
+    """The FE-visible bug: `title` was the slug, so a dashboard rendered `verifierfixtures-…`.
+
+    Asserted on all three endpoints that shape a `PublicResult`, because each one is a separate
+    call into `_result` and a fix applied to only the feed would leave the detail page wrong.
+    """
+    async def scenario():
+        kit = await harness(
+            retired=_retired_index(),
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal(50)),
+        ).setup()
+        try:
+            submission_id = await _submit(kit, "0011")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id)
+            await _retarget(kit, submission_id, RETIRED_TARGET)
+
+            feed = await _get(kit, "/v1/results/submissions")
+            certified = await _get(kit, "/v1/results/certified")
+            one = await _get(kit, f"/v1/results/{submission_id}")
+
+            rows = [
+                feed.json()["items"][0],
+                certified.json()["items"][0],
+                one.json(),
+            ]
+            for row in rows:
+                # The slug is unchanged and still links to the retired page; what changes is that
+                # it is no longer doing double duty as the conjecture's name.
+                assert row["slug"] == RETIRED_SLUG
+                assert row["title"] == RETIRED_THEOREM
+                assert row["statement"] == "True"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_in_review_result_against_a_retired_conjecture_is_named_too():
+    """`/in-review` shapes an `InReviewResult` through its own function, so it needs its own test.
+
+    And it is the case most likely to occur: a target is retired *because* a submission settled it,
+    which means the result sitting in review is the reason the page went away.
+    """
+    async def scenario():
+        kit = await harness(retired=_retired_index()).setup()
+        try:
+            submission_id = await _submit(kit, "0012")
+            await _verify(kit, submission_id)
+            await _retarget(kit, submission_id, RETIRED_TARGET)
+
+            item = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
+
+            assert item["slug"] == RETIRED_SLUG
+            assert item["title"] == RETIRED_THEOREM
+            assert item["statement"] == "True"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_result_against_a_target_in_neither_index_still_degrades_to_its_slug():
+    """The fallback survives the fix, because one class of row genuinely has no conjecture.
+
+    A public feed must not 500 over a historical row, and degrading is honest here in a way it was
+    not for a retired target: this identity resolves to no conjecture in any pin, so there is no
+    name being withheld.
+    """
+    async def scenario():
+        kit = await harness(retired=_retired_index()).setup()
+        try:
+            submission_id = await _submit(kit, "0013")
+            await _verify(kit, submission_id)
+            await _retarget(kit, submission_id, UNKNOWN_TARGET)
+
+            item = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+
+            assert item["slug"] == UNKNOWN_TARGET
+            assert item["title"] == UNKNOWN_TARGET
+            assert item["statement"] == ""
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_two_solvers_on_one_conjecture_are_each_credited_to_their_own_hotkey():
     async def scenario():
         kit = await harness().setup()

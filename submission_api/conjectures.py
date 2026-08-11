@@ -484,12 +484,19 @@ def is_open(conjecture: Conjecture) -> bool:
     return conjecture.source.category == OPEN_CATEGORY
 
 
-def title(conjecture: Conjecture) -> str:
+def title(conjecture: Conjecture | RetiredConjecture) -> str:
     """The conjecture's citable name: the fully-qualified source theorem.
 
     An identifier, not prose. No human title exists in the upstream catalog and inventing one
     here would mean the website displayed a name that appears in no audited artifact; the
     docstring, carried as `summary`, is the human-readable half.
+
+    Accepts a retired conjecture as well as a live one, and answers identically for both. That is
+    the whole point of taking the union type rather than leaving each caller to reach for
+    `.source.theorem` when the live lookup misses: retirement deletes the bundles, not the name of
+    the theorem they contained, so a page or a result row that named the conjecture yesterday must
+    name it the same way today. Nothing here consults a `TaskManifest`, which is precisely the
+    field a `RetiredConjecture` does not and must not have.
     """
     return conjecture.source.theorem
 
