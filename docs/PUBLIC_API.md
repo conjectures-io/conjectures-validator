@@ -506,6 +506,10 @@ then the [retired](#retired-describes-one-conjecture-never-a-family) one, which 
 theorem it closed, and named identically to the conjecture's own page. Retiring a target deletes its
 bundles; it does not rename the conjecture, and it must not relabel work already earned against it.
 
+`title` is the fully-qualified source theorem, exactly as on the conjecture detail endpoint — an
+identifier to cite, not prose. See
+[Display titles](#display-titles-and-why-title-is-not-one) for what to render instead.
+
 One case degrades: a `reward_target_id` that resolves to no conjecture in either index. Those are
 pre-`V004` rows whose reward target was backfilled from the raw `problem_id` because the migration
 did not recognise it. They name nothing in any pin, so `display_title` and `title` fall back to the
