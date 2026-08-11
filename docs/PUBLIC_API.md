@@ -418,6 +418,24 @@ produced against. The slug is derived from the row's own `reward_target_id` rath
 in the catalog, so a result produced under an earlier pin still links to the live conjecture page
 instead of to a task id the current pool no longer carries.
 
+### A result keeps its conjecture's name after the target is withdrawn
+
+`title` and `statement` on every result — `/certified`, `/in-review`, `/submissions` and
+`GET /v1/results/{id}` — are resolved by slug through the live catalog index and then the
+[retired](#retired-describes-one-conjecture-never-a-family) one, which is the same two-step
+`GET /v1/catalog/conjectures/{slug}` takes. So a result against a withdrawn target is labelled with
+the theorem it closed, and labelled identically to the conjecture's own page. Retiring a target
+deletes its bundles; it does not rename the conjecture, and it must not relabel work already earned
+against it.
+
+`title` is the fully-qualified source theorem, exactly as on the conjecture detail endpoint — an
+identifier to cite, not prose. See [The rest of a conjecture](#the-rest-of-a-conjecture).
+
+One case still degrades to the slug, with `statement` empty: a `reward_target_id` that resolves to no
+conjecture in either index. Those are pre-`V004` rows whose reward target was backfilled from the raw
+`problem_id` because the migration did not recognise it. They name nothing in any pin, so there is no
+title being withheld — and a public feed must not fail over one historical row.
+
 ## Activity
 
 `GET /v1/catalog/conjectures/{slug}/activity` answers "is anyone working on this" without
