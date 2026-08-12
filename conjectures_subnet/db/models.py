@@ -281,6 +281,12 @@ class Submission(Base):
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
+    # V012: set on every new row, so the quote above stops being an estimate and becomes the
+    # payout promise. NULL only on rows accepted before that migration, which keep payout-time
+    # pricing — the terms they were actually submitted under.
+    bounty_locked_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     verification_lease_until: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True)
@@ -323,6 +329,10 @@ class Submission(Base):
         CheckConstraint(
             "length(bounty_policy_version) BETWEEN 1 AND 64",
             name="bounty_policy_version_nonempty",
+        ),
+        CheckConstraint(
+            "bounty_locked_at IS NULL OR bounty_locked_at >= created_at",
+            name="bounty_locked_not_before_submission",
         ),
         CheckConstraint(
             "verification_attempts >= 0", name="verification_attempts_nonneg"
@@ -575,6 +585,11 @@ class RewardEvent(Base):
 
     initiated_by: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # V012: the deduplication key for an automatically generated instruction, and the flag that
+    # subjects the row to the enforce_locked_reward_event trigger below. NULL means a manual
+    # attempt, which stays duplicable for the reason the class docstring gives.
+    generation_key: Mapped[str | None] = mapped_column(Text)
+
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -586,6 +601,10 @@ class RewardEvent(Base):
         CheckConstraint(
             "length(pricing_policy_version) BETWEEN 1 AND 64",
             name="reward_pricing_policy_version_nonempty",
+        ),
+        CheckConstraint(
+            "generation_key IS NULL OR length(generation_key) BETWEEN 1 AND 128",
+            name="reward_generation_key_nonempty",
         ),
         # PENDING means exactly "no extrinsic exists yet", so status and reference
         # must not drift apart. FAILED is exempt: an attempt can die before broadcast.
@@ -642,7 +661,140 @@ class RewardEvent(Base):
             "destination_coldkey",
             text("created_at DESC"),
         ),
+        # V012: one automatic instruction per key. Partial, so the manual rows the docstring
+        # keeps duplicable do not all collide on NULL.
+        Index(
+            "reward_events_generation_key_idx",
+            "generation_key",
+            unique=True,
+            postgresql_where=text("generation_key IS NOT NULL"),
+        ),
     )
+
+
+# V012, hardened by V013. An automatically generated payout must carry the facts that were
+# already locked elsewhere — the submission's bounty lock, or the review decision awarding a
+# fixed-USD defect payment — so a worker bug cannot reprice a reward on its way out. Rows with a
+# NULL generation_key are the operator's manual attempts and pass through untouched.
+#
+# Body indentation is flush left for the reason the submissions trigger above gives:
+# pg_get_functiondef() returns the source verbatim, so re-indenting it here would make the
+# mirror differ textually from the migration under the schema-drift check.
+#
+# `%%ROWTYPE` is not a typo. SQLAlchemy interpolates a DDL string with `%` before sending it,
+# so a lone `%` raises ValueError at create_all time; the doubling is consumed there and
+# PostgreSQL stores the single `%` the migration has.
+event.listen(
+    RewardEvent.__table__,
+    "after_create",
+    DDL(
+        "CREATE OR REPLACE FUNCTION enforce_locked_reward_event() RETURNS TRIGGER AS $$\n"
+        "DECLARE\n"
+        "    submission_lock submissions%%ROWTYPE;\n"
+        "    latest_decision RECORD;\n"
+        "    award_usd NUMERIC;\n"
+        "    alpha_usd NUMERIC;\n"
+        "    calculated_rao BIGINT;\n"
+        "BEGIN\n"
+        "    IF NEW.generation_key IS NULL THEN\n"
+        "        RETURN NEW;\n"
+        "    END IF;\n"
+        "\n"
+        "    SELECT * INTO STRICT submission_lock\n"
+        "    FROM submissions\n"
+        "    WHERE id = NEW.submission_id;\n"
+        "\n"
+        "    IF submission_lock.reward_status <> 'ELIGIBLE' THEN\n"
+        "        RAISE EXCEPTION 'automatic reward event requires an eligible submission'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_requires_eligible_submission';\n"
+        "    END IF;\n"
+        "\n"
+        "    IF NEW.generation_key <> 'submission:' || NEW.submission_id::TEXT THEN\n"
+        "        RAISE EXCEPTION 'automatic reward event has the wrong submission generation key'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_generation_key_matches_submission';\n"
+        "    END IF;\n"
+        "\n"
+        "    SELECT * INTO latest_decision\n"
+        "    FROM review_decisions\n"
+        "    WHERE submission_id = NEW.submission_id\n"
+        "      AND kind <> 'ADVISORY'\n"
+        "    ORDER BY id DESC\n"
+        "    LIMIT 1;\n"
+        "\n"
+        "    IF latest_decision.reason_code = 'FORMALIZATION_DEFECT_AWARD' THEN\n"
+        "        IF latest_decision.decision <> 'APPROVED'\n"
+        "           OR NEW.eligibility_reason <> 'FORMALIZATION_DEFECT_AWARD'\n"
+        "           OR NEW.pricing_policy_version <> 'formalization-defect-usd-v1' THEN\n"
+        "            RAISE EXCEPTION 'defect award must match the latest approved review decision'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_defect_decision';\n"
+        "        END IF;\n"
+        "\n"
+        "        IF NEW.pricing_inputs IS NULL\n"
+        "           OR NEW.pricing_inputs ->> 'award_code'\n"
+        "                IS DISTINCT FROM 'FORMALIZATION_DEFECT_AWARD'\n"
+        "           OR NEW.pricing_inputs ->> 'review_decision_id'\n"
+        "                IS DISTINCT FROM latest_decision.id::TEXT\n"
+        "           OR NEW.pricing_inputs ->> 'netuid' IS DISTINCT FROM '66'\n"
+        "           OR COALESCE(NEW.pricing_inputs ->> 'price_source', '') = ''\n"
+        "           OR COALESCE(NEW.pricing_inputs ->> 'price_observed_at', '') = ''\n"
+        "           OR jsonb_typeof(NEW.pricing_inputs -> 'price_source_urls')\n"
+        "                IS DISTINCT FROM 'array'\n"
+        "           OR NEW.pricing_inputs ->> 'rounding'\n"
+        "                IS DISTINCT FROM 'ROUND_HALF_UP to nearest integer Alpha rao' THEN\n"
+        "            RAISE EXCEPTION 'defect award is missing its required pricing audit inputs'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_defect_pricing_inputs';\n"
+        "        END IF;\n"
+        "\n"
+        "        BEGIN\n"
+        "            award_usd := (NEW.pricing_inputs ->> 'award_usd')::NUMERIC;\n"
+        "            alpha_usd := (NEW.pricing_inputs ->> 'alpha_usd')::NUMERIC;\n"
+        "        EXCEPTION WHEN OTHERS THEN\n"
+        "            RAISE EXCEPTION 'defect award contains invalid numeric pricing inputs'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_valid_defect_price';\n"
+        "        END;\n"
+        "\n"
+        "        IF award_usd IS NULL\n"
+        "           OR alpha_usd IS NULL\n"
+        "           OR award_usd <> 750.00\n"
+        "           OR alpha_usd <= 0 THEN\n"
+        "            RAISE EXCEPTION 'defect award must price exactly $750 at a positive Alpha/USD rate'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_valid_defect_price';\n"
+        "        END IF;\n"
+        "        calculated_rao := round(award_usd * 1000000000 / alpha_usd)::BIGINT;\n"
+        "        IF NEW.amount_rao <> calculated_rao THEN\n"
+        "            RAISE EXCEPTION 'defect award amount does not match its recorded Alpha/USD rate'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_defect_price';\n"
+        "        END IF;\n"
+        "        RETURN NEW;\n"
+        "    END IF;\n"
+        "\n"
+        "    IF submission_lock.bounty_locked_at IS NULL THEN\n"
+        "        RAISE EXCEPTION 'automatic full-bounty event requires a submission-time bounty lock'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_requires_bounty_lock';\n"
+        "    END IF;\n"
+        "\n"
+        "    IF NEW.amount_rao <> submission_lock.bounty_amount_rao\n"
+        "       OR NEW.pricing_policy_version <> submission_lock.bounty_policy_version\n"
+        "       OR NEW.pricing_inputs IS DISTINCT FROM submission_lock.bounty_inputs THEN\n"
+        "        RAISE EXCEPTION 'automatic full-bounty event must copy the submission bounty lock'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_bounty_lock';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER reward_events_enforce_locked_amount\n"
+        "    BEFORE INSERT OR UPDATE OF submission_id, amount_rao, pricing_policy_version, pricing_inputs,\n"
+        "        generation_key\n"
+        "    ON reward_events\n"
+        "    FOR EACH ROW EXECUTE FUNCTION enforce_locked_reward_event();"
+    ),
+)
+event.listen(
+    RewardEvent.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS enforce_locked_reward_event() CASCADE;"),
+)
 
 
 class ReviewDecision(Base):
@@ -1686,6 +1838,95 @@ class ChainWatchCursor(Base):
     )
 
 
+# --- V011: payout notifications -----------------------------------------------
+
+
+class PayoutDiscordDelivery(Base):
+    """Durable outbox for telling a payout signer about one PENDING reward event.
+
+    One row is one signer being told about one event, so the pair is the primary key and a
+    restart cannot ping a signer again merely because the process forgot. The notifier seeds
+    rows from reward_events, leases due work with SKIP LOCKED, posts the btcli command, and
+    marks the row SENT.
+
+    Delivery is at least once: a crash between Discord accepting the POST and the row being
+    marked SENT repeats the message. Discord webhooks carry no idempotency key, so closing that
+    window would mean risking the opposite failure — losing a payout notification entirely.
+
+    `status` is TEXT with a CHECK rather than a native enum, matching the migration. Nothing in
+    the API reads this table, so the enum's value to the type checker was not worth an extra
+    type in the schema.
+    """
+
+    __tablename__ = "payout_discord_deliveries"
+
+    reward_event_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("reward_events.id"), primary_key=True
+    )
+    signer_wallet: Mapped[str] = mapped_column(Text, primary_key=True)
+    discord_user_id: Mapped[str] = mapped_column(Text, nullable=False)
+
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")
+    attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    next_attempt_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    lease_owner: Mapped[str | None] = mapped_column(Text)
+    lease_until: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    delivered_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(signer_wallet) BETWEEN 1 AND 1024",
+            name="payout_discord_wallet_nonempty",
+        ),
+        CheckConstraint(
+            "discord_user_id ~ '^[0-9]{1,32}$'", name="payout_discord_user_id_shape"
+        ),
+        CheckConstraint(
+            "status IN ('PENDING', 'SENDING', 'SENT', 'FAILED')",
+            name="payout_discord_status_known",
+        ),
+        CheckConstraint("attempt_count >= 0", name="payout_discord_attempt_nonnegative"),
+        # A lease exists exactly while a worker holds the row, and a delivery timestamp exists
+        # exactly once it has been sent. Both are biconditional so neither half can be left
+        # behind by a crash and read as the other state.
+        CheckConstraint(
+            "(status = 'SENDING') = (lease_owner IS NOT NULL AND lease_until IS NOT NULL)",
+            name="payout_discord_lease_paired",
+        ),
+        CheckConstraint(
+            "(status = 'SENT') = (delivered_at IS NOT NULL)",
+            name="payout_discord_sent_paired",
+        ),
+        CheckConstraint(
+            "updated_at >= created_at", name="payout_discord_updated_after_created"
+        ),
+        CheckConstraint(
+            "delivered_at IS NULL OR delivered_at >= created_at",
+            name="payout_discord_delivered_after_created",
+        ),
+        # The worker's claim query. SENDING is included so an expired lease is recoverable.
+        Index(
+            "payout_discord_due_idx",
+            "next_attempt_at",
+            "reward_event_id",
+            "signer_wallet",
+            postgresql_where=text("status IN ('PENDING', 'FAILED', 'SENDING')"),
+        ),
+    )
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",
@@ -1709,6 +1950,7 @@ __all__ = [
     "LoginChallenge",
     "LoginChallengeKind",
     "ManualReviewState",
+    "PayoutDiscordDelivery",
     "PayoutState",
     "Proof",
     "ReviewDecision",
