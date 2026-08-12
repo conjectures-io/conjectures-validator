@@ -28,10 +28,11 @@ instead — ``accepted_solution`` gates proof bytes on review approval, ``public
 report on Lean verification, and ``ReviewRow`` carries only the explicitly public half of a review
 decision.
 
-A page is read in four statements rather than one join with three lateral
+A page is read in five statements rather than one join with four lateral
 subqueries: the submissions for the page, then their latest verification runs,
-confirmed payouts, and latest binding reviews, each by an indexed key over at most
-``limit`` ids. It is not an N+1 — the count is fixed at four — and the intent
+current payout amounts, confirmed payouts, and latest binding reviews, each by an
+indexed key over at most ``limit`` ids. It is not an N+1 — the count is fixed at
+five — and the intent
 survives being read six months from now.
 """
 
@@ -340,12 +341,14 @@ async def _decorate(
         return ()
     ids = [submission.id for submission in submissions]
     runs = await _latest_runs(session, ids)
+    current_payouts = await _current_payouts(session, ids)
     confirmed = await _confirmed_payouts(session, ids)
     reviews = await _latest_reviews(session, ids)
     rows = []
     for submission in submissions:
         run = runs.get(submission.id)
-        payout = confirmed.get(submission.id)
+        payout = current_payouts.get(submission.id)
+        confirmation = confirmed.get(submission.id)
         review = reviews.get(submission.id)
         rows.append(
             ResultRow(
@@ -370,7 +373,9 @@ async def _decorate(
                 ),
                 review_policy_version=submission.review_policy_version,
                 verified_at=None if run is None else run.finished_at,
-                certified_at=None if payout is None else payout.confirmed_at,
+                certified_at=(
+                    None if confirmation is None else confirmation.confirmed_at
+                ),
                 verifier_version=None if run is None else run.verifier_version,
                 sandbox_mode=None if run is None else run.sandbox_mode,
                 report_available=(
@@ -495,6 +500,46 @@ async def _confirmed_payouts(
         )
         for row in (await session.execute(statement)).all()
         if row.confirmed_at is not None
+    }
+
+
+async def _current_payouts(
+    session: AsyncSession, submission_ids: Sequence[uuid.UUID]
+) -> Mapping[uuid.UUID, _PayoutFacts]:
+    """The amount currently owed or paid for each submission.
+
+    Once a payout event exists it is the amount of record, including while it is pending signer
+    action or chain finality. Failed attempts are excluded so they cannot replace an active or
+    completed amount on the public result. Confirmation remains a separate fact: displaying a
+    pending event's amount must not make the result look paid.
+    """
+    statement = (
+        select(
+            RewardEvent.submission_id,
+            RewardEvent.amount_rao,
+            RewardEvent.pricing_policy_version,
+            RewardEvent.confirmed_at,
+        )
+        .where(
+            RewardEvent.submission_id.in_(submission_ids),
+            RewardEvent.status.in_(
+                (
+                    PayoutState.PENDING,
+                    PayoutState.SUBMITTED,
+                    PayoutState.CONFIRMED,
+                )
+            ),
+        )
+        .distinct(RewardEvent.submission_id)
+        .order_by(RewardEvent.submission_id, RewardEvent.id.desc())
+    )
+    return {
+        row.submission_id: _PayoutFacts(
+            amount_rao=row.amount_rao,
+            policy_version=row.pricing_policy_version,
+            confirmed_at=row.confirmed_at,
+        )
+        for row in (await session.execute(statement)).all()
     }
 
 
