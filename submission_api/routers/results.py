@@ -34,6 +34,11 @@ that module offers.
 It publishes *that* an attempt exists and where it got to — the three `*_status` fields — and
 nothing more: its proof is still gated on approval, its report on Lean verification, and the money
 trail is absent from the row type either way.
+
+The conjecture each result names is resolved by `_named`, which reads the live index and then the
+retired one — the same two steps `GET /v1/catalog/conjectures/{slug}` takes. A result outlives the
+pin it was produced under and can outlive the target itself, and neither event may change how it is
+labelled: what a solver earned credit for is the theorem, and the theorem does not move.
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
@@ -126,19 +132,47 @@ def _slug(row: public_store.ResultRow) -> str:
         return row.reward_target_id
 
 
-def _title_and_statement(index: ConjectureIndex, row: public_store.ResultRow) -> tuple[str, str]:
-    """The conjecture a result is against, as the catalog states it.
+@dataclass(frozen=True)
+class _Named:
+    """Everything a result publishes about the conjecture it is against."""
+
+    display_title: str
+    title_parts: public.TitleParts | None
+    title: str
+    statement: str
+
+
+def _named(index: ConjectureIndex, row: public_store.ResultRow) -> _Named:
+    """The conjecture a result is against, as the catalog names and states it.
 
     Looked up by slug rather than by `task_id`, so a result produced under an earlier pin still
-    gets its current statement and title instead of degrading. A conjecture that has since left
-    the pool entirely is not in the index at all; that is a normal state, not an error — the
-    durable record keeps the old digests and reports — so the labels degrade to the slug rather
-    than failing the read.
+    gets its current statement and title instead of degrading. The reward target is stable across
+    rotations; the task ids built from it are not.
+
+    Falls through to the retired index on a miss, in the same order and for the same reason
+    `GET /v1/catalog/conjectures/{slug}` does — a retirement deletes the bundles, not the
+    conjecture. Without this, retiring a target silently relabelled every result already earned
+    against it: the row kept its `slug`, so the link still worked, but the name fell back to that
+    slug and `statement` emptied, and a solver's certified proof came to be listed under a URL
+    fragment rather than the theorem it closed.
+
+    One case reaches the fallback: a `reward_target_id` in neither index, which is what the `V004`
+    backfill left behind when it could not map a row's `problem_id` — see `_slug`. Those name no
+    conjecture in any pin, so there is nothing to look up and no name being withheld. `title_parts`
+    is null there rather than invented, and `display_title` degrades to the slug, because a public
+    feed must not fail over one historical row.
     """
-    item = index.get(_slug(row))
+    slug = _slug(row)
+    item = index.get(slug) or index.get_retired(slug)
     if item is None:
-        return _slug(row), ""
-    return conjectures.title(item), item.source.type_pretty
+        return _Named(display_title=slug, title_parts=None, title=slug, statement="")
+    name = conjectures.display_name(item)
+    return _Named(
+        display_title=name.display_title,
+        title_parts=public.TitleParts.of(name),
+        title=conjectures.title(item),
+        statement=item.source.type_pretty,
+    )
 
 
 def _result(
@@ -146,7 +180,7 @@ def _result(
     index: ConjectureIndex,
     alpha_usd: Decimal | None,
 ) -> public.PublicResult:
-    title, statement = _title_and_statement(index, row)
+    named = _named(index, row)
     return public.PublicResult(
         id=row.id,
         hotkey=row.hotkey,
@@ -157,8 +191,10 @@ def _result(
         reward_status=str(row.reward_status),
         slug=_slug(row),
         task_id=row.task_id,
-        title=title,
-        statement=statement,
+        display_title=named.display_title,
+        title_parts=named.title_parts,
+        title=named.title,
+        statement=named.statement,
         task_bundle_sha256=digests.to_prefixed(row.task_bundle_sha256),
         verified_at=_utc(row.verified_at),
         certified_at=_utc(row.certified_at),
@@ -188,14 +224,16 @@ def _in_review(
     index: ConjectureIndex,
     _alpha_usd: Decimal | None,
 ) -> public.InReviewResult:
-    title, statement = _title_and_statement(index, row)
+    named = _named(index, row)
     return public.InReviewResult(
         id=row.id,
         hotkey=row.hotkey,
         slug=_slug(row),
         task_id=row.task_id,
-        title=title,
-        statement=statement,
+        display_title=named.display_title,
+        title_parts=named.title_parts,
+        title=named.title,
+        statement=named.statement,
         task_bundle_sha256=digests.to_prefixed(row.task_bundle_sha256),
         verified_at=_utc(row.verified_at),
         review_policy_version=row.review_policy_version,

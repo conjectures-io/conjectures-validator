@@ -33,6 +33,8 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from submission_api.naming import ProblemName
+
 
 class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -157,6 +159,63 @@ SLUG_DESCRIPTION = (
     "rotation, so it is safe to link, bookmark and cite. Not the same string as `task_id`"
 )
 
+DISPLAY_TITLE_DESCRIPTION = (
+    "The conjecture's name for a reader, ready to render: `Erdős problem 1 — lb`, "
+    "`Collatz Conjecture`, `Hilbert's 17th problem`. Derived from the audited module path and "
+    "theorem name by re-spacing their own tokens — no name is supplied from outside the catalog, "
+    "because upstream publishes none. Never contains a Lean identifier, so a client does not need "
+    "to parse `title`. Not unique and not a key: upstream files several root theorems for one "
+    "problem, and those share a display title. `slug` is the identity"
+)
+
+
+class TitleParts(Model):
+    """The pieces `display_title` is composed from, for a client that wants its own wording.
+
+    Published alongside the composed string rather than instead of it: the composition is a wording
+    decision — where the em dash falls, whether the collection is named — and having every client
+    re-make it is how two surfaces of one API come to disagree about a conjecture's name.
+    """
+
+    collection: str = Field(
+        description=(
+            "Machine key for the upstream collection this problem comes from: `erdos_problems`, "
+            "`wikipedia`, `oeis`, `arxiv`, `millennium`, and so on. Stable, lower_snake_case, and "
+            "safe to switch on. A collection added upstream appears here keyed by its own name "
+            "rather than as an error"
+        )
+    )
+    collection_label: str = Field(
+        description="The same collection in words, for a reader: `Erdős problems`, `MathOverflow`"
+    )
+    reference: str = Field(
+        description=(
+            "How the collection identifies this problem: `1`, `A228828`, `2303.01089`, `17th`. For "
+            "a collection that names its problems rather than numbering them, the name itself — "
+            "`Collatz Conjecture`. Never null; every problem has one. This is the general form of "
+            "the `erdos_problem_number` the problem index publishes, which is the same value for "
+            "one collection out of sixteen"
+        )
+    )
+    qualifier: str | None = Field(
+        default=None,
+        description=(
+            "Which formalisation of the problem this is, in words — `lb`, `part iii`, "
+            "`lower bound of Bloom` — or null when it is the problem's own statement. This is the "
+            "text after the em dash in `display_title`"
+        ),
+    )
+
+    @classmethod
+    def of(cls, name: ProblemName) -> TitleParts:
+        """Field-for-field, in one place: five surfaces publish this and none may drift."""
+        return cls(
+            collection=name.collection,
+            collection_label=name.collection_label,
+            reference=name.reference,
+            qualifier=name.qualifier,
+        )
+
 
 class ConjectureTask(Model):
     """One task issued against a conjecture: one attack direction, at one pinned revision.
@@ -184,10 +243,16 @@ class ConjectureSummary(Model):
     """
 
     slug: str = Field(description=SLUG_DESCRIPTION)
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None, description="The pieces `display_title` was built from"
+    )
     title: str = Field(
         description=(
             "The fully-qualified source theorem. An identifier a mathematician can cite, not "
-            "prose — no human title exists upstream, and `summary` is the readable half"
+            "prose — no human title exists upstream, and `summary` is the readable half. Render "
+            "`display_title` instead; this is for citing and for matching against a report's "
+            "`source_theorem`"
         )
     )
     statement: str = Field(
@@ -278,7 +343,15 @@ class ConjectureDetail(Model):
     """
 
     slug: str = Field(description=SLUG_DESCRIPTION)
-    title: str = Field(description="The fully-qualified source theorem; an identifier, not prose")
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None, description="The pieces `display_title` was built from"
+    )
+    title: str = Field(
+        description=(
+            "The fully-qualified source theorem; an identifier, not prose. Render `display_title`"
+        )
+    )
     statement: str
     summary: str | None = None
     category: str
@@ -377,6 +450,16 @@ class ConjectureIndexEntry(Model):
     """
 
     slug: str = Field(description=SLUG_DESCRIPTION)
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None,
+        description=(
+            "The pieces `display_title` was built from. `title_parts.reference` generalises "
+            "`erdos_problem_number` below to every collection, and `title_parts.qualifier` is the "
+            "words after the em dash in `display_title` — not the same field as `qualifier` below, "
+            "which stays the raw `.variants.` fragment this index has always published"
+        ),
+    )
     source_theorem: str = Field(
         description="The fully-qualified theorem at `slug`; an identifier, not prose"
     )
@@ -496,6 +579,19 @@ class ConjectureActivity(Model):
 
 ATTRIBUTION = "conjectures.io"
 
+# Shared by both result models, because both resolve them the same way and a client that renders a
+# feed and a detail page must not find them described differently.
+RESULT_TITLE_DESCRIPTION = (
+    "The fully-qualified source theorem this result is against. Resolved by slug through the live "
+    "catalog and then the retired one, so a result against a withdrawn target is still named after "
+    "the theorem it closed. Falls back to the slug only for a pre-V004 row whose reward target "
+    "names no conjecture in any pin. Render `display_title`"
+)
+RESULT_STATEMENT_DESCRIPTION = (
+    "The conjecture as Lean pretty-prints its type, from the same lookup as `title`. Empty string "
+    "in the one case `title` falls back to the slug"
+)
+
 
 class PublicReviewDecision(Model):
     """The binding review decision and its deliberately public rationale.
@@ -556,8 +652,16 @@ class PublicResult(Model):
     task_id: str = Field(
         description="The task this result was produced against, at the pin then in force"
     )
-    title: str
-    statement: str
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None,
+        description=(
+            "The pieces `display_title` was built from. Null only for a row whose reward target "
+            "names no conjecture in any pin, where `display_title` is the slug"
+        ),
+    )
+    title: str = Field(description=RESULT_TITLE_DESCRIPTION)
+    statement: str = Field(description=RESULT_STATEMENT_DESCRIPTION)
     task_bundle_sha256: str
     attribution: str = ATTRIBUTION
     verified_at: datetime | None = Field(
@@ -620,8 +724,12 @@ class InReviewResult(Model):
     )
     slug: str = Field(description="The conjecture this result is against, as a stable slug")
     task_id: str
-    title: str
-    statement: str
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None, description="The pieces `display_title` was built from"
+    )
+    title: str = Field(description=RESULT_TITLE_DESCRIPTION)
+    statement: str = Field(description=RESULT_STATEMENT_DESCRIPTION)
     task_bundle_sha256: str
     attribution: str = ATTRIBUTION
     verified_at: datetime | None = None

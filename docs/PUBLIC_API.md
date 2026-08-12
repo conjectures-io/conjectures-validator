@@ -162,6 +162,13 @@ So the index reports one entry per *problem*, keyed on the root theorem the fami
   "items": [
     {
       "slug": "erdos1-erdos-1",
+      "display_title": "Erdős problem 1",
+      "title_parts": {
+        "collection": "erdos_problems",
+        "collection_label": "Erdős problems",
+        "reference": "1",
+        "qualifier": null
+      },
       "source_theorem": "Erdos1.erdos_1",
       "erdos_problem_number": 1,
       "qualifier": null,
@@ -190,6 +197,11 @@ Five details, each forced by what the pinned catalog contains:
 * **`erdos_problem_number` is not a key.** 934 problems carry one and only 509 are distinct,
   because upstream regularly formalises one problem as several independent root theorems in one
   module. `slug` is the identity.
+* **`title_parts.reference` is the same idea for the other fifteen collections.** Every collection
+  identifies its problems and only one of them does it with an Erdős number, so `reference` carries
+  `1`, `A228828`, `2303.01089`, `17th` or `Collatz Conjecture` as the collection requires, and is
+  never null. `erdos_problem_number` stays exactly as it is — it is typed `int`, which `reference`
+  cannot be. See [Display titles](#display-titles-and-why-title-is-not-one).
 * **`qualifier` says when a variant is standing in for its problem.** It is null when the root
   theorem is itself in the pool. 241 of the catalog's 942 variants have no root declaration at
   all, leaving 70 problems headed by a variant; there the best-precedence variant represents the
@@ -244,12 +256,79 @@ even the attempt counters. It is a grouping of the startup index into a few hund
 identifiers, with no statement, no Lean and no bounty quote, so the work is bounded by the pool
 rather than by the caller. Follow a slug to `/v1/catalog/conjectures/{slug}` for any of those.
 
+### Display titles, and why `title` is not one
+
+`title` is the fully-qualified source theorem — `Erdos1.erdos_1.variants.lb` — which is the right
+thing to cite and the wrong thing to put in a heading. **Render `display_title` instead.** It is
+published on every surface that publishes `title`:
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /v1/catalog/conjectures` | `ConjectureSummary` |
+| `GET /v1/catalog/conjectures/{slug}` | `ConjectureDetail`, retired targets included |
+| `GET /v1/catalog/index` | `ConjectureIndexEntry` |
+| `GET /v1/results/certified`, `/submissions`, `/{id}` | `PublicResult` |
+| `GET /v1/results/in-review` | `InReviewResult` |
+
+```json
+{
+  "display_title": "Erdős problem 1 — lb",
+  "title_parts": {
+    "collection": "erdos_problems",
+    "collection_label": "Erdős problems",
+    "reference": "1",
+    "qualifier": "lb"
+  },
+  "title": "Erdos1.erdos_1.variants.lb"
+}
+```
+
+**No client should need to parse `title`.** That is the guarantee, and it is checked rather than
+asserted: a test sweeps all 3267 declarations in the pinned catalog and fails if any `display_title`
+carries an underscore, a guillemet or a camel hump. A hand-rolled parser gets the common shapes and
+leaves `maximalLength_ge_of_isSquare` in the UI for the rest — including the twenty theorem names
+Lean mangles into `_private.FormalConjectures.ErdosProblems.«1049».0.Erdos1049.lambert_convergent`.
+
+**Derived, never invented.** Every character comes from the audited module path or theorem name;
+the derivation only inserts spaces and joins with a phrase naming the collection. `«17»` under
+`HilbertProblems` reads "Hilbert's 17th problem"; `CollatzConjecture` reads "Collatz Conjecture".
+Upstream publishes no human titles, so there is none to publish, and supplying one from outside the
+catalog would put a name on the website that appears in no audited artifact — which is the same
+reason `title` is not prose. See
+[`../submission_api/naming.py`](../submission_api/naming.py).
+
+| `title` | `display_title` |
+| --- | --- |
+| `Erdos1.erdos_1` | Erdős problem 1 |
+| `Erdos357.erdos_357.variants.monotone.parts.i` | Erdős problem 357 — monotone, part i |
+| `Hilbert17.hilbert_17th_problem` | Hilbert's 17th problem |
+| `OeisA228828.a_0` | OEIS sequence A228828 — a 0 |
+| `Arxiv.«0912.2382».curling_number_conjecture` | Curling Number Conjecture (arXiv:0912.2382) |
+| `CollatzConjecture.collatz` | Collatz Conjecture |
+| `ComplexityTheory.P_ne_NP` | P vs NP — P ne NP |
+
+**Not an identity.** `display_title` names the *problem*, and upstream files several root theorems
+for one problem, so a handful share a title — 12 collisions across 2467 pool-eligible declarations,
+each a pair distinguished only by a middle Lean namespace segment. Sort, group and link on `slug`.
+
+**`title_parts` is the same name unassembled**, for a client that wants its own wording:
+`collection` is a stable lower_snake_case key safe to switch on, `collection_label` is it in words,
+`reference` is how the collection identifies this problem, and `qualifier` is the text after the em
+dash. A collection added upstream is keyed by its own name and still reads as words rather than
+becoming an error or an identifier.
+
+Two things to know about nulls. On the problem index, `title_parts.qualifier` is *not* the entry's
+own `qualifier` — that one stays the raw `.variants.` fragment the index has always published, and
+this one is it in words. On a result feed, `title_parts` is null for the one class of row whose
+reward target names no conjecture in any pin, where `display_title` degrades to the slug — see
+[A result keeps its conjecture's name](#a-result-keeps-its-conjectures-name-after-the-target-is-withdrawn).
+
 ### The rest of a conjecture
 
 `ConjectureDetail` carries both halves. The human half is `summary` (the source docstring) and
-`statement` (Lean's pretty-printed type). `title` is the fully-qualified source theorem: an
-identifier a mathematician can cite, not prose — no human title exists in the upstream catalog, and
-inventing one here would put a name on the website that appears in no audited artifact.
+`statement` (Lean's pretty-printed type), with `display_title` above as the heading. `title` remains
+the fully-qualified source theorem: an identifier a mathematician can cite, and the string that
+matches a verifier report's `source_theorem`.
 
 Each task's `challenge_lean` is the exact `Challenge.lean` whose bytes are hashed into that task's
 published `task_bundle_sha256`. It is held in memory from startup, not re-read per request, so the
@@ -417,6 +496,25 @@ A result carries both identities: `slug` names the conjecture, `task_id` names t
 produced against. The slug is derived from the row's own `reward_target_id` rather than looked up
 in the catalog, so a result produced under an earlier pin still links to the live conjecture page
 instead of to a task id the current pool no longer carries.
+
+### A result keeps its conjecture's name after the target is withdrawn
+
+`display_title`, `title` and `statement` on every result — `/certified`, `/in-review`,
+`/submissions` and `GET /v1/results/{id}` — are resolved by slug through the live catalog index and
+then the [retired](#retired-describes-one-conjecture-never-a-family) one, which is the same two-step
+`GET /v1/catalog/conjectures/{slug}` takes. So a result against a withdrawn target is named after the
+theorem it closed, and named identically to the conjecture's own page. Retiring a target deletes its
+bundles; it does not rename the conjecture, and it must not relabel work already earned against it.
+
+`title` is the fully-qualified source theorem, exactly as on the conjecture detail endpoint — an
+identifier to cite, not prose. See
+[Display titles](#display-titles-and-why-title-is-not-one) for what to render instead.
+
+One case degrades: a `reward_target_id` that resolves to no conjecture in either index. Those are
+pre-`V004` rows whose reward target was backfilled from the raw `problem_id` because the migration
+did not recognise it. They name nothing in any pin, so `display_title` and `title` fall back to the
+slug, `statement` is an empty string, and `title_parts` is null rather than invented — a public feed
+must not fail over one historical row, and there is no name being withheld.
 
 ## Activity
 
@@ -639,7 +737,16 @@ another, so it stops the process rather than showing up as a mismatched detail p
 ```bash
 docker compose -f docker-compose.pytest-db.yml up -d
 .venv/bin/pytest tests/test_api_catalog.py tests/test_api_results.py tests/test_api_public.py
+# no database needed: the reference and display-title parsers are pure functions
+.venv/bin/pytest tests/test_naming.py tests/test_references.py
 ```
+
+[`../tests/test_naming.py`](../tests/test_naming.py) is the guard on display titles, and the
+important half of it is not the examples. Two tests sweep every declaration in
+[`../data/catalog.json`](../data/catalog.json) and fail if a title reads as a Lean identifier or a
+namespace resolves to nothing, because this is a parser over data nobody here wrote: the next pin
+rotation can introduce a module shape no hand-written case anticipated, and the failure mode is
+silent — a heading with `maximalLength_ge_of_isSquare` in it renders perfectly well.
 
 [`../tests/test_api_results.py`](../tests/test_api_results.py) is largely about absence — that no
 hotkey, coldkey, payment reference or verifier output appears in any public payload, and that a
