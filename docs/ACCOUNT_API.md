@@ -239,6 +239,18 @@ POST /v1/auth/cli/challenge  { address }                      -> { nonce, messag
 POST /v1/auth/cli/verify     { address, nonce, signature }    -> CliSession
 ```
 
+**The prerequisite has its own command**, `conjectures auth register`, which walks the four calls a
+website would — coldkey challenge, coldkey verify, hotkey challenge, hotkey link — creating the
+account on first sign-in, because proving control of an unclaimed coldkey *is* signing up. It opens
+a cookie session, makes the one write, and revokes it before returning, so the browser credential
+never reaches disk. `scripts/link_hotkey.py` does the same four calls from this repo, for testing a
+deployment without installing the miner CLI.
+
+```
+conjectures auth register --wallet default --hotkey default   # the miner's route
+python3 scripts/link_hotkey.py --api http://localhost:8000    # the validator's own
+```
+
 **The challenge endpoint does not say whether the hotkey is linked.** Hotkeys are published on
 chain, so anyone can ask about anyone's key; a differing answer would be a free oracle mapping
 hotkeys to accounts on this deployment. The linkage is checked at verify, once a signature has

@@ -739,7 +739,7 @@ async def cli_verify(
         # only the website can create one — a hotkey must not be able to claim an account for
         # itself, or a stolen hotkey would be a way in rather than merely a way to work.
         raise Forbidden(
-            "that hotkey is not linked to an account; sign in at the website and link it first",
+            "that hotkey is not linked to an account; link it with a coldkey first",
             reason_code=login.REASON_HOTKEY_NOT_LINKED,
         )
 
