@@ -1,28 +1,37 @@
 """Sign in, sign out, and read the current session.
 
-Two ways in — a magic link to an email address, and a signature from a coldkey — and both
-end in the same place: a session row and an HttpOnly cookie. See
-`submission_api/sessions.py` for the cookie and CSRF design and
+Three ways in. Two are for a browser and end in an HttpOnly cookie: a magic link to an email
+address, and a signature from a coldkey. The third is for the miner CLI and ends in a bearer
+token: a signature from a hotkey that has already been linked to an account in the browser. See
+`submission_api/sessions.py` for the two credentials and why only one of them needs CSRF, and
 `submission_api/login.py` for the signed messages.
 
-Four things here are security decisions rather than conveniences:
+Six things here are security decisions rather than conveniences:
 
 * **`request-link` always answers 202.** Whether an account exists for an address is not
   disclosed, so this endpoint cannot be used to enumerate who has signed up. The response
   is identical for a known address, an unknown one, and one that is rate-limited.
 * **Verification is single-use and atomic.** `consume_challenge` claims the row in one
   conditional UPDATE, so a forwarded email or a double-clicked link logs in once.
-* **A new session is issued on every sign-in, and any existing one is revoked.** Reusing a
-  session across a re-authentication would let a session established before an email was
-  verified survive the change in what that account can reach.
+* **A new browser session is issued on every sign-in, and any existing *browser* session is
+  revoked.** Reusing a session across a re-authentication would let a session established
+  before an email was verified survive the change in what that account can reach. CLI tokens
+  are deliberately out of that scope — see `_sign_in`.
 * **Per-address rate limits, on top of the per-IP limiter.** Mailing a link is an action
   taken against someone else's mailbox: what has to be bounded is requests per address, not
   requests per requester, and the IP limiter cannot see that.
+* **Signatures are checked before nonces are consumed, and before anything is disclosed.** A
+  wrong signature must not burn a challenge, or an attacker could grief a known address by
+  sending garbage; and nothing about an account may be revealed to a caller who has not yet
+  proved control of the key. The per-challenge attempt ceiling is what bounds the first choice.
+* **Every response here is `no-store`.** All of them are caller-dependent, and one of them
+  contains a live credential.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import ipaddress
 from typing import Annotated
 
 from fastapi import APIRouter, Header, Request, Response, status
@@ -30,7 +39,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
-from conjectures_subnet.db.models import Account, LoginChallengeKind
+from conjectures_subnet.db.models import (
+    MINER_ROLE,
+    Account,
+    AccountSessionKind,
+    LoginChallengeKind,
+)
 from submission_api import login, mail, schemas_account as account_schemas, sessions
 from submission_api.dependencies import (
     OptionalPrincipalDep,
@@ -38,7 +52,13 @@ from submission_api.dependencies import (
     SessionDep,
     WriterDep,
 )
-from submission_api.errors import ServiceUnavailable, TooManyRequests, Unauthorized
+from submission_api.errors import (
+    Forbidden,
+    ServiceUnavailable,
+    TooManyRequests,
+    Unauthorized,
+)
+from submission_api.middleware import client_address
 from submission_api.routers._account import account_response
 from submission_api.settings import Settings
 from verifier.bundle import SS58_ADDRESS
@@ -80,6 +100,22 @@ class WalletVerifyRequest(Payload):
     signature: str = Field(min_length=128, max_length=MAX_SIGNATURE_HEX)
 
 
+class CliChallengeRequest(Payload):
+    address: str = Field(
+        min_length=48, max_length=48, description="The hotkey that will sign"
+    )
+
+
+class CliVerifyRequest(Payload):
+    address: str = Field(min_length=48, max_length=48)
+    # Echoed back, unlike the coldkey flow. The nonce is not the proof — the signature is, and
+    # it is checked against the message stored on the row this nonce names — but naming the row
+    # is what stops one caller's challenge from superseding another's. See
+    # `accounts.open_challenge_by_nonce`.
+    nonce: str = Field(min_length=16, max_length=MAX_TOKEN_LENGTH)
+    signature: str = Field(min_length=128, max_length=MAX_SIGNATURE_HEX)
+
+
 def _now() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
 
@@ -108,12 +144,20 @@ async def _sign_in(
     user_agent: str | None,
     source_ip: str | None,
 ) -> account_schemas.SessionEnvelope:
-    """Issue a fresh session, retiring every earlier one for this account.
+    """Issue a fresh browser session, retiring every earlier *browser* session for this account.
 
-    Revoking the old sessions is what makes a sign-in a clean boundary: whatever the account
-    could reach before, the only live credential afterwards is the one just handed out.
+    Revoking the old cookies is what makes a sign-in a clean boundary: whatever this browser
+    could reach before, the only live cookie afterwards is the one just handed out.
+
+    `kind=COOKIE` scopes that, and the scoping is load-bearing rather than tidy. CLI bearer
+    tokens live on other machines and represent long-running work; an unscoped revoke would mean
+    that every time a miner opened the website, every rig's `conjectures` session died — a
+    failure nobody would attribute to having visited a web page. A browser sign-in is a
+    statement about this browser, not about the account's tooling.
     """
-    await account_store.revoke_all_sessions(session, account.id)
+    await account_store.revoke_all_sessions(
+        session, account.id, kind=AccountSessionKind.COOKIE
+    )
     issued = await sessions.issue(
         session,
         account,
@@ -143,8 +187,36 @@ async def _sign_in(
     )
 
 
-def _client_ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
+def _client_ip(request: Request, settings: Settings) -> str | None:
+    """The address to record on the session row.
+
+    Read through `middleware.client_address` rather than off `request.client`, so that behind a
+    load balancer this is the caller rather than the balancer. `source_ip` and `user_agent` are
+    the only forensic handles on a long-lived credential and the only thing a session listing can
+    show a person deciding whether to revoke one — "last used from 10.0.0.3", the same address for
+    every session ever created, is worse than showing nothing.
+
+    Returns None rather than a placeholder when the result is not an address: the column is
+    `INET`, and `client_address` yields the string `unknown` when there is no peer at all.
+    """
+    address = client_address(request.scope, settings.trusted_proxy_hops)
+    try:
+        return str(ipaddress.ip_address(address))
+    except ValueError:
+        return None
+
+
+def _no_store(response: Response) -> None:
+    """Forbid caching of an authenticated answer, and say what it varies on.
+
+    Every response in this router is caller-dependent: the account body, the session state, and
+    in one case a live credential. `no-store` keeps them out of shared caches and browser disk
+    caches alike, and `Vary` names both credential channels so that an intermediary which does
+    cache cannot serve one caller's identity to another. `/v1/me` already does this; this router
+    was the gap.
+    """
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Vary"] = "Authorization, Cookie"
 
 
 def _normalise_signature(value: str) -> bytes:
@@ -182,20 +254,26 @@ def _assert_ss58(value: str) -> str:
     summary="The current account, or 401",
 )
 async def read_session(
-    principal: OptionalPrincipalDep, session: SessionDep
+    response: Response, principal: OptionalPrincipalDep, session: SessionDep
 ) -> account_schemas.SessionEnvelope:
     """What the website calls on load to decide whether to show a sign-in page.
 
     401 for an absent or expired session, which is what the contract specifies, rather than
     200 with a null account: the status code is the signal, and a client should not have to
     inspect a body to learn it is anonymous.
+
+    Answers a bearer caller too, redacted — `conjectures auth status` uses it to confirm that a
+    stored token is still live without having to interpret an error body.
     """
+    _no_store(response)
     if principal is None:
         raise Unauthorized(
             "not signed in", reason_code=sessions.REASON_NOT_AUTHENTICATED
         )
     return account_schemas.SessionEnvelope(
-        account=await account_response(session, principal.account)
+        account=await account_response(
+            session, principal.account, bearer_scope=principal.hotkey_scope
+        )
     )
 
 
@@ -206,23 +284,37 @@ async def logout(
     session: SessionDep,
     services: ServicesDep,
 ) -> None:
-    """Revoke the session row and clear both cookies.
+    """Revoke this one session row, and clear both cookies if it was a browser session.
 
     A write, so it takes `WriterDep` and its CSRF check: a cross-site page being able to log
-    someone out is a real, if minor, nuisance attack, and the check costs nothing here.
+    someone out is a real, if minor, nuisance attack, and the check costs nothing here. A bearer
+    caller passes that check by construction — see `require_writer`.
 
     Revoking server-side is the point. Clearing the cookie alone would leave a credential
     that still works if it was captured.
+
+    **One row, whichever kind it is.** `conjectures auth logout` on one rig must not sign the
+    miner out of the website, and signing out of the website must not stop the rigs. The
+    account-wide version of this is `DELETE /v1/me/sessions/{id}` per session, or the
+    sign-out-everywhere on the account page.
+
+    The cookie-clearing headers are skipped for a bearer session. Nothing would break if they
+    were sent — a CLI has no cookie jar — but an `Authorization`-authenticated request that
+    answers with `Set-Cookie` is exactly the shape that turns a CLI credential into an ambient
+    one the first time some client does keep a jar.
     """
+    _no_store(response)
     await account_store.revoke_session(session, principal.session.id)
     await session.commit()
     get_axiom().info(
         source="api-auth",
         event_type="logout",
         account_id=str(principal.account.id),
+        session_kind=str(principal.session.kind),
     )
-    for cookie in sessions.cleared_cookies(secure=services.settings.production):
-        response.headers.append("Set-Cookie", cookie)
+    if not principal.is_bearer:
+        for cookie in sessions.cleared_cookies(secure=services.settings.production):
+            response.headers.append("Set-Cookie", cookie)
 
 
 # --- Email magic link --------------------------------------------------------------------
@@ -325,6 +417,7 @@ async def verify_email(
     demonstrably received mail at that address, which is the whole of what an email account
     proves. There is nothing further to ask for.
     """
+    _no_store(response)
     now = _now()
     challenge = await account_store.consume_challenge(
         session,
@@ -359,7 +452,7 @@ async def verify_email(
         services.settings,
         method="email-link",
         user_agent=user_agent,
-        source_ip=_client_ip(request),
+        source_ip=_client_ip(request, services.settings),
     )
 
 
@@ -373,6 +466,7 @@ async def verify_email(
 )
 async def wallet_challenge(
     payload: WalletChallengeRequest,
+    response: Response,
     services: ServicesDep,
     session: SessionDep,
 ) -> account_schemas.WalletChallenge:
@@ -383,6 +477,7 @@ async def wallet_challenge(
     hotkey-link flow, into another deployment, or for another address. It is stored verbatim
     and verified verbatim.
     """
+    _no_store(response)
     settings = services.settings
     address = _assert_ss58(payload.address)
     now = _now()
@@ -440,6 +535,7 @@ async def verify_wallet(
     choosing — there is exactly one unconsumed challenge per address per nonce, and the
     message that goes into verification comes from the row.
     """
+    _no_store(response)
     address = _assert_ss58(payload.address)
     signature = _normalise_signature(payload.signature)
     now = _now()
@@ -487,8 +583,251 @@ async def verify_wallet(
         services.settings,
         method="wallet-signature",
         user_agent=user_agent,
-        source_ip=_client_ip(request),
+        source_ip=_client_ip(request, services.settings),
     )
+
+
+# --- CLI sign-in -------------------------------------------------------------------------
+# A hotkey exchanges a signature for a bearer token. Linking the hotkey to an account happens
+# first, in a browser, and is not reachable from here — that asymmetry is the design: this
+# endpoint can only ever hand out a credential for an account that a *coldkey or a mailbox*
+# already claimed the hotkey for. A hotkey alone can never create an account or attach itself
+# to one, so compromising a hotkey never produces a new identity, only a session on an identity
+# that already chose to include it.
+
+
+@router.post(
+    "/cli/challenge",
+    response_model=account_schemas.WalletChallenge,
+    summary="A nonce and the exact message a hotkey must sign",
+)
+async def cli_challenge(
+    payload: CliChallengeRequest,
+    response: Response,
+    services: ServicesDep,
+    session: SessionDep,
+) -> account_schemas.WalletChallenge:
+    """Mint a single-use nonce for a hotkey.
+
+    Domain-separated with `conjectures-cli-session-v1`, which is not a prefix of and does not
+    contain any of the other four signed messages this validator asks for. That matters more
+    here than anywhere else: a hotkey signs routinely — every submission and every status read
+    is a signature — so this flow has to be one a harvested signature from those paths cannot
+    satisfy, and vice versa.
+
+    **It does not say whether the hotkey is linked to anything.** A hotkey is public on chain,
+    so anyone can ask for a challenge for anyone's key; if the answer varied, this would be a
+    free oracle mapping hotkeys to accounts on this deployment. The linkage is checked at
+    verify, once a signature has proved the caller controls the key — at which point they are
+    entitled to know.
+
+    Rate-limited per address, like the other two nonce flows, because minting is an action
+    taken against a key someone else holds.
+    """
+    _no_store(response)
+    settings = services.settings
+    address = _assert_ss58(payload.address)
+    now = _now()
+    issued = await account_store.recent_challenge_count(
+        session,
+        kind=LoginChallengeKind.HOTKEY_SESSION,
+        since=now - dt.timedelta(hours=1),
+        ss58=address,
+    )
+    if issued >= settings.challenges_per_hour:
+        raise TooManyRequests(
+            "too many CLI sign-in challenges for that hotkey; try again later",
+            reason_code=REASON_TOO_MANY_CHALLENGES,
+        )
+
+    nonce = sessions.new_token()
+    expires_at = now + dt.timedelta(minutes=settings.challenge_minutes)
+    message = login.cli_session_message(
+        domain=settings.login_domain,
+        address=address,
+        nonce=nonce,
+        expires_at=expires_at,
+    )
+    await account_store.create_challenge(
+        session,
+        kind=LoginChallengeKind.HOTKEY_SESSION,
+        secret_digest=account_store.digest(nonce),
+        expires_at=expires_at,
+        ss58=address,
+        message=message,
+    )
+    await session.commit()
+    return account_schemas.WalletChallenge(
+        nonce=nonce, message=message, expires_at=expires_at
+    )
+
+
+@router.post(
+    "/cli/verify",
+    response_model=account_schemas.CliSession,
+    summary="Verify the hotkey signature and mint a bearer token",
+)
+async def cli_verify(
+    payload: CliVerifyRequest,
+    request: Request,
+    response: Response,
+    services: ServicesDep,
+    session: SessionDep,
+    user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
+) -> account_schemas.CliSession:
+    """Check the signature, find the account that linked this hotkey, and issue a token.
+
+    **The order of the five steps is the security of this endpoint**, and each boundary was
+    chosen against a specific failure:
+
+    1. **Find the challenge by its own nonce.** Not "the latest open challenge for this
+       address", which is how the coldkey flow does it — that is a denial-of-service primitive
+       when the address is public, and hotkeys are published on chain. See
+       `accounts.open_challenge_by_nonce`.
+    2. **Verify the signature over the stored message.** Before anything is consumed and before
+       anything is disclosed. The message comes off the row, never rebuilt.
+    3. **Count a failed attempt** if it did not verify, and refuse. The challenge survives a
+       wrong signature — otherwise a bad request forces the user to start over — but not
+       unboundedly many, or an open challenge would be free sr25519 work for an anonymous
+       caller.
+    4. **Resolve the account, and refuse an unlinked hotkey — with the nonce still unspent.**
+       This is the common first-run error, and burning the nonce on it would mean a fresh
+       challenge, a fresh passphrase prompt and a fresh signature per attempt, for a condition
+       the miner has to go and fix in a browser anyway.
+    5. **Consume, then issue.** Consuming last means the nonce is spent exactly when a token
+       comes into existence, and the conditional UPDATE is what makes two simultaneous
+       redemptions of one valid signature produce one token.
+    """
+    _no_store(response)
+    settings = services.settings
+    address = _assert_ss58(payload.address)
+    signature = _normalise_signature(payload.signature)
+    now = _now()
+
+    challenge = await account_store.open_challenge_by_nonce(
+        session,
+        kind=LoginChallengeKind.HOTKEY_SESSION,
+        ss58=address,
+        secret_digest=account_store.digest(payload.nonce),
+        now=now,
+        max_attempts=settings.challenge_attempts,
+    )
+    if challenge is None or challenge.message is None:
+        # One refusal for expired, already-used, out-of-attempts, wrong-address and
+        # never-existed. A caller learns nothing about which, and the action is the same for
+        # all of them: request a new challenge.
+        raise Unauthorized(
+            "no open CLI sign-in challenge for that hotkey and nonce; request a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+
+    try:
+        login.verify_signature(
+            address=address, message=challenge.message, signature=signature
+        )
+    except Unauthorized:
+        # Counted and committed before re-raising, so the attempt is recorded even though the
+        # request fails. Without the commit the increment would roll back with the response and
+        # the ceiling would never be reached.
+        await account_store.record_failed_attempt(session, challenge.id)
+        await session.commit()
+        raise
+
+    account = await account_store.find_by_hotkey(session, address)
+    if account is None:
+        # 403, not 401: the caller proved they control the key. What is missing is a *link*, and
+        # only the website can create one — a hotkey must not be able to claim an account for
+        # itself, or a stolen hotkey would be a way in rather than merely a way to work.
+        raise Forbidden(
+            "that hotkey is not linked to an account; sign in at the website and link it first",
+            reason_code=login.REASON_HOTKEY_NOT_LINKED,
+        )
+
+    consumed = await account_store.consume_challenge(
+        session,
+        kind=LoginChallengeKind.HOTKEY_SESSION,
+        secret_digest=bytes(challenge.secret_sha256),
+        now=now,
+    )
+    if consumed is None:
+        # Lost a race with another request presenting the same valid signature.
+        raise Unauthorized(
+            "that challenge has already been used; request a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+
+    await _evict_surplus_cli_sessions(session, account, settings, now=now)
+
+    issued = await sessions.issue_bearer(
+        session,
+        account,
+        hotkey=address,
+        now=now,
+        lifetime=dt.timedelta(days=settings.cli_session_days),
+        user_agent=user_agent,
+        source_ip=_client_ip(request, services.settings),
+    )
+    await session.commit()
+
+    # The token is never a field on an event. Nor is the nonce. What is worth recording is that
+    # a CLI session was minted, for which account, and under which hotkey — the hotkey is
+    # already published alongside verified results, unlike an email address, so it is safe here
+    # and it is the one field that makes "a token appeared on a machine I do not recognise"
+    # answerable.
+    get_axiom().info(
+        source="api-auth",
+        event_type="login_completed",
+        account_id=str(account.id),
+        method="cli-hotkey-signature",
+        session_kind=str(AccountSessionKind.BEARER),
+        hotkey=address,
+        privileged=bool(set(account.roles or ()) - {MINER_ROLE}),
+    )
+    return account_schemas.CliSession(
+        access_token=issued.token,
+        token_type=sessions.BEARER_TOKEN_TYPE,
+        expires_at=issued.row.expires_at,
+        hotkey_scope=address,
+        account=await account_response(session, account, bearer_scope=address),
+    )
+
+
+async def _evict_surplus_cli_sessions(
+    session, account: Account, settings: Settings, *, now: dt.datetime
+) -> None:
+    """Keep an account's live CLI tokens under the configured ceiling.
+
+    Every `conjectures auth login` mints a token, and nothing about the flow requires the miner
+    to ever log out — a rig is reimaged, a laptop is replaced, and the row stays live until it
+    expires. Left unbounded, a hotkey that can mint can accumulate durable credentials at
+    `challenges_per_hour` forever, each needing its own revocation.
+
+    The oldest live token is evicted rather than the newest refused. Refusing would let a stale
+    token on a machine the miner no longer has lock them out of the tooling on the machine they
+    are sitting at, which is a worse failure than silently retiring something already unused —
+    and the sessions listing shows exactly what is live, so the eviction is visible.
+    """
+    ceiling = settings.cli_sessions_per_account
+    while True:
+        live = await account_store.live_session_count(
+            session, account.id, kind=AccountSessionKind.BEARER, now=now
+        )
+        if live < ceiling:
+            return
+        oldest = await account_store.oldest_live_session(
+            session, account.id, kind=AccountSessionKind.BEARER, now=now
+        )
+        if oldest is None:  # pragma: no cover - live > 0 guarantees one exists
+            return
+        await account_store.revoke_session(session, oldest.id)
+        get_axiom().info(
+            source="api-auth",
+            event_type="session_revoked",
+            account_id=str(account.id),
+            session_kind=str(AccountSessionKind.BEARER),
+            reason="cli_session_ceiling",
+            hotkey=oldest.hotkey_scope,
+        )
 
 
 __all__ = ["router"]

@@ -45,6 +45,7 @@ from submission_api.dependencies import (
     ServicesDep,
     SessionDep,
     WriterDep,
+    assert_hotkey_in_scope,
 )
 from submission_api.errors import (
     ApiError,
@@ -290,6 +291,12 @@ async def create_intent(
     own credit to submit under someone else's identity, and the resulting reward would have a
     disputed owner.
 
+    A **CLI session** must additionally name the hotkey it was minted for. `owns_hotkey` is an
+    account-level question, which is the right one for a browser session — the person owns all of
+    their keys. It is the wrong one for a bearer token, which was opened by one key on one
+    machine: without the scope check, a token read off rig A could spend the account's credits
+    and have the submission, and its reward, attributed to rig B.
+
     Insufficient credit is a 409 carrying the balance, so a client can show what is missing
     without a second request.
     """
@@ -300,6 +307,10 @@ async def create_intent(
             reason_code=REASON_SUBMISSIONS_PAUSED,
         )
 
+    # Before the task is resolved: this is a question about the caller's credential, not about
+    # the request's content, and a caller who may not act as this hotkey should be refused
+    # without the server first doing catalog work on their behalf.
+    assert_hotkey_in_scope(principal, payload.hotkey)
     entry = _resolve_task(services, payload.task_id, payload.task_bundle_sha256)
     if not await account_store.owns_hotkey(
         session, principal.account.id, payload.hotkey

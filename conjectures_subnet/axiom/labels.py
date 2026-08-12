@@ -101,9 +101,19 @@ EventType: TypeAlias = Literal[
     "intent_committed",
     # --- accounts ---------------------------------------------------------------------------
     "login_link_sent",
+    # Both kinds of sign-in. `method` distinguishes them and `session_kind` says which credential
+    # was handed out, so "how much of our traffic is the CLI" is one query rather than a guess.
     "login_completed",
     "logout",
     "wallet_linked",
+    # A session ended by something other than its own holder logging out: the per-account CLI
+    # ceiling evicting the oldest token, an owner killing a session from the listing, or an
+    # operator cutting an account off. `reason` says which. Worth its own type because a
+    # credential ceasing to exist is the thing someone asks about after a compromise.
+    "session_revoked",
+    # An account's roles were replaced. `accounts.roles` is overwritten in place, so this event
+    # is the only record that the change happened — see `routers/admin.py`.
+    "roles_changed",
     # --- verification worker ----------------------------------------------------------------
     "submission_claimed",
     "verdict_recorded",

@@ -90,6 +90,16 @@ CORS_WILDCARD = "*"
 CORS_METHODS = ("GET", "HEAD", "OPTIONS", "POST", "PATCH", "PUT", "DELETE")
 # Deliberately narrow, and deliberately without any `X-Conjectures-*` header except the CSRF
 # token. Adding a signature header here would undo the paragraph above.
+#
+# **`Authorization` must never be added to this list**, and that is now load-bearing in a second
+# way. A CLI bearer session is exempt from the CSRF token check — correctly, because a bearer
+# token is not an ambient credential and no browser attaches one on its own. This allowlist is
+# what keeps that true: it is the only thing preventing a page on an allowlisted origin from
+# sending an `Authorization` header cross-origin at all. Adding it here would make the CSRF
+# exemption browser-reachable, which is the one way the exemption becomes a hole.
+#
+# The CLI is not a browser, sends no `Origin`, and is not subject to CORS, so it loses nothing.
+# `tests/test_api_accounts.py` asserts the absence.
 CORS_REQUEST_HEADERS = (
     "Accept",
     "Accept-Language",
@@ -158,6 +168,23 @@ MAIL_SENDERS = (SMTP_MAIL, CONSOLE_MAIL)
 DEFAULT_SESSION_DAYS = 30
 DEFAULT_SESSION_REFRESH_MINUTES = 60
 
+# The CLI's bearer token. Shorter than the browser's cookie, and unlike it, capped absolutely.
+#
+# A cookie lives in a browser its owner can inspect and clear, is HttpOnly so no script reads
+# it, and is replaced on every sign-in. A bearer token lives in a file on a miner's machine at
+# mode 0600, and is copied nowhere the person can see. So: a shorter rolling window, and a
+# ceiling past which rolling stops, because "rolling" with no ceiling means a credential that
+# never expires as long as any cron job keeps touching it.
+DEFAULT_CLI_SESSION_DAYS = 14
+DEFAULT_CLI_SESSION_MAX_DAYS = 90
+
+# How many live CLI tokens one account may hold at once. A miner legitimately has several —
+# a laptop, a couple of rigs, CI — and each `conjectures auth login` mints another. The ceiling
+# is what keeps a compromised hotkey from minting an unbounded pile of durable credentials that
+# each have to be revoked individually; reaching it evicts the oldest rather than refusing the
+# newest, so a stale token on a decommissioned box cannot lock a miner out of their own tooling.
+DEFAULT_CLI_SESSIONS_PER_ACCOUNT = 10
+
 # Magic links and signing nonces are short-lived because they are single-use credentials in
 # transit. Fifteen minutes is long enough to find the email and short enough that a link
 # left in a browser history or a referrer header is already dead.
@@ -169,6 +196,14 @@ DEFAULT_CHALLENGE_MINUTES = 5
 # than requests per requester.
 DEFAULT_EMAIL_LINKS_PER_HOUR = 5
 DEFAULT_CHALLENGES_PER_HOUR = 30
+
+# How many signatures may be offered against one challenge before it is spent.
+#
+# The signature flows verify before consuming, so a wrong signature does not burn the nonce and
+# an attacker cannot grief a known address by sending garbage. The cost of that is an open
+# challenge accepting unlimited verification attempts on an unauthenticated path. Five is well
+# past any plausible client bug and nowhere near useful for guessing a 64-byte signature.
+DEFAULT_CHALLENGE_ATTEMPTS = 5
 
 # How long a held credit stays held. Long enough to upload a bundle and sign a digest,
 # short enough that an abandoned intent does not strand a credit for the day.
@@ -434,10 +469,14 @@ class Settings:
     login_domain: str
     session_days: int
     session_refresh_minutes: int
+    cli_session_days: int
+    cli_session_max_days: int
+    cli_sessions_per_account: int
     email_link_minutes: int
     challenge_minutes: int
     email_links_per_hour: int
     challenges_per_hour: int
+    challenge_attempts: int
     intent_minutes: int
     deposit_hours: int
     credit_packages: str
@@ -589,6 +628,22 @@ class Settings:
         login_domain = env.get("LOGIN_DOMAIN", DEFAULT_LOGIN_DOMAIN).strip()
         if LOGIN_DOMAIN.fullmatch(login_domain) is None:
             raise SettingsError("LOGIN_DOMAIN must be a bare hostname")
+
+        # The CLI token's rolling window and the ceiling it may not roll past. Checked against
+        # each other here rather than trusted: a maximum below the rolling window silently
+        # means "every token expires at the maximum", which is a lifetime nobody configured
+        # and which would look like tokens dying early for no reason.
+        cli_session_days = _positive_int(
+            env, "CLI_SESSION_DAYS", DEFAULT_CLI_SESSION_DAYS, maximum=365
+        )
+        cli_session_max_days = _positive_int(
+            env, "CLI_SESSION_MAX_DAYS", DEFAULT_CLI_SESSION_MAX_DAYS, maximum=365
+        )
+        if cli_session_max_days < cli_session_days:
+            raise SettingsError(
+                "CLI_SESSION_MAX_DAYS must not be less than CLI_SESSION_DAYS; the maximum is "
+                "the ceiling a rolling window may not pass, not a second window"
+            )
 
         # The magic link is clicked by a person in a browser, so it points at the website,
         # not at this API. Production must say where that is: a link to a guessed origin is
@@ -789,11 +844,22 @@ class Settings:
                 DEFAULT_SESSION_REFRESH_MINUTES,
                 maximum=10_080,
             ),
+            cli_session_days=cli_session_days,
+            cli_session_max_days=cli_session_max_days,
+            cli_sessions_per_account=_positive_int(
+                env,
+                "CLI_SESSIONS_PER_ACCOUNT",
+                DEFAULT_CLI_SESSIONS_PER_ACCOUNT,
+                maximum=1_000,
+            ),
             email_link_minutes=_positive_int(
                 env, "EMAIL_LINK_MINUTES", DEFAULT_EMAIL_LINK_MINUTES, maximum=1_440
             ),
             challenge_minutes=_positive_int(
                 env, "LOGIN_CHALLENGE_MINUTES", DEFAULT_CHALLENGE_MINUTES, maximum=60
+            ),
+            challenge_attempts=_positive_int(
+                env, "LOGIN_CHALLENGE_ATTEMPTS", DEFAULT_CHALLENGE_ATTEMPTS, maximum=100
             ),
             email_links_per_hour=_positive_int(
                 env, "EMAIL_LINKS_PER_HOUR", DEFAULT_EMAIL_LINKS_PER_HOUR, maximum=1_000

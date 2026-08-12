@@ -11,12 +11,17 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/auth/email/verify` | `{ account }` | Exchange the token for a session |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
 | `POST` | `/v1/auth/wallet/verify` | `{ account }` | Verify the signature, open a session |
-| `POST` | `/v1/auth/logout` | `204` | Revoke the session and clear the cookies |
+| `POST` | `/v1/auth/cli/challenge` | `{ nonce, message, expires_at }` | A nonce for a hotkey to sign |
+| `POST` | `/v1/auth/cli/verify` | `CliSession` | Verify the hotkey signature, mint a bearer token |
+| `POST` | `/v1/auth/logout` | `204` | Revoke **this** session; clear the cookies if it is one |
 | `GET` | `/v1/me` | `Account` | Profile, roles, linked keys, payout address |
-| `PATCH` | `/v1/me` | `Account` | Edit `display_name` |
-| `POST` | `/v1/me/hotkeys/challenge` | `{ nonce, message }` | A nonce for linking a hotkey |
-| `POST` | `/v1/me/hotkeys` | `Account` | Link a hotkey by signature |
-| `PUT` | `/v1/me/payout` | `Account` | Payout destination: coldkey plus hotkey |
+| `PATCH` | `/v1/me` | `Account` | Edit `display_name` — browser only |
+| `GET` | `/v1/me/sessions` | `SessionView[]` | Every live session, both kinds |
+| `DELETE` | `/v1/me/sessions/{id}` | `204` | Revoke one session |
+| `DELETE` | `/v1/me/sessions?kind=` | `204` | Revoke every *other* session, optionally of one kind |
+| `POST` | `/v1/me/hotkeys/challenge` | `{ nonce, message }` | A nonce for linking a hotkey — browser only |
+| `POST` | `/v1/me/hotkeys` | `Account` | Link a hotkey by signature — browser only |
+| `PUT` | `/v1/me/payout` | `Account` | Payout destination: coldkey plus hotkey — browser only |
 | `GET` | `/v1/me/credits` | `CreditBalance` | Available credits, balance, holds, remainder |
 | `GET` | `/v1/me/credits/ledger` | `CursorPage<CreditLedgerEntry>` | The append-only ledger |
 | `POST` | `/v1/me/deposits` | `Deposit` | Declare a deposit, get the `btcli` command |
@@ -32,6 +37,10 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `PUT` | `/v1/submissions/intents/{id}/bundle` | `IntentBundleResult` | Upload, receive the digest to sign |
 | `POST` | `/v1/submissions/intents/{id}/confirm` | `{ submission, credits }` | Debit and submit, atomically |
 | `GET` | `/v1/submissions/intents/{id}` | `SubmissionIntent` | Intent state |
+| `GET` | `/v1/admin/accounts/{id}` | `Account` | One account — `ADMIN`, browser only |
+| `PUT` | `/v1/admin/accounts/{id}/roles` | `Account` | Replace an account's roles — `ADMIN`, browser only |
+| `GET` | `/v1/admin/accounts/{id}/sessions` | `SessionView[]` | An account's live sessions — `ADMIN`, browser only |
+| `DELETE` | `/v1/admin/accounts/{id}/sessions` | `204` | Cut every credential an account holds — `ADMIN`, browser only |
 
 Response models are in
 [`../submission_api/schemas_account.py`](../submission_api/schemas_account.py) — the third of
@@ -42,9 +51,47 @@ data. The separation is the point: a field on `Account` would be a serious discl
 
 ## Sessions
 
-An opaque token in an HttpOnly cookie, backed by a row. Deliberately not a JWT: a JWT here would
-be either short-lived — meaning a refresh mechanism, meaning a second credential — or long-lived
-and unrevocable, meaning a logout that does not log anything out. One `UPDATE` revokes a row.
+An opaque token backed by a row. Deliberately not a JWT: a JWT here would be either short-lived —
+meaning a refresh mechanism, meaning a second credential — or long-lived and unrevocable, meaning
+a logout that does not log anything out. One `UPDATE` revokes a row.
+
+**Two kinds, in one table.** A browser gets an HttpOnly cookie; the miner CLI gets a bearer token
+in an `Authorization` header. Everything that matters is shared — 256 bits from the OS CSPRNG,
+stored only as a digest, an expiry, revocation in one `UPDATE` — so they are one table with a
+`kind` discriminator rather than two tables that would duplicate the authenticate/revoke/expire
+logic and then drift.
+
+| | `COOKIE` | `BEARER` |
+| --- | --- | --- |
+| Opened by | coldkey signature, or a mailbox | a **linked** hotkey's signature |
+| Held in | `conjectures_session` cookie | `~/.config/conjectures/session.json`, mode `0600` |
+| CSRF token | required | none, and none stored |
+| Scoped to | the account | one hotkey (`hotkey_scope`) |
+| Lifetime | `SESSION_DAYS` rolling, uncapped | `CLI_SESSION_DAYS` rolling, capped at `CLI_SESSION_MAX_DAYS` |
+| May take over the account | yes — it is the account holder | **no**, see below |
+
+The two are **not interchangeable**. `accounts.authenticate` takes the kind it expects and puts
+it in the predicate, so a cookie token replayed in an `Authorization` header resolves to nothing,
+and a bearer token planted in the session cookie resolves to nothing. Neither is reachable by an
+attacker who does not already hold the secret — the cookie is HttpOnly — but the two carry
+different CSRF obligations, and a credential that can change which rules apply to it by changing
+where it is presented is much cheaper to forbid than to reason about at every call site.
+
+**A bearer token is the weaker credential, and the API treats it that way.** Bittensor stores a
+hotkey unencrypted on disk by design — that is the point of the coldkey/hotkey split — so a token
+minted by one is roughly as protected as a file on a mining box. Three consequences, all
+enforced rather than advised:
+
+* The writes that change *who the account is* or *where its money goes* require a browser
+  session: linking a hotkey, setting the payout destination, editing the profile, declaring or
+  claiming a deposit. Left open, those compose into full account takeover from one stolen file —
+  link an attacker's hotkey, repoint the payout, collect. The refusal is `403`
+  `BROWSER_SESSION_REQUIRED`.
+* Reads are **redacted**: no email address, no payout keys, no coldkey, and only the one hotkey
+  the token is scoped to. `GET /v1/me` and `GET /v1/auth/session` both apply it, so the full
+  record is not reachable by asking a different endpoint.
+* `REVIEWER` and `ADMIN` cannot be exercised from one at all — `403`
+  `ROLE_REQUIRES_BROWSER_SESSION`, even when the account genuinely holds the role.
 
 Two cookies, and the split is intentional:
 
@@ -67,8 +114,22 @@ Nothing in `conjectures_subnet.db.accounts` can return a usable token.
 website polls. `SessionCookieRefreshMiddleware` re-sends the cookie with a fresh `Max-Age` so the
 browser's expiry does not drift behind the row's.
 
-**A sign-in retires every earlier session for that account.** Whatever the account could reach
-before, the only live credential afterwards is the one just issued.
+**A sign-in retires every earlier *browser* session for that account.** Whatever that browser
+could reach before, the only live cookie afterwards is the one just issued. CLI tokens are
+deliberately outside that scope: they live on other machines and represent long-running work, and
+an unscoped revoke would mean that every visit to the website silently killed every rig's session
+— a failure nobody would attribute to having opened a web page.
+
+**Every session is listable and individually revocable.** `GET /v1/me/sessions` shows both kinds
+with the caller's own marked, `DELETE /v1/me/sessions/{id}` kills one, and
+`DELETE /v1/me/sessions?kind=BEARER` kills every other one of a kind while sparing the caller.
+Without these a leaked CLI token would have no remedy short of waiting out its expiry. A session
+id belonging to another account answers `404`, the same as one that never existed — session ids
+name live credentials and must not be probeable.
+
+An account holds at most `CLI_SESSIONS_PER_ACCOUNT` live CLI tokens. Reaching the ceiling evicts
+the oldest rather than refusing the newest: a stale token on a decommissioned rig must not be
+able to lock a miner out of the machine they are sitting at.
 
 ## CSRF
 
@@ -91,17 +152,39 @@ Which dependency a handler names *is* its access control:
 ```python
 OptionalPrincipalDep   # may be signed in — GET /v1/auth/session only
 PrincipalDep           # must be signed in — every read
-WriterDep              # signed in AND passed the CSRF check — every write
+WriterDep              # signed in AND proved the request was not cross-site — every write
+CookieWriterDep        # all of that, from a browser session — the writes a CLI may not make
 ```
 
 A state-changing handler that names `PrincipalDep` is a CSRF hole, which is why the names are
 deliberately not interchangeable-looking.
 
+**A bearer session skips check 3, because there is nothing for it to prove.** CSRF is the risk
+that a browser attaches an *ambient* credential to a request some other page caused. A bearer
+token is not ambient: it is sent only by code that deliberately set the header, and code on this
+origin that can set it can already make the request directly. There is also no cookie for a CLI
+to read a CSRF value out of, so requiring one would make every CLI write a `403` for no security
+gain.
+
+That exemption is read off the authenticated **session row**, never off the shape of the request
+— a caller cannot claim it by presenting a header. Two things keep it sound, and both are load-
+bearing:
+
+* `authenticate` matches on `kind`, so a cookie credential offered in an `Authorization` header
+  does not resolve at all and therefore cannot inherit the exemption.
+* `Authorization` is **not** in `CORS_REQUEST_HEADERS` and must never be added. That allowlist is
+  the only thing preventing a page on an allowlisted origin from sending the header cross-origin,
+  and adding it is the single change that would make the exemption browser-reachable. The CLI is
+  not a browser, sends no `Origin`, and is not subject to CORS, so it loses nothing.
+
 `POST /v1/auth/email/request-link` is guarded too, even though it is unauthenticated: it sends
 mail, so a cross-site page must not be able to trigger it either.
 
 `POST /v1/submissions` and `/v1/submissions/preflight` are exempt by path. They carry no cookie,
-so there is no ambient credential to abuse, and miner tooling sends neither header.
+so there is no ambient credential to abuse, and miner tooling sends neither header. The CLI
+session endpoints are deliberately **not** added to that path exemption: `Origin` and
+`Sec-Fetch-Site` already fail open when absent, which is exactly the non-browser case, and a path
+exemption would also exempt a browser holding a cookie session on those routes.
 
 ## Signing in
 
@@ -120,12 +203,13 @@ proves receipt at that address, which is the whole of what an email account prov
 
 ### Wallet
 
-Four things this validator asks a key to sign, each **domain-separated** so a signature harvested
+Five things this validator asks a key to sign, each **domain-separated** so a signature harvested
 from one is worthless in another:
 
 ```
 conjectures-login-v1          sign in with a coldkey
 conjectures-hotkey-link-v1    attach a hotkey to an account
+conjectures-cli-session-v1    open a CLI session with an already-linked hotkey
 conjectures-deposit-claim-v1  claim a transfer you made
 conjectures-read-v1           read a submission's status
 <the request digest>          authorise one submission (32 raw bytes, not text)
@@ -138,7 +222,60 @@ meaningless.
 
 The signature is verified **before** the nonce is consumed, so a wrong signature does not burn it.
 Otherwise one bad request would force the user to start over, and an attacker could grief a known
-address by spamming invalid signatures.
+address by spamming invalid signatures. The cost of that choice is that an open challenge would
+otherwise accept unlimited signature attempts on an unauthenticated path, so a challenge is spent
+after `LOGIN_CHALLENGE_ATTEMPTS` failures.
+
+### CLI
+
+The miner CLI cannot open a browser and does not hold a coldkey in normal operation, so it signs
+with a **hotkey** — and only one that has already been linked to an account in the browser. That
+prerequisite is the whole security story: a hotkey can never create an account or attach itself to
+one, so compromising a hotkey never produces a new identity, only a session on an identity that
+already chose to include it.
+
+```
+POST /v1/auth/cli/challenge  { address }                      -> { nonce, message, expires_at }
+POST /v1/auth/cli/verify     { address, nonce, signature }    -> CliSession
+```
+
+**The challenge endpoint does not say whether the hotkey is linked.** Hotkeys are published on
+chain, so anyone can ask about anyone's key; a differing answer would be a free oracle mapping
+hotkeys to accounts on this deployment. The linkage is checked at verify, once a signature has
+proved the caller controls the key — at which point they are entitled to know, and an unlinked
+hotkey is `403 HOTKEY_NOT_LINKED`.
+
+**The nonce is echoed back at verify**, unlike the coldkey flow, and this is the one place the two
+differ in shape. The coldkey flow resolves "the latest open challenge for this address", which is
+a denial-of-service primitive whenever the address is public: request a challenge for someone
+else's hotkey once a minute and their own signature is never over the latest message, so they can
+never log in. Addressing the challenge by its own nonce removes the race — two challenges for one
+address coexist, each redeemable by whoever holds its nonce. The nonce is not the proof; the
+signature is, checked against the message stored on that row.
+
+The five steps of verify are ordered deliberately, and each boundary answers a specific failure:
+
+1. Find the challenge **by its nonce**, not by recency.
+2. Verify the signature over the **stored** message — before anything is consumed or disclosed.
+3. On failure, count an attempt and refuse. The challenge survives one wrong signature, but not
+   many.
+4. Resolve the account, and refuse an unlinked hotkey **with the nonce still unspent**. This is
+   the common first-run error, and burning the nonce would cost a fresh challenge, a fresh
+   passphrase prompt and a fresh signature for a condition the miner must fix in a browser anyway.
+5. Consume, then issue — so the nonce is spent exactly when a token comes into existence.
+
+`CliSession` is the only response in the API that carries a live credential. It is `POST`-only,
+`Cache-Control: no-store`, and the token is never a field on a telemetry event. It is prefixed
+`conj_cli_` — worth nothing cryptographically, but it makes a token that leaks into shell history,
+CI logs or a committed dotfile findable by a secret scanner.
+
+**A note for client authors.** The CLI must sign the server's message *bytes* verbatim, never a
+locally rebuilt copy — but it must also **check what it is about to sign** before unlocking the
+key: that the first line is exactly `conjectures-cli-session-v1`, that `address:` is its own
+hotkey, and that `domain:` is the validator it meant to talk to. Signing whatever a server sends
+turns the CLI into a blind signing oracle for the other four prefixes, and a typo'd `--api` or a
+poisoned environment variable is then enough to collect a hotkey-link signature for someone else's
+account. Validate the shape, then sign the bytes as received.
 
 ## Credits
 
@@ -299,9 +436,41 @@ has exactly one funding source"; it did not weaken to "may be unfunded".
 
 ## Roles
 
-`MINER` on every account, granted at signup. `REVIEWER` and `ADMIN` gate the Stage 3 review queue
-and are granted **out of band** — roles are never client input, and `PATCH /v1/me` rejects the
-field outright rather than ignoring it.
+`accounts.roles` is a `TEXT[]` constrained to `{MINER, REVIEWER, ADMIN}`, and that is deliberately
+not a permission system. Three values, no attributes on the relation, and every read wants all of
+them at once, so a join table and a policy engine would both be machinery with nothing to hold.
+What a role *means* is decided where it is used — `require_role(...)` in a route signature —
+rather than in a table of grants that then has to be kept in step with the code consulting it.
+
+`MINER` is on every account, granted at signup and re-added on every role change: an account that
+exists can mine, and an "admin only" account that could not submit is a state nothing expects.
+`REVIEWER` and `ADMIN` gate the review queue and the operator surface.
+
+**Roles are never client input.** `create_account` hardcodes `[MINER]`, and `PATCH /v1/me` rejects
+a `roles` field outright rather than ignoring it.
+
+Five rules on the admin surface, each a decision rather than an accident:
+
+* **`PUT` the whole set, not a delta.** The set is what the column stores and what every read
+  wants; a grant/revoke API over a three-element array would invent a lost-update problem that
+  replacing the value does not have. Unknown roles are `409 UNKNOWN_ROLE`.
+* **`ADMIN` cannot be exercised from a CLI session** — `403 ROLE_REQUIRES_BROWSER_SESSION`, even
+  for an account that genuinely holds it. A hotkey-minted token in a file must not be a route to
+  the surface that decides whether a proof earns money.
+* **There is no bootstrap endpoint.** The first `ADMIN` is granted with
+  [`../scripts/grant_admin.sql`](../scripts/grant_admin.sql), by someone with database access. An
+  endpoint that could mint the first admin could mint the second, and its access control would
+  then be some other secret needing its own rotation story.
+* **An admin cannot remove their own `ADMIN`.** With no other admin it is unrecoverable without
+  database access, and the failure is silent until the next time someone needs it.
+* **Every grant is an Axiom `roles_changed` event naming both accounts.** `accounts.roles` is
+  overwritten in place, so without the event there is no answer to "who made this account a
+  reviewer, and when".
+
+There is deliberately no `GET /v1/admin/accounts` listing. Nothing here needs one, and it would be
+the single most valuable object in the system to anyone who obtained an admin session. Accounts
+are addressed by id only — an operator acting on one already has it, from a support request or an
+event.
 
 ## Configuration
 
@@ -315,14 +484,30 @@ with the wrong value:
 | `PUBLIC_CURSOR_SECRET` | Required, 32+ chars, and refused if it is the constant published in `settings.py` |
 | `PUBLIC_ACTIVITY_SALT` | Same rules |
 
+The CLI session knobs, none of which production requires but all of which it should think about:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CLI_SESSION_DAYS` | 14 | The rolling window on a bearer token. Shorter than the browser's 30 |
+| `CLI_SESSION_MAX_DAYS` | 90 | The ceiling rolling may not pass, from `issued_at`. Refused if below `CLI_SESSION_DAYS` |
+| `CLI_SESSIONS_PER_ACCOUNT` | 10 | Live CLI tokens per account; the oldest is evicted at the ceiling |
+| `LOGIN_CHALLENGE_ATTEMPTS` | 5 | Failed signatures before a challenge is spent |
+
 ## Tests
 
 ```bash
 docker compose -f docker-compose.pytest-db.yml up -d
-.venv/bin/pytest tests/test_api_accounts.py
+.venv/bin/pytest tests/test_api_accounts.py tests/test_api_auth.py tests/test_api_cli_sessions.py
 ```
 
 Mostly about what must *not* work: a write without a CSRF token, a token borrowed from another
 session, a magic link used twice, a signature replayed from the link flow into the sign-in flow, an
 account reading another account's rows, one credit spent twice. The signatures are real sr25519 over
 the exact messages the server minted.
+
+`test_api_cli_sessions.py` covers the boundary between the two credentials, and is mostly negative
+too: a cookie token offered as a bearer and a bearer token planted in the cookie are both `401`; a
+bearer request is never answered with `Set-Cookie`; a second challenge does not invalidate the
+first; a hotkey-link signature is not a CLI login; a CLI token cannot link a hotkey, repoint the
+payout, act as another of the account's hotkeys, or exercise `ADMIN`; and signing in to the website
+leaves live CLI tokens alone while still retiring the previous browser session.

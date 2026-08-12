@@ -43,23 +43,48 @@ def utc(value: dt.datetime | None) -> dt.datetime | None:
 # --- Account -----------------------------------------------------------------------------
 
 
-async def account_response(session: AsyncSession, account: Account) -> schemas.Account:
-    """The full account, with its linked keys.
+async def account_response(
+    session: AsyncSession, account: Account, *, bearer_scope: str | None = None
+) -> schemas.Account:
+    """The account, with its linked keys, as the credential in hand is entitled to see it.
 
     Served only to the account's owner. Every field here — the email, the payout keys, the
     hotkeys — would be a disclosure on the public surface, which is why those models live in a
     different module with the opposite rule.
+
+    **`bearer_scope` redacts it for a CLI session**, and the asymmetry is deliberate. A browser
+    session is opened by a coldkey signature or by proving control of a mailbox; a CLI session is
+    opened by a hotkey, which Bittensor stores unencrypted on disk by design. The two are not
+    equally strong evidence of "this is the account holder", so they do not see the same thing.
+    What a bearer session gets back is what it needs to operate — who it is, what it may act as,
+    and how much it can spend — and not:
+
+      * `email`, which is the recovery channel for the whole account and, on a shared or
+        compromised mining box, the first thing worth stealing;
+      * `payout`, which names where the money goes;
+      * `wallets`, which names the coldkey that can sign in;
+      * the *other* linked hotkeys, which map out the rest of the operation.
+
+    `roles` and `email_verified` stay: neither is a secret, both are facts about capability
+    rather than about a person, and the CLI needs the former to explain a role refusal.
+
+    A redacted response is still an honest one — the fields are absent or empty, never wrong.
+    `hotkeys` narrows to the single key in scope, which is a true statement about what this
+    token may do, and `email_verified` is reported as it actually is.
     """
+    redacted = bearer_scope is not None
     hotkeys = await account_store.hotkeys_for(session, account.id)
-    wallets = await account_store.wallets_for(session, account.id)
+    if redacted:
+        hotkeys = [item for item in hotkeys if item.hotkey == bearer_scope]
+    wallets = [] if redacted else await account_store.wallets_for(session, account.id)
     payout = None
-    if account.payout_coldkey and account.payout_hotkey:
+    if not redacted and account.payout_coldkey and account.payout_hotkey:
         payout = schemas.PayoutDestination(
             coldkey=account.payout_coldkey, hotkey=account.payout_hotkey
         )
     return schemas.Account(
         id=account.id,
-        email=account.email,
+        email=None if redacted else account.email,
         email_verified=account.email_verified,
         display_name=account.display_name,
         roles=tuple(account.roles or ()),
@@ -73,6 +98,26 @@ async def account_response(session: AsyncSession, account: Account) -> schemas.A
             for item in wallets
         ),
         created_at=_utc(account.created_at),
+    )
+
+
+def session_view(row, *, current_id) -> schemas.SessionView:
+    """One `account_sessions` row as its owner sees it.
+
+    Field by field on purpose. The row carries `token_sha256` and `csrf_sha256`, and a
+    serialiser that walked the columns would publish digests of live credentials the first time
+    someone added a field to the table.
+    """
+    return schemas.SessionView(
+        id=row.id,
+        kind=str(row.kind),
+        current=row.id == current_id,
+        hotkey_scope=row.hotkey_scope,
+        issued_at=_utc(row.issued_at),
+        last_seen_at=_utc(row.last_seen_at),
+        expires_at=_utc(row.expires_at),
+        user_agent=row.user_agent,
+        source_ip=None if row.source_ip is None else str(row.source_ip),
     )
 
 
@@ -255,6 +300,7 @@ __all__ = [
     "latest_review",
     "latest_reward",
     "page_of",
+    "session_view",
     "submission_detail",
     "submission_summary",
     "utc",

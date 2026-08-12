@@ -78,6 +78,7 @@ from submission_api.retired import RetiredIndex
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.routers import catalog as catalog_router
 from submission_api.routers import (
+    admin,
     auth,
     health,
     intents,
@@ -327,4 +328,7 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # Stage 3. Role-gated, and gated again on the session being a browser one — see
+    # `routers/admin.py` for why an admin credential must not be reachable from a CLI token.
+    application.include_router(admin.router)
     return application
