@@ -66,6 +66,7 @@ Source: TypeAlias = Literal[
     "verification-worker",
     "deposit-watcher",
     "emissions-worker",
+    "autoreview",
     # --- shared infrastructure --------------------------------------------------------------
     "subnet-chain",
     "database",
