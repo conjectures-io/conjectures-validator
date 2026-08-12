@@ -942,7 +942,7 @@ class AccountSessionKind(enum.StrEnum):
 
     Both are opaque 256-bit secrets stored as digests; what differs is where the client
     keeps it and therefore which attack it has to be defended against. See
-    ``V012__cli_bearer_sessions.sql``.
+    ``V015__cli_bearer_sessions.sql``.
     """
 
     COOKIE = "COOKIE"  # the browser: HttpOnly cookie plus a row-bound CSRF token
@@ -1239,7 +1239,7 @@ class LoginChallenge(Base):
     )
     # Failed signature attempts against this challenge. The signature flows verify before
     # consuming, so a wrong signature must not burn the nonce; this is what still bounds
-    # how many an unauthenticated caller may offer. See V012.
+    # how many an unauthenticated caller may offer. See V015.
     attempts: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, server_default=text("0")
     )
