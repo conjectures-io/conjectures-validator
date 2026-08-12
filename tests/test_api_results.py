@@ -275,6 +275,42 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
     run(scenario())
 
 
+def test_a_pending_payout_is_the_displayed_bounty_but_not_a_certification():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0001-pending")
+            await _verify(kit, submission_id)
+            await _approve(kit, submission_id)
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                session.add(
+                    RewardEvent(
+                        submission_id=submission.id,
+                        eligibility_reason="REVIEW_APPROVED",
+                        amount_rao=750_000_000,
+                        pricing_policy_version="payout-time-correction",
+                        pricing_inputs={"quote_basis": "payout-time"},
+                        destination_coldkey=COLDKEY,
+                        destination_hotkey=submission.hotkey,
+                        status=PayoutState.PENDING,
+                        initiated_by="test",
+                    )
+                )
+                await session.commit()
+
+            response = await _get(kit, f"/v1/results/{submission_id}")
+            assert response.status_code == 200, response.text
+            item = response.json()
+            assert item["bounty_amount_rao"] == 750_000_000
+            assert item["bounty_policy_version"] == "payout-time-correction"
+            assert item["certified_at"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_an_in_review_result_names_its_solver_but_carries_no_proof():
     async def scenario():
         kit = await harness().setup()
