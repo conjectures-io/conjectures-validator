@@ -186,7 +186,7 @@ def problem_name(*, module: str, theorem: str) -> ProblemName:
         numbered=numbered,
     )
     return ProblemName(
-        display_title=base if qualifier is None else f"{base} — {qualifier}",
+        display_title=base if qualifier is None else f"{base} - {qualifier}",
         collection=collection.key if collection is not None else slugify(namespace) or "unknown",
         collection_label=collection.label if collection is not None else words_of(namespace),
         reference=reference,
