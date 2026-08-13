@@ -93,9 +93,57 @@ class WalletChallenge(Model):
 
 
 class SessionEnvelope(Model):
-    """What a successful sign-in returns. The credential itself is in a cookie."""
+    """What a successful browser sign-in returns. The credential itself is in a cookie."""
 
     account: Account
+
+
+class CliSession(Model):
+    """What a successful CLI sign-in returns. The credential is in the body, exactly once.
+
+    Unlike the cookie flow, the token has to cross the API boundary — there is no other way to
+    give it to a process that is not a browser. So this is the one response in the codebase that
+    contains a live credential, and everything about how it is served follows from that: `POST`
+    only, `Cache-Control: no-store`, and never a field on a telemetry event.
+
+    `account` here is the **redacted** view. A bearer session is minted by a hotkey, and a
+    hotkey sits unencrypted on a mining machine; handing it the account's email address, payout
+    keys and every other linked hotkey would make reading one file the first step of a much
+    larger compromise. See `routers/_account.account_response`.
+    """
+
+    access_token: str
+    token_type: str = Field(description="Always `bearer`")
+    expires_at: dt.datetime
+    hotkey_scope: str = Field(description="The linked hotkey this token may act as")
+    account: Account
+
+
+class SessionView(Model):
+    """One live session, as its owner sees it.
+
+    Deliberately not derived from the row by a generic serialiser: `account_sessions` holds two
+    digests, and a model that grew fields automatically would eventually publish one. Every
+    field here is named because it is safe to name.
+
+    `last_seen_at` is only advanced once per refresh interval — writing it on every request
+    would mean a row lock per page load — so it is accurate to within that interval rather than
+    to the second, and it is labelled as approximate for that reason.
+    """
+
+    id: uuid.UUID
+    kind: str = Field(description="COOKIE (a browser) | BEARER (the CLI)")
+    current: bool = Field(description="Whether this is the session making this request")
+    hotkey_scope: str | None = Field(
+        default=None, description="For a CLI session: the hotkey it may act as"
+    )
+    issued_at: dt.datetime
+    last_seen_at: dt.datetime = Field(
+        description="Approximate: advanced at most once per refresh interval"
+    )
+    expires_at: dt.datetime
+    user_agent: str | None = None
+    source_ip: str | None = None
 
 
 # --- Credits -----------------------------------------------------------------------------

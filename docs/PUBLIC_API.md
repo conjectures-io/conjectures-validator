@@ -272,7 +272,7 @@ published on every surface that publishes `title`:
 
 ```json
 {
-  "display_title": "Erdős problem 1 — lb",
+  "display_title": "Erdős problem 1 - lb",
   "title_parts": {
     "collection": "erdos_problems",
     "collection_label": "Erdős problems",
@@ -300,7 +300,7 @@ reason `title` is not prose. See
 | `title` | `display_title` |
 | --- | --- |
 | `Erdos1.erdos_1` | Erdős problem 1 |
-| `Erdos357.erdos_357.variants.monotone.parts.i` | Erdős problem 357 — monotone, part i |
+| `Erdos357.erdos_357.variants.monotone.parts.i` | Erdős problem 357 - monotone, part i |
 | `Hilbert17.hilbert_17th_problem` | Hilbert's 17th problem |
 | `OeisA228828.a_0` | OEIS sequence A228828 — a 0 |
 | `Arxiv.«0912.2382».curling_number_conjecture` | Curling Number Conjecture (arXiv:0912.2382) |

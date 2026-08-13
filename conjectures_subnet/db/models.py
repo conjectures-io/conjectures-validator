@@ -934,6 +934,19 @@ class LoginChallengeKind(enum.StrEnum):
     EMAIL = "EMAIL"  # a magic link token
     WALLET = "WALLET"  # a coldkey sign-in nonce
     HOTKEY_LINK = "HOTKEY_LINK"  # attaching a hotkey to an existing account
+    HOTKEY_SESSION = "HOTKEY_SESSION"  # a hotkey opening a CLI session
+
+
+class AccountSessionKind(enum.StrEnum):
+    """Which credential a session row backs.
+
+    Both are opaque 256-bit secrets stored as digests; what differs is where the client
+    keeps it and therefore which attack it has to be defended against. See
+    ``V015__cli_bearer_sessions.sql``.
+    """
+
+    COOKIE = "COOKIE"  # the browser: HttpOnly cookie plus a row-bound CSRF token
+    BEARER = "BEARER"  # the CLI: an Authorization header, scoped to one linked hotkey
 
 
 class CreditEntryKind(enum.StrEnum):
@@ -962,6 +975,7 @@ class IntentState(enum.StrEnum):
 
 
 LOGIN_CHALLENGE_KIND = _pg_enum(LoginChallengeKind, "login_challenge_kind")
+ACCOUNT_SESSION_KIND = _pg_enum(AccountSessionKind, "account_session_kind")
 CREDIT_ENTRY_KIND = _pg_enum(CreditEntryKind, "credit_entry_kind")
 DEPOSIT_STATE = _pg_enum(DepositState, "deposit_state")
 INTENT_STATE = _pg_enum(IntentState, "intent_state")
@@ -1108,11 +1122,15 @@ class LinkedHotkey(Base):
 
 
 class AccountSession(Base):
-    """One signed-in browser session.
+    """One signed-in session: a browser cookie, or a CLI bearer token.
 
     Only the SHA-256 of the token is stored, never the token. A database read — a
     dump, a backup, a replica, an over-broad SELECT — must not yield anything
     replayable as a credential, exactly as for a password.
+
+    One table for both kinds because everything that matters is shared: an opaque
+    256-bit secret, a digest, an expiry, and revocation in one UPDATE. The two
+    biconditional CHECKs below are what keep the differences from being optional.
     """
 
     __tablename__ = "account_sessions"
@@ -1125,10 +1143,18 @@ class AccountSession(Base):
         ForeignKey("accounts.id", ondelete="CASCADE"),
         nullable=False,
     )
+    kind: Mapped[AccountSessionKind] = mapped_column(
+        ACCOUNT_SESSION_KIND, nullable=False, server_default=text("'COOKIE'")
+    )
     token_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
     # Bound to the session rather than a bare double-submit cookie, so a value the
-    # client can set is not itself the proof.
-    csrf_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+    # client can set is not itself the proof. NULL for a BEARER session: a bearer
+    # token is not an ambient credential, so there is no cross-site attachment to
+    # defend against and nowhere for a CLI to read the cookie half from.
+    csrf_sha256: Mapped[bytes | None] = mapped_column(SHA256)
+    # Where a BEARER session's authority stops: the linked hotkey that minted it.
+    # NULL for a COOKIE session, which is scoped to the account rather than a key.
+    hotkey_scope: Mapped[str | None] = mapped_column(SS58)
 
     issued_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -1150,12 +1176,28 @@ class AccountSession(Base):
         CheckConstraint(
             "expires_at > issued_at", name="session_expires_after_issue"
         ),
+        # Biconditional, not one-sided: neither a cookie session missing its CSRF
+        # token nor a bearer session carrying one that nothing would check.
+        CheckConstraint(
+            "(kind = 'COOKIE') = (csrf_sha256 IS NOT NULL)",
+            name="session_csrf_belongs_to_cookie_sessions",
+        ),
+        CheckConstraint(
+            "(kind = 'BEARER') = (hotkey_scope IS NOT NULL)",
+            name="session_scope_belongs_to_bearer_sessions",
+        ),
         Index(
             "account_sessions_live_idx",
             "expires_at",
             postgresql_where=text("revoked_at IS NULL"),
         ),
         Index("account_sessions_account_idx", "account_id", text("issued_at DESC")),
+        Index(
+            "account_sessions_live_kind_idx",
+            "account_id",
+            "kind",
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
     )
 
 
@@ -1195,13 +1237,20 @@ class LoginChallenge(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    # Failed signature attempts against this challenge. The signature flows verify before
+    # consuming, so a wrong signature must not burn the nonce; this is what still bounds
+    # how many an unauthenticated caller may offer. See V015.
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0")
+    )
 
     __table_args__ = (
         CheckConstraint(
             "kind <> 'EMAIL' OR email IS NOT NULL", name="challenge_email_present"
         ),
+        CheckConstraint("attempts >= 0", name="challenge_attempts_not_negative"),
         CheckConstraint(
-            "kind NOT IN ('WALLET', 'HOTKEY_LINK') "
+            "kind NOT IN ('WALLET', 'HOTKEY_LINK', 'HOTKEY_SESSION') "
             "OR (ss58 IS NOT NULL AND message IS NOT NULL)",
             name="challenge_wallet_present",
         ),
@@ -1956,6 +2005,7 @@ __all__ = [
     "REVIEWER_ROLE",
     "Account",
     "AccountSession",
+    "AccountSessionKind",
     "AccountWallet",
     "ApiRejectionLog",
     "Base",

@@ -83,6 +83,7 @@ from submission_api.routers import (
     intents,
     me,
     results,
+    reviews,
     submissions,
     system,
     tasks,
@@ -328,7 +329,12 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
-    # Stage 3. Role-gated at the router, so it is included like any other: there is no ordering
-    # relationship with the prefixes above, and nothing on /v1/admin is reachable without the role.
+    # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
+    # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
+    # advisory record behind it). Both are role-gated at every route, and gated again on the
+    # session being a browser one — see `routers/admin.py` for why a privileged credential must
+    # not be reachable from a CLI token. So there is no ordering relationship here, with each
+    # other or with the prefixes above, and nothing on /v1/admin is reachable without a role.
     application.include_router(admin.router)
+    application.include_router(reviews.router)
     return application

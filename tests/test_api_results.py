@@ -982,7 +982,7 @@ def _retired_index():
 RETIRED_THEOREM = "Erdos10.erdos_10.variants.grechuk"
 RETIRED_TARGET = f"fc-target:{RETIRED_THEOREM}"
 RETIRED_SLUG = "erdos10-erdos-10-variants-grechuk"
-RETIRED_DISPLAY_TITLE = "Erdős problem 10 — grechuk"
+RETIRED_DISPLAY_TITLE = "Erdős problem 10 - grechuk"
 # A target in neither index: what `V004` left behind when it could not map a row's `problem_id` to a
 # known reward target. There is no conjecture to look up, so the labels have nowhere to go.
 UNKNOWN_TARGET = "legacy-problem-id-nobody-recognises"
@@ -1022,7 +1022,7 @@ def test_a_result_is_named_for_a_reader_and_not_with_a_lean_identifier():
 
             for row in (feed.json()["items"][0], certified.json()["items"][0], one.json()):
                 assert row["title"] == "VerifierFixtures.direct"
-                assert row["display_title"] == "Test Fixtures — direct"
+                assert row["display_title"] == "Test Fixtures - direct"
                 assert row["title_parts"] == {
                     "collection": "testfixtures",
                     "collection_label": "Test Fixtures",
@@ -1046,7 +1046,7 @@ def test_an_in_review_result_is_named_the_same_way():
 
             item = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
 
-            assert item["display_title"] == "Test Fixtures — direct"
+            assert item["display_title"] == "Test Fixtures - direct"
             assert item["title_parts"]["qualifier"] == "direct"
         finally:
             await kit.teardown()

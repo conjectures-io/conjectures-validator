@@ -34,7 +34,7 @@ sys.path.insert(0, str(ROOT))
 MIGRATIONS = ROOT / "deploy" / "migrate" / "sql"
 MIGRATION_NAME = re.compile(r"^V(\d+)__[A-Za-z0-9_]+\.sql$")
 
-# Every schema the migrations create. `autoreview` holds the advisory projection from V014; it is
+# Every schema the migrations create. `autoreview` holds the advisory projection from V016; it is
 # a separate namespace precisely so it can be dropped and rebuilt without reaching a core table,
 # and it has to be compared here or the mirror in `db/autoreview_models.py` is unverified. Bound as
 # a query parameter rather than interpolated: a schema name is data, not SQL.

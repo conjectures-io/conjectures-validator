@@ -78,9 +78,10 @@ unauthenticated, and it writes nothing.
 
 ### Reviewer
 
-Session cookie plus the `REVIEWER` role on the account. Read-only, and never cached: every response
-sets `Cache-Control: no-store`, because these bodies are authorised per caller and carry review
-material that is not published anywhere else.
+Session cookie plus the `REVIEWER` role on the account. A CLI bearer token cannot exercise the role
+however the account is set up — see `ACCOUNT_API.md` — so this surface is browser-only. Read-only,
+and never cached: every response sets `Cache-Control: no-store`, because these bodies are authorised
+per caller and carry review material that is not published anywhere else.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
