@@ -48,12 +48,12 @@ flowchart TD
         CAT["data/catalog.json<br/>3267 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>136 active asserted picks"]
+        PICK["task target policy<br/>162 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>272 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>324 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -174,9 +174,9 @@ the pipeline.
 | 2 | `classification == DIRECT_PROP` | **988** |
 | 3 | remaining exact-proposition safety rules | **988** |
 | 4 | module under `ErdosProblems/` | **506** over 320 files |
-| 5 | audited candidate selection | **146** targets from 124 files (124 Erdős over 105 files, 22 Green over 19) |
-| 6 | active after dependency and semantic-fidelity retirements | **140** targets from 119 files (120 Erdős over 102 files, 20 Green over 17) |
-| 7 | active after retiring targets a verified submission settled | **136** targets from 115 files (118 Erdős over 100 files, 18 Green over 15) |
+| 5 | audited candidate selection | **176** targets from 154 files (151 Erdős over 132 files, 25 Green over 22) |
+| 6 | active after dependency and semantic-fidelity retirements | **168** targets from 147 files (145 Erdős over 127 files, 23 Green over 20) |
+| 7 | active after retiring settled or literature-solved targets | **162** targets from 141 files (142 Erdős over 124 files, 20 Green over 17) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -186,7 +186,7 @@ one of them starts firing is the day upstream changed something that matters.
 
 ### Retired theorems
 
-`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 165 source theorems and 177
+`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 179 source theorems and 191
 canonical types that must not be offered again, committed by both `theorem` name **and**
 `source_type_sha256` — so retiring survives a rename. An audited target may explicitly supersede a
 prior theorem-name retirement; all remaining retirement entries are checked by name *or* type hash at
@@ -194,7 +194,7 @@ selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 136 active targets are **not computed** from the 506. They are the admitted subset of 146
+The 162 active targets are **not computed** from the 506. They are the admitted subset of 176
 audited candidates and are asserted by hand in one target file. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
@@ -206,7 +206,7 @@ refuses to accept any pick that is not simultaneously:
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: at least 124 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: at least 142 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
 Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
@@ -301,7 +301,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-136 `allowed_source_theorems` and 272 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+162 `allowed_source_theorems` and 324 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
@@ -323,7 +323,7 @@ combined with a tampered audit file:
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 118 active Erdős targets and 18 Green targets.
+all 142 active Erdős targets and 20 Green targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
