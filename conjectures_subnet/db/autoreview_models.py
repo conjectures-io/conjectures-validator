@@ -292,15 +292,17 @@ class AutoreviewStageResult(Base):
     input_attempted_to_instruct: Mapped[bool | None] = mapped_column(Boolean)
 
     # The whole validated verdict, as the stage's schema defines it. Per-stage shapes live here
-    # rather than in a column per lens, and the API passes this through verbatim.
-    verdict: Mapped[dict | None] = mapped_column(JSONB)
+    # rather than in a column per lens. The reviewer API reads it field by named field rather than
+    # passing it through: this column is written by another repository, and `schemas_admin.py` says
+    # why forwarding whatever appears in it next is the wrong default.
+    verdict: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
 
     # The scope that was *allowed*, alongside the pages actually read. A null originality result
     # means nothing without the first. Citation snippets are deliberately absent: url, title and
     # retrieved_at only, so retrieved third-party page text cannot reach the admin HTML.
-    search: Mapped[dict | None] = mapped_column(JSONB)
+    search: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
     citations: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+        JSONB(none_as_null=True), nullable=False, server_default=text("'[]'::jsonb")
     )
 
     # The skip reason ("Not run: injection detected") or the failure message.

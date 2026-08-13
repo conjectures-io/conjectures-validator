@@ -36,8 +36,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncIterator
-from datetime import date
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -57,15 +57,15 @@ from conjectures_subnet.db import (
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
-from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.dependencies import Services
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
     CsrfMiddleware,
-    SessionCookieRefreshMiddleware,
     RateLimitMiddleware,
     ScopedCORSMiddleware,
     SecurityHeadersMiddleware,
+    SessionCookieRefreshMiddleware,
     cors_options,
 )
 from submission_api.observability import (
@@ -74,10 +74,10 @@ from submission_api.observability import (
 )
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
-from submission_api.retired import RetiredIndex
 from submission_api.ratelimit import SlidingWindowLimiter
-from submission_api.routers import catalog as catalog_router
+from submission_api.retired import RetiredIndex
 from submission_api.routers import (
+    admin,
     auth,
     health,
     intents,
@@ -87,12 +87,13 @@ from submission_api.routers import (
     system,
     tasks,
 )
+from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
-from submission_api.taskpool import TaskCatalog
 from submission_api.taostats import (
     TaoStatsAlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
+from submission_api.taskpool import TaskCatalog
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
 
@@ -327,4 +328,7 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # Stage 3. Role-gated at the router, so it is included like any other: there is no ordering
+    # relationship with the prefixes above, and nothing on /v1/admin is reachable without the role.
+    application.include_router(admin.router)
     return application
