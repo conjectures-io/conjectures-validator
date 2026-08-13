@@ -966,6 +966,27 @@ class DepositState(enum.StrEnum):
     FAILED = "FAILED"
 
 
+class TmcPayOrderState(enum.StrEnum):
+    """A credit purchase made through TMC PAY.
+
+    Two of these are ours and the other eight are TMC PAY's invoice lifecycle,
+    label for label. Kept identical on purpose: a status this validator invented
+    would be a mapping to maintain, and a mapping is a place for the two systems
+    to disagree about whether money arrived.
+    """
+
+    NEW = "NEW"  # the row exists; the invoice has not been created yet
+    FAILED = "FAILED"  # the invoice could not be created, or could not be quoted
+    CREATED = "CREATED"  # invoice exists, no deposit seen
+    PENDING = "PENDING"  # a deposit is visible but below the confirmation target
+    CONFIRMING = "CONFIRMING"  # confirmations accumulating
+    UNDERPAID = "UNDERPAID"  # confirmed below the invoice; the buyer may top up
+    CONFIRMED = "CONFIRMED"  # paid, confirmed, amount matches
+    OVERPAID = "OVERPAID"  # paid more than the invoice; terminal
+    EXPIRED = "EXPIRED"  # the TTL elapsed with no confirming payment
+    LATE_PAYMENT = "LATE_PAYMENT"  # confirmed after expiry; reconciled by hand
+
+
 class IntentState(enum.StrEnum):
     OPEN = "OPEN"  # credit held, no bundle yet
     BUNDLE_ATTACHED = "BUNDLE_ATTACHED"  # admitted, awaiting a signature
@@ -978,6 +999,7 @@ LOGIN_CHALLENGE_KIND = _pg_enum(LoginChallengeKind, "login_challenge_kind")
 ACCOUNT_SESSION_KIND = _pg_enum(AccountSessionKind, "account_session_kind")
 CREDIT_ENTRY_KIND = _pg_enum(CreditEntryKind, "credit_entry_kind")
 DEPOSIT_STATE = _pg_enum(DepositState, "deposit_state")
+TMC_PAY_ORDER_STATE = _pg_enum(TmcPayOrderState, "tmc_pay_order_state")
 INTENT_STATE = _pg_enum(IntentState, "intent_state")
 
 EMAIL_SHAPE = r"^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$"
@@ -1325,6 +1347,15 @@ class CreditLedgerEntry(Base):
             "submission_intents.id", name="credit_ledger_intent_fkey", use_alter=True
         ),
     )
+    # The other source a DEPOSIT can have: a credit purchase settled by TMC PAY rather
+    # than a transfer read off finalized chain state. Exactly one of the two is set —
+    # see `ledger_deposit_names_its_deposit` below and V016 on why they stay separate.
+    tmc_pay_order_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "tmc_pay_orders.id", name="credit_ledger_tmc_pay_order_fkey", use_alter=True
+        ),
+    )
     reason: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -1357,8 +1388,13 @@ class CreditLedgerEntry(Base):
             "OR (intent_id IS NOT NULL AND credit_price_rao IS NOT NULL)",
             name="ledger_spend_names_its_intent",
         ),
+        # A DEPOSIT names one source and says which: a chain-confirmed transfer, or a
+        # TMC PAY order. Exclusive-or rather than "at least one", so processor-confirmed
+        # rao stays separable from chain-confirmed rao and neither can masquerade as the
+        # other by setting both.
         CheckConstraint(
-            "kind <> 'DEPOSIT' OR deposit_id IS NOT NULL",
+            "kind <> 'DEPOSIT' "
+            "OR ((deposit_id IS NOT NULL) <> (tmc_pay_order_id IS NOT NULL))",
             name="ledger_deposit_names_its_deposit",
         ),
         Index("credit_ledger_account_idx", "account_id", text("id DESC")),
@@ -1369,6 +1405,16 @@ class CreditLedgerEntry(Base):
             "intent_id",
             unique=True,
             postgresql_where=text("kind = 'SPEND'"),
+        ),
+        # One credit entry per TMC PAY order, mirroring the SPEND index above. Belt and
+        # braces with `tmc_pay_orders.credited_ledger_id UNIQUE`: that stops one order
+        # pointing at two entries, this stops two entries pointing at one order — which
+        # is what a duplicate webhook racing the reconciler would otherwise produce.
+        Index(
+            "credit_ledger_tmc_pay_idx",
+            "tmc_pay_order_id",
+            unique=True,
+            postgresql_where=text("tmc_pay_order_id IS NOT NULL"),
         ),
     )
 
@@ -1489,6 +1535,264 @@ event.listen(
     "before_drop",
     DDL("DROP FUNCTION IF EXISTS deposits_touch_updated_at() CASCADE;"),
 )
+
+
+class TmcPayOrder(Base):
+    """A credit purchase paid through TMC PAY rather than straight to the treasury.
+
+    Separate from `deposits` because the evidence is different in kind. A
+    `deposits` row that is CREDITED must name an extrinsic, an observed amount
+    and a block: rao this validator read off finalized chain state itself. A TMC
+    PAY purchase has none of those, because the buyer pays an address TMC PAY
+    derived and the funds reach the treasury later as a batched payout. Widening
+    `deposits` to admit that would have meant making its finality columns
+    nullable — weakening the one table whose job is to say "seen on chain".
+
+    So the two live side by side, and `credit_ledger.tmc_pay_order_id` is the
+    other half of the arrangement: a DEPOSIT entry names either a chain deposit
+    or one of these, never both, so processor-confirmed rao stays separable from
+    chain-confirmed rao by a WHERE clause.
+
+    `crypto_amount_rao` is the amount TMC PAY locked at invoice creation, and the
+    only amount anything credits. See V016 on why it must cover the credits.
+    """
+
+    __tablename__ = "tmc_pay_orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
+    )
+
+    credits: Mapped[int] = mapped_column(Integer, nullable=False)
+    credit_price_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    status: Mapped[TmcPayOrderState] = mapped_column(
+        TMC_PAY_ORDER_STATE,
+        nullable=False,
+        server_default=TmcPayOrderState.NEW.value,
+    )
+
+    # The `external_id` sent to TMC PAY. Minted before the invoice exists, so a lost
+    # create-response is recoverable: the same key returns the same invoice.
+    external_id: Mapped[str] = mapped_column(Text, nullable=False)
+
+    invoice_id: Mapped[str | None] = mapped_column(Text)
+    merchant_id: Mapped[str | None] = mapped_column(Text)
+
+    # Verbatim strings: the buyer's receipt and an operator's join key against the TMC
+    # PAY dashboard, never arithmetic input again.
+    fiat_amount: Mapped[str | None] = mapped_column(Text)
+    fiat_currency: Mapped[str | None] = mapped_column(Text)
+    exchange_rate: Mapped[str | None] = mapped_column(Text)
+    commission_amount: Mapped[str | None] = mapped_column(Text)
+
+    crypto_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
+    deposit_address: Mapped[str | None] = mapped_column(SS58)
+
+    credited_ledger_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("credit_ledger.id"), unique=True
+    )
+
+    needs_review: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    failure_reason: Mapped[str | None] = mapped_column(Text)
+
+    last_event_id: Mapped[str | None] = mapped_column(Text)
+    last_polled_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    invoice_expires_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    confirmed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("credits > 0", name="tmc_pay_credits_positive"),
+        CheckConstraint("credit_price_rao > 0", name="tmc_pay_price_positive"),
+        CheckConstraint(
+            "length(external_id) BETWEEN 1 AND 128", name="tmc_pay_external_id_length"
+        ),
+        CheckConstraint(
+            "invoice_id IS NULL OR length(invoice_id) BETWEEN 1 AND 64",
+            name="tmc_pay_invoice_id_length",
+        ),
+        CheckConstraint(
+            "merchant_id IS NULL OR length(merchant_id) BETWEEN 1 AND 64",
+            name="tmc_pay_merchant_id_length",
+        ),
+        CheckConstraint(
+            "fiat_amount IS NULL OR length(fiat_amount) BETWEEN 1 AND 64",
+            name="tmc_pay_fiat_amount_length",
+        ),
+        CheckConstraint(
+            "fiat_currency IS NULL OR fiat_currency ~ '^[A-Z]{3}$'",
+            name="tmc_pay_fiat_currency_shape",
+        ),
+        CheckConstraint(
+            "exchange_rate IS NULL OR length(exchange_rate) BETWEEN 1 AND 64",
+            name="tmc_pay_exchange_rate_length",
+        ),
+        CheckConstraint(
+            "commission_amount IS NULL OR length(commission_amount) BETWEEN 1 AND 64",
+            name="tmc_pay_commission_length",
+        ),
+        CheckConstraint(
+            "crypto_amount_rao IS NULL OR crypto_amount_rao > 0",
+            name="tmc_pay_crypto_amount_positive",
+        ),
+        CheckConstraint(
+            "last_event_id IS NULL OR length(last_event_id) BETWEEN 1 AND 64",
+            name="tmc_pay_last_event_length",
+        ),
+        # Once an invoice exists, everything a buyer needs in order to pay it exists too.
+        CheckConstraint(
+            "status IN ('NEW', 'FAILED') "
+            "OR (invoice_id IS NOT NULL "
+            "AND crypto_amount_rao IS NOT NULL "
+            "AND deposit_address IS NOT NULL "
+            "AND fiat_amount IS NOT NULL "
+            "AND fiat_currency IS NOT NULL)",
+            name="tmc_pay_invoiced_rows_are_complete",
+        ),
+        # What makes crediting the locked amount safe: floor(crypto_amount_rao /
+        # credit_price_rao) is then at least `credits`, so a buyer cannot receive fewer
+        # credits than they paid for.
+        CheckConstraint(
+            "crypto_amount_rao IS NULL "
+            "OR crypto_amount_rao >= credits * credit_price_rao",
+            name="tmc_pay_invoice_covers_the_credits",
+        ),
+        CheckConstraint(
+            "credited_ledger_id IS NULL "
+            "OR (invoice_id IS NOT NULL AND crypto_amount_rao IS NOT NULL)",
+            name="tmc_pay_credited_needs_an_invoice",
+        ),
+        CheckConstraint(
+            "status <> 'FAILED' OR failure_reason IS NOT NULL",
+            name="tmc_pay_failed_needs_a_reason",
+        ),
+        CheckConstraint(
+            "updated_at >= created_at",
+            name="tmc_pay_orders_updated_not_before_created",
+        ),
+        Index("tmc_pay_orders_external_idx", "external_id", unique=True),
+        Index(
+            "tmc_pay_orders_invoice_idx",
+            "invoice_id",
+            unique=True,
+            postgresql_where=text("invoice_id IS NOT NULL"),
+        ),
+        Index("tmc_pay_orders_account_idx", "account_id", text("created_at DESC")),
+        Index(
+            "tmc_pay_orders_open_idx",
+            "created_at",
+            postgresql_where=text(
+                "status IN ('NEW', 'CREATED', 'PENDING', 'CONFIRMING', 'UNDERPAID')"
+            ),
+        ),
+        Index(
+            "tmc_pay_orders_review_idx",
+            "created_at",
+            postgresql_where=text("needs_review"),
+        ),
+        # "The most recent rate TMC PAY locked, for this currency." Every invoice reports
+        # the rate it used, which is the best seed for pricing the next one — same source,
+        # already in the merchant's currency. One row rather than a scan.
+        Index(
+            "tmc_pay_orders_rate_idx",
+            "fiat_currency",
+            text("created_at DESC"),
+            postgresql_where=text("exchange_rate IS NOT NULL"),
+        ),
+    )
+
+
+event.listen(
+    TmcPayOrder.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION tmc_pay_orders_touch_updated_at() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    NEW.updated_at := now();\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER tmc_pay_orders_touch_updated_at\n"
+        "    BEFORE UPDATE ON tmc_pay_orders\n"
+        "    FOR EACH ROW EXECUTE FUNCTION tmc_pay_orders_touch_updated_at();"
+    ),
+)
+event.listen(
+    TmcPayOrder.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS tmc_pay_orders_touch_updated_at() CASCADE;"),
+)
+
+
+class TmcPayWebhookDelivery(Base):
+    """One webhook TMC PAY delivered, by its own `X-Webhook-ID`.
+
+    The primary key is the deduplication: TMC PAY reuses the id across retries, so
+    a repeat is recognised by an insert that conflicts rather than by re-deriving
+    whether the event had already been applied.
+
+    `order_id` is nullable because a delivery can arrive for an invoice this
+    deployment has no row for — a foreign merchant's webhook pointed here, or an
+    order whose create response was lost. Recording it anyway is what makes that
+    case investigable instead of invisible.
+    """
+
+    __tablename__ = "tmc_pay_webhook_deliveries"
+
+    webhook_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tmc_pay_orders.id")
+    )
+    invoice_id: Mapped[str | None] = mapped_column(Text)
+    event: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str | None] = mapped_column(Text)
+    # 'CREDITED', 'RECORDED', 'IGNORED' or 'UNKNOWN'. Text rather than an enum: it is an
+    # observability field, and a new outcome should not need a migration to be writable.
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    received_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(webhook_id) BETWEEN 1 AND 64", name="tmc_pay_delivery_id_length"
+        ),
+        CheckConstraint(
+            "invoice_id IS NULL OR length(invoice_id) BETWEEN 1 AND 64",
+            name="tmc_pay_delivery_invoice_length",
+        ),
+        CheckConstraint(
+            "event IS NULL OR length(event) BETWEEN 1 AND 64",
+            name="tmc_pay_delivery_event_length",
+        ),
+        CheckConstraint(
+            "status IS NULL OR length(status) BETWEEN 1 AND 32",
+            name="tmc_pay_delivery_status_length",
+        ),
+        CheckConstraint(
+            "length(outcome) BETWEEN 1 AND 32", name="tmc_pay_delivery_outcome_length"
+        ),
+        Index(
+            "tmc_pay_webhook_deliveries_order_idx",
+            "order_id",
+            text("received_at DESC"),
+        ),
+    )
 
 
 class SubmissionIntent(Base):

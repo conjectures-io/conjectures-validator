@@ -76,6 +76,8 @@ from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.retired import RetiredIndex
+from submission_api.routers import catalog as catalog_router
+from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
     auth,
@@ -90,11 +92,14 @@ from submission_api.routers import (
 )
 from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
+from submission_api.taskpool import TaskCatalog
+from submission_api.rates import build_tao_usd_reader
 from submission_api.taostats import (
     TaoStatsAlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
 from submission_api.taskpool import TaskCatalog
+from submission_api.tmc_pay import TmcPayClient, UnavailableGateway
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
 
@@ -200,6 +205,27 @@ def build_services(
             if settings.taostats_api_key
             else UnavailableAlphaUsdPriceReader()
         ),
+        # The TMC PAY funding path, both halves of it. Unavailable unless configured, so the
+        # purchase endpoints refuse rather than reach a network — and note that a deployment which
+        # configures TMC PAY without `TAOSTATS_API_KEY` can create no invoices at all: TMC PAY
+        # quotes in fiat, so pricing one at 0.5 TAO per credit needs a live TAO/USD rate.
+        tmc_pay=(
+            TmcPayClient(
+                base_url=settings.tmc_pay_base_url,
+                api_key=settings.tmc_pay_api_key,
+                timeout_seconds=settings.tmc_pay_timeout_seconds,
+            )
+            if settings.tmc_pay_enabled
+            else UnavailableGateway()
+        ),
+        # TaoMarketCap's public candles first, TaoStats second. See `rates.py` on why that order
+        # and not the other: TaoMarketCap is TMC PAY, so its market data is closer to the rate the
+        # payment platform is about to lock — and it needs no API key, so this works out of the box.
+        tao_usd=build_tao_usd_reader(
+            taomarketcap_base_url=settings.taomarketcap_base_url,
+            taostats_api_key=settings.taostats_api_key,
+            taostats_ttl_seconds=settings.taostats_price_cache_seconds,
+        ),
     )
 
 
@@ -232,6 +258,7 @@ def create_app(
             cors_origins=len(resolved_settings.cors_allowed_origins),
             rate_limit_enabled=resolved_settings.rate_limit_enabled,
             submissions_paused=resolved_settings.submissions_paused,
+            tmc_pay_enabled=resolved_settings.tmc_pay_enabled,
         )
         try:
             yield
@@ -250,6 +277,9 @@ def create_app(
                 if closer is not None:
                     await closer()
                 await built.bounty_usd.aclose()
+                # Both hold an httpx client open across requests, for the same reason.
+                await built.tao_usd.aclose()
+                await built.tmc_pay.aclose()
             # Last, so the shutdown event above and anything logged during teardown are flushed
             # before the process exits. `atexit` would do it too; doing it here means it happens
             # while the loop is still running rather than during interpreter shutdown.
@@ -295,7 +325,13 @@ def create_app(
         allowed_origins=resolved_settings.cors_allowed_origins,
         # The hotkey-signature endpoints carry no cookie, so there is no ambient credential for
         # a cross-site page to abuse, and miner tooling sends neither header.
-        exempt_prefixes=("/v1/submissions/preflight",),
+        #
+        # The TMC PAY webhook is exempt for the same reason and one more: its caller is a payment
+        # processor, not a browser. It sends no `Origin` and no cookie, and it is authenticated by
+        # an HMAC over the raw body — see `routers/tmc_pay.py`. It would pass the middleware
+        # anyway, since the `Origin` check fails open on absence, but relying on that would make
+        # the route's correctness a property of a middleware detail rather than of a decision.
+        exempt_prefixes=("/v1/submissions/preflight", tmc_pay_router.WEBHOOK_PATH),
     )
     if resolved_settings.cors_enabled:
         # Skipped entirely when no origin is configured. An empty allowlist and no CORS layer are
@@ -335,6 +371,12 @@ def create_app(
     # session being a browser one — see `routers/admin.py` for why a privileged credential must
     # not be reachable from a CLI token. So there is no ordering relationship here, with each
     # other or with the prefixes above, and nothing on /v1/admin is reachable without a role.
+    # The second way to buy credits. Its account routes extend `/v1/me/credits`, so it is included
+    # after `me.router`; the webhook it also carries is mounted outside `/v1/me` because its caller
+    # is TMC PAY rather than an account.
+    application.include_router(tmc_pay_router.router)
+    # Stage 3. Role-gated, and gated again on the session being a browser one — see
+    # `routers/admin.py` for why an admin credential must not be reachable from a CLI token.
     application.include_router(admin.router)
     application.include_router(reviews.router)
     return application

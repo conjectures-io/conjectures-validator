@@ -25,6 +25,10 @@ that schema, not its source of truth:
 * ``transfers`` — every transfer observed at the treasury and where the chain watcher
   has read to. Records an arrival before deciding what it is worth, and credits only
   through ``credits``;
+* ``tmc_pay`` — credit purchases settled by the TMC PAY processor rather than by a
+  transfer to the treasury, and the webhook deliveries that report on them. Kept apart
+  from ``credits.deposits`` because the evidence is a signed webhook rather than
+  finalized chain state, and a ledger reader must be able to tell the two apart;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 
@@ -45,6 +49,7 @@ from conjectures_subnet.db import (
     models,
     public,
     submissions,
+    tmc_pay,
     transfers,
 )
 from conjectures_subnet.db.engine import (
@@ -91,5 +96,6 @@ __all__ = [
     "session_factory",
     "session_scope",
     "submissions",
+    "tmc_pay",
     "transfers",
 ]

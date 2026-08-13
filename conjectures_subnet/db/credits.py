@@ -177,11 +177,17 @@ async def record_entry(
     credit_price_rao: int | None = None,
     deposit_id: uuid.UUID | None = None,
     intent_id: uuid.UUID | None = None,
+    tmc_pay_order_id: uuid.UUID | None = None,
     reason: str | None = None,
     created_by: str = "system",
 ) -> CreditLedgerEntry:
     """Append one entry. The schema fixes the sign per kind, so a debit cannot be
-    recorded as a credit by passing the wrong one."""
+    recorded as a credit by passing the wrong one.
+
+    A DEPOSIT must name exactly one source: ``deposit_id`` for rao this validator read
+    off finalized chain state, or ``tmc_pay_order_id`` for a purchase TMC PAY settled.
+    The schema enforces the exclusive-or, so passing both or neither is a constraint
+    violation rather than a silently untraceable credit."""
     entry = CreditLedgerEntry(
         account_id=account_id,
         kind=kind,
@@ -189,6 +195,7 @@ async def record_entry(
         credit_price_rao=credit_price_rao,
         deposit_id=deposit_id,
         intent_id=intent_id,
+        tmc_pay_order_id=tmc_pay_order_id,
         reason=reason,
         created_by=created_by,
     )

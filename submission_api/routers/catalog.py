@@ -811,7 +811,11 @@ async def read_credit_pricing(
             )
             for item in services.packages
         ),
-        methods=credit_config.PAYMENT_METHODS,
+        # Filtered by what this deployment can actually take money through: a method the page
+        # renders and the API refuses is worse than one it never offers.
+        methods=credit_config.payment_methods(
+            tmc_pay_enabled=settings.tmc_pay_enabled
+        ),
         recipient=settings.payment_recipient,
     )
 
