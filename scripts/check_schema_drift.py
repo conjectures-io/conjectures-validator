@@ -34,7 +34,7 @@ sys.path.insert(0, str(ROOT))
 MIGRATIONS = ROOT / "deploy" / "migrate" / "sql"
 MIGRATION_NAME = re.compile(r"^V(\d+)__[A-Za-z0-9_]+\.sql$")
 
-# Every schema the migrations create. `autoreview` holds the advisory projection from V016; it is
+# Every schema the migrations create. `autoreview` holds the advisory projection from V017; it is
 # a separate namespace precisely so it can be dropped and rebuilt without reaching a core table,
 # and it has to be compared here or the mirror in `db/autoreview_models.py` is unverified. Bound as
 # a query parameter rather than interpolated: a schema name is data, not SQL.
@@ -105,7 +105,38 @@ def migration_files() -> list[Path]:
     )
     if not files:
         raise SystemExit(f"no migrations found in {MIGRATIONS}")
+    assert_versions_unique(files)
     return files
+
+
+def assert_versions_unique(files: list[Path]) -> None:
+    """Refuse two migrations claiming one version.
+
+    Flyway aborts on this — `Found more than one migration with version 016` — and it aborts
+    *before applying anything*, so a deployment fails at the migrate step with the schema
+    untouched. Nothing else here catches it: this script applies whatever it globs, in one
+    transaction, and two files at the same version apply perfectly well in a row.
+
+    It is a merge artefact rather than a mistake anyone makes in isolation. Two branches each
+    take the next free number, both are correct against the main they branched from, and the
+    collision exists only in the merge result — where git reports no conflict, because they are
+    different files. So it has to be checked on the merged tree, which is here.
+
+    The fix is always to renumber the branch that merged *later*, so the order on disk matches
+    the order the changes were integrated, and never to renumber one that has been applied to a
+    database — Flyway keys `flyway_schema_history` on the version, and a rename turns a rerun
+    into a missing-migration error against every environment that already ran it.
+    """
+    seen: dict[int, Path] = {}
+    for path in files:
+        version = int(MIGRATION_NAME.fullmatch(path.name).group(1))
+        if version in seen:
+            raise SystemExit(
+                f"two migrations claim version {version:03d}:\n"
+                f"  {seen[version].name}\n  {path.name}\n"
+                "Flyway will refuse to run. Renumber whichever was merged later."
+            )
+        seen[version] = path
 
 
 def snapshot(engine) -> dict[str, list[tuple]]:

@@ -1,6 +1,6 @@
 """SQLAlchemy models for the ``autoreview`` schema — advisory LLM pre-review results.
 
-Mirrors ``deploy/migrate/sql/V016__autoreview_results.sql``, which is the source of truth, on the
+Mirrors ``deploy/migrate/sql/V017__autoreview_results.sql``, which is the source of truth, on the
 same terms as ``models.py``: by hand, and only as honest as the person editing it. Verify with
 ``scripts/check_schema_drift.py``, which compares both schemas.
 

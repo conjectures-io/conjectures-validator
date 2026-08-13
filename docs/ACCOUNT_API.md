@@ -597,13 +597,29 @@ Five rules on the admin surface, each a decision rather than an accident:
 * **`PUT` the whole set, not a delta.** The set is what the column stores and what every read
   wants; a grant/revoke API over a three-element array would invent a lost-update problem that
   replacing the value does not have. Unknown roles are `409 UNKNOWN_ROLE`.
-* **`ADMIN` cannot be exercised from a CLI session** — `403 ROLE_REQUIRES_BROWSER_SESSION`, even
-  for an account that genuinely holds it. A hotkey-minted token in a file must not be a route to
-  the surface that decides whether a proof earns money.
+* **Neither `ADMIN` nor `REVIEWER` can be exercised from a CLI session** — `403
+  ROLE_REQUIRES_BROWSER_SESSION`, even for an account that genuinely holds the role.
+  `dependencies.BEARER_ROLES` is `{MINER}`: a hotkey-minted token in a file must not be a route to
+  the surface that decides whether a proof earns money. Anything privileged needs the cookie, so a
+  reviewer being tested against needs a cookie session and not just a bearer token.
 * **There is no bootstrap endpoint.** The first `ADMIN` is granted with
   [`../scripts/grant_admin.sql`](../scripts/grant_admin.sql), by someone with database access. An
   endpoint that could mint the first admin could mint the second, and its access control would
   then be some other secret needing its own rotation story.
+
+Three scripts do this from the database side, for a development deployment only. A session token
+is an opaque string stored as a SHA-256 digest, so a row written by hand authenticates exactly as
+a minted one does — which is why each of them refuses to run without `-v allow_dev_seed=1`.
+
+| Script | What it does | Credentials |
+| --- | --- | --- |
+| [`grant_admin.sql`](../scripts/grant_admin.sql) | Grants `ADMIN` to an existing account | none |
+| [`seed_dev_accounts.sql`](../scripts/seed_dev_accounts.sql) | Creates a `MINER` and a `REVIEWER` account, each with a linked hotkey | bearer + cookie |
+| [`seed_dev_admin.sql`](../scripts/seed_dev_admin.sql) | Creates an `ADMIN`, or adds `ADMIN` to an account named by `-v email=` | cookie only |
+
+The admin script issues no bearer token on purpose: a bearer caller cannot exercise `ADMIN`, so
+minting one would mean linking a hotkey to an admin account to produce a credential that cannot
+do admin work.
 * **An admin cannot remove their own `ADMIN`.** With no other admin it is unrecoverable without
   database access, and the failure is silent until the next time someone needs it.
 * **Every grant is an Axiom `roles_changed` event naming both accounts.** `accounts.roles` is
