@@ -47,6 +47,7 @@ Source: TypeAlias = Literal[
     # --- submission API ---------------------------------------------------------------------
     # The process itself: startup, shutdown, and anything that is not attributable to a router.
     "api",
+    "api-admin",
     "api-auth",
     "api-catalog",
     "api-health",
@@ -66,6 +67,7 @@ Source: TypeAlias = Literal[
     "verification-worker",
     "deposit-watcher",
     "emissions-worker",
+    "autoreview",
     # Sweeps the TMC PAY orders no webhook resolved. Separate from `deposit-watcher` because it
     # watches a payment processor rather than a chain, and its failures are HTTP ones.
     "tmc-pay-reconciler",

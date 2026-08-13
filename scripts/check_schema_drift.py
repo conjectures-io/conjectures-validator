@@ -14,6 +14,11 @@ both. Exits non-zero on any difference, so it is usable as a gate.
 Compares columns (name, type, nullability, default), constraints (check, unique, primary,
 foreign key, with their definitions), indexes (with their definitions), domains, enum labels,
 triggers, and the bodies of trigger functions.
+
+Every comparison covers each schema in `SCHEMAS`, and the schema name is part of the compared
+tuple rather than only a filter. Filtering alone would let a table created in the wrong schema
+on one side read as a *missing* table rather than a misplaced one, and the printed diff has to
+be legible enough to tell those apart.
 """
 
 from __future__ import annotations
@@ -29,60 +34,66 @@ sys.path.insert(0, str(ROOT))
 MIGRATIONS = ROOT / "deploy" / "migrate" / "sql"
 MIGRATION_NAME = re.compile(r"^V(\d+)__[A-Za-z0-9_]+\.sql$")
 
+# Every schema the migrations create. `autoreview` holds the advisory projection from V016; it is
+# a separate namespace precisely so it can be dropped and rebuilt without reaching a core table,
+# and it has to be compared here or the mirror in `db/autoreview_models.py` is unverified. Bound as
+# a query parameter rather than interpolated: a schema name is data, not SQL.
+SCHEMAS = ("public", "autoreview")
+
 QUERIES: dict[str, str] = {
     "columns": """
-        SELECT table_name, column_name, data_type, udt_name, is_nullable,
+        SELECT table_schema, table_name, column_name, data_type, udt_name, is_nullable,
                coalesce(column_default, ''), coalesce(character_maximum_length, -1)
         FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name <> 'flyway_schema_history'
-        ORDER BY table_name, column_name
+        WHERE table_schema = ANY(:schemas) AND table_name <> 'flyway_schema_history'
+        ORDER BY table_schema, table_name, column_name
     """,
     "constraints": """
-        SELECT rel.relname, con.conname, con.contype,
+        SELECT nsp.nspname, rel.relname, con.conname, con.contype,
                pg_get_constraintdef(con.oid)
         FROM pg_constraint con
         JOIN pg_class rel ON rel.oid = con.conrelid
         JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-        WHERE nsp.nspname = 'public' AND rel.relname <> 'flyway_schema_history'
-        ORDER BY rel.relname, con.conname, pg_get_constraintdef(con.oid)
+        WHERE nsp.nspname = ANY(:schemas) AND rel.relname <> 'flyway_schema_history'
+        ORDER BY nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid)
     """,
     "indexes": """
-        SELECT tablename, indexname, indexdef
+        SELECT schemaname, tablename, indexname, indexdef
         FROM pg_indexes
-        WHERE schemaname = 'public' AND tablename <> 'flyway_schema_history'
-        ORDER BY tablename, indexname
+        WHERE schemaname = ANY(:schemas) AND tablename <> 'flyway_schema_history'
+        ORDER BY schemaname, tablename, indexname
     """,
     "domains": """
-        SELECT t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod),
+        SELECT n.nspname, t.typname, pg_catalog.format_type(t.typbasetype, t.typtypmod),
                pg_get_constraintdef(c.oid)
         FROM pg_type t
         JOIN pg_namespace n ON n.oid = t.typnamespace
         LEFT JOIN pg_constraint c ON c.contypid = t.oid
-        WHERE n.nspname = 'public' AND t.typtype = 'd'
-        ORDER BY t.typname, pg_get_constraintdef(c.oid)
+        WHERE n.nspname = ANY(:schemas) AND t.typtype = 'd'
+        ORDER BY n.nspname, t.typname, pg_get_constraintdef(c.oid)
     """,
     "enums": """
-        SELECT t.typname, e.enumlabel, e.enumsortorder
+        SELECT n.nspname, t.typname, e.enumlabel, e.enumsortorder
         FROM pg_type t
         JOIN pg_enum e ON e.enumtypid = t.oid
         JOIN pg_namespace n ON n.oid = t.typnamespace
-        WHERE n.nspname = 'public' AND t.typtype = 'e'
-        ORDER BY t.typname, e.enumsortorder
+        WHERE n.nspname = ANY(:schemas) AND t.typtype = 'e'
+        ORDER BY n.nspname, t.typname, e.enumsortorder
     """,
     "triggers": """
-        SELECT c.relname, t.tgname, pg_get_triggerdef(t.oid)
+        SELECT n.nspname, c.relname, t.tgname, pg_get_triggerdef(t.oid)
         FROM pg_trigger t
         JOIN pg_class c ON c.oid = t.tgrelid
         JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = 'public' AND NOT t.tgisinternal
-        ORDER BY c.relname, t.tgname
+        WHERE n.nspname = ANY(:schemas) AND NOT t.tgisinternal
+        ORDER BY n.nspname, c.relname, t.tgname
     """,
     "functions": """
-        SELECT p.proname, pg_get_functiondef(p.oid)
+        SELECT n.nspname, p.proname, pg_get_functiondef(p.oid)
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
-        WHERE n.nspname = 'public'
-        ORDER BY p.proname
+        WHERE n.nspname = ANY(:schemas)
+        ORDER BY n.nspname, p.proname
     """,
 }
 
@@ -103,7 +114,7 @@ def snapshot(engine) -> dict[str, list[tuple]]:
     result: dict[str, list[tuple]] = {}
     with engine.connect() as connection:
         for name, query in QUERIES.items():
-            rows = connection.execute(text(query)).all()
+            rows = connection.execute(text(query), {"schemas": list(SCHEMAS)}).all()
             result[name] = [tuple("" if v is None else str(v) for v in row) for row in rows]
     return result
 
@@ -135,6 +146,13 @@ def main(argv: list[str] | None = None) -> int:
         head, _, tail = base.replace("postgresql://", "", 1).partition("/")
         return f"postgresql+psycopg://{head}/{name}"
 
+    # Held outside the try so the finally can always dispose them. A failure while applying a
+    # migration or running create_all otherwise leaves a live connection on a scratch database,
+    # and the DROP in the finally then raises ObjectInUse — replacing the error that actually
+    # matters with one about cleanup. This script exists to say what is wrong, so it must not lose
+    # the answer on the way out.
+    sql_engine = None
+    orm_engine = None
     try:
         with admin.connect() as connection:
             for name in (sql_db, orm_db):
@@ -152,9 +170,10 @@ def main(argv: list[str] | None = None) -> int:
 
         from_sql = snapshot(sql_engine)
         from_orm = snapshot(orm_engine)
-        sql_engine.dispose()
-        orm_engine.dispose()
     finally:
+        for engine in (sql_engine, orm_engine):
+            if engine is not None:
+                engine.dispose()
         if not args.keep:
             with admin.connect() as connection:
                 for name in (sql_db, orm_db):
@@ -162,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
         admin.dispose()
 
     print(f"migrations applied: {', '.join(applied)}")
+    print(f"schemas compared:   {', '.join(SCHEMAS)}")
     drifted = False
     total = 0
     for name in QUERIES:
@@ -180,7 +200,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"      only in the ORM   : {row}")
 
     if drifted:
-        print("\nconjectures_subnet/db/models.py does not match deploy/migrate/sql")
+        print(
+            "\nthe ORM mirror does not match deploy/migrate/sql "
+            "(conjectures_subnet/db/models.py, autoreview_models.py)"
+        )
         return 1
     print(f"\nno drift: the mirror matches the migrations on all {total} objects")
     return 0

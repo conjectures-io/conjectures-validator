@@ -5,6 +5,10 @@ The schema itself is owned by the plain-SQL migrations in
 that schema, not its source of truth:
 
 * ``models`` — the tables, mirroring the migrations by hand;
+* ``autoreview_models`` — the ``autoreview`` schema: advisory LLM pre-review results,
+  written by ``conjectures-autoreview`` and read by the review console. Nothing in this
+  package touches them at runtime; they are here so ``create_all`` and the drift check
+  see one ``MetaData``;
 * ``engine`` — URL resolution, sync and async engines, sessions, unit-of-work scopes;
 * ``submissions`` — the submission seam: funded intake, verdict recording, reward
   eligibility, the API rejection log, and an account's own submissions;
@@ -36,6 +40,7 @@ from __future__ import annotations
 
 from conjectures_subnet.db import (
     accounts,
+    autoreview_models,
     credits,
     digests,
     engine,
@@ -77,6 +82,7 @@ __all__ = [
     "accounts",
     "async_session_factory",
     "async_session_scope",
+    "autoreview_models",
     "create_async_db_engine",
     "create_db_engine",
     "credits",

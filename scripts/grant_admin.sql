@@ -22,15 +22,23 @@
 
 BEGIN;
 
+-- Handed to the server rather than interpolated into the block below. psql substitutes `:name`
+-- in the query buffer, but never inside a quoted literal or a dollar-quoted body -- so
+-- `:account_email` between `$$` reaches the server verbatim and PL/pgSQL rejects it with
+-- `syntax error at or near ":"`, taking the whole script with it under ON_ERROR_STOP. Local to
+-- the transaction, so it is gone at COMMIT.
+SELECT set_config('grant_admin.email', :account_email, true);
+
 -- Refuse loudly rather than reporting "UPDATE 0". A typo'd address would otherwise look
 -- exactly like success, and nobody re-reads the row to check.
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM accounts WHERE lower(email) = lower(:account_email)
+        SELECT 1 FROM accounts
+        WHERE lower(email) = lower(current_setting('grant_admin.email'))
     ) THEN
-        RAISE EXCEPTION
-            'no account with email %; sign in at the website first', :account_email;
+        RAISE EXCEPTION 'no account with email %; sign in at the website first',
+            current_setting('grant_admin.email');
     END IF;
 END
 $$;

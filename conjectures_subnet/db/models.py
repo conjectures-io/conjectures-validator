@@ -2280,6 +2280,28 @@ class PayoutDiscordDelivery(Base):
     )
 
 
+# The `autoreview` schema's tables, which live in their own module because they are advisory
+# projection rather than part of the submission and payout schema this file describes.
+#
+# Imported HERE, at the bottom, rather than left to whoever needs them. A declarative class in a
+# module nobody imported is absent from `Base.metadata`, so `create_all` would silently omit both
+# tables and `scripts/check_schema_drift.py` would report them missing with no hint as to why.
+# Every existing `from conjectures_subnet.db.models import Base` — the drift check, the test
+# harnesses — then sees the whole schema without having to know this module exists.
+#
+# The circular import is safe and deliberate: `autoreview_models` needs only `Base` and `SHA256`,
+# both defined at the top of this file, so the partially-executed module already has what it asks
+# for. `tests/test_db_autoreview.py` asserts the tables are present after importing only `models`,
+# so deleting this line fails a test rather than producing a confusing drift report.
+from conjectures_subnet.db.autoreview_models import (
+    AutoreviewRun,
+    AutoreviewStageResult,
+)
+
+# Bound to a name so neither a linter nor a reader mistakes the import above for a dead one.
+_AUTOREVIEW_TABLES = (AutoreviewRun, AutoreviewStageResult)
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",

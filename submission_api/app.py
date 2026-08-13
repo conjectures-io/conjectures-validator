@@ -36,8 +36,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncIterator
-from datetime import date
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -57,15 +57,15 @@ from conjectures_subnet.db import (
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
-from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.dependencies import Services
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
     CsrfMiddleware,
-    SessionCookieRefreshMiddleware,
     RateLimitMiddleware,
     ScopedCORSMiddleware,
     SecurityHeadersMiddleware,
+    SessionCookieRefreshMiddleware,
     cors_options,
 )
 from submission_api.observability import (
@@ -74,8 +74,8 @@ from submission_api.observability import (
 )
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
-from submission_api.retired import RetiredIndex
 from submission_api.ratelimit import SlidingWindowLimiter
+from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
@@ -85,10 +85,12 @@ from submission_api.routers import (
     intents,
     me,
     results,
+    reviews,
     submissions,
     system,
     tasks,
 )
+from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
 from submission_api.rates import build_tao_usd_reader
@@ -96,6 +98,7 @@ from submission_api.taostats import (
     TaoStatsAlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
+from submission_api.taskpool import TaskCatalog
 from submission_api.tmc_pay import TmcPayClient, UnavailableGateway
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
@@ -362,6 +365,12 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
+    # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
+    # advisory record behind it). Both are role-gated at every route, and gated again on the
+    # session being a browser one — see `routers/admin.py` for why a privileged credential must
+    # not be reachable from a CLI token. So there is no ordering relationship here, with each
+    # other or with the prefixes above, and nothing on /v1/admin is reachable without a role.
     # The second way to buy credits. Its account routes extend `/v1/me/credits`, so it is included
     # after `me.router`; the webhook it also carries is mounted outside `/v1/me` because its caller
     # is TMC PAY rather than an account.
@@ -369,4 +378,5 @@ def create_app(
     # Stage 3. Role-gated, and gated again on the session being a browser one — see
     # `routers/admin.py` for why an admin credential must not be reachable from a CLI token.
     application.include_router(admin.router)
+    application.include_router(reviews.router)
     return application

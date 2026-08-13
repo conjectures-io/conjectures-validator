@@ -18,8 +18,10 @@ which is the only trace a miner who paid and was turned away would otherwise lea
 
 ## Endpoints
 
-One process serves two audiences on one port. The miner-facing surface authenticates with a
-hotkey signature; the public surface authenticates nothing and is read by a browser.
+One process serves several audiences on one port. The miner-facing surface authenticates with a
+hotkey signature; the public surface authenticates nothing and is read by a browser; the account and
+reviewer surfaces authenticate with a session cookie, and the reviewer surface additionally requires
+a role.
 
 ### Miner-facing
 
@@ -73,6 +75,33 @@ unauthenticated, and it writes nothing.
 | `GET` | `/v1/me/rewards` | Payouts with explorer links |
 | `POST` | `/v1/submissions/preflight` | Free static check; no credit, no auth |
 | `POST`/`PUT` | `/v1/submissions/intents[/{id}/bundle|/confirm]` | Spend a credit and submit |
+
+### Reviewer
+
+Session cookie plus the `REVIEWER` role on the account. A CLI bearer token cannot exercise the role
+however the account is set up — see `ACCOUNT_API.md` — so this surface is browser-only. Read-only,
+and never cached: every response sets `Cache-Control: no-store`, because these bodies are authorised
+per caller and carry review material that is not published anywhere else.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/admin/reviews` | Submissions awaiting a reward decision, each with every advisory assessment recorded against it |
+| `GET` | `/v1/admin/reviews/{submission_id}` | One submission's full advisory record, decided or not |
+
+The queue lists `UNREVIEWED` submissions and embeds their `attempts`, because the review panel
+renders a verdict per stage on the queue itself — a submissions-only list would be followed
+immediately by one request per row. An unassessed submission is on the queue with `attempts: []`:
+review is required for it whether or not the advisory service has reached it.
+
+Reading one by id serves any Lean-verified submission, including a decided one, so the advisory
+record behind a decision stays readable after the fact. Anything Lean has not verified answers `404`,
+matching `/v1/results/{id}`.
+
+Both bodies are allowlists rather than passthroughs. `autoreview.stage_results.verdict` is JSONB
+written by a separate repository, so `submission_api/schemas_admin.py` names every field it serves:
+an unknown key is dropped, a citation's retrieved page text is never served, and `cost_usd` is a
+decimal string so six places of `NUMERIC(12, 6)` survive. Nothing here writes — recording a decision
+advances `reward_status`, and that transaction belongs to the service that owns it.
 
 ### Operations
 
