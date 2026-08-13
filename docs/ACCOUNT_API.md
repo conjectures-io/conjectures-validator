@@ -624,6 +624,9 @@ with the wrong value:
 | --- | --- |
 | `WEBSITE_BASE_URL` | Required, https. Where the sign-in link points — a link to a guessed origin is a credential sent somewhere nobody chose |
 | `MAIL_SENDER` | Must be `smtp`. `console` writes sign-in links to the process log |
+| `SMTP_HOST`, `SMTP_FROM_ADDRESS` | Required with SMTP. The provider host and verified sender address |
+| `SMTP_PORT`, `SMTP_SECURITY` | Defaults to port 587 with `starttls`; `implicit-tls` supports port 465. Production refuses plaintext |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | Must both be set or both omitted for a trusted network relay. The password is excluded from settings representations |
 | `PUBLIC_CURSOR_SECRET` | Required, 32+ chars, and refused if it is the constant published in `settings.py` |
 | `PUBLIC_ACTIVITY_SALT` | Same rules |
 
