@@ -23,6 +23,8 @@ from typing import Protocol
 
 import httpx
 
+from submission_api.rates import SOURCE_TAOSTATS, TaoUsdQuote
+
 RAO_PER_ALPHA = Decimal(1_000_000_000)
 USD_CENT = Decimal("0.01")
 
@@ -172,6 +174,98 @@ class TaoStatsAlphaUsdPriceReader:
             await self._client.aclose()
 
 
+class TaoStatsTaoUsdPriceReader:
+    """TaoStats' TAO/USD feed, cached. The **secondary** source for pricing a TMC PAY invoice.
+
+    Secondary because `rates.TaoMarketCapPriceReader` is TMC PAY's own market data and therefore
+    closer to the rate that platform will lock. This one is kept for redundancy on a path that
+    prices money, and because it needs no new dependency — the API key is already configured for
+    bounty display prices.
+
+    Deliberately its own client rather than a method on `TaoStatsAlphaUsdPriceReader`. That class
+    caches the *product* of two feeds behind one TTL; a purchase needs the TAO leg alone, and
+    reaching into a cached product to recover a factor would be both wrong and fragile.
+
+    Unlike the TaoMarketCap reader, an unavailable result **is** cached for the TTL. That is the
+    right trade for this one: it is the fallback, so a failure here is usually accompanied by a
+    working primary, and hammering a keyed third-party API on every purchase is worse than waiting
+    a minute.
+    """
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        ttl_seconds: int,
+        timeout_seconds: float = 5.0,
+        client: httpx.AsyncClient | None = None,
+        monotonic: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if not api_key:
+            raise ValueError("a TaoStats API key is required")
+        if ttl_seconds <= 0:
+            raise ValueError("the TaoStats cache duration must be positive")
+        if timeout_seconds <= 0:
+            raise ValueError("the TaoStats timeout must be positive")
+
+        self._api_key = api_key
+        self._ttl_seconds = ttl_seconds
+        self._monotonic = monotonic
+        self._client = client or httpx.AsyncClient(
+            timeout=timeout_seconds,
+            headers={
+                "accept": "application/json",
+                "User-Agent": "conjectures-validator/0.1",
+            },
+        )
+        self._owns_client = client is None
+        self._lock = asyncio.Lock()
+        self._cached: TaoUsdQuote | None = None
+        self._has_cached = False
+        self._expires_at = 0.0
+
+    async def tao_usd(self) -> TaoUsdQuote | None:
+        now = self._monotonic()
+        if self._has_cached and now < self._expires_at:
+            return self._cached
+
+        async with self._lock:
+            now = self._monotonic()
+            if self._has_cached and now < self._expires_at:
+                return self._cached
+            try:
+                response = await self._client.get(
+                    TAOSTATS_TAO_PRICE_URL,
+                    params={"asset": "tao"},
+                    headers={"Authorization": self._api_key},
+                )
+                response.raise_for_status()
+                price = _positive_decimal(
+                    _one_record(response)["price"], field="TAO price"
+                )
+            except (
+                httpx.HTTPError,
+                InvalidOperation,
+                KeyError,
+                TypeError,
+                ValueError,
+            ) as exc:
+                logger.warning("TaoStats TAO/USD price is unavailable: %s", exc)
+                price = None
+            self._cached = (
+                TaoUsdQuote(price=price, source=SOURCE_TAOSTATS)
+                if price is not None
+                else None
+            )
+            self._has_cached = True
+            self._expires_at = self._monotonic() + self._ttl_seconds
+            return self._cached
+
+    async def aclose(self) -> None:
+        if self._owns_client:
+            await self._client.aclose()
+
+
 def _one_record(response: httpx.Response) -> Mapping[str, object]:
     payload = response.json()
     if not isinstance(payload, Mapping):
@@ -196,6 +290,7 @@ __all__ = [
     "AlphaUsdPriceReader",
     "StaticAlphaUsdPriceReader",
     "TaoStatsAlphaUsdPriceReader",
+    "TaoStatsTaoUsdPriceReader",
     "UnavailableAlphaUsdPriceReader",
     "amount_usd",
 ]

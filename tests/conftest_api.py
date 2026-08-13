@@ -45,7 +45,9 @@ from submission_api.pins import PinSet
 from submission_api.retired import RetiredIndex
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
+from submission_api.rates import UnavailableTaoUsdPriceReader
 from submission_api.taostats import UnavailableAlphaUsdPriceReader
+from submission_api.tmc_pay import UnavailableGateway
 from submission_api.verification import QueueDispatcher
 from verifier.models import CatalogDeclaration, Classification
 from verifier.task_pool import reward_target_identity
@@ -299,6 +301,8 @@ def harness(
     payments=None,
     bounty_usd=None,
     retired=None,
+    tmc_pay=None,
+    tao_usd=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -310,6 +314,11 @@ def harness(
     `retired` injects a `RetiredIndex`. Empty unless a test asks for one, which is the point:
     every other test in the suite then proves that adding retired conjectures changed nothing
     about the live pool.
+
+    `tmc_pay` and `tao_usd` inject the credit-purchase gateway and its rate source, for the same
+    reason as `payments`: the real ones talk to a payment processor and to TaoStats. Both default
+    to the unavailable implementations, so every test that does not name them proves the purchase
+    endpoints refuse rather than reach a network.
     """
     settings = build_settings(**overrides)
     engine = create_async_db_engine(settings.database_url)
@@ -348,6 +357,8 @@ def harness(
             bounty_usd if bounty_usd is not None else UnavailableAlphaUsdPriceReader()
         ),
         retired=retired if retired is not None else RetiredIndex.empty(),
+        tmc_pay=tmc_pay if tmc_pay is not None else UnavailableGateway(),
+        tao_usd=tao_usd if tao_usd is not None else UnavailableTaoUsdPriceReader(),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings

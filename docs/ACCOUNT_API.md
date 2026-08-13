@@ -372,6 +372,137 @@ deposit-watcher section of `README.md` for how it is configured and run.
 The `btcli` amount is rendered from integer rao by string arithmetic. `amount_rao / 1e9` is
 exactly the step that silently loses a rao.
 
+### Buying credits through TMC PAY
+
+The second funding path, and the price is the same: `CREDIT_PRICE_RAO` per credit, 0.5 TAO. Instead
+of transferring to the treasury and waiting for the watcher, the buyer pays a TMC PAY invoice in
+TAO; the processor confirms it and settles to the treasury later, in batches, net of commission.
+
+```
+POST /v1/me/credits/tmc-pay/orders          browser session + CSRF; creates an invoice
+GET  /v1/me/credits/tmc-pay/orders          this account's purchases
+GET  /v1/me/credits/tmc-pay/orders/{id}     poll; refreshes from TMC PAY while it is open
+POST /v1/webhooks/tmc-pay                   TMC PAY only, authenticated by HMAC
+```
+
+**This path is processor-trusted, and that is a real difference.** Everywhere else credits exist
+only for a transfer this validator read off finalized Subtensor state itself. Here the deposit
+address belongs to TMC PAY, so at the moment of purchase there is nothing of ours on chain to read
+— the evidence is a signed webhook plus a re-readable invoice. Three things follow, and all three
+are enforced rather than remembered:
+
+* **The ledger says which kind of rao it is.** A `DEPOSIT` entry names *either* `deposit_id` (chain)
+  *or* `tmc_pay_order_id` (processor), never both and never neither — `ledger_deposit_names_its_deposit`
+  is an exclusive-or. So `WHERE tmc_pay_order_id IS NOT NULL` separates the two, and the on-chain
+  deposit invariants are untouched.
+* **A webhook decides *whether* to credit, never *how much*.** What is credited is
+  `crypto_amount_rao`, the TAO the invoice locked when it was created. A forged body cannot mint
+  credits even if the signing secret leaks — at worst it can settle an invoice that already exists.
+* **Crediting is idempotent three ways over**: a status check under a row lock, `UNIQUE` on
+  `tmc_pay_orders.credited_ledger_id`, and a partial `UNIQUE` on `credit_ledger.tmc_pay_order_id`.
+  A duplicate delivery racing the reconciler conflicts instead of paying twice.
+
+**Why the invoice is quoted in fiat.** TMC PAY accepts a fiat amount and derives the crypto amount
+from a rate it locks at creation, so the TAO figure is a consequence rather than a request. The
+conversion runs like this, all in `Decimal`, never `float`:
+
+```
+crypto_per_fiat    ← the rate ladder below      # TAO per one fiat unit, TMC PAY's own semantics
+required_rao       = credits × CREDIT_PRICE_RAO                     # 10 credits → 5 000 000 000
+fiat_amount        = ⌈ required_rao/1e9 ÷ crypto_per_fiat × (1 + margin_bps/10000) ⌉   to the cent
+```
+
+**The rate is TMC's own, at every rung that matters.** TMC PAY publishes no rate endpoint, but two
+of its rates are readable anyway, and both beat a third-party feed:
+
+| Rung | `rate_source` | Source | When |
+| --- | --- | --- | --- |
+| 1 | `invoice` | `exchange_rate` on our last invoice | It is newer than `TMC_PAY_RATE_TTL_SECONDS` (300) and in this currency |
+| 2 | `taomarketcap` | TaoMarketCap 5-minute candles | No fresh locked rate, merchant currency is USD |
+| 3 | `taostats` | TaoStats, if `TAOSTATS_API_KEY` is set | TaoMarketCap unreachable |
+| 4 | `invoice-stale` | Any locked rate we have | Both feeds down, or currency is not USD |
+| 5 | `<source>-currency-mismatch` | A USD feed, used for a non-USD merchant | First-ever non-USD purchase. Warns |
+| — | `503 TMC_PAY_RATE_UNAVAILABLE` | — | Nothing to price from. The sale is refused |
+
+Rung 1 is the best because it is the rate the platform *actually locked*, spread and rounding
+included, already in the merchant's currency. Rung 2 is next because TaoMarketCap **is** TMC PAY —
+its own market data is closer to what its payment platform will lock than any outsider's — and it
+needs no API key, so a deployment can price invoices with no rate configuration at all.
+
+Rung 4 is deliberate: because the band below cannot be fooled by a bad seed, an hour-old rate is a
+far better answer to a feed outage than refusing to sell credits. `rate_source` and `quote_attempts`
+are on the `tmc_pay_order_created` event, so "which source are we actually running on" and "how
+often does a purchase cost two invoices" are each one query.
+
+**Candle caching.** `rates.TaoMarketCapPriceReader` caches each price **to the candle boundary, not
+for a fixed duration**: a price fetched at 13:12 is the freshest that will exist until 13:15, so it
+is held for exactly three minutes. A rolling five-minute TTL would hold it until 13:17 and drift
+further with each refresh. A failed refresh is **never** cached — the last good price keeps being
+served (bounded by `rates.MAX_STALE_SECONDS`, one hour) and every call retries until one succeeds.
+Caching the failure would refuse purchases for five minutes over one timeout.
+
+Then the invoice that comes back is **checked rather than trusted**: TAO on Bittensor, the
+configured merchant, and a locked amount inside a band —
+
+| Edge | Value | Why |
+| --- | --- | --- |
+| Floor | `required_rao` | Below it, a credit is sold for less than `CREDIT_PRICE_RAO` |
+| Ceiling | `required_rao × (1 + TMC_PAY_MAX_SLIPPAGE_BPS) + one minor fiat unit in rao` | Above it, **the buyer is overcharged** |
+
+The ceiling has two parts and they differ in kind. `TMC_PAY_MAX_SLIPPAGE_BPS` (100, i.e. 1%) is
+**policy** — what counts as an acceptable overcharge is a business decision, so it is an operator
+setting rather than something derived. The extra minor fiat unit is **arithmetic**: the fiat ask must
+round up to the currency's minor unit, so that cent is unavoidable and sits on top of the policy.
+Slippage must be at least `TMC_PAY_QUOTE_MARGIN_BPS`, since the margin is added to every ask; the API
+refuses to start on a tighter pair rather than serving purchases that can never succeed.
+
+Outside the band, the next attempt reprices from `invoice.exchange_rate` — the rate that invoice
+actually locked, so it is arithmetic rather than an estimate, and it corrects an estimate that was
+too high as readily as one that was too low. After `TMC_PAY_QUOTE_ATTEMPTS` the sale is refused and
+the order is `FAILED` with the reason on it.
+
+Both edges matter, and the ceiling is not symmetry for its own sake: a stale TaoStats quote, a
+merchant onboarded in a currency TaoStats does not price, or a mistyped margin all produce an
+invoice that clears the floor and overcharges. The tolerance is derived rather than a flat
+percentage, because the same cent of rounding is noise on a $2000 invoice and a fifth of a $0.05
+one. Rounding overshoot inside the band is never lost — it lands in the buyer's own balance as
+`remainder_rao`.
+
+**`TMC_PAY_FIAT_CURRENCY` other than `USD` costs one extra round trip, once.** The external feed
+only prices dollars, so the first-ever non-USD purchase is seeded from a dollar figure, the band
+catches it and the requote fixes it. From the second purchase on, rung 1 or 3 supplies a rate
+already in the right currency and there is nothing to correct.
+
+This is why the path needs `TAOSTATS_API_KEY`. Without a live rate there is no honest fiat figure,
+and the endpoint answers `503 TMC_PAY_RATE_UNAVAILABLE` rather than inventing one.
+
+**Status is TMC PAY's word, not a translation.** `NEW` and `FAILED` are ours; the other eight —
+`CREATED`, `PENDING`, `CONFIRMING`, `UNDERPAID`, `CONFIRMED`, `OVERPAID`, `EXPIRED`,
+`LATE_PAYMENT` — are TMC PAY's invoice lifecycle label for label, so what this API reports and what
+the TMC PAY dashboard shows are the same word.
+
+Only `CONFIRMED` and `OVERPAID` issue credits. `OVERPAID` credits the invoice amount and flags the
+order `needs_review`, because only a person with the dashboard can settle the surplus. `UNDERPAID`
+credits nothing and flags too: real money arrived, and part-crediting a whole credit is not a
+decision to automate. `LATE_PAYMENT` credits nothing unless an operator sets
+`TMC_PAY_CREDIT_LATE_PAYMENTS` — TMC PAY documents it as a manual reconciliation case, and from
+outside there is no way to tell whether such a payment settles to the treasury or returns to the
+sender.
+
+**TMC PAY dispatches each webhook once and never retries automatically.** A delivery lost to a
+deploy is lost, so two things back it up: `GET .../orders/{id}` refreshes from the processor while
+the buyer is watching (bounded by `TMC_PAY_POLL_SECONDS`, and never for a settled order), and
+`scripts/reconcile_tmc_pay.py` sweeps everything else. Run it on a schedule — every minute or two
+is ample against a 30-minute TTL. Both reach the same decision through the same function; there is
+one place a status becomes money.
+
+**The commission is the validator's cost, not the buyer's.** Credits still cost 0.5 TAO each, so
+what reaches the treasury per credit is 0.5 TAO minus TMC PAY's fee. Raise `CREDIT_PRICE_RAO` if the
+full amount has to net.
+
+`GET /v1/catalog/credit-pricing` lists `tmc_pay` in `methods` only when the deployment is configured
+for it — a method the page renders and the API refuses is worse than one it never offers.
+
 ## Submitting with a credit
 
 Four calls, so that a miner learns their bundle is admissible **before** anything is charged:
@@ -505,17 +636,45 @@ The CLI session knobs, none of which production requires but all of which it sho
 | `CLI_SESSIONS_PER_ACCOUNT` | 10 | Live CLI tokens per account; the oldest is evicted at the ceiling |
 | `LOGIN_CHALLENGE_ATTEMPTS` | 5 | Failed signatures before a challenge is spent |
 
+TMC PAY is off unless all three of these are set, and a deployment that sets only some of them
+**refuses to boot** — half-configured is the dangerous state, being the shape in which a purchase
+page appears and a confirmation never does:
+
+| Variable | Rule |
+| --- | --- |
+| `TMC_PAY_API_BASE_URL` | Absolute http(s); https in production. The published docs quote `api.example.com`, so there is nothing to guess |
+| `TMC_PAY_API_KEY` | The merchant API key. Shown once at merchant creation; it can create invoices payable to this merchant account |
+| `TMC_PAY_WEBHOOK_SECRET` | 16+ chars. The only thing standing between an unauthenticated endpoint and the credit ledger |
+| `TAOSTATS_API_KEY` | Optional. A second external rate source behind TaoMarketCap's keyless candle feed; the ladder prefers TMC PAY's own locked rate over both |
+| `TMC_PAY_MERCHANT_ID` | Optional. When set, a webhook naming another merchant is ignored rather than matched on invoice id alone |
+
+The rest have defaults chosen so that setting only the required values behaves correctly:
+`TMC_PAY_QUOTE_MARGIN_BPS` (25), `TMC_PAY_QUOTE_ATTEMPTS` (2), `TMC_PAY_TTL_MINUTES` (30),
+`TMC_PAY_MAX_OPEN_ORDERS` (3), `TMC_PAY_MAX_CREDITS` (1000), `TMC_PAY_POLL_SECONDS` (5),
+`TMC_PAY_RATE_TTL_SECONDS` (300), `TMC_PAY_TIMEOUT_SECONDS` (10),
+`TMC_PAY_CREDIT_LATE_PAYMENTS` (false), `TMC_PAY_FIAT_CURRENCY` (USD), `TMC_PAY_FIAT_DECIMALS` (2),
+`TMC_PAY_HOSTED_BASE_URL` (unset).
+
 ## Tests
 
 ```bash
 docker compose -f docker-compose.pytest-db.yml up -d
-.venv/bin/pytest tests/test_api_accounts.py tests/test_api_auth.py tests/test_api_cli_sessions.py
+.venv/bin/pytest tests/test_api_accounts.py tests/test_api_auth.py tests/test_api_cli_sessions.py \
+    tests/test_api_tmc_pay.py
 ```
 
 Mostly about what must *not* work: a write without a CSRF token, a token borrowed from another
 session, a magic link used twice, a signature replayed from the link flow into the sign-in flow, an
 account reading another account's rows, one credit spent twice. The signatures are real sr25519 over
 the exact messages the server minted.
+
+`test_api_tmc_pay.py` is negative in the same spirit, because the processor path is the one whose
+evidence is a signed message rather than chain state: an unsigned, wrongly-signed, tampered or
+id-less webhook credits nothing; a *correctly* signed webhook claiming a hundred times the amount
+still moves the ledger by exactly what the invoice locked; the same delivery applied twice credits
+once; an invoice worth less than the credits it sells is refused rather than sold; and another
+account can neither read nor poll somebody else's order. It also drives the reconciler through its
+own `_pass`, so what cron runs is what is tested.
 
 `test_api_cli_sessions.py` covers the boundary between the two credentials, and is mostly negative
 too: a cookie token offered as a bearer and a bearer token planted in the cookie are both `401`; a

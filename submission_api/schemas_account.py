@@ -240,6 +240,81 @@ class Deposit(Model):
     updated_at: dt.datetime
 
 
+class TmcPayOrder(Model):
+    """A credit purchase paid through TMC PAY, and what has been observed for it.
+
+    Read this as a payment instruction plus a status. Until `status` is `NEW` or `FAILED` the
+    invoice exists and the three fields a buyer needs are populated: `deposit_address`,
+    `amount_tao` and `expires_at`.
+
+    `status` mirrors TMC PAY's own invoice lifecycle so that what this API reports and what the
+    TMC PAY dashboard shows are the same word. Two of the values are this validator's:
+    `NEW` — the invoice is being created — and `FAILED` — it could not be.
+
+    `credits_expected` is what was bought. `credits_credited` is what the balance actually gained,
+    which is at least that: the invoice is quoted in fiat and rounded up, so the locked TAO can
+    exceed the credit price by a fraction of a percent, and the excess stays in the balance as
+    `remainder_rao` rather than being discarded.
+
+    `deposit_address` is TMC PAY's, derived per invoice — **not** the validator's treasury. A
+    payment sent anywhere else does not fund this order.
+    """
+
+    id: uuid.UUID
+    status: str = Field(
+        description="NEW | FAILED | CREATED | PENDING | CONFIRMING | UNDERPAID | "
+        "CONFIRMED | OVERPAID | EXPIRED | LATE_PAYMENT"
+    )
+    credits_expected: int
+    credit_price_rao: int
+    credits_credited: int = Field(
+        description="Credits this order has added to the balance; 0 until it is confirmed"
+    )
+    amount_rao: int | None = Field(
+        default=None, description="The TAO the invoice locked, in integer rao"
+    )
+    amount_tao: str | None = Field(
+        default=None, description="The same amount as a decimal string, for display"
+    )
+    deposit_address: str | None = Field(
+        default=None, description="TMC PAY's per-invoice address; never the treasury"
+    )
+    btcli_command: str | None = Field(
+        default=None, description="Ready to copy; integer rao, rendered exactly"
+    )
+    fiat_amount: str | None = None
+    fiat_currency: str | None = None
+    exchange_rate: str | None = Field(
+        default=None, description="TAO per one fiat unit, locked at invoice creation"
+    )
+    commission_amount: str | None = Field(
+        default=None, description="TMC PAY's fee, in fiat. Paid by the validator, not the buyer"
+    )
+    invoice_id: str | None = None
+    payment_url: str | None = Field(
+        default=None, description="TMC PAY's hosted payment page, when one is configured"
+    )
+    needs_review: bool = Field(
+        description="An operator has to look at this: over- or underpaid, or paid late"
+    )
+    failure_reason: str | None = None
+    expires_at: dt.datetime | None = None
+    confirmed_at: dt.datetime | None = None
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+
+class TmcPayPurchase(Model):
+    """A new order, and the balance as it stands before anything is paid.
+
+    The balance is returned alongside so a purchase page can show "you have 2 credits, this
+    invoice adds 10" without a second request.
+    """
+
+    order: TmcPayOrder
+    balance: CreditBalance
+
+
 # --- Submission terms --------------------------------------------------------------------
 
 
