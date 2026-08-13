@@ -921,7 +921,7 @@ def test_a_listed_conjecture_is_named_without_a_lean_identifier():
             body = (await _get(kit, "/v1/catalog/conjectures", limit=100)).json()
             named = {item["slug"]: item["display_title"] for item in body["items"]}
 
-            assert named["erdos1-erdos-1-variants-lb"] == "Erdős problem 1 — lb"
+            assert named["erdos1-erdos-1-variants-lb"] == "Erdős problem 1 - lb"
             assert named["abc-abc"] == "ABC"
             for slug, title in named.items():
                 assert "_" not in title and "«" not in title, (slug, title)
@@ -958,11 +958,11 @@ def test_the_index_names_every_problem_without_leaving_a_lean_identifier():
                 "erdos1-erdos-1": "Erdős problem 1",
                 # The root is not pooled, so the variant stands in — and says which one it is
                 # rather than publishing the problem's bare name twice.
-                "erdos1062-erdos-1062-variants-lower-bound": "Erdős problem 1062 — lower bound",
+                "erdos1062-erdos-1062-variants-lower-bound": "Erdős problem 1062 - lower bound",
                 # `variants.monotone.parts.i` is part i of the monotone variant. Both markers
                 # survive as words; neither survives as Lean.
                 "erdos357-erdos-357-variants-monotone-parts-i": (
-                    "Erdős problem 357 — monotone, part i"
+                    "Erdős problem 357 - monotone, part i"
                 ),
             }
             for title in named.values():

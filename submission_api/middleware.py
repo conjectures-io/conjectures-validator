@@ -263,6 +263,15 @@ class SessionCookieRefreshMiddleware:
     It re-sends the token the client already had, so it cannot create or extend a session that
     the server has not authorised: an expired or revoked session still fails `resolve`, and this
     only refreshes the envelope around a credential the client was already holding.
+
+    **Cookie-only by construction, and it must stay that way.** The gate below is the *request*
+    cookie, so a request authenticated by an `Authorization: Bearer` header never reaches the
+    `Set-Cookie` path. That is not incidental: putting a bearer token into a `Set-Cookie` header
+    would make a CLI credential ambient in any client that keeps a cookie jar, which is exactly
+    the property the bearer flow's CSRF exemption assumes it does not have. The obvious future
+    "improvement" — refresh the credential for every authenticated session, not just cookie ones
+    — is the way that invariant gets broken, so it is written down here and asserted in
+    `tests/test_api_accounts.py`.
     """
 
     def __init__(self, app: ASGIApp, settings: Settings) -> None:

@@ -31,6 +31,9 @@ verification core.
 | API-neutral proof handoff with exact task digest | Implemented |
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
+| Website accounts, browser sessions, and hotkey linking | Implemented |
+| CLI sessions: a linked hotkey mints a scoped bearer token | Implemented |
+| Roles and the operator surface (`MINER`/`REVIEWER`/`ADMIN`) | Implemented |
 | Shared durable schema and migrations | Implemented |
 | Finalized transfer reader, wired into both funding paths | Implemented |
 | Deposit watcher: TAO at the treasury becomes credits | Implemented |
