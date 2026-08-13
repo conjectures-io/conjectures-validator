@@ -37,6 +37,7 @@ verification core.
 | Shared durable schema and migrations | Implemented |
 | Finalized transfer reader, wired into both funding paths | Implemented |
 | Deposit watcher: TAO at the treasury becomes credits | Implemented |
+| TMC PAY: credits bought at 0.5 TAO each through the payment processor | Implemented |
 | Asynchronous verification worker | Implemented |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
@@ -300,6 +301,60 @@ The reader behind both is [`conjectures_subnet/transfers.py`](conjectures_subnet
 through [`submission_api/chain_payments.py`](submission_api/chain_payments.py) on the API side. One
 reader, one idea of what a transfer is — two with two reference formats could not have been
 reconciled.
+
+## Paying for credits with TMC PAY
+
+A third way in, at the same price: **0.5 TAO buys one credit**, `CREDIT_PRICE_RAO` unchanged. The
+buyer pays a [TMC PAY](https://pay.taomarketcap.com/docs/getting-started/overview) invoice in TAO
+rather than transferring to the treasury; the processor confirms the payment and settles to the
+treasury later, in batches, net of its commission.
+
+```bash
+# Off unless all three are set; a partially-configured deployment refuses to boot.
+TMC_PAY_API_BASE_URL=https://api.pay.taomarketcap.com
+TMC_PAY_API_KEY=<merchant API key>
+TMC_PAY_WEBHOOK_SECRET=<merchant webhook signing secret>
+TAOSTATS_API_KEY=<required too — see below>
+
+# Point the merchant's webhook URL at POST /v1/webhooks/tmc-pay, then:
+*/2 * * * * cd /srv/conjectures && python3 scripts/reconcile_tmc_pay.py
+```
+
+**The cron line is not optional.** TMC PAY dispatches one webhook per invoice transition and never
+retries automatically — a failed delivery waits in its dashboard for a human. Without the sweep, a
+delivery lost to a deploy is a buyer who paid and got nothing.
+[`scripts/reconcile_tmc_pay.py`](scripts/reconcile_tmc_pay.py) re-reads open invoices and applies
+the same decision the webhook applies, through the same function. Crediting is idempotent, so it is
+safe to run alongside a live API and safe to run twice by accident.
+
+**Where the rate comes from.** TMC PAY quotes invoices in fiat and locks the crypto amount from a
+rate of its own, so the TAO figure is a consequence rather than a request. TMC PAY publishes no rate
+endpoint — but every invoice it creates reports the `exchange_rate` it used, and that is stored. So
+the next quote is seeded from **TMC PAY's own last locked rate** (same source, spread included,
+already in the merchant's currency), then from **TaoMarketCap's public 5-minute candles** (same
+company as the processor, no API key), then TaoStats, then a stale locked rate. The purchase endpoint sizes the fiat amount from whichever
+rung answered, rounds up, then **checks the invoice it got back**
+— TAO on Bittensor, the configured merchant, and a locked amount inside a band whose floor is
+`credits × CREDIT_PRICE_RAO` (below it a credit is sold too cheap) and whose ceiling is that plus
+the quote margin and one cent (above it the *buyer* is overcharged, which a stale rate produces
+just as easily). Outside the band it reprices from the rate the invoice itself locked, which is
+exact. Without a rate at all there is no honest number to ask for, and the sale is refused rather
+than made up.
+
+**What is credited is the invoice's locked amount, never a number from a webhook body.** A signed
+webhook decides *whether* an invoice was paid; `crypto_amount_rao`, recorded when the invoice was
+created, decides how much. So a leaked signing secret cannot mint credits — at worst it can settle
+an invoice that already exists.
+
+This is the one funding path whose evidence is a signed message rather than finalized chain state,
+and the schema says so: a `DEPOSIT` ledger entry names **either** `deposit_id` or
+`tmc_pay_order_id`, by exclusive-or, so processor-confirmed rao stays separable from chain-confirmed
+rao with a `WHERE` clause and the on-chain deposit invariants are untouched. See
+[docs/ACCOUNT_API.md](docs/ACCOUNT_API.md#buying-credits-through-tmc-pay) for the endpoints, the
+status semantics, and the over/under/late-payment rules.
+
+Note that the commission is the validator's cost: at 0.5 TAO a credit, what reaches the treasury is
+0.5 TAO minus TMC PAY's fee. Raise `CREDIT_PRICE_RAO` if the full amount has to net.
 
 ## Treasury emissions
 

@@ -34,7 +34,12 @@ from submission_api.pins import PinSet
 from submission_api.retired import RetiredIndex
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
-from submission_api.taostats import AlphaUsdPriceReader, UnavailableAlphaUsdPriceReader
+from submission_api.rates import TaoUsdPriceReader, UnavailableTaoUsdPriceReader
+from submission_api.taostats import (
+    AlphaUsdPriceReader,
+    UnavailableAlphaUsdPriceReader,
+)
+from submission_api.tmc_pay import InvoiceGateway, UnavailableGateway
 from submission_api.verification import VerificationDispatcher
 
 
@@ -57,6 +62,15 @@ class Services:
     packages: tuple[CreditPackage, ...]
     terms: SubmissionTerms
     bounty_usd: AlphaUsdPriceReader = field(default_factory=UnavailableAlphaUsdPriceReader)
+    # The TMC PAY funding path. Both default to the unavailable implementation, so a deployment
+    # that has not configured the processor — and every test that does not care about it — refuses
+    # the purchase endpoints instead of reaching a network. See `submission_api/tmc_pay.py`.
+    #
+    # `tao_usd` is separate from `bounty_usd` because the two answer different questions and fail
+    # differently: an absent Alpha price hides a display field, while an absent TAO price makes an
+    # invoice unpriceable and must refuse the sale.
+    tmc_pay: InvoiceGateway = field(default_factory=UnavailableGateway)
+    tao_usd: TaoUsdPriceReader = field(default_factory=UnavailableTaoUsdPriceReader)
     # Targets that have left the pool, kept readable so results already earned against them stay
     # citable. Separate from `catalog` on purpose: `catalog` is what a submission resolves
     # against, and nothing in this field can ever reach that path. Empty by default, so a test

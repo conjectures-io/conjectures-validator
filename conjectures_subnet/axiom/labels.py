@@ -66,6 +66,9 @@ Source: TypeAlias = Literal[
     "verification-worker",
     "deposit-watcher",
     "emissions-worker",
+    # Sweeps the TMC PAY orders no webhook resolved. Separate from `deposit-watcher` because it
+    # watches a payment processor rather than a chain, and its failures are HTTP ones.
+    "tmc-pay-reconciler",
     # --- shared infrastructure --------------------------------------------------------------
     "subnet-chain",
     "database",
@@ -133,6 +136,21 @@ EventType: TypeAlias = Literal[
     "transfer_unattributed",
     "transfer_ignored",
     "transfer_conflict",
+    # --- TMC PAY credit purchases -----------------------------------------------------------
+    # The processor-settled funding path. Separate from the deposit watcher's `transfer_*` types
+    # because the evidence is different in kind — a signed webhook rather than finalized chain
+    # state — and an operator auditing where credits came from has to be able to split the two.
+    "tmc_pay_order_created",
+    # Credits issued for a paid invoice. `applied_by` says whether a webhook or the reconciler got
+    # there first, which is how "are our webhooks arriving at all" gets answered.
+    "tmc_pay_order_credited",
+    # A delivery whose HMAC did not verify. Either a secret rotation nobody coordinated or someone
+    # probing the endpoint, and both need to be visible.
+    "tmc_pay_webhook_rejected",
+    # A correctly signed delivery for an invoice no order here claims.
+    "tmc_pay_webhook_unmatched",
+    # One reconciliation pass that found something: orders read, credited, unreadable.
+    "tmc_pay_reconciled",
     # --- emissions worker -------------------------------------------------------------------
     "epoch_observed",
     "weights_set",

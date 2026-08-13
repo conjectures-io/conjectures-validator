@@ -1,0 +1,1494 @@
+"""Buying credits through TMC PAY.
+
+Mostly about what must *not* happen, because this is the one funding path whose evidence is a
+signed message rather than finalized chain state:
+
+* an unsigned or wrongly-signed webhook credits nothing;
+* a *correctly* signed webhook credits the amount the invoice locked, and never an amount from
+  its own body — so a forged body cannot mint credits even against a real invoice;
+* the same delivery applied twice credits once;
+* an invoice worth less than the credits it sells is refused rather than sold;
+* another account cannot see, poll, or be credited by somebody else's order.
+
+Needs a real PostgreSQL server, like the rest of the account suite:
+
+    docker compose -f docker-compose.pytest-db.yml up -d
+"""
+
+from __future__ import annotations
+
+import asyncio
+import datetime as dt
+import hashlib
+import hmac
+import importlib
+import json
+import pathlib
+import sys
+import uuid
+from contextlib import asynccontextmanager
+from decimal import Decimal
+
+import pytest
+
+pytest.importorskip("fastapi", reason="submission API tests need the service extra")
+pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra")
+pytest.importorskip("httpx", reason="submission API tests need the service extra")
+pytest.importorskip("psycopg", reason="submission API tests need the db extra")
+
+from conftest_api import harness, postgres_dsn
+from test_api_accounts import client, csrf, sign_in_by_email
+
+from conjectures_subnet.db import credits as credit_store
+from conjectures_subnet.db import tmc_pay as order_store
+from conjectures_subnet.db.models import CreditEntryKind, TmcPayOrderState
+from submission_api import tmc_pay
+from submission_api.settings import RAO_PER_TAO
+from submission_api.rates import StaticTaoUsdPriceReader
+
+# The reconciler is a script rather than a package, so `scripts/` goes on the path and it is
+# imported by name. Tested through its own `_pass` deliberately: a reimplementation of the sweep
+# here would prove nothing about the thing cron actually runs.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+reconciler = importlib.import_module("reconcile_tmc_pay")
+
+pytestmark = pytest.mark.skipif(
+    postgres_dsn() is None,
+    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+)
+
+SECRET = "tmc-pay-webhook-secret-for-tests"
+MERCHANT = "11111111-2222-3333-4444-555555555555"
+DEPOSIT_ADDRESS = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+CREDIT_PRICE_RAO = RAO_PER_TAO // 2  # 0.5 TAO, the shipped default
+TAO_USD = Decimal("400")  # so one credit is $200 before the quote margin
+
+ORDERS = "/v1/me/credits/tmc-pay/orders"
+WEBHOOK = "/v1/webhooks/tmc-pay"
+
+
+def run(coroutine):
+    return asyncio.run(coroutine)
+
+
+def tmc_pay_settings(**overrides: str) -> dict[str, str]:
+    environ = {
+        "TMC_PAY_API_BASE_URL": "https://api.pay.test",
+        "TMC_PAY_API_KEY": "test-merchant-api-key",
+        "TMC_PAY_WEBHOOK_SECRET": SECRET,
+        "TMC_PAY_MERCHANT_ID": MERCHANT,
+        "TMC_PAY_HOSTED_BASE_URL": "https://pay.test",
+        # Zero, so the arithmetic in these tests is exactly the credit price and an assertion
+        # about the amount is an assertion about the pricing rule rather than about a margin.
+        "TMC_PAY_QUOTE_MARGIN_BPS": "0",
+        # Zero slippage too, so the band is the credit price plus one cent of rounding and an
+        # assertion about an amount is an assertion about the pricing rule rather than a tolerance.
+        "TMC_PAY_MAX_SLIPPAGE_BPS": "0",
+    }
+    environ.update(overrides)
+    return environ
+
+
+def _iso(moment: dt.datetime) -> str:
+    """UTC with a `Z` suffix, the way TMC PAY publishes timestamps."""
+    return moment.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def invoice_body(
+    *,
+    invoice_id: str,
+    status: str = "created",
+    crypto_amount: str = "0.5",
+    external_id: str | None = None,
+    merchant_id: str = MERCHANT,
+    fiat_amount: str = "200.00",
+    confirmed_at: str | None = None,
+    crypto_currency: str = "TAO",
+    crypto_network: str = "bittensor",
+    exchange_rate: str = "0.0025",
+) -> dict:
+    """A TMC PAY invoice object, shaped exactly as the published payload schema.
+
+    The timestamps are relative to now rather than fixed strings. An invoice whose `expires_at` is
+    in the past stops counting against the account's open-order allowance the moment it lapses —
+    see `db.tmc_pay.count_live_orders` — so hard-coded dates would make these tests pass or fail
+    depending on when they were run.
+    """
+    now = dt.datetime.now(dt.UTC)
+    return {
+        "invoice_id": invoice_id,
+        "merchant_id": merchant_id,
+        "external_id": external_id,
+        "description": "credits",
+        "metadata": {"order_id": "unused"},
+        "status": status,
+        "fiat_amount": fiat_amount,
+        "fiat_currency": "USD",
+        "crypto_amount": crypto_amount,
+        "crypto_currency": crypto_currency,
+        "crypto_network": crypto_network,
+        "deposit_address": DEPOSIT_ADDRESS,
+        "exchange_rate": exchange_rate,
+        "commission_amount": "2.00",
+        "created_at": _iso(now),
+        "expires_at": _iso(now + dt.timedelta(minutes=30)),
+        "confirmed_at": confirmed_at,
+    }
+
+
+def signed(body: dict, *, secret: str = SECRET, webhook_id: str | None = None) -> tuple:
+    """The exact bytes and headers TMC PAY would send for `body`.
+
+    Signed over the serialised bytes and posted as those same bytes — not re-serialised by the
+    client — because that is the property the verifier depends on.
+    """
+    raw = json.dumps(body).encode("utf-8")
+    signature = hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    headers = {
+        "Content-Type": "application/json",
+        tmc_pay.WEBHOOK_ID_HEADER: webhook_id or str(uuid.uuid4()),
+        tmc_pay.WEBHOOK_TIMESTAMP_HEADER: "1786000000",
+        tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"sha256={signature}",
+        tmc_pay.WEBHOOK_EVENT_HEADER: f"invoice.{body['status']}",
+    }
+    return raw, headers
+
+
+class FakeGateway:
+    """An `InvoiceGateway` that answers from a script instead of a network.
+
+    `invoices` is what `create_invoice` returns, in order, so a test can make the first quote come
+    back short and check that the second attempt uses the locked rate. `reads` maps invoice ids to
+    the body a poll should see.
+    """
+
+    def __init__(self, invoices: list[dict], reads: dict[str, dict] | None = None) -> None:
+        self.invoices = list(invoices)
+        self.reads = dict(reads or {})
+        self.created: list[dict] = []
+        self.read_calls: list[str] = []
+        self.error: Exception | None = None
+
+    async def create_invoice(self, **kwargs) -> tmc_pay.Invoice:
+        if self.error is not None:
+            raise self.error
+        self.created.append(kwargs)
+        body = self.invoices.pop(0)
+        return tmc_pay.parse_invoice(body)
+
+    async def read_invoice(self, invoice_id: str) -> tmc_pay.Invoice:
+        if self.error is not None:
+            raise self.error
+        self.read_calls.append(invoice_id)
+        if invoice_id not in self.reads:
+            # An unscripted poll behaves like an outage rather than blowing up, because reading an
+            # open order refreshes it and most tests here are not about that. `read_calls` still
+            # records the attempt, so a test that cares can assert on it either way.
+            raise tmc_pay.TmcPayUnavailable(f"no scripted read for {invoice_id}")
+        return tmc_pay.parse_invoice(self.reads[invoice_id])
+
+    async def aclose(self) -> None:
+        return None
+
+
+def kit_with(gateway, *, tao_usd: Decimal | None = TAO_USD, **overrides: str):
+    return harness(
+        tmc_pay=gateway,
+        tao_usd=StaticTaoUsdPriceReader(tao_usd) if tao_usd is not None else None,
+        **tmc_pay_settings(**overrides),
+    )
+
+
+@asynccontextmanager
+async def buyer(kit, email: str = "buyer@example.com"):
+    """A signed-in browser session, closed on the way out.
+
+    A context manager rather than a factory because `AsyncClient` may only be entered once, and
+    signing in makes requests — so the client has to be open before the sign-in, not after.
+    """
+    async with await client(kit) as http:
+        account = await sign_in_by_email(kit, http, email)
+        yield http, account
+
+
+# --- Pure money arithmetic ---------------------------------------------------------------
+# No database and no HTTP: these are the conversions everything else depends on being exact.
+
+
+def test_rao_conversion_is_exact_in_both_directions():
+    assert tmc_pay.rao_from_tao("0.5") == 500_000_000
+    assert tmc_pay.rao_from_tao("1") == RAO_PER_TAO
+    assert tmc_pay.rao_from_tao("0.000000001") == 1
+    assert tmc_pay.tao_from_rao(500_000_000) == "0.5"
+    assert tmc_pay.tao_from_rao(RAO_PER_TAO + 1) == "1.000000001"
+    # Round-trip a value a float could not hold exactly.
+    assert tmc_pay.tao_from_rao(tmc_pay.rao_from_tao("12.345678901")) == "12.345678901"
+
+
+def test_an_amount_finer_than_one_rao_is_refused_rather_than_rounded():
+    """Rounding somebody's money is not a decision this code may take on its own."""
+    with pytest.raises(tmc_pay.TmcPayRejected):
+        tmc_pay.rao_from_tao("0.0000000001")
+    for bad in ("", "abc", "-1", "0", "NaN", "Infinity"):
+        with pytest.raises(tmc_pay.TmcPayRejected):
+            tmc_pay.rao_from_tao(bad)
+
+
+def test_the_fiat_quote_always_rounds_up_to_cover_the_credits():
+    """A cent of rounding must land in the buyer's balance, never in a discount.
+
+    One credit at 0.5 TAO, and a rate chosen so the exact answer needs a third decimal place: the
+    quote has to be the cent above, not the cent below.
+    """
+    # 0.0025 TAO per USD => one credit (0.5 TAO) is exactly $200.
+    exact = tmc_pay.quote_fiat_amount(
+        CREDIT_PRICE_RAO,
+        crypto_per_fiat_unit=Decimal("0.0025"),
+        margin_bps=0,
+        decimals=2,
+    )
+    assert exact == "200.00"
+
+    # A rate that makes the honest answer $173.611111…, so quantising decides the outcome.
+    rounded = tmc_pay.quote_fiat_amount(
+        CREDIT_PRICE_RAO,
+        crypto_per_fiat_unit=Decimal("0.00288"),
+        margin_bps=0,
+        decimals=2,
+    )
+    assert rounded == "173.62"
+    assert Decimal(rounded) * Decimal("0.00288") * RAO_PER_TAO >= CREDIT_PRICE_RAO
+
+    # The margin is added on top, and a zero-decimal currency quantises to whole units.
+    assert (
+        tmc_pay.quote_fiat_amount(
+            CREDIT_PRICE_RAO,
+            crypto_per_fiat_unit=Decimal("0.0025"),
+            margin_bps=100,
+            decimals=2,
+        )
+        == "202.00"
+    )
+    assert (
+        tmc_pay.quote_fiat_amount(
+            CREDIT_PRICE_RAO,
+            crypto_per_fiat_unit=Decimal("0.0025"),
+            margin_bps=0,
+            decimals=0,
+        )
+        == "200"
+    )
+
+
+def test_no_rate_means_no_quote():
+    for rate in (Decimal(0), Decimal(-1)):
+        with pytest.raises(tmc_pay.TmcPayUnavailable):
+            tmc_pay.quote_fiat_amount(
+                CREDIT_PRICE_RAO, crypto_per_fiat_unit=rate, margin_bps=0, decimals=2
+            )
+
+
+def test_only_confirmed_and_overpaid_earn_credits_by_default():
+    """`late_payment` is real money and still not automatic — see `credits_are_earned`."""
+    for status in ("confirmed", "overpaid"):
+        assert tmc_pay.credits_are_earned(status, credit_late_payments=False)
+    for status in ("created", "pending", "confirming", "underpaid", "expired", "late_payment"):
+        assert not tmc_pay.credits_are_earned(status, credit_late_payments=False)
+    assert tmc_pay.credits_are_earned("late_payment", credit_late_payments=True)
+    assert not tmc_pay.credits_are_earned("expired", credit_late_payments=True)
+
+
+def test_the_signature_check_is_over_the_raw_bytes():
+    body = invoice_body(invoice_id="inv-1")
+    raw = json.dumps(body).encode("utf-8")
+    digest = hmac.new(SECRET.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+
+    assert tmc_pay.signature_matches(raw, f"sha256={digest}", SECRET)
+    # Upper-case hex is still the same MAC.
+    assert tmc_pay.signature_matches(raw, f"sha256={digest.upper()}", SECRET)
+    # Re-serialising the parse changes the bytes, so the signature no longer matches — the exact
+    # mistake the TMC PAY documentation warns about.
+    reserialised = json.dumps(json.loads(raw), indent=2).encode("utf-8")
+    assert not tmc_pay.signature_matches(reserialised, f"sha256={digest}", SECRET)
+    # Everything malformed is simply "no match", never an exception.
+    for header in (None, "", digest, "sha512=" + digest, "sha256=zz", "sha256="):
+        assert not tmc_pay.signature_matches(raw, header, SECRET)
+    assert not tmc_pay.signature_matches(raw, f"sha256={digest}", "another-secret")
+    assert not tmc_pay.signature_matches(raw, f"sha256={digest}", "")
+
+
+# --- Buying ------------------------------------------------------------------------------
+
+
+def test_buying_credits_creates_an_invoice_that_covers_them():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, account):
+                created = await http.post(
+                    ORDERS, json={"credits": 10}, headers=csrf(http)
+                )
+                assert created.status_code == 201, created.text
+                body = created.json()
+                order = body["order"]
+
+                assert order["status"] == "CREATED"
+                assert order["credits_expected"] == 10
+                assert order["credit_price_rao"] == CREDIT_PRICE_RAO
+                # Nothing is credited by creating an invoice: the buyer has not paid yet.
+                assert order["credits_credited"] == 0
+                assert body["balance"]["credits_available"] == 0
+
+                # 10 credits at 0.5 TAO is 5 TAO, and that is what the invoice locked.
+                assert order["amount_rao"] == 10 * CREDIT_PRICE_RAO
+                assert order["amount_tao"] == "5"
+                assert order["deposit_address"] == DEPOSIT_ADDRESS
+                assert order["btcli_command"] == (
+                    f"btcli wallet transfer --dest {DEPOSIT_ADDRESS} --amount 5"
+                )
+                assert order["payment_url"] == "https://pay.test/i/inv-1"
+                assert order["invoice_id"] == "inv-1"
+
+                # The fiat request was sized from the rate: 5 TAO at $400/TAO is $2000.
+                assert gateway.created[0]["fiat_amount"] == "2000.00"
+                assert gateway.created[0]["fiat_currency"] == "USD"
+                assert gateway.created[0]["ttl_minutes"] == 30
+                # The idempotency key is the one this side minted and stored.
+                async with kit.session() as session:
+                    stored = await order_store.find_by_invoice(session, "inv-1")
+                    assert gateway.created[0]["external_id"] == stored.external_id
+                    assert stored.account_id == uuid.UUID(account["id"])
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_short_invoice_is_requoted_at_the_rate_it_locked():
+    """The rate moved between the estimate and the lock. The retry uses the exact rate.
+
+    This is the case the quote loop exists for: the first invoice is worth less than the credits
+    cost, so selling against it would mean giving a credit away below price.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                # Asked for 0.5 TAO worth, got 0.49 — the rate moved against us.
+                invoice_body(invoice_id="short", crypto_amount="0.49"),
+                invoice_body(invoice_id="good", crypto_amount="0.5"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                created = await http.post(
+                    ORDERS, json={"credits": 1}, headers=csrf(http)
+                )
+                assert created.status_code == 201, created.text
+                order = created.json()["order"]
+                assert order["invoice_id"] == "good"
+                assert order["amount_rao"] == CREDIT_PRICE_RAO
+
+                assert len(gateway.created) == 2
+                # The retry carries a *different* idempotency key. Reusing the first would have
+                # returned the short invoice again, which is what TMC PAY's idempotency promises.
+                assert (
+                    gateway.created[1]["external_id"] != gateway.created[0]["external_id"]
+                )
+                # And it was priced from the rate the short invoice locked (0.0025 TAO per USD),
+                # not from the TaoStats estimate.
+                assert gateway.created[1]["fiat_amount"] == "200.00"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_purchase_is_refused_when_every_quote_comes_back_short():
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(invoice_id="short-1", crypto_amount="0.4"),
+                invoice_body(invoice_id="short-2", crypto_amount="0.4"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert refused.status_code == 503, refused.text
+                assert refused.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
+
+                # The order exists and says why it cannot be paid, rather than being deleted:
+                # two real invoices were created at TMC PAY and an operator may need to see that.
+                listed = await http.get(ORDERS)
+                orders = listed.json()["items"]
+                assert [item["status"] for item in orders] == ["FAILED"]
+                assert "below the" in orders[0]["failure_reason"]
+                assert orders[0]["deposit_address"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_invoice_in_the_wrong_currency_is_refused_without_a_retry():
+    """Not a pricing problem, so asking for more money would not fix it."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(
+                    invoice_id="wrong", crypto_amount="0.5", crypto_currency="BTC"
+                )
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert refused.status_code == 503
+                assert refused.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
+                assert len(gateway.created) == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_buying_needs_a_rate_and_a_configured_processor():
+    async def scenario():
+        # Configured, but no TAO/USD rate: there is no honest fiat figure to ask for.
+        gateway = FakeGateway([invoice_body(invoice_id="never")])
+        kit = await kit_with(gateway, tao_usd=None).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert refused.status_code == 503
+                assert refused.json()["reason_code"] == "TMC_PAY_RATE_UNAVAILABLE"
+                assert gateway.created == []
+        finally:
+            await kit.teardown()
+
+        # Not configured at all: the method is not offered and the endpoint says so.
+        plain = await harness().setup()
+        try:
+            async with buyer(plain) as (http, _):
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert refused.status_code == 503
+                assert refused.json()["reason_code"] == "TMC_PAY_NOT_CONFIGURED"
+
+                pricing = await http.get("/v1/catalog/credit-pricing")
+                assert pricing.json()["methods"] == ["btcli"]
+        finally:
+            await plain.teardown()
+
+    run(scenario())
+
+
+def test_the_pricing_page_offers_tmc_pay_once_it_is_configured():
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with await client(kit) as http:
+                pricing = await http.get("/v1/catalog/credit-pricing")
+                assert pricing.status_code == 200
+                body = pricing.json()
+                assert body["methods"] == ["btcli", "tmc_pay"]
+                assert body["price_rao"] == CREDIT_PRICE_RAO
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_outstanding_invoices_are_capped_per_account():
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id=f"inv-{index}") for index in range(4)]
+        )
+        kit = await kit_with(gateway, TMC_PAY_MAX_OPEN_ORDERS="2").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                for _ in range(2):
+                    accepted = await http.post(
+                        ORDERS, json={"credits": 1}, headers=csrf(http)
+                    )
+                    assert accepted.status_code == 201, accepted.text
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert refused.status_code == 409
+                assert refused.json()["reason_code"] == "TMC_PAY_TOO_MANY_OPEN_ORDERS"
+                assert refused.json()["open_orders"] == 2
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_purchase_needs_a_browser_session_and_a_csrf_token():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with await client(kit) as anonymous:
+                assert (
+                    await anonymous.post(ORDERS, json={"credits": 1})
+                ).status_code == 401
+
+            async with buyer(kit) as (http, _):
+                # Signed in, but no CSRF header: a state-changing write must prove intent.
+                assert (await http.post(ORDERS, json={"credits": 1})).status_code == 403
+                assert gateway.created == []
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_credit_ceiling_is_enforced():
+    async def scenario():
+        kit = await kit_with(FakeGateway([]), TMC_PAY_MAX_CREDITS="5").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                refused = await http.post(ORDERS, json={"credits": 6}, headers=csrf(http))
+                assert refused.status_code == 400
+                assert refused.json()["maximum_credits"] == 5
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- The webhook -------------------------------------------------------------------------
+
+
+async def _order_for(http, *, credits_: int = 10) -> dict:
+    """Buy `credits_` credits and return the new order, asserting the purchase succeeded."""
+    created = await http.post(ORDERS, json={"credits": credits_}, headers=csrf(http))
+    assert created.status_code == 201, created.text
+    return created.json()["order"]
+
+
+def test_a_confirmed_webhook_credits_the_locked_amount_once():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, account):
+                order = await _order_for(http)
+
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="inv-1",
+                        status="confirmed",
+                        crypto_amount="5",
+                        confirmed_at=_iso(dt.datetime.now(dt.UTC)),
+                    ),
+                    webhook_id="delivery-1",
+                )
+                applied = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert applied.status_code == 200, applied.text
+                assert applied.json()["status"] == "credited"
+
+                balance = await http.get("/v1/me/credits")
+                assert balance.json()["credits_available"] == 10
+                assert balance.json()["balance_rao"] == 10 * CREDIT_PRICE_RAO
+
+                refreshed = await http.get(f"{ORDERS}/{order['id']}")
+                assert refreshed.json()["status"] == "CONFIRMED"
+                assert refreshed.json()["credits_credited"] == 10
+                assert refreshed.json()["needs_review"] is False
+                # Settled, so the read endpoint has nothing to poll for.
+                assert gateway.read_calls == []
+
+                # The very same delivery again: recognised, and credited nothing further.
+                again = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert again.status_code == 200
+                assert again.json()["status"] == "duplicate"
+
+                # And a *different* delivery id for the same invoice: still one credit entry.
+                raw2, headers2 = signed(
+                    invoice_body(
+                        invoice_id="inv-1", status="confirmed", crypto_amount="5"
+                    ),
+                    webhook_id="delivery-2",
+                )
+                assert (await http.post(WEBHOOK, content=raw2, headers=headers2)).status_code == 200
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 10
+
+                ledger = (await http.get("/v1/me/credits/ledger")).json()["items"]
+                deposits = [row for row in ledger if row["kind"] == "DEPOSIT"]
+                assert len(deposits) == 1
+                assert deposits[0]["amount_rao"] == 10 * CREDIT_PRICE_RAO
+                # A TMC PAY credit names its order, not a chain deposit.
+                assert deposits[0]["deposit_id"] is None
+
+            async with kit.session() as session:
+                stored = await order_store.find_by_invoice(session, "inv-1")
+                assert stored.credited_ledger_id is not None
+                entry = await session.get(
+                    credit_store.CreditLedgerEntry, stored.credited_ledger_id
+                )
+                assert entry.kind is CreditEntryKind.DEPOSIT
+                assert entry.tmc_pay_order_id == stored.id
+                assert entry.deposit_id is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_credited_amount_comes_from_the_invoice_and_not_from_the_webhook():
+    """The property that makes this path safe: a body decides *whether*, never *how much*.
+
+    The webhook here is correctly signed and claims a hundred times the amount. The ledger must
+    still move by exactly what the invoice locked when it was created.
+    """
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="inv-1", status="confirmed", crypto_amount="50"
+                    )
+                )
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                balance = (await http.get("/v1/me/credits")).json()
+                assert balance["balance_rao"] == CREDIT_PRICE_RAO
+                assert balance["credits_available"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unsigned_or_wrongly_signed_webhook_credits_nothing():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+                body = invoice_body(
+                    invoice_id="inv-1", status="confirmed", crypto_amount="0.5"
+                )
+
+                raw, headers = signed(body, secret="the-wrong-secret")
+                wrong = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert wrong.status_code == 401
+                assert wrong.json()["reason_code"] == "TMC_PAY_SIGNATURE_INVALID"
+
+                raw, headers = signed(body)
+                del headers[tmc_pay.WEBHOOK_SIGNATURE_HEADER]
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 401
+
+                # Signed correctly, then the body edited: the MAC no longer covers these bytes.
+                raw, headers = signed(body)
+                tampered = raw.replace(b'"0.5"', b'"5.0"')
+                assert (
+                    await http.post(WEBHOOK, content=tampered, headers=headers)
+                ).status_code == 401
+
+                # A valid signature but no delivery id: nothing to deduplicate on.
+                raw, headers = signed(body)
+                del headers[tmc_pay.WEBHOOK_ID_HEADER]
+                missing = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert missing.status_code == 400
+                assert missing.json()["reason_code"] == "TMC_PAY_WEBHOOK_MALFORMED"
+
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_webhook_for_another_merchant_or_an_unknown_invoice_is_recorded_and_ignored():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+
+                foreign = signed(
+                    invoice_body(
+                        invoice_id="inv-1",
+                        status="confirmed",
+                        crypto_amount="0.5",
+                        merchant_id="99999999-9999-9999-9999-999999999999",
+                    )
+                )
+                answered = await http.post(WEBHOOK, content=foreign[0], headers=foreign[1])
+                assert answered.status_code == 200
+                assert answered.json()["status"] == "ignored"
+
+                unknown = signed(
+                    invoice_body(
+                        invoice_id="never-created", status="confirmed", crypto_amount="0.5"
+                    )
+                )
+                answered = await http.post(WEBHOOK, content=unknown[0], headers=unknown[1])
+                assert answered.status_code == 200
+                assert answered.json()["status"] == "unknown"
+
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_underpaid_and_overpaid_are_handled_differently_and_both_flag_for_review():
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(invoice_id="under", crypto_amount="0.5"),
+                invoice_body(invoice_id="over", crypto_amount="0.5"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                under = await _order_for(http, credits_=1)
+                over = await _order_for(http, credits_=1)
+
+                raw, headers = signed(
+                    invoice_body(invoice_id="under", status="underpaid", crypto_amount="0.5")
+                )
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                raw, headers = signed(
+                    invoice_body(invoice_id="over", status="overpaid", crypto_amount="0.5")
+                )
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                # Underpaid credits nothing — part-crediting a whole credit is not automatic.
+                under_body = (await http.get(f"{ORDERS}/{under['id']}")).json()
+                assert under_body["status"] == "UNDERPAID"
+                assert under_body["credits_credited"] == 0
+                assert under_body["needs_review"] is True
+
+                # Overpaid credits the invoice amount and leaves the surplus to a person.
+                over_body = (await http.get(f"{ORDERS}/{over['id']}")).json()
+                assert over_body["status"] == "OVERPAID"
+                assert over_body["credits_credited"] == 1
+                assert over_body["needs_review"] is True
+
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_late_payment_credits_nothing_unless_the_operator_opted_in():
+    async def scenario():
+        for opted_in, expected_credits in ((False, 0), (True, 1)):
+            gateway = FakeGateway([invoice_body(invoice_id="late", crypto_amount="0.5")])
+            kit = await kit_with(
+                gateway, TMC_PAY_CREDIT_LATE_PAYMENTS="true" if opted_in else "false"
+            ).setup()
+            try:
+                async with buyer(kit) as (http, _):
+                    order = await _order_for(http, credits_=1)
+                    raw, headers = signed(
+                        invoice_body(
+                            invoice_id="late",
+                            status="late_payment",
+                            crypto_amount="0.5",
+                        )
+                    )
+                    assert (
+                        await http.post(WEBHOOK, content=raw, headers=headers)
+                    ).status_code == 200
+
+                    body = (await http.get(f"{ORDERS}/{order['id']}")).json()
+                    assert body["status"] == "LATE_PAYMENT"
+                    assert body["needs_review"] is True
+                    assert body["credits_credited"] == expected_credits
+                    assert (
+                        await http.get("/v1/me/credits")
+                    ).json()["credits_available"] == expected_credits
+            finally:
+                await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_webhook_recovers_an_order_whose_invoice_id_never_arrived():
+    """The lost-create-response path: matched on the `external_id` this side minted."""
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with buyer(kit) as (http, account):
+                # The row a create would have written before calling out, and nothing more.
+                async with kit.session() as session:
+                    order = await order_store.create_order(
+                        session,
+                        account_id=uuid.UUID(account["id"]),
+                        credits_requested=2,
+                        credit_price_rao=CREDIT_PRICE_RAO,
+                        external_id="credits-orphaned",
+                    )
+                    order_id = str(order.id)
+                    await session.commit()
+
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="inv-recovered",
+                        status="confirmed",
+                        crypto_amount="1",
+                        external_id="credits-orphaned",
+                    )
+                )
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                body = (await http.get(f"{ORDERS}/{order_id}")).json()
+                assert body["invoice_id"] == "inv-recovered"
+                assert body["status"] == "CONFIRMED"
+                assert body["credits_credited"] == 2
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 2
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- Reading and reconciling -------------------------------------------------------------
+
+
+def test_reading_an_open_order_refreshes_it_from_the_processor():
+    """The safety net for a webhook that never arrived: the buyer's own polling credits them."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="inv-1", crypto_amount="0.5")],
+            reads={
+                "inv-1": invoice_body(
+                    invoice_id="inv-1", status="confirmed", crypto_amount="0.5"
+                )
+            },
+        )
+        kit = await kit_with(gateway, TMC_PAY_POLL_SECONDS="0").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
+
+                polled = await http.get(f"{ORDERS}/{order['id']}")
+                assert polled.json()["status"] == "CONFIRMED"
+                assert polled.json()["credits_credited"] == 1
+                assert gateway.read_calls == ["inv-1"]
+
+                # Settled now, so a further read asks TMC PAY nothing.
+                await http.get(f"{ORDERS}/{order['id']}")
+                assert gateway.read_calls == ["inv-1"]
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_processor_outage_does_not_break_reading_an_order():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(gateway, TMC_PAY_POLL_SECONDS="0").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                gateway.error = tmc_pay.TmcPayUnavailable("down")
+
+                # The stored state is still true and still worth returning; a 503 here would
+                # break a payment page over a refresh it did not ask for.
+                served = await http.get(f"{ORDERS}/{order['id']}")
+                assert served.status_code == 200
+                assert served.json()["status"] == "CREATED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_poll_interval_bounds_outbound_reads():
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="inv-1", crypto_amount="0.5")],
+            reads={"inv-1": invoice_body(invoice_id="inv-1", status="pending", crypto_amount="0.5")},
+        )
+        kit = await kit_with(gateway, TMC_PAY_POLL_SECONDS="3600").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                for _ in range(3):
+                    assert (await http.get(f"{ORDERS}/{order['id']}")).status_code == 200
+                # The first read polls, the rest are served from stored state.
+                assert gateway.read_calls == ["inv-1"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_another_account_cannot_see_or_poll_an_order():
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="inv-1", crypto_amount="0.5")],
+            reads={
+                "inv-1": invoice_body(
+                    invoice_id="inv-1", status="confirmed", crypto_amount="0.5"
+                )
+            },
+        )
+        kit = await kit_with(gateway, TMC_PAY_POLL_SECONDS="0").setup()
+        try:
+            async with (
+                buyer(kit, "mine@example.com") as (mine, _),
+                buyer(kit, "theirs@example.com") as (theirs, _),
+            ):
+                order = await _order_for(mine, credits_=1)
+
+                # Absent rather than forbidden, so an id cannot be probed for existence.
+                probed = await theirs.get(f"{ORDERS}/{order['id']}")
+                assert probed.status_code == 404
+                assert probed.json()["reason_code"] == "NOT_FOUND"
+                assert gateway.read_calls == []
+                assert (await theirs.get(ORDERS)).json()["items"] == []
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_expiring_lapsed_orders_leaves_anything_that_might_hold_money():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            # An account to own the orders, and nothing else: this test is about the store's
+            # sweeper rather than about any endpoint.
+            async with buyer(kit) as (_, account):
+                account_id = uuid.UUID(account["id"])
+            past = dt.datetime.now(dt.UTC) - dt.timedelta(hours=1)
+
+            async with kit.session() as session:
+                kept = []
+                for index, state in enumerate(
+                    (
+                        TmcPayOrderState.CREATED,
+                        TmcPayOrderState.PENDING,
+                        TmcPayOrderState.CONFIRMING,
+                        TmcPayOrderState.UNDERPAID,
+                    )
+                ):
+                    order = await order_store.create_order(
+                        session,
+                        account_id=account_id,
+                        credits_requested=1,
+                        credit_price_rao=CREDIT_PRICE_RAO,
+                        external_id=f"credits-lapsed-{index}",
+                    )
+                    await order_store.attach_invoice(
+                        session,
+                        order,
+                        invoice_id=f"inv-lapsed-{index}",
+                        merchant_id=MERCHANT,
+                        status=state,
+                        fiat_amount="200.00",
+                        fiat_currency="USD",
+                        exchange_rate="0.0025",
+                        commission_amount=None,
+                        crypto_amount_rao=CREDIT_PRICE_RAO,
+                        deposit_address=DEPOSIT_ADDRESS,
+                        invoice_expires_at=past,
+                    )
+                    kept.append((order.id, state))
+                await session.commit()
+
+                closed = await order_store.expire_lapsed(
+                    session, now=dt.datetime.now(dt.UTC)
+                )
+                await session.commit()
+                # Only the CREATED one: TMC PAY saw no deposit for it at all. The other three
+                # have real money behind them and must be resolved, never timed out.
+                assert closed == 1
+                for order_id, state in kept:
+                    row = await order_store.get_order(session, order_id, account_id)
+                    expected = (
+                        TmcPayOrderState.EXPIRED
+                        if state is TmcPayOrderState.CREATED
+                        else state
+                    )
+                    assert row.status is expected
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_reconciler_credits_an_invoice_no_webhook_ever_reported():
+    """The sweep that turns a lost webhook into a delay instead of a loss.
+
+    TMC PAY dispatches once and never retries by itself, so this path is what stands between "the
+    delivery failed during a deploy" and "the buyer paid and got nothing". Driven through the
+    script's own `_pass`, not through a reimplementation of it, so the wiring is what is tested.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="inv-1", crypto_amount="1")],
+            reads={
+                "inv-1": invoice_body(
+                    invoice_id="inv-1",
+                    status="confirmed",
+                    crypto_amount="1",
+                    confirmed_at=_iso(dt.datetime.now(dt.UTC)),
+                )
+            },
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=2)
+                # No webhook arrives at all.
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
+
+                read, credited, failed = await reconciler._pass(
+                    sessions=kit.services.sessions,
+                    services=reconciler._Gateway(gateway),
+                    settings=kit.settings,
+                    batch=10,
+                    # Zero, so the order just created is eligible in this same pass.
+                    min_age=0.0,
+                    dry_run=False,
+                )
+                assert (read, credited, failed) == (1, 1, 0)
+
+                after = (await http.get(f"{ORDERS}/{order['id']}")).json()
+                assert after["status"] == "CONFIRMED"
+                assert after["credits_credited"] == 2
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 2
+
+                # Nothing is left in the queue, so a second pass is a no-op rather than a
+                # second credit.
+                again = await reconciler._pass(
+                    sessions=kit.services.sessions,
+                    services=reconciler._Gateway(gateway),
+                    settings=kit.settings,
+                    batch=10,
+                    min_age=0.0,
+                    dry_run=False,
+                )
+                assert again == (0, 0, 0)
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 2
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_reconciler_writes_nothing_on_a_dry_run():
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="inv-1", crypto_amount="0.5")],
+            reads={
+                "inv-1": invoice_body(
+                    invoice_id="inv-1", status="confirmed", crypto_amount="0.5"
+                )
+            },
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+                read, credited, failed = await reconciler._pass(
+                    sessions=kit.services.sessions,
+                    services=reconciler._Gateway(gateway),
+                    settings=kit.settings,
+                    batch=10,
+                    min_age=0.0,
+                    dry_run=True,
+                )
+                assert (read, credited, failed) == (1, 0, 0)
+                assert gateway.read_calls == []
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_quote_ceiling_is_the_configured_slippage_plus_one_minor_unit():
+    """Two parts, different in kind: slippage is policy, the cent is arithmetic.
+
+    At 0.0025 TAO per USD and two decimals, one cent is 25 000 rao. So a 0.5 TAO purchase at zero
+    slippage may cost at most 500 025 000 rao — the cent, and nothing else.
+    """
+    assert (
+        tmc_pay.quote_ceiling(
+            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=0, decimals=2
+        )
+        == CREDIT_PRICE_RAO + 25_000
+    )
+    # Slippage widens it by exactly the basis points asked for, on top of the cent.
+    assert (
+        tmc_pay.quote_ceiling(
+            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=100, decimals=2
+        )
+        == CREDIT_PRICE_RAO * 10_100 // 10_000 + 25_000
+    )
+    assert (
+        tmc_pay.quote_ceiling(
+            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=250, decimals=2
+        )
+        == CREDIT_PRICE_RAO * 10_250 // 10_000 + 25_000
+    )
+    # A zero-decimal currency's minor unit is a whole unit, so the arithmetic part is much larger.
+    assert (
+        tmc_pay.quote_ceiling(
+            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=0, decimals=0
+        )
+        == CREDIT_PRICE_RAO + 2_500_000
+    )
+    # An unusable rate is not a pricing problem and must not be retried as one.
+    for rate in ("", "abc", "0", "-1"):
+        assert (
+            tmc_pay.quote_ceiling(
+                CREDIT_PRICE_RAO, exchange_rate=rate, slippage_bps=0, decimals=2
+            )
+            is None
+        )
+
+
+def test_slippage_below_the_quote_margin_is_refused_at_startup():
+    """Every ask adds the margin, so a tighter tolerance describes a band nothing can land in —
+    every purchase would burn its attempts and fail. Refused at boot, not clamped."""
+    from submission_api.settings import Settings, SettingsError
+
+    base = tmc_pay_settings(TMC_PAY_QUOTE_MARGIN_BPS="100")
+    environ = {
+        "APP_MODE": "DEV",
+        "PAYMENT_RECIPIENT_SS58": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
+        "DEVELOPMENT_HOTKEYS": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+        **base,
+    }
+    with pytest.raises(SettingsError, match="TMC_PAY_MAX_SLIPPAGE_BPS"):
+        Settings.from_env({**environ, "TMC_PAY_MAX_SLIPPAGE_BPS": "50"})
+
+    # Equal is fine: the margin is exactly what the tolerance has to cover.
+    equal = Settings.from_env({**environ, "TMC_PAY_MAX_SLIPPAGE_BPS": "100"})
+    assert equal.tmc_pay_max_slippage_bps == 100
+    assert equal.tmc_pay_quote_margin_bps == 100
+    # And the shipped defaults are a valid pair — which is worth asserting, because the two
+    # constants are chosen independently and nothing else would catch them drifting apart.
+    shipped = Settings.from_env(
+        {**environ, "TMC_PAY_QUOTE_MARGIN_BPS": "", "TMC_PAY_MAX_SLIPPAGE_BPS": ""}
+    )
+    assert shipped.tmc_pay_quote_margin_bps == 25
+    assert shipped.tmc_pay_max_slippage_bps == 100
+
+
+def test_configured_slippage_decides_whether_an_overshoot_is_requoted():
+    """The same invoice is accepted or thrown away depending only on the configured tolerance.
+
+    0.51 TAO for a 0.5 TAO credit is a 2% overshoot. At 250 bps it is inside tolerance and costs
+    one invoice; at 100 bps it is outside and is requoted.
+    """
+
+    async def scenario():
+        for slippage, expected_invoices, expected_id in (("250", 1, "loose"), ("100", 2, "tight")):
+            gateway = FakeGateway(
+                [
+                    invoice_body(invoice_id="loose", crypto_amount="0.51"),
+                    invoice_body(invoice_id="tight", crypto_amount="0.5"),
+                ]
+            )
+            kit = await kit_with(gateway, TMC_PAY_MAX_SLIPPAGE_BPS=slippage).setup()
+            try:
+                async with buyer(kit) as (http, _):
+                    created = await http.post(
+                        ORDERS, json={"credits": 1}, headers=csrf(http)
+                    )
+                    assert created.status_code == 201, created.text
+                    assert created.json()["order"]["invoice_id"] == expected_id, slippage
+                    assert len(gateway.created) == expected_invoices, slippage
+            finally:
+                await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_invoice_that_would_overcharge_the_buyer_is_requoted():
+    """A stale or wrong-currency rate estimate must not become an invoice the buyer overpays.
+
+    The first invoice locks 0.6 TAO for one 0.5 TAO credit — 20% too much, which clears the floor
+    and would have been accepted before the ceiling existed. The retry prices from the rate that
+    invoice reported and lands on the honest amount.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(invoice_id="rich", crypto_amount="0.6"),
+                invoice_body(invoice_id="right", crypto_amount="0.5"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                created = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert created.status_code == 201, created.text
+                order = created.json()["order"]
+                assert order["invoice_id"] == "right"
+                assert order["amount_rao"] == CREDIT_PRICE_RAO
+
+                assert len(gateway.created) == 2
+                assert gateway.created[1]["fiat_amount"] == "200.00"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_overshoot_within_the_band_is_accepted_without_a_second_invoice():
+    """The band has to be wide enough for what the quote legitimately adds, or every purchase
+    would cost two invoices. One cent of rounding at this rate is 25 000 rao, and that is fine."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="rounded", crypto_amount="0.500025")]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                created = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert created.status_code == 201, created.text
+                assert created.json()["order"]["invoice_id"] == "rounded"
+                assert created.json()["order"]["amount_rao"] == CREDIT_PRICE_RAO + 25_000
+                assert len(gateway.created) == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_purchase_is_refused_when_every_quote_overcharges():
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(invoice_id="rich-1", crypto_amount="0.9"),
+                invoice_body(invoice_id="rich-2", crypto_amount="0.9"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert refused.status_code == 503
+                assert refused.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
+
+                listed = (await http.get(ORDERS)).json()["items"]
+                assert listed[0]["status"] == "FAILED"
+                assert "above the" in listed[0]["failure_reason"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_next_quote_is_seeded_from_the_rate_tmc_pay_itself_locked():
+    """Our own invoices are a better rate source than a third-party feed.
+
+    TMC PAY reports the `exchange_rate` it used on every invoice, and that is the same source that
+    will price the next one — spread, rounding and all — already in the merchant's currency. So the
+    second purchase must price from it and not from TaoStats.
+
+    The two are deliberately far apart here: TaoStats says $400/TAO (0.0025 TAO per USD) while the
+    invoice locked 0.005 TAO per USD ($200/TAO). One credit is therefore $200 if seeded externally
+    and $100 if seeded from the invoice, so the fiat amount alone says which was used.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(invoice_id="first", crypto_amount="0.5", exchange_rate="0.005"),
+                invoice_body(invoice_id="second", crypto_amount="0.5", exchange_rate="0.005"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                first = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert first.status_code == 201, first.text
+                # Nothing local to go on yet, so the external feed priced it.
+                assert gateway.created[0]["fiat_amount"] == "200.00"
+
+                second = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert second.status_code == 201, second.text
+                # Seeded from the first invoice's own locked rate, not from TaoStats.
+                assert gateway.created[1]["fiat_amount"] == "100.00"
+                assert len(gateway.created) == 2
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_zero_rate_ttl_always_asks_the_external_feed():
+    """The honest way to say "never reuse a locked rate"."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(invoice_id="first", crypto_amount="0.5", exchange_rate="0.005"),
+                invoice_body(invoice_id="second", crypto_amount="0.5", exchange_rate="0.005"),
+            ]
+        )
+        kit = await kit_with(gateway, TMC_PAY_RATE_TTL_SECONDS="0").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                for _ in range(2):
+                    accepted = await http.post(
+                        ORDERS, json={"credits": 1}, headers=csrf(http)
+                    )
+                    assert accepted.status_code == 201, accepted.text
+                assert [item["fiat_amount"] for item in gateway.created] == [
+                    "200.00",
+                    "200.00",
+                ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_locked_rate_keeps_credits_on_sale_through_a_taostats_outage():
+    """A stale local rate beats refusing the sale, because the band cannot be fooled by a bad seed.
+
+    No external feed at all here — only a rate observed on an earlier invoice.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="fresh", crypto_amount="0.5", exchange_rate="0.0025")]
+        )
+        kit = await kit_with(gateway, tao_usd=None).setup()
+        try:
+            async with buyer(kit) as (http, account):
+                # An earlier purchase that recorded a rate, and nothing else.
+                async with kit.session() as session:
+                    earlier = await order_store.create_order(
+                        session,
+                        account_id=uuid.UUID(account["id"]),
+                        credits_requested=1,
+                        credit_price_rao=CREDIT_PRICE_RAO,
+                        external_id="credits-earlier",
+                    )
+                    await order_store.attach_invoice(
+                        session,
+                        earlier,
+                        invoice_id="inv-earlier",
+                        merchant_id=MERCHANT,
+                        status=TmcPayOrderState.EXPIRED,
+                        fiat_amount="200.00",
+                        fiat_currency="USD",
+                        exchange_rate="0.0025",
+                        commission_amount=None,
+                        crypto_amount_rao=CREDIT_PRICE_RAO,
+                        deposit_address=DEPOSIT_ADDRESS,
+                        invoice_expires_at=dt.datetime.now(dt.UTC),
+                    )
+                    await session.commit()
+
+                sold = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                assert sold.status_code == 201, sold.text
+                assert gateway.created[0]["fiat_amount"] == "200.00"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_webhook_is_reachable_from_outside_the_browser_security_model():
+    """TMC PAY is a server, not a browser, and the middleware stack must not stand in its way.
+
+    Four things could plausibly block it, so all four are asserted against the *full* stack with
+    CORS configured and the rate limiter on:
+
+    * **CORS** — irrelevant to a server-to-server caller, and `ScopedCORSMiddleware` delegates to
+      Starlette's implementation, which only *adds* response headers on a non-preflight request. A
+      disallowed `Origin` withholds the grant from a browser; it does not refuse the request.
+    * **The CSRF middleware** — exempt by path in `app.py`. It would pass anyway, since the
+      `Origin` check fails open on absence, but the exemption makes that a decision rather than an
+      accident.
+    * **Authentication** — there is none to fail: the route names no principal dependency, and the
+      HMAC over the raw body is the credential.
+    * **The rate limiter** — applies, deliberately, and is the one thing an operator has to size.
+
+    The final assertion is the important one: the exemption must not have leaked to the rest of
+    `/v1`, so an account write from the same hostile origin is still refused.
+    """
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(
+            gateway,
+            CORS_ALLOWED_ORIGINS="https://conjectures.io",
+            RATE_LIMIT_ENABLED="true",
+        ).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+
+            # A bare server-to-server POST: no Origin, no cookie, no session. This is exactly the
+            # shape TMC PAY sends.
+            async with await client(kit) as outside:
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="inv-1", status="confirmed", crypto_amount="0.5"
+                    ),
+                    webhook_id="from-outside",
+                )
+                delivered = await outside.post(WEBHOOK, content=raw, headers=headers)
+                assert delivered.status_code == 200, delivered.text
+                assert delivered.json()["status"] == "credited"
+
+                # The same call from a hostile Origin still lands: CORS is a browser mechanism and
+                # cannot be relied on to refuse anything server-side.
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="inv-1", status="confirmed", crypto_amount="0.5"
+                    ),
+                    webhook_id="hostile-origin",
+                )
+                headers["Origin"] = "https://evil.example"
+                spoofed = await outside.post(WEBHOOK, content=raw, headers=headers)
+                # Reaches the handler, and is idempotent rather than a second credit — the HMAC and
+                # the ledger are what protect this endpoint, not the origin.
+                assert spoofed.status_code == 200, spoofed.text
+                assert (
+                    await outside.get("/v1/me/credits", headers={"Cookie": ""})
+                ).status_code == 401
+
+            # And the exemption did not leak: an account write from that origin is still refused.
+            async with buyer(kit) as (http, _):
+                blocked = await http.post(
+                    ORDERS,
+                    json={"credits": 1},
+                    headers={**csrf(http), "Origin": "https://evil.example"},
+                )
+                assert blocked.status_code == 403
+                assert blocked.json()["reason_code"] == "CSRF_CHECK_FAILED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
