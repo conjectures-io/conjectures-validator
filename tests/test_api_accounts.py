@@ -56,12 +56,14 @@ pytestmark = pytest.mark.skipif(
 
 ORIGIN = "https://conjectures.io"
 EMAIL = "solver@example.com"
+OTHER_COLDKEY = Keypair.create_from_uri("//Eve").ss58_address
 
 # The fixture addresses are the standard development keys, so a test can sign as them.
 URI = {
     HOTKEY: "//Alice",
     OTHER_HOTKEY: "//Bob",
     COLDKEY: "//Dave",
+    OTHER_COLDKEY: "//Eve",
 }
 
 
@@ -521,6 +523,79 @@ def test_every_account_response_is_no_store():
 
 
 # --- Linked hotkeys and payout -----------------------------------------------------------
+
+
+async def link_wallet(kit, http, coldkey: str):
+    challenge = await http.post(
+        "/v1/me/wallets/challenge", json={"coldkey": coldkey}, headers=csrf(http)
+    )
+    assert challenge.status_code == 200, challenge.text
+    message = challenge.json()["message"]
+    assert message.startswith("conjectures-coldkey-link-v1\n")
+    return await http.post(
+        "/v1/me/wallets",
+        json={"coldkey": coldkey, "signature": sign(coldkey, message)},
+        headers=csrf(http),
+    )
+
+
+def test_multiple_coldkeys_can_be_linked_but_never_rebound_between_accounts():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as first, await client(kit) as second:
+                account = await sign_in_by_email(kit, first, email="wallet-one@example.com")
+                assert account["wallets"] == []
+
+                linked = await link_wallet(kit, first, COLDKEY)
+                assert linked.status_code == 201, linked.text
+                linked_again = await link_wallet(kit, first, OTHER_COLDKEY)
+                assert linked_again.status_code == 201, linked_again.text
+                assert {item["coldkey"] for item in linked_again.json()["wallets"]} == {
+                    COLDKEY,
+                    OTHER_COLDKEY,
+                }
+
+                await sign_in_by_email(kit, second, email="wallet-two@example.com")
+                stolen = await link_wallet(kit, second, COLDKEY)
+                assert stolen.status_code == 409
+                assert stolen.json()["reason_code"] == "WALLET_ALREADY_LINKED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_coldkey_link_signature_cannot_be_replayed_as_a_sign_in():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                challenge = await http.post(
+                    "/v1/me/wallets/challenge",
+                    json={"coldkey": COLDKEY},
+                    headers=csrf(http),
+                )
+                link_message = challenge.json()["message"]
+
+            async with await client(kit) as attacker:
+                await attacker.post(
+                    "/v1/auth/wallet/challenge", json={"address": COLDKEY}
+                )
+                replayed = await attacker.post(
+                    "/v1/auth/wallet/verify",
+                    json={
+                        "address": COLDKEY,
+                        "signature": sign(COLDKEY, link_message),
+                    },
+                )
+                assert replayed.status_code == 401
+                assert replayed.json()["reason_code"] == "SIGNATURE_INVALID"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
 
 
 async def link(kit, http, hotkey: str):

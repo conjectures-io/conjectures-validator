@@ -6,9 +6,10 @@ message being *domain-separated*. A signature is only meaningful relative to wha
 signed, so every distinct thing this validator ever asks a key to sign gets a distinct,
 unambiguous prefix.
 
-There are now six:
+There are now seven:
 
     conjectures-login-v1         sign in to an account with a coldkey
+    conjectures-coldkey-link-v1  attach another coldkey to an account
     conjectures-hotkey-link-v1   attach a hotkey to an account
     conjectures-cli-session-v1   open a CLI session with an already-linked hotkey
     conjectures-deposit-claim-v1 claim a transfer this coldkey made
@@ -53,6 +54,7 @@ from bittensor.sp_core import Keypair
 from submission_api.errors import Unauthorized
 
 LOGIN_PREFIX = "conjectures-login-v1"
+COLDKEY_LINK_PREFIX = "conjectures-coldkey-link-v1"
 HOTKEY_LINK_PREFIX = "conjectures-hotkey-link-v1"
 CLI_SESSION_PREFIX = "conjectures-cli-session-v1"
 DEPOSIT_CLAIM_PREFIX = "conjectures-deposit-claim-v1"
@@ -82,6 +84,19 @@ def hotkey_link_message(
     """The exact text a hotkey signs to be attached to an account."""
     return _message(
         HOTKEY_LINK_PREFIX, domain=domain, address=address, nonce=nonce, expires_at=expires_at
+    )
+
+
+def coldkey_link_message(
+    *, domain: str, address: str, nonce: str, expires_at: dt.datetime
+) -> str:
+    """The exact text a coldkey signs to be attached to an account."""
+    return _message(
+        COLDKEY_LINK_PREFIX,
+        domain=domain,
+        address=address,
+        nonce=nonce,
+        expires_at=expires_at,
     )
 
 
@@ -166,6 +181,7 @@ def verify_signature(*, address: str, message: str, signature: bytes) -> None:
 
 __all__ = [
     "CLI_SESSION_PREFIX",
+    "COLDKEY_LINK_PREFIX",
     "DEPOSIT_CLAIM_PREFIX",
     "HOTKEY_LINK_PREFIX",
     "LOGIN_PREFIX",
@@ -173,6 +189,7 @@ __all__ = [
     "REASON_HOTKEY_NOT_LINKED",
     "REASON_SIGNATURE_INVALID",
     "cli_session_message",
+    "coldkey_link_message",
     "deposit_claim_message",
     "hotkey_link_message",
     "login_message",
