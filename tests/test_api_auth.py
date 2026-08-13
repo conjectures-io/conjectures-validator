@@ -200,6 +200,19 @@ def test_production_defaults_are_all_hardened():
     assert settings.production is True
 
 
+def test_google_client_id_is_optional_and_shape_checked():
+    assert Settings.from_env(base_env()).google_client_id == ""
+    client_id = (
+        "1081377001123-4kkh4sfuemmr66b5a5sl64b8d6jlhmme.apps.googleusercontent.com"
+    )
+    assert (
+        Settings.from_env({**base_env(), "GOOGLE_CLIENT_ID": client_id}).google_client_id
+        == client_id
+    )
+    with pytest.raises(SettingsError, match="GOOGLE_CLIENT_ID"):
+        Settings.from_env({**base_env(), "GOOGLE_CLIENT_ID": "not-a-google-web-client"})
+
+
 def test_production_refuses_a_static_bounty_balance():
     with pytest.raises(SettingsError, match="development-only"):
         Settings.from_env(production_env(BOUNTY_POOL_BALANCE_RAO="4000000000"))

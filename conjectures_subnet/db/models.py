@@ -1027,6 +1027,52 @@ class Account(Base):
     )
 
 
+class AccountIdentity(Base):
+    """An external identity explicitly attached to one website account.
+
+    ``subject`` is the provider's stable identifier. Email is an observed claim retained for
+    account recovery UX and audit, never the key used to find a returning federated user.
+    """
+
+    __tablename__ = "account_identities"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    linked_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_used_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("provider = 'google'", name="account_identity_provider_known"),
+        CheckConstraint(
+            "length(subject) BETWEEN 1 AND 255", name="account_identity_subject_length"
+        ),
+        CheckConstraint(
+            f"email ~ '{EMAIL_SHAPE}'", name="account_identity_email_shape"
+        ),
+        CheckConstraint(
+            "last_used_at >= linked_at", name="account_identity_used_after_link"
+        ),
+        UniqueConstraint(
+            "provider", "subject", name="account_identities_provider_subject_key"
+        ),
+        UniqueConstraint(
+            "account_id", "provider", name="account_identities_account_provider_key"
+        ),
+        Index("account_identities_account_idx", "account_id", "linked_at"),
+    )
+
+
 event.listen(
     Account.__table__,
     "after_create",
@@ -1933,6 +1979,7 @@ __all__ = [
     "MINER_ROLE",
     "REVIEWER_ROLE",
     "Account",
+    "AccountIdentity",
     "AccountSession",
     "AccountWallet",
     "ApiRejectionLog",

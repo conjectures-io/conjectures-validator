@@ -52,6 +52,7 @@ async def account_response(session: AsyncSession, account: Account) -> schemas.A
     """
     hotkeys = await account_store.hotkeys_for(session, account.id)
     wallets = await account_store.wallets_for(session, account.id)
+    identities = await account_store.identities_for(session, account.id)
     payout = None
     if account.payout_coldkey and account.payout_hotkey:
         payout = schemas.PayoutDestination(
@@ -71,6 +72,15 @@ async def account_response(session: AsyncSession, account: Account) -> schemas.A
         wallets=tuple(
             schemas.LinkedWallet(coldkey=item.coldkey, linked_at=_utc(item.linked_at))
             for item in wallets
+        ),
+        identities=tuple(
+            schemas.LinkedIdentity(
+                provider=item.provider,
+                email=item.email,
+                linked_at=_utc(item.linked_at),
+                last_used_at=_utc(item.last_used_at),
+            )
+            for item in identities
         ),
         created_at=_utc(account.created_at),
     )

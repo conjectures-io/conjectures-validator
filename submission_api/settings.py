@@ -170,6 +170,12 @@ DEFAULT_CHALLENGE_MINUTES = 5
 DEFAULT_EMAIL_LINKS_PER_HOUR = 5
 DEFAULT_CHALLENGES_PER_HOUR = 30
 
+# Public OAuth client identifier, not a secret. Empty keeps Google sign-in disabled without
+# weakening either of the existing login methods.
+GOOGLE_CLIENT_ID_SHAPE = re.compile(
+    r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$"
+)
+
 # How long a held credit stays held. Long enough to upload a bundle and sign a digest,
 # short enough that an abandoned intent does not strand a credit for the day.
 DEFAULT_INTENT_MINUTES = 30
@@ -432,6 +438,7 @@ class Settings:
     # clicked by a person in a browser and lands on a page, which then calls the API.
     website_base_url: str
     login_domain: str
+    google_client_id: str
     session_days: int
     session_refresh_minutes: int
     email_link_minutes: int
@@ -589,6 +596,13 @@ class Settings:
         login_domain = env.get("LOGIN_DOMAIN", DEFAULT_LOGIN_DOMAIN).strip()
         if LOGIN_DOMAIN.fullmatch(login_domain) is None:
             raise SettingsError("LOGIN_DOMAIN must be a bare hostname")
+
+        google_client_id = env.get("GOOGLE_CLIENT_ID", "").strip()
+        if google_client_id and GOOGLE_CLIENT_ID_SHAPE.fullmatch(google_client_id) is None:
+            raise SettingsError(
+                "GOOGLE_CLIENT_ID must be a Google OAuth web client ID ending in "
+                ".apps.googleusercontent.com"
+            )
 
         # The magic link is clicked by a person in a browser, so it points at the website,
         # not at this API. Production must say where that is: a link to a guessed origin is
@@ -780,6 +794,7 @@ class Settings:
             mail_sender=mail_sender,
             website_base_url=website_base_url,
             login_domain=login_domain,
+            google_client_id=google_client_id,
             session_days=_positive_int(
                 env, "SESSION_DAYS", DEFAULT_SESSION_DAYS, maximum=365
             ),

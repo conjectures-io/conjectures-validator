@@ -39,6 +39,7 @@ from submission_api.app import create_app
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import ConsoleSender
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet
@@ -298,6 +299,7 @@ def harness(
     dispatcher=None,
     payments=None,
     bounty_usd=None,
+    google=None,
     retired=None,
     **overrides: str,
 ) -> Harness:
@@ -344,6 +346,11 @@ def harness(
             settings.credit_packages, credit_price_rao=settings.payment_amount_rao
         ),
         terms=terms(),
+        google=(
+            google
+            if google is not None
+            else build_google_credential_verifier(settings.google_client_id)
+        ),
         bounty_usd=(
             bounty_usd if bounty_usd is not None else UnavailableAlphaUsdPriceReader()
         ),
