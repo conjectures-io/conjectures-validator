@@ -90,6 +90,7 @@ services:
       # --- Accounts ---------------------------------------------------------
       WEBSITE_BASE_URL: ${WEBSITE_BASE_URL:-}
       LOGIN_DOMAIN: ${LOGIN_DOMAIN:-conjectures.io}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       MAIL_SENDER: ${MAIL_SENDER:-}
       SESSION_DAYS: ${SESSION_DAYS:-30}
       CREDIT_PACKAGES: ${CREDIT_PACKAGES:-1,10:1,50:8}
