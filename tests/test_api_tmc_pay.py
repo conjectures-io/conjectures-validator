@@ -322,36 +322,36 @@ def test_the_signature_check_is_over_the_raw_bytes():
 
 def test_buying_credits_creates_an_invoice_that_covers_them():
     async def scenario():
-        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="5")])
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, account):
                 created = await http.post(
-                    ORDERS, json={"credits": 10}, headers=csrf(http)
+                    ORDERS, json={"credits": 1}, headers=csrf(http)
                 )
                 assert created.status_code == 201, created.text
                 body = created.json()
                 order = body["order"]
 
                 assert order["status"] == "CREATED"
-                assert order["credits_expected"] == 10
+                assert order["credits_expected"] == 1
                 assert order["credit_price_rao"] == CREDIT_PRICE_RAO
                 # Nothing is credited by creating an invoice: the buyer has not paid yet.
                 assert order["credits_credited"] == 0
                 assert body["balance"]["credits_available"] == 0
 
-                # 10 credits at 0.5 TAO is 5 TAO, and that is what the invoice locked.
-                assert order["amount_rao"] == 10 * CREDIT_PRICE_RAO
-                assert order["amount_tao"] == "5"
+                # One purchase is exactly one credit at 0.5 TAO.
+                assert order["amount_rao"] == CREDIT_PRICE_RAO
+                assert order["amount_tao"] == "0.5"
                 assert order["deposit_address"] == DEPOSIT_ADDRESS
                 assert order["btcli_command"] == (
-                    f"btcli wallet transfer --dest {DEPOSIT_ADDRESS} --amount 5"
+                    f"btcli wallet transfer --dest {DEPOSIT_ADDRESS} --amount 0.5"
                 )
                 assert order["payment_url"] == "https://pay.test/i/inv-1"
                 assert order["invoice_id"] == "inv-1"
 
-                # The fiat request was sized from the rate: 5 TAO at $400/TAO is $2000.
-                assert gateway.created[0]["fiat_amount"] == "2000.00"
+                # The fiat request was sized from the rate: 0.5 TAO at $400/TAO is $200.
+                assert gateway.created[0]["fiat_amount"] == "200.00"
                 assert gateway.created[0]["fiat_currency"] == "USD"
                 assert gateway.created[0]["ttl_minutes"] == 30
                 # The idempotency key is the one this side minted and stored.
@@ -481,7 +481,7 @@ def test_buying_needs_a_rate_and_a_configured_processor():
                 assert refused.json()["reason_code"] == "TMC_PAY_NOT_CONFIGURED"
 
                 pricing = await http.get("/v1/catalog/credit-pricing")
-                assert pricing.json()["methods"] == ["btcli"]
+                assert pricing.json()["methods"] == ["wallet_extension"]
         finally:
             await plain.teardown()
 
@@ -496,7 +496,7 @@ def test_the_pricing_page_offers_tmc_pay_once_it_is_configured():
                 pricing = await http.get("/v1/catalog/credit-pricing")
                 assert pricing.status_code == 200
                 body = pricing.json()
-                assert body["methods"] == ["btcli", "tmc_pay"]
+                assert body["methods"] == ["wallet_extension", "tmc_pay"]
                 assert body["price_rao"] == CREDIT_PRICE_RAO
         finally:
             await kit.teardown()
@@ -547,14 +547,13 @@ def test_a_purchase_needs_a_browser_session_and_a_csrf_token():
     run(scenario())
 
 
-def test_the_credit_ceiling_is_enforced():
+def test_a_purchase_refuses_more_than_one_credit():
     async def scenario():
         kit = await kit_with(FakeGateway([]), TMC_PAY_MAX_CREDITS="5").setup()
         try:
             async with buyer(kit) as (http, _):
-                refused = await http.post(ORDERS, json={"credits": 6}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 2}, headers=csrf(http))
                 assert refused.status_code == 400
-                assert refused.json()["maximum_credits"] == 5
         finally:
             await kit.teardown()
 
@@ -564,7 +563,7 @@ def test_the_credit_ceiling_is_enforced():
 # --- The webhook -------------------------------------------------------------------------
 
 
-async def _order_for(http, *, credits_: int = 10) -> dict:
+async def _order_for(http, *, credits_: int = 1) -> dict:
     """Buy `credits_` credits and return the new order, asserting the purchase succeeded."""
     created = await http.post(ORDERS, json={"credits": credits_}, headers=csrf(http))
     assert created.status_code == 201, created.text
@@ -573,7 +572,7 @@ async def _order_for(http, *, credits_: int = 10) -> dict:
 
 def test_a_confirmed_webhook_credits_the_locked_amount_once():
     async def scenario():
-        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="5")])
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, account):
@@ -583,7 +582,7 @@ def test_a_confirmed_webhook_credits_the_locked_amount_once():
                     invoice_body(
                         invoice_id="inv-1",
                         status="confirmed",
-                        crypto_amount="5",
+                        crypto_amount="0.5",
                         confirmed_at=_iso(dt.datetime.now(dt.UTC)),
                     ),
                     webhook_id="delivery-1",
@@ -593,12 +592,12 @@ def test_a_confirmed_webhook_credits_the_locked_amount_once():
                 assert applied.json()["status"] == "credited"
 
                 balance = await http.get("/v1/me/credits")
-                assert balance.json()["credits_available"] == 10
-                assert balance.json()["balance_rao"] == 10 * CREDIT_PRICE_RAO
+                assert balance.json()["credits_available"] == 1
+                assert balance.json()["balance_rao"] == CREDIT_PRICE_RAO
 
                 refreshed = await http.get(f"{ORDERS}/{order['id']}")
                 assert refreshed.json()["status"] == "CONFIRMED"
-                assert refreshed.json()["credits_credited"] == 10
+                assert refreshed.json()["credits_credited"] == 1
                 assert refreshed.json()["needs_review"] is False
                 # Settled, so the read endpoint has nothing to poll for.
                 assert gateway.read_calls == []
@@ -611,17 +610,17 @@ def test_a_confirmed_webhook_credits_the_locked_amount_once():
                 # And a *different* delivery id for the same invoice: still one credit entry.
                 raw2, headers2 = signed(
                     invoice_body(
-                        invoice_id="inv-1", status="confirmed", crypto_amount="5"
+                        invoice_id="inv-1", status="confirmed", crypto_amount="0.5"
                     ),
                     webhook_id="delivery-2",
                 )
                 assert (await http.post(WEBHOOK, content=raw2, headers=headers2)).status_code == 200
-                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 10
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 1
 
                 ledger = (await http.get("/v1/me/credits/ledger")).json()["items"]
                 deposits = [row for row in ledger if row["kind"] == "DEPOSIT"]
                 assert len(deposits) == 1
-                assert deposits[0]["amount_rao"] == 10 * CREDIT_PRICE_RAO
+                assert deposits[0]["amount_rao"] == CREDIT_PRICE_RAO
                 # A TMC PAY credit names its order, not a chain deposit.
                 assert deposits[0]["deposit_id"] is None
 
@@ -857,6 +856,7 @@ def test_a_webhook_recovers_an_order_whose_invoice_id_never_arrived():
                 assert body["invoice_id"] == "inv-recovered"
                 assert body["status"] == "CONFIRMED"
                 assert body["credits_credited"] == 2
+                # This row emulates legacy durable state created before the one-credit limit.
                 assert (await http.get("/v1/me/credits")).json()["credits_available"] == 2
         finally:
             await kit.teardown()
@@ -1045,12 +1045,12 @@ def test_the_reconciler_credits_an_invoice_no_webhook_ever_reported():
 
     async def scenario():
         gateway = FakeGateway(
-            [invoice_body(invoice_id="inv-1", crypto_amount="1")],
+            [invoice_body(invoice_id="inv-1", crypto_amount="0.5")],
             reads={
                 "inv-1": invoice_body(
                     invoice_id="inv-1",
                     status="confirmed",
-                    crypto_amount="1",
+                    crypto_amount="0.5",
                     confirmed_at=_iso(dt.datetime.now(dt.UTC)),
                 )
             },
@@ -1058,7 +1058,7 @@ def test_the_reconciler_credits_an_invoice_no_webhook_ever_reported():
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, _):
-                order = await _order_for(http, credits_=2)
+                order = await _order_for(http, credits_=1)
                 # No webhook arrives at all.
                 assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
 
@@ -1075,8 +1075,8 @@ def test_the_reconciler_credits_an_invoice_no_webhook_ever_reported():
 
                 after = (await http.get(f"{ORDERS}/{order['id']}")).json()
                 assert after["status"] == "CONFIRMED"
-                assert after["credits_credited"] == 2
-                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 2
+                assert after["credits_credited"] == 1
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 1
 
                 # Nothing is left in the queue, so a second pass is a no-op rather than a
                 # second credit.
@@ -1089,7 +1089,7 @@ def test_the_reconciler_credits_an_invoice_no_webhook_ever_reported():
                     dry_run=False,
                 )
                 assert again == (0, 0, 0)
-                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 2
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 1
         finally:
             await kit.teardown()
 

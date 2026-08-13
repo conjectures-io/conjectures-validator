@@ -87,7 +87,7 @@ REASON_NO_OPEN_DEPOSIT = "NO_OPEN_DEPOSIT"
 # deployment, so it is a constant — and a null link is better than a wrong one.
 EXPLORER_TEMPLATE = "https://taostats.io/extrinsic/{reference}"
 
-MAX_DEPOSIT_CREDITS = 10_000
+MAX_DEPOSIT_CREDITS = 1
 UUID_LENGTH = 36
 
 
@@ -710,7 +710,7 @@ def _deposit(deposit, *, settings: Settings) -> schemas.Deposit:
     "/deposits",
     response_model=schemas.Deposit,
     status_code=status.HTTP_201_CREATED,
-    summary="Declare a deposit and get the transfer command",
+    summary="Declare one credit purchase for a wallet-extension transfer",
 )
 async def create_deposit(
     payload: DepositRequest,
@@ -718,7 +718,7 @@ async def create_deposit(
     services: ServicesDep,
     session: SessionDep,
 ) -> schemas.Deposit:
-    """Record what will be sent, and return a ready-to-copy `btcli` command.
+    """Record the one-credit transfer the browser wallet will submit.
 
     Nothing is credited here. This records the expectation, so that when a transfer is seen it
     can be checked against a declared amount and recipient rather than credited on trust. What

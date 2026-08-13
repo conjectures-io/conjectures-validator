@@ -233,7 +233,7 @@ DEFAULT_DEPOSIT_HOURS = 24
 # they cannot end up reading different chains.
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
-DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
+DEFAULT_CREDIT_PACKAGES = "1"
 # Bumped to v3 by the v2 manual-review rule that expands `NOT_NOVEL`. The terms version and
 # manual-review version are separate counters because terms v2 was already published.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
