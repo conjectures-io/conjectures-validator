@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -13,6 +14,7 @@ pytest.importorskip("sqlalchemy", reason="the pricing component owns DB task age
 from conjectures_subnet.bounty import (
     BittensorBalanceReader,
     CachedBalanceReader,
+    calculate_age_weight,
     calculate_bounty_rao,
 )
 
@@ -35,9 +37,34 @@ def test_bounties_follow_the_ratio_to_average_age_weight():
             open_targets=3,
             task_age_weight=weight,
             total_age_weight=6,
+            max_bounty_share_numerator=1,
+            max_bounty_share_denominator=1,
         )
         for weight in (1, 2, 3)
     ] == [500_000_000, 1_000_000_000, 1_500_000_000]
+
+
+def test_one_bounty_is_capped_at_33_percent_of_the_treasury():
+    assert calculate_bounty_rao(
+        balance_rao=4_000_000_000,
+        open_targets=3,
+        task_age_weight=3,
+        total_age_weight=6,
+    ) == 1_320_000_000
+
+
+def test_age_weight_is_capped_at_60():
+    opened_at = datetime(2026, 1, 1, tzinfo=UTC)
+    assert calculate_age_weight(
+        opened_at,
+        now=opened_at + timedelta(days=58),
+        period_seconds=86_400,
+    ) == 59
+    assert calculate_age_weight(
+        opened_at,
+        now=opened_at + timedelta(days=500),
+        period_seconds=86_400,
+    ) == 60
 
 
 def test_fractional_base_units_round_down():
@@ -61,6 +88,18 @@ def test_fractional_base_units_round_down():
 def test_invalid_pool_inputs_are_refused(arguments):
     with pytest.raises(ValueError):
         calculate_bounty_rao(**arguments)
+
+
+def test_a_bounty_share_above_the_whole_treasury_is_refused():
+    with pytest.raises(ValueError, match="cannot exceed"):
+        calculate_bounty_rao(
+            balance_rao=1,
+            open_targets=1,
+            task_age_weight=1,
+            total_age_weight=1,
+            max_bounty_share_numerator=101,
+            max_bounty_share_denominator=100,
+        )
 
 
 def test_concurrent_quotes_share_one_balance_read():

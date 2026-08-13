@@ -191,6 +191,9 @@ def _bounty_pool(
         total_age_weight=snapshot.total_age_weight,
         constant_numerator=snapshot.constant_numerator,
         constant_denominator=snapshot.constant_denominator,
+        max_age_weight=snapshot.max_age_weight,
+        max_bounty_share_numerator=snapshot.max_bounty_share_numerator,
+        max_bounty_share_denominator=snapshot.max_bounty_share_denominator,
         as_of=snapshot.as_of,
         locked_at_submission=False,
     )

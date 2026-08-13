@@ -368,9 +368,9 @@ external rate is unavailable. It is `(amount_rao / 1e9) * alpha_price_tao * tao_
 the Alpha amount remains authoritative when this display-only conversion is absent. `reason`
 distinguishes an open target from one already solved, and `locked` is always false. The
 pool-wide `/v1/catalog/meta` response publishes `bounty.balance_rao` and its display-only
-`bounty.balance_usd` conversion, plus the open-target count, total age weight, and rational policy
-constant behind the task estimates. An accepted submission does not reserve the amount displayed
-on the website.
+`bounty.balance_usd` conversion, plus the open-target count, total age weight, rational policy
+constant, maximum age weight, and rational per-target treasury-share cap behind the task estimates.
+An accepted submission does not reserve the amount displayed on the website.
 
 ### Filters and facets
 

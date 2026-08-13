@@ -222,7 +222,20 @@ def test_development_defaults_are_convenient():
     assert settings.bounty_pool_balance_rao == 4_000_000_000
     assert settings.bounty_constant_numerator == 1
     assert settings.bounty_constant_denominator == 4
+    assert settings.bounty_max_age_weight == 60
+    assert settings.bounty_max_share_numerator == 33
+    assert settings.bounty_max_share_denominator == 100
     assert settings.bounty_netuid == 66
+
+
+def test_the_maximum_bounty_share_cannot_exceed_the_treasury():
+    with pytest.raises(SettingsError, match="BOUNTY_MAX_SHARE_NUMERATOR"):
+        Settings.from_env(
+            base_env(
+                BOUNTY_MAX_SHARE_NUMERATOR="101",
+                BOUNTY_MAX_SHARE_DENOMINATOR="100",
+            )
+        )
 
 
 def test_task_repository_root_configures_both_pool_paths(tmp_path: Path):

@@ -508,13 +508,14 @@ proof/refutation pair and source repins; parents, parts, and variants remain ind
 For each open reward target `i`, the API publishes the integer-RAO estimate
 
 ```text
-b_i = c * B * N * w_i / W = c * B * w_i / w_avg
+w_i = min(60, 1 + floor(age_i / age_period))
+b_i = min(c * B * N * w_i / W, 33 * B / 100)
 ```
 
 `B` is the finalized Subnet 66 Alpha stake held by the configured bounty coldkey/hotkey, `N` is
-the number of open stable reward targets, `w_i` is `1 + floor(age / age_period)`, and `W` is the
-sum of the open targets'
-weights. The default policy uses `c = 1/4` and a one-day age period. Multiplying by `N` removes the
+the number of open stable reward targets, `w_i` is the capped age weight, and `W` is the sum of the
+open targets' capped weights. The default policy uses `c = 1/4`, a one-day age period, a maximum
+age weight of 60, and a maximum bounty of exactly 33% of the treasury. Multiplying by `N` removes the
 otherwise accidental division of every task's bounty by the number of tasks in the pool: an
 average-age task is worth `c * B` regardless of `N`.
 

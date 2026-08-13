@@ -465,9 +465,10 @@ review is configured globally, per task, or per submission.
 
 `reward_events` records the submission, eligibility reason, actual integer payout amount,
 dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
-evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
-targets without a successful reward claim. The intake estimate is retained separately and is not
-the amount-of-record.
+evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the
+set of targets without a successful reward claim. Age weight is capped at 60 and every target quote
+is capped at 33/100 of the current treasury balance. The intake estimate is retained separately and
+is not the amount-of-record.
 
 ### What the remaining bounty payout mechanism needs
 

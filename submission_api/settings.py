@@ -57,10 +57,13 @@ DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 # default 1/4 policy constant, an average-age task is displayed at one Alpha. Production never
 # uses this value: its balance is read from the configured Subnet 66 stake position.
 DEVELOPMENT_BOUNTY_BALANCE_RAO = 4 * RAO_PER_TAO
-DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v1"
+DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v2-capped"
 DEFAULT_BOUNTY_CONSTANT_NUMERATOR = 1
 DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 4
 DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
+DEFAULT_BOUNTY_MAX_AGE_WEIGHT = 60
+DEFAULT_BOUNTY_MAX_SHARE_NUMERATOR = 33
+DEFAULT_BOUNTY_MAX_SHARE_DENOMINATOR = 100
 DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS = 60
 DEFAULT_BITTENSOR_NETWORK = "finney"
 DEFAULT_BOUNTY_NETUID = 66
@@ -400,6 +403,9 @@ class Settings:
     bounty_constant_numerator: int
     bounty_constant_denominator: int
     bounty_age_period_seconds: int
+    bounty_max_age_weight: int
+    bounty_max_share_numerator: int
+    bounty_max_share_denominator: int
     bounty_balance_cache_seconds: int
     # Optional because USD is display metadata: without a key (or during an upstream outage),
     # bounty `amount_usd` is null while the Alpha-denominated quote remains available.
@@ -530,6 +536,29 @@ class Settings:
         if POLICY_VERSION.fullmatch(bounty_policy_version) is None:
             raise SettingsError(
                 "BOUNTY_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
+            )
+        bounty_max_age_weight = _positive_int(
+            env,
+            "BOUNTY_MAX_AGE_WEIGHT",
+            DEFAULT_BOUNTY_MAX_AGE_WEIGHT,
+            maximum=1_000_000,
+        )
+        bounty_max_share_numerator = _positive_int(
+            env,
+            "BOUNTY_MAX_SHARE_NUMERATOR",
+            DEFAULT_BOUNTY_MAX_SHARE_NUMERATOR,
+            maximum=1_000_000,
+        )
+        bounty_max_share_denominator = _positive_int(
+            env,
+            "BOUNTY_MAX_SHARE_DENOMINATOR",
+            DEFAULT_BOUNTY_MAX_SHARE_DENOMINATOR,
+            maximum=1_000_000,
+        )
+        if bounty_max_share_numerator > bounty_max_share_denominator:
+            raise SettingsError(
+                "BOUNTY_MAX_SHARE_NUMERATOR must not exceed "
+                "BOUNTY_MAX_SHARE_DENOMINATOR"
             )
         bittensor_network = env.get(
             "BITTENSOR_NETWORK", DEFAULT_BITTENSOR_NETWORK
@@ -700,6 +729,9 @@ class Settings:
                 DEFAULT_BOUNTY_AGE_PERIOD_SECONDS,
                 maximum=31_536_000,
             ),
+            bounty_max_age_weight=bounty_max_age_weight,
+            bounty_max_share_numerator=bounty_max_share_numerator,
+            bounty_max_share_denominator=bounty_max_share_denominator,
             bounty_balance_cache_seconds=_positive_int(
                 env,
                 "BOUNTY_BALANCE_CACHE_SECONDS",

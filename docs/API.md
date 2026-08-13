@@ -143,7 +143,7 @@ X-Conjectures-Payment-Ref: 8769916-13-151
   "bounty": {
     "amount_rao": 1000000000,
     "amount_usd": "52.14",
-    "policy_version": "dynamic-age-v1",
+    "policy_version": "dynamic-age-v2-capped",
     "available": true,
     "reason": "OPEN",
     "as_of": "2026-07-30T15:20:00Z",
@@ -351,10 +351,13 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `BOUNTY_WALLET_HOTKEY_SS58` | required in `PROD` | Hotkey identifying the bounty stake position |
 | `BOUNTY_NETUID` | `66` | Subnet whose finalized Alpha balance is `B` |
 | `BOUNTY_POOL_BALANCE_RAO` | `4000000000` in `DEV` | Development-only deterministic balance; refused in `PROD` |
-| `BOUNTY_POLICY_VERSION` | `dynamic-age-v1` | Version written with estimates and payouts |
+| `BOUNTY_POLICY_VERSION` | `dynamic-age-v2-capped` | Version written with estimates and payouts |
 | `BOUNTY_CONSTANT_NUMERATOR` | `1` | Numerator of `c` |
 | `BOUNTY_CONSTANT_DENOMINATOR` | `4` | Denominator of `c` |
 | `BOUNTY_AGE_PERIOD_SECONDS` | `86400` | One increment in the linear age weight |
+| `BOUNTY_MAX_AGE_WEIGHT` | `60` | Maximum age weight for any target |
+| `BOUNTY_MAX_SHARE_NUMERATOR` | `33` | Numerator of the per-target treasury-share cap |
+| `BOUNTY_MAX_SHARE_DENOMINATOR` | `100` | Denominator of the per-target treasury-share cap |
 | `BOUNTY_BALANCE_CACHE_SECONDS` | `60` | Maximum chain-read frequency per API process |
 | `BITTENSOR_NETWORK` | `finney` | Network used for the finalized Alpha-stake read |
 | `TAOSTATS_API_KEY` | — | Enables `bounty.amount_usd`; sent only to the TaoStats price endpoints |

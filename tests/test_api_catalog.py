@@ -634,7 +634,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
             assert body["credits_per_attempt"] == 1
             assert body["treasury_address"] == kit.settings.payment_recipient
             assert body["bounty"] == {
-                "policy_version": "dynamic-age-v1",
+                "policy_version": "dynamic-age-v2-capped",
                 "balance_rao": 4_000_000_000,
                 "balance_usd": "150.00",
                 "wallet_coldkey": kit.settings.bounty_wallet_coldkey,
@@ -645,6 +645,9 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
                 "total_age_weight": 3,
                 "constant_numerator": 1,
                 "constant_denominator": 4,
+                "max_age_weight": 60,
+                "max_bounty_share_numerator": 33,
+                "max_bounty_share_denominator": 100,
                 "as_of": body["bounty"]["as_of"],
                 "locked_at_submission": False,
             }

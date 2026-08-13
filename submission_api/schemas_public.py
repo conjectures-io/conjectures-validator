@@ -150,6 +150,9 @@ class BountyPoolInfo(Model):
     total_age_weight: int
     constant_numerator: int
     constant_denominator: int
+    max_age_weight: int
+    max_bounty_share_numerator: int
+    max_bounty_share_denominator: int
     as_of: datetime
     locked_at_submission: bool = False
 
