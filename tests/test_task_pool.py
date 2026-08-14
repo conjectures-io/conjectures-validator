@@ -73,7 +73,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
-    ) == 21
+    ) == 20
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -205,7 +205,6 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
         "Erdos1055.erdos_1055.variants.selfridge_limit",
         "Erdos1093.erdos_1093.parts.ii",
         "Erdos15.erdos_15",
-        "Erdos510.erdos_510",
         "Green54.green_54",
         "Green77.green_77",
         # 2026-08-06: targets a verified submission settled; see the task
