@@ -9,6 +9,8 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `GET` | `/v1/auth/session` | `{ account }` | The current account, or `401` |
 | `POST` | `/v1/auth/email/request-link` | `202` | Mail a single-use sign-in link |
 | `POST` | `/v1/auth/email/verify` | `{ account }` | Exchange the token for a session |
+| `POST` | `/v1/auth/google/callback` | `303` | Verify Google's redirect-mode ID token, open a session |
+| `POST` | `/v1/auth/google/link` | `{ account }` | Explicitly attach Google to the signed-in account |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
 | `POST` | `/v1/auth/wallet/verify` | `{ account }` | Verify the signature, open a session |
 | `POST` | `/v1/auth/logout` | `204` | Revoke the session and clear the cookies |
@@ -39,6 +41,16 @@ three model modules, and the one where a hotkey, an email, a payout address or a
 *allowed* to appear, because everything here is served only to the authenticated owner of the
 data. The separation is the point: a field on `Account` would be a serious disclosure on
 `PublicResult`.
+
+`PENDING` reward events are internal instructions and are not returned by `SubmissionDetail.reward`
+or `/v1/me/rewards`: no successful chain event exists yet, so calling them Paying would be false.
+The payout watcher exposes `SUBMITTED` only while a matching event exists on the best chain and
+`CONFIRMED` only after that block finalizes. A best-chain reorganization removes `SUBMITTED` and
+returns the tracker to pending. `extrinsic_reference`, `submitted_block`, `finalized_block`, and
+`confirmed_at` therefore come from chain events rather than an operator-maintained flag.
+Rows created before chain reconciliation carry no observation provenance and are hidden until the
+watcher replays and verifies them; a database `CONFIRMED` assertion by itself is never exposed as
+Paid.
 
 ## Sessions
 
@@ -117,6 +129,24 @@ someone else's mailbox, and the IP limiter cannot see who is being mailed.
 `POST /v1/auth/email/verify` consumes the token in one conditional `UPDATE`, so a forwarded email
 or a double-clicked link signs in once. It is signup and sign-in at once — verifying a token
 proves receipt at that address, which is the whole of what an email account proves.
+
+### Google
+
+The frontend uses Google Identity Services in redirect mode and posts the credential to
+`POST /v1/auth/google/callback`. That callback is the one cross-site write exempt from the normal
+session CSRF middleware: Google supplies `g_csrf_token` in both a cookie and the form body, and the
+route compares them before it reads the ID token. `google-auth` then verifies the token signature,
+issuer, expiry, and exact `GOOGLE_CLIENT_ID` audience. No Google access or refresh token is stored.
+
+The provider's stable `sub` claim identifies the account. Email is bounded metadata and may
+change. A callback whose email already belongs to a wallet or magic-link account never merges it
+silently; it redirects to `/login?reason=GOOGLE_ACCOUNT_LINK_REQUIRED`. The person signs into the
+account they intend to keep and calls `POST /v1/auth/google/link`, which uses the normal session
+CSRF header. One Google subject can belong to one local account, and one local account can have at
+most one Google subject; both rules are database unique constraints.
+
+`Account.identities` exposes provider, observed email, linked time, and last-used time to the
+account owner. The stable provider subject is deliberately never returned.
 
 ### Wallet
 
@@ -234,6 +264,25 @@ PUT  /v1/submissions/intents/{id}/bundle    admits the bundle, returns the diges
 POST /v1/submissions/intents/{id}/confirm   debits the credit, writes the submission
 ```
 
+The intent creation body may include the same opt-in authorship used by the direct-payment path:
+
+```json
+{
+  "task_id": "fc-…",
+  "task_bundle_sha256": "sha256:…",
+  "hotkey": "5Grw…",
+  "public_credit": {
+    "name": "Emmy Noether",
+    "url": "https://example.org/emmy-noether",
+    "orcid": "0000-0002-1825-0097"
+  }
+}
+```
+
+It is optional. When present, it is frozen on the intent, included in the server-generated digest
+the hotkey signs, and copied unchanged to the submission. The account's mutable `display_name` is
+not used for result credit.
+
 **Why hold at step 2 rather than charge at step 4.** Without a hold, a miner with one credit could
 open any number of intents, upload to all of them, and race the confirmations. `open_intent` locks
 the account row before reading the balance, so two concurrent calls cannot both see the last
@@ -241,10 +290,10 @@ credit.
 
 **Why the server computes the digest at step 3.** The client must never choose what it is signing.
 `request_digest` is canonical JSON over the intent id, the submitting hotkey, the task, the task
-digest, and the proof digest **as admitted** — so a captured signature cannot be moved to
-different bytes, a different task, or a different attempt. Re-uploading replaces the bundle and
-recomputes the digest, invalidating the old signature, so a miner who uploaded the wrong file does
-not lose the held credit.
+digest, the proof digest **as admitted**, and any public credit — so a captured signature cannot be
+moved to different bytes, a different task, a different author credit, or a different attempt.
+Re-uploading replaces the bundle and recomputes the digest, invalidating the old signature, so a
+miner who uploaded the wrong file does not lose the held credit.
 
 **`confirm` is atomic.** Under an account-level lock: lock, re-read the intent under that lock,
 write the proof, append the `SPEND`, insert the submission pointing at it, mark the intent
@@ -305,13 +354,14 @@ field outright rather than ignoring it.
 
 ## Configuration
 
-See [`../.env.example`](../.env.example). The four that production refuses to start without or
-with the wrong value:
+See [`../.env.example`](../.env.example). Google remains fail-closed when its client ID is absent;
+the other four values below are ones production refuses to start without or with the wrong value:
 
 | Variable | Rule |
 | --- | --- |
 | `WEBSITE_BASE_URL` | Required, https. Where the sign-in link points — a link to a guessed origin is a credential sent somewhere nobody chose |
 | `MAIL_SENDER` | Must be `smtp`. `console` writes sign-in links to the process log |
+| `GOOGLE_CLIENT_ID` | Google OAuth web-client ID. Empty disables Google sign-in; accepted tokens must have this exact audience |
 | `PUBLIC_CURSOR_SECRET` | Required, 32+ chars, and refused if it is the constant published in `settings.py` |
 | `PUBLIC_ACTIVITY_SALT` | Same rules |
 

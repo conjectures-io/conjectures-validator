@@ -34,7 +34,9 @@ from conftest_api import (
     postgres_dsn,
 )
 
+from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import credits as credit_store
+from conjectures_subnet.db import digests
 from conjectures_subnet.db.models import (
     CreditEntryKind,
     IntentState,
@@ -47,6 +49,7 @@ from conjectures_subnet.db.models import (
 )
 from submission_api.auth import development_signature
 from submission_api.credits import btcli_command, parse_packages
+from submission_api.routers.intents import intent_request_digest
 from submission_api.sessions import CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE
 
 pytestmark = pytest.mark.skipif(
@@ -914,7 +917,9 @@ def test_a_held_credit_cannot_be_spent_twice_by_opening_two_intents():
     run(scenario())
 
 
-async def full_intent(kit, http, account_id, marker="0001"):
+async def full_intent(
+    kit, http, account_id, marker="0001", public_credit_payload=None
+):
     """Open an intent, upload a bundle, and return the intent plus the digest to sign."""
     await grant_credits(kit, account_id, 1)
     opened = await http.post(
@@ -923,6 +928,11 @@ async def full_intent(kit, http, account_id, marker="0001"):
             "task_id": TASK_ID,
             "task_bundle_sha256": TASK_DIGEST,
             "hotkey": HOTKEY,
+            **(
+                {}
+                if public_credit_payload is None
+                else {"public_credit": public_credit_payload}
+            ),
         },
         headers=csrf(http),
     )
@@ -1012,6 +1022,61 @@ def test_confirm_debits_the_credit_and_writes_the_submission_once():
                 assert again.status_code == 409
                 assert again.json()["reason_code"] == "INTENT_ALREADY_CONFIRMED"
                 assert again.json()["submission_id"] == submission["id"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_credit_funded_submission_signs_and_snapshots_public_credit():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                account = await sign_in_by_email(kit, http)
+                await link(kit, http, HOTKEY)
+                credit = {
+                    "name": "Ramanujan Collaboration",
+                    "url": "https://example.org/ramanujan",
+                    "orcid": "0000-0002-1825-0097",
+                }
+                intent_id, uploaded = await full_intent(
+                    kit,
+                    http,
+                    uuid.UUID(account["id"]),
+                    marker="public-credit",
+                    public_credit_payload=credit,
+                )
+                assert uploaded["intent"]["public_credit"] == credit
+
+                confirmed = await http.post(
+                    f"/v1/submissions/intents/{intent_id}/confirm",
+                    json={"signature": development_signature()},
+                    headers=csrf(http),
+                )
+                assert confirmed.status_code == 201, confirmed.text
+                assert confirmed.json()["submission"]["public_credit"] == credit
+
+                async with kit.session() as session:
+                    submission = await session.get(
+                        Submission,
+                        uuid.UUID(confirmed.json()["submission"]["id"]),
+                    )
+                    assert submission.public_credit_name == credit["name"]
+                    assert submission.public_credit_url == credit["url"]
+                    assert submission.public_credit_orcid == credit["orcid"]
+                    signed_credit = public_credit(
+                        credit["name"], credit["url"], credit["orcid"]
+                    )
+                    expected = intent_request_digest(
+                        intent_id=uuid.UUID(intent_id),
+                        hotkey=HOTKEY,
+                        task_id=TASK_ID,
+                        task_bundle_sha256=TASK_DIGEST,
+                        proof_sha256=uploaded["proof_sha256"],
+                        public_credit=signed_credit,
+                    )
+                    assert digests.to_prefixed(submission.request_digest) == expected
         finally:
             await kit.teardown()
 
@@ -1279,12 +1344,13 @@ def test_credit_pricing_and_terms_are_public():
 
                 terms = await http.get("/v1/catalog/submission-terms")
                 assert terms.status_code == 200
-                # v3 publishes the expanded v2 `NOT_NOVEL` contract. The version moves
+                # v4 adds signed opt-in public credit to the expanded v2 review contract. It moves
                 # with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so the
                 # two must not drift.
-                assert terms.json()["version"] == "v3"
+                assert terms.json()["version"] == "v4"
                 assert "One credit buys" in terms.json()["body_md"]
                 assert "Your hotkey is published" in terms.json()["body_md"]
+                assert "Public name credit is optional" in terms.json()["body_md"]
                 approval_codes = {
                     item["code"] for item in terms.json()["approval_reasons"]
                 }

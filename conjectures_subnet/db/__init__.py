@@ -21,6 +21,8 @@ that schema, not its source of truth:
 * ``transfers`` — every transfer observed at the treasury and where the chain watcher
   has read to. Records an arrival before deciding what it is worth, and credits only
   through ``credits``;
+* ``payouts`` — best/finalized outbound stake events and the atomic transition from a pending
+  reward obligation to a paid submission;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 
@@ -30,18 +32,9 @@ rather than assuming they still agree.
 
 from __future__ import annotations
 
-from conjectures_subnet.db import (
-    accounts,
-    credits,
-    digests,
-    engine,
-    errors,
-    intents,
-    models,
-    public,
-    submissions,
-    transfers,
-)
+import importlib
+from types import ModuleType
+
 from conjectures_subnet.db.engine import (
     async_session_factory,
     async_session_scope,
@@ -60,6 +53,35 @@ from conjectures_subnet.db.errors import (
     RecordNotFound,
 )
 from conjectures_subnet.db.models import Base
+
+_LAZY_MODULES = {
+    "accounts",
+    "credits",
+    "digests",
+    "engine",
+    "errors",
+    "intents",
+    "models",
+    "payouts",
+    "public",
+    "submissions",
+    "transfers",
+}
+
+
+def __getattr__(name: str) -> ModuleType:
+    """Load only the database seam a caller requested.
+
+    In particular, a database-only worker must not import the Bittensor SDK merely because the
+    package also exposes the chain-transfer seam. Keeping these modules lazy preserves the public
+    ``from conjectures_subnet.db import submissions`` API without coupling every process to every
+    optional runtime dependency.
+    """
+    if name not in _LAZY_MODULES:
+        raise AttributeError(name)
+    module = importlib.import_module(f"{__name__}.{name}")
+    globals()[name] = module
+    return module
 
 __all__ = [
     "Base",
@@ -81,6 +103,7 @@ __all__ = [
     "errors",
     "intents",
     "models",
+    "payouts",
     "public",
     "session_factory",
     "session_scope",

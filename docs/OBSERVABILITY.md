@@ -1,8 +1,8 @@
 # Observability
 
-Every process in this validator — the submission API, the verification worker, the deposit watcher
-and the emissions worker — emits structured events to [Axiom](https://axiom.co). One dataset, one
-event shape, three labels that make it queryable:
+Every process in this validator — the submission API, verification worker, deposit and payout
+watchers, and emissions worker — emits structured events to [Axiom](https://axiom.co). One dataset,
+one event shape, three labels that make it queryable:
 
 | Field | What it answers | Values |
 | --- | --- | --- |
@@ -96,6 +96,7 @@ start with a path filter.
 | `api-mail` `api-payments` | Outbound side effects the API owns |
 | `verification-worker` | Claiming, verifying, recording verdicts |
 | `deposit-watcher` | Reading finalized blocks, attributing arrivals, crediting |
+| `payout-watcher` | Projecting best/finalized stake payout events into Paying/Paid |
 | `emissions-worker` | Setting the treasury weight each epoch |
 | `subnet-chain` `database` `verifier` | Shared infrastructure |
 
@@ -113,6 +114,7 @@ Grouped by the area that raises them. `labels.py` is the source of truth.
   `verification_operator_failure`
 - **Deposits** — `cursor_opened`, `blocks_scanned`, `transfer_credited`, `transfer_unattributed`,
   `transfer_ignored`, `transfer_conflict`
+- **Payouts** — `payout_confirmed`, `payout_reorged`, `payout_unmatched`
 - **Emissions** — `epoch_observed`, `weights_set`, `weights_failed`
 - **Catch-alls** — `log_record`, `unexpected_error`
 

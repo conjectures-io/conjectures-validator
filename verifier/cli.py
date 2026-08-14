@@ -13,6 +13,7 @@ from verifier.doctor import doctor_report
 from verifier.errors import ReasonCode, VerifierError, exit_code_for
 from verifier.hashing import pretty_json
 from verifier.models import CATEGORY_ORDER
+from verifier.preflight import verify_proof_bundle_file
 from verifier.repository import formal_conjectures_pin
 from verifier.task_generator import MAX_SUBMISSION_BYTES, generate_all, generate_task
 from verifier.task_loader import load_task_bundle
@@ -59,6 +60,10 @@ def _parser() -> argparse.ArgumentParser:
     bundle_scan = bundle_commands.add_parser("scan")
     bundle_scan.add_argument("--bundle", type=Path, required=True)
     bundle_scan.add_argument("--max-proof-bytes", type=int, default=MAX_SUBMISSION_BYTES)
+    bundle_verify = bundle_commands.add_parser("verify")
+    bundle_verify.add_argument("--bundle", type=Path, required=True)
+    bundle_verify.add_argument("--task", type=Path, required=True)
+    bundle_verify.add_argument("--allow-insecure-development", action="store_true")
 
     verification = subcommands.add_parser("verify")
     verification.add_argument("--task", type=Path, required=True)
@@ -160,6 +165,15 @@ def _run(args: argparse.Namespace) -> int:
         )
         _print(dict(verdict))
         return 0 if verdict["admitted"] else 1
+    if args.command == "bundle" and args.bundle_command == "verify":
+        result = verify_proof_bundle_file(
+            bundle_path=_absolute_without_resolving(args.bundle),
+            task_dir=_absolute_without_resolving(args.task),
+            project_root=PROJECT_ROOT,
+            allow_insecure_development=args.allow_insecure_development,
+        )
+        _print(result.report.to_dict())
+        return exit_code_for(result.report.reason_code, result.report.accepted)
     if args.command == "verify":
         report = verify(
             task_dir=_absolute_without_resolving(args.task),

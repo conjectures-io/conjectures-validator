@@ -203,6 +203,11 @@ class Submission(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Opt-in public authorship, snapshotted on this submission rather than joined from the
+    # account's mutable display name. The hotkey signature covers all three fields.
+    public_credit_name: Mapped[str | None] = mapped_column(Text)
+    public_credit_url: Mapped[str | None] = mapped_column(Text)
+    public_credit_orcid: Mapped[str | None] = mapped_column(Text)
     idempotency_key: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False
     )
@@ -276,11 +281,16 @@ class Submission(Base):
     )
     review_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # An audit snapshot of what the API displayed at intake. The payout event is the
-    # amount-of-record and may use a later live quote; this column never reserves funds.
+    # The amount-of-record, locked when intake accepts the submission. Eligibility remains
+    # conditional on verification/review and winning the stable reward target, but this amount
+    # is never repriced afterward.
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
+    # NULL only for submissions accepted before V012, which retain payout-time pricing.
+    bounty_locked_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     verification_lease_until: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True)
@@ -307,6 +317,26 @@ class Submission(Base):
             name="reward_target_id_nonempty",
         ),
         CheckConstraint(
+            "public_credit_name IS NULL "
+            "OR (length(public_credit_name) BETWEEN 1 AND 128 "
+            "AND public_credit_name = btrim(public_credit_name))",
+            name="submission_public_credit_name_shape",
+        ),
+        CheckConstraint(
+            "public_credit_url IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND length(public_credit_url) BETWEEN 1 AND 2048 "
+            "AND public_credit_url LIKE 'https://%')",
+            name="submission_public_credit_url_shape",
+        ),
+        CheckConstraint(
+            "public_credit_orcid IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND public_credit_orcid ~ "
+            "'^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$')",
+            name="submission_public_credit_orcid_shape",
+        ),
+        CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128",
             name="payment_reference_nonempty",
         ),
@@ -323,6 +353,10 @@ class Submission(Base):
         CheckConstraint(
             "length(bounty_policy_version) BETWEEN 1 AND 64",
             name="bounty_policy_version_nonempty",
+        ),
+        CheckConstraint(
+            "bounty_locked_at IS NULL OR bounty_locked_at >= created_at",
+            name="bounty_locked_not_before_submission",
         ),
         CheckConstraint(
             "verification_attempts >= 0", name="verification_attempts_nonneg"
@@ -458,6 +492,33 @@ event.listen(
     "before_drop",
     DDL("DROP FUNCTION IF EXISTS submissions_touch_updated_at() CASCADE;"),
 )
+event.listen(
+    Submission.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION submissions_protect_public_credit() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.public_credit_name IS DISTINCT FROM OLD.public_credit_name\n"
+        "       OR NEW.public_credit_url IS DISTINCT FROM OLD.public_credit_url\n"
+        "       OR NEW.public_credit_orcid IS DISTINCT FROM OLD.public_credit_orcid THEN\n"
+        "        RAISE EXCEPTION 'submission public credit is immutable'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'submission_public_credit_immutable';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submissions_protect_public_credit\n"
+        "    BEFORE UPDATE OF public_credit_name, public_credit_url, public_credit_orcid "
+        "ON submissions\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submissions_protect_public_credit();"
+    ),
+)
+event.listen(
+    Submission.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submissions_protect_public_credit() CASCADE;"),
+)
 
 
 class VerificationRun(Base):
@@ -524,8 +585,8 @@ class VerificationRun(Base):
 class RewardEvent(Base):
     """One payout attempt, paid as a direct transfer.
 
-    The amount and pricing inputs on this event are the payout facts. The submission's bounty
-    fields are only the estimate displayed at intake and are never copied implicitly here.
+    The amount and pricing inputs on an automatically generated event copy the immutable bounty
+    lock on its submission. Manually reconciled retry attempts remain representable.
 
     The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
     then its chain fields fill in as it progresses. Inserting after the transfer
@@ -551,6 +612,7 @@ class RewardEvent(Base):
     amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     pricing_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     pricing_inputs: Mapped[dict | None] = mapped_column(JSONB)
+    generation_key: Mapped[str | None] = mapped_column(Text)
 
     # Captured, not derived from submissions: this is where the money actually
     # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
@@ -559,6 +621,12 @@ class RewardEvent(Base):
 
     status: Mapped[PayoutState] = mapped_column(
         PAYOUT_STATE, nullable=False, server_default=PayoutState.PENDING.value
+    )
+    # True only after the payout watcher decoded the matching successful Subtensor event.  Legacy
+    # operator-entered SUBMITTED/CONFIRMED rows remain representable, but read APIs deliberately
+    # ignore them until the watcher replays the chain and establishes this provenance.
+    chain_observed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
     )
     extrinsic_reference: Mapped[str | None] = mapped_column(Text)
     submitted_block: Mapped[int | None] = mapped_column(BigInteger)
@@ -579,12 +647,20 @@ class RewardEvent(Base):
             "length(pricing_policy_version) BETWEEN 1 AND 64",
             name="reward_pricing_policy_version_nonempty",
         ),
+        CheckConstraint(
+            "generation_key IS NULL OR length(generation_key) BETWEEN 1 AND 128",
+            name="reward_generation_key_nonempty",
+        ),
         # PENDING means exactly "no extrinsic exists yet", so status and reference
         # must not drift apart. FAILED is exempt: an attempt can die before broadcast.
         CheckConstraint(
             "status NOT IN ('SUBMITTED', 'CONFIRMED') "
             "OR (extrinsic_reference IS NOT NULL AND submitted_at IS NOT NULL)",
             name="reward_submitted_needs_reference",
+        ),
+        CheckConstraint(
+            "NOT chain_observed OR status IN ('SUBMITTED', 'CONFIRMED')",
+            name="reward_chain_observation_needs_chain_state",
         ),
         CheckConstraint(
             "status <> 'CONFIRMED' OR (finalized_block IS NOT NULL AND confirmed_at IS NOT NULL)",
@@ -622,17 +698,212 @@ class RewardEvent(Base):
             unique=True,
             postgresql_where=text("extrinsic_reference IS NOT NULL"),
         ),
+        Index(
+            "reward_events_generation_key_idx",
+            "generation_key",
+            unique=True,
+            postgresql_where=text("generation_key IS NOT NULL"),
+        ),
         # UNIQUE is free and makes the pair a foreign-key target.
         Index("reward_events_submission_idx", "submission_id", "id", unique=True),
         Index(
             "reward_events_pending_idx",
             "created_at",
-            postgresql_where=text("status IN ('PENDING', 'SUBMITTED')"),
+            postgresql_where=text(
+                "status IN ('PENDING', 'SUBMITTED') "
+                "OR (status = 'CONFIRMED' AND NOT chain_observed)"
+            ),
         ),
         Index(
             "reward_events_destination_idx",
             "destination_coldkey",
             text("created_at DESC"),
+        ),
+    )
+
+
+event.listen(
+    RewardEvent.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION enforce_locked_reward_event() RETURNS TRIGGER AS $$\n"
+        "DECLARE\n"
+        "    submission_lock submissions%%ROWTYPE;\n"
+        "    latest_decision RECORD;\n"
+        "    award_usd NUMERIC;\n"
+        "    alpha_usd NUMERIC;\n"
+        "    calculated_rao BIGINT;\n"
+        "BEGIN\n"
+        "    IF NEW.generation_key IS NULL THEN\n"
+        "        RETURN NEW;\n"
+        "    END IF;\n"
+        "\n"
+        "    SELECT * INTO STRICT submission_lock\n"
+        "    FROM submissions\n"
+        "    WHERE id = NEW.submission_id;\n"
+        "\n"
+        "    IF submission_lock.reward_status <> 'ELIGIBLE' THEN\n"
+        "        RAISE EXCEPTION 'automatic reward event requires an eligible submission'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_requires_eligible_submission';\n"
+        "    END IF;\n"
+        "\n"
+        "    IF NEW.generation_key <> 'submission:' || NEW.submission_id::TEXT THEN\n"
+        "        RAISE EXCEPTION 'automatic reward event has the wrong submission generation key'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_generation_key_matches_submission';\n"
+        "    END IF;\n"
+        "\n"
+        "    SELECT * INTO latest_decision\n"
+        "    FROM review_decisions\n"
+        "    WHERE submission_id = NEW.submission_id\n"
+        "      AND kind <> 'ADVISORY'\n"
+        "    ORDER BY id DESC\n"
+        "    LIMIT 1;\n"
+        "\n"
+        "    IF latest_decision.reason_code = 'FORMALIZATION_DEFECT_AWARD' THEN\n"
+        "        IF latest_decision.decision <> 'APPROVED'\n"
+        "           OR NEW.eligibility_reason <> 'FORMALIZATION_DEFECT_AWARD'\n"
+        "           OR NEW.pricing_policy_version <> 'formalization-defect-usd-v1' THEN\n"
+        "            RAISE EXCEPTION 'defect award must match the latest approved review decision'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_defect_decision';\n"
+        "        END IF;\n"
+        "\n"
+        "        IF NEW.pricing_inputs IS NULL\n"
+        "           OR NEW.pricing_inputs ->> 'award_code'\n"
+        "                IS DISTINCT FROM 'FORMALIZATION_DEFECT_AWARD'\n"
+        "           OR NEW.pricing_inputs ->> 'review_decision_id'\n"
+        "                IS DISTINCT FROM latest_decision.id::TEXT\n"
+        "           OR NEW.pricing_inputs ->> 'netuid' IS DISTINCT FROM '66'\n"
+        "           OR COALESCE(NEW.pricing_inputs ->> 'price_source', '') = ''\n"
+        "           OR COALESCE(NEW.pricing_inputs ->> 'price_observed_at', '') = ''\n"
+        "           OR jsonb_typeof(NEW.pricing_inputs -> 'price_source_urls')\n"
+        "                IS DISTINCT FROM 'array'\n"
+        "           OR NEW.pricing_inputs ->> 'rounding'\n"
+        "                IS DISTINCT FROM 'ROUND_HALF_UP to nearest integer Alpha rao' THEN\n"
+        "            RAISE EXCEPTION 'defect award is missing its required pricing audit inputs'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_defect_pricing_inputs';\n"
+        "        END IF;\n"
+        "\n"
+        "        BEGIN\n"
+        "            award_usd := (NEW.pricing_inputs ->> 'award_usd')::NUMERIC;\n"
+        "            alpha_usd := (NEW.pricing_inputs ->> 'alpha_usd')::NUMERIC;\n"
+        "        EXCEPTION WHEN OTHERS THEN\n"
+        "            RAISE EXCEPTION 'defect award contains invalid numeric pricing inputs'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_valid_defect_price';\n"
+        "        END;\n"
+        "\n"
+        "        IF award_usd IS NULL\n"
+        "           OR alpha_usd IS NULL\n"
+        "           OR award_usd <> 750.00\n"
+        "           OR alpha_usd <= 0 THEN\n"
+        "            RAISE EXCEPTION 'defect award must price exactly $750 at a positive Alpha/USD rate'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_valid_defect_price';\n"
+        "        END IF;\n"
+        "        calculated_rao := round(award_usd * 1000000000 / alpha_usd)::BIGINT;\n"
+        "        IF NEW.amount_rao <> calculated_rao THEN\n"
+        "            RAISE EXCEPTION 'defect award amount does not match its recorded Alpha/USD rate'\n"
+        "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_defect_price';\n"
+        "        END IF;\n"
+        "        RETURN NEW;\n"
+        "    END IF;\n"
+        "\n"
+        "    IF submission_lock.bounty_locked_at IS NULL THEN\n"
+        "        RAISE EXCEPTION 'automatic full-bounty event requires a submission-time bounty lock'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_requires_bounty_lock';\n"
+        "    END IF;\n"
+        "\n"
+        "    IF NEW.amount_rao <> submission_lock.bounty_amount_rao\n"
+        "       OR NEW.pricing_policy_version <> submission_lock.bounty_policy_version\n"
+        "       OR NEW.pricing_inputs IS DISTINCT FROM submission_lock.bounty_inputs THEN\n"
+        "        RAISE EXCEPTION 'automatic full-bounty event must copy the submission bounty lock'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_bounty_lock';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER reward_events_enforce_locked_amount\n"
+        "    BEFORE INSERT OR UPDATE OF submission_id, amount_rao, pricing_policy_version, pricing_inputs,\n"
+        "        generation_key\n"
+        "    ON reward_events\n"
+        "    FOR EACH ROW EXECUTE FUNCTION enforce_locked_reward_event();"
+    ),
+)
+event.listen(
+    RewardEvent.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS enforce_locked_reward_event() CASCADE;"),
+)
+
+
+class PayoutDiscordDelivery(Base):
+    """Durable, per-signer delivery state for a generated payout command."""
+
+    __tablename__ = "payout_discord_deliveries"
+
+    reward_event_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("reward_events.id"), primary_key=True
+    )
+    signer_wallet: Mapped[str] = mapped_column(Text, primary_key=True)
+    discord_user_id: Mapped[str] = mapped_column(Text, nullable=False)
+
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="PENDING"
+    )
+    attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    next_attempt_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    lease_owner: Mapped[str | None] = mapped_column(Text)
+    lease_until: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    delivered_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(signer_wallet) BETWEEN 1 AND 1024",
+            name="payout_discord_wallet_nonempty",
+        ),
+        CheckConstraint(
+            "discord_user_id ~ '^[0-9]{1,32}$'",
+            name="payout_discord_user_id_shape",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING', 'SENDING', 'SENT', 'FAILED')",
+            name="payout_discord_status_known",
+        ),
+        CheckConstraint(
+            "attempt_count >= 0", name="payout_discord_attempt_nonnegative"
+        ),
+        CheckConstraint(
+            "(status = 'SENDING') = (lease_owner IS NOT NULL AND lease_until IS NOT NULL)",
+            name="payout_discord_lease_paired",
+        ),
+        CheckConstraint(
+            "(status = 'SENT') = (delivered_at IS NOT NULL)",
+            name="payout_discord_sent_paired",
+        ),
+        CheckConstraint(
+            "updated_at >= created_at", name="payout_discord_updated_after_created"
+        ),
+        CheckConstraint(
+            "delivered_at IS NULL OR delivered_at >= created_at",
+            name="payout_discord_delivered_after_created",
+        ),
+        Index(
+            "payout_discord_due_idx",
+            "next_attempt_at",
+            "reward_event_id",
+            "signer_wallet",
+            postgresql_where=text("status IN ('PENDING', 'FAILED', 'SENDING')"),
         ),
     )
 
@@ -864,6 +1135,52 @@ class Account(Base):
             unique=True,
             postgresql_where=text("email IS NOT NULL"),
         ),
+    )
+
+
+class AccountIdentity(Base):
+    """An external identity explicitly attached to one website account.
+
+    ``subject`` is the provider's stable identifier.  Email is an observed claim retained for
+    account recovery UX and audit, never the key used to find a returning federated user.
+    """
+
+    __tablename__ = "account_identities"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    linked_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_used_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("provider = 'google'", name="account_identity_provider_known"),
+        CheckConstraint(
+            "length(subject) BETWEEN 1 AND 255", name="account_identity_subject_length"
+        ),
+        CheckConstraint(
+            f"email ~ '{EMAIL_SHAPE}'", name="account_identity_email_shape"
+        ),
+        CheckConstraint(
+            "last_used_at >= linked_at", name="account_identity_used_after_link"
+        ),
+        UniqueConstraint(
+            "provider", "subject", name="account_identities_provider_subject_key"
+        ),
+        UniqueConstraint(
+            "account_id", "provider", name="account_identities_account_provider_key"
+        ),
+        Index("account_identities_account_idx", "account_id", "linked_at"),
     )
 
 
@@ -1307,6 +1624,11 @@ class SubmissionIntent(Base):
     # Checked against linked_hotkeys at creation, and what the confirming
     # signature must come from.
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Chosen while the intent is opened, then included in the server-generated request digest
+    # and copied byte-for-byte onto the confirmed submission.
+    public_credit_name: Mapped[str | None] = mapped_column(Text)
+    public_credit_url: Mapped[str | None] = mapped_column(Text)
+    public_credit_orcid: Mapped[str | None] = mapped_column(Text)
 
     task_id: Mapped[str] = mapped_column(Text, nullable=False)
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
@@ -1342,6 +1664,26 @@ class SubmissionIntent(Base):
     __table_args__ = (
         CheckConstraint(
             "length(task_id) BETWEEN 1 AND 255", name="intent_task_id_nonempty"
+        ),
+        CheckConstraint(
+            "public_credit_name IS NULL "
+            "OR (length(public_credit_name) BETWEEN 1 AND 128 "
+            "AND public_credit_name = btrim(public_credit_name))",
+            name="intent_public_credit_name_shape",
+        ),
+        CheckConstraint(
+            "public_credit_url IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND length(public_credit_url) BETWEEN 1 AND 2048 "
+            "AND public_credit_url LIKE 'https://%')",
+            name="intent_public_credit_url_shape",
+        ),
+        CheckConstraint(
+            "public_credit_orcid IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND public_credit_orcid ~ "
+            "'^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$')",
+            name="intent_public_credit_orcid_shape",
         ),
         CheckConstraint("credits_held > 0", name="intent_holds_something"),
         CheckConstraint("credit_price_rao > 0", name="intent_price_positive"),
@@ -1678,12 +2020,72 @@ class ChainWatchCursor(Base):
     )
 
 
+class PayoutWatchCursor(Base):
+    """Finalized-chain high-water mark for outbound bounty payouts.
+
+    This is separate from ``ChainWatchCursor`` because that cursor identifies an incoming free-TAO
+    address by subnet UID.  A payout watch identifies the treasury stake position by coldkey,
+    hotkey and netuid instead.  Reusing the incoming table would make its ``recipient`` and ``uid``
+    columns lie about what is being watched.
+
+    The first row is opened from the creation time of the oldest unresolved reward event.  A
+    payout command cannot be shown to a signer before that row exists, so earlier chain history is
+    outside this watcher's business.  Once recorded, the boundary never moves or gets recomputed.
+    """
+
+    __tablename__ = "payout_watch_cursor"
+
+    watcher: Mapped[str] = mapped_column(Text, primary_key=True)
+    network: Mapped[str] = mapped_column(Text, nullable=False)
+    origin_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    origin_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    netuid: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    watch_from: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    start_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    start_block_timestamp: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_scanned_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    last_scanned_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "watcher ~ '^[a-z][a-z0-9-]{0,63}$'",
+            name="payout_watcher_name_shape",
+        ),
+        CheckConstraint(
+            "length(network) BETWEEN 1 AND 128", name="payout_network_nonempty"
+        ),
+        CheckConstraint("netuid >= 0", name="payout_cursor_netuid_nonnegative"),
+        CheckConstraint(
+            "start_block > 0", name="payout_cursor_start_block_positive"
+        ),
+        CheckConstraint(
+            "last_scanned_block >= start_block - 1",
+            name="payout_cursor_never_reads_before_start",
+        ),
+        CheckConstraint(
+            "start_block_timestamp >= watch_from",
+            name="payout_cursor_start_at_or_after_watch",
+        ),
+    )
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",
     "MINER_ROLE",
     "REVIEWER_ROLE",
     "Account",
+    "AccountIdentity",
     "AccountSession",
     "AccountWallet",
     "ApiRejectionLog",
@@ -1701,7 +2103,9 @@ __all__ = [
     "LoginChallenge",
     "LoginChallengeKind",
     "ManualReviewState",
+    "PayoutDiscordDelivery",
     "PayoutState",
+    "PayoutWatchCursor",
     "Proof",
     "ReviewDecision",
     "ReviewOutcome",

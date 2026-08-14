@@ -65,6 +65,7 @@ Source: TypeAlias = Literal[
     # --- background services ----------------------------------------------------------------
     "verification-worker",
     "deposit-watcher",
+    "payout-watcher",
     "emissions-worker",
     # --- shared infrastructure --------------------------------------------------------------
     "subnet-chain",
@@ -123,6 +124,10 @@ EventType: TypeAlias = Literal[
     "transfer_unattributed",
     "transfer_ignored",
     "transfer_conflict",
+    # --- payout watcher --------------------------------------------------------------------
+    "payout_confirmed",
+    "payout_reorged",
+    "payout_unmatched",
     # --- emissions worker -------------------------------------------------------------------
     "epoch_observed",
     "weights_set",

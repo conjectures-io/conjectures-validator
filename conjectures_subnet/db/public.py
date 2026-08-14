@@ -4,11 +4,11 @@ Separate from ``submissions`` because the audience is different and the rules th
 follow from that are worth enforcing in the query layer rather than trusting a
 router to remember. Two invariants hold for everything in this module:
 
-* **The submitting hotkey is published; the money is not.** ``ResultRow.hotkey`` names the
-  solver, by product decision — a result is credited to the hotkey that produced it. Nothing
-  here carries the paying coldkey, the payment reference or the extrinsic, and that boundary is
-  the one still worth enforcing structurally: the hotkey is a public chain identity a miner
-  signs with, whereas the coldkey and the payment reference lead to the funds behind it.
+* **The signed solver identity is published; the money is not.** ``ResultRow.hotkey`` names the
+  solver, and its optional public-credit columns carry only the name/profile/ORCID that hotkey
+  signed for publication. Nothing here carries the paying coldkey, payment reference or
+  extrinsic, and that boundary is enforced structurally: the former values are public credit,
+  whereas the latter lead to the funds behind it.
   ``activity`` still pseudonymises, but see the caveat on that function — publishing the hotkey
   on a result makes those pseudonyms correlatable by timing, so the two are no longer
   independent.
@@ -18,10 +18,11 @@ router to remember. Two invariants hold for everything in this module:
   growing table on every page read is a scan an anonymous caller should not be
   able to ask for.
 
-A page is read in four statements rather than one join with three lateral
+A page is read in five statements rather than one join with four lateral
 subqueries: the submissions for the page, then their latest verification runs,
-confirmed payouts, and latest binding reviews, each by an indexed key over at most
-``limit`` ids. It is not an N+1 — the count is fixed at four — and the intent
+current payout amounts, confirmed payouts, and latest binding reviews, each by an
+indexed key over at most ``limit`` ids. It is not an N+1 — the count is fixed at
+five — and the intent
 survives being read six months from now.
 """
 
@@ -32,7 +33,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, and_, func, or_, select, tuple_
+from sqlalchemy import Select, and_, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.models import (
@@ -49,11 +50,23 @@ from conjectures_subnet.db.models import (
     VerificationState,
 )
 
+# The submission flag is a cheap cached projection used by partial indexes.  The correlated event
+# predicate is the authority: legacy/operator-entered paid flags cannot publish a certification
+# until the watcher has decoded the matching finalized chain event.
+CONFIRMED_ON_CHAIN = exists(
+    select(RewardEvent.id).where(
+        RewardEvent.submission_id == Submission.id,
+        RewardEvent.status == PayoutState.CONFIRMED,
+        RewardEvent.chain_observed.is_(True),
+    )
+).correlate(Submission)
+
 # A submission is on the public certified feed once it has been paid out. The review status is
 # APPROVED in both paths that get there — a human approval, or the recorded AUTOMATIC decision
 # when manual review is disabled — so requiring it costs nothing and states the intent.
 CERTIFIED = (
     Submission.reward_status == RewardState.REWARDED,
+    CONFIRMED_ON_CHAIN,
     Submission.manual_review_status == ManualReviewState.APPROVED,
     Submission.verification_status == VerificationState.VERIFIED,
 )
@@ -95,6 +108,9 @@ class ResultRow:
     id: uuid.UUID
     # The hotkey that submitted this proof. Published: a result is credited to its solver.
     hotkey: str
+    public_credit_name: str | None
+    public_credit_url: str | None
+    public_credit_orcid: str | None
     task_id: str
     # The conjecture this result is against, as an identity that outlives the pin it was produced
     # under. `task_id` names one build of one attack direction and changes on every rotation, so a
@@ -289,17 +305,22 @@ async def _decorate(
         return ()
     ids = [submission.id for submission in submissions]
     runs = await _latest_runs(session, ids)
+    current_payouts = await _current_payouts(session, ids)
     confirmed = await _confirmed_payouts(session, ids)
     reviews = await _latest_reviews(session, ids)
     rows = []
     for submission in submissions:
         run = runs.get(submission.id)
-        payout = confirmed.get(submission.id)
+        payout = current_payouts.get(submission.id)
+        confirmation = confirmed.get(submission.id)
         review = reviews.get(submission.id)
         rows.append(
             ResultRow(
                 id=submission.id,
                 hotkey=submission.hotkey,
+                public_credit_name=submission.public_credit_name,
+                public_credit_url=submission.public_credit_url,
+                public_credit_orcid=submission.public_credit_orcid,
                 task_id=submission.task_id,
                 reward_target_id=submission.reward_target_id,
                 task_bundle_sha256=bytes(submission.task_bundle_sha256),
@@ -316,7 +337,9 @@ async def _decorate(
                 ),
                 review_policy_version=submission.review_policy_version,
                 verified_at=None if run is None else run.finished_at,
-                certified_at=None if payout is None else payout.confirmed_at,
+                certified_at=(
+                    None if confirmation is None else confirmation.confirmed_at
+                ),
                 verifier_version=None if run is None else run.verifier_version,
                 sandbox_mode=None if run is None else run.sandbox_mode,
                 report_available=run is not None and run.has_report,
@@ -419,6 +442,7 @@ async def _confirmed_payouts(
         .where(
             RewardEvent.submission_id.in_(submission_ids),
             RewardEvent.status == PayoutState.CONFIRMED,
+            RewardEvent.chain_observed.is_(True),
         )
         .distinct(RewardEvent.submission_id)
         .order_by(
@@ -435,6 +459,46 @@ async def _confirmed_payouts(
         )
         for row in (await session.execute(statement)).all()
         if row.confirmed_at is not None
+    }
+
+
+async def _current_payouts(
+    session: AsyncSession, submission_ids: Sequence[uuid.UUID]
+) -> Mapping[uuid.UUID, _PayoutFacts]:
+    """The amount currently owed or paid for each submission.
+
+    Once a payout event exists it is the amount of record, including while it is pending signer
+    action or chain finality. Failed attempts are excluded so they cannot replace an active or
+    completed amount on the public result. Confirmation remains a separate fact: displaying a
+    pending event's amount must not make the result look paid.
+    """
+    statement = (
+        select(
+            RewardEvent.submission_id,
+            RewardEvent.amount_rao,
+            RewardEvent.pricing_policy_version,
+            RewardEvent.confirmed_at,
+        )
+        .where(
+            RewardEvent.submission_id.in_(submission_ids),
+            RewardEvent.status.in_(
+                (
+                    PayoutState.PENDING,
+                    PayoutState.SUBMITTED,
+                    PayoutState.CONFIRMED,
+                )
+            ),
+        )
+        .distinct(RewardEvent.submission_id)
+        .order_by(RewardEvent.submission_id, RewardEvent.id.desc())
+    )
+    return {
+        row.submission_id: _PayoutFacts(
+            amount_rao=row.amount_rao,
+            policy_version=row.pricing_policy_version,
+            confirmed_at=row.confirmed_at,
+        )
+        for row in (await session.execute(statement)).all()
     }
 
 

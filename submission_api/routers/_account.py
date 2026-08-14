@@ -19,10 +19,12 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.attribution import public_credit_from_values
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import digests
 from conjectures_subnet.db.models import (
     Account,
+    PayoutState,
     ReviewDecision,
     ReviewerKind,
     RewardEvent,
@@ -52,6 +54,7 @@ async def account_response(session: AsyncSession, account: Account) -> schemas.A
     """
     hotkeys = await account_store.hotkeys_for(session, account.id)
     wallets = await account_store.wallets_for(session, account.id)
+    identities = await account_store.identities_for(session, account.id)
     payout = None
     if account.payout_coldkey and account.payout_hotkey:
         payout = schemas.PayoutDestination(
@@ -71,6 +74,15 @@ async def account_response(session: AsyncSession, account: Account) -> schemas.A
         wallets=tuple(
             schemas.LinkedWallet(coldkey=item.coldkey, linked_at=_utc(item.linked_at))
             for item in wallets
+        ),
+        identities=tuple(
+            schemas.LinkedIdentity(
+                provider=item.provider,
+                email=item.email,
+                linked_at=_utc(item.linked_at),
+                last_used_at=_utc(item.last_used_at),
+            )
+            for item in identities
         ),
         created_at=_utc(account.created_at),
     )
@@ -100,9 +112,11 @@ def funding_summary(submission) -> schemas.FundingSummary:
 
 
 def submission_summary(submission) -> schemas.SubmissionSummary:
+    credit = public_credit_from_values(submission)
     return schemas.SubmissionSummary(
         id=submission.id,
         hotkey=submission.hotkey,
+        public_credit=None if credit is None else credit.to_dict(),
         task_id=submission.task_id,
         proof_sha256=digests.to_prefixed(submission.proof_digest),
         verification_status=str(submission.verification_status),
@@ -111,7 +125,7 @@ def submission_summary(submission) -> schemas.SubmissionSummary:
         failure_reason=submission.failure_reason,
         bounty_amount_rao=submission.bounty_amount_rao,
         bounty_policy_version=submission.bounty_policy_version,
-        bounty_locked=False,
+        bounty_locked=submission.bounty_locked_at is not None,
         created_at=_utc(submission.created_at),
         updated_at=_utc(submission.updated_at),
     )
@@ -137,9 +151,11 @@ def verification_summary(view) -> schemas.VerificationSummary:
 
 async def submission_detail(session: AsyncSession, view) -> schemas.SubmissionDetail:
     submission = view.submission
+    credit = public_credit_from_values(submission)
     return schemas.SubmissionDetail(
         id=submission.id,
         hotkey=submission.hotkey,
+        public_credit=None if credit is None else credit.to_dict(),
         task_id=submission.task_id,
         task_bundle_sha256=digests.to_prefixed(submission.task_bundle_sha256),
         proof_sha256=digests.to_prefixed(submission.proof_digest),
@@ -152,7 +168,7 @@ async def submission_detail(session: AsyncSession, view) -> schemas.SubmissionDe
         review_policy_version=submission.review_policy_version,
         bounty_amount_rao=submission.bounty_amount_rao,
         bounty_policy_version=submission.bounty_policy_version,
-        bounty_locked=False,
+        bounty_locked=submission.bounty_locked_at is not None,
         funding=funding_summary(submission),
         verification=verification_summary(view),
         review=await latest_review(session, submission.id),
@@ -196,9 +212,20 @@ async def latest_review(
 async def latest_reward(
     session: AsyncSession, submission_id: uuid.UUID
 ) -> schemas.RewardSummary | None:
+    """The latest payout state the chain has actually observed.
+
+    ``PENDING`` reward events are internal obligations: the notifier has prepared a command, but
+    no successful chain event exists yet.  Returning one made the website say "Paying" before a
+    signer had submitted anything.  ``SUBMITTED`` is now written only from the best chain and
+    ``CONFIRMED`` only from finalized events, so those are the first states exposed here.
+    """
     statement = (
         select(RewardEvent)
-        .where(RewardEvent.submission_id == submission_id)
+        .where(
+            RewardEvent.submission_id == submission_id,
+            RewardEvent.chain_observed.is_(True),
+            RewardEvent.status.in_((PayoutState.SUBMITTED, PayoutState.CONFIRMED)),
+        )
         .order_by(RewardEvent.id.desc())
         .limit(1)
     )

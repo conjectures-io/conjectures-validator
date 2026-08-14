@@ -35,6 +35,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.attribution import PublicCredit
 from conjectures_subnet.db import digests
 from conjectures_subnet.db.errors import (
     DuplicatePayment,
@@ -45,6 +46,7 @@ from conjectures_subnet.db.errors import (
 from conjectures_subnet.db.models import (
     ApiRejectionLog,
     ManualReviewState,
+    PayoutState,
     Proof,
     ReviewDecision,
     ReviewerKind,
@@ -94,6 +96,9 @@ class NewSubmission:
     bounty_amount_rao: int
     bounty_policy_version: str
     bounty_inputs: Mapping[str, Any] | None = None
+    public_credit_name: str | None = None
+    public_credit_url: str | None = None
+    public_credit_orcid: str | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,7 @@ def canonical_request_digest(
     proof_sha256: str,
     payment_reference: str,
     idempotency_key: str,
+    public_credit: PublicCredit | None = None,
 ) -> str:
     """The identity of a request, and the message the miner signs.
 
@@ -126,18 +132,19 @@ def canonical_request_digest(
     replay, so every one of them is part of the digest. It binds the proof digest too, so a
     signature cannot be reused for different proof bytes.
     """
-    return sha256_bytes(
-        canonical_json_bytes(
-            {
-                "hotkey": hotkey,
-                "idempotency_key": idempotency_key,
-                "payment_reference": payment_reference,
-                "proof_sha256": proof_sha256,
-                "task_bundle_sha256": task_bundle_sha256,
-                "task_id": task_id,
-            }
-        )
-    )
+    payload = {
+        "hotkey": hotkey,
+        "idempotency_key": idempotency_key,
+        "payment_reference": payment_reference,
+        "proof_sha256": proof_sha256,
+        "task_bundle_sha256": task_bundle_sha256,
+        "task_id": task_id,
+    }
+    # Omit rather than encode null, preserving the v1 digest for miners who do not request public
+    # name credit. When present, every published byte is protected by the hotkey signature.
+    if public_credit is not None:
+        payload["public_credit"] = public_credit.to_dict()
+    return sha256_bytes(canonical_json_bytes(payload))
 
 
 def _violates(exc: IntegrityError, constraint: str) -> bool:
@@ -226,6 +233,9 @@ async def create_submission(
 
     submission = Submission(
         hotkey=request.hotkey,
+        public_credit_name=request.public_credit_name,
+        public_credit_url=request.public_credit_url,
+        public_credit_orcid=request.public_credit_orcid,
         idempotency_key=request.idempotency_key,
         request_digest=digests.to_bytes(request.request_digest),
         task_id=request.task_id,
@@ -561,7 +571,14 @@ async def rewards_for_account(
     statement = (
         select(RewardEvent, Submission.task_id)
         .join(Submission, Submission.id == RewardEvent.submission_id)
-        .where(Submission.account_id == account_id)
+        # A PENDING event is an internal payout instruction, not on-chain activity.  The account
+        # reward tracker begins at SUBMITTED (best-chain event) and advances to CONFIRMED only
+        # after finality, so it cannot claim a signer is paying merely because a command exists.
+        .where(
+            Submission.account_id == account_id,
+            RewardEvent.chain_observed.is_(True),
+            RewardEvent.status.in_((PayoutState.SUBMITTED, PayoutState.CONFIRMED)),
+        )
         .order_by(RewardEvent.id.desc())
         .limit(limit)
     )

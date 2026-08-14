@@ -1,18 +1,18 @@
-"""Live, age-weighted bounty pricing.
+"""Live, age-weighted bounty pricing with submission-time amount locks.
 
-Prices are estimates until a payout instruction is created.  In particular, accepting a paid
-submission does not reserve either a reward target or an amount: another proof may establish the
-same target first, and the wallet balance and task ages continue to move while verification is in
-flight.
+Catalog prices remain live estimates. Once a paid submission is accepted, its quote is immutable:
+later balance and age changes affect new submissions only. Several proofs may still compete for
+one target, so the promise is conditional on verification and reward eligibility rather than an
+exclusive claim merely for arriving first.
 
 For every currently open reward target ``i`` the version-1 policy is::
 
     b_i = c * B * N * w_i / W
 
-where ``B`` is the live treasury balance, ``N`` is the number of open reward targets, ``w_i`` is
-the target's age weight, ``W`` is the sum of all open weights, and ``c`` defaults to ``1/4``.  This
-is the integer form of ``c * B * w_i / w_avg``.  Integer division rounds down, so pricing never
-creates a fractional base unit.
+where ``B`` is the live treasury balance minus outstanding locked exposure, ``N`` is the number
+of open reward targets, ``w_i`` is the target's age weight, ``W`` is the sum of all open weights,
+and ``c`` defaults to ``1/4``. This is the integer form of ``c * B * w_i / w_avg``. Integer
+division rounds down, so pricing never creates a fractional base unit.
 
 Task age is database-owned.  The first API process to see a reward target inserts it into
 ``bounty_tasks``; later catalog repins reuse that original ``opened_at`` through the stable
@@ -27,15 +27,27 @@ import time
 import uuid
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
 
 import bittensor as bt
-from sqlalchemy import select
+from sqlalchemy import exists, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from conjectures_subnet.db.models import BountyTask, RewardState, Submission
+from conjectures_subnet.db.models import (
+    BountyTask,
+    ManualReviewState,
+    PayoutState,
+    RewardEvent,
+    RewardState,
+    Submission,
+    VerificationState,
+)
+
+# Submission writers serialize only the short quote-and-insert transaction. Public catalog reads
+# do not take this lock. The integer is stable across processes and deployments.
+BOUNTY_RESERVATION_ADVISORY_LOCK = 0x434F4E4A425459
 
 
 @dataclass(frozen=True)
@@ -167,6 +179,15 @@ class BountyPricer(Protocol):
         """Price several targets against one consistent pool snapshot."""
         ...
 
+    async def lock_quote(
+        self,
+        session: AsyncSession,
+        *,
+        reward_target_id: str,
+    ) -> LiveBounty:
+        """Serialize a fresh quote until the caller commits its new submission."""
+        ...
+
 
 @dataclass(frozen=True)
 class DynamicBountyPricer:
@@ -175,10 +196,11 @@ class DynamicBountyPricer:
     balance_hotkey: str
     balance_netuid: int
     reward_target_ids: tuple[str, ...]
-    policy_version: str = "dynamic-age-v1"
+    policy_version: str = "dynamic-age-v2-locked"
     constant_numerator: int = 1
     constant_denominator: int = 4
     age_period_seconds: int = 86_400
+    confirmed_payout_grace_seconds: int = 60
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
 
     def __post_init__(self) -> None:
@@ -190,6 +212,8 @@ class DynamicBountyPricer:
             raise ValueError("bounty constant must be a positive rational")
         if self.age_period_seconds <= 0:
             raise ValueError("age period must be positive")
+        if self.confirmed_payout_grace_seconds <= 0:
+            raise ValueError("confirmed payout grace period must be positive")
         if not self.reward_target_ids:
             raise ValueError("dynamic pricing requires at least one reward target")
         if len(set(self.reward_target_ids)) != len(self.reward_target_ids):
@@ -211,6 +235,22 @@ class DynamicBountyPricer:
             claimants=claimants,
         )
         return snapshot.quotes[reward_target_id]
+
+    async def lock_quote(
+        self,
+        session: AsyncSession,
+        *,
+        reward_target_id: str,
+    ) -> LiveBounty:
+        """Take the pool's transaction lock and price the amount a submission will retain.
+
+        The lock lasts until the API commits or rolls back. Concurrent submissions therefore see
+        the earlier lock in their committed exposure rather than both spending the same remainder.
+        """
+        await session.execute(
+            select(func.pg_advisory_xact_lock(BOUNTY_RESERVATION_ADVISORY_LOCK))
+        )
+        return await self.quote(session, reward_target_id=reward_target_id)
 
     async def quote_many(
         self,
@@ -271,14 +311,51 @@ class DynamicBountyPricer:
             for target in open_targets
         }
         total_weight = sum(weights.values())
-        balance = await self.balance_reader.balance_rao()
-        if balance < 0:
+        gross_balance = await self.balance_reader.balance_rao()
+        if gross_balance < 0:
             raise RuntimeError("treasury balance cannot be negative")
+
+        # Competing submissions for one target are mutually exclusive, so that target's exposure
+        # is the largest still-live locked amount, not the sum of every attempt. Rejected proofs
+        # release their lock. Confirmed payouts are already reflected by the finalized chain
+        # balance and must not be subtracted a second time.
+        settled_payout = exists(
+            select(RewardEvent.id).where(
+                RewardEvent.submission_id == Submission.id,
+                RewardEvent.status == PayoutState.CONFIRMED,
+                RewardEvent.chain_observed.is_(True),
+                # Keep the commitment until any cached pre-transfer chain balance has expired.
+                # Once both facts are current, excluding it avoids subtracting a paid reward
+                # twice: once here and once from the now-lower on-chain balance.
+                RewardEvent.confirmed_at
+                <= now - timedelta(seconds=self.confirmed_payout_grace_seconds),
+            )
+        ).correlate(Submission)
+        reservations = (
+            await session.execute(
+                select(
+                    Submission.reward_target_id,
+                    func.max(Submission.bounty_amount_rao),
+                )
+                .where(
+                    Submission.bounty_locked_at.is_not(None),
+                    Submission.verification_status != VerificationState.REJECTED,
+                    Submission.manual_review_status != ManualReviewState.REJECTED,
+                    ~settled_payout,
+                )
+                .group_by(Submission.reward_target_id)
+            )
+        ).all()
+        committed = sum(int(row[1]) for row in reservations)
+        balance = max(0, gross_balance - committed)
 
         quotes: dict[str, LiveBounty] = {}
         for target in requested:
             base_inputs: dict[str, int | str] = {
                 "balance_rao": balance,
+                "treasury_balance_rao": gross_balance,
+                "committed_bounty_rao": committed,
+                "available_balance_rao": balance,
                 "balance_asset": "alpha",
                 "balance_coldkey": self.balance_coldkey,
                 "balance_hotkey": self.balance_hotkey,
@@ -319,11 +396,18 @@ class DynamicBountyPricer:
                 constant_numerator=self.constant_numerator,
                 constant_denominator=self.constant_denominator,
             )
+            # A very old target can be worth more than the average-age formula's remaining pool.
+            # A locked promise cannot exceed funds that are actually uncommitted.
+            amount = min(amount, balance)
             quotes[target] = LiveBounty(
                 amount_rao=amount,
                 policy_version=self.policy_version,
-                available=True,
-                reason="OPEN" if holder is None else "CLAIM_HELD",
+                available=amount > 0,
+                reason=(
+                    "TREASURY_RESERVED"
+                    if amount <= 0
+                    else ("OPEN" if holder is None else "CLAIM_HELD")
+                ),
                 as_of=now,
                 inputs={
                     **base_inputs,
@@ -335,7 +419,7 @@ class DynamicBountyPricer:
         return BountyPoolSnapshot(
             quotes=quotes,
             policy_version=self.policy_version,
-            balance_rao=balance,
+            balance_rao=gross_balance,
             wallet_coldkey=self.balance_coldkey,
             wallet_hotkey=self.balance_hotkey,
             netuid=self.balance_netuid,

@@ -25,6 +25,10 @@ from submission_api.auth import Authenticator
 from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
 from submission_api.errors import Forbidden, Unauthorized
+from submission_api.google_identity import (
+    DisabledGoogleCredentialVerifier,
+    GoogleCredentialVerifier,
+)
 from submission_api.mail import MailSender
 from submission_api.sessions import Principal
 from submission_api.payments import PaymentVerifier
@@ -53,6 +57,11 @@ class Services:
     mail: MailSender
     packages: tuple[CreditPackage, ...]
     terms: SubmissionTerms
+    # Fail closed for manually assembled service graphs that do not opt in to Google. Production
+    # construction always replaces this with the client-ID-bound verifier.
+    google: GoogleCredentialVerifier = field(
+        default_factory=DisabledGoogleCredentialVerifier
+    )
     bounty_usd: AlphaUsdPriceReader = field(default_factory=UnavailableAlphaUsdPriceReader)
     # The public view of `catalog`: tasks grouped into slug-addressable conjectures. Derived
     # rather than passed so that building a `Services` at all runs the slug collision check —

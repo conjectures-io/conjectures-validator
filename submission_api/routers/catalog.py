@@ -132,7 +132,7 @@ def _bounty_pool(
         constant_numerator=snapshot.constant_numerator,
         constant_denominator=snapshot.constant_denominator,
         as_of=snapshot.as_of,
-        locked_at_submission=False,
+        locked_at_submission=True,
     )
 
 

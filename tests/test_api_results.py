@@ -39,6 +39,8 @@ from conftest_api import (
     submission_headers,
 )
 
+from conjectures_subnet.attribution import public_credit
+from conjectures_subnet.db import public as public_store
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.models import (
     PayoutState,
@@ -106,7 +108,7 @@ async def _get(kit, path: str, **params):
         return await client.get(path, params=params or None)
 
 
-async def _submit(kit, marker: str, *, hotkey: str = HOTKEY) -> str:
+async def _submit(kit, marker: str, *, hotkey: str = HOTKEY, credit=None) -> str:
     bundle, digest = distinct_bundle(marker, hotkey=hotkey)
     async with await _client(kit) as client:
         response = await client.post(
@@ -118,6 +120,7 @@ async def _submit(kit, marker: str, *, hotkey: str = HOTKEY) -> str:
                 idempotency_key=new_key(),
                 payment_reference=f"0xpay-{marker}",
                 proof_digest=digest,
+                public_credit=credit,
             ),
         )
     assert response.status_code == 201, response.text
@@ -152,6 +155,7 @@ async def _certify(
     notes_public: str | None = None,
     notes_internal: str | None = None,
     later_advisory: bool = False,
+    chain_observed: bool = True,
 ):
     """Drive a verified submission all the way to paid out.
 
@@ -188,6 +192,7 @@ async def _certify(
                 destination_coldkey=COLDKEY,
                 destination_hotkey=submission.hotkey,
                 status=PayoutState.CONFIRMED,
+                chain_observed=chain_observed,
                 extrinsic_reference=f"0xpayout-{submission_id[:8]}",
                 submitted_block=100,
                 finalized_block=101,
@@ -257,6 +262,62 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert "private_prompt" not in response.text
             assert "PRIVATE_ADVISORY_CODE" not in response.text
             assert not {"coldkey", "payment_reference", "payment", "extrinsic"} & set(item)
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_operator_paid_assertion_without_chain_provenance_is_not_certified():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0001-unobserved")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id, chain_observed=False)
+
+            response = await _get(kit, "/v1/results/certified")
+            assert response.status_code == 200
+            assert submission_id not in {item["id"] for item in response.json()["items"]}
+
+            response = await _get(kit, f"/v1/results/{submission_id}")
+            assert response.status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_pending_payout_is_the_displayed_bounty_but_not_a_certification():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0001-pending")
+            await _verify(kit, submission_id)
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                await store.approve_automatically(session, submission)
+                session.add(
+                    RewardEvent(
+                        submission_id=submission.id,
+                        eligibility_reason="REVIEW_APPROVED",
+                        amount_rao=750_000_000,
+                        pricing_policy_version="payout-time-correction",
+                        pricing_inputs={"quote_basis": "payout-time"},
+                        destination_coldkey=COLDKEY,
+                        destination_hotkey=submission.hotkey,
+                        status=PayoutState.PENDING,
+                        initiated_by="test",
+                    )
+                )
+                await session.commit()
+
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                item = (await public_store._decorate(session, [submission]))[0]
+            assert item.bounty_amount_rao == 750_000_000
+            assert item.bounty_policy_version == "payout-time-correction"
+            assert item.certified_at is None
         finally:
             await kit.teardown()
 
@@ -372,6 +433,36 @@ def test_the_solution_is_published_once_review_approves_it():
             # Credited to the solver who submitted it, with no path to their money.
             assert body["hotkey"] == HOTKEY
             assert COLDKEY not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_signed_public_credit_follows_a_result_from_review_to_the_solution():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            credit = public_credit(
+                "The Noether Research Team",
+                "https://example.org/noether-team",
+                "0000-0002-1825-0097",
+            )
+            assert credit is not None
+            submission_id = await _submit(kit, "credit-0030", credit=credit)
+            await _verify(kit, submission_id)
+
+            in_review = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
+            assert in_review["public_credit"] == credit.to_dict()
+            assert in_review["hotkey"] == HOTKEY
+
+            await _certify(kit, submission_id)
+            result = (await _get(kit, f"/v1/results/{submission_id}")).json()
+            solution = (
+                await _get(kit, f"/v1/results/{submission_id}/solution")
+            ).json()
+            assert result["public_credit"] == credit.to_dict()
+            assert solution["public_credit"] == credit.to_dict()
         finally:
             await kit.teardown()
 

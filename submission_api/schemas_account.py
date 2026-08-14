@@ -3,7 +3,8 @@
 The third of three model modules, and the split is the whole point:
 
 * ``schemas.py`` — the miner-facing hotkey-signature surface.
-* ``schemas_public.py`` — world-readable. Nothing here may identify a miner.
+* ``schemas_public.py`` — world-readable. It carries only identity explicitly signed for public
+  credit, never account or payment identity.
 * ``schemas_account.py`` — this file. Served **only** to the authenticated owner of the
   data, so it is the one place where a hotkey, a payout address, a payment reference or a
   balance is allowed to appear.
@@ -58,6 +59,15 @@ class LinkedWallet(Model):
     linked_at: dt.datetime
 
 
+class LinkedIdentity(Model):
+    """An external sign-in method. The provider's stable subject is never exposed."""
+
+    provider: str
+    email: str
+    linked_at: dt.datetime
+    last_used_at: dt.datetime
+
+
 class PayoutDestination(Model):
     """Where rewards go. Both keys or neither — alpha is held as stake."""
 
@@ -77,6 +87,7 @@ class Account(Model):
     )
     hotkeys: tuple[LinkedHotkey, ...]
     wallets: tuple[LinkedWallet, ...]
+    identities: tuple[LinkedIdentity, ...]
     created_at: dt.datetime
 
 
@@ -222,6 +233,14 @@ class SubmissionTerms(Model):
 # --- Submission intents ------------------------------------------------------------------
 
 
+class PublicCredit(Model):
+    """Opt-in authorship frozen on the submission and later shown publicly."""
+
+    name: str
+    url: str | None = None
+    orcid: str | None = None
+
+
 class PreflightResult(Model):
     """A free static check, before a credit is spent.
 
@@ -252,6 +271,7 @@ class SubmissionIntent(Model):
         description="OPEN | BUNDLE_ATTACHED | CONFIRMED | EXPIRED | CANCELLED"
     )
     hotkey: str
+    public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
     credits_held: int
@@ -316,6 +336,7 @@ class SubmissionSummary(Model):
 
     id: uuid.UUID
     hotkey: str
+    public_credit: PublicCredit | None = None
     task_id: str
     proof_sha256: str
     verification_status: str
@@ -323,12 +344,12 @@ class SubmissionSummary(Model):
     reward_status: str
     failure_reason: str | None = None
     bounty_amount_rao: int = Field(
-        description="The estimate captured at intake; not a reserved payout amount."
+        description="The accepted quote; authoritative when bounty_locked is true."
     )
     bounty_policy_version: str
     bounty_locked: bool = Field(
-        default=False,
-        description="Always false for the intake estimate; `reward` carries any fixed payout.",
+        default=True,
+        description="True for V012+ locks; false for grandfathered payout-time submissions.",
     )
     created_at: dt.datetime
     updated_at: dt.datetime
@@ -363,6 +384,7 @@ class SubmissionDetail(Model):
 
     id: uuid.UUID
     hotkey: str
+    public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
     proof_sha256: str
@@ -374,12 +396,12 @@ class SubmissionDetail(Model):
     manual_review_required: bool
     review_policy_version: str
     bounty_amount_rao: int = Field(
-        description="The estimate captured at intake; not a reserved payout amount."
+        description="The accepted quote; authoritative when bounty_locked is true."
     )
     bounty_policy_version: str
     bounty_locked: bool = Field(
-        default=False,
-        description="Always false for the intake estimate; `reward` carries any fixed payout.",
+        default=True,
+        description="True for V012+ locks; false for grandfathered payout-time submissions.",
     )
     funding: FundingSummary
     verification: VerificationSummary | None = None
@@ -460,6 +482,7 @@ __all__ = [
     "OwnerVerificationReport",
     "PayoutDestination",
     "PreflightResult",
+    "PublicCredit",
     "ReviewDecisionView",
     "RewardItem",
     "RewardSummary",

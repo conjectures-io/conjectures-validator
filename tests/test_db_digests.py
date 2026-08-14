@@ -9,6 +9,7 @@ import pytest
 
 pytest.importorskip("sqlalchemy", reason="the db extra provides SQLAlchemy")
 
+from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import digests
 from conjectures_subnet.db.submissions import canonical_request_digest
 from verifier.hashing import sha256_bytes
@@ -125,3 +126,16 @@ def test_request_digest_does_not_depend_on_argument_order():
         hotkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
     )
     assert forward == backward
+
+
+def test_public_credit_is_covered_by_the_request_signature():
+    credit = public_credit(
+        "Emmy Noether",
+        "https://example.org/emmy-noether",
+        "0000-0002-1825-0097",
+    )
+    assert credit is not None
+
+    credited = _digest(public_credit=credit)
+    assert credited != _digest()
+    assert credited != _digest(public_credit=public_credit("Another Researcher"))
