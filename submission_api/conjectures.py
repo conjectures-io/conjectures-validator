@@ -32,6 +32,8 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from submission_api.naming import ProblemName, problem_name
+from submission_api.retired import RetiredConjecture, RetiredIndex
 from submission_api.slugs import legacy_theorem_slug, matches_legacy_slug, slug_for
 from submission_api.taskpool import TaskCatalog, TaskEntry
 from verifier.models import CatalogDeclaration
@@ -66,6 +68,24 @@ MAX_QUERY_LENGTH = 200
 # the summary. No regular expression is ever built from caller input — a catastrophically
 # backtracking pattern over a few hundred statements would be a free CPU sink.
 QUERY_STRIP = re.compile(r"\s+")
+
+# What separates a conjecture's root theorem from the qualifier naming one of its variants:
+# `Erdos1.erdos_1` against `Erdos1.erdos_1.variants.lb`. Upstream never nests these — no
+# declaration in the pinned catalog contains the separator twice — so one split is enough, and
+# splitting at most once keeps a dotted qualifier like `monotone.parts.i` whole rather than
+# truncating it at its first dot.
+VARIANT_SEPARATOR = ".variants."
+
+# Upstream files each Erdős problem in a module named for its number on erdosproblems.com:
+# `FormalConjectures.ErdosProblems.«1»`, guillemets included because a bare digit is not a legal
+# Lean identifier.
+#
+# The number is read from the *module*, never from the theorem name. Every one of the 509 Erdős
+# modules in the pinned catalog matches this pattern exactly, while 20 theorem names are mangled
+# by Lean's private-declaration scheme into `_private.FormalConjectures.ErdosProblems.«1049».0.
+# Erdos1049.lambert_convergent` — a theorem-name parser would have to special-case those, and
+# getting it wrong publishes the wrong problem number rather than none.
+ERDOS_MODULE = re.compile(r"^FormalConjectures\.ErdosProblems\.«(\d{1,9})»$")
 
 
 class CatalogGroupingError(RuntimeError):
@@ -121,6 +141,173 @@ class Conjecture:
         return tuple(task.task_id for task in self.tasks)
 
 
+def root_theorem(theorem: str) -> str:
+    """The theorem a variant is a variant *of*, or the theorem itself.
+
+    `Erdos1.erdos_1.variants.lb` and `Erdos1.erdos_1` both answer `Erdos1.erdos_1`, which is what
+    makes them one problem in the index.
+    """
+    return theorem.split(VARIANT_SEPARATOR, 1)[0]
+
+
+def variant_qualifier(theorem: str) -> str | None:
+    """The part of a variant's name that says *which* variant, or None for a root theorem.
+
+    Returned whole, dots and all: `Erdos357.erdos_357.variants.monotone.parts.i` qualifies as
+    `monotone.parts.i`, because upstream nests the qualifier rather than the variant.
+    """
+    parts = theorem.split(VARIANT_SEPARATOR, 1)
+    return parts[1] if len(parts) == 2 else None
+
+
+def erdos_problem_number(module: str) -> int | None:
+    """The erdosproblems.com problem number this module formalises, or None.
+
+    None is the answer for every other collection in the pool — Wikipedia, OEIS, the Millennium
+    problems, and the rest — rather than an error, because "not an Erdős problem" is an ordinary
+    thing for a conjecture to be. It is also the answer if a future rotation invents a module name
+    this does not recognise: publishing no number is recoverable, publishing a wrong one is not.
+    """
+    matched = ERDOS_MODULE.match(module)
+    return int(matched.group(1)) if matched is not None else None
+
+
+@dataclass(frozen=True)
+class FamilyMember:
+    """One conjecture as the problem index sees it, live or retired.
+
+    A normalised view rather than either concrete type. `Conjecture` and `RetiredConjecture` are
+    deliberately different classes — one carries the `TaskManifest` a verifier runs against, the
+    other cannot and must not fabricate one — and the index needs exactly the four facts they both
+    honestly have. Flattening them here is what lets the grouping treat a retired variant as a
+    member of its family without either type learning about the other.
+
+    `retired` is carried on the member, not inferred by the caller from which list it came out of.
+    That is the whole reason a retired conjecture can be published in a table of contents at all:
+    the flag travels with it.
+    """
+
+    slug: str
+    theorem: str
+    module: str
+    task_modes: tuple[str, ...]
+    retired: bool
+
+
+def _member(item: Conjecture | RetiredConjecture, *, retired: bool) -> FamilyMember:
+    return FamilyMember(
+        slug=item.slug,
+        theorem=item.source.theorem,
+        module=item.source.module,
+        task_modes=item.task_modes,
+        retired=retired,
+    )
+
+
+@dataclass(frozen=True)
+class ProblemFamily:
+    """One upstream problem: the conjecture that stands for it, and its pooled variants.
+
+    Coarser than a `Conjecture`. Upstream formalises a problem as a root theorem plus any number
+    of `.variants.*` siblings — weaker forms, one-sided bounds, named special cases — and each of
+    those is its own reward target, its own slug and its own bounty. That is correct for everything
+    the rest of the catalog does, and wrong for a caller that wants to know which *problems* exist:
+    Erdős 1 alone would be eight rows.
+
+    So the derived fields are flattened onto this record rather than left as properties over
+    `representative`. A family is what the index publishes, and computing `qualifier` from a
+    theorem name at the point of serialisation is how the two drift apart.
+
+    `retired` describes the conjecture at `slug` alone — never the family. A family headed by a
+    retired root can still hold submittable variants, so a caller that wants open targets has to
+    read the members' own flags rather than filter on this one.
+    """
+
+    slug: str
+    source_theorem: str
+    erdos_problem_number: int | None
+    qualifier: str | None
+    retired: bool
+    # Read from the representative's declaration, and flattened on for the reason above: an entry
+    # publishes one name, and deriving it at serialisation time is how the index and the detail page
+    # come to disagree about what a problem is called.
+    name: ProblemName
+    # The other members of the family, ordered by slug, never including the one at `slug` above.
+    variants: tuple[FamilyMember, ...]
+
+
+# What makes one member of a family the one that heads it. Lower sorts first, so: the root theorem
+# before any variant, a live conjecture before a retired one, then slug for a total order.
+#
+# The root wins *even when it is retired* and live variants exist. That looks backwards until you
+# ask what changes when a root is retired: under the other rule the entry's `slug` and
+# `source_theorem` would move to some variant, so retiring one target would silently rename the
+# problem it belongs to. The whole point of a stable slug is that a published URL survives events
+# like this, and a table of contents whose rows are renumbered by a retirement is not one. So the
+# header stays put and `retired` reports what happened to it.
+def _precedence(member: FamilyMember, root: str) -> tuple[bool, bool, str]:
+    return (member.theorem != root, member.retired, member.slug)
+
+
+def families(index: ConjectureIndex) -> tuple[ProblemFamily, ...]:
+    """Group the pool into one entry per upstream problem, ordered by slug.
+
+    Retired targets are included, each flagged as such. Unlike `all()` and `query()` — which
+    describe what may be submitted against, and so must never show a withdrawn target — this is a
+    table of contents: a problem that has left the pool is still part of what the pool has covered,
+    its detail page is still readable, and the results earned against it are still citable. Hiding
+    it here would make the index disagree with the pages it links to.
+
+    The two lists cannot collide. `ConjectureIndex.build` refuses to start when a slug is both live
+    and retired, so every member of every family has a distinct slug and no conjecture can be
+    grouped twice.
+
+    The representative is the root theorem when the pool carries it. When it does not — 241 of the
+    pinned catalog's 942 variants have no root declaration at all, which leaves 70 of its 2395
+    problems headed by a variant — the best-precedence variant stands in for the problem, and a
+    non-null `qualifier` is what tells a reader that happened. An ordinary case with real data
+    behind it, not a defensive branch.
+
+    Note that `erdos_problem_number` is not a key over the result: 934 of those problems carry a
+    number and only 509 numbers are distinct, because upstream regularly formalises one Erdős
+    problem as several independent root theorems in one module.
+    """
+    members = [_member(item, retired=False) for item in index.all()]
+    members.extend(_member(item, retired=True) for item in index.retired.all())
+
+    grouped: dict[str, list[FamilyMember]] = {}
+    for member in members:
+        grouped.setdefault(root_theorem(member.theorem), []).append(member)
+
+    built = []
+    for root, family in grouped.items():
+        representative = min(family, key=lambda item: _precedence(item, root))
+        built.append(
+            ProblemFamily(
+                slug=representative.slug,
+                source_theorem=representative.theorem,
+                # Read from the representative alone, which is well defined because a family never
+                # spans two modules: no root theorem in the pinned catalog has a variant declared
+                # outside its own file.
+                erdos_problem_number=erdos_problem_number(representative.module),
+                qualifier=variant_qualifier(representative.theorem),
+                retired=representative.retired,
+                name=problem_name(
+                    module=representative.module, theorem=representative.theorem
+                ),
+                # Ordered by slug alone, deliberately not with the retired ones pushed to the end:
+                # retiring a variant must not reorder the list a reader has already seen.
+                variants=tuple(
+                    sorted(
+                        (item for item in family if item.slug != representative.slug),
+                        key=lambda item: item.slug,
+                    )
+                ),
+            )
+        )
+    return tuple(sorted(built, key=lambda item: item.slug))
+
+
 def _mode_order(entry: TaskEntry) -> tuple[int, str]:
     mode = entry.manifest.task_mode
     if mode in PRODUCTION_TASK_MODES:
@@ -139,10 +326,26 @@ class ConjectureIndex:
     # Every current task id, so a URL minted from one can be redirected to its slug rather than
     # 404ing. Only this rotation's ids are in here; older ones go through `resolve_legacy`.
     slug_by_task_id: Mapping[str, str]
+    # Targets that have left the pool. Held beside the live grouping rather than merged into it:
+    # `all()` and `query()` describe what can be submitted against, and a retired target must
+    # never appear in either. Only `get_retired` reaches this, and only after `get` has missed.
+    retired: RetiredIndex = RetiredIndex.empty()
 
     @classmethod
-    def build(cls, catalog: TaskCatalog) -> ConjectureIndex:
+    def build(
+        cls, catalog: TaskCatalog, *, retired: RetiredIndex | None = None
+    ) -> ConjectureIndex:
         by_slug = _grouped(catalog.summaries())
+        resolved = retired or RetiredIndex.empty()
+        # A live target and a retired one at the same URL would make which page a reader gets
+        # depend on lookup order. It cannot happen — retirement removes the target from the
+        # allowlist that built `by_slug` — so if it does, the pin is inconsistent.
+        collisions = sorted(set(by_slug) & set(resolved.by_slug))
+        if collisions:
+            raise CatalogGroupingError(
+                f"slugs are both live and retired: {collisions}; the pinned task checkout "
+                "disagrees with its own allowlist"
+            )
         slug_by_task_id = {
             task_id: conjecture.slug
             for conjecture in by_slug.values()
@@ -152,10 +355,19 @@ class ConjectureIndex:
             repository_commit=catalog.repository_commit,
             by_slug=by_slug,
             slug_by_task_id=slug_by_task_id,
+            retired=resolved,
         )
 
     def get(self, slug: str) -> Conjecture | None:
+        """The live conjecture at this slug, or None. Never returns a retired one.
+
+        Callers that serve a page fall through to `get_retired`; callers that decide whether
+        something may be submitted against must not, which is why this stays live-only.
+        """
         return self.by_slug.get(slug)
+
+    def get_retired(self, slug: str) -> RetiredConjecture | None:
+        return self.retired.get(slug)
 
     def all(self) -> tuple[Conjecture, ...]:
         return tuple(sorted(self.by_slug.values(), key=lambda item: item.slug))
@@ -167,10 +379,17 @@ class ConjectureIndex:
         earlier rotation is not in the pool at all — that is the whole problem — so it is matched
         on the theorem fragment embedded in it, which does not depend on the commit.
 
+        Retired targets participate in both paths. A task id naming a bundle that was deleted is
+        precisely the link most likely to be in circulation — it is on every report and every
+        result already published against that target — and it now resolves to the page that
+        explains why the target closed rather than to a 404.
+
         A fragment matching more than one theorem returns None, so an ambiguous legacy URL 404s.
         Sending a reader to the wrong conjecture is worse than telling them the link is dead.
         """
-        exact = self.slug_by_task_id.get(candidate)
+        exact = self.slug_by_task_id.get(candidate) or self.retired.slug_by_task_id.get(
+            candidate
+        )
         if exact is not None:
             return exact
         embedded = legacy_theorem_slug(candidate)
@@ -178,7 +397,7 @@ class ConjectureIndex:
             return None
         matched = [
             conjecture.slug
-            for conjecture in self.by_slug.values()
+            for conjecture in (*self.by_slug.values(), *self.retired.by_slug.values())
             if matches_legacy_slug(conjecture.source.theorem, embedded)
         ]
         if len(matched) != 1:
@@ -273,14 +492,34 @@ def is_open(conjecture: Conjecture) -> bool:
     return conjecture.source.category == OPEN_CATEGORY
 
 
-def title(conjecture: Conjecture) -> str:
+def title(conjecture: Conjecture | RetiredConjecture) -> str:
     """The conjecture's citable name: the fully-qualified source theorem.
 
     An identifier, not prose. No human title exists in the upstream catalog and inventing one
     here would mean the website displayed a name that appears in no audited artifact; the
-    docstring, carried as `summary`, is the human-readable half.
+    docstring, carried as `summary`, is the human-readable half, and `display_name` below is the
+    same identifier re-spaced for a heading.
+
+    Accepts a retired conjecture as well as a live one, and answers identically for both. That is
+    the point of taking the union type rather than leaving each caller to reach for
+    `.source.theorem` when the live lookup misses: retirement deletes the bundles, not the name of
+    the theorem they contained, so a page or a result row that named the conjecture yesterday must
+    name it the same way today. Nothing here reads a `TaskManifest`, which is precisely the field a
+    `RetiredConjecture` does not and must not have.
     """
     return conjecture.source.theorem
+
+
+def display_name(conjecture: Conjecture | RetiredConjecture) -> ProblemName:
+    """The same conjecture as a heading a reader can use, with the parts it was built from.
+
+    Derived from the source declaration alone — module and theorem — so it holds for a retired
+    target too, and so it cannot disagree with `title`, which reads the same declaration. See
+    `submission_api.naming` for what is derived and what is deliberately not invented.
+    """
+    return problem_name(
+        module=conjecture.source.module, theorem=conjecture.source.theorem
+    )
 
 
 def searchable(conjecture: Conjecture) -> str:
@@ -427,6 +666,7 @@ def tally(items: Sequence[Conjecture], field: str) -> tuple[FacetCount, ...]:
 
 
 __all__ = [
+    "ERDOS_MODULE",
     "FACET_AMS_SUBJECT",
     "FACET_CATEGORY",
     "FACET_CLASSIFICATION",
@@ -439,15 +679,23 @@ __all__ = [
     "SORT_ANSWER",
     "SORT_CATEGORY",
     "SORT_SLUG",
+    "VARIANT_SEPARATOR",
     "CatalogGroupingError",
     "CatalogPage",
     "Conjecture",
     "ConjectureFilters",
     "ConjectureIndex",
     "FacetCount",
+    "FamilyMember",
+    "ProblemFamily",
+    "display_name",
+    "erdos_problem_number",
+    "families",
     "is_open",
     "query",
+    "root_theorem",
     "searchable",
     "tally",
     "title",
+    "variant_qualifier",
 ]

@@ -19,15 +19,26 @@ by remembering to omit a field:
   later is withheld by default rather than published because nobody remembered to add it to a
   denylist.
 
-`GET /v1/results/{id}` answers `404` for a submission that is not on a public feed, rather than
-`403`. A submission id is a UUID a miner holds; distinguishing "not published" from "does not
-exist" would turn this endpoint into a probe for the state of submissions that have not been
-published yet.
+`GET /v1/results/{id}` publishes every Lean-verified submission, whatever manual review later
+decides. Everything outside that gate answers `404`, rather than `403`. A submission id is a UUID
+a miner holds, so distinguishing "not published" from "does not exist" would turn this endpoint
+into a probe for queued or Lean-failed work.
 
-The three feeds are one predicate apart and share `_feed`: `/certified` is paid out, `/in-review`
-is awaiting the reward decision, and `/submissions` is their union for a dashboard that wants both
-in one request. None of them can widen past what `conjectures_subnet.db.public` will publish —
-each is a named query in that module, and an unfiltered read of `submissions` is not one of them.
+The three feeds share `_feed` and differ only in the query they read: `/certified` is paid out,
+`/in-review` is awaiting the reward decision, and `/submissions` is every submission in every
+state, for a dashboard that reports the whole pipeline rather than only its successes. Each is a
+named query in `conjectures_subnet.db.public`, so a handler here cannot compose a wider read than
+that module offers.
+
+`/submissions` listing rejected and unverified rows does not loosen any of the three rules above.
+It publishes *that* an attempt exists and where it got to — the three `*_status` fields — and
+nothing more: its proof is still gated on approval, its report on Lean verification, and the money
+trail is absent from the row type either way.
+
+The conjecture each result names is resolved by `named_of`, which reads the live index and then the
+retired one — the same two steps `GET /v1/catalog/conjectures/{slug}` takes. A result outlives the
+pin it was produced under and can outlive the target itself, and neither event may change how it is
+labelled: what a solver earned credit for is the theorem, and the theorem does not move.
 """
 
 from __future__ import annotations
@@ -35,6 +46,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
@@ -101,8 +113,12 @@ def _cache(response: Response, settings: Settings) -> None:
     )
 
 
-def _slug(row: public_store.ResultRow) -> str:
+def slug_of(row: public_store.ResultRow) -> str:
     """The stable slug for the conjecture a result is against.
+
+    Public, with `named_of` below, because the reviewer surface in `routers/admin.py` names the same
+    conjecture from the same row type. Duplicating the fallback chain there is how the public feed
+    and the review panel would come to disagree about what a retired conjecture is called.
 
     Derived from the row's own `reward_target_id`, not looked up in the catalog. A result outlives
     the pin set it was produced under, so after a rotation its `task_id` names a task the current
@@ -121,27 +137,55 @@ def _slug(row: public_store.ResultRow) -> str:
         return row.reward_target_id
 
 
-def _title_and_statement(index: ConjectureIndex, row: public_store.ResultRow) -> tuple[str, str]:
-    """The conjecture a result is against, as the catalog states it.
+@dataclass(frozen=True)
+class Named:
+    """Everything a result publishes about the conjecture it is against."""
+
+    display_title: str
+    title_parts: public.TitleParts | None
+    title: str
+    statement: str
+
+
+def named_of(index: ConjectureIndex, row: public_store.ResultRow) -> Named:
+    """The conjecture a result is against, as the catalog names and states it.
 
     Looked up by slug rather than by `task_id`, so a result produced under an earlier pin still
-    gets its current statement and title instead of degrading. A conjecture that has since left
-    the pool entirely is not in the index at all; that is a normal state, not an error — the
-    durable record keeps the old digests and reports — so the labels degrade to the slug rather
-    than failing the read.
+    gets its current statement and title instead of degrading. The reward target is stable across
+    rotations; the task ids built from it are not.
+
+    Falls through to the retired index on a miss, in the same order and for the same reason
+    `GET /v1/catalog/conjectures/{slug}` does — a retirement deletes the bundles, not the
+    conjecture. Without this, retiring a target silently relabelled every result already earned
+    against it: the row kept its `slug`, so the link still worked, but the name fell back to that
+    slug and `statement` emptied, and a solver's certified proof came to be listed under a URL
+    fragment rather than the theorem it closed.
+
+    One case reaches the fallback: a `reward_target_id` in neither index, which is what the `V004`
+    backfill left behind when it could not map a row's `problem_id` — see `slug_of`. Those name no
+    conjecture in any pin, so there is nothing to look up and no name being withheld. `title_parts`
+    is null there rather than invented, and `display_title` degrades to the slug, because a public
+    feed must not fail over one historical row.
     """
-    item = index.get(_slug(row))
+    slug = slug_of(row)
+    item = index.get(slug) or index.get_retired(slug)
     if item is None:
-        return _slug(row), ""
-    return conjectures.title(item), item.source.type_pretty
+        return Named(display_title=slug, title_parts=None, title=slug, statement="")
+    name = conjectures.display_name(item)
+    return Named(
+        display_title=name.display_title,
+        title_parts=public.TitleParts.of(name),
+        title=conjectures.title(item),
+        statement=item.source.type_pretty,
+    )
 
 
-def _certified(
+def _result(
     row: public_store.ResultRow,
     index: ConjectureIndex,
     alpha_usd: Decimal | None,
 ) -> public.PublicResult:
-    title, statement = _title_and_statement(index, row)
+    named = named_of(index, row)
     credit = public_credit(
         row.public_credit_name, row.public_credit_url, row.public_credit_orcid
     )
@@ -149,10 +193,17 @@ def _certified(
         id=row.id,
         hotkey=row.hotkey,
         public_credit=None if credit is None else credit.to_dict(),
-        slug=_slug(row),
+        # Serialised as the enum's value, matching `/v1/submissions/{id}` and the account panel,
+        # so a client reads one vocabulary of state names across the whole API.
+        verification_status=str(row.verification_status),
+        manual_review_status=str(row.manual_review_status),
+        reward_status=str(row.reward_status),
+        slug=slug_of(row),
         task_id=row.task_id,
-        title=title,
-        statement=statement,
+        display_title=named.display_title,
+        title_parts=named.title_parts,
+        title=named.title,
+        statement=named.statement,
         task_bundle_sha256=digests.to_prefixed(row.task_bundle_sha256),
         verified_at=_utc(row.verified_at),
         certified_at=_utc(row.certified_at),
@@ -182,7 +233,7 @@ def _in_review(
     index: ConjectureIndex,
     _alpha_usd: Decimal | None,
 ) -> public.InReviewResult:
-    title, statement = _title_and_statement(index, row)
+    named = named_of(index, row)
     credit = public_credit(
         row.public_credit_name, row.public_credit_url, row.public_credit_orcid
     )
@@ -190,10 +241,12 @@ def _in_review(
         id=row.id,
         hotkey=row.hotkey,
         public_credit=None if credit is None else credit.to_dict(),
-        slug=_slug(row),
+        slug=slug_of(row),
         task_id=row.task_id,
-        title=title,
-        statement=statement,
+        display_title=named.display_title,
+        title_parts=named.title_parts,
+        title=named.title,
+        statement=named.statement,
         task_bundle_sha256=digests.to_prefixed(row.task_bundle_sha256),
         verified_at=_utc(row.verified_at),
         review_policy_version=row.review_policy_version,
@@ -263,7 +316,7 @@ async def list_certified(
 ) -> public.CursorPage[public.PublicResult]:
     page = await _feed(
         fetch=public_store.certified_page,
-        shape=_certified,
+        shape=_result,
         services=services,
         session=session,
         response=response,
@@ -304,7 +357,7 @@ async def list_in_review(
 @router.get(
     "/submissions",
     response_model=public.CursorPage[public.PublicResult],
-    summary="Every published result in one feed, for the public dashboard",
+    summary="Every submission in every state, newest first, for the public dashboard",
 )
 async def list_all(
     response: Response,
@@ -315,11 +368,19 @@ async def list_all(
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 50,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
 ) -> public.CursorPage[public.PublicResult]:
-    """The certified and in-review feeds interleaved, so a dashboard makes one request.
+    """Every submission, newest first, whatever state it is in.
 
-    Shaped as `PublicResult` in both cases, for the reason `read_result` gives: an in-review row
-    simply has no `certified_at`, and a client that has to branch on which of two response models
-    it got is worse than one that reads a nullable field.
+    Unfiltered, so a dashboard reports the whole pipeline in one request: queued and running
+    attempts, rejected ones, proofs in review, and certified payouts. `verification_status`,
+    `manual_review_status` and `reward_status` on each item say which. A feed that dropped
+    rejections would show a reader only the successes and read as the complete history.
+
+    Ordered by `(created_at, id)` descending — newest first, the same order the two narrower feeds
+    use, and the order the keyset cursor pages through.
+
+    One shape for every state, for the reason `read_result` gives: a row that is not yet certified
+    simply has no `certified_at`, and a client that has to branch on which of several response
+    models it got is worse than one that reads nullable fields and a status.
 
     Declared above `/{result_id}` because Starlette matches routes in declaration order and
     `submissions` is a valid path segment: registered after, every request to this path is parsed
@@ -327,7 +388,7 @@ async def list_all(
     """
     page = await _feed(
         fetch=public_store.all_results_page,
-        shape=_certified,
+        shape=_result,
         services=services,
         session=session,
         response=response,
@@ -357,7 +418,7 @@ async def read_result(
     # Shaped as a certified result in both cases. An in-review row simply has no `certified_at`,
     # which is the honest representation — the alternative is two response models on one path,
     # and a client that has to branch on which one it got.
-    return _certified(row, services.index, alpha_usd)
+    return _result(row, services.index, alpha_usd)
 
 
 @router.get(
@@ -384,7 +445,7 @@ async def read_report(
     _cache(response, services.settings)
     return public.PublicVerificationReport(
         id=row.id,
-        slug=_slug(row),
+        slug=slug_of(row),
         # The digest of the *full* report, not of the subset below, so it still matches the
         # immutable bytes recorded on the run and the miner's own copy of the same report.
         report_sha256=digests.to_prefixed(digest),
@@ -430,7 +491,7 @@ async def read_solution(
         id=row.id,
         hotkey=row.hotkey,
         public_credit=None if credit is None else credit.to_dict(),
-        slug=_slug(row),
+        slug=slug_of(row),
         # The name the bytes carry inside the verified bundle, from the module that enforces it,
         # so the published filename cannot drift from the one intake accepted.
         filename=PROOF_NAME,

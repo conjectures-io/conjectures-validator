@@ -24,6 +24,7 @@ from verifier.task_pool import (
     TASK_POOL_TASK_SCOPE,
     REWARD_TARGET_POLICY,
     group_task_declarations,
+    load_retired_conjectures,
     load_retired_sources,
     load_selection_audit,
     load_task_grouping,
@@ -80,7 +81,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 143
+    assert len({item.source_path for item in selected}) == 141
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -199,7 +200,7 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
 
 def test_newly_retired_targets_are_recorded_but_not_admitted():
     newly_retired = {
-        "Erdos1199.erdos_1199",
+        # 2026-08-05: defective or exploitable formalizations found by audit.
         "Erdos1055.erdos_1055.variants.erdos_limit",
         "Erdos1055.erdos_1055.variants.selfridge_limit",
         "Erdos1093.erdos_1093.parts.ii",
@@ -207,6 +208,19 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
         "Erdos510.erdos_510",
         "Green54.green_54",
         "Green77.green_77",
+        # 2026-08-06: targets a verified submission settled; see the task
+        # repository's RETIREMENTS.md for the reason attached to each.
+        "Erdos10.erdos_10.variants.grechuk",
+        "Erdos939.erdos_939",
+        "Green29.green_29",
+        "Green42.green_42",
+        # 2026-08-12: one mechanically ineligible formalization and one
+        # conjecture solved in the literature before admission.
+        "Erdos510.erdos_510",
+        "Erdos1199.erdos_1199",
+        # Production retirements that predated this pool expansion.
+        "Erdos567.erdos_567.parts.i",
+        "Green3.green_3",
     }
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
@@ -223,6 +237,38 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
         for row in policy["allowed_task_bundles"]
     )
     assert all(f"`{theorem}`" in retirement_log for theorem in newly_retired)
+
+
+def test_retired_conjectures_are_readable_but_never_admissible():
+    """The display payload must cover every retired target and admit none of them.
+
+    This is the whole point of keeping it in a separate file: a retired conjecture stays
+    readable on the website forever, while `allowed_task_bundles` — the only list the
+    submission and verification paths consult — never grows a single entry for it.
+    """
+    retired = load_retired_conjectures(TIER_METADATA / "retired-conjectures.json")
+    sources = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
+    policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
+
+    assert retired.entries
+    assert policy["tier_policies"][DEFAULT_TASK_TIER][
+        "retired_conjectures_sha256"
+    ] == retired.sha256
+
+    theorems = {entry["theorem"] for entry in retired.entries.values()}
+    # Everything on display is genuinely retired, so a live target can never be shown as closed.
+    assert theorems <= sources.theorems
+    assert theorems.isdisjoint(row["theorem"] for row in policy["allowed_source_theorems"])
+    assert all(
+        theorems.isdisjoint(row["theorems"]) for row in policy["allowed_task_bundles"]
+    )
+
+    # Each entry carries what a problem page renders, for both attack directions.
+    for entry in retired.entries.values():
+        assert entry["source"]["theorem"] == entry["theorem"]
+        assert entry["source"]["repository_commit"] == retired.repository_commit
+        assert {task["task_mode"] for task in entry["tasks"]} == set(PRODUCTION_TASK_MODES)
+        assert all(task["challenge_lean"].strip() for task in entry["tasks"])
 
 
 def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path):
@@ -281,6 +327,7 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
                 "pool_size": MINIMUM_ERDOS_TASKS * len(PRODUCTION_TASK_MODES),
                 "reward_target_count": MINIMUM_ERDOS_TASKS,
                 "reward_target_policy": REWARD_TARGET_POLICY,
+                "retired_conjectures_sha256": "sha256:" + "e" * 64,
                 "retired_source_theorems_sha256": "sha256:" + "d" * 64,
                 "selection": TASK_POOL_SELECTION,
                 "selection_audit_sha256": "sha256:" + "e" * 64,

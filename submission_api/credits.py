@@ -31,10 +31,26 @@ PACKAGE_SPEC = re.compile(r"^(\d{1,6})(?::(\d{1,6}))?$")
 MAX_PACKAGES = 8
 MAX_TERMS_BYTES = 256 * 1024
 
-# How a deposit can be paid. Only one exists today; the list is here because the website
-# renders it and adding a second must not change the response shape.
+# How credits can be paid for.
+#
+# `btcli` is a transfer straight to the treasury, confirmed by reading finalized chain state —
+# `payments.py` and `deposit_watcher/`. `tmc_pay` is an invoice at the TMC PAY processor, which
+# derives its own deposit address, confirms the payment, and settles to the treasury later; see
+# `submission_api/tmc_pay.py` for what that changes about the evidence behind a credit.
+#
+# Both charge the same `CREDIT_PRICE_RAO` per credit. `payment_methods` filters the list by what
+# the deployment is actually configured for, because a method the website renders and the API
+# cannot serve is worse than one it does not offer.
 METHOD_BTCLI = "btcli"
-PAYMENT_METHODS = (METHOD_BTCLI,)
+METHOD_TMC_PAY = "tmc_pay"
+PAYMENT_METHODS = (METHOD_BTCLI, METHOD_TMC_PAY)
+
+
+def payment_methods(*, tmc_pay_enabled: bool) -> tuple[str, ...]:
+    """The methods this deployment can actually take money through."""
+    if tmc_pay_enabled:
+        return PAYMENT_METHODS
+    return (METHOD_BTCLI,)
 
 
 class CreditsConfigError(RuntimeError):
@@ -231,10 +247,12 @@ __all__ = [
     "DISQUALIFICATION_REASONS",
     "MAX_PACKAGES",
     "METHOD_BTCLI",
+    "METHOD_TMC_PAY",
     "PAYMENT_METHODS",
     "CreditPackage",
     "CreditsConfigError",
     "SubmissionTerms",
     "btcli_command",
     "parse_packages",
+    "payment_methods",
 ]

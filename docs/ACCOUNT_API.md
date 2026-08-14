@@ -13,12 +13,17 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/auth/google/link` | `{ account }` | Explicitly attach Google to the signed-in account |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
 | `POST` | `/v1/auth/wallet/verify` | `{ account }` | Verify the signature, open a session |
-| `POST` | `/v1/auth/logout` | `204` | Revoke the session and clear the cookies |
+| `POST` | `/v1/auth/cli/challenge` | `{ nonce, message, expires_at }` | A nonce for a hotkey to sign |
+| `POST` | `/v1/auth/cli/verify` | `CliSession` | Verify the hotkey signature, mint a bearer token |
+| `POST` | `/v1/auth/logout` | `204` | Revoke **this** session; clear the cookies if it is one |
 | `GET` | `/v1/me` | `Account` | Profile, roles, linked keys, payout address |
-| `PATCH` | `/v1/me` | `Account` | Edit `display_name` |
-| `POST` | `/v1/me/hotkeys/challenge` | `{ nonce, message }` | A nonce for linking a hotkey |
-| `POST` | `/v1/me/hotkeys` | `Account` | Link a hotkey by signature |
-| `PUT` | `/v1/me/payout` | `Account` | Payout destination: coldkey plus hotkey |
+| `PATCH` | `/v1/me` | `Account` | Edit `display_name` — browser only |
+| `GET` | `/v1/me/sessions` | `SessionView[]` | Every live session, both kinds |
+| `DELETE` | `/v1/me/sessions/{id}` | `204` | Revoke one session |
+| `DELETE` | `/v1/me/sessions?kind=` | `204` | Revoke every *other* session, optionally of one kind |
+| `POST` | `/v1/me/hotkeys/challenge` | `{ nonce, message }` | A nonce for linking a hotkey — browser only |
+| `POST` | `/v1/me/hotkeys` | `Account` | Link a hotkey by signature — browser only |
+| `PUT` | `/v1/me/payout` | `Account` | Payout destination: coldkey plus hotkey — browser only |
 | `GET` | `/v1/me/credits` | `CreditBalance` | Available credits, balance, holds, remainder |
 | `GET` | `/v1/me/credits/ledger` | `CursorPage<CreditLedgerEntry>` | The append-only ledger |
 | `POST` | `/v1/me/deposits` | `Deposit` | Declare a deposit, get the `btcli` command |
@@ -34,6 +39,10 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `PUT` | `/v1/submissions/intents/{id}/bundle` | `IntentBundleResult` | Upload, receive the digest to sign |
 | `POST` | `/v1/submissions/intents/{id}/confirm` | `{ submission, credits }` | Debit and submit, atomically |
 | `GET` | `/v1/submissions/intents/{id}` | `SubmissionIntent` | Intent state |
+| `GET` | `/v1/admin/accounts/{id}` | `Account` | One account — `ADMIN`, browser only |
+| `PUT` | `/v1/admin/accounts/{id}/roles` | `Account` | Replace an account's roles — `ADMIN`, browser only |
+| `GET` | `/v1/admin/accounts/{id}/sessions` | `SessionView[]` | An account's live sessions — `ADMIN`, browser only |
+| `DELETE` | `/v1/admin/accounts/{id}/sessions` | `204` | Cut every credential an account holds — `ADMIN`, browser only |
 
 Response models are in
 [`../submission_api/schemas_account.py`](../submission_api/schemas_account.py) — the third of
@@ -54,9 +63,47 @@ Paid.
 
 ## Sessions
 
-An opaque token in an HttpOnly cookie, backed by a row. Deliberately not a JWT: a JWT here would
-be either short-lived — meaning a refresh mechanism, meaning a second credential — or long-lived
-and unrevocable, meaning a logout that does not log anything out. One `UPDATE` revokes a row.
+An opaque token backed by a row. Deliberately not a JWT: a JWT here would be either short-lived —
+meaning a refresh mechanism, meaning a second credential — or long-lived and unrevocable, meaning
+a logout that does not log anything out. One `UPDATE` revokes a row.
+
+**Two kinds, in one table.** A browser gets an HttpOnly cookie; the miner CLI gets a bearer token
+in an `Authorization` header. Everything that matters is shared — 256 bits from the OS CSPRNG,
+stored only as a digest, an expiry, revocation in one `UPDATE` — so they are one table with a
+`kind` discriminator rather than two tables that would duplicate the authenticate/revoke/expire
+logic and then drift.
+
+| | `COOKIE` | `BEARER` |
+| --- | --- | --- |
+| Opened by | coldkey signature, or a mailbox | a **linked** hotkey's signature |
+| Held in | `conjectures_session` cookie | `~/.config/conjectures/session.json`, mode `0600` |
+| CSRF token | required | none, and none stored |
+| Scoped to | the account | one hotkey (`hotkey_scope`) |
+| Lifetime | `SESSION_DAYS` rolling, uncapped | `CLI_SESSION_DAYS` rolling, capped at `CLI_SESSION_MAX_DAYS` |
+| May take over the account | yes — it is the account holder | **no**, see below |
+
+The two are **not interchangeable**. `accounts.authenticate` takes the kind it expects and puts
+it in the predicate, so a cookie token replayed in an `Authorization` header resolves to nothing,
+and a bearer token planted in the session cookie resolves to nothing. Neither is reachable by an
+attacker who does not already hold the secret — the cookie is HttpOnly — but the two carry
+different CSRF obligations, and a credential that can change which rules apply to it by changing
+where it is presented is much cheaper to forbid than to reason about at every call site.
+
+**A bearer token is the weaker credential, and the API treats it that way.** Bittensor stores a
+hotkey unencrypted on disk by design — that is the point of the coldkey/hotkey split — so a token
+minted by one is roughly as protected as a file on a mining box. Three consequences, all
+enforced rather than advised:
+
+* The writes that change *who the account is* or *where its money goes* require a browser
+  session: linking a hotkey, setting the payout destination, editing the profile, declaring or
+  claiming a deposit. Left open, those compose into full account takeover from one stolen file —
+  link an attacker's hotkey, repoint the payout, collect. The refusal is `403`
+  `BROWSER_SESSION_REQUIRED`.
+* Reads are **redacted**: no email address, no payout keys, no coldkey, and only the one hotkey
+  the token is scoped to. `GET /v1/me` and `GET /v1/auth/session` both apply it, so the full
+  record is not reachable by asking a different endpoint.
+* `REVIEWER` and `ADMIN` cannot be exercised from one at all — `403`
+  `ROLE_REQUIRES_BROWSER_SESSION`, even when the account genuinely holds the role.
 
 Two cookies, and the split is intentional:
 
@@ -79,8 +126,22 @@ Nothing in `conjectures_subnet.db.accounts` can return a usable token.
 website polls. `SessionCookieRefreshMiddleware` re-sends the cookie with a fresh `Max-Age` so the
 browser's expiry does not drift behind the row's.
 
-**A sign-in retires every earlier session for that account.** Whatever the account could reach
-before, the only live credential afterwards is the one just issued.
+**A sign-in retires every earlier *browser* session for that account.** Whatever that browser
+could reach before, the only live cookie afterwards is the one just issued. CLI tokens are
+deliberately outside that scope: they live on other machines and represent long-running work, and
+an unscoped revoke would mean that every visit to the website silently killed every rig's session
+— a failure nobody would attribute to having opened a web page.
+
+**Every session is listable and individually revocable.** `GET /v1/me/sessions` shows both kinds
+with the caller's own marked, `DELETE /v1/me/sessions/{id}` kills one, and
+`DELETE /v1/me/sessions?kind=BEARER` kills every other one of a kind while sparing the caller.
+Without these a leaked CLI token would have no remedy short of waiting out its expiry. A session
+id belonging to another account answers `404`, the same as one that never existed — session ids
+name live credentials and must not be probeable.
+
+An account holds at most `CLI_SESSIONS_PER_ACCOUNT` live CLI tokens. Reaching the ceiling evicts
+the oldest rather than refusing the newest: a stale token on a decommissioned rig must not be
+able to lock a miner out of the machine they are sitting at.
 
 ## CSRF
 
@@ -103,17 +164,39 @@ Which dependency a handler names *is* its access control:
 ```python
 OptionalPrincipalDep   # may be signed in — GET /v1/auth/session only
 PrincipalDep           # must be signed in — every read
-WriterDep              # signed in AND passed the CSRF check — every write
+WriterDep              # signed in AND proved the request was not cross-site — every write
+CookieWriterDep        # all of that, from a browser session — the writes a CLI may not make
 ```
 
 A state-changing handler that names `PrincipalDep` is a CSRF hole, which is why the names are
 deliberately not interchangeable-looking.
 
+**A bearer session skips check 3, because there is nothing for it to prove.** CSRF is the risk
+that a browser attaches an *ambient* credential to a request some other page caused. A bearer
+token is not ambient: it is sent only by code that deliberately set the header, and code on this
+origin that can set it can already make the request directly. There is also no cookie for a CLI
+to read a CSRF value out of, so requiring one would make every CLI write a `403` for no security
+gain.
+
+That exemption is read off the authenticated **session row**, never off the shape of the request
+— a caller cannot claim it by presenting a header. Two things keep it sound, and both are load-
+bearing:
+
+* `authenticate` matches on `kind`, so a cookie credential offered in an `Authorization` header
+  does not resolve at all and therefore cannot inherit the exemption.
+* `Authorization` is **not** in `CORS_REQUEST_HEADERS` and must never be added. That allowlist is
+  the only thing preventing a page on an allowlisted origin from sending the header cross-origin,
+  and adding it is the single change that would make the exemption browser-reachable. The CLI is
+  not a browser, sends no `Origin`, and is not subject to CORS, so it loses nothing.
+
 `POST /v1/auth/email/request-link` is guarded too, even though it is unauthenticated: it sends
 mail, so a cross-site page must not be able to trigger it either.
 
 `POST /v1/submissions` and `/v1/submissions/preflight` are exempt by path. They carry no cookie,
-so there is no ambient credential to abuse, and miner tooling sends neither header.
+so there is no ambient credential to abuse, and miner tooling sends neither header. The CLI
+session endpoints are deliberately **not** added to that path exemption: `Origin` and
+`Sec-Fetch-Site` already fail open when absent, which is exactly the non-browser case, and a path
+exemption would also exempt a browser holding a cookie session on those routes.
 
 ## Signing in
 
@@ -150,12 +233,13 @@ account owner. The stable provider subject is deliberately never returned.
 
 ### Wallet
 
-Four things this validator asks a key to sign, each **domain-separated** so a signature harvested
+Five things this validator asks a key to sign, each **domain-separated** so a signature harvested
 from one is worthless in another:
 
 ```
 conjectures-login-v1          sign in with a coldkey
 conjectures-hotkey-link-v1    attach a hotkey to an account
+conjectures-cli-session-v1    open a CLI session with an already-linked hotkey
 conjectures-deposit-claim-v1  claim a transfer you made
 conjectures-read-v1           read a submission's status
 <the request digest>          authorise one submission (32 raw bytes, not text)
@@ -168,7 +252,72 @@ meaningless.
 
 The signature is verified **before** the nonce is consumed, so a wrong signature does not burn it.
 Otherwise one bad request would force the user to start over, and an attacker could grief a known
-address by spamming invalid signatures.
+address by spamming invalid signatures. The cost of that choice is that an open challenge would
+otherwise accept unlimited signature attempts on an unauthenticated path, so a challenge is spent
+after `LOGIN_CHALLENGE_ATTEMPTS` failures.
+
+### CLI
+
+The miner CLI cannot open a browser and does not hold a coldkey in normal operation, so it signs
+with a **hotkey** — and only one that has already been linked to an account in the browser. That
+prerequisite is the whole security story: a hotkey can never create an account or attach itself to
+one, so compromising a hotkey never produces a new identity, only a session on an identity that
+already chose to include it.
+
+```
+POST /v1/auth/cli/challenge  { address }                      -> { nonce, message, expires_at }
+POST /v1/auth/cli/verify     { address, nonce, signature }    -> CliSession
+```
+
+**The prerequisite has its own command**, `conjectures auth register`, which walks the four calls a
+website would — coldkey challenge, coldkey verify, hotkey challenge, hotkey link — creating the
+account on first sign-in, because proving control of an unclaimed coldkey *is* signing up. It opens
+a cookie session, makes the one write, and revokes it before returning, so the browser credential
+never reaches disk. `scripts/link_hotkey.py` does the same four calls from this repo, for testing a
+deployment without installing the miner CLI.
+
+```
+conjectures auth register --wallet default --hotkey default   # the miner's route
+python3 scripts/link_hotkey.py --api http://localhost:8000    # the validator's own
+```
+
+**The challenge endpoint does not say whether the hotkey is linked.** Hotkeys are published on
+chain, so anyone can ask about anyone's key; a differing answer would be a free oracle mapping
+hotkeys to accounts on this deployment. The linkage is checked at verify, once a signature has
+proved the caller controls the key — at which point they are entitled to know, and an unlinked
+hotkey is `403 HOTKEY_NOT_LINKED`.
+
+**The nonce is echoed back at verify**, unlike the coldkey flow, and this is the one place the two
+differ in shape. The coldkey flow resolves "the latest open challenge for this address", which is
+a denial-of-service primitive whenever the address is public: request a challenge for someone
+else's hotkey once a minute and their own signature is never over the latest message, so they can
+never log in. Addressing the challenge by its own nonce removes the race — two challenges for one
+address coexist, each redeemable by whoever holds its nonce. The nonce is not the proof; the
+signature is, checked against the message stored on that row.
+
+The five steps of verify are ordered deliberately, and each boundary answers a specific failure:
+
+1. Find the challenge **by its nonce**, not by recency.
+2. Verify the signature over the **stored** message — before anything is consumed or disclosed.
+3. On failure, count an attempt and refuse. The challenge survives one wrong signature, but not
+   many.
+4. Resolve the account, and refuse an unlinked hotkey **with the nonce still unspent**. This is
+   the common first-run error, and burning the nonce would cost a fresh challenge, a fresh
+   passphrase prompt and a fresh signature for a condition the miner must fix in a browser anyway.
+5. Consume, then issue — so the nonce is spent exactly when a token comes into existence.
+
+`CliSession` is the only response in the API that carries a live credential. It is `POST`-only,
+`Cache-Control: no-store`, and the token is never a field on a telemetry event. It is prefixed
+`conj_cli_` — worth nothing cryptographically, but it makes a token that leaks into shell history,
+CI logs or a committed dotfile findable by a secret scanner.
+
+**A note for client authors.** The CLI must sign the server's message *bytes* verbatim, never a
+locally rebuilt copy — but it must also **check what it is about to sign** before unlocking the
+key: that the first line is exactly `conjectures-cli-session-v1`, that `address:` is its own
+hotkey, and that `domain:` is the validator it meant to talk to. Signing whatever a server sends
+turns the CLI into a blind signing oracle for the other four prefixes, and a typo'd `--api` or a
+poisoned environment variable is then enough to collect a hotkey-link signature for someone else's
+account. Validate the shape, then sign the bytes as received.
 
 ## Credits
 
@@ -252,6 +401,137 @@ deposit-watcher section of `README.md` for how it is configured and run.
 
 The `btcli` amount is rendered from integer rao by string arithmetic. `amount_rao / 1e9` is
 exactly the step that silently loses a rao.
+
+### Buying credits through TMC PAY
+
+The second funding path, and the price is the same: `CREDIT_PRICE_RAO` per credit, 0.5 TAO. Instead
+of transferring to the treasury and waiting for the watcher, the buyer pays a TMC PAY invoice in
+TAO; the processor confirms it and settles to the treasury later, in batches, net of commission.
+
+```
+POST /v1/me/credits/tmc-pay/orders          browser session + CSRF; creates an invoice
+GET  /v1/me/credits/tmc-pay/orders          this account's purchases
+GET  /v1/me/credits/tmc-pay/orders/{id}     poll; refreshes from TMC PAY while it is open
+POST /v1/webhooks/tmc-pay                   TMC PAY only, authenticated by HMAC
+```
+
+**This path is processor-trusted, and that is a real difference.** Everywhere else credits exist
+only for a transfer this validator read off finalized Subtensor state itself. Here the deposit
+address belongs to TMC PAY, so at the moment of purchase there is nothing of ours on chain to read
+— the evidence is a signed webhook plus a re-readable invoice. Three things follow, and all three
+are enforced rather than remembered:
+
+* **The ledger says which kind of rao it is.** A `DEPOSIT` entry names *either* `deposit_id` (chain)
+  *or* `tmc_pay_order_id` (processor), never both and never neither — `ledger_deposit_names_its_deposit`
+  is an exclusive-or. So `WHERE tmc_pay_order_id IS NOT NULL` separates the two, and the on-chain
+  deposit invariants are untouched.
+* **A webhook decides *whether* to credit, never *how much*.** What is credited is
+  `crypto_amount_rao`, the TAO the invoice locked when it was created. A forged body cannot mint
+  credits even if the signing secret leaks — at worst it can settle an invoice that already exists.
+* **Crediting is idempotent three ways over**: a status check under a row lock, `UNIQUE` on
+  `tmc_pay_orders.credited_ledger_id`, and a partial `UNIQUE` on `credit_ledger.tmc_pay_order_id`.
+  A duplicate delivery racing the reconciler conflicts instead of paying twice.
+
+**Why the invoice is quoted in fiat.** TMC PAY accepts a fiat amount and derives the crypto amount
+from a rate it locks at creation, so the TAO figure is a consequence rather than a request. The
+conversion runs like this, all in `Decimal`, never `float`:
+
+```
+crypto_per_fiat    ← the rate ladder below      # TAO per one fiat unit, TMC PAY's own semantics
+required_rao       = credits × CREDIT_PRICE_RAO                     # 10 credits → 5 000 000 000
+fiat_amount        = ⌈ required_rao/1e9 ÷ crypto_per_fiat × (1 + margin_bps/10000) ⌉   to the cent
+```
+
+**The rate is TMC's own, at every rung that matters.** TMC PAY publishes no rate endpoint, but two
+of its rates are readable anyway, and both beat a third-party feed:
+
+| Rung | `rate_source` | Source | When |
+| --- | --- | --- | --- |
+| 1 | `invoice` | `exchange_rate` on our last invoice | It is newer than `TMC_PAY_RATE_TTL_SECONDS` (300) and in this currency |
+| 2 | `taomarketcap` | TaoMarketCap 5-minute candles | No fresh locked rate, merchant currency is USD |
+| 3 | `taostats` | TaoStats, if `TAOSTATS_API_KEY` is set | TaoMarketCap unreachable |
+| 4 | `invoice-stale` | Any locked rate we have | Both feeds down, or currency is not USD |
+| 5 | `<source>-currency-mismatch` | A USD feed, used for a non-USD merchant | First-ever non-USD purchase. Warns |
+| — | `503 TMC_PAY_RATE_UNAVAILABLE` | — | Nothing to price from. The sale is refused |
+
+Rung 1 is the best because it is the rate the platform *actually locked*, spread and rounding
+included, already in the merchant's currency. Rung 2 is next because TaoMarketCap **is** TMC PAY —
+its own market data is closer to what its payment platform will lock than any outsider's — and it
+needs no API key, so a deployment can price invoices with no rate configuration at all.
+
+Rung 4 is deliberate: because the band below cannot be fooled by a bad seed, an hour-old rate is a
+far better answer to a feed outage than refusing to sell credits. `rate_source` and `quote_attempts`
+are on the `tmc_pay_order_created` event, so "which source are we actually running on" and "how
+often does a purchase cost two invoices" are each one query.
+
+**Candle caching.** `rates.TaoMarketCapPriceReader` caches each price **to the candle boundary, not
+for a fixed duration**: a price fetched at 13:12 is the freshest that will exist until 13:15, so it
+is held for exactly three minutes. A rolling five-minute TTL would hold it until 13:17 and drift
+further with each refresh. A failed refresh is **never** cached — the last good price keeps being
+served (bounded by `rates.MAX_STALE_SECONDS`, one hour) and every call retries until one succeeds.
+Caching the failure would refuse purchases for five minutes over one timeout.
+
+Then the invoice that comes back is **checked rather than trusted**: TAO on Bittensor, the
+configured merchant, and a locked amount inside a band —
+
+| Edge | Value | Why |
+| --- | --- | --- |
+| Floor | `required_rao` | Below it, a credit is sold for less than `CREDIT_PRICE_RAO` |
+| Ceiling | `required_rao × (1 + TMC_PAY_MAX_SLIPPAGE_BPS) + one minor fiat unit in rao` | Above it, **the buyer is overcharged** |
+
+The ceiling has two parts and they differ in kind. `TMC_PAY_MAX_SLIPPAGE_BPS` (100, i.e. 1%) is
+**policy** — what counts as an acceptable overcharge is a business decision, so it is an operator
+setting rather than something derived. The extra minor fiat unit is **arithmetic**: the fiat ask must
+round up to the currency's minor unit, so that cent is unavoidable and sits on top of the policy.
+Slippage must be at least `TMC_PAY_QUOTE_MARGIN_BPS`, since the margin is added to every ask; the API
+refuses to start on a tighter pair rather than serving purchases that can never succeed.
+
+Outside the band, the next attempt reprices from `invoice.exchange_rate` — the rate that invoice
+actually locked, so it is arithmetic rather than an estimate, and it corrects an estimate that was
+too high as readily as one that was too low. After `TMC_PAY_QUOTE_ATTEMPTS` the sale is refused and
+the order is `FAILED` with the reason on it.
+
+Both edges matter, and the ceiling is not symmetry for its own sake: a stale TaoStats quote, a
+merchant onboarded in a currency TaoStats does not price, or a mistyped margin all produce an
+invoice that clears the floor and overcharges. The tolerance is derived rather than a flat
+percentage, because the same cent of rounding is noise on a $2000 invoice and a fifth of a $0.05
+one. Rounding overshoot inside the band is never lost — it lands in the buyer's own balance as
+`remainder_rao`.
+
+**`TMC_PAY_FIAT_CURRENCY` other than `USD` costs one extra round trip, once.** The external feed
+only prices dollars, so the first-ever non-USD purchase is seeded from a dollar figure, the band
+catches it and the requote fixes it. From the second purchase on, rung 1 or 3 supplies a rate
+already in the right currency and there is nothing to correct.
+
+This is why the path needs `TAOSTATS_API_KEY`. Without a live rate there is no honest fiat figure,
+and the endpoint answers `503 TMC_PAY_RATE_UNAVAILABLE` rather than inventing one.
+
+**Status is TMC PAY's word, not a translation.** `NEW` and `FAILED` are ours; the other eight —
+`CREATED`, `PENDING`, `CONFIRMING`, `UNDERPAID`, `CONFIRMED`, `OVERPAID`, `EXPIRED`,
+`LATE_PAYMENT` — are TMC PAY's invoice lifecycle label for label, so what this API reports and what
+the TMC PAY dashboard shows are the same word.
+
+Only `CONFIRMED` and `OVERPAID` issue credits. `OVERPAID` credits the invoice amount and flags the
+order `needs_review`, because only a person with the dashboard can settle the surplus. `UNDERPAID`
+credits nothing and flags too: real money arrived, and part-crediting a whole credit is not a
+decision to automate. `LATE_PAYMENT` credits nothing unless an operator sets
+`TMC_PAY_CREDIT_LATE_PAYMENTS` — TMC PAY documents it as a manual reconciliation case, and from
+outside there is no way to tell whether such a payment settles to the treasury or returns to the
+sender.
+
+**TMC PAY dispatches each webhook once and never retries automatically.** A delivery lost to a
+deploy is lost, so two things back it up: `GET .../orders/{id}` refreshes from the processor while
+the buyer is watching (bounded by `TMC_PAY_POLL_SECONDS`, and never for a settled order), and
+`scripts/reconcile_tmc_pay.py` sweeps everything else. Run it on a schedule — every minute or two
+is ample against a 30-minute TTL. Both reach the same decision through the same function; there is
+one place a status becomes money.
+
+**The commission is the validator's cost, not the buyer's.** Credits still cost 0.5 TAO each, so
+what reaches the treasury per credit is 0.5 TAO minus TMC PAY's fee. Raise `CREDIT_PRICE_RAO` if the
+full amount has to net.
+
+`GET /v1/catalog/credit-pricing` lists `tmc_pay` in `methods` only when the deployment is configured
+for it — a method the page renders and the API refuses is worse than one it never offers.
 
 ## Submitting with a credit
 
@@ -348,9 +628,57 @@ has exactly one funding source"; it did not weaken to "may be unfunded".
 
 ## Roles
 
-`MINER` on every account, granted at signup. `REVIEWER` and `ADMIN` gate the Stage 3 review queue
-and are granted **out of band** — roles are never client input, and `PATCH /v1/me` rejects the
-field outright rather than ignoring it.
+`accounts.roles` is a `TEXT[]` constrained to `{MINER, REVIEWER, ADMIN}`, and that is deliberately
+not a permission system. Three values, no attributes on the relation, and every read wants all of
+them at once, so a join table and a policy engine would both be machinery with nothing to hold.
+What a role *means* is decided where it is used — `require_role(...)` in a route signature —
+rather than in a table of grants that then has to be kept in step with the code consulting it.
+
+`MINER` is on every account, granted at signup and re-added on every role change: an account that
+exists can mine, and an "admin only" account that could not submit is a state nothing expects.
+`REVIEWER` and `ADMIN` gate the review queue and the operator surface.
+
+**Roles are never client input.** `create_account` hardcodes `[MINER]`, and `PATCH /v1/me` rejects
+a `roles` field outright rather than ignoring it.
+
+Five rules on the admin surface, each a decision rather than an accident:
+
+* **`PUT` the whole set, not a delta.** The set is what the column stores and what every read
+  wants; a grant/revoke API over a three-element array would invent a lost-update problem that
+  replacing the value does not have. Unknown roles are `409 UNKNOWN_ROLE`.
+* **Neither `ADMIN` nor `REVIEWER` can be exercised from a CLI session** — `403
+  ROLE_REQUIRES_BROWSER_SESSION`, even for an account that genuinely holds the role.
+  `dependencies.BEARER_ROLES` is `{MINER}`: a hotkey-minted token in a file must not be a route to
+  the surface that decides whether a proof earns money. Anything privileged needs the cookie, so a
+  reviewer being tested against needs a cookie session and not just a bearer token.
+* **There is no bootstrap endpoint.** The first `ADMIN` is granted with
+  [`../scripts/grant_admin.sql`](../scripts/grant_admin.sql), by someone with database access. An
+  endpoint that could mint the first admin could mint the second, and its access control would
+  then be some other secret needing its own rotation story.
+
+Three scripts do this from the database side, for a development deployment only. A session token
+is an opaque string stored as a SHA-256 digest, so a row written by hand authenticates exactly as
+a minted one does — which is why each of them refuses to run without `-v allow_dev_seed=1`.
+
+| Script | What it does | Credentials |
+| --- | --- | --- |
+| [`grant_admin.sql`](../scripts/grant_admin.sql) | Grants `ADMIN` to an existing account | none |
+| [`seed_dev_accounts.sql`](../scripts/seed_dev_accounts.sql) | Creates a `MINER` and a `REVIEWER` account, each with a linked hotkey | bearer + cookie |
+| [`seed_dev_admin.sql`](../scripts/seed_dev_admin.sql) | Creates an `ADMIN`, or adds `ADMIN` to an account named by `-v email=` | cookie only |
+
+The admin script issues no bearer token on purpose: a bearer caller cannot exercise `ADMIN`, so
+minting one would mean linking a hotkey to an admin account to produce a credential that cannot
+do admin work.
+* **An admin cannot remove their own `ADMIN`.** With no other admin it is unrecoverable without
+  database access, and the failure is silent until the next time someone needs it.
+* **Every grant is an Axiom `roles_changed` event naming both accounts.** `accounts.roles` is
+  overwritten in place, so without the event there is no answer to "who made this account a
+  reviewer, and when".
+
+There is deliberately no `GET /v1/admin/accounts` listing. Nothing here needs one, and it would be
+the single most valuable object in the system to anyone who obtained an admin session. Accounts
+are addressed by id only — an operator acting on one already has it, from a support request or an
+event.
 
 ## Configuration
 
@@ -365,14 +693,58 @@ the other four values below are ones production refuses to start without or with
 | `PUBLIC_CURSOR_SECRET` | Required, 32+ chars, and refused if it is the constant published in `settings.py` |
 | `PUBLIC_ACTIVITY_SALT` | Same rules |
 
+The CLI session knobs, none of which production requires but all of which it should think about:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CLI_SESSION_DAYS` | 14 | The rolling window on a bearer token. Shorter than the browser's 30 |
+| `CLI_SESSION_MAX_DAYS` | 90 | The ceiling rolling may not pass, from `issued_at`. Refused if below `CLI_SESSION_DAYS` |
+| `CLI_SESSIONS_PER_ACCOUNT` | 10 | Live CLI tokens per account; the oldest is evicted at the ceiling |
+| `LOGIN_CHALLENGE_ATTEMPTS` | 5 | Failed signatures before a challenge is spent |
+
+TMC PAY is off unless all three of these are set, and a deployment that sets only some of them
+**refuses to boot** — half-configured is the dangerous state, being the shape in which a purchase
+page appears and a confirmation never does:
+
+| Variable | Rule |
+| --- | --- |
+| `TMC_PAY_API_BASE_URL` | Absolute http(s); https in production. The published docs quote `api.example.com`, so there is nothing to guess |
+| `TMC_PAY_API_KEY` | The merchant API key. Shown once at merchant creation; it can create invoices payable to this merchant account |
+| `TMC_PAY_WEBHOOK_SECRET` | 16+ chars. The only thing standing between an unauthenticated endpoint and the credit ledger |
+| `TAOSTATS_API_KEY` | Optional. A second external rate source behind TaoMarketCap's keyless candle feed; the ladder prefers TMC PAY's own locked rate over both |
+| `TMC_PAY_MERCHANT_ID` | Optional. When set, a webhook naming another merchant is ignored rather than matched on invoice id alone |
+
+The rest have defaults chosen so that setting only the required values behaves correctly:
+`TMC_PAY_QUOTE_MARGIN_BPS` (25), `TMC_PAY_QUOTE_ATTEMPTS` (2), `TMC_PAY_TTL_MINUTES` (30),
+`TMC_PAY_MAX_OPEN_ORDERS` (3), `TMC_PAY_MAX_CREDITS` (1000), `TMC_PAY_POLL_SECONDS` (5),
+`TMC_PAY_RATE_TTL_SECONDS` (300), `TMC_PAY_TIMEOUT_SECONDS` (10),
+`TMC_PAY_CREDIT_LATE_PAYMENTS` (false), `TMC_PAY_FIAT_CURRENCY` (USD), `TMC_PAY_FIAT_DECIMALS` (2),
+`TMC_PAY_HOSTED_BASE_URL` (unset).
+
 ## Tests
 
 ```bash
 docker compose -f docker-compose.pytest-db.yml up -d
-.venv/bin/pytest tests/test_api_accounts.py
+.venv/bin/pytest tests/test_api_accounts.py tests/test_api_auth.py tests/test_api_cli_sessions.py \
+    tests/test_api_tmc_pay.py
 ```
 
 Mostly about what must *not* work: a write without a CSRF token, a token borrowed from another
 session, a magic link used twice, a signature replayed from the link flow into the sign-in flow, an
 account reading another account's rows, one credit spent twice. The signatures are real sr25519 over
 the exact messages the server minted.
+
+`test_api_tmc_pay.py` is negative in the same spirit, because the processor path is the one whose
+evidence is a signed message rather than chain state: an unsigned, wrongly-signed, tampered or
+id-less webhook credits nothing; a *correctly* signed webhook claiming a hundred times the amount
+still moves the ledger by exactly what the invoice locked; the same delivery applied twice credits
+once; an invoice worth less than the credits it sells is refused rather than sold; and another
+account can neither read nor poll somebody else's order. It also drives the reconciler through its
+own `_pass`, so what cron runs is what is tested.
+
+`test_api_cli_sessions.py` covers the boundary between the two credentials, and is mostly negative
+too: a cookie token offered as a bearer and a bearer token planted in the cookie are both `401`; a
+bearer request is never answered with `Set-Cookie`; a second challenge does not invalidate the
+first; a hotkey-link signature is not a CLI login; a CLI token cannot link a hotkey, repoint the
+payout, act as another of the account's hotkeys, or exercise `ADMIN`; and signing in to the website
+leaves live CLI tokens alone while still retiring the previous browser session.

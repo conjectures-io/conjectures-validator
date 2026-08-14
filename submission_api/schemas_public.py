@@ -33,6 +33,8 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from submission_api.naming import ProblemName
+
 
 class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -116,7 +118,12 @@ class BountyInfo(Model):
     )
     policy_version: str
     available: bool
-    reason: str = Field(description="OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL")
+    reason: str = Field(
+        description=(
+            "OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL | WITHDRAWN. "
+            "WITHDRAWN means the conjecture has left the pool; see `retirement`"
+        )
+    )
     as_of: datetime
     locked: bool = Field(
         default=False,
@@ -152,6 +159,63 @@ SLUG_DESCRIPTION = (
     "rotation, so it is safe to link, bookmark and cite. Not the same string as `task_id`"
 )
 
+DISPLAY_TITLE_DESCRIPTION = (
+    "The conjecture's name for a reader, ready to render: `Erdős problem 1 — lb`, "
+    "`Collatz Conjecture`, `Hilbert's 17th problem`. Derived from the audited module path and "
+    "theorem name by re-spacing their own tokens — no name is supplied from outside the catalog, "
+    "because upstream publishes none. Never contains a Lean identifier, so a client does not need "
+    "to parse `title`. Not unique and not a key: upstream files several root theorems for one "
+    "problem, and those share a display title. `slug` is the identity"
+)
+
+
+class TitleParts(Model):
+    """The pieces `display_title` is composed from, for a client that wants its own wording.
+
+    Published alongside the composed string rather than instead of it: the composition is a wording
+    decision — where the em dash falls, whether the collection is named — and having every client
+    re-make it is how two surfaces of one API come to disagree about a conjecture's name.
+    """
+
+    collection: str = Field(
+        description=(
+            "Machine key for the upstream collection this problem comes from: `erdos_problems`, "
+            "`wikipedia`, `oeis`, `arxiv`, `millennium`, and so on. Stable, lower_snake_case, and "
+            "safe to switch on. A collection added upstream appears here keyed by its own name "
+            "rather than as an error"
+        )
+    )
+    collection_label: str = Field(
+        description="The same collection in words, for a reader: `Erdős problems`, `MathOverflow`"
+    )
+    reference: str = Field(
+        description=(
+            "How the collection identifies this problem: `1`, `A228828`, `2303.01089`, `17th`. For "
+            "a collection that names its problems rather than numbering them, the name itself — "
+            "`Collatz Conjecture`. Never null; every problem has one. This is the general form of "
+            "the `erdos_problem_number` the problem index publishes, which is the same value for "
+            "one collection out of sixteen"
+        )
+    )
+    qualifier: str | None = Field(
+        default=None,
+        description=(
+            "Which formalisation of the problem this is, in words — `lb`, `part iii`, "
+            "`lower bound of Bloom` — or null when it is the problem's own statement. This is the "
+            "text after the em dash in `display_title`"
+        ),
+    )
+
+    @classmethod
+    def of(cls, name: ProblemName) -> TitleParts:
+        """Field-for-field, in one place: five surfaces publish this and none may drift."""
+        return cls(
+            collection=name.collection,
+            collection_label=name.collection_label,
+            reference=name.reference,
+            qualifier=name.qualifier,
+        )
+
 
 class ConjectureTask(Model):
     """One task issued against a conjecture: one attack direction, at one pinned revision.
@@ -179,10 +243,16 @@ class ConjectureSummary(Model):
     """
 
     slug: str = Field(description=SLUG_DESCRIPTION)
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None, description="The pieces `display_title` was built from"
+    )
     title: str = Field(
         description=(
             "The fully-qualified source theorem. An identifier a mathematician can cite, not "
-            "prose — no human title exists upstream, and `summary` is the readable half"
+            "prose — no human title exists upstream, and `summary` is the readable half. Render "
+            "`display_title` instead; this is for citing and for matching against a report's "
+            "`source_theorem`"
         )
     )
     statement: str = Field(
@@ -223,7 +293,45 @@ class ConjectureTaskDetail(ConjectureTask):
     """
 
     challenge_lean: str
-    machine_contract: MachineContract
+    machine_contract: MachineContract | None = Field(
+        default=None,
+        description=(
+            "The contract a submission is checked against; null on a retired conjecture, whose "
+            "bundle no longer exists and which therefore has nothing to submit against"
+        ),
+    )
+
+
+class RetirementInfo(Model):
+    """Why a conjecture stopped accepting submissions, and where that was decided.
+
+    Present only on a retired conjecture. Its presence — not a status string — is what tells a
+    client the target is closed; `bounty.reason` reports `WITHDRAWN` for the same reason, so a
+    client reading only the bounty still gets a correct answer.
+    """
+
+    retired_on: str = Field(description="ISO date the target was withdrawn from the pool")
+    reason_code: str = Field(
+        description=(
+            "The retirement code, e.g. SOLVED, SOURCE_MISMATCH + EXPLOITABLE. Not a reward "
+            "review outcome: a target can close without any submission having been rewarded"
+        )
+    )
+    reason: str = Field(description="The recorded reason, code and detail together")
+    decision_url: str | None = Field(
+        default=None,
+        description=(
+            "The published reward-review decision behind this retirement, when one exists. A "
+            "dependency or audit retirement has none"
+        ),
+    )
+    recovered_from_commit: str = Field(
+        description=(
+            "The task-repository commit that deleted the bundles. The statement and Lean served "
+            "here were recovered from its parent and checked against the digest the bundle's own "
+            "manifest published"
+        )
+    )
 
 
 class ConjectureDetail(Model):
@@ -235,7 +343,15 @@ class ConjectureDetail(Model):
     """
 
     slug: str = Field(description=SLUG_DESCRIPTION)
-    title: str = Field(description="The fully-qualified source theorem; an identifier, not prose")
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None, description="The pieces `display_title` was built from"
+    )
+    title: str = Field(
+        description=(
+            "The fully-qualified source theorem; an identifier, not prose. Render `display_title`"
+        )
+    )
     statement: str
     summary: str | None = None
     category: str
@@ -253,6 +369,14 @@ class ConjectureDetail(Model):
     references: tuple[Reference, ...]
     tasks: tuple[ConjectureTaskDetail, ...]
     bounty: BountyInfo
+    retirement: RetirementInfo | None = Field(
+        default=None,
+        description=(
+            "Set when this conjecture has been withdrawn from the pool. The page stays readable "
+            "so results and attribution earned against it remain citable, but no submission is "
+            "accepted: every task reports a null `machine_contract`"
+        ),
+    )
     submission_price_rao: int = Field(
         description="TAO rao for one verification attempt; one credit"
     )
@@ -285,6 +409,108 @@ class ConjectureListResponse(Model):
     repository_commit: str
     limit: int
     offset: int
+
+
+class ConjectureVariantRef(Model):
+    """One direction of one variant conjecture, as a pointer into the catalog.
+
+    A `slug` rather than a `task_id`: the point of the index is to be linkable, and a task id
+    moves on every pin rotation. `GET /v1/catalog/conjectures/{slug}` is where the statement, the
+    Lean and the machine contract live, which is why none of them are repeated here.
+
+    One row per attack direction, so a variant that can be both proved and refuted appears twice
+    with the same slug and a different `task_mode`. That is the pairing a solver picks: a slug on
+    its own does not say which direction has a task issued against it.
+    """
+
+    slug: str = Field(description=SLUG_DESCRIPTION)
+    task_mode: str = Field(description="formalized | counterexample")
+    retired: bool = Field(
+        default=False,
+        description=(
+            "True when this variant has been withdrawn from the pool. Its page stays readable and "
+            "the results earned against it stay citable, but nothing can be submitted against it. "
+            "Filter on this to get the directions still worth attempting"
+        ),
+    )
+
+
+class ConjectureIndexEntry(Model):
+    """One upstream problem, and every pooled variant of it.
+
+    Coarser than `ConjectureSummary`, which is one row per conjecture. Upstream formalises a
+    problem as a root theorem plus any number of `.variants.*` siblings, each of which is its own
+    reward target — so Erdős 1 is eight conjectures and one problem. This is the problem-level
+    view, for a caller building a table of contents rather than a bounty list.
+
+    Retired conjectures appear here, flagged, at both levels. That is the one place this surface
+    differs from `/v1/catalog/conjectures`, which lists only what may be submitted against: a
+    problem that has left the pool is still part of what the pool has covered, and its page is
+    still readable. `retired` is what keeps that from reading as an offer.
+    """
+
+    slug: str = Field(description=SLUG_DESCRIPTION)
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None,
+        description=(
+            "The pieces `display_title` was built from. `title_parts.reference` generalises "
+            "`erdos_problem_number` below to every collection, and `title_parts.qualifier` is the "
+            "words after the em dash in `display_title` — not the same field as `qualifier` below, "
+            "which stays the raw `.variants.` fragment this index has always published"
+        ),
+    )
+    source_theorem: str = Field(
+        description="The fully-qualified theorem at `slug`; an identifier, not prose"
+    )
+    erdos_problem_number: int | None = Field(
+        default=None,
+        description=(
+            "The erdosproblems.com problem number, read from the source module. Null for every "
+            "other collection in the pool — Wikipedia, OEIS, the Millennium problems — which is "
+            "an ordinary thing for a conjecture to be rather than missing data. Not unique and "
+            "not a key: one problem is often formalised as several independent root theorems in "
+            "one module, so many entries share a number. `slug` is the identity"
+        ),
+    )
+    qualifier: str | None = Field(
+        default=None,
+        description=(
+            "Which variant `slug` names, when the problem is represented by one. Null when the "
+            "root theorem itself is in the pool; set when only variants are, in which case the "
+            "best-precedence variant stands in for the problem"
+        ),
+    )
+    retired: bool = Field(
+        default=False,
+        description=(
+            "True when the conjecture at `slug` has been withdrawn from the pool. Describes that "
+            "one conjecture and never the family: a problem whose root is retired can still hold "
+            "submittable variants, so do not filter problems on this — read `variants[].retired`"
+        ),
+    )
+    variants: tuple[ConjectureVariantRef, ...] = Field(
+        default=(),
+        description=(
+            "The family's other members, live and retired alike, one row per attack direction. "
+            "Never includes `slug` itself, so a problem with no pooled variants reports an empty "
+            "list"
+        ),
+    )
+
+
+class ConjectureIndexResponse(Model):
+    """Every problem in the pool, in one response.
+
+    Unpaginated on purpose. It is a few hundred rows of identifiers with no statements, no Lean
+    and no database read, and a table of contents that arrives in pages is not one — a caller
+    would have to reassemble it before it was usable. `repository_commit` names the pinned
+    revision the index describes, so a client can tell one rotation's index from the next.
+    """
+
+    total: int = Field(description="Problems in the pool; the length of `items`")
+    items: tuple[ConjectureIndexEntry, ...]
+    repository_commit: str
 
 
 class PinInfo(Model):
@@ -353,6 +579,19 @@ class ConjectureActivity(Model):
 
 ATTRIBUTION = "conjectures.io"
 
+# Shared by both result models, because both resolve them the same way and a client that renders a
+# feed and a detail page must not find them described differently.
+RESULT_TITLE_DESCRIPTION = (
+    "The fully-qualified source theorem this result is against. Resolved by slug through the live "
+    "catalog and then the retired one, so a result against a withdrawn target is still named after "
+    "the theorem it closed. Falls back to the slug only for a pre-V004 row whose reward target "
+    "names no conjecture in any pin. Render `display_title`"
+)
+RESULT_STATEMENT_DESCRIPTION = (
+    "The conjecture as Lean pretty-prints its type, from the same lookup as `title`. Empty string "
+    "in the one case `title` falls back to the slug"
+)
+
 
 class PublicCredit(Model):
     """Authorship the submitting hotkey explicitly signed for public display."""
@@ -378,7 +617,12 @@ class PublicReviewDecision(Model):
 
 
 class PublicResult(Model):
-    """A certified result: Lean-verified, human-approved, and paid out.
+    """One submission on a public feed, at whatever state it has reached.
+
+    Named for its original use — the certified feed — but the shape every result endpoint answers
+    with, including `GET /v1/results/submissions`, which lists every submission whether it is
+    queued, rejected, in review, or paid out. The three `*_status` fields are how a client tells
+    those apart; the timestamps below say when, and are null until the state they name is reached.
 
     Credited to the `hotkey` that submitted it and any public credit that hotkey signed. Nothing
     here reaches that miner's funds: no paying coldkey, no payment reference, no extrinsic.
@@ -392,6 +636,24 @@ class PublicResult(Model):
         default=None,
         description="Opt-in public authorship signed with this submission",
     )
+    verification_status: str = Field(
+        description=(
+            "Where Lean got to: UNVERIFIED (queued or running), VERIFIED, or REJECTED"
+        )
+    )
+    manual_review_status: str = Field(
+        description=(
+            "The reward decision on a Lean-verified proof: UNREVIEWED, APPROVED, or REJECTED. "
+            "APPROVED covers both a human approval and the recorded automatic decision when "
+            "manual review is disabled"
+        )
+    )
+    reward_status: str = Field(
+        description=(
+            "Where the payout got to: INELIGIBLE, ELIGIBLE (owed, not yet paid), REWARDED "
+            "(confirmed on chain), or FAILED"
+        )
+    )
     slug: str = Field(
         description=(
             "The conjecture this result is against, as a stable slug. Derived from the row's own "
@@ -402,11 +664,26 @@ class PublicResult(Model):
     task_id: str = Field(
         description="The task this result was produced against, at the pin then in force"
     )
-    title: str
-    statement: str
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None,
+        description=(
+            "The pieces `display_title` was built from. Null only for a row whose reward target "
+            "names no conjecture in any pin, where `display_title` is the slug"
+        ),
+    )
+    title: str = Field(description=RESULT_TITLE_DESCRIPTION)
+    statement: str = Field(description=RESULT_STATEMENT_DESCRIPTION)
     task_bundle_sha256: str
     attribution: str = ATTRIBUTION
-    verified_at: datetime | None = None
+    verified_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When the verifier finished with this submission, whatever the verdict. Set for a "
+            "rejected submission too — Lean ran and reached one; verification_status says which. "
+            "Null only while no run has finished"
+        ),
+    )
     certified_at: datetime | None = Field(
         default=None, description="When the payout for this result was confirmed on chain"
     )
@@ -420,11 +697,19 @@ class PublicResult(Model):
     bounty_policy_version: str
     verifier_version: str | None = None
     sandbox_mode: str | None = None
-    report_available: bool = False
+    report_available: bool = Field(
+        default=False,
+        description=(
+            "Whether the verifier report is published for this result, at "
+            "GET /v1/results/{id}/report. True for every Lean-verified submission, whatever "
+            "manual review later decides; false for queued or Lean-rejected rows"
+        ),
+    )
     review: PublicReviewDecision | None = Field(
         default=None,
         description=(
-            "Latest binding review and its public rationale; null while review is pending"
+            "Latest binding review and its public rationale; null while review is pending. "
+            "Present on a review-rejected row too — the rationale is the point of publishing it"
         ),
     )
     solution_available: bool = Field(
@@ -455,8 +740,12 @@ class InReviewResult(Model):
     )
     slug: str = Field(description="The conjecture this result is against, as a stable slug")
     task_id: str
-    title: str
-    statement: str
+    display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
+    title_parts: TitleParts | None = Field(
+        default=None, description="The pieces `display_title` was built from"
+    )
+    title: str = Field(description=RESULT_TITLE_DESCRIPTION)
+    statement: str = Field(description=RESULT_STATEMENT_DESCRIPTION)
     task_bundle_sha256: str
     attribution: str = ATTRIBUTION
     verified_at: datetime | None = None
@@ -573,4 +862,5 @@ __all__ = [
     "PublicVerificationReport",
     "QueueDepths",
     "Reference",
+    "RetirementInfo",
 ]

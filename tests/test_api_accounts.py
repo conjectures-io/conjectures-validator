@@ -1344,9 +1344,9 @@ def test_credit_pricing_and_terms_are_public():
 
                 terms = await http.get("/v1/catalog/submission-terms")
                 assert terms.status_code == 200
-                # v4 adds signed opt-in public credit to the expanded v2 review contract. It moves
-                # with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so the
-                # two must not drift.
+                # v4 adds signed opt-in public credit to the expanded v2 review contract. It
+                # moves with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so
+                # the two must not drift.
                 assert terms.json()["version"] == "v4"
                 assert "One credit buys" in terms.json()["body_md"]
                 assert "Your hotkey is published" in terms.json()["body_md"]

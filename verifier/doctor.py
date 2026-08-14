@@ -51,14 +51,21 @@ def image_pins_satisfied(dependency_pins: Mapping[str, Mapping[str, Any]]) -> bo
     return all(status["pinned"] for status in image_pin_statuses(dependency_pins).values())
 
 
-def doctor_report(project_root: Path) -> dict[str, Any]:
+def doctor_report(project_root: Path, *, insecure_development: bool = False) -> dict[str, Any]:
+    """This host's readiness, judged against the isolation the caller intends to run under.
+
+    Without the flag this answers the production question, which is what the worker's preflight
+    asks. With it, the development shim is judged instead — the same selection `verify` makes for
+    `--allow-insecure-development`. Reporting production readiness to a caller who will never run
+    production isolation declares a host unready over a seccomp launcher it has no use for.
+    """
     repo = project_root / "vendor" / "formal-conjectures"
     pins = load_pins(project_root)
     expected = formal_conjectures_pin(project_root)
     actual = repository_commit(repo) if repo.is_dir() else None
     dependency_pins = dependency_pin_status(project_root)
     all_pinned = image_pins_satisfied(dependency_pins)
-    tools = resolve_tools(project_root)
+    tools = resolve_tools(project_root, insecure_development=insecure_development)
     sandbox_probe = sandbox_self_test(tools, project_root)
     absent = missing_tools(tools, enable_nanoda=False)
     commands = {name: shutil.which(name) for name in ("git", "lean", "lake", "docker")}

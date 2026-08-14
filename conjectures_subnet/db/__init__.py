@@ -5,6 +5,10 @@ The schema itself is owned by the plain-SQL migrations in
 that schema, not its source of truth:
 
 * ``models`` — the tables, mirroring the migrations by hand;
+* ``autoreview_models`` — the ``autoreview`` schema: advisory LLM pre-review results,
+  written by ``conjectures-autoreview`` and read by the review console. Nothing in this
+  package touches them at runtime; they are here so ``create_all`` and the drift check
+  see one ``MetaData``;
 * ``engine`` — URL resolution, sync and async engines, sessions, unit-of-work scopes;
 * ``submissions`` — the submission seam: funded intake, verdict recording, reward
   eligibility, the API rejection log, and an account's own submissions;
@@ -23,6 +27,10 @@ that schema, not its source of truth:
   through ``credits``;
 * ``payouts`` — best/finalized outbound stake events and the atomic transition from a pending
   reward obligation to a paid submission;
+* ``tmc_pay`` — credit purchases settled by the TMC PAY processor rather than by a
+  transfer to the treasury, and the webhook deliveries that report on them. Kept apart
+  from ``credits.deposits`` because the evidence is a signed webhook rather than
+  finalized chain state, and a ledger reader must be able to tell the two apart;
 * ``digests`` — conversion between ``sha256:<hex>`` and the raw 32 bytes stored;
 * ``errors`` — domain failures, free of any transport vocabulary.
 
@@ -56,6 +64,7 @@ from conjectures_subnet.db.models import Base
 
 _LAZY_MODULES = {
     "accounts",
+    "autoreview_models",
     "credits",
     "digests",
     "engine",
@@ -65,7 +74,9 @@ _LAZY_MODULES = {
     "payouts",
     "public",
     "submissions",
+    "tmc_pay",
     "transfers",
+    "verification",
 }
 
 
@@ -94,6 +105,7 @@ __all__ = [
     "accounts",
     "async_session_factory",
     "async_session_scope",
+    "autoreview_models",
     "create_async_db_engine",
     "create_db_engine",
     "credits",
@@ -108,5 +120,6 @@ __all__ = [
     "session_factory",
     "session_scope",
     "submissions",
+    "tmc_pay",
     "transfers",
 ]

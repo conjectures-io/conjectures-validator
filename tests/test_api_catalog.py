@@ -218,6 +218,188 @@ def test_the_free_text_filter_is_a_substring_test_over_published_fields():
     run(scenario())
 
 
+def _with_subjects(theorem: str, subjects: tuple[int, ...]):
+    """A source declaration tagged with specific AMS subjects.
+
+    The shared `declaration()` fixture tags everything `(5,)`, which cannot show that a subject
+    filter discriminates rather than merely returning something.
+    """
+    source = declaration(theorem=theorem)
+    return type(source)(
+        **{
+            **{field: getattr(source, field) for field in source.__dataclass_fields__},
+            "ams_subjects": subjects,
+        }
+    )
+
+
+def subject_pool():
+    return (
+        task_entry(
+            task_id="open-direct",
+            reward_target_id="fc-target:Erdos11.erdos_11",
+            source=_with_subjects("Erdos11.erdos_11", (5, 11)),
+        ),
+        task_entry(
+            task_id="open-answer",
+            reward_target_id="fc-target:Erdos13.erdos_13",
+            source=_with_subjects("Erdos13.erdos_13", (94,)),
+        ),
+    )
+
+
+def test_the_ams_subject_filter_selects_by_subject():
+    """`?ams_subject=11` answered `500` for every value a caller could send.
+
+    `Query(ge=0, le=99)` sat on `list[int]`, so the bound was applied to the *list* rather than to
+    its items: Pydantic raised `TypeError: Unable to apply constraint 'ge' to supplied value [11]`,
+    which is not a validation error and so escaped as an unhandled server error. The filter was
+    unreachable — there was no value that worked, only values that crashed.
+    """
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            one = await _get(kit, "/v1/catalog/conjectures", ams_subject=11)
+            assert one.status_code == 200, one.text
+            assert [item["slug"] for item in one.json()["items"]] == [OPEN_DIRECT]
+
+            other = await _get(kit, "/v1/catalog/conjectures", ams_subject=94)
+            assert [item["slug"] for item in other.json()["items"]] == [OPEN_ANSWER]
+
+            # A subject nothing is tagged with is an empty result, not an error.
+            assert (await _get(kit, "/v1/catalog/conjectures", ams_subject=42)).json()[
+                "total"
+            ] == 0
+
+            # The boundary values of the MSC range are ordinary inputs.
+            for edge in (0, 99):
+                assert (
+                    await _get(kit, "/v1/catalog/conjectures", ams_subject=edge)
+                ).status_code == 200, edge
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_ams_subject_filter_is_repeatable_and_ored_within_the_field():
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            async with await _client(kit) as client:
+                both = await client.get(
+                    "/v1/catalog/conjectures", params=[("ams_subject", 11), ("ams_subject", 94)]
+                )
+            assert both.status_code == 200, both.text
+            assert {item["slug"] for item in both.json()["items"]} == {
+                OPEN_DIRECT,
+                OPEN_ANSWER,
+            }
+
+            # And the facet is counted over the other filters, so it still offers the alternative.
+            facets = {facet["field"]: facet["values"] for facet in both.json()["facets"]}
+            assert {item["value"] for item in facets["ams_subject"]} >= {"11", "94"}
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("value", [100, -1, "abc", ""])
+def test_an_unusable_ams_subject_is_a_400_and_never_a_500(value):
+    """The distinction the bug erased: a bad value is the caller's error, not the server's."""
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            response = await _get(kit, "/v1/catalog/conjectures", ams_subject=value)
+            assert response.status_code == 400, (value, response.status_code, response.text)
+            assert response.json()["reason_code"] == "MALFORMED_REQUEST"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_repeatable_filter_bounds_both_its_length_and_its_repetitions():
+    """Two different limits, and the older annotation only ever expressed one of them.
+
+    `Query(max_length=64)` on a `list[str]` is valid, so it never crashed — but it means "at most
+    64 values", not "at most 64 characters each". The per-value bound the module claims was
+    therefore not in force at all, and a single filter value of any length was accepted.
+    """
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            async with await _client(kit) as client:
+                at_limit = await client.get(
+                    "/v1/catalog/conjectures", params={"category": "x" * 64}
+                )
+                assert at_limit.status_code == 200, at_limit.text
+
+                too_long = await client.get(
+                    "/v1/catalog/conjectures", params={"category": "x" * 65}
+                )
+                assert too_long.status_code == 400, too_long.text
+                assert too_long.json()["reason_code"] == "MALFORMED_REQUEST"
+
+                # The repetition bound is still enforced, and separately.
+                many = await client.get(
+                    "/v1/catalog/conjectures",
+                    params=[("ams_subject", 5)] * 65,
+                )
+                assert many.status_code == 400, many.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_no_query_parameter_carries_a_constraint_pydantic_could_not_apply():
+    """An app-wide guard for the class of bug `ams_subject` was an instance of.
+
+    A numeric bound that Pydantic *could* apply becomes `minimum`/`maximum` in the schema. One it
+    could not — because it was attached to a container instead of to the container's items — is
+    left in the document as a raw `ge`/`le`/`gt`/`lt` key, which is not a JSON Schema keyword. So
+    a stray one of those names is exactly the signature of a constraint that will raise at request
+    time instead of validating, on any endpoint, including ones added later.
+    """
+    unapplied = ("ge", "le", "gt", "lt", "multiple_of", "min_length", "max_length")
+
+    async def scenario():
+        kit = await harness(entries=subject_pool()).setup()
+        try:
+            schema = kit.app.openapi()
+            offenders = []
+            for path, operations in schema["paths"].items():
+                for method, operation in operations.items():
+                    for parameter in operation.get("parameters", ()):
+                        for node in _schema_nodes(parameter.get("schema", {})):
+                            for name in unapplied:
+                                if name in node:
+                                    offenders.append(
+                                        f"{method.upper()} {path} "
+                                        f"{parameter['name']}: stray {name!r}"
+                                    )
+            assert not offenders, offenders
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def _schema_nodes(node):
+    """Every subschema of a parameter schema, including through `anyOf` and `items`."""
+    if not isinstance(node, dict) or not node:
+        return
+    yield node
+    for branch in node.get("anyOf") or ():
+        yield from _schema_nodes(branch)
+    yield from _schema_nodes(node.get("items"))
+
+
 def test_the_page_size_is_capped():
     async def scenario():
         kit = await harness(entries=pool()).setup()
@@ -293,6 +475,10 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
                 "references": (
                     "[erdosproblems.com/11](https://www.erdosproblems.com/11)",
                     "Erdős, 1950",
+                    # A citation that merely *contains* a link, and ends in a year. The shape
+                    # most of the pinned catalog uses, and the one this endpoint used to publish
+                    # as raw Markdown with the URL run on through the authors.
+                    "[Er46](https://doi.org/10.2307/2305092) Erdős, P. On sets. (1946)",
                 ),
             }
         )
@@ -306,6 +492,12 @@ def test_a_markdown_reference_is_split_into_a_label_and_a_url():
                 },
                 # A reference that is not a link still arrives usable rather than dropped.
                 {"label": "Erdős, 1950", "url": None},
+                # The link is found mid-citation and the surrounding words are kept, so a client
+                # gets one clickable address and a label with no Markdown left in it.
+                {
+                    "label": "Er46 Erdős, P. On sets. (1946)",
+                    "url": "https://doi.org/10.2307/2305092",
+                },
             ]
         finally:
             await kit.teardown()
@@ -550,6 +742,672 @@ def test_meta_never_publishes_the_elan_asset_digests():
             await kit.teardown()
 
     run(scenario())
+
+
+# --- index -------------------------------------------------------------------------------
+
+
+def _in_module(theorem: str, module: str):
+    """A source declaration with a specific module.
+
+    The module matters here and nowhere else in this file. `erdos_problem_number` is read from it
+    rather than from the theorem name, so a fixture that left every module as `TestFixtures` could
+    not tell a correct implementation from one that scraped the digits out of `Erdos1.erdos_1`.
+    """
+    source = declaration(theorem=theorem)
+    return type(source)(
+        **{
+            **{field: getattr(source, field) for field in source.__dataclass_fields__},
+            "module": module,
+        }
+    )
+
+
+def _conjecture(theorem: str, module: str, *, modes=("formalized", "counterexample")):
+    """One conjecture's tasks: one per attack direction, sharing a reward target.
+
+    Sharing the reward target is what makes them one conjecture rather than several — the same
+    grouping the rest of the catalog relies on — and it is why `variants` can report a slug and a
+    mode without the two ever disagreeing.
+    """
+    return tuple(
+        task_entry(
+            task_id=f"{theorem}-{mode}",
+            reward_target_id=f"fc-target:{theorem}",
+            task_mode=mode,
+            mode=mode,
+            source=_in_module(theorem, module),
+        )
+        for mode in modes
+    )
+
+
+ERDOS_1 = "FormalConjectures.ErdosProblems.«1»"
+
+
+def family_pool():
+    """A pool whose problems differ along every axis the index reports.
+
+    Four problems out of six conjectures, which is the whole point of the endpoint: a pool listed
+    per conjecture would be six rows and would not say that three of them are one problem.
+    """
+    return (
+        # A problem whose root is pooled, with two variants — one attackable both ways, one only
+        # provable, so the mode expansion cannot be faked by doubling every row.
+        *_conjecture("Erdos1.erdos_1", ERDOS_1),
+        *_conjecture("Erdos1.erdos_1.variants.lb", ERDOS_1),
+        *_conjecture("Erdos1.erdos_1.variants.real", ERDOS_1, modes=("formalized",)),
+        # A problem pooled *only* as a variant. 241 of the pinned catalog's variants have no root
+        # declaration, leaving 70 problems headed by one, so this is an ordinary case with real
+        # data behind it — and `qualifier` is what reports that it happened.
+        *_conjecture(
+            "Erdos1062.erdos_1062.variants.lower_bound",
+            "FormalConjectures.ErdosProblems.«1062»",
+        ),
+        # A dotted qualifier: upstream nests the qualifier, not the variant.
+        *_conjecture(
+            "Erdos357.erdos_357.variants.monotone.parts.i",
+            "FormalConjectures.ErdosProblems.«357»",
+        ),
+        # Not an Erdős problem at all, so it must report a null number rather than be omitted.
+        *_conjecture("ABC.abc", "FormalConjectures.Wikipedia.ABC"),
+    )
+
+
+def test_the_index_publishes_one_entry_per_problem_with_its_variants():
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            response = await _get(kit, "/v1/catalog/index")
+            assert response.status_code == 200, response.text
+            body = response.json()
+
+            assert body["repository_commit"] == REPOSITORY_COMMIT
+            # Six conjectures, four problems. `total` counts problems and agrees with `items`.
+            assert body["total"] == 4 == len(body["items"])
+            # Naming is asserted on its own below, so this stays about the grouping.
+            assert [_without_naming(item) for item in body["items"]] == [
+                {
+                    "slug": "abc-abc",
+                    "source_theorem": "ABC.abc",
+                    "erdos_problem_number": None,
+                    "qualifier": None,
+                    "retired": False,
+                    "variants": [],
+                },
+                {
+                    "slug": "erdos1-erdos-1",
+                    "source_theorem": "Erdos1.erdos_1",
+                    "erdos_problem_number": 1,
+                    # The root itself is pooled, so nothing qualifies the entry.
+                    "qualifier": None,
+                    "retired": False,
+                    "variants": [
+                        {
+                            "slug": "erdos1-erdos-1-variants-lb",
+                            "task_mode": "formalized",
+                            "retired": False,
+                        },
+                        {
+                            "slug": "erdos1-erdos-1-variants-lb",
+                            "task_mode": "counterexample",
+                            "retired": False,
+                        },
+                        # Only one row: this variant has one direction issued against it.
+                        {
+                            "slug": "erdos1-erdos-1-variants-real",
+                            "task_mode": "formalized",
+                            "retired": False,
+                        },
+                    ],
+                },
+                {
+                    "slug": "erdos1062-erdos-1062-variants-lower-bound",
+                    "source_theorem": "Erdos1062.erdos_1062.variants.lower_bound",
+                    "erdos_problem_number": 1062,
+                    # No root in the pool, so the variant stands in and says which one it is.
+                    "qualifier": "lower_bound",
+                    "retired": False,
+                    "variants": [],
+                },
+                {
+                    "slug": "erdos357-erdos-357-variants-monotone-parts-i",
+                    "source_theorem": "Erdos357.erdos_357.variants.monotone.parts.i",
+                    "erdos_problem_number": 357,
+                    # Kept whole rather than truncated at its first dot.
+                    "qualifier": "monotone.parts.i",
+                    "retired": False,
+                    "variants": [],
+                },
+            ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_list_and_the_detail_page_name_a_conjecture_identically():
+    """One derivation, so a card and the page it opens cannot disagree about what this is called.
+
+    The list and the detail page are built by two separate functions from two separate handlers, so
+    the honest way to hold them together is to check them against each other rather than against a
+    literal in one place.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            listed = (await _get(kit, "/v1/catalog/conjectures", limit=100)).json()
+            for card in listed["items"]:
+                detail = (await _get(kit, f"/v1/catalog/conjectures/{card['slug']}")).json()
+                assert detail["display_title"] == card["display_title"], card["slug"]
+                assert detail["title_parts"] == card["title_parts"], card["slug"]
+                # `title` is unchanged and still the citable identifier. `display_title` is the
+                # heading; publishing one is not a licence to stop publishing the other.
+                assert detail["title"] == card["title"]
+                assert "." in card["title"], card["title"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_listed_conjecture_is_named_without_a_lean_identifier():
+    """The FE's actual complaint: `title` is a Lean name, so a card rendered one."""
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/conjectures", limit=100)).json()
+            named = {item["slug"]: item["display_title"] for item in body["items"]}
+
+            assert named["erdos1-erdos-1-variants-lb"] == "Erdős problem 1 - lb"
+            assert named["abc-abc"] == "ABC"
+            for slug, title in named.items():
+                assert "_" not in title and "«" not in title, (slug, title)
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def _without_naming(entry: dict) -> dict:
+    """An index entry minus the display name, which has its own tests."""
+    return {key: value for key, value in entry.items() if key not in NAMING_KEYS}
+
+
+NAMING_KEYS = ("display_title", "title_parts")
+
+
+def test_the_index_names_every_problem_without_leaving_a_lean_identifier():
+    """The reason `display_title` exists: a client should never have to parse `source_theorem`.
+
+    Four rows covering the shapes that broke a client-side parser — a numbered collection, a named
+    one, a variant standing in for its problem, and a variant nested inside a part.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            named = {item["slug"]: item["display_title"] for item in body["items"]}
+
+            assert named == {
+                # A named collection: the module tail *is* the name, re-spaced.
+                "abc-abc": "ABC",
+                "erdos1-erdos-1": "Erdős problem 1",
+                # The root is not pooled, so the variant stands in — and says which one it is
+                # rather than publishing the problem's bare name twice.
+                "erdos1062-erdos-1062-variants-lower-bound": "Erdős problem 1062 - lower bound",
+                # `variants.monotone.parts.i` is part i of the monotone variant. Both markers
+                # survive as words; neither survives as Lean.
+                "erdos357-erdos-357-variants-monotone-parts-i": (
+                    "Erdős problem 357 - monotone, part i"
+                ),
+            }
+            for title in named.values():
+                assert "_" not in title and "«" not in title, title
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_publishes_the_parts_its_display_title_was_built_from():
+    """The alternative the FE offered: compose your own wording without parsing Lean.
+
+    `reference` is the general form of `erdos_problem_number` — every collection identifies its
+    problems, and only one of them does it with an Erdős number.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            parts = {item["slug"]: item["title_parts"] for item in body["items"]}
+
+            assert parts["erdos1-erdos-1"] == {
+                "collection": "erdos_problems",
+                "collection_label": "Erdős problems",
+                "reference": "1",
+                "qualifier": None,
+            }
+            # Not an Erdős problem, so `erdos_problem_number` is null — and `reference` is not.
+            entry = next(item for item in body["items"] if item["slug"] == "abc-abc")
+            assert entry["erdos_problem_number"] is None
+            assert parts["abc-abc"] == {
+                "collection": "wikipedia",
+                "collection_label": "Wikipedia",
+                "reference": "ABC",
+                "qualifier": None,
+            }
+            # The entry's own `qualifier` stays the raw `.variants.` fragment it has always been;
+            # the one under `title_parts` is the same thing in words. Both are published, and a
+            # client that reads the wrong one gets a wrong-looking string rather than a silent bug.
+            nested = "erdos357-erdos-357-variants-monotone-parts-i"
+            assert entry_of(body, nested)["qualifier"] == "monotone.parts.i"
+            assert parts[nested]["qualifier"] == "monotone, part i"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def entry_of(body: dict, slug: str) -> dict:
+    return next(item for item in body["items"] if item["slug"] == slug)
+
+
+def test_the_index_never_lists_a_conjecture_as_its_own_variant():
+    """Whatever represents a problem must not also appear underneath it.
+
+    The representative is picked out of the same family it heads, so the obvious implementation
+    lists it twice — once as `slug` and once in its own `variants`. Checked with retired members
+    mixed in too, where the family is assembled from two separate indexes and the duplicate is
+    that much easier to reintroduce.
+    """
+
+    async def scenario():
+        for entries, retired in (
+            (family_pool(), None),
+            (mixed_pool(), mixed_retired()),
+        ):
+            kit = await harness(entries=entries, retired=retired).setup()
+            try:
+                body = (await _get(kit, "/v1/catalog/index")).json()
+                assert body["items"]
+                for item in body["items"]:
+                    assert item["slug"] not in {
+                        variant["slug"] for variant in item["variants"]
+                    }
+                # And no conjecture is grouped under two problems, which is what the live/retired
+                # slug disjointness `ConjectureIndex.build` enforces buys here.
+                owners: dict[str, set[str]] = {}
+                for item in body["items"]:
+                    for variant in item["variants"]:
+                        owners.setdefault(variant["slug"], set()).add(item["slug"])
+                assert all(len(problems) == 1 for problems in owners.values()), owners
+            finally:
+                await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_carries_a_strong_etag_and_answers_a_repeat_read_with_304():
+    """The index is byte-identical until a pin rotation, so a repeat read should cost no body.
+
+    A stronger claim than meta's: this payload holds no counter, no bounty quote and no price, so
+    nothing but a new pool can change it.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            async with await _client(kit) as client:
+                first = await client.get("/v1/catalog/index")
+                etag = first.headers["etag"]
+                assert etag.startswith('"') and etag.endswith('"')
+
+                unchanged = await client.get(
+                    "/v1/catalog/index", headers={"If-None-Match": etag}
+                )
+                assert unchanged.status_code == 304
+                assert unchanged.content == b""
+                # A 304 must repeat the validator and the caching headers.
+                assert unchanged.headers["etag"] == etag
+                assert unchanged.headers["cache-control"] == "public, max-age=60"
+
+                # A list, per RFC 9110, and the wildcard.
+                for header in (f'"stale", {etag}', f"W/{etag}", "*"):
+                    assert (
+                        await client.get(
+                            "/v1/catalog/index", headers={"If-None-Match": header}
+                        )
+                    ).status_code == 304, header
+
+                stale = await client.get(
+                    "/v1/catalog/index", headers={"If-None-Match": '"not-the-tag"'}
+                )
+                assert stale.status_code == 200
+                assert stale.json() == first.json()
+
+                # Nothing moves between two unconditional reads, which is the property the tag is
+                # claiming. A counter in the body would break this.
+                assert (await client.get("/v1/catalog/index")).headers["etag"] == etag
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_etag_tracks_what_is_actually_published():
+    """Hashed from the serialised payload, so the validator cannot drift from the body.
+
+    Retiring a conjecture changes a flag inside `variants` and nothing else — no slug appears or
+    disappears at the top level — so a tag assembled from the pool's inputs rather than from the
+    response could easily miss it.
+    """
+
+    async def scenario():
+        one = await harness(entries=mixed_pool()).setup()
+        two = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            async with await _client(one) as client:
+                without = await client.get("/v1/catalog/index")
+            async with await _client(two) as client:
+                with_retired = await client.get("/v1/catalog/index")
+
+            assert without.json() != with_retired.json()
+            assert without.headers["etag"] != with_retired.headers["etag"]
+        finally:
+            await one.teardown()
+            await two.teardown()
+
+    run(scenario())
+
+
+def test_the_index_is_cacheable_and_reads_no_database():
+    """Unpaginated is only defensible because the work is bounded and the database is untouched.
+
+    The engine is disposed before the request, so any query at all fails rather than merely being
+    slow — which is what makes this a test of the claim and not a restatement of it.
+    """
+
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            await kit.engine.dispose()
+            response = await _get(kit, "/v1/catalog/index")
+            assert response.status_code == 200, response.text
+            assert response.json()["total"] == 4
+            assert response.headers["Cache-Control"] == "public, max-age=60"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def _retired(theorem: str, module: str, *, modes=("formalized", "counterexample")):
+    """One retired conjecture, shaped like a real recovered entry.
+
+    A `RetiredTask` rather than a `TaskEntry`, matching the production type: the bundle is gone, so
+    there is no manifest and no machine contract to carry — which is exactly why the index reports
+    a flag rather than pretending the target is submittable.
+    """
+    from submission_api.retired import RetiredConjecture, RetiredTask
+    from submission_api.slugs import slug_for
+
+    return RetiredConjecture(
+        slug=slug_for(f"fc-target:{theorem}"),
+        problem_id="fixture-problem",
+        reward_target_id=f"fc-target:{theorem}",
+        tier="tier-1",
+        retired_on="2026-08-06",
+        reason_code="SOLVED + NOT_OPEN",
+        reason="SOLVED + NOT_OPEN (settled by a verified submission)",
+        decision_url=None,
+        recovered_from_commit="c" * 40,
+        source=_in_module(theorem, module),
+        tasks=tuple(
+            RetiredTask(
+                task_id=f"{theorem}-{mode}-retired",
+                task_mode=mode,
+                task_bundle_sha256="sha256:" + "a" * 64,
+                target_type_sha256="sha256:" + "b" * 64,
+                challenge_lean="-- recovered from the deleted bundle\n",
+            )
+            for mode in modes
+        ),
+    )
+
+
+ERDOS_99 = "FormalConjectures.ErdosProblems.«99»"
+
+
+def mixed_pool():
+    """`family_pool` plus a live variant of a problem whose root is retired.
+
+    Erdős 99 is the case that decides the precedence rule: its root has left the pool but a variant
+    of it is still submittable, so something has to head the family and the choice is visible.
+    """
+    return (*family_pool(), *_conjecture("Erdos99.erdos_99.variants.weak", ERDOS_99))
+
+
+def mixed_retired():
+    from submission_api.retired import RetiredIndex
+
+    items = (
+        # A retired variant of a problem whose root is live: belongs under `erdos1-erdos-1`.
+        _retired("Erdos1.erdos_1.variants.weaker", ERDOS_1),
+        # A retired root whose problem still has a live variant.
+        _retired("Erdos99.erdos_99", ERDOS_99),
+    )
+    return RetiredIndex(
+        by_slug={item.slug: item for item in items},
+        slug_by_task_id={
+            task_id: item.slug for item in items for task_id in item.task_ids
+        },
+    )
+
+
+def test_the_index_includes_a_retired_variant_under_its_live_problem():
+    async def scenario():
+        kit = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            entries = {item["slug"]: item for item in body["items"]}
+
+            # A retired variant adds no problem of its own — it joins the family it belongs to.
+            assert body["total"] == 5
+            erdos_1 = entries["erdos1-erdos-1"]
+            assert erdos_1["retired"] is False
+            assert erdos_1["variants"] == [
+                {
+                    "slug": "erdos1-erdos-1-variants-lb",
+                    "task_mode": "formalized",
+                    "retired": False,
+                },
+                {
+                    "slug": "erdos1-erdos-1-variants-lb",
+                    "task_mode": "counterexample",
+                    "retired": False,
+                },
+                {
+                    "slug": "erdos1-erdos-1-variants-real",
+                    "task_mode": "formalized",
+                    "retired": False,
+                },
+                # Ordered by slug like the rest, not pushed to the end: retiring a variant must
+                # not reorder a list a reader has already seen.
+                {
+                    "slug": "erdos1-erdos-1-variants-weaker",
+                    "task_mode": "formalized",
+                    "retired": True,
+                },
+                {
+                    "slug": "erdos1-erdos-1-variants-weaker",
+                    "task_mode": "counterexample",
+                    "retired": True,
+                },
+            ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_retired_root_still_heads_its_problem_and_keeps_its_live_variants():
+    """Retiring a root must not rename the problem it belongs to.
+
+    Handing the header to a live variant instead would move the entry's `slug` and
+    `source_theorem`, so one retirement would silently renumber a published table of contents —
+    the opposite of what a stable slug is for. The header stays put and `retired` reports it.
+    """
+
+    async def scenario():
+        kit = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            entries = {item["slug"]: item for item in body["items"]}
+
+            assert _without_naming(entries["erdos99-erdos-99"]) == {
+                "slug": "erdos99-erdos-99",
+                "source_theorem": "Erdos99.erdos_99",
+                "erdos_problem_number": 99,
+                "qualifier": None,
+                "retired": True,
+                "variants": [
+                    {
+                        "slug": "erdos99-erdos-99-variants-weak",
+                        "task_mode": "formalized",
+                        "retired": False,
+                    },
+                    {
+                        "slug": "erdos99-erdos-99-variants-weak",
+                        "task_mode": "counterexample",
+                        "retired": False,
+                    },
+                ],
+            }
+            # Which is why `retired` on the entry is not a filter for "nothing to do here": this
+            # problem is headed by a closed target and still has two directions open.
+            assert [
+                variant
+                for variant in entries["erdos99-erdos-99"]["variants"]
+                if not variant["retired"]
+            ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_wholly_retired_problem_is_its_own_entry_and_still_readable():
+    async def scenario():
+        from test_api_retired import RETIRED_SLUG, retired_index
+
+        kit = await harness(entries=family_pool(), retired=retired_index()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            entries = {item["slug"]: item for item in body["items"]}
+
+            # Erdős 10 is carried by nothing but this retired variant, so it is a problem of its
+            # own — a fifth entry beside `family_pool`'s four.
+            assert body["total"] == 5
+            assert _without_naming(entries[RETIRED_SLUG]) == {
+                "slug": RETIRED_SLUG,
+                "source_theorem": "Erdos10.erdos_10.variants.grechuk",
+                # `retired_index` builds its declaration with the shared fixture module, which is
+                # not an Erdős module — so the number is null here, and that is the honest answer
+                # for a module this cannot recognise.
+                "erdos_problem_number": None,
+                "qualifier": "grechuk",
+                "retired": True,
+                "variants": [],
+            }
+
+            # The index agrees with the page it links to, which is the reason to publish it here.
+            detail = await _get(kit, f"/v1/catalog/conjectures/{RETIRED_SLUG}")
+            assert detail.status_code == 200, detail.text
+            assert detail.json()["retirement"]["reason_code"] == "SOLVED + NOT_OPEN"
+            # And agrees about the name, which is the reason to derive it in one place: a retired
+            # conjecture is named by the same two functions a live one is.
+            assert (
+                detail.json()["display_title"] == entries[RETIRED_SLUG]["display_title"]
+            )
+            assert detail.json()["title_parts"] == entries[RETIRED_SLUG]["title_parts"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_index_never_offers_a_retired_conjecture_as_submittable():
+    """Whatever the index publishes, the submission path must still refuse a retired target.
+
+    The flag is a display concern; this is the boundary underneath it. `TaskCatalog` is built from
+    the allowlist alone and never consults the retired index, so every retired slug in the index
+    resolves to nothing on the live grouping the submission path uses.
+    """
+
+    async def scenario():
+        kit = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/index")).json()
+            retired_slugs = {
+                item["slug"] for item in body["items"] if item["retired"]
+            } | {
+                variant["slug"]
+                for item in body["items"]
+                for variant in item["variants"]
+                if variant["retired"]
+            }
+            assert retired_slugs == {
+                "erdos1-erdos-1-variants-weaker",
+                "erdos99-erdos-99",
+            }
+            for slug in retired_slugs:
+                assert kit.services.index.get(slug) is None
+                detail = (await _get(kit, f"/v1/catalog/conjectures/{slug}")).json()
+                # No bundle, so no contract a submission could even be assembled against.
+                assert detail["retirement"] is not None
+                assert detail["bounty"]["reason"] == "WITHDRAWN"
+                assert all(
+                    task["machine_contract"] is None for task in detail["tasks"]
+                )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_erdos_number_comes_from_the_module_not_the_theorem_name():
+    """Lean mangles private declarations, and the mangled name carries a misleading number.
+
+    `_private.FormalConjectures.ErdosProblems.«1049».0.Erdos1049.lambert_convergent` is a real
+    catalog entry. Twenty of them exist, and a theorem-name parser reads them wrong or not at all;
+    the module is unambiguous for all 509 Erdős modules in the pinned catalog.
+    """
+    from submission_api.conjectures import (
+        erdos_problem_number,
+        root_theorem,
+        variant_qualifier,
+    )
+
+    assert erdos_problem_number("FormalConjectures.ErdosProblems.«1049»") == 1049
+    assert erdos_problem_number("FormalConjectures.ErdosProblems.«9»") == 9
+    # Every other collection, and anything a future rotation invents, reports no number rather
+    # than a wrong one or an exception.
+    assert erdos_problem_number("FormalConjectures.Wikipedia.ABC") is None
+    assert erdos_problem_number("FormalConjectures.ErdosProblems.«12a»") is None
+    assert erdos_problem_number("TestFixtures") is None
+
+    assert root_theorem("Erdos1.erdos_1.variants.lb") == "Erdos1.erdos_1"
+    assert root_theorem("Erdos1.erdos_1") == "Erdos1.erdos_1"
+    assert variant_qualifier("Erdos1.erdos_1") is None
+    assert (
+        variant_qualifier("Erdos357.erdos_357.variants.monotone.parts.i")
+        == "monotone.parts.i"
+    )
 
 
 # --- activity ----------------------------------------------------------------------------

@@ -32,9 +32,13 @@ verification core.
 | API-neutral proof handoff with exact task digest | Implemented |
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
+| Website accounts, browser sessions, and hotkey linking | Implemented |
+| CLI sessions: a linked hotkey mints a scoped bearer token | Implemented |
+| Roles and the operator surface (`MINER`/`REVIEWER`/`ADMIN`) | Implemented |
 | Shared durable schema and migrations | Implemented |
 | Finalized transfer reader, wired into both funding paths | Implemented |
 | Deposit watcher: TAO at the treasury becomes credits | Implemented |
+| TMC PAY: credits bought at 0.5 TAO each through the payment processor | Implemented |
 | Asynchronous verification worker | Implemented |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
@@ -48,7 +52,10 @@ The submission API captures the per-submission manual-review policy and records 
 decision, but the reviewer-facing decision service itself is still to build.
 
 Miners should start at [`docs/MINER.md`](docs/MINER.md): what to do, in order, to get one proof
-submitted, verified and paid. [`docs/API.md`](docs/API.md) documents the API surface and its
+submitted, verified and paid. In short, install
+[`conjectures-miner`](https://github.com/conjectures-io/conjectures-miner) — it does the whole
+flow, including building this verifier locally so a proof can be checked before any TAO moves.
+[`docs/API.md`](docs/API.md) documents the API surface and its
 configuration, [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) the submission format,
 [`deploy/README.md`](deploy/README.md) the database deployment,
 [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) the structured events every process emits and how
@@ -148,22 +155,39 @@ contract.
 
 ## Quick start
 
-On Ubuntu 24.04 (or an equivalent Linux host with Python 3.11+, Git, curl, a C toolchain, Go, Rust,
-and Landlock support):
+Ubuntu 24.04, or an equivalent Linux host. There is no list of packages to read first: bootstrap
+begins with `scripts/check_prerequisites.py`, which reports everything missing at once and prints
+the command to install it, rather than failing partway through an hour-long build.
+
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) is a sibling checkout and
+bootstrap does not create it. The audited Formal Conjectures patch is read from there, so
+`pin_dependencies.sh` requires it at the commit `pins.lock.json` names:
 
 ```bash
+git clone https://github.com/conjectures-io/conjectures-tasks.git ../conjectures-tasks
+git -C ../conjectures-tasks checkout --detach \
+  "$(python3 -c 'import json; print(json.load(open("pins.lock.json"))["tasks"]["commit"])')"
+
 ./scripts/bootstrap.sh
 export PATH="$PWD/.venv/bin:$PWD/.elan/bin:$PATH"
 python -m verifier doctor
 ```
 
-The bootstrap script materializes the pinned
-[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks) checkout and the other
-commits in `pins.lock.json`, installs the pinned Lean toolchains, downloads Mathlib's trusted binary
-cache, builds Formal Conjectures in the default `answer` mode used by the catalog, and builds
-Comparator, the Lean-4.27 `lean4export` backport, and Landrun. Nanoda is optional: set
-`ENABLE_NANODA=1` during bootstrap to build it. Bootstrap also installs the pinned service and
-Subnet 66 dependencies; it does not install the removed legacy miner transport.
+Set `CONJECTURES_TASKS_ROOT` if that checkout lives anywhere other than a sibling directory.
+
+The bootstrap script clones the other commits in `pins.lock.json`, installs the pinned Elan and Lean
+toolchains, downloads Mathlib's trusted binary cache, builds Formal Conjectures in the default
+`answer` mode used by the catalog, and builds Comparator, the Lean-4.27 `lean4export` backport,
+Landrun and the seccomp launcher. Nanoda is optional: set `ENABLE_NANODA=1` during bootstrap to
+build it. Bootstrap also installs the pinned service and Subnet 66 dependencies; it does not install
+the removed legacy miner transport.
+
+`./scripts/bootstrap.sh --miner` builds the same verifier without any of that: no service, subnet or
+database extras, and no Landrun or seccomp launcher, because those protect a validator from hostile
+proofs rather than a miner from their own. Such a host reports readiness with `python -m verifier
+doctor --allow-insecure-development`. Nothing that decides a verdict differs between the two, which
+is the point — see
+[docs/mine/07-miner-verification-design.md](docs/mine/07-miner-verification-design.md).
 
 ## Submission API
 
@@ -290,6 +314,60 @@ through [`submission_api/chain_payments.py`](submission_api/chain_payments.py) o
 reader, one idea of what a transfer is — two with two reference formats could not have been
 reconciled.
 
+## Paying for credits with TMC PAY
+
+A third way in, at the same price: **0.5 TAO buys one credit**, `CREDIT_PRICE_RAO` unchanged. The
+buyer pays a [TMC PAY](https://pay.taomarketcap.com/docs/getting-started/overview) invoice in TAO
+rather than transferring to the treasury; the processor confirms the payment and settles to the
+treasury later, in batches, net of its commission.
+
+```bash
+# Off unless all three are set; a partially-configured deployment refuses to boot.
+TMC_PAY_API_BASE_URL=https://api.pay.taomarketcap.com
+TMC_PAY_API_KEY=<merchant API key>
+TMC_PAY_WEBHOOK_SECRET=<merchant webhook signing secret>
+TAOSTATS_API_KEY=<required too — see below>
+
+# Point the merchant's webhook URL at POST /v1/webhooks/tmc-pay, then:
+*/2 * * * * cd /srv/conjectures && python3 scripts/reconcile_tmc_pay.py
+```
+
+**The cron line is not optional.** TMC PAY dispatches one webhook per invoice transition and never
+retries automatically — a failed delivery waits in its dashboard for a human. Without the sweep, a
+delivery lost to a deploy is a buyer who paid and got nothing.
+[`scripts/reconcile_tmc_pay.py`](scripts/reconcile_tmc_pay.py) re-reads open invoices and applies
+the same decision the webhook applies, through the same function. Crediting is idempotent, so it is
+safe to run alongside a live API and safe to run twice by accident.
+
+**Where the rate comes from.** TMC PAY quotes invoices in fiat and locks the crypto amount from a
+rate of its own, so the TAO figure is a consequence rather than a request. TMC PAY publishes no rate
+endpoint — but every invoice it creates reports the `exchange_rate` it used, and that is stored. So
+the next quote is seeded from **TMC PAY's own last locked rate** (same source, spread included,
+already in the merchant's currency), then from **TaoMarketCap's public 5-minute candles** (same
+company as the processor, no API key), then TaoStats, then a stale locked rate. The purchase endpoint sizes the fiat amount from whichever
+rung answered, rounds up, then **checks the invoice it got back**
+— TAO on Bittensor, the configured merchant, and a locked amount inside a band whose floor is
+`credits × CREDIT_PRICE_RAO` (below it a credit is sold too cheap) and whose ceiling is that plus
+the quote margin and one cent (above it the *buyer* is overcharged, which a stale rate produces
+just as easily). Outside the band it reprices from the rate the invoice itself locked, which is
+exact. Without a rate at all there is no honest number to ask for, and the sale is refused rather
+than made up.
+
+**What is credited is the invoice's locked amount, never a number from a webhook body.** A signed
+webhook decides *whether* an invoice was paid; `crypto_amount_rao`, recorded when the invoice was
+created, decides how much. So a leaked signing secret cannot mint credits — at worst it can settle
+an invoice that already exists.
+
+This is the one funding path whose evidence is a signed message rather than finalized chain state,
+and the schema says so: a `DEPOSIT` ledger entry names **either** `deposit_id` or
+`tmc_pay_order_id`, by exclusive-or, so processor-confirmed rao stays separable from chain-confirmed
+rao with a `WHERE` clause and the on-chain deposit invariants are untouched. See
+[docs/ACCOUNT_API.md](docs/ACCOUNT_API.md#buying-credits-through-tmc-pay) for the endpoints, the
+status semantics, and the over/under/late-payment rules.
+
+Note that the commission is the validator's cost: at 0.5 TAO a credit, what reaches the treasury is
+0.5 TAO minus TMC PAY's fee. Raise `CREDIT_PRICE_RAO` if the full amount has to net.
+
 ## Treasury emissions
 
 [`emissions_worker/`](emissions_worker/) observes each Subnet 66 epoch and submits one weight:
@@ -341,14 +419,14 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 164
-active audited targets (143 Erdős targets and 21 Green's Open Problems targets), including complete
-statements and independently formalized parts or variants. Twelve additional audited targets are
-retired from admission for dependency or semantic-fidelity defects and are absent from the
-deny-by-default allowlist. The source
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 162
+active audited targets (142 Erdős targets and 20 Green's Open Problems targets), including complete
+statements and independently formalized parts or variants. Fourteen additional audited targets are
+retired from admission — eight for dependency or semantic-fidelity defects, four after verified
+submissions settled them, and two after literature solutions — and are absent from the deny-by-default allowlist. The source
 snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
 derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
-correction patch. The tier contains 328 active immutable bundles for 164 theorem targets. Every
+correction patch. The tier contains 324 active immutable bundles for 162 theorem targets. Every
 target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
 
 Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
@@ -386,7 +464,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 164 active audited direct propositions, generates committed `formalized` and
+the 162 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).

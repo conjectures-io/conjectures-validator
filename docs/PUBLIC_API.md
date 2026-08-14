@@ -12,10 +12,11 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/catalog/conjectures` | `ConjectureListResponse` | List with filters and facet counts; one entry per conjecture |
 | `GET` | `/v1/catalog/conjectures/{slug}` | `ConjectureDetail` | Statement, references, bounty, pins, and one `Challenge.lean` plus machine contract per attack direction |
 | `GET` | `/v1/catalog/conjectures/{slug}/activity` | `ConjectureActivity` | Anonymised activity stream |
+| `GET` | `/v1/catalog/index` | `ConjectureIndexResponse` | Flat table of contents; one entry per *problem*, with its variants, retired ones flagged |
 | `GET` | `/v1/catalog/meta` | `PoolMeta` | Counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out |
 | `GET` | `/v1/results/in-review` | `CursorPage<InReviewResult>` | Lean-verified, awaiting manual review |
-| `GET` | `/v1/results/submissions` | `CursorPage<PublicResult>` | Both of the above in one feed, for a dashboard |
+| `GET` | `/v1/results/submissions` | `CursorPage<PublicResult>` | Every submission in every state — including rejected and still-queued — newest first, for a dashboard |
 | `GET` | `/v1/results/{id}` | `PublicResult` | One published result |
 | `GET` | `/v1/results/{id}/report` | `PublicVerificationReport` | The published subset of the verifier report |
 | `GET` | `/v1/results/{id}/solution` | `PublicSolution` | The proof itself — only once review has approved it |
@@ -78,9 +79,11 @@ not by removing the sensitive ones. What that buys is the default: a field added
 `report_sha256` is the digest of the **full** report, not of the reduced projection, so it still
 matches the immutable bytes on the run and the copy the submitting miner can read.
 
-A submission that is on no public feed is `404`, never `403`. Distinguishing "not published" from
+A submission that has not passed Lean is `404`, never `403`. Distinguishing "not published" from
 "does not exist" would turn `/v1/results/{id}` into a probe for the state of work that has not
-been published yet.
+been published yet. That is unaffected by the dashboard feed listing every submission: the feed
+publishes each row's *state*, while the by-id read stays restricted to Lean-verified work, whatever
+manual review later decides — see [The dashboard feed is unfiltered](#the-dashboard-feed-is-unfiltered).
 
 ## Conjectures
 
@@ -145,17 +148,214 @@ So both fold into one conjecture, and the per-task facts live under `tasks`:
 `reward_target_id` — so it does not reset to zero at each rotation, which a task-keyed counter
 would. The per-task `attempts` keeps the breakdown a solver choosing a direction actually wants.
 
+### One index entry per problem, not per conjecture
+
+`GET /v1/catalog/index` groups one level coarser than everything above. Upstream formalises a
+problem as a root theorem plus any number of `.variants.*` siblings — weaker forms, one-sided
+bounds, named special cases — and each of those is its own reward target, its own slug and its own
+bounty. Correct for a bounty list, wrong for a table of contents: Erdős 1 alone is eight rows.
+
+So the index reports one entry per *problem*, keyed on the root theorem the family shares:
+
+```json
+{
+  "total": 4,
+  "repository_commit": "e923379e…",
+  "items": [
+    {
+      "slug": "erdos1-erdos-1",
+      "display_title": "Erdős problem 1",
+      "title_parts": {
+        "collection": "erdos_problems",
+        "collection_label": "Erdős problems",
+        "reference": "1",
+        "qualifier": null
+      },
+      "source_theorem": "Erdos1.erdos_1",
+      "erdos_problem_number": 1,
+      "qualifier": null,
+      "retired": false,
+      "variants": [
+        {"slug": "erdos1-erdos-1-variants-lb", "task_mode": "formalized", "retired": false},
+        {"slug": "erdos1-erdos-1-variants-lb", "task_mode": "counterexample", "retired": false},
+        {"slug": "erdos1-erdos-1-variants-real", "task_mode": "formalized", "retired": false},
+        {"slug": "erdos1-erdos-1-variants-weaker", "task_mode": "formalized", "retired": true}
+      ]
+    }
+  ]
+}
+```
+
+Five details, each forced by what the pinned catalog contains:
+
+* **`erdos_problem_number` is read from the module, never from the theorem name.** Upstream files
+  each Erdős problem under `FormalConjectures.ErdosProblems.«N»`, and all 509 such modules match
+  that shape. Twenty theorem *names* are mangled by Lean's private-declaration scheme into
+  `_private.FormalConjectures.ErdosProblems.«1049».0.Erdos1049.lambert_convergent`, which a
+  name parser reads wrong rather than not at all. It is null for every other collection —
+  Wikipedia, OEIS, the Millennium problems — because "not an Erdős problem" is an ordinary thing
+  for a conjecture to be, and null for an unrecognised module shape too: publishing no number is
+  recoverable, publishing a wrong one is not.
+* **`erdos_problem_number` is not a key.** 934 problems carry one and only 509 are distinct,
+  because upstream regularly formalises one problem as several independent root theorems in one
+  module. `slug` is the identity.
+* **`title_parts.reference` is the same idea for the other fifteen collections.** Every collection
+  identifies its problems and only one of them does it with an Erdős number, so `reference` carries
+  `1`, `A228828`, `2303.01089`, `17th` or `Collatz Conjecture` as the collection requires, and is
+  never null. `erdos_problem_number` stays exactly as it is — it is typed `int`, which `reference`
+  cannot be. See [Display titles](#display-titles-and-why-title-is-not-one).
+* **`qualifier` says when a variant is standing in for its problem.** It is null when the root
+  theorem is itself in the pool. 241 of the catalog's 942 variants have no root declaration at
+  all, leaving 70 problems headed by a variant; there the best-precedence variant represents the
+  problem — see below — and `qualifier` names it. Qualifiers are kept whole, dots included —
+  upstream nests the qualifier, not the variant, so `…variants.monotone.parts.i` qualifies as
+  `monotone.parts.i`.
+* **`variants` is one row per attack direction, and never contains `slug` itself.** A variant
+  that can be both proved and refuted appears twice with the same slug and a different
+  `task_mode`, because a slug alone does not say which direction has a task issued against it. A
+  problem with no pooled variants reports `[]`.
+* **Retired conjectures are included, flagged at both levels.** This is the one catalog list that
+  shows them, and the reason is that it is a table of contents rather than an offer: a problem that
+  has left the pool is still part of what the pool has covered, its detail page is still readable,
+  and the results earned against it are still citable. An index that omitted them would disagree
+  with the pages it links to. `retired` is what keeps their presence from reading as an offer.
+
+### `retired` describes one conjecture, never a family
+
+`retired` on an entry is about the conjecture at `slug` and nothing else. **Do not filter problems
+on it.** A problem whose root has been retired can still hold submittable variants:
+
+```json
+{
+  "slug": "erdos99-erdos-99",
+  "source_theorem": "Erdos99.erdos_99",
+  "erdos_problem_number": 99,
+  "qualifier": null,
+  "retired": true,
+  "variants": [
+    {"slug": "erdos99-erdos-99-variants-weak", "task_mode": "formalized", "retired": false}
+  ]
+}
+```
+
+Dropping that row loses a target that is still open. To list what can be attempted, read the
+members' own flags.
+
+A retired root still heads its family, which is the deliberate half of this. Handing the header to
+a live variant instead would move the entry's `slug` and `source_theorem`, so retiring one target
+would silently renumber a published table of contents — the opposite of what a stable slug is for.
+The header stays put and `retired` reports what happened to it. Precedence within a family is the
+root theorem first, then a live conjecture before a retired one, then slug; `variants` is ordered by
+slug alone, so retiring a variant does not reorder a list a reader has already seen.
+
+Nothing here widens admission. `TaskCatalog` is built from `allowlist.json` alone and never consults
+the retired index, so a retired slug published here resolves to nothing on the grouping the
+submission path uses — and a retired conjecture has no `MachineContract`, so there is not even a
+shape in which a submission for one could be assembled. See [`../submission_api/retired.py`](../submission_api/retired.py).
+
+The index is unpaginated, and it is the one catalog endpoint that reads no database at all — not
+even the attempt counters. It is a grouping of the startup index into a few hundred rows of
+identifiers, with no statement, no Lean and no bounty quote, so the work is bounded by the pool
+rather than by the caller. Follow a slug to `/v1/catalog/conjectures/{slug}` for any of those.
+
+### Display titles, and why `title` is not one
+
+`title` is the fully-qualified source theorem — `Erdos1.erdos_1.variants.lb` — which is the right
+thing to cite and the wrong thing to put in a heading. **Render `display_title` instead.** It is
+published on every surface that publishes `title`:
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /v1/catalog/conjectures` | `ConjectureSummary` |
+| `GET /v1/catalog/conjectures/{slug}` | `ConjectureDetail`, retired targets included |
+| `GET /v1/catalog/index` | `ConjectureIndexEntry` |
+| `GET /v1/results/certified`, `/submissions`, `/{id}` | `PublicResult` |
+| `GET /v1/results/in-review` | `InReviewResult` |
+
+```json
+{
+  "display_title": "Erdős problem 1 - lb",
+  "title_parts": {
+    "collection": "erdos_problems",
+    "collection_label": "Erdős problems",
+    "reference": "1",
+    "qualifier": "lb"
+  },
+  "title": "Erdos1.erdos_1.variants.lb"
+}
+```
+
+**No client should need to parse `title`.** That is the guarantee, and it is checked rather than
+asserted: a test sweeps all 3267 declarations in the pinned catalog and fails if any `display_title`
+carries an underscore, a guillemet or a camel hump. A hand-rolled parser gets the common shapes and
+leaves `maximalLength_ge_of_isSquare` in the UI for the rest — including the twenty theorem names
+Lean mangles into `_private.FormalConjectures.ErdosProblems.«1049».0.Erdos1049.lambert_convergent`.
+
+**Derived, never invented.** Every character comes from the audited module path or theorem name;
+the derivation only inserts spaces and joins with a phrase naming the collection. `«17»` under
+`HilbertProblems` reads "Hilbert's 17th problem"; `CollatzConjecture` reads "Collatz Conjecture".
+Upstream publishes no human titles, so there is none to publish, and supplying one from outside the
+catalog would put a name on the website that appears in no audited artifact — which is the same
+reason `title` is not prose. See
+[`../submission_api/naming.py`](../submission_api/naming.py).
+
+| `title` | `display_title` |
+| --- | --- |
+| `Erdos1.erdos_1` | Erdős problem 1 |
+| `Erdos357.erdos_357.variants.monotone.parts.i` | Erdős problem 357 - monotone, part i |
+| `Hilbert17.hilbert_17th_problem` | Hilbert's 17th problem |
+| `OeisA228828.a_0` | OEIS sequence A228828 — a 0 |
+| `Arxiv.«0912.2382».curling_number_conjecture` | Curling Number Conjecture (arXiv:0912.2382) |
+| `CollatzConjecture.collatz` | Collatz Conjecture |
+| `ComplexityTheory.P_ne_NP` | P vs NP — P ne NP |
+
+**Not an identity.** `display_title` names the *problem*, and upstream files several root theorems
+for one problem, so a handful share a title — 12 collisions across 2467 pool-eligible declarations,
+each a pair distinguished only by a middle Lean namespace segment. Sort, group and link on `slug`.
+
+**`title_parts` is the same name unassembled**, for a client that wants its own wording:
+`collection` is a stable lower_snake_case key safe to switch on, `collection_label` is it in words,
+`reference` is how the collection identifies this problem, and `qualifier` is the text after the em
+dash. A collection added upstream is keyed by its own name and still reads as words rather than
+becoming an error or an identifier.
+
+Two things to know about nulls. On the problem index, `title_parts.qualifier` is *not* the entry's
+own `qualifier` — that one stays the raw `.variants.` fragment the index has always published, and
+this one is it in words. On a result feed, `title_parts` is null for the one class of row whose
+reward target names no conjecture in any pin, where `display_title` degrades to the slug — see
+[A result keeps its conjecture's name](#a-result-keeps-its-conjectures-name-after-the-target-is-withdrawn).
+
 ### The rest of a conjecture
 
 `ConjectureDetail` carries both halves. The human half is `summary` (the source docstring) and
-`statement` (Lean's pretty-printed type). `title` is the fully-qualified source theorem: an
-identifier a mathematician can cite, not prose — no human title exists in the upstream catalog, and
-inventing one here would put a name on the website that appears in no audited artifact.
+`statement` (Lean's pretty-printed type), with `display_title` above as the heading. `title` remains
+the fully-qualified source theorem: an identifier a mathematician can cite, and the string that
+matches a verifier report's `source_theorem`.
 
 Each task's `challenge_lean` is the exact `Challenge.lean` whose bytes are hashed into that task's
 published `task_bundle_sha256`. It is held in memory from startup, not re-read per request, so the
 published statement cannot drift from the audited one between boot and a request — and a reader can
 verify it against the commitment without trusting the response.
+
+### References are split, not shipped as Markdown
+
+Each entry in `references` is a `{label, url}` pair, so a client renders a link without parsing
+Markdown. The upstream bibliography records a free-form citation that *may contain* a Markdown
+link rather than a string that is one, so the link is searched for wherever the citation puts it:
+
+| Upstream entry | `label` | `url` |
+| --- | --- | --- |
+| `[erdosproblems.com/11](https://www.erdosproblems.com/11)` | `erdosproblems.com/11` | `https://www.erdosproblems.com/11` |
+| `[Er46](https://doi.org/10.2307/2305092) Erdős, P. On sets. (1946)` | `Er46 Erdős, P. On sets. (1946)` | `https://doi.org/10.2307/2305092` |
+| `Leinster, Tom (2001). [arXiv:math/0104012](https://arxiv.org/abs/math/0104012)` | `Leinster, Tom (2001). arXiv:math/0104012` | `https://arxiv.org/abs/math/0104012` |
+| `Arora, Sanjeev, and Boaz Barak. Computational complexity. Cambridge, 2009.` | *(verbatim)* | `null` |
+
+`label` is the whole citation with every link flattened to its own text, so no words are lost and
+no Markdown link syntax reaches a client. `url` is the **first** link's target — a few entries cite
+both a paper and its arXiv mirror, and one field holds one address. `url` is `null` for the ~40% of
+entries with no link, including the handful whose parenthesised part is prose (`[Kanold](No
+references found)`) rather than an address; those keep their text verbatim rather than being handed
+a fabricated link. Emphasis markers (`*…*`) and inline TeX are left as the bibliography wrote them.
 
 `machine_contract` is the solver-facing contract: the identifiers the proof must define, the axioms
 it may depend on, the imports it may not use, the stable `reward_target_id`, and the limits it is
@@ -184,6 +384,11 @@ theorem, module, statement and docstring — so pasting an identifier from a rep
 the search box finds its conjecture. A substring test and not a pattern, so a catastrophically
 backtracking regular expression is data rather than free CPU.
 
+`ams_subject` is an integer: the top-level MSC classification, `0`–`99` (the pinned pool uses 3
+through 94). The four string filters accept values up to 64 characters. Every repeatable filter may
+appear at most 64 times per request; a value outside its range, an unparseable integer, or a 65th
+repetition is a `400 MALFORMED_REQUEST`.
+
 Facet counts follow the usual faceted-search rule: each facet is counted over the results matching
 every filter **except its own**. Without that, selecting `category=research open` would collapse
 the category facet to one row and a reader could filter in but never out.
@@ -209,8 +414,11 @@ the end. There is deliberately no total: `COUNT(*)` over a growing table on ever
 scan an anonymous caller should not be able to ask for.
 
 **Keyset, not `OFFSET`.** The predicate is a row-value comparison `(created_at, id) < (cursor)`
-over a partial index ([`../deploy/migrate/sql/V002__public_feeds.sql`](../deploy/migrate/sql/V002__public_feeds.sql)),
-so it reads one index range whatever page you are on. `OFFSET 50000` reads and discards fifty
+over an index built for the feed — partial for the two narrow ones
+([`../deploy/migrate/sql/V002__public_feeds.sql`](../deploy/migrate/sql/V002__public_feeds.sql)),
+full for the unfiltered dashboard feed
+([`../deploy/migrate/sql/V010__dashboard_feed_index.sql`](../deploy/migrate/sql/V010__dashboard_feed_index.sql))
+— so it reads one index range whatever page you are on. `OFFSET 50000` reads and discards fifty
 thousand rows. It is also correct under concurrent inserts, which an offset is not: a result
 certified between two page reads shifts every subsequent offset by one and silently hides a row.
 The pair rather than the timestamp alone because `created_at` is not unique — two submissions
@@ -249,10 +457,71 @@ For a reviewed result it also carries the latest binding decision:
 `notes_public` is null for a historical or automatic decision that has no publishable rationale.
 It is never populated from the internal `notes` field.
 
+### The dashboard feed is unfiltered
+
+`/v1/results/submissions` lists **every** submission, whatever state it reached: queued, running,
+rejected, in review, certified. It is not the union of the two feeds above. A dashboard reports the
+pipeline, and one that dropped an attempt on rejection would show a reader only the successes and
+read as the complete history.
+
+Three fields say where each row got to, using the same vocabulary as the miner-facing
+`GET /v1/submissions/{id}`:
+
+| Field | Values |
+| --- | --- |
+| `verification_status` | `UNVERIFIED` (queued or running), `VERIFIED`, `REJECTED` |
+| `manual_review_status` | `UNREVIEWED`, `APPROVED`, `REJECTED` — `APPROVED` covers both a human approval and the recorded automatic decision when manual review is disabled |
+| `reward_status` | `INELIGIBLE`, `ELIGIBLE` (owed, not yet paid), `REWARDED` (confirmed on chain), `FAILED` |
+
+One response model for every state, so a client reads one shape and branches on those fields and
+on the nullable timestamps rather than on which of several models it got back. `verified_at` is
+when the verifier finished, whatever the verdict — a rejected submission carries it too, since Lean
+did run and did reach one — and `certified_at` is null until a payout confirms.
+
+**Being listed is not being published.** Widening the feed publishes *that* an attempt exists and
+where it got to, and nothing else. The artifact gates are unchanged and are enforced in the query,
+not by this feed: `solution_available` is still false until review approves, and
+`report_available` is true after Lean verification, whatever manual review later decides.
+`GET /v1/results/{id}` and `/report` follow that same gate; `/solution` is stricter and additionally
+requires approval. All three still answer `404` for queued or Lean-rejected ids, while a
+review-rejected result has a record and report but no solution. So an id alone is still not a probe
+for the state of unpublished work. Payout is deliberately not part of this publication gate: an
+approved result stays readable while its reward is `ELIGIBLE`, and only enters the certified feed
+after the transfer is confirmed.
+
+`review` is the exception, and deliberately so: a review-rejected row on this feed carries its
+binding decision and `notes_public`, because a rejection whose published rationale is withheld is
+the one state a dashboard cannot explain. That discloses nothing extra — `ReviewRow` in the query
+layer is an allowlist, so the reviewer's identity, the internal `notes` and advisory `evidence` are
+not selected for any row, rejected or not.
+
+One side effect to know about: a failed attempt's existence and timing are now public, so the
+activity pseudonyms are weaker for any solver who appears on a feed. They were already correlatable
+through verified results — see the caveat under [Activity](#activity).
+
 A result carries both identities: `slug` names the conjecture, `task_id` names the task it was
 produced against. The slug is derived from the row's own `reward_target_id` rather than looked up
 in the catalog, so a result produced under an earlier pin still links to the live conjecture page
 instead of to a task id the current pool no longer carries.
+
+### A result keeps its conjecture's name after the target is withdrawn
+
+`display_title`, `title` and `statement` on every result — `/certified`, `/in-review`,
+`/submissions` and `GET /v1/results/{id}` — are resolved by slug through the live catalog index and
+then the [retired](#retired-describes-one-conjecture-never-a-family) one, which is the same two-step
+`GET /v1/catalog/conjectures/{slug}` takes. So a result against a withdrawn target is named after the
+theorem it closed, and named identically to the conjecture's own page. Retiring a target deletes its
+bundles; it does not rename the conjecture, and it must not relabel work already earned against it.
+
+`title` is the fully-qualified source theorem, exactly as on the conjecture detail endpoint — an
+identifier to cite, not prose. See
+[Display titles](#display-titles-and-why-title-is-not-one) for what to render instead.
+
+One case degrades: a `reward_target_id` that resolves to no conjecture in either index. Those are
+pre-`V004` rows whose reward target was backfilled from the raw `problem_id` because the migration
+did not recognise it. They name nothing in any pin, so `display_title` and `title` fall back to the
+slug, `statement` is an empty string, and `title_parts` is null rather than invented — a public feed
+must not fail over one historical row, and there is no name being withheld.
 
 ## Activity
 
@@ -315,6 +584,7 @@ Never cached: this is the endpoint a client polls to learn whether what it was t
 | Endpoint | `Cache-Control` | `ETag` |
 | --- | --- | --- |
 | `/v1/catalog/meta` | `public, max-age=PUBLIC_CACHE_SECONDS` (60 by default) | yes |
+| `/v1/catalog/index` | `public, max-age=PUBLIC_CACHE_SECONDS` | yes |
 | Other catalog reads | `public, max-age=PUBLIC_CACHE_SECONDS` | no |
 | Results | `public, max-age=PUBLIC_CACHE_SECONDS / 2` | no |
 | `/v1/system/status` | `no-store` | no |
@@ -324,11 +594,21 @@ a shared cache in front of the API may serve one copy to everyone. It is also th
 rate-limit relief available. Anything that ever becomes caller-dependent has to lose the header in
 the same change.
 
-`/v1/catalog/meta` carries a strong `ETag` and honours `If-None-Match` with a `304`. It is the one
-public endpoint whose payload comes entirely from startup state — the catalog, the pin set and the
-settings, none of which move while the process runs — and the one a website hits on every page
-load. The tag is hashed from the serialised payload rather than assembled from its inputs, so it
-cannot drift from the body.
+`/v1/catalog/meta` carries a strong `ETag` and honours `If-None-Match` with a `304`. Its payload
+comes entirely from startup state — the catalog, the pin set and the settings, none of which move
+while the process runs — and a website hits it on every page load. The tag is hashed from the
+serialised payload rather than assembled from its inputs, so it cannot drift from the body.
+
+`/v1/catalog/index` carries one too, on a stronger version of the same argument. Its body holds no
+counter, no bounty quote and no price, so it is a pure function of the pinned pool: byte-identical
+on every request until a rotation replaces the pool. A table of contents is also the thing a site
+re-fetches most, and without a validator a client re-downloads the whole index each time `max-age`
+lapses only to be handed the same bytes.
+
+Both share one helper, `_conditional`, so the tag and the `304` cannot disagree between them. It
+hashes the serialised payload, attaches the `ETag`, and returns a bodiless `304` — repeating the
+validator and the caching headers, per RFC 9110 — when `If-None-Match` names that body. Weak
+comparison prefixes are stripped and `*` matches anything.
 
 The list, detail and result endpoints carry no `ETag` on purpose: their payloads include live
 attempt counters, so any honest validator would have to be recomputed from the database on every
@@ -464,7 +744,16 @@ another, so it stops the process rather than showing up as a mismatched detail p
 ```bash
 docker compose -f docker-compose.pytest-db.yml up -d
 .venv/bin/pytest tests/test_api_catalog.py tests/test_api_results.py tests/test_api_public.py
+# no database needed: the reference and display-title parsers are pure functions
+.venv/bin/pytest tests/test_naming.py tests/test_references.py
 ```
+
+[`../tests/test_naming.py`](../tests/test_naming.py) is the guard on display titles, and the
+important half of it is not the examples. Two tests sweep every declaration in
+[`../data/catalog.json`](../data/catalog.json) and fail if a title reads as a Lean identifier or a
+namespace resolves to nothing, because this is a parser over data nobody here wrote: the next pin
+rotation can introduce a module shape no hand-written case anticipated, and the failure mode is
+silent — a heading with `maximalLength_ge_of_isSquare` in it renders perfectly well.
 
 [`../tests/test_api_results.py`](../tests/test_api_results.py) is largely about absence — that no
 hotkey, coldkey, payment reference or verifier output appears in any public payload, and that a

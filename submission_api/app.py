@@ -36,8 +36,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncIterator
-from datetime import date
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -57,16 +57,16 @@ from conjectures_subnet.db import (
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
-from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.dependencies import Services
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
     CsrfMiddleware,
-    SessionCookieRefreshMiddleware,
     RateLimitMiddleware,
     ScopedCORSMiddleware,
     SecurityHeadersMiddleware,
+    SessionCookieRefreshMiddleware,
     cors_options,
 )
 from submission_api.observability import (
@@ -76,23 +76,31 @@ from submission_api.observability import (
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
+from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
+from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
+    admin,
     auth,
     health,
     intents,
     me,
     results,
+    reviews,
     submissions,
     system,
     tasks,
 )
+from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
+from submission_api.rates import build_tao_usd_reader
 from submission_api.taostats import (
     TaoStatsAlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
+from submission_api.taskpool import TaskCatalog
+from submission_api.tmc_pay import TmcPayClient, UnavailableGateway
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
 
@@ -115,11 +123,21 @@ def build_services(
     catalog: TaskCatalog | None = None,
     pins: PinSet | None = None,
     terms: SubmissionTerms | None = None,
+    retired: RetiredIndex | None = None,
 ) -> Services:
     """Assemble the service graph. Tests inject a catalog, pin set and terms directly."""
     resolved_catalog = catalog or TaskCatalog.load(
         allowlist_path=settings.task_allowlist_path,
         pool_root=settings.task_pool_root,
+    )
+    # Read from the same checkout as the allowlist and verified against the digest that
+    # allowlist's tier policy publishes, so a pool and its retired set cannot come from
+    # different releases. Only loaded when the catalog was read from disk: an injected catalog
+    # has no checkout behind it to read a retired set from.
+    resolved_retired = retired or (
+        RetiredIndex.load(allowlist_path=settings.task_allowlist_path)
+        if catalog is None
+        else RetiredIndex.empty()
     )
     resolved_pins = pins or PinSet.load(settings.pins_path)
     if catalog is None and pins is None:
@@ -149,6 +167,7 @@ def build_services(
         engine=engine,
         sessions=async_session_factory(engine),
         catalog=resolved_catalog,
+        retired=resolved_retired,
         authenticator=build_authenticator(settings),
         payments=build_payment_verifier(settings),
         dispatcher=build_dispatcher(settings),
@@ -189,6 +208,27 @@ def build_services(
             if settings.taostats_api_key
             else UnavailableAlphaUsdPriceReader()
         ),
+        # The TMC PAY funding path, both halves of it. Unavailable unless configured, so the
+        # purchase endpoints refuse rather than reach a network — and note that a deployment which
+        # configures TMC PAY without `TAOSTATS_API_KEY` can create no invoices at all: TMC PAY
+        # quotes in fiat, so pricing one at 0.5 TAO per credit needs a live TAO/USD rate.
+        tmc_pay=(
+            TmcPayClient(
+                base_url=settings.tmc_pay_base_url,
+                api_key=settings.tmc_pay_api_key,
+                timeout_seconds=settings.tmc_pay_timeout_seconds,
+            )
+            if settings.tmc_pay_enabled
+            else UnavailableGateway()
+        ),
+        # TaoMarketCap's public candles first, TaoStats second. See `rates.py` on why that order
+        # and not the other: TaoMarketCap is TMC PAY, so its market data is closer to the rate the
+        # payment platform is about to lock — and it needs no API key, so this works out of the box.
+        tao_usd=build_tao_usd_reader(
+            taomarketcap_base_url=settings.taomarketcap_base_url,
+            taostats_api_key=settings.taostats_api_key,
+            taostats_ttl_seconds=settings.taostats_price_cache_seconds,
+        ),
     )
 
 
@@ -221,6 +261,7 @@ def create_app(
             cors_origins=len(resolved_settings.cors_allowed_origins),
             rate_limit_enabled=resolved_settings.rate_limit_enabled,
             submissions_paused=resolved_settings.submissions_paused,
+            tmc_pay_enabled=resolved_settings.tmc_pay_enabled,
         )
         try:
             yield
@@ -239,6 +280,9 @@ def create_app(
                 if closer is not None:
                     await closer()
                 await built.bounty_usd.aclose()
+                # Both hold an httpx client open across requests, for the same reason.
+                await built.tao_usd.aclose()
+                await built.tmc_pay.aclose()
             # Last, so the shutdown event above and anything logged during teardown are flushed
             # before the process exits. `atexit` would do it too; doing it here means it happens
             # while the loop is still running rather than during interpreter shutdown.
@@ -284,8 +328,15 @@ def create_app(
         allowed_origins=resolved_settings.cors_allowed_origins,
         # The hotkey-signature endpoints carry no cookie, so there is no ambient credential for
         # a cross-site page to abuse, and miner tooling sends neither header.
+        #
+        # The TMC PAY webhook is exempt for the same reason and one more: its caller is a payment
+        # processor, not a browser. It sends no `Origin` and no cookie, and it is authenticated by
+        # an HMAC over the raw body — see `routers/tmc_pay.py`. It would pass the middleware
+        # anyway, since the `Origin` check fails open on absence, but relying on that would make
+        # the route's correctness a property of a middleware detail rather than of a decision.
         exempt_prefixes=(
             "/v1/submissions/preflight",
+            tmc_pay_router.WEBHOOK_PATH,
             # Google posts the credential from accounts.google.com. This route performs the
             # provider's own double-submit `g_csrf_token` check before reading the ID token.
             "/v1/auth/google/callback",
@@ -323,4 +374,18 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
+    # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
+    # advisory record behind it). Both are role-gated at every route, and gated again on the
+    # session being a browser one — see `routers/admin.py` for why a privileged credential must
+    # not be reachable from a CLI token. So there is no ordering relationship here, with each
+    # other or with the prefixes above, and nothing on /v1/admin is reachable without a role.
+    # The second way to buy credits. Its account routes extend `/v1/me/credits`, so it is included
+    # after `me.router`; the webhook it also carries is mounted outside `/v1/me` because its caller
+    # is TMC PAY rather than an account.
+    application.include_router(tmc_pay_router.router)
+    # Stage 3. Role-gated, and gated again on the session being a browser one — see
+    # `routers/admin.py` for why an admin credential must not be reachable from a CLI token.
+    application.include_router(admin.router)
+    application.include_router(reviews.router)
     return application

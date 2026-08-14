@@ -47,6 +47,7 @@ Source: TypeAlias = Literal[
     # --- submission API ---------------------------------------------------------------------
     # The process itself: startup, shutdown, and anything that is not attributable to a router.
     "api",
+    "api-admin",
     "api-auth",
     "api-catalog",
     "api-health",
@@ -67,6 +68,10 @@ Source: TypeAlias = Literal[
     "deposit-watcher",
     "payout-watcher",
     "emissions-worker",
+    "autoreview",
+    # Sweeps the TMC PAY orders no webhook resolved. Separate from `deposit-watcher` because it
+    # watches a payment processor rather than a chain, and its failures are HTTP ones.
+    "tmc-pay-reconciler",
     # --- shared infrastructure --------------------------------------------------------------
     "subnet-chain",
     "database",
@@ -102,9 +107,19 @@ EventType: TypeAlias = Literal[
     "intent_committed",
     # --- accounts ---------------------------------------------------------------------------
     "login_link_sent",
+    # Both kinds of sign-in. `method` distinguishes them and `session_kind` says which credential
+    # was handed out, so "how much of our traffic is the CLI" is one query rather than a guess.
     "login_completed",
     "logout",
     "wallet_linked",
+    # A session ended by something other than its own holder logging out: the per-account CLI
+    # ceiling evicting the oldest token, an owner killing a session from the listing, or an
+    # operator cutting an account off. `reason` says which. Worth its own type because a
+    # credential ceasing to exist is the thing someone asks about after a compromise.
+    "session_revoked",
+    # An account's roles were replaced. `accounts.roles` is overwritten in place, so this event
+    # is the only record that the change happened — see `routers/admin.py`.
+    "roles_changed",
     # --- verification worker ----------------------------------------------------------------
     "submission_claimed",
     "verdict_recorded",
@@ -128,6 +143,21 @@ EventType: TypeAlias = Literal[
     "payout_confirmed",
     "payout_reorged",
     "payout_unmatched",
+    # --- TMC PAY credit purchases -----------------------------------------------------------
+    # The processor-settled funding path. Separate from the deposit watcher's `transfer_*` types
+    # because the evidence is different in kind — a signed webhook rather than finalized chain
+    # state — and an operator auditing where credits came from has to be able to split the two.
+    "tmc_pay_order_created",
+    # Credits issued for a paid invoice. `applied_by` says whether a webhook or the reconciler got
+    # there first, which is how "are our webhooks arriving at all" gets answered.
+    "tmc_pay_order_credited",
+    # A delivery whose HMAC did not verify. Either a secret rotation nobody coordinated or someone
+    # probing the endpoint, and both need to be visible.
+    "tmc_pay_webhook_rejected",
+    # A correctly signed delivery for an invoice no order here claims.
+    "tmc_pay_webhook_unmatched",
+    # One reconciliation pass that found something: orders read, credited, unreadable.
+    "tmc_pay_reconciled",
     # --- emissions worker -------------------------------------------------------------------
     "epoch_observed",
     "weights_set",

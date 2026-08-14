@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import stat
 import subprocess
 from collections.abc import Mapping
 from pathlib import Path
@@ -20,7 +22,46 @@ PINNED_REPOSITORIES = (
 TASKS_ROOT_ENV = "CONJECTURES_TASKS_ROOT"
 # Reported alongside the pins that live in the image, but not one of them: see doctor_report.
 TASKS_PIN = "tasks"
-GIT_EXECUTABLE = Path("/usr/bin/git")
+GIT_EXECUTABLE_ENV = "CONJECTURES_GIT_EXECUTABLE"
+# Searched in order, and `/usr/bin/git` stays first so the image resolves exactly what it always
+# did. The list exists because this path is consulted at verification time, not only during setup:
+# a host whose Git lives elsewhere used to complete an hour of building and then fail its first
+# proof with REPOSITORY_NOT_FOUND.
+GIT_CANDIDATES = (Path("/usr/bin/git"), Path("/bin/git"), Path("/usr/local/bin/git"))
+
+
+def _trustworthy_executable(path: Path) -> bool:
+    """An absolute, executable file that no unprivileged process could have substituted.
+
+    Git is invoked to establish which commit a pinned checkout is at, and that answer decides
+    whether a verdict may be produced at all. Refusing a world-writable binary — or one in a
+    world-writable directory, where it could be replaced between this check and the call — is what
+    makes naming an interpreter cheaper than trusting `PATH`.
+    """
+    if not path.is_absolute() or not path.is_file() or not os.access(path, os.X_OK):
+        return False
+    return not any(entry.stat().st_mode & stat.S_IWOTH for entry in (path, path.parent))
+
+
+def git_executable() -> Path:
+    """The trusted Git this host will run, or a VerifierError naming what to do about it."""
+    override = os.environ.get(GIT_EXECUTABLE_ENV, "").strip()
+    candidates = (Path(override),) if override else GIT_CANDIDATES
+    for candidate in candidates:
+        if _trustworthy_executable(candidate):
+            return candidate
+    # `shutil.which` last and never for an override: an operator who names a path meant that path,
+    # and silently running a different Git than the one they asked for is worse than refusing.
+    if not override:
+        found = shutil.which("git")
+        if found is not None and _trustworthy_executable(Path(found)):
+            return Path(found)
+    searched = ", ".join(str(candidate) for candidate in candidates)
+    raise VerifierError(
+        ReasonCode.REPOSITORY_NOT_FOUND,
+        f"no trusted Git executable found (searched {searched}). Install Git, or set "
+        f"{GIT_EXECUTABLE_ENV} to an absolute path that is not world-writable.",
+    )
 
 
 def _git_environment() -> dict[str, str]:
@@ -34,11 +75,10 @@ def _git_environment() -> dict[str, str]:
 
 
 def git_output(repo_dir: Path, *args: str) -> str:
-    if not GIT_EXECUTABLE.is_file() or not os.access(GIT_EXECUTABLE, os.X_OK):
-        raise VerifierError(ReasonCode.REPOSITORY_NOT_FOUND, f"trusted Git executable not found: {GIT_EXECUTABLE}")
+    executable = git_executable()
     try:
         result = subprocess.run(
-            [str(GIT_EXECUTABLE), "-c", "core.fsmonitor=false", *args],
+            [str(executable), "-c", "core.fsmonitor=false", *args],
             cwd=repo_dir,
             env=_git_environment(),
             check=True,

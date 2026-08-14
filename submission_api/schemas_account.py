@@ -104,9 +104,57 @@ class WalletChallenge(Model):
 
 
 class SessionEnvelope(Model):
-    """What a successful sign-in returns. The credential itself is in a cookie."""
+    """What a successful browser sign-in returns. The credential itself is in a cookie."""
 
     account: Account
+
+
+class CliSession(Model):
+    """What a successful CLI sign-in returns. The credential is in the body, exactly once.
+
+    Unlike the cookie flow, the token has to cross the API boundary — there is no other way to
+    give it to a process that is not a browser. So this is the one response in the codebase that
+    contains a live credential, and everything about how it is served follows from that: `POST`
+    only, `Cache-Control: no-store`, and never a field on a telemetry event.
+
+    `account` here is the **redacted** view. A bearer session is minted by a hotkey, and a
+    hotkey sits unencrypted on a mining machine; handing it the account's email address, payout
+    keys and every other linked hotkey would make reading one file the first step of a much
+    larger compromise. See `routers/_account.account_response`.
+    """
+
+    access_token: str
+    token_type: str = Field(description="Always `bearer`")
+    expires_at: dt.datetime
+    hotkey_scope: str = Field(description="The linked hotkey this token may act as")
+    account: Account
+
+
+class SessionView(Model):
+    """One live session, as its owner sees it.
+
+    Deliberately not derived from the row by a generic serialiser: `account_sessions` holds two
+    digests, and a model that grew fields automatically would eventually publish one. Every
+    field here is named because it is safe to name.
+
+    `last_seen_at` is only advanced once per refresh interval — writing it on every request
+    would mean a row lock per page load — so it is accurate to within that interval rather than
+    to the second, and it is labelled as approximate for that reason.
+    """
+
+    id: uuid.UUID
+    kind: str = Field(description="COOKIE (a browser) | BEARER (the CLI)")
+    current: bool = Field(description="Whether this is the session making this request")
+    hotkey_scope: str | None = Field(
+        default=None, description="For a CLI session: the hotkey it may act as"
+    )
+    issued_at: dt.datetime
+    last_seen_at: dt.datetime = Field(
+        description="Approximate: advanced at most once per refresh interval"
+    )
+    expires_at: dt.datetime
+    user_agent: str | None = None
+    source_ip: str | None = None
 
 
 # --- Credits -----------------------------------------------------------------------------
@@ -201,6 +249,81 @@ class Deposit(Model):
     expires_at: dt.datetime
     created_at: dt.datetime
     updated_at: dt.datetime
+
+
+class TmcPayOrder(Model):
+    """A credit purchase paid through TMC PAY, and what has been observed for it.
+
+    Read this as a payment instruction plus a status. Until `status` is `NEW` or `FAILED` the
+    invoice exists and the three fields a buyer needs are populated: `deposit_address`,
+    `amount_tao` and `expires_at`.
+
+    `status` mirrors TMC PAY's own invoice lifecycle so that what this API reports and what the
+    TMC PAY dashboard shows are the same word. Two of the values are this validator's:
+    `NEW` — the invoice is being created — and `FAILED` — it could not be.
+
+    `credits_expected` is what was bought. `credits_credited` is what the balance actually gained,
+    which is at least that: the invoice is quoted in fiat and rounded up, so the locked TAO can
+    exceed the credit price by a fraction of a percent, and the excess stays in the balance as
+    `remainder_rao` rather than being discarded.
+
+    `deposit_address` is TMC PAY's, derived per invoice — **not** the validator's treasury. A
+    payment sent anywhere else does not fund this order.
+    """
+
+    id: uuid.UUID
+    status: str = Field(
+        description="NEW | FAILED | CREATED | PENDING | CONFIRMING | UNDERPAID | "
+        "CONFIRMED | OVERPAID | EXPIRED | LATE_PAYMENT"
+    )
+    credits_expected: int
+    credit_price_rao: int
+    credits_credited: int = Field(
+        description="Credits this order has added to the balance; 0 until it is confirmed"
+    )
+    amount_rao: int | None = Field(
+        default=None, description="The TAO the invoice locked, in integer rao"
+    )
+    amount_tao: str | None = Field(
+        default=None, description="The same amount as a decimal string, for display"
+    )
+    deposit_address: str | None = Field(
+        default=None, description="TMC PAY's per-invoice address; never the treasury"
+    )
+    btcli_command: str | None = Field(
+        default=None, description="Ready to copy; integer rao, rendered exactly"
+    )
+    fiat_amount: str | None = None
+    fiat_currency: str | None = None
+    exchange_rate: str | None = Field(
+        default=None, description="TAO per one fiat unit, locked at invoice creation"
+    )
+    commission_amount: str | None = Field(
+        default=None, description="TMC PAY's fee, in fiat. Paid by the validator, not the buyer"
+    )
+    invoice_id: str | None = None
+    payment_url: str | None = Field(
+        default=None, description="TMC PAY's hosted payment page, when one is configured"
+    )
+    needs_review: bool = Field(
+        description="An operator has to look at this: over- or underpaid, or paid late"
+    )
+    failure_reason: str | None = None
+    expires_at: dt.datetime | None = None
+    confirmed_at: dt.datetime | None = None
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+
+class TmcPayPurchase(Model):
+    """A new order, and the balance as it stands before anything is paid.
+
+    The balance is returned alongside so a purchase page can show "you have 2 credits, this
+    invoice adds 10" without a second request.
+    """
+
+    order: TmcPayOrder
+    balance: CreditBalance
 
 
 # --- Submission terms --------------------------------------------------------------------

@@ -1,0 +1,26 @@
+-- The public dashboard feed stopped filtering on state.
+--
+-- `GET /v1/results/submissions` was the union of the certified and in-review feeds, so it read
+-- through the two partial indexes V002 created. It now lists every submission whatever state it
+-- is in — queued, running, rejected, in review, certified — because a dashboard that dropped
+-- rejections reported only successes and read as the complete history.
+--
+-- Neither partial index covers that read: their predicates exclude exactly the rows now being
+-- listed. So this one is unpartial, and it cannot be otherwise — the feed's predicate is the
+-- empty one. Same columns and same direction as the two feed indexes, because the page predicate
+-- is unchanged: a row-value comparison `(created_at, id) < (cursor_created_at, cursor_id)`, which
+-- needs `id` in the index to be resolved without a heap fetch per candidate row.
+-- (Keep colon-prefixed words out of these comments. scripts/check_schema_drift.py feeds each
+-- migration through SQLAlchemy's text() construct, which treats a colon followed by an identifier
+-- as a bind parameter even inside a SQL comment, and the file then fails to execute with no value
+-- bound.)
+--
+-- This one grows with the whole table where the V002 pair grow only with published work. That is
+-- the cost of the feed being unfiltered, and it is bounded the same way every other read here is:
+-- keyset paging over the index, a caller-bounded page size, and no total-count query.
+--
+-- The ascending worker index `submissions_verification_queue_idx` is still not reused for this,
+-- for the reason V002 gives: leaving a queue the validator depends on to serve traffic from the
+-- internet couples the two.
+
+CREATE INDEX submissions_dashboard_feed_idx ON submissions (created_at DESC, id DESC);

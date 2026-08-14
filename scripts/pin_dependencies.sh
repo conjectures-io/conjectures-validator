@@ -5,6 +5,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 TASKS_ROOT="${CONJECTURES_TASKS_ROOT:-$ROOT/../conjectures-tasks}"
 
+# Every precondition below used to be a bare `test`, which under `set -e` exits 1 and prints
+# nothing. Each one of them is reachable by someone setting this up for the first time, and an
+# unexplained exit 1 an hour into a build is the worst possible way to learn any of it.
+fail() {
+  printf '%s\n' "$@" >&2
+  exit 2
+}
+
 pin_field() {
   python3 - "$1" "$2" <<'PY'
 import json
@@ -43,7 +51,12 @@ pin_repo() {
   git -C "$destination" fetch --no-tags origin "$commit"
   git -C "$destination" checkout --detach "$commit"
   test "$(git -C "$destination" rev-parse HEAD)" = "$commit"
-  test -z "$(git -C "$destination" status --porcelain --untracked-files=all)"
+  if [[ -n "$(git -C "$destination" status --porcelain --untracked-files=all)" ]]; then
+    fail "$destination is not clean at $commit" \
+      "  a stray edit here changes what gets verified, and assert_dependency_pins would refuse" \
+      "  every proof afterwards; inspect it with: git -C $destination status" \
+      "  (do not clean with -x: that deletes the Lean build cache along with it)"
+  fi
 }
 
 pin_patched_repo() {
@@ -55,7 +68,15 @@ pin_patched_repo() {
   local patch_path="$6"
   local expected_patch_sha256="$7"
   pin_repo "$name" "$url" "$base_commit" "$destination"
-  test "$(sha256sum "$patch_path" | awk '{print $1}')" = "$expected_patch_sha256"
+  local patch_sha256
+  patch_sha256="$(sha256sum "$patch_path" | awk '{print $1}')"
+  if [[ "$patch_sha256" != "$expected_patch_sha256" ]]; then
+    fail "audit patch $patch_path does not match pins.lock.json" \
+      "  expected $expected_patch_sha256" \
+      "  found    $patch_sha256" \
+      "  this patch is the one build input not fetched by commit, so a mismatch is refused" \
+      "  rather than applied; a task checkout newer than the validator's pin is the usual cause"
+  fi
   git -C "$destination" apply "$patch_path"
   git -C "$destination" add --all
   local source_tree
@@ -71,7 +92,11 @@ pin_patched_repo() {
       GIT_COMMITTER_DATE='2026-08-03T00:00:00Z' \
       git -C "$destination" commit-tree "$source_tree" -p "$base_commit"
   )"
-  test "$derived_commit" = "$expected_commit"
+  if [[ "$derived_commit" != "$expected_commit" ]]; then
+    fail "applying the audit patch to $base_commit produced $derived_commit," \
+      "  but pins.lock.json requires $expected_commit" \
+      "  the checkout, the patch and the pin disagree; nothing was built"
+  fi
   git -C "$destination" checkout --detach "$derived_commit"
   test -z "$(git -C "$destination" status --porcelain --untracked-files=all)"
 }
@@ -88,15 +113,27 @@ pin_patched_repo() {
 AUDIT_PATCH="${FC_AUDIT_PATCH:-}"
 if [[ -z "$AUDIT_PATCH" ]]; then
   if ! git -C "$TASKS_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    echo "task repository is missing at $TASKS_ROOT; clone conjectures-tasks separately" >&2
-    echo "  (or set FC_AUDIT_PATCH to the audited patch file, as the Docker build does)" >&2
-    exit 2
+    fail "task repository is missing at $TASKS_ROOT; clone conjectures-tasks separately" \
+      "  (set CONJECTURES_TASKS_ROOT if it lives somewhere else, or FC_AUDIT_PATCH to the" \
+      "  audited patch file, as the Docker build does)"
   fi
-  test "$(git -C "$TASKS_ROOT" rev-parse HEAD)" = "$(pin_field tasks commit)"
-  test -z "$(git -C "$TASKS_ROOT" status --porcelain --untracked-files=all)"
+  pinned_tasks="$(pin_field tasks commit)"
+  current_tasks="$(git -C "$TASKS_ROOT" rev-parse HEAD)"
+  if [[ "$current_tasks" != "$pinned_tasks" ]]; then
+    fail "task repository at $TASKS_ROOT is at $current_tasks," \
+      "  but pins.lock.json requires $pinned_tasks" \
+      "  git -C $TASKS_ROOT fetch --no-tags origin $pinned_tasks" \
+      "  git -C $TASKS_ROOT checkout --detach $pinned_tasks"
+  fi
+  if [[ -n "$(git -C "$TASKS_ROOT" status --porcelain --untracked-files=all)" ]]; then
+    fail "task repository at $TASKS_ROOT is not clean" \
+      "  the audit patch is read from this checkout, so it has to be the audited one"
+  fi
   AUDIT_PATCH="$TASKS_ROOT/tiers/tier-1/formal-conjectures-audit-fixes.patch"
 fi
-test -f "$AUDIT_PATCH"
+if [[ ! -f "$AUDIT_PATCH" ]]; then
+  fail "audit patch not found at $AUDIT_PATCH"
+fi
 # `git -C <dir> apply` resolves the patch path against <dir>, so a relative one would break.
 AUDIT_PATCH="$(cd "$(dirname "$AUDIT_PATCH")" && pwd)/$(basename "$AUDIT_PATCH")"
 

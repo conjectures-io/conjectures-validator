@@ -134,6 +134,7 @@ def _valid_tier_policy(policy: object) -> bool:
         "pool_size",
         "reward_target_count",
         "reward_target_policy",
+        "retired_conjectures_sha256",
         "retired_source_theorems_sha256",
         "selection",
         "selection_audit_sha256",
@@ -166,6 +167,7 @@ def _valid_tier_policy(policy: object) -> bool:
         and type(policy.get("reward_target_count")) is int
         and policy["reward_target_count"] > 0
         and policy.get("reward_target_policy") == REWARD_TARGET_POLICY
+        and is_sha256(policy.get("retired_conjectures_sha256"))
         and is_sha256(policy.get("retired_source_theorems_sha256"))
         and isinstance(policy.get("selection"), str)
         and bool(policy["selection"])

@@ -1,11 +1,13 @@
-"""The public result feeds: certified, in review, one result, the report, and the solution.
+"""The public result feeds: certified, in review, the dashboard feed, one result, report, solution.
 
 This is the surface with the strictest disclosure rules, so most of these tests are about the
-boundary. What *is* published: the submitting hotkey on every result, and the proof itself once
-review has approved it. What is not, at any state: the paying coldkey, the payment reference, the
-funding extrinsic, and the verifier's stdout or stderr. The proof of a submission that is
-unverified, rejected, or still in review is not published either, and the tests below pin each of
-those three cases. Needs a real PostgreSQL server:
+boundary. What *is* published: the submitting hotkey on every result, every submission's three
+state fields on the dashboard feed, and the proof itself once review has approved it. What is not,
+at any state: the paying coldkey, the payment reference, the funding extrinsic, and the verifier's
+stdout or stderr. The proof of a submission that is unverified, rejected, or still in review is not
+published either, and the tests below pin each of those three cases — a rejected submission is
+*listed* on the dashboard feed, which is a different thing from its artifacts being served, and the
+tests hold that line separately. Needs a real PostgreSQL server:
 
     docker compose -f docker-compose.pytest-db.yml up -d
 """
@@ -24,6 +26,7 @@ pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
 import hashlib
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -43,6 +46,7 @@ from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import public as public_store
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.models import (
+    ManualReviewState,
     PayoutState,
     ReviewDecision,
     ReviewerKind,
@@ -205,13 +209,22 @@ async def _certify(
         await session.commit()
 
 
+async def _approve(kit, submission_id: str, *, notes_public: str | None = None):
+    """Approve a verified result without recording a payout."""
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        decision = await store.approve_automatically(session, submission)
+        decision.notes_public = notes_public
+        await session.commit()
+
+
 # --- what is published, and what is not ----------------------------------------------------
 
 
 def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
     async def scenario():
         kit = await harness(
-            bounty_usd=StaticAlphaUsdPriceReader(Decimal("50"))
+            bounty_usd=StaticAlphaUsdPriceReader(Decimal(50))
         ).setup()
         try:
             submission_id = await _submit(kit, "0001")
@@ -245,7 +258,6 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert item["report_available"] is True
             assert item["review"]["decision"] == "APPROVED"
             assert item["review"]["reason_code"] == "AUTO_REVIEW_DISABLED"
-            assert item["review"]["policy_version"] == "v1"
             assert item["review"]["decided_at"] is not None
             assert item["review"]["notes_public"] == (
                 "Lean passed; the reviewed result earns the published award."
@@ -294,9 +306,9 @@ def test_a_pending_payout_is_the_displayed_bounty_but_not_a_certification():
         try:
             submission_id = await _submit(kit, "0001-pending")
             await _verify(kit, submission_id)
+            await _approve(kit, submission_id)
             async with kit.session() as session:
                 submission = await session.get(Submission, uuid.UUID(submission_id))
-                await store.approve_automatically(session, submission)
                 session.add(
                     RewardEvent(
                         submission_id=submission.id,
@@ -312,12 +324,12 @@ def test_a_pending_payout_is_the_displayed_bounty_but_not_a_certification():
                 )
                 await session.commit()
 
-            async with kit.session() as session:
-                submission = await session.get(Submission, uuid.UUID(submission_id))
-                item = (await public_store._decorate(session, [submission]))[0]
-            assert item.bounty_amount_rao == 750_000_000
-            assert item.bounty_policy_version == "payout-time-correction"
-            assert item.certified_at is None
+            response = await _get(kit, f"/v1/results/{submission_id}")
+            assert response.status_code == 200, response.text
+            item = response.json()
+            assert item["bounty_amount_rao"] == 750_000_000
+            assert item["bounty_policy_version"] == "payout-time-correction"
+            assert item["certified_at"] is None
         finally:
             await kit.teardown()
 
@@ -336,7 +348,6 @@ def test_an_in_review_result_names_its_solver_but_carries_no_proof():
             assert [item["id"] for item in body["items"]] == [submission_id]
 
             item = body["items"][0]
-            assert item["review_policy_version"] == "v1"
             assert item["attribution"] == "conjectures.io"
             # No proof file, and no digest of one: review has not approved it yet.
             assert not {"proof", "proof_sha256", "challenge_lean"} & set(item)
@@ -349,7 +360,41 @@ def test_an_in_review_result_names_its_solver_but_carries_no_proof():
     run(scenario())
 
 
-def test_an_unverified_submission_appears_on_no_public_feed():
+def test_a_result_publishes_the_review_policy_that_governed_it_not_the_one_in_force_now():
+    """The policy version is read off the row, so bumping the setting cannot rewrite history.
+
+    `MANUAL_REVIEW_CRITERIA.md` says a material change needs a new version rather than a
+    reinterpretation of the old one. That only holds if an already-published result keeps naming
+    the version it was judged under: a reader checking what a payout was made against has to land
+    on the rules as they stood, not as they stand.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        retired = "v0-retired"
+        assert retired != kit.settings.review_policy_version
+        try:
+            submission_id = await _submit(kit, "0003")
+            # Accepted under the older policy. Set before review, so the decision copies it too.
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                submission.review_policy_version = retired
+                await session.commit()
+            await _verify(kit, submission_id)
+
+            in_review = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
+            assert in_review["review_policy_version"] == retired
+
+            await _certify(kit, submission_id)
+            certified = (await _get(kit, "/v1/results/certified")).json()["items"][0]
+            assert certified["review"]["policy_version"] == retired
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unverified_submission_is_on_the_dashboard_feed_but_not_the_narrow_ones():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -357,11 +402,21 @@ def test_an_unverified_submission_appears_on_no_public_feed():
 
             assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
             assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
-            # Including the dashboard feed. It is the union of the two feeds above, not an
-            # unfiltered read of `submissions`, so "all results" cannot mean "everything".
-            assert (await _get(kit, "/v1/results/submissions")).json()["items"] == []
-            # And it cannot be read by id either: not published is reported as absent, so a
-            # submission id cannot be probed for the state of unpublished work.
+
+            # The dashboard feed is unfiltered, so a queued attempt is listed — with its state
+            # saying so, and with nothing to fetch.
+            item = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert item["id"] == submission_id
+            assert item["verification_status"] == "UNVERIFIED"
+            assert item["manual_review_status"] == "UNREVIEWED"
+            assert item["reward_status"] == "INELIGIBLE"
+            assert item["verified_at"] is None
+            assert item["certified_at"] is None
+            assert item["report_available"] is False
+            assert item["solution_available"] is False
+
+            # Reading it by id is still 404: not published is reported as absent, so an id alone
+            # cannot be probed for the state of unpublished work.
             single = await _get(kit, f"/v1/results/{submission_id}")
             assert single.status_code == 404
             assert single.json()["reason_code"] == "NOT_FOUND"
@@ -371,7 +426,7 @@ def test_an_unverified_submission_appears_on_no_public_feed():
     run(scenario())
 
 
-def test_a_rejected_submission_is_never_published():
+def test_a_rejected_submission_is_listed_but_publishes_no_artifact():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -380,7 +435,26 @@ def test_a_rejected_submission_is_never_published():
 
             assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
             assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
-            assert (await _get(kit, "/v1/results/submissions")).json()["items"] == []
+
+            # Listed on the dashboard feed: a rejected attempt is part of the history, and a feed
+            # that dropped it would report only successes.
+            item = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert item["id"] == submission_id
+            assert item["verification_status"] == "REJECTED"
+            # `verified_at` is set: Lean ran and reached a verdict, so the timestamp is real and
+            # `verification_status` is what says the verdict was a rejection. Not certified,
+            # though — that needs a confirmed payout.
+            assert item["verified_at"] is not None
+            assert item["certified_at"] is None
+
+            # Being listed publishes the state and nothing else. The report exists on the run but
+            # is not served for a row on neither published feed, and the feed says so rather than
+            # letting a client discover it by collecting 404s.
+            assert item["report_available"] is False
+            assert item["solution_available"] is False
+            assert (await _get(kit, f"/v1/results/{submission_id}/report")).status_code == 404
+            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
+            # And the by-id read stays restricted to the published feeds.
             assert (await _get(kit, f"/v1/results/{submission_id}")).status_code == 404
         finally:
             await kit.teardown()
@@ -403,7 +477,7 @@ def test_a_random_uuid_is_a_404_not_a_500():
 # --- the published solution ----------------------------------------------------------------
 
 
-def test_the_solution_is_published_once_review_approves_it():
+def test_an_approved_unpaid_result_publishes_its_record_report_and_solution():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -416,10 +490,29 @@ def test_the_solution_is_published_once_review_approves_it():
             assert listed["solution_available"] is False
             assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
 
-            await _certify(kit, submission_id)
+            await _approve(
+                kit,
+                submission_id,
+                notes_public="Lean passed and the binding review approved this result.",
+            )
 
             listed = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
             assert listed["solution_available"] is True
+            assert listed["report_available"] is True
+            assert listed["reward_status"] == "ELIGIBLE"
+            assert listed["certified_at"] is None
+
+            # Approval ends the disclosure hold. Chain settlement is what promotes the row to
+            # the certified feed, not what makes its record and artifacts public.
+            assert (await _get(kit, "/v1/results/certified")).json()["items"] == []
+            assert (await _get(kit, "/v1/results/in-review")).json()["items"] == []
+
+            record = await _get(kit, f"/v1/results/{submission_id}")
+            assert record.status_code == 200, record.text
+            assert record.json()["review"]["reason_code"] == "AUTO_REVIEW_DISABLED"
+
+            report = await _get(kit, f"/v1/results/{submission_id}/report")
+            assert report.status_code == 200, report.text
 
             response = await _get(kit, f"/v1/results/{submission_id}/solution")
             assert response.status_code == 200, response.text
@@ -463,6 +556,47 @@ def test_signed_public_credit_follows_a_result_from_review_to_the_solution():
             ).json()
             assert result["public_credit"] == credit.to_dict()
             assert solution["public_credit"] == credit.to_dict()
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_review_rejected_result_publishes_its_record_and_report_but_not_solution():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0034")
+            await _verify(kit, submission_id)
+
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(submission_id))
+                session.add(
+                    ReviewDecision(
+                        submission_id=submission.id,
+                        decision=ReviewOutcome.REJECTED,
+                        kind=ReviewerKind.HUMAN,
+                        reviewer="test-reviewer",
+                        policy_version=submission.review_policy_version,
+                        reason_code="DUPLICATE_OF_EARLIER_SUBMISSION",
+                        notes_public="A prior eligible result holds this reward target.",
+                    )
+                )
+                submission.manual_review_status = ManualReviewState.REJECTED
+                await session.commit()
+
+            listed = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+            assert listed["review"]["reason_code"] == "DUPLICATE_OF_EARLIER_SUBMISSION"
+            assert listed["report_available"] is True
+            assert listed["solution_available"] is False
+
+            record = await _get(kit, f"/v1/results/{submission_id}")
+            assert record.status_code == 200, record.text
+            assert record.json()["review"]["reason_code"] == "DUPLICATE_OF_EARLIER_SUBMISSION"
+
+            report = await _get(kit, f"/v1/results/{submission_id}/report")
+            assert report.status_code == 200, report.text
+            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
         finally:
             await kit.teardown()
 
@@ -525,41 +659,69 @@ def test_the_published_solution_is_the_exact_bytes_that_were_verified():
 # --- the dashboard feed --------------------------------------------------------------------
 
 
-def test_the_dashboard_feed_is_the_union_of_certified_and_in_review():
+def test_the_dashboard_feed_lists_every_submission_whatever_state_it_reached():
     async def scenario():
         kit = await harness().setup()
         try:
+            # Every submission first, then the verdicts. Certifying one closes the bounty on the
+            # fixture's conjecture, and intake answers `409 BOUNTY_CLOSED` to anything after that
+            # — so a scenario that needs four attempts on one conjecture has to pay for them all
+            # before the first payout confirms.
             certified_id = await _submit(kit, "0020")
-            await _verify(kit, certified_id)
-
             in_review_id = await _submit(kit, "0021")
-            await _verify(kit, in_review_id)
-
             rejected_id = await _submit(kit, "0022")
-            await _verify(kit, rejected_id, accepted=False)
-
             unverified_id = await _submit(kit, "0023")
 
-            # Certify only after the other attempts have entered intake. Once a reward target is
-            # paid, the API correctly closes it to later submissions.
+            await _verify(kit, rejected_id, accepted=False)
+            await _verify(kit, in_review_id)
+            await _verify(kit, certified_id)
             await _certify(kit, certified_id)
 
             page = (await _get(kit, "/v1/results/submissions")).json()
             ids = [item["id"] for item in page["items"]]
 
-            # Both published states in one request — that is the point of the endpoint — and
-            # neither of the two unpublishable ones, which is the point of the filter.
-            assert set(ids) == {certified_id, in_review_id}
-            assert rejected_id not in ids
-            assert unverified_id not in ids
+            # All four states in one request — that is the point of the endpoint. A dashboard
+            # showing only the two publishable ones would report successes as the whole history.
+            assert set(ids) == {certified_id, in_review_id, rejected_id, unverified_id}
+
+            # Newest first, and the four were created in order, so this is the reverse of it.
+            assert ids == [unverified_id, rejected_id, in_review_id, certified_id]
+
+            # The three state axes are what a client branches on. One shape for every row.
+            by_id = {item["id"]: item for item in page["items"]}
+            assert [
+                (
+                    by_id[submission_id]["verification_status"],
+                    by_id[submission_id]["manual_review_status"],
+                    by_id[submission_id]["reward_status"],
+                )
+                for submission_id in (certified_id, in_review_id, rejected_id, unverified_id)
+            ] == [
+                ("VERIFIED", "APPROVED", "REWARDED"),
+                ("VERIFIED", "UNREVIEWED", "INELIGIBLE"),
+                ("REJECTED", "UNREVIEWED", "INELIGIBLE"),
+                ("UNVERIFIED", "UNREVIEWED", "INELIGIBLE"),
+            ]
 
             # Certification is visible as a nullable field rather than as a second response
             # model, so a dashboard reads one shape and branches on `certified_at`.
-            by_id = {item["id"]: item for item in page["items"]}
             assert by_id[certified_id]["certified_at"] is not None
             assert by_id[certified_id]["review"] is not None
             assert by_id[in_review_id]["certified_at"] is None
             assert by_id[in_review_id]["review"] is None
+
+            # And the artifact gates are unchanged by the widening: only the approved row
+            # publishes a proof, and only the two rows on a published feed publish a report.
+            assert [by_id[i]["solution_available"] for i in ids] == [
+                False,
+                False,
+                False,
+                True,
+            ]
+            assert by_id[rejected_id]["report_available"] is False
+            assert by_id[unverified_id]["report_available"] is False
+            assert by_id[in_review_id]["report_available"] is True
+            assert by_id[certified_id]["report_available"] is True
         finally:
             await kit.teardown()
 
@@ -815,6 +977,206 @@ def test_the_feed_page_size_is_capped():
         try:
             response = await _get(kit, "/v1/results/certified", limit=1000)
             assert response.status_code == 400
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- what a result calls the conjecture it is against ------------------------------------------
+#
+# Two things are being held at once here. A result is durable and the pool is not: retiring a target
+# deletes its bundles, and every feed resolves its labels through the catalog index, so before the
+# retired index was consulted retiring a target quietly relabelled every result already earned
+# against it. And `title` is a Lean identifier, so a dashboard that rendered it showed one — which
+# is what `display_title` is for.
+
+
+def _retired_index():
+    """One withdrawn target, distinct from the live fixture conjecture.
+
+    Built here rather than imported from `test_api_retired` because what this module is about is the
+    *result* rows pointing at it; that module is about the catalog page. Filed under a real Erdős
+    module so the display title is the one a reader would actually see.
+    """
+    from conftest import declaration
+
+    from submission_api.retired import RetiredConjecture, RetiredIndex, RetiredTask
+    from submission_api.slugs import slug_for
+
+    item = RetiredConjecture(
+        slug=slug_for(RETIRED_TARGET),
+        problem_id="withdrawn-problem",
+        reward_target_id=RETIRED_TARGET,
+        tier="tier-1",
+        retired_on="2026-08-06",
+        reason_code="SOLVED + NOT_OPEN",
+        reason="SOLVED + NOT_OPEN (settled by a verified submission)",
+        decision_url=None,
+        recovered_from_commit="c" * 40,
+        source=replace(
+            declaration(theorem=RETIRED_THEOREM),
+            module="FormalConjectures.ErdosProblems.«10»",
+        ),
+        tasks=(
+            RetiredTask(
+                task_id="withdrawn-formalized",
+                task_mode="formalized",
+                task_bundle_sha256="sha256:" + "a" * 64,
+                target_type_sha256="sha256:" + "b" * 64,
+                challenge_lean="-- recovered from the deleted bundle\n",
+            ),
+        ),
+    )
+    return RetiredIndex(
+        by_slug={item.slug: item},
+        slug_by_task_id={task.task_id: item.slug for task in item.tasks},
+    )
+
+
+RETIRED_THEOREM = "Erdos10.erdos_10.variants.grechuk"
+RETIRED_TARGET = f"fc-target:{RETIRED_THEOREM}"
+RETIRED_SLUG = "erdos10-erdos-10-variants-grechuk"
+RETIRED_DISPLAY_TITLE = "Erdős problem 10 - grechuk"
+# A target in neither index: what `V004` left behind when it could not map a row's `problem_id` to a
+# known reward target. There is no conjecture to look up, so the labels have nowhere to go.
+UNKNOWN_TARGET = "legacy-problem-id-nobody-recognises"
+
+
+async def _retarget(kit, submission_id: str, target: str) -> None:
+    """Point a recorded submission at another reward target.
+
+    Which is the real sequence, not a shortcut around intake: a submission is admitted against a
+    live target and the retirement happens afterwards, so by the time a reader loads the feed the row
+    names something the pool no longer issues tasks for. Editing the row is how a test reaches that
+    state without a second pin rotation.
+    """
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        submission.reward_target_id = target
+        await session.commit()
+
+
+def test_a_result_is_named_for_a_reader_and_not_with_a_lean_identifier():
+    """`title` stays the citable theorem; `display_title` is what a dashboard renders.
+
+    Asserted on all three endpoints that shape a `PublicResult`, because each is a separate call into
+    `_result` and a fix applied to only the feed would leave the detail page wrong.
+    """
+
+    async def scenario():
+        kit = await harness(bounty_usd=StaticAlphaUsdPriceReader(Decimal(50))).setup()
+        try:
+            submission_id = await _submit(kit, "0011")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id)
+
+            feed = await _get(kit, "/v1/results/submissions")
+            certified = await _get(kit, "/v1/results/certified")
+            one = await _get(kit, f"/v1/results/{submission_id}")
+
+            for row in (feed.json()["items"][0], certified.json()["items"][0], one.json()):
+                assert row["title"] == "VerifierFixtures.direct"
+                assert row["display_title"] == "Test Fixtures - direct"
+                assert row["title_parts"] == {
+                    "collection": "testfixtures",
+                    "collection_label": "Test Fixtures",
+                    "reference": "Test Fixtures",
+                    "qualifier": "direct",
+                }
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_in_review_result_is_named_the_same_way():
+    """`/in-review` shapes an `InReviewResult` through its own function, so it needs its own test."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0012")
+            await _verify(kit, submission_id)
+
+            item = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
+
+            assert item["display_title"] == "Test Fixtures - direct"
+            assert item["title_parts"]["qualifier"] == "direct"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_result_against_a_retired_conjecture_keeps_the_name_of_what_it_closed():
+    """The bug this closes: `title` fell back to the slug the moment the target was withdrawn.
+
+    Which is the case that matters most — a target is usually retired *because* a submission settled
+    it, so the result whose page went blank is the one that earned the retirement.
+    """
+
+    async def scenario():
+        kit = await harness(
+            retired=_retired_index(), bounty_usd=StaticAlphaUsdPriceReader(Decimal(50))
+        ).setup()
+        try:
+            certified_id = await _submit(kit, "0013")
+            await _verify(kit, certified_id)
+            await _certify(kit, certified_id)
+            await _retarget(kit, certified_id, RETIRED_TARGET)
+
+            pending_id = await _submit(kit, "0014")
+            await _verify(kit, pending_id)
+            await _retarget(kit, pending_id, RETIRED_TARGET)
+
+            feed = await _get(kit, "/v1/results/submissions")
+            certified = await _get(kit, "/v1/results/certified")
+            in_review = await _get(kit, "/v1/results/in-review")
+            one = await _get(kit, f"/v1/results/{certified_id}")
+
+            rows = [
+                *feed.json()["items"],
+                *certified.json()["items"],
+                *in_review.json()["items"],
+                one.json(),
+            ]
+            assert len(rows) == 5
+            for row in rows:
+                # The slug is unchanged and still links to the retired page; what changes is that it
+                # is no longer doing double duty as the conjecture's name.
+                assert row["slug"] == RETIRED_SLUG
+                assert row["title"] == RETIRED_THEOREM
+                assert row["display_title"] == RETIRED_DISPLAY_TITLE
+                assert row["statement"] == "True"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_result_against_a_target_in_neither_index_still_degrades_to_its_slug():
+    """The fallback survives, because one class of row genuinely has no conjecture.
+
+    A public feed must not fail over a historical row, and degrading is honest here in a way it was
+    not for a retired target: this identity resolves to no conjecture in any pin, so there is no name
+    being withheld. `title_parts` is null rather than invented.
+    """
+
+    async def scenario():
+        kit = await harness(retired=_retired_index()).setup()
+        try:
+            submission_id = await _submit(kit, "0015")
+            await _verify(kit, submission_id)
+            await _retarget(kit, submission_id, UNKNOWN_TARGET)
+
+            item = (await _get(kit, "/v1/results/submissions")).json()["items"][0]
+
+            assert item["slug"] == UNKNOWN_TARGET
+            assert item["title"] == UNKNOWN_TARGET
+            assert item["display_title"] == UNKNOWN_TARGET
+            assert item["title_parts"] is None
+            assert item["statement"] == ""
         finally:
             await kit.teardown()
 

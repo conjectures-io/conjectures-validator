@@ -90,6 +90,16 @@ CORS_WILDCARD = "*"
 CORS_METHODS = ("GET", "HEAD", "OPTIONS", "POST", "PATCH", "PUT", "DELETE")
 # Deliberately narrow, and deliberately without any `X-Conjectures-*` header except the CSRF
 # token. Adding a signature header here would undo the paragraph above.
+#
+# **`Authorization` must never be added to this list**, and that is now load-bearing in a second
+# way. A CLI bearer session is exempt from the CSRF token check — correctly, because a bearer
+# token is not an ambient credential and no browser attaches one on its own. This allowlist is
+# what keeps that true: it is the only thing preventing a page on an allowlisted origin from
+# sending an `Authorization` header cross-origin at all. Adding it here would make the CSRF
+# exemption browser-reachable, which is the one way the exemption becomes a hole.
+#
+# The CLI is not a browser, sends no `Origin`, and is not subject to CORS, so it loses nothing.
+# `tests/test_api_accounts.py` asserts the absence.
 CORS_REQUEST_HEADERS = (
     "Accept",
     "Accept-Language",
@@ -158,6 +168,23 @@ MAIL_SENDERS = (SMTP_MAIL, CONSOLE_MAIL)
 DEFAULT_SESSION_DAYS = 30
 DEFAULT_SESSION_REFRESH_MINUTES = 60
 
+# The CLI's bearer token. Shorter than the browser's cookie, and unlike it, capped absolutely.
+#
+# A cookie lives in a browser its owner can inspect and clear, is HttpOnly so no script reads
+# it, and is replaced on every sign-in. A bearer token lives in a file on a miner's machine at
+# mode 0600, and is copied nowhere the person can see. So: a shorter rolling window, and a
+# ceiling past which rolling stops, because "rolling" with no ceiling means a credential that
+# never expires as long as any cron job keeps touching it.
+DEFAULT_CLI_SESSION_DAYS = 14
+DEFAULT_CLI_SESSION_MAX_DAYS = 90
+
+# How many live CLI tokens one account may hold at once. A miner legitimately has several —
+# a laptop, a couple of rigs, CI — and each `conjectures auth login` mints another. The ceiling
+# is what keeps a compromised hotkey from minting an unbounded pile of durable credentials that
+# each have to be revoked individually; reaching it evicts the oldest rather than refusing the
+# newest, so a stale token on a decommissioned box cannot lock a miner out of their own tooling.
+DEFAULT_CLI_SESSIONS_PER_ACCOUNT = 10
+
 # Magic links and signing nonces are short-lived because they are single-use credentials in
 # transit. Fifteen minutes is long enough to find the email and short enough that a link
 # left in a browser history or a referrer header is already dead.
@@ -176,6 +203,14 @@ GOOGLE_CLIENT_ID_SHAPE = re.compile(
     r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$"
 )
 
+# How many signatures may be offered against one challenge before it is spent.
+#
+# The signature flows verify before consuming, so a wrong signature does not burn the nonce and
+# an attacker cannot grief a known address by sending garbage. The cost of that is an open
+# challenge accepting unlimited verification attempts on an unauthenticated path. Five is well
+# past any plausible client bug and nowhere near useful for guessing a 64-byte signature.
+DEFAULT_CHALLENGE_ATTEMPTS = 5
+
 # How long a held credit stays held. Long enough to upload a bundle and sign a digest,
 # short enough that an abandoned intent does not strand a credit for the day.
 DEFAULT_INTENT_MINUTES = 30
@@ -189,10 +224,12 @@ DEFAULT_DEPOSIT_HOURS = 24
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
 DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
-# Bumped to v3 by the v2 manual-review rule that expands `NOT_NOVEL`. The terms version and
-# manual-review version are separate counters because terms v2 was already published.
+# v3 was the v2 manual-review rule that expands `NOT_NOVEL`; v4 adds the two things a miner is now
+# actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
+# credit frozen into the request digest. The terms version and manual-review version are separate
+# counters because terms v2 was already published.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
-# leaving it at v2 would serve rewritten terms under a version string a miner already accepted.
+# leaving it behind would serve rewritten terms under a version string a miner already accepted.
 DEFAULT_TERMS_VERSION = "v4"
 DEFAULT_TERMS_DATE = "2026-08-10"
 
@@ -201,6 +238,96 @@ DEFAULT_TERMS_DATE = "2026-08-10"
 DEFAULT_LOGIN_DOMAIN = "conjectures.io"
 LOGIN_DOMAIN = re.compile(r"^[A-Za-z0-9.-]{1,253}$")
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# --- TMC PAY -------------------------------------------------------------------------------
+# The processor-settled way to buy credits. Off unless `TMC_PAY_API_BASE_URL`, `TMC_PAY_API_KEY`
+# and `TMC_PAY_WEBHOOK_SECRET` are all set: two of them are credentials and the third is a host
+# the published documentation quotes as `api.example.com`, so there is nothing here to guess and a
+# partially-configured deployment must not offer the payment method at all.
+#
+# `submission_api/tmc_pay.py` explains the trust difference this path introduces. These are the
+# knobs, and every default is chosen so that a deployment which sets only the three required
+# values behaves correctly.
+
+# ISO 4217, and the minor-unit count that goes with it. Both configurable because TMC PAY quotes
+# in fiat and a merchant may be onboarded in something other than dollars; `TMC_PAY_FIAT_DECIMALS`
+# exists because zero-decimal currencies (JPY, KRW) would otherwise be quoted to the cent.
+DEFAULT_TMC_PAY_FIAT_CURRENCY = "USD"
+DEFAULT_TMC_PAY_FIAT_DECIMALS = 2
+FIAT_CURRENCY = re.compile(r"^[A-Z]{3}$")
+
+# How much above the credit price the fiat request is sized, in basis points.
+#
+# TMC PAY locks its own exchange rate when it creates the invoice, a moment after this process
+# estimated one from TaoStats. 25 bps absorbs ordinary movement in that gap so the common case
+# needs one round trip rather than two; `routers/tmc_pay.py` still verifies the invoice it got
+# back, so this is an optimisation and never the guarantee. The overshoot is not lost — it lands
+# in the buyer's own balance as `remainder_rao`.
+DEFAULT_TMC_PAY_QUOTE_MARGIN_BPS = 25
+MAX_TMC_PAY_QUOTE_MARGIN_BPS = 2_000
+
+# How much more than the credit price an invoice may lock before it is thrown away and requoted —
+# the acceptable slippage, in basis points.
+#
+# This is the *ceiling* of the quote band, and it is a policy rather than a derivation: the floor
+# protects the validator from selling a credit below `CREDIT_PRICE_RAO`, and this protects the buyer
+# from being overcharged when the estimated rate came in high. 1% by default, which is loose enough
+# that ordinary rate movement between the estimate and the lock does not cost a second invoice, and
+# tight enough that a stale or wrong-currency rate is caught rather than charged.
+#
+# Must be at least `TMC_PAY_QUOTE_MARGIN_BPS`: the margin is added to every ask on purpose, so a
+# tolerance below it would put every invoice outside the deployment's own band and make each
+# purchase fail after exhausting its attempts. `Settings` refuses that combination at startup.
+DEFAULT_TMC_PAY_MAX_SLIPPAGE_BPS = 100
+MAX_TMC_PAY_MAX_SLIPPAGE_BPS = 5_000
+
+# How many invoices may be created for one purchase. The first uses the estimated rate; a second
+# uses the rate the first invoice actually locked, which is exact. More than two would mean the
+# rate is moving faster than the round trip, and the honest answer then is to refuse the sale.
+DEFAULT_TMC_PAY_QUOTE_ATTEMPTS = 2
+MAX_TMC_PAY_QUOTE_ATTEMPTS = 4
+
+# The invoice TTL. TMC PAY allows 5 to 1440 minutes and defaults to 30; 30 is enough to open a
+# wallet and send TAO, and short enough that an abandoned invoice stops occupying the account's
+# open-order allowance within the hour.
+DEFAULT_TMC_PAY_TTL_MINUTES = 30
+MIN_TMC_PAY_TTL_MINUTES = 5
+MAX_TMC_PAY_TTL_MINUTES = 1_440
+
+# How many invoices one account may have outstanding. The endpoint's side effect is an invoice at
+# a payment processor, so the ceiling is what stops one account filling somebody else's dashboard.
+DEFAULT_TMC_PAY_MAX_OPEN_ORDERS = 3
+
+# The largest single purchase. Not a policy about wealth: an invoice is quoted in fiat from an
+# estimated rate, and a mistyped credit count should fail here rather than become a five-figure
+# invoice somebody has to explain.
+DEFAULT_TMC_PAY_MAX_CREDITS = 1_000
+
+DEFAULT_TMC_PAY_TIMEOUT_SECONDS = 10.0
+
+# How often the owner reading their own order may cause a poll of TMC PAY. The payment page polls
+# every few seconds by design, and each poll is an outbound request against a shared API, so the
+# read endpoint refreshes at most this often and serves stored state in between.
+DEFAULT_TMC_PAY_POLL_SECONDS = 5
+
+# How long a rate observed on one of our own invoices is reused to price the next one.
+#
+# Every invoice reports the rate TMC PAY locked, and that beats any third-party feed as a seed: it
+# is the same rate source that will price the next invoice, and it is already denominated in the
+# merchant's currency. TaoStats is the cold-start fallback, not the primary. Five minutes trades a
+# little staleness for far fewer outbound calls and far fewer requotes — and the quote band makes
+# even a bad seed a wasted round trip rather than a wrong price.
+DEFAULT_TMC_PAY_RATE_TTL_SECONDS = 300
+
+# The one currency the external feeds can price. Both publish TAO in dollars, so a merchant
+# onboarded in anything else is seeded from its own past invoices or not at all.
+EXTERNAL_RATE_CURRENCY = "USD"
+
+# TaoMarketCap's public market-data host: the preferred external price source, because
+# TaoMarketCap is TMC PAY and its own candles are closer to the rate that platform will lock than
+# any third party's. Public — no API key — so it is on by default and a deployment needs no rate
+# configuration at all. Set to `none` to switch it off and fall back to TaoStats.
+DEFAULT_TAOMARKETCAP_API_BASE_URL = "https://api.taomarketcap.com"
 
 
 class SettingsError(RuntimeError):
@@ -270,6 +397,24 @@ def _bounded_int(
         raise SettingsError(f"{key} must be an integer, got {raw!r}") from exc
     if not minimum <= value <= maximum:
         raise SettingsError(f"{key} must be between {minimum} and {maximum}, got {value}")
+    return value
+
+
+def _positive_float(
+    environ: Mapping[str, str], key: str, default: float, *, maximum: float
+) -> float:
+    """A duration in seconds. Never used for money — see the note in `credits.py`."""
+    raw = environ.get(key, "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise SettingsError(f"{key} must be a number, got {raw!r}") from exc
+    if not value > 0:
+        raise SettingsError(f"{key} must be positive, got {value}")
+    if value > maximum:
+        raise SettingsError(f"{key} must not exceed {maximum}, got {value}")
     return value
 
 
@@ -411,6 +556,9 @@ class Settings:
     # bounty `amount_usd` is null while the Alpha-denominated quote remains available.
     taostats_api_key: str = field(repr=False)
     taostats_price_cache_seconds: int
+    # TaoMarketCap's public candle feed, the preferred TAO/USD source for pricing a TMC PAY
+    # invoice. Empty disables it, leaving TaoStats as the only external source.
+    taomarketcap_base_url: str
     # --- Public read surface ---------------------------------------------------------------
     pins_path: Path
     cors_allowed_origins: tuple[str, ...]
@@ -441,10 +589,14 @@ class Settings:
     google_client_id: str
     session_days: int
     session_refresh_minutes: int
+    cli_session_days: int
+    cli_session_max_days: int
+    cli_sessions_per_account: int
     email_link_minutes: int
     challenge_minutes: int
     email_links_per_hour: int
     challenges_per_hour: int
+    challenge_attempts: int
     intent_minutes: int
     deposit_hours: int
     credit_packages: str
@@ -453,6 +605,56 @@ class Settings:
     submission_terms_path: Path
     submission_terms_version: str
     submission_terms_effective_from: str
+
+    # --- TMC PAY ---------------------------------------------------------------------------
+    # Empty base URL means the payment method is not offered. Both secrets are `repr=False`: the
+    # settings object is logged at startup by way of the Axiom `service_started` event, and a
+    # merchant API key can create invoices payable to this validator's merchant account.
+    tmc_pay_base_url: str
+    tmc_pay_api_key: str = field(repr=False)
+    tmc_pay_webhook_secret: str = field(repr=False)
+    # TMC PAY's hosted payment page, if the buyer should be sent to one. Separate from the API
+    # base URL because they are different hosts, and optional because a purchase page that
+    # renders the deposit address and amount itself needs no redirect — every field it would
+    # need is already on the order.
+    tmc_pay_hosted_base_url: str
+    # Optional. When set, a webhook whose payload names a different merchant is refused rather
+    # than matched on invoice id alone — the one check that a delivery aimed at somebody else's
+    # integration cannot move money here.
+    tmc_pay_merchant_id: str
+    tmc_pay_fiat_currency: str
+    tmc_pay_fiat_decimals: int
+    tmc_pay_quote_margin_bps: int
+    # The acceptable overcharge before an invoice is thrown away and requoted. Never below
+    # `tmc_pay_quote_margin_bps` — see the constant, and the startup check in `from_env`.
+    tmc_pay_max_slippage_bps: int
+    tmc_pay_quote_attempts: int
+    tmc_pay_ttl_minutes: int
+    tmc_pay_max_open_orders: int
+    tmc_pay_max_credits: int
+    tmc_pay_timeout_seconds: float
+    tmc_pay_poll_seconds: int
+    tmc_pay_rate_ttl_seconds: int
+    # Whether a payment confirmed after its invoice expired issues credits automatically. Off by
+    # default: TMC PAY documents `late_payment` as a manual reconciliation case, and this process
+    # cannot tell from the outside whether such a payment settles to the treasury or is returned
+    # to the sender. An operator who has established that it settles can turn it on.
+    tmc_pay_credit_late_payments: bool
+
+    @property
+    def tmc_pay_enabled(self) -> bool:
+        """Whether credits can be bought through TMC PAY on this deployment.
+
+        All three of the base URL, the API key and the webhook secret, because each is
+        load-bearing: without the key no invoice can be created, and without the secret a webhook
+        cannot be authenticated — and an integration that creates invoices it can never confirm
+        would take money and issue nothing.
+        """
+        return bool(
+            self.tmc_pay_base_url
+            and self.tmc_pay_api_key
+            and self.tmc_pay_webhook_secret
+        )
 
     @property
     def production(self) -> bool:
@@ -604,6 +806,22 @@ class Settings:
                 ".apps.googleusercontent.com"
             )
 
+        # The CLI token's rolling window and the ceiling it may not roll past. Checked against
+        # each other here rather than trusted: a maximum below the rolling window silently
+        # means "every token expires at the maximum", which is a lifetime nobody configured
+        # and which would look like tokens dying early for no reason.
+        cli_session_days = _positive_int(
+            env, "CLI_SESSION_DAYS", DEFAULT_CLI_SESSION_DAYS, maximum=365
+        )
+        cli_session_max_days = _positive_int(
+            env, "CLI_SESSION_MAX_DAYS", DEFAULT_CLI_SESSION_MAX_DAYS, maximum=365
+        )
+        if cli_session_max_days < cli_session_days:
+            raise SettingsError(
+                "CLI_SESSION_MAX_DAYS must not be less than CLI_SESSION_DAYS; the maximum is "
+                "the ceiling a rolling window may not pass, not a second window"
+            )
+
         # The magic link is clicked by a person in a browser, so it points at the website,
         # not at this API. Production must say where that is: a link to a guessed origin is
         # a sign-in credential sent somewhere nobody chose.
@@ -649,6 +867,129 @@ class Settings:
                 "CREDIT_PRICE_USD_ASOF must be an ISO date when CREDIT_PRICE_USD is set; "
                 "a quoted price with no date cannot be judged for staleness"
             )
+
+        # --- TMC PAY ------------------------------------------------------------------------
+        # Validated together, because the three required values are only useful as a set: a
+        # deployment with a key and no secret would create invoices it could never confirm.
+        tmc_pay_base_url = env.get("TMC_PAY_API_BASE_URL", "").strip().rstrip("/")
+        tmc_pay_api_key = env.get("TMC_PAY_API_KEY", "").strip()
+        tmc_pay_webhook_secret = env.get("TMC_PAY_WEBHOOK_SECRET", "").strip()
+        tmc_pay_configured = tuple(
+            name
+            for name, value in (
+                ("TMC_PAY_API_BASE_URL", tmc_pay_base_url),
+                ("TMC_PAY_API_KEY", tmc_pay_api_key),
+                ("TMC_PAY_WEBHOOK_SECRET", tmc_pay_webhook_secret),
+            )
+            if value
+        )
+        if tmc_pay_configured and len(tmc_pay_configured) != 3:
+            # Half-configured is the dangerous state, not the harmless one: it is the shape in
+            # which a purchase page appears and a confirmation never does. Refuse to boot.
+            missing = ", ".join(
+                name
+                for name in (
+                    "TMC_PAY_API_BASE_URL",
+                    "TMC_PAY_API_KEY",
+                    "TMC_PAY_WEBHOOK_SECRET",
+                )
+                if name not in tmc_pay_configured
+            )
+            raise SettingsError(
+                f"TMC PAY is partially configured; {missing} must be set too, or unset all "
+                "three to leave the payment method off"
+            )
+        if tmc_pay_base_url:
+            if not tmc_pay_base_url.startswith(("http://", "https://")):
+                raise SettingsError(
+                    "TMC_PAY_API_BASE_URL must be an absolute http(s) URL, e.g. "
+                    "https://api.pay.example.com"
+                )
+            if production and not tmc_pay_base_url.startswith("https://"):
+                raise SettingsError("TMC_PAY_API_BASE_URL must use https in production")
+            if len(tmc_pay_api_key) > 512 or any(
+                ord(char) < 32 for char in tmc_pay_api_key
+            ):
+                raise SettingsError(
+                    "TMC_PAY_API_KEY must not exceed 512 characters or contain control "
+                    "characters"
+                )
+            if len(tmc_pay_webhook_secret) < 16:
+                # The secret is the only thing standing between an unauthenticated endpoint and
+                # the credit ledger. A short one is a typo or a placeholder, not a secret.
+                raise SettingsError(
+                    "TMC_PAY_WEBHOOK_SECRET must be at least 16 characters; it is what "
+                    "authenticates every credit a webhook issues"
+                )
+        # `none` switches the public candle feed off; empty means "use the default host". Validated
+        # here so a typo is a boot failure rather than a purchase that silently falls back.
+        taomarketcap_base_url = (
+            env.get("TAOMARKETCAP_API_BASE_URL", "").strip()
+            or DEFAULT_TAOMARKETCAP_API_BASE_URL
+        )
+        if taomarketcap_base_url.lower() == "none":
+            taomarketcap_base_url = ""
+        elif not taomarketcap_base_url.startswith(("http://", "https://")):
+            raise SettingsError(
+                "TAOMARKETCAP_API_BASE_URL must be an absolute http(s) URL, or `none` to "
+                "disable the candle feed"
+            )
+        elif production and not taomarketcap_base_url.startswith("https://"):
+            raise SettingsError("TAOMARKETCAP_API_BASE_URL must use https in production")
+
+        tmc_pay_fiat_currency = (
+            env.get("TMC_PAY_FIAT_CURRENCY", "").strip().upper()
+            or DEFAULT_TMC_PAY_FIAT_CURRENCY
+        )
+        if FIAT_CURRENCY.fullmatch(tmc_pay_fiat_currency) is None:
+            raise SettingsError(
+                "TMC_PAY_FIAT_CURRENCY must be a three-letter ISO 4217 code, e.g. USD"
+            )
+        # Read together, because the pair is only meaningful as a pair: the margin is what every
+        # ask adds on purpose, and the slippage is what the answer may come back as. A tolerance
+        # below the margin describes a band no invoice this deployment asks for could land in, so
+        # every purchase would burn its attempts and fail. Refused here rather than clamped —
+        # silently widening an operator's stated tolerance is not this code's decision to make.
+        tmc_pay_quote_margin_bps = _bounded_int(
+            env,
+            "TMC_PAY_QUOTE_MARGIN_BPS",
+            DEFAULT_TMC_PAY_QUOTE_MARGIN_BPS,
+            minimum=0,
+            maximum=MAX_TMC_PAY_QUOTE_MARGIN_BPS,
+        )
+        tmc_pay_max_slippage_bps = _bounded_int(
+            env,
+            "TMC_PAY_MAX_SLIPPAGE_BPS",
+            DEFAULT_TMC_PAY_MAX_SLIPPAGE_BPS,
+            minimum=0,
+            maximum=MAX_TMC_PAY_MAX_SLIPPAGE_BPS,
+        )
+        if tmc_pay_max_slippage_bps < tmc_pay_quote_margin_bps:
+            raise SettingsError(
+                f"TMC_PAY_MAX_SLIPPAGE_BPS ({tmc_pay_max_slippage_bps}) must be at least "
+                f"TMC_PAY_QUOTE_MARGIN_BPS ({tmc_pay_quote_margin_bps}); the margin is added to "
+                "every invoice this deployment asks for, so a tighter tolerance would reject all "
+                "of them"
+            )
+
+        tmc_pay_merchant_id = env.get("TMC_PAY_MERCHANT_ID", "").strip()
+        if len(tmc_pay_merchant_id) > 64:
+            raise SettingsError("TMC_PAY_MERCHANT_ID must not exceed 64 characters")
+        tmc_pay_hosted_base_url = (
+            env.get("TMC_PAY_HOSTED_BASE_URL", "").strip().rstrip("/")
+        )
+        if tmc_pay_hosted_base_url:
+            if not tmc_pay_hosted_base_url.startswith(("http://", "https://")):
+                raise SettingsError(
+                    "TMC_PAY_HOSTED_BASE_URL must be an absolute http(s) URL, e.g. "
+                    "https://pay.example.com"
+                )
+            if production and not tmc_pay_hosted_base_url.startswith("https://"):
+                # It is a link handed to a person who is about to send money. Over http, the
+                # address on the page is whatever the network says it is.
+                raise SettingsError(
+                    "TMC_PAY_HOSTED_BASE_URL must use https in production"
+                )
 
         tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
         return cls(
@@ -727,6 +1068,7 @@ class Settings:
                 DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS,
                 maximum=3600,
             ),
+            taomarketcap_base_url=taomarketcap_base_url,
             pins_path=_directory(env, "PINS_LOCK_PATH", PROJECT_ROOT / "pins.lock.json"),
             cors_allowed_origins=_cors_origins(
                 env, "CORS_ALLOWED_ORIGINS", production=production
@@ -804,11 +1146,22 @@ class Settings:
                 DEFAULT_SESSION_REFRESH_MINUTES,
                 maximum=10_080,
             ),
+            cli_session_days=cli_session_days,
+            cli_session_max_days=cli_session_max_days,
+            cli_sessions_per_account=_positive_int(
+                env,
+                "CLI_SESSIONS_PER_ACCOUNT",
+                DEFAULT_CLI_SESSIONS_PER_ACCOUNT,
+                maximum=1_000,
+            ),
             email_link_minutes=_positive_int(
                 env, "EMAIL_LINK_MINUTES", DEFAULT_EMAIL_LINK_MINUTES, maximum=1_440
             ),
             challenge_minutes=_positive_int(
                 env, "LOGIN_CHALLENGE_MINUTES", DEFAULT_CHALLENGE_MINUTES, maximum=60
+            ),
+            challenge_attempts=_positive_int(
+                env, "LOGIN_CHALLENGE_ATTEMPTS", DEFAULT_CHALLENGE_ATTEMPTS, maximum=100
             ),
             email_links_per_hour=_positive_int(
                 env, "EMAIL_LINKS_PER_HOUR", DEFAULT_EMAIL_LINKS_PER_HOUR, maximum=1_000
@@ -833,4 +1186,69 @@ class Settings:
             ),
             submission_terms_version=terms_version,
             submission_terms_effective_from=terms_date,
+            tmc_pay_base_url=tmc_pay_base_url,
+            tmc_pay_api_key=tmc_pay_api_key,
+            tmc_pay_webhook_secret=tmc_pay_webhook_secret,
+            tmc_pay_hosted_base_url=tmc_pay_hosted_base_url,
+            tmc_pay_merchant_id=tmc_pay_merchant_id,
+            tmc_pay_fiat_currency=tmc_pay_fiat_currency,
+            tmc_pay_fiat_decimals=_bounded_int(
+                env,
+                "TMC_PAY_FIAT_DECIMALS",
+                DEFAULT_TMC_PAY_FIAT_DECIMALS,
+                minimum=0,
+                maximum=6,
+            ),
+            tmc_pay_quote_margin_bps=tmc_pay_quote_margin_bps,
+            tmc_pay_max_slippage_bps=tmc_pay_max_slippage_bps,
+            tmc_pay_quote_attempts=_positive_int(
+                env,
+                "TMC_PAY_QUOTE_ATTEMPTS",
+                DEFAULT_TMC_PAY_QUOTE_ATTEMPTS,
+                maximum=MAX_TMC_PAY_QUOTE_ATTEMPTS,
+            ),
+            tmc_pay_ttl_minutes=_bounded_int(
+                env,
+                "TMC_PAY_TTL_MINUTES",
+                DEFAULT_TMC_PAY_TTL_MINUTES,
+                minimum=MIN_TMC_PAY_TTL_MINUTES,
+                maximum=MAX_TMC_PAY_TTL_MINUTES,
+            ),
+            tmc_pay_max_open_orders=_positive_int(
+                env,
+                "TMC_PAY_MAX_OPEN_ORDERS",
+                DEFAULT_TMC_PAY_MAX_OPEN_ORDERS,
+                maximum=100,
+            ),
+            tmc_pay_max_credits=_positive_int(
+                env,
+                "TMC_PAY_MAX_CREDITS",
+                DEFAULT_TMC_PAY_MAX_CREDITS,
+                maximum=1_000_000,
+            ),
+            tmc_pay_timeout_seconds=_positive_float(
+                env,
+                "TMC_PAY_TIMEOUT_SECONDS",
+                DEFAULT_TMC_PAY_TIMEOUT_SECONDS,
+                maximum=60.0,
+            ),
+            tmc_pay_poll_seconds=_bounded_int(
+                env,
+                "TMC_PAY_POLL_SECONDS",
+                DEFAULT_TMC_PAY_POLL_SECONDS,
+                minimum=0,
+                maximum=3_600,
+            ),
+            tmc_pay_rate_ttl_seconds=_bounded_int(
+                env,
+                "TMC_PAY_RATE_TTL_SECONDS",
+                DEFAULT_TMC_PAY_RATE_TTL_SECONDS,
+                # Zero disables reuse: every quote is seeded from the external feed. Kept
+                # available because it is the honest way to say "always ask a third party".
+                minimum=0,
+                maximum=86_400,
+            ),
+            tmc_pay_credit_late_payments=_flag(
+                env, "TMC_PAY_CREDIT_LATE_PAYMENTS", False
+            ),
         )
