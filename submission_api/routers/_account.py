@@ -21,8 +21,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.attribution import public_credit_from_values
 from conjectures_subnet.db import accounts as account_store
+from conjectures_subnet.db import credits as credit_store
 from conjectures_subnet.db import digests
+from conjectures_subnet.db import public as public_store
+from conjectures_subnet.db import submissions as submission_store
+from conjectures_subnet.db.intents import REASON_INSUFFICIENT_CREDITS
 from conjectures_subnet.db.models import (
+    ADMIN_ROLE,
+    REVIEWER_ROLE,
     Account,
     PayoutState,
     ReviewDecision,
@@ -30,7 +36,15 @@ from conjectures_subnet.db.models import (
     RewardEvent,
 )
 from submission_api import schemas_account as schemas
+from submission_api.dependencies import (
+    BEARER_ROLES,
+    REASON_BROWSER_SESSION_REQUIRED,
+    REASON_ROLE_NEEDS_BROWSER,
+    REASON_ROLE_REQUIRED,
+)
+from submission_api.login import REASON_HOTKEY_NOT_LINKED
 from submission_api.pagination import decode_cursor, encode_cursor
+from submission_api.routers.submissions import REASON_SUBMISSIONS_PAUSED
 from submission_api.settings import Settings
 
 
@@ -117,6 +131,213 @@ async def account_response(
             for item in identities
         ),
         created_at=_utc(account.created_at),
+    )
+
+
+# --- The session envelope ----------------------------------------------------------------
+# What `GET /v1/auth/session` and both sign-in endpoints answer with: the account, plus the
+# four things a signed-in shell needs before it can draw anything — how the person got in, what
+# they hold, how much work is waiting, and which buttons are live.
+#
+# Assembled here rather than in the router for the same reason `account_response` is: it is
+# served by three handlers, and three handlers building it separately is three chances for the
+# redaction rules below to be applied twice and forgotten once.
+
+
+def _identities(account: schemas.Account) -> tuple[schemas.Identity, ...]:
+    """The ways in, flattened out of the account that was just built.
+
+    Derived from the `schemas.Account` rather than re-read from the database, which is what
+    makes the two halves of the envelope incapable of disagreeing — and means a CLI session's
+    redaction is inherited rather than re-implemented: `account_response` has already dropped
+    the email and the wallets, so this yields an empty list for a bearer caller without knowing
+    that it is one.
+
+    **Only verified email counts as an identity.** An address that has not been proved is not a
+    way in, and listing it as one would tell someone they have a recovery channel they do not.
+
+    **`linked_at` on the email row is the account's creation time, and that is a lower bound
+    rather than an exact answer.** It is exact for a magic-link signup, where setting the address
+    *is* what creates the account. It is early when a coldkey-first account later linked Google
+    and that link adopted the provider's address — `accounts.email` has no companion timestamp,
+    so there is nothing more accurate to report. The fix is a column recording when the address
+    was attached, and it belongs with whatever flow first lets an address be attached on its own.
+    The Google row beside it carries its own true `linked_at`, so the honest reading of the pair
+    is "this address has worked since at least here".
+
+    Ordered email, then external providers, then coldkeys — the order an account acquires them in
+    the common case, and the order the account page lists them.
+    """
+    identities: list[schemas.Identity] = []
+    if account.email and account.email_verified:
+        identities.append(
+            schemas.Identity(
+                provider=schemas.PROVIDER_EMAIL,
+                label=account.email,
+                linked_at=account.created_at,
+            )
+        )
+    # `provider` is passed through rather than mapped to a constant: the column is CHECK-limited
+    # to 'google' today, and a second provider should appear here the moment the database accepts
+    # one, not on whatever later day someone remembers to extend a mapping in this file.
+    identities.extend(
+        schemas.Identity(
+            provider=item.provider,
+            label=item.email,
+            linked_at=item.linked_at,
+        )
+        for item in account.identities
+    )
+    identities.extend(
+        schemas.Identity(
+            provider=schemas.PROVIDER_COLDKEY,
+            label=wallet.coldkey,
+            linked_at=wallet.linked_at,
+        )
+        for wallet in account.wallets
+    )
+    return tuple(identities)
+
+
+def _capabilities(
+    account: schemas.Account,
+    *,
+    settings: Settings,
+    credits_available: int,
+    is_bearer: bool,
+) -> schemas.Capabilities:
+    """Evaluate the five gated actions against exactly the rules their endpoints enforce.
+
+    Each list below is the same sequence of checks the handler makes, in the same order, so the
+    first entry in `missing` is the refusal the caller would actually have received. Where the
+    endpoint reuses a shared dependency the code is imported from it rather than retyped —
+    a capability that says `ROLE_REQUIRED` while the router refuses with something else is worse
+    than no capability at all, because a client will have built its copy around the wrong word.
+
+    This is advisory. Nothing here authorises anything; the endpoint checks again.
+    """
+    has_hotkey = bool(account.hotkeys)
+    roles = set(account.roles)
+
+    submit: list[str] = []
+    if settings.submissions_paused:
+        submit.append(REASON_SUBMISSIONS_PAUSED)
+    if not has_hotkey:
+        submit.append(REASON_HOTKEY_NOT_LINKED)
+    if credits_available < 1:
+        submit.append(REASON_INSUFFICIENT_CREDITS)
+
+    # Both funding paths — the declared deposit and the TMC PAY invoice — are `CookieWriterDep`,
+    # so the credential is the only gate. TMC PAY being unconfigured is deliberately *not* a
+    # reason: the deposit path is always there, so credits are still buyable.
+    buy_credits = [REASON_BROWSER_SESSION_REQUIRED] if is_bearer else []
+
+    set_payout: list[str] = []
+    if is_bearer:
+        set_payout.append(REASON_BROWSER_SESSION_REQUIRED)
+    if not has_hotkey:
+        set_payout.append(REASON_HOTKEY_NOT_LINKED)
+
+    return schemas.Capabilities(
+        submit=schemas.Capability(allowed=not submit, missing=tuple(submit)),
+        buy_credits=schemas.Capability(
+            allowed=not buy_credits, missing=tuple(buy_credits)
+        ),
+        set_payout=schemas.Capability(
+            allowed=not set_payout, missing=tuple(set_payout)
+        ),
+        review=_role_capability(REVIEWER_ROLE, roles=roles, is_bearer=is_bearer),
+        manage_roles=_role_capability(ADMIN_ROLE, roles=roles, is_bearer=is_bearer),
+    )
+
+
+def _role_capability(
+    role: str, *, roles: set[str], is_bearer: bool
+) -> schemas.Capability:
+    """The two-part role gate, in `require_role`'s order: the role, then the credential.
+
+    Both codes can appear at once, and that is the useful case rather than an edge one: an
+    admin on the CLI is told they hold the role *and* that this credential cannot exercise it,
+    which is the distinction `require_role` exists to keep from collapsing into one message.
+    """
+    missing: list[str] = []
+    if role not in roles:
+        missing.append(REASON_ROLE_REQUIRED)
+    if is_bearer and role not in BEARER_ROLES:
+        missing.append(REASON_ROLE_NEEDS_BROWSER)
+    return schemas.Capability(allowed=not missing, missing=tuple(missing))
+
+
+async def session_envelope(
+    session: AsyncSession,
+    account: Account,
+    *,
+    settings: Settings,
+    now: dt.datetime,
+    bearer_scope: str | None = None,
+) -> schemas.SessionEnvelope:
+    """The complete signed-in state, redacted for the credential in hand.
+
+    `bearer_scope` is passed straight through to `account_response`, and everything else is
+    built from what that returns — so the redaction is decided in exactly one place. A CLI
+    session therefore sees no email identity, no coldkey identity, no payout and no hotkey but
+    its own, without this function branching on it.
+
+    Two things are *not* inherited and are decided here:
+
+    * **`credits`** stays. A CLI session spends credits — that is most of what it does — and
+      `account_response` already reasons that "how much it can spend" is within a bearer
+      token's business. Withholding it would mean the CLI could only discover an empty balance
+      by being refused.
+    * **`counts.review_queue`** is null unless the caller may actually open the queue. It is a
+      number about *other people's* submissions, and while the depth is hardly a secret, a field
+      that is populated for callers who cannot act on it invites a client to render a queue
+      badge that leads to a 403. `capabilities.review` is the same predicate, evaluated once.
+
+    Four queries beyond the account read, all indexed and all on the load path of every page:
+    the balance, the two intent-held sums behind it, this account's counts, and — only for a
+    reviewer — the shared queue depth.
+    """
+    body = await account_response(session, account, bearer_scope=bearer_scope)
+    is_bearer = bearer_scope is not None
+
+    balance = await credit_store.credit_balance(
+        session,
+        account.id,
+        credit_price_rao=settings.payment_amount_rao,
+        now=now,
+    )
+    counts = await submission_store.counts_for_account(session, account.id)
+    capabilities = _capabilities(
+        body,
+        settings=settings,
+        credits_available=balance.credits_available,
+        is_bearer=is_bearer,
+    )
+
+    review_queue = None
+    if capabilities.review.allowed:
+        review_queue = (await public_store.queue_depths(session)).awaiting_review
+
+    return schemas.SessionEnvelope(
+        account=body,
+        identities=_identities(body),
+        hotkeys=body.hotkeys,
+        payout=body.payout,
+        credits=schemas.SessionCredits(
+            balance=balance.credits_available,
+            # Floored to whole credits, like the balance beside it. A hold is always a whole
+            # credit — `open_intent` holds `credits_held` of them at the price in force — so
+            # this division is exact rather than lossy, unlike the balance's.
+            held=balance.held_rao // balance.credit_price_rao,
+        ),
+        counts=schemas.SessionCounts(
+            submissions_total=counts.submissions_total,
+            submissions_in_review=counts.submissions_in_review,
+            rewards_unclaimed=counts.rewards_unclaimed,
+            review_queue=review_queue,
+        ),
+        capabilities=capabilities,
     )
 
 
@@ -334,6 +555,7 @@ __all__ = [
     "latest_review",
     "latest_reward",
     "page_of",
+    "session_envelope",
     "session_view",
     "submission_detail",
     "submission_summary",

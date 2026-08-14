@@ -6,13 +6,13 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 
 | Method | Path | Contract | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/v1/auth/session` | `{ account }` | The current account, or `401` |
+| `GET` | `/v1/auth/session` | `SessionEnvelope` | The whole signed-in state, or `401` |
 | `POST` | `/v1/auth/email/request-link` | `202` | Mail a single-use sign-in link |
-| `POST` | `/v1/auth/email/verify` | `{ account }` | Exchange the token for a session |
+| `POST` | `/v1/auth/email/verify` | `SessionEnvelope` | Exchange the token for a session |
 | `POST` | `/v1/auth/google/callback` | `303` | Verify Google's redirect-mode ID token, open a session |
-| `POST` | `/v1/auth/google/link` | `{ account }` | Explicitly attach Google to the signed-in account |
+| `POST` | `/v1/auth/google/link` | `SessionEnvelope` | Attach Google to the signed-in account — browser only |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
-| `POST` | `/v1/auth/wallet/verify` | `{ account }` | Verify the signature, open a session |
+| `POST` | `/v1/auth/wallet/verify` | `SessionEnvelope` | Verify the signature, open a session |
 | `POST` | `/v1/auth/cli/challenge` | `{ nonce, message, expires_at }` | A nonce for a hotkey to sign |
 | `POST` | `/v1/auth/cli/verify` | `CliSession` | Verify the hotkey signature, mint a bearer token |
 | `POST` | `/v1/auth/logout` | `204` | Revoke **this** session; clear the cookies if it is one |
@@ -60,6 +60,117 @@ returns the tracker to pending. `extrinsic_reference`, `submitted_block`, `final
 Rows created before chain reconciliation carry no observation provenance and are hidden until the
 watcher replays and verifies them; a database `CONFIRMED` assertion by itself is never exposed as
 Paid.
+
+## The session envelope
+
+`GET /v1/auth/session` is what a client calls on load, and it answers with everything the
+signed-in shell needs to draw itself. Both sign-in endpoints return the identical body, so a
+client that has just signed in does not have to immediately read the session back.
+
+```jsonc
+{
+  "account":  { "id": "…", "email": "…", "email_verified": true, "display_name": null,
+                "roles": ["MINER"], "payout": null, "hotkeys": [], "wallets": [],
+                "identities": [ … ], "created_at": "2026-07-02T09:14:00Z" },
+
+  "identities": [ { "provider": "email",   "label": "db@dendrite.holdings",
+                    "linked_at": "2026-07-02T09:14:00Z" },
+                  { "provider": "google",  "label": "db@dendrite.holdings",
+                    "linked_at": "2026-08-14T08:02:00Z" },
+                  { "provider": "coldkey", "label": "5Fh3…9xQ",
+                    "linked_at": "2026-08-01T11:20:00Z" } ],
+
+  "hotkeys":  [ { "hotkey": "5Gk2…7aP", "label": null,
+                  "linked_at": "2026-08-03T18:44:00Z" } ],
+  "payout":   { "coldkey": "5Fh3…9xQ", "hotkey": "5Gk2…7aP" },   // null until set
+
+  "credits":  { "balance": 3, "held": 1 },                        // whole credits
+  "counts":   { "submissions_total": 12, "submissions_in_review": 2,
+                "rewards_unclaimed": 1, "review_queue": null },
+
+  "capabilities": {
+    "submit":       { "allowed": false, "missing": ["INSUFFICIENT_CREDITS"] },
+    "buy_credits":  { "allowed": true,  "missing": [] },
+    "set_payout":   { "allowed": true,  "missing": [] },
+    "review":       { "allowed": false, "missing": ["ROLE_REQUIRED"] },
+    "manage_roles": { "allowed": false, "missing": ["ROLE_REQUIRED"] }
+  }
+}
+```
+
+`account` is the canonical record and is unchanged. **`identities`, `hotkeys` and `payout` are
+derived from it in the same call**, never read separately, so the two halves of the body cannot
+disagree. They are flattened because the account page groups by "ways in" and "keys I mine with",
+which is not how the account row is shaped.
+
+**`identities` is every way back in: a verified mailbox, each linked external provider, and each
+linked coldkey.** An unverified address is not listed — it is not a way in, and saying otherwise
+would tell someone they have a recovery channel they do not have. `provider` is a plain string
+rather than an enum on the wire, so a client renders an unrecognised value as "some other login"
+rather than failing to parse the session it is signed in with; `google` is the only external
+provider the database accepts today, and the column's CHECK is what will admit the next one.
+
+`account.identities` is the provider-shaped record — the same rows with `last_used_at`. The
+top-level array is the flattened union across all three kinds, which is what a "how do I get back
+in" list actually needs. Neither exposes the Google **subject**: that is the login key, and it
+belongs in the database rather than in a body page script can read.
+
+**`linked_at` on the `email` row is a lower bound, not an exact answer.** It is the account's
+creation time, which is exact for a magic-link signup — setting the address *is* what creates the
+account — and early for a coldkey-first account that later linked Google and adopted the
+provider's address. `accounts.email` has no companion timestamp, so there is nothing more
+accurate to report; the Google row beside it carries its own true `linked_at`.
+
+A `coldkey` identity does **not** record which wallet produced the signature. Talisman, the
+tao.com wallet and `btcli` all emit the same sr25519 signature over the same message, and nothing
+in the sign-in flow observes the difference, so there is no honest field for it. If wallet
+provenance is ever needed, it has to be captured at sign-in — it cannot be recovered later.
+
+**`credits` is whole credits, and the two numbers do not overlap.** `balance` is spendable *now*,
+already net of `held`; `held` is what open submission intents have claimed. The account's total
+is `balance + held` — do not subtract again. `GET /v1/me/credits` remains the rao-denominated
+picture, including the sub-credit remainder this rounds away.
+
+**`counts` are badge numbers.** `rewards_unclaimed` is approved work whose payout has not
+confirmed: nothing is *claimed* in this system, since the payout worker pushes rewards on chain,
+so read it as "owed" rather than as an action waiting for the account holder. `review_queue` is
+the shared queue depth and is `null` unless this caller may actually open the queue — a populated
+badge for someone who cannot act on it only leads to a `403`.
+
+**`capabilities` is advice, never enforcement.** Every gate is checked again at the endpoint,
+against state that may have moved since this was read; a client that trusted `allowed: true` and
+dropped its error path would still be wrong the moment a credit is spent in another tab. What it
+buys is that a greyed-out button has a reason: `missing` carries the same `reason_code` strings
+the corresponding endpoint refuses with, in the order that endpoint checks them, so "why is this
+disabled" and "why did that `403`" answer with the same word. Without it, every client
+re-implements the authorisation rules from `roles`, `hotkeys` and `credits` — and drifts from the
+server the first time one changes.
+
+| Capability | Gated on |
+| --- | --- |
+| `submit` | `SUBMISSIONS_PAUSED`, `HOTKEY_NOT_LINKED`, `INSUFFICIENT_CREDITS` |
+| `buy_credits` | `BROWSER_SESSION_REQUIRED` — both funding paths are cookie-only |
+| `set_payout` | `BROWSER_SESSION_REQUIRED`, `HOTKEY_NOT_LINKED` |
+| `review` | `ROLE_REQUIRED` (`REVIEWER`), `ROLE_REQUIRES_BROWSER_SESSION` |
+| `manage_roles` | `ROLE_REQUIRED` (`ADMIN`), `ROLE_REQUIRES_BROWSER_SESSION` |
+
+Both role codes can appear at once, and that is the useful case rather than an edge one: an admin
+on the CLI is told the role is held *and* that this credential cannot exercise it.
+
+The whole envelope is redacted for a CLI bearer session on the same rule as `Account`, and
+inherits it rather than re-implementing it — everything is built from the already-redacted
+account, so a bearer caller gets `identities: []`, `payout: null` and only its own hotkey without
+the builder branching on the credential. `credits` is the deliberate exception: spending them is
+most of what the CLI does, and discovering an empty balance by being refused would be worse.
+
+`Cache-Control: no-store` on all of it. The body was already caller-dependent; it now also
+carries a balance and a set of permissions, and a shared cache serving one account's capabilities
+to another would be an authorisation bug wearing a caching bug's clothes.
+
+`hotkeys[].label` is always `null` today. The field ships now so the account page can be built
+against its final shape; populating it needs a nullable column on `linked_hotkeys` and an endpoint
+to set it. Null is honest — there is no name — and a client should fall back to a truncated
+`hotkey`.
 
 ## Sessions
 

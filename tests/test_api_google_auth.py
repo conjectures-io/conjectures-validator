@@ -135,6 +135,17 @@ def test_google_callback_creates_one_identity_and_the_normal_session():
                 assert account["identities"][0]["email"] == EMAIL
                 assert "subject" not in account["identities"][0]
 
+                # And the flattened envelope lists it beside the mailbox it adopted, so a
+                # "ways back in" panel does not have to reconcile two differently-shaped arrays.
+                body = session.json()
+                assert [item["provider"] for item in body["identities"]] == [
+                    "email",
+                    "google",
+                ]
+                assert {item["label"] for item in body["identities"]} == {EMAIL}
+                # The subject is the login key. It is not in either shape.
+                assert "subject" not in body["identities"][1]
+
                 # A second callback resolves by stable subject rather than creating a duplicate.
                 again = await callback(http)
                 assert again.status_code == 303
@@ -230,6 +241,58 @@ def test_one_google_identity_cannot_be_linked_to_two_accounts():
                 )
                 assert refused.status_code == 409
                 assert refused.json()["reason_code"] == "GOOGLE_IDENTITY_ALREADY_LINKED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_cli_token_can_neither_see_nor_attach_a_google_identity():
+    """Two halves of one rule: a linked provider is a way *in*, so a hotkey-minted token may not
+    read that it exists and may not add another.
+
+    Neither half existed to be tested before — CLI sessions and Google sign-in were built on
+    branches that had never met, so `WriterDep` on the link endpoint read as cookie-only right up
+    until bearer tokens became a thing that could satisfy it.
+    """
+
+    async def scenario():
+        from test_api_accounts import HOTKEY
+        from test_api_cli_sessions import bearer, cli_login, link_hotkey
+
+        kit = await harness(google=google()).setup()
+        try:
+            async with await client(kit) as browser, await client(kit) as cli:
+                await sign_in_email(kit, browser, "miner@example.com")
+                await link_hotkey(kit, browser, HOTKEY)
+                attached = await browser.post(
+                    "/v1/auth/google/link",
+                    json={"credential": CREDENTIAL},
+                    headers=csrf(browser),
+                )
+                assert attached.status_code == 200, attached.text
+                # The browser sees it, in both shapes.
+                assert attached.json()["account"]["identities"][0]["provider"] == "google"
+                assert "google" in {
+                    item["provider"] for item in attached.json()["identities"]
+                }
+
+                token = (await cli_login(kit, cli, HOTKEY))["access_token"]
+                seen = await cli.get("/v1/auth/session", headers=bearer(token))
+                assert seen.status_code == 200, seen.text
+                # Withheld: the Google account is the next door an attacker would try.
+                assert seen.json()["account"]["identities"] == []
+                assert seen.json()["identities"] == []
+
+                # And it cannot add one. This is the takeover step the cookie-only gate exists
+                # for: link an attacker's Google account, then sign in as them.
+                refused = await cli.post(
+                    "/v1/auth/google/link",
+                    json={"credential": CREDENTIAL},
+                    headers=bearer(token),
+                )
+                assert refused.status_code == 403, refused.text
+                assert refused.json()["reason_code"] == "BROWSER_SESSION_REQUIRED"
         finally:
             await kit.teardown()
 

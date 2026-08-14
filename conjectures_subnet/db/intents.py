@@ -59,6 +59,11 @@ from conjectures_subnet.db.models import (
 
 PROOF_CONSTRAINT = "submissions_proof_digest_key"
 
+# Named rather than inline, because two callers have to agree on it: `open_intent` refuses with
+# it, and the session envelope reports it as the reason `submit` is unavailable. A greyed-out
+# button and the 409 it would have produced must say the same word.
+REASON_INSUFFICIENT_CREDITS = "INSUFFICIENT_CREDITS"
+
 # The event kinds this module writes. The timeline is what a miner reads while
 # waiting, so every state change worth asking about gets one.
 EVENT_ACCEPTED = "SUBMISSION_ACCEPTED"
@@ -99,7 +104,7 @@ async def open_intent(
     if balance.credits_available < credits_held:
         raise RecordConflict(
             "not enough credits for another verification attempt",
-            reason_code="INSUFFICIENT_CREDITS",
+            reason_code=REASON_INSUFFICIENT_CREDITS,
             credits_available=balance.credits_available,
             credits_required=credits_held,
         )

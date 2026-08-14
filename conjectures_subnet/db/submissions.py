@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,6 +114,20 @@ class RecordedVerdict:
 
     run: VerificationRun
     applied: bool
+
+
+@dataclass(frozen=True)
+class AccountCounts:
+    """How much work one account has in each state. Every field is a count of its own rows.
+
+    Three numbers rather than a status histogram because these are the three a signed-in page
+    has a decision to make about: how much has been submitted at all, how much is still waiting
+    on the reward decision, and how much has been approved but not yet paid.
+    """
+
+    submissions_total: int
+    submissions_in_review: int
+    rewards_unclaimed: int
 
 
 def canonical_request_digest(
@@ -553,6 +567,40 @@ async def get_for_account(
     if submission is None or submission.account_id != account_id:
         raise RecordNotFound("submission not found")
     return await load_view(session, submission)
+
+
+async def counts_for_account(
+    session: AsyncSession, account_id: uuid.UUID
+) -> AccountCounts:
+    """The three per-account totals, in one pass over that account's rows.
+
+    Filtered aggregates rather than three round trips, the same shape `public.queue_depths`
+    uses: this is read on every session load, so it is one query against
+    `submissions_account_idx` rather than three separate scans of the same rows.
+
+    `submissions_in_review` uses the same predicate as the public in-review feed —
+    Lean-verified and not yet decided — so an account's own count and the public queue cannot
+    disagree about what "in review" means.
+
+    `rewards_unclaimed` counts `ELIGIBLE`, which is *approved and not yet paid out*. There is no
+    claim action in this system — a reward is pushed on chain by the payout worker, never pulled
+    — so this is money owed rather than money waiting to be collected, and a client should label
+    it accordingly.
+    """
+    statement = select(
+        func.count(),
+        func.count().filter(
+            (Submission.verification_status == VerificationState.VERIFIED)
+            & (Submission.manual_review_status == ManualReviewState.UNREVIEWED)
+        ),
+        func.count().filter(Submission.reward_status == RewardState.ELIGIBLE),
+    ).where(Submission.account_id == account_id)
+    row = (await session.execute(statement)).one()
+    return AccountCounts(
+        submissions_total=row[0],
+        submissions_in_review=row[1],
+        rewards_unclaimed=row[2],
+    )
 
 
 async def rewards_for_account(
