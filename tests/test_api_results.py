@@ -292,8 +292,13 @@ def test_an_operator_paid_assertion_without_chain_provenance_is_not_certified():
             assert response.status_code == 200
             assert submission_id not in {item["id"] for item in response.json()["items"]}
 
+            # The record itself is still readable: `public_result` publishes any Lean-verified
+            # submission, and the dashboard feed lists every state. What must not happen is the
+            # row *claiming* a certification the chain never witnessed, so that is what is
+            # asserted rather than the 404 this test wanted before the feed was widened.
             response = await _get(kit, f"/v1/results/{submission_id}")
-            assert response.status_code == 404
+            assert response.status_code == 200, response.text
+            assert response.json()["certified_at"] is None
         finally:
             await kit.teardown()
 

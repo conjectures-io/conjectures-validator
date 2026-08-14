@@ -112,6 +112,10 @@ EventType: TypeAlias = Literal[
     "login_completed",
     "logout",
     "wallet_linked",
+    # An external sign-in provider was attached to an existing account. Separate from
+    # `login_completed` because it changes *how many ways in* an account has rather than
+    # exercising one, which is the shape of a takeover step and so worth its own type.
+    "identity_linked",
     # A session ended by something other than its own holder logging out: the per-account CLI
     # ceiling evicting the oldest token, an owner killing a session from the listing, or an
     # operator cutting an account off. `reason` says which. Worth its own type because a

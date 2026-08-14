@@ -642,7 +642,7 @@ async def google_callback(
         services.settings,
         method="google",
         user_agent=user_agent,
-        source_ip=_client_ip(request),
+        source_ip=_client_ip(request, services.settings),
     )
     return response
 
