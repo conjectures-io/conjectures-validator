@@ -6,11 +6,13 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 
 | Method | Path | Contract | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/v1/auth/session` | `{ account }` | The current account, or `401` |
+| `GET` | `/v1/auth/session` | `SessionEnvelope` | The whole signed-in state, or `401` |
 | `POST` | `/v1/auth/email/request-link` | `202` | Mail a single-use sign-in link |
-| `POST` | `/v1/auth/email/verify` | `{ account }` | Exchange the token for a session |
+| `POST` | `/v1/auth/email/verify` | `SessionEnvelope` | Exchange the token for a session |
+| `POST` | `/v1/auth/google/callback` | `303` | Verify Google's redirect-mode ID token, open a session |
+| `POST` | `/v1/auth/google/link` | `SessionEnvelope` | Attach Google to the signed-in account — browser only |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
-| `POST` | `/v1/auth/wallet/verify` | `{ account }` | Verify the signature, open a session |
+| `POST` | `/v1/auth/wallet/verify` | `SessionEnvelope` | Verify the signature, open a session |
 | `POST` | `/v1/auth/cli/challenge` | `{ nonce, message, expires_at }` | A nonce for a hotkey to sign |
 | `POST` | `/v1/auth/cli/verify` | `CliSession` | Verify the hotkey signature, mint a bearer token |
 | `POST` | `/v1/auth/logout` | `204` | Revoke **this** session; clear the cookies if it is one |
@@ -48,6 +50,127 @@ three model modules, and the one where a hotkey, an email, a payout address or a
 *allowed* to appear, because everything here is served only to the authenticated owner of the
 data. The separation is the point: a field on `Account` would be a serious disclosure on
 `PublicResult`.
+
+`PENDING` reward events are internal instructions and are not returned by `SubmissionDetail.reward`
+or `/v1/me/rewards`: no successful chain event exists yet, so calling them Paying would be false.
+The payout watcher exposes `SUBMITTED` only while a matching event exists on the best chain and
+`CONFIRMED` only after that block finalizes. A best-chain reorganization removes `SUBMITTED` and
+returns the tracker to pending. `extrinsic_reference`, `submitted_block`, `finalized_block`, and
+`confirmed_at` therefore come from chain events rather than an operator-maintained flag.
+Rows created before chain reconciliation carry no observation provenance and are hidden until the
+watcher replays and verifies them; a database `CONFIRMED` assertion by itself is never exposed as
+Paid.
+
+## The session envelope
+
+`GET /v1/auth/session` is what a client calls on load, and it answers with everything the
+signed-in shell needs to draw itself. Both sign-in endpoints return the identical body, so a
+client that has just signed in does not have to immediately read the session back.
+
+```jsonc
+{
+  "account":  { "id": "…", "email": "…", "email_verified": true, "display_name": null,
+                "roles": ["MINER"], "payout": null, "hotkeys": [], "wallets": [],
+                "identities": [ … ], "created_at": "2026-07-02T09:14:00Z" },
+
+  "identities": [ { "provider": "email",   "label": "db@dendrite.holdings",
+                    "linked_at": "2026-07-02T09:14:00Z" },
+                  { "provider": "google",  "label": "db@dendrite.holdings",
+                    "linked_at": "2026-08-14T08:02:00Z" },
+                  { "provider": "coldkey", "label": "5Fh3…9xQ",
+                    "linked_at": "2026-08-01T11:20:00Z" } ],
+
+  "hotkeys":  [ { "hotkey": "5Gk2…7aP", "label": null,
+                  "linked_at": "2026-08-03T18:44:00Z" } ],
+  "payout":   { "coldkey": "5Fh3…9xQ", "hotkey": "5Gk2…7aP" },   // null until set
+
+  "credits":  { "balance": 3, "held": 1 },                        // whole credits
+  "counts":   { "submissions_total": 12, "submissions_in_review": 2,
+                "rewards_unclaimed": 1, "review_queue": null },
+
+  "capabilities": {
+    "submit":       { "allowed": false, "missing": ["INSUFFICIENT_CREDITS"] },
+    "buy_credits":  { "allowed": true,  "missing": [] },
+    "set_payout":   { "allowed": true,  "missing": [] },
+    "review":       { "allowed": false, "missing": ["ROLE_REQUIRED"] },
+    "manage_roles": { "allowed": false, "missing": ["ROLE_REQUIRED"] }
+  }
+}
+```
+
+`account` is the canonical record and is unchanged. **`identities`, `hotkeys` and `payout` are
+derived from it in the same call**, never read separately, so the two halves of the body cannot
+disagree. They are flattened because the account page groups by "ways in" and "keys I mine with",
+which is not how the account row is shaped.
+
+**`identities` is every way back in: a verified mailbox, each linked external provider, and each
+linked coldkey.** An unverified address is not listed — it is not a way in, and saying otherwise
+would tell someone they have a recovery channel they do not have. `provider` is a plain string
+rather than an enum on the wire, so a client renders an unrecognised value as "some other login"
+rather than failing to parse the session it is signed in with; `google` is the only external
+provider the database accepts today, and the column's CHECK is what will admit the next one.
+
+`account.identities` is the provider-shaped record — the same rows with `last_used_at`. The
+top-level array is the flattened union across all three kinds, which is what a "how do I get back
+in" list actually needs. Neither exposes the Google **subject**: that is the login key, and it
+belongs in the database rather than in a body page script can read.
+
+**`linked_at` on the `email` row is a lower bound, not an exact answer.** It is the account's
+creation time, which is exact for a magic-link signup — setting the address *is* what creates the
+account — and early for a coldkey-first account that later linked Google and adopted the
+provider's address. `accounts.email` has no companion timestamp, so there is nothing more
+accurate to report; the Google row beside it carries its own true `linked_at`.
+
+A `coldkey` identity does **not** record which wallet produced the signature. Talisman, the
+tao.com wallet and `btcli` all emit the same sr25519 signature over the same message, and nothing
+in the sign-in flow observes the difference, so there is no honest field for it. If wallet
+provenance is ever needed, it has to be captured at sign-in — it cannot be recovered later.
+
+**`credits` is whole credits, and the two numbers do not overlap.** `balance` is spendable *now*,
+already net of `held`; `held` is what open submission intents have claimed. The account's total
+is `balance + held` — do not subtract again. `GET /v1/me/credits` remains the rao-denominated
+picture, including the sub-credit remainder this rounds away.
+
+**`counts` are badge numbers.** `rewards_unclaimed` is approved work whose payout has not
+confirmed: nothing is *claimed* in this system, since the payout worker pushes rewards on chain,
+so read it as "owed" rather than as an action waiting for the account holder. `review_queue` is
+the shared queue depth and is `null` unless this caller may actually open the queue — a populated
+badge for someone who cannot act on it only leads to a `403`.
+
+**`capabilities` is advice, never enforcement.** Every gate is checked again at the endpoint,
+against state that may have moved since this was read; a client that trusted `allowed: true` and
+dropped its error path would still be wrong the moment a credit is spent in another tab. What it
+buys is that a greyed-out button has a reason: `missing` carries the same `reason_code` strings
+the corresponding endpoint refuses with, in the order that endpoint checks them, so "why is this
+disabled" and "why did that `403`" answer with the same word. Without it, every client
+re-implements the authorisation rules from `roles`, `hotkeys` and `credits` — and drifts from the
+server the first time one changes.
+
+| Capability | Gated on |
+| --- | --- |
+| `submit` | `SUBMISSIONS_PAUSED`, `HOTKEY_NOT_LINKED`, `INSUFFICIENT_CREDITS` |
+| `buy_credits` | `BROWSER_SESSION_REQUIRED` — both funding paths are cookie-only |
+| `set_payout` | `BROWSER_SESSION_REQUIRED`, `HOTKEY_NOT_LINKED` |
+| `review` | `ROLE_REQUIRED` (`REVIEWER`), `ROLE_REQUIRES_BROWSER_SESSION` |
+| `manage_roles` | `ROLE_REQUIRED` (`ADMIN`), `ROLE_REQUIRES_BROWSER_SESSION` |
+
+Both role codes can appear at once, and that is the useful case rather than an edge one: an admin
+on the CLI is told the role is held *and* that this credential cannot exercise it.
+
+The whole envelope is redacted for a CLI bearer session on the same rule as `Account`, and
+inherits it rather than re-implementing it — everything is built from the already-redacted
+account, so a bearer caller gets `identities: []`, `payout: null` and only its own hotkey without
+the builder branching on the credential. `credits` is the deliberate exception: spending them is
+most of what the CLI does, and discovering an empty balance by being refused would be worse.
+
+`Cache-Control: no-store` on all of it. The body was already caller-dependent; it now also
+carries a balance and a set of permissions, and a shared cache serving one account's capabilities
+to another would be an authorisation bug wearing a caching bug's clothes.
+
+`hotkeys[].label` is always `null` today. The field ships now so the account page can be built
+against its final shape; populating it needs a nullable column on `linked_hotkeys` and an endpoint
+to set it. Null is honest — there is no name — and a client should fall back to a truncated
+`hotkey`.
 
 ## Sessions
 
@@ -200,6 +323,24 @@ someone else's mailbox, and the IP limiter cannot see who is being mailed.
 `POST /v1/auth/email/verify` consumes the token in one conditional `UPDATE`, so a forwarded email
 or a double-clicked link signs in once. It is signup and sign-in at once — verifying a token
 proves receipt at that address, which is the whole of what an email account proves.
+
+### Google
+
+The frontend uses Google Identity Services in redirect mode and posts the credential to
+`POST /v1/auth/google/callback`. That callback is the one cross-site write exempt from the normal
+session CSRF middleware: Google supplies `g_csrf_token` in both a cookie and the form body, and the
+route compares them before it reads the ID token. `google-auth` then verifies the token signature,
+issuer, expiry, and exact `GOOGLE_CLIENT_ID` audience. No Google access or refresh token is stored.
+
+The provider's stable `sub` claim identifies the account. Email is bounded metadata and may
+change. A callback whose email already belongs to a wallet or magic-link account never merges it
+silently; it redirects to `/login?reason=GOOGLE_ACCOUNT_LINK_REQUIRED`. The person signs into the
+account they intend to keep and calls `POST /v1/auth/google/link`, which uses the normal session
+CSRF header. One Google subject can belong to one local account, and one local account can have at
+most one Google subject; both rules are database unique constraints.
+
+`Account.identities` exposes provider, observed email, linked time, and last-used time to the
+account owner. The stable provider subject is deliberately never returned.
 
 ### Wallet
 
@@ -514,6 +655,25 @@ PUT  /v1/submissions/intents/{id}/bundle    admits the bundle, returns the diges
 POST /v1/submissions/intents/{id}/confirm   debits the credit, writes the submission
 ```
 
+The intent creation body may include the same opt-in authorship used by the direct-payment path:
+
+```json
+{
+  "task_id": "fc-…",
+  "task_bundle_sha256": "sha256:…",
+  "hotkey": "5Grw…",
+  "public_credit": {
+    "name": "Emmy Noether",
+    "url": "https://example.org/emmy-noether",
+    "orcid": "0000-0002-1825-0097"
+  }
+}
+```
+
+It is optional. When present, it is frozen on the intent, included in the server-generated digest
+the hotkey signs, and copied unchanged to the submission. The account's mutable `display_name` is
+not used for result credit.
+
 **Why hold at step 2 rather than charge at step 4.** Without a hold, a miner with one credit could
 open any number of intents, upload to all of them, and race the confirmations. `open_intent` locks
 the account row before reading the balance, so two concurrent calls cannot both see the last
@@ -521,10 +681,10 @@ credit.
 
 **Why the server computes the digest at step 3.** The client must never choose what it is signing.
 `request_digest` is canonical JSON over the intent id, the submitting hotkey, the task, the task
-digest, and the proof digest **as admitted** — so a captured signature cannot be moved to
-different bytes, a different task, or a different attempt. Re-uploading replaces the bundle and
-recomputes the digest, invalidating the old signature, so a miner who uploaded the wrong file does
-not lose the held credit.
+digest, the proof digest **as admitted**, and any public credit — so a captured signature cannot be
+moved to different bytes, a different task, a different author credit, or a different attempt.
+Re-uploading replaces the bundle and recomputes the digest, invalidating the old signature, so a
+miner who uploaded the wrong file does not lose the held credit.
 
 **`confirm` is atomic.** Under an account-level lock: lock, re-read the intent under that lock,
 write the proof, append the `SPEND`, insert the submission pointing at it, mark the intent
@@ -633,13 +793,14 @@ event.
 
 ## Configuration
 
-See [`../.env.example`](../.env.example). The four that production refuses to start without or
-with the wrong value:
+See [`../.env.example`](../.env.example). Google remains fail-closed when its client ID is absent;
+the other four values below are ones production refuses to start without or with the wrong value:
 
 | Variable | Rule |
 | --- | --- |
 | `WEBSITE_BASE_URL` | Required, https. Where the sign-in link points — a link to a guessed origin is a credential sent somewhere nobody chose |
 | `MAIL_SENDER` | Must be `smtp`. `console` writes sign-in links to the process log |
+| `GOOGLE_CLIENT_ID` | Google OAuth web-client ID. Empty disables Google sign-in; accepted tokens must have this exact audience |
 | `PUBLIC_CURSOR_SECRET` | Required, 32+ chars, and refused if it is the constant published in `settings.py` |
 | `PUBLIC_ACTIVITY_SALT` | Same rules |
 

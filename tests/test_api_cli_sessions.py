@@ -36,6 +36,7 @@ from test_api_accounts import (  # noqa: E402
     EMAIL,
     client,
     csrf,
+    grant_credits,
     run,
     sign,
     sign_in_by_email,
@@ -700,6 +701,101 @@ def test_a_cli_session_sees_a_redacted_account():
                 # Still the same account, and still honest about what it is.
                 assert seen["id"] == full["id"]
                 assert seen["email_verified"] is True
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_cli_session_sees_a_redacted_session_envelope():
+    """The envelope inherits `account`'s redaction rather than re-implementing it.
+
+    Every derived field is built from the already-redacted account, so a bearer caller gets no
+    email identity, no coldkey identity and no payout without the builder branching on the
+    credential at all. What it does keep is the balance — spending credits is most of what a CLI
+    does, and discovering an empty one by being refused would be worse.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as browser, await client(kit) as cli:
+                account = await sign_in_by_email(kit, browser)
+                await link_hotkey(kit, browser, HOTKEY)
+                await link_hotkey(kit, browser, OTHER_HOTKEY)
+                await browser.put(
+                    "/v1/me/payout",
+                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    headers=csrf(browser),
+                )
+                await grant_credits(kit, uuid.UUID(account["id"]), 2)
+                token = (await cli_login(kit, cli, HOTKEY))["access_token"]
+
+                seen = await cli.get("/v1/auth/session", headers=bearer(token))
+                assert seen.status_code == 200, seen.text
+                assert seen.headers["cache-control"] == "no-store"
+                body = seen.json()
+
+                # The mailbox and the coldkey are the two ways back into this account. Neither
+                # is disclosed to a token minted by a key sitting on a mining box.
+                assert body["identities"] == []
+                assert body["payout"] is None
+                assert [item["hotkey"] for item in body["hotkeys"]] == [HOTKEY]
+                # Kept: what it needs to operate.
+                assert body["credits"] == {"balance": 2, "held": 0}
+
+                # Buying is a browser action — both funding paths are cookie-only — and the
+                # capability says so with the code the endpoint itself refuses with.
+                assert body["capabilities"]["buy_credits"] == {
+                    "allowed": False,
+                    "missing": ["BROWSER_SESSION_REQUIRED"],
+                }
+                assert body["capabilities"]["set_payout"] == {
+                    "allowed": False,
+                    "missing": ["BROWSER_SESSION_REQUIRED"],
+                }
+                # Submitting is exactly what this credential is for.
+                assert body["capabilities"]["submit"]["allowed"] is True
+                assert body["counts"]["review_queue"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_admin_on_the_cli_is_told_the_role_is_held_but_not_exercisable():
+    """`require_role` keeps the two refusals apart so an admin is not sent round in circles
+    wondering why their admin account is refused. The capability keeps them apart too."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            account, token = await linked_account_with_cli_token(kit)
+            await grant_role(kit, account["id"], ADMIN_ROLE)
+
+            async with await client(kit) as cli:
+                body = (
+                    await cli.get("/v1/auth/session", headers=bearer(token))
+                ).json()
+                # Not ROLE_REQUIRED: the account holds ADMIN. Only the credential is wrong.
+                assert body["capabilities"]["manage_roles"] == {
+                    "allowed": False,
+                    "missing": ["ROLE_REQUIRES_BROWSER_SESSION"],
+                }
+                # REVIEWER is neither held nor exercisable here, and both are reported.
+                assert body["capabilities"]["review"] == {
+                    "allowed": False,
+                    "missing": ["ROLE_REQUIRED", "ROLE_REQUIRES_BROWSER_SESSION"],
+                }
+                # And the capability agrees with the router it describes: same refusal, same
+                # word, for an account that really does hold the role.
+                refused = await cli.get(
+                    f"/v1/admin/accounts/{account['id']}", headers=bearer(token)
+                )
+                assert refused.status_code == 403
+                assert (
+                    refused.json()["reason_code"] == "ROLE_REQUIRES_BROWSER_SESSION"
+                )
         finally:
             await kit.teardown()
 

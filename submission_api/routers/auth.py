@@ -1,12 +1,12 @@
 """Sign in, sign out, and read the current session.
 
-Three ways in. Two are for a browser and end in an HttpOnly cookie: a magic link to an email
-address, and a signature from a coldkey. The third is for the miner CLI and ends in a bearer
-token: a signature from a hotkey that has already been linked to an account in the browser. See
-`submission_api/sessions.py` for the two credentials and why only one of them needs CSRF, and
-`submission_api/login.py` for the signed messages.
+Four ways in. Three are for a browser and end in an HttpOnly cookie: a Google identity, a magic
+link to an email address, and a signature from a coldkey. The fourth is for the miner CLI and ends
+in a bearer token: a signature from a hotkey that has already been linked to an account in the
+browser. See `submission_api/sessions.py` for the two credentials and why only one of them needs
+CSRF, and `submission_api/login.py` for the signed messages.
 
-Six things here are security decisions rather than conveniences:
+Seven things here are security decisions rather than conveniences:
 
 * **`request-link` always answers 202.** Whether an account exists for an address is not
   disclosed, so this endpoint cannot be used to enumerate who has signed up. The response
@@ -17,6 +17,8 @@ Six things here are security decisions rather than conveniences:
   revoked.** Reusing a session across a re-authentication would let a session established
   before an email was verified survive the change in what that account can reach. CLI tokens
   are deliberately out of that scope — see `_sign_in`.
+* **Google subjects, not emails, identify Google users.** A matching email never silently
+  combines accounts; the existing account must authenticate and explicitly link Google.
 * **Per-address rate limits, on top of the per-IP limiter.** Mailing a link is an action
   taken against someone else's mailbox: what has to be bounded is requests per address, not
   requests per requester, and the IP limiter cannot see that.
@@ -32,13 +34,17 @@ from __future__ import annotations
 
 import datetime as dt
 import ipaddress
+import secrets
 from typing import Annotated
+from urllib.parse import parse_qs, urlencode
 
 from fastapi import APIRouter, Header, Request, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
+from conjectures_subnet.db.errors import RecordConflict
 from conjectures_subnet.db.models import (
     MINER_ROLE,
     Account,
@@ -47,19 +53,23 @@ from conjectures_subnet.db.models import (
 )
 from submission_api import login, mail, schemas_account as account_schemas, sessions
 from submission_api.dependencies import (
+    CookieWriterDep,
     OptionalPrincipalDep,
     ServicesDep,
     SessionDep,
     WriterDep,
 )
 from submission_api.errors import (
+    BadRequest,
+    Conflict,
     Forbidden,
     ServiceUnavailable,
     TooManyRequests,
     Unauthorized,
 )
+from submission_api.google_identity import GOOGLE_PROVIDER, GoogleIdentity
 from submission_api.middleware import client_address
-from submission_api.routers._account import account_response
+from submission_api.routers._account import account_response, session_envelope
 from submission_api.settings import Settings
 from verifier.bundle import SS58_ADDRESS
 
@@ -67,6 +77,14 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 MAX_SIGNATURE_HEX = 132  # 64 bytes, hex, with an optional 0x prefix
 MAX_TOKEN_LENGTH = 256
+MAX_GOOGLE_CREDENTIAL_LENGTH = 16_384
+MAX_GOOGLE_CALLBACK_BYTES = 24_000
+GOOGLE_CSRF_COOKIE = "g_csrf_token"
+
+REASON_GOOGLE_CSRF_INVALID = "GOOGLE_CSRF_INVALID"
+REASON_GOOGLE_ACCOUNT_LINK_REQUIRED = "GOOGLE_ACCOUNT_LINK_REQUIRED"
+REASON_GOOGLE_IDENTITY_ALREADY_LINKED = "GOOGLE_IDENTITY_ALREADY_LINKED"
+REASON_GOOGLE_PROVIDER_ALREADY_LINKED = "GOOGLE_PROVIDER_ALREADY_LINKED"
 
 # Python's `re` has no POSIX classes, so this is the `\S`-based equivalent of the
 # `account_email_shape` CHECK in V003. Kept deliberately parallel to it.
@@ -98,6 +116,10 @@ class WalletChallengeRequest(Payload):
 class WalletVerifyRequest(Payload):
     address: str = Field(min_length=48, max_length=48)
     signature: str = Field(min_length=128, max_length=MAX_SIGNATURE_HEX)
+
+
+class GoogleCredentialRequest(Payload):
+    credential: str = Field(min_length=100, max_length=MAX_GOOGLE_CREDENTIAL_LENGTH)
 
 
 class CliChallengeRequest(Payload):
@@ -168,7 +190,7 @@ async def _sign_in(
     )
     await session.commit()
     _set_session_cookies(response, issued, settings)
-    # After the commit, so a rolled-back sign-in is never reported as one. Both ways in funnel
+    # After the commit, so a rolled-back sign-in is never reported as one. All methods funnel
     # through here, so `method` is what distinguishes them.
     #
     # The account id, never the email address. An id is meaningless outside this database; an
@@ -182,8 +204,11 @@ async def _sign_in(
         method=method,
         email_verified=account.email_verified,
     )
-    return account_schemas.SessionEnvelope(
-        account=await account_response(session, account)
+    # The full envelope, not just the account. A sign-in is the one moment a client is
+    # guaranteed to need every field in it, and answering with a subset here would mean every
+    # sign-in is immediately followed by a `GET /v1/auth/session` that reads the same rows again.
+    return await session_envelope(
+        session, account, settings=settings, now=_now()
     )
 
 
@@ -251,29 +276,49 @@ def _assert_ss58(value: str) -> str:
 @router.get(
     "/session",
     response_model=account_schemas.SessionEnvelope,
-    summary="The current account, or 401",
+    summary="The current session: account, identities, holdings and capabilities",
 )
 async def read_session(
-    response: Response, principal: OptionalPrincipalDep, session: SessionDep
+    response: Response,
+    principal: OptionalPrincipalDep,
+    services: ServicesDep,
+    session: SessionDep,
 ) -> account_schemas.SessionEnvelope:
-    """What the website calls on load to decide whether to show a sign-in page.
+    """What the website calls on load to decide what to draw.
 
     401 for an absent or expired session, which is what the contract specifies, rather than
     200 with a null account: the status code is the signal, and a client should not have to
     inspect a body to learn it is anonymous.
 
+    **One request, whole shell.** Beyond the account this returns the identities that reach it,
+    the linked hotkeys, the payout destination, the credit balance, the badge counts and the
+    five capability flags — because a client that had to assemble those from `/v1/me`,
+    `/v1/me/credits` and a submissions page would make four round trips on every page load and
+    render a header that disagrees with itself while they land. `account` is unchanged and
+    remains the canonical record; the rest is derived from it in the same call.
+
+    `Cache-Control: no-store` on all of it, via `_no_store`. That was already required — the
+    body is caller-dependent — and is more so now that it carries a balance and a set of
+    permissions: a shared cache serving one account's capabilities to another would be an
+    authorisation bug wearing a caching bug's clothes.
+
     Answers a bearer caller too, redacted — `conjectures auth status` uses it to confirm that a
-    stored token is still live without having to interpret an error body.
+    stored token is still live without having to interpret an error body. What a CLI session
+    sees is narrowed by `account_response`'s rules, and its capabilities reflect the credential
+    rather than only the account: an admin on a rig is told, in `manage_roles.missing`, that the
+    role is held but not exercisable here.
     """
     _no_store(response)
     if principal is None:
         raise Unauthorized(
             "not signed in", reason_code=sessions.REASON_NOT_AUTHENTICATED
         )
-    return account_schemas.SessionEnvelope(
-        account=await account_response(
-            session, principal.account, bearer_scope=principal.hotkey_scope
-        )
+    return await session_envelope(
+        session,
+        principal.account,
+        settings=services.settings,
+        now=_now(),
+        bearer_scope=principal.hotkey_scope,
     )
 
 
@@ -453,6 +498,272 @@ async def verify_email(
         method="email-link",
         user_agent=user_agent,
         source_ip=_client_ip(request, services.settings),
+    )
+
+
+# --- Google sign-in ----------------------------------------------------------------------
+
+
+async def _google_account_for_sign_in(
+    session, identity: GoogleIdentity, *, now: dt.datetime
+) -> Account:
+    """Resolve a stable Google subject, creating an account only when no account collides.
+
+    A matching email is deliberately not an implicit merge.  Someone who already has a wallet
+    or magic-link account signs into that account first and explicitly links Google below.  This
+    keeps the provider callback from silently combining two security principals.
+    """
+
+    linked = await account_store.find_by_identity(
+        session, provider=GOOGLE_PROVIDER, subject=identity.subject
+    )
+    if linked is not None:
+        account, stored = linked
+        await account_store.touch_identity(
+            session, stored, email=identity.email, now=now
+        )
+        return account
+
+    if await account_store.find_by_email(session, identity.email) is not None:
+        raise Conflict(
+            "an account already uses that email; sign in to it and link Google from Account",
+            reason_code=REASON_GOOGLE_ACCOUNT_LINK_REQUIRED,
+        )
+
+    try:
+        account = await account_store.create_account(
+            session,
+            email=identity.email,
+            email_verified=identity.authoritative_email,
+        )
+        await account_store.link_identity(
+            session,
+            account,
+            provider=GOOGLE_PROVIDER,
+            subject=identity.subject,
+            email=identity.email,
+        )
+        return account
+    except RecordConflict:
+        # A concurrent callback with the same valid credential may have won either uniqueness
+        # race. Both writes above were in one transaction and the store rolled it back, so no
+        # orphan account remains. Resolve the winner instead of turning a double-click into an
+        # error; an email claimed by a different account still requires explicit linking.
+        linked = await account_store.find_by_identity(
+            session, provider=GOOGLE_PROVIDER, subject=identity.subject
+        )
+        if linked is not None:
+            account, stored = linked
+            await account_store.touch_identity(
+                session, stored, email=identity.email, now=now
+            )
+            return account
+        raise Conflict(
+            "an account already uses that email; sign in to it and link Google from Account",
+            reason_code=REASON_GOOGLE_ACCOUNT_LINK_REQUIRED,
+        )
+
+
+def _callback_field(fields: dict[str, list[str]], name: str, *, maximum: int) -> str:
+    values = fields.get(name, [])
+    if len(values) != 1 or not values[0] or len(values[0]) > maximum:
+        raise BadRequest(
+            f"Google callback field {name!r} is missing or malformed",
+            reason_code="GOOGLE_CALLBACK_INVALID",
+        )
+    return values[0]
+
+
+def _website_route(settings: Settings, path: str, **query: str) -> str:
+    target = f"{settings.website_base_url.rstrip('/')}/{path.lstrip('/')}"
+    return target if not query else f"{target}?{urlencode(query)}"
+
+
+@router.post(
+    "/google/callback",
+    response_class=RedirectResponse,
+    status_code=status.HTTP_303_SEE_OTHER,
+    summary="Verify Google and open a session",
+)
+async def google_callback(
+    request: Request,
+    services: ServicesDep,
+    session: SessionDep,
+    user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
+) -> Response:
+    """Receive Google Identity Services' redirect-mode form POST.
+
+    This is the one cross-site state-changing route. Google supplies a random value in both the
+    callback body and a cookie on this origin; both must exist and compare equal before the ID
+    token is read. The token then independently proves its signature, audience, issuer and
+    expiry through ``google-auth``.
+    """
+
+    content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+    if content_type != "application/x-www-form-urlencoded":
+        raise BadRequest(
+            "Google callback must be form encoded",
+            reason_code="GOOGLE_CALLBACK_INVALID",
+        )
+    body = await request.body()
+    if len(body) > MAX_GOOGLE_CALLBACK_BYTES:
+        raise BadRequest(
+            "Google callback is too large",
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            reason_code="GOOGLE_CALLBACK_INVALID",
+        )
+    try:
+        fields = parse_qs(
+            body.decode("utf-8"),
+            keep_blank_values=True,
+            strict_parsing=True,
+            max_num_fields=8,
+        )
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise BadRequest(
+            "Google callback form is malformed",
+            reason_code="GOOGLE_CALLBACK_INVALID",
+        ) from exc
+
+    form_csrf = _callback_field(fields, GOOGLE_CSRF_COOKIE, maximum=512)
+    cookie_csrf = request.cookies.get(GOOGLE_CSRF_COOKIE, "")
+    if not cookie_csrf or len(cookie_csrf) > 512 or not secrets.compare_digest(
+        form_csrf, cookie_csrf
+    ):
+        raise Forbidden(
+            "Google callback CSRF token is missing or does not match",
+            reason_code=REASON_GOOGLE_CSRF_INVALID,
+        )
+
+    credential = _callback_field(
+        fields, "credential", maximum=MAX_GOOGLE_CREDENTIAL_LENGTH
+    )
+    identity = await services.google.verify(credential)
+    try:
+        account = await _google_account_for_sign_in(session, identity, now=_now())
+    except Conflict as exc:
+        # A redirect-mode login should land back in the product rather than leave a person on a
+        # JSON problem document. No sensitive value crosses the URL; it carries only a stable
+        # reason code the sign-in page turns into instructions.
+        await session.rollback()
+        return RedirectResponse(
+            _website_route(
+                services.settings,
+                "/login",
+                reason=exc.reason_code,
+            ),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    response = RedirectResponse(
+        _website_route(services.settings, "/account"),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+    await _sign_in(
+        session,
+        response,
+        account,
+        services.settings,
+        method="google",
+        user_agent=user_agent,
+        source_ip=_client_ip(request, services.settings),
+    )
+    return response
+
+
+@router.post(
+    "/google/link",
+    response_model=account_schemas.SessionEnvelope,
+    summary="Attach Google to the signed-in account",
+)
+async def link_google(
+    payload: GoogleCredentialRequest,
+    principal: CookieWriterDep,
+    services: ServicesDep,
+    session: SessionDep,
+) -> account_schemas.SessionEnvelope:
+    """Explicitly link Google after authenticating with an existing method.
+
+    This endpoint uses the normal session-bound CSRF header because the credential comes from
+    the same-origin Google popup callback in page script. It never merges or deletes an account.
+
+    **`CookieWriterDep`, not `WriterDep`.** Attaching a provider adds a way *in* to the account,
+    which is the same class of change as linking a hotkey or repointing the payout, and it is
+    refused to a CLI token for the same reason: a bearer token is minted by a hotkey that
+    Bittensor stores unencrypted on disk, so allowing this would turn one stolen file into "link
+    my Google account, then sign in as them". This read as cookie-only before CLI sessions
+    existed; it has to say so now that they do.
+    """
+
+    identity = await services.google.verify(payload.credential)
+    already = await account_store.find_by_identity(
+        session, provider=GOOGLE_PROVIDER, subject=identity.subject
+    )
+    if already is not None:
+        account, stored = already
+        if account.id != principal.account.id:
+            raise Conflict(
+                "that Google identity is already linked to another account",
+                reason_code=REASON_GOOGLE_IDENTITY_ALREADY_LINKED,
+            )
+        await account_store.touch_identity(
+            session, stored, email=identity.email, now=_now()
+        )
+        await session.commit()
+        return await session_envelope(
+            session, principal.account, settings=services.settings, now=_now()
+        )
+
+    providers = await account_store.identities_for(session, principal.account.id)
+    if any(item.provider == GOOGLE_PROVIDER for item in providers):
+        raise Conflict(
+            "this account already has a different Google identity",
+            reason_code=REASON_GOOGLE_PROVIDER_ALREADY_LINKED,
+        )
+
+    try:
+        await account_store.link_identity(
+            session,
+            principal.account,
+            provider=GOOGLE_PROVIDER,
+            subject=identity.subject,
+            email=identity.email,
+        )
+    except RecordConflict as exc:
+        # Close the two races between the reads above and the unique constraints. The database
+        # is authoritative; callers still receive the same provider-specific contract as the
+        # non-racing path rather than a storage-layer reason code.
+        if exc.reason_code == "IDENTITY_ALREADY_LINKED":
+            raise Conflict(
+                "that Google identity is already linked to another account",
+                reason_code=REASON_GOOGLE_IDENTITY_ALREADY_LINKED,
+            ) from exc
+        if exc.reason_code == "PROVIDER_ALREADY_LINKED":
+            raise Conflict(
+                "this account already has a different Google identity",
+                reason_code=REASON_GOOGLE_PROVIDER_ALREADY_LINKED,
+            ) from exc
+        raise
+    # Linking is an explicit account-owner action, so a currently authoritative Google mailbox
+    # can fill or verify the local email. It never overwrites a different address.
+    current_email = principal.account.email
+    if identity.authoritative_email and (
+        current_email is None or current_email.casefold() == identity.email.casefold()
+    ):
+        collision = await account_store.find_by_email(session, identity.email)
+        if collision is None or collision.id == principal.account.id:
+            principal.account.email = identity.email
+            principal.account.email_verified = True
+            await session.flush()
+    await session.commit()
+    get_axiom().info(
+        source="api-auth",
+        event_type="identity_linked",
+        account_id=str(principal.account.id),
+        provider=GOOGLE_PROVIDER,
+    )
+    return await session_envelope(
+        session, principal.account, settings=services.settings, now=_now()
     )
 
 

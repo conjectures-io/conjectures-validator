@@ -57,7 +57,7 @@ DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 # default 1/4 policy constant, an average-age task is displayed at one Alpha. Production never
 # uses this value: its balance is read from the configured Subnet 66 stake position.
 DEVELOPMENT_BOUNTY_BALANCE_RAO = 4 * RAO_PER_TAO
-DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v1"
+DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v2-locked"
 DEFAULT_BOUNTY_CONSTANT_NUMERATOR = 1
 DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 4
 DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
@@ -197,6 +197,12 @@ DEFAULT_CHALLENGE_MINUTES = 5
 DEFAULT_EMAIL_LINKS_PER_HOUR = 5
 DEFAULT_CHALLENGES_PER_HOUR = 30
 
+# Public OAuth client identifier, not a secret. Empty keeps Google sign-in disabled without
+# weakening either of the existing login methods.
+GOOGLE_CLIENT_ID_SHAPE = re.compile(
+    r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$"
+)
+
 # How many signatures may be offered against one challenge before it is spent.
 #
 # The signature flows verify before consuming, so a wrong signature does not burn the nonce and
@@ -218,12 +224,14 @@ DEFAULT_DEPOSIT_HOURS = 24
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
 DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
-# Bumped to v3 by the v2 manual-review rule that expands `NOT_NOVEL`. The terms version and
-# manual-review version are separate counters because terms v2 was already published.
+# v3 was the v2 manual-review rule that expands `NOT_NOVEL`; v4 adds the two things a miner is now
+# actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
+# credit frozen into the request digest. The terms version and manual-review version are separate
+# counters because terms v2 was already published.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
-# leaving it at v2 would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v3"
-DEFAULT_TERMS_DATE = "2026-08-07"
+# leaving it behind would serve rewritten terms under a version string a miner already accepted.
+DEFAULT_TERMS_VERSION = "v4"
+DEFAULT_TERMS_DATE = "2026-08-10"
 
 # The domain that goes into a signed login message, binding the signature to this
 # deployment so one produced for another instance is not valid here.
@@ -578,6 +586,7 @@ class Settings:
     # clicked by a person in a browser and lands on a page, which then calls the API.
     website_base_url: str
     login_domain: str
+    google_client_id: str
     session_days: int
     session_refresh_minutes: int
     cli_session_days: int
@@ -789,6 +798,13 @@ class Settings:
         login_domain = env.get("LOGIN_DOMAIN", DEFAULT_LOGIN_DOMAIN).strip()
         if LOGIN_DOMAIN.fullmatch(login_domain) is None:
             raise SettingsError("LOGIN_DOMAIN must be a bare hostname")
+
+        google_client_id = env.get("GOOGLE_CLIENT_ID", "").strip()
+        if google_client_id and GOOGLE_CLIENT_ID_SHAPE.fullmatch(google_client_id) is None:
+            raise SettingsError(
+                "GOOGLE_CLIENT_ID must be a Google OAuth web client ID ending in "
+                ".apps.googleusercontent.com"
+            )
 
         # The CLI token's rolling window and the ceiling it may not roll past. Checked against
         # each other here rather than trusted: a maximum below the rolling window silently
@@ -1120,6 +1136,7 @@ class Settings:
             mail_sender=mail_sender,
             website_base_url=website_base_url,
             login_domain=login_domain,
+            google_client_id=google_client_id,
             session_days=_positive_int(
                 env, "SESSION_DAYS", DEFAULT_SESSION_DAYS, maximum=365
             ),

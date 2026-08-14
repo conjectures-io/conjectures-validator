@@ -1,11 +1,11 @@
 # The one entrypoint for the operational stack: Postgres, Flyway, the API, and
-# optionally the verification worker, deposit watcher, and emissions worker.
+# optionally the verification worker, deposit watcher, emissions worker, and payout notifier.
 #
-#   just up            # db -> migrate -> api
+#   just up            # db -> migrate -> api + automatic payout notifier
 #   just up-worker     # ... and the development verification worker
 #   just up-watcher    # ... and the deposit watcher
 #   just up-emissions  # ... and the Subnet 66 epoch weight setter
-#   just up-all        # ... and all three workers
+#   just up-all        # ... and all four workers
 #   just logs api
 #   just reset         # destroy the database and start clean
 #
@@ -32,6 +32,7 @@ compose := "docker compose -f docker-compose.api.yml"
 compose_worker := compose + " -f docker-compose.worker.yml"
 compose_watcher := compose + " -f docker-compose.watcher.yml"
 compose_emissions := compose + " -f docker-compose.emissions.yml"
+compose_notifier := compose
 
 # Every overlay at once. `down`, `ps`, `logs` and `reset` use this so a container
 # started by any of the recipes above is visible to — and removable by — all of
@@ -58,9 +59,9 @@ default:
 
 # Build and start db, migrate, then api.
 up: _preflight
-    @echo "==> starting: db -> migrate -> api"
-    {{ compose }} up -d --build
-    @{{ compose }} ps
+    @echo "==> starting: db -> migrate -> api + payout notifier"
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose }} up -d --build
+    @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose }} ps
 
 # Build and start the development stack including the insecure in-process verification worker.
 # Production uses deploy/worker/conjectures-verification-worker.service instead.
@@ -77,8 +78,8 @@ up-worker: _preflight
 # Build and start the whole stack including the deposit watcher.
 up-watcher: _preflight _check-watch
     @echo "==> starting: db -> migrate -> api -> watcher"
-    {{ compose_watcher }} up -d --build
-    @{{ compose_watcher }} ps
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_watcher }} up -d --build
+    @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_watcher }} ps
 
 # Build and start the epoch worker that sends all Subnet 66 weight to treasury UID 121.
 up-emissions: _preflight _check-emissions
@@ -86,10 +87,17 @@ up-emissions: _preflight _check-emissions
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} ps
 
+# Start payout command delivery plus the read-only chain status watcher. Neither holds signing
+# keys; the second service is what makes the site's Paying/Paid labels follow chain events.
+up-payout-notifier: _preflight _check-notifier
+    @echo "==> starting: db -> migrate -> payout notifier + chain watcher"
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_notifier }} up -d --build payout-notifier payout-watcher
+    @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_notifier }} ps payout-notifier payout-watcher
+
 # Build and start the complete development stack, including emissions. This is not a production
 # launcher because its verification worker intentionally uses the insecure in-process sandbox path.
-up-all: _preflight _check-watch _check-emissions
-    @echo "==> starting: db -> migrate -> api -> worker -> watcher -> emissions (as {{ uid }}:{{ gid }})"
+up-all: _preflight _check-watch _check-emissions _check-notifier
+    @echo "==> starting: db -> migrate -> api -> worker -> watcher -> emissions -> payout notifier (as {{ uid }}:{{ gid }})"
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} ps
 
@@ -268,7 +276,7 @@ down:
 
 # Recreate the api stack's containers without rebuilding images.
 restart:
-    {{ compose }} up -d --force-recreate
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose }} up -d --force-recreate
 
 # Build the api stack's images without starting anything.
 build:
@@ -285,6 +293,10 @@ build-watcher:
 # Build the epoch weight setter image without starting anything.
 build-emissions: _check-emissions
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} build emissions
+
+# Build both payout-operation images without starting anything.
+build-payout-notifier: _check-notifier
+    {{ compose_notifier }} build payout-notifier payout-watcher
 
 # Prompted in the recipe rather than with `[confirm("...")]`. That attribute's message form needs
 # a recent `just`, and an older one does not skip the recipe — it fails to PARSE THE WHOLE FILE,
@@ -390,7 +402,7 @@ doctor: _preflight
 
 # --- private ------------------------------------------------------------------
 
-_preflight: _check-docker _check-env _check-tasks _check-legacy
+_preflight: _check-docker _check-env _check-notifier _check-tasks _check-legacy
 
 _check-docker:
     @command -v docker >/dev/null || { echo "error: docker is not on PATH" >&2; exit 1; }
@@ -504,6 +516,10 @@ _check-emissions:
       echo "error: emissions wallet directory is missing: $root/$name" >&2
       exit 1
     fi
+
+_check-notifier:
+    @grep -qE '^PAYOUT_DISCORD_WEBHOOK_URL=.+' .env \
+      || { echo "error: payout notifier needs PAYOUT_DISCORD_WEBHOOK_URL in .env" >&2; exit 1; }
 
 _check-tasks:
     #!/usr/bin/env bash

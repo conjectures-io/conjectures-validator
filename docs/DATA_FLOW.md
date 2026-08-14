@@ -317,7 +317,7 @@ combined with a tampered audit file:
 | Commitment | Covers |
 | --- | --- |
 | `selection_audit_sha256` | the tier's selected human reviews |
-| `retired_source_theorems_sha256` | the 178 retirements |
+| `retired_source_theorems_sha256` | the 177 source-theorem retirements and 189 retired type hashes |
 | `task_targets_sha256` | the tier's exact targets and per-target reward identities |
 | `task_groups_sha256` | the group policy (currently empty) |
 
@@ -461,25 +461,33 @@ duplication, eligibility, or abuse — it may **not** rewrite the Lean verdict.
 **OPEN:** what criteria may reject a Lean-valid proof, whether there is an appeal, and whether
 review is configured globally, per task, or per submission.
 
-## 13. Reward event — **IMPLEMENTED SCHEMA**, payout execution **OPEN**
+## 13. Reward event — **IMPLEMENTED SCHEMA AND CHAIN RECONCILIATION**
 
 `reward_events` records the submission, eligibility reason, actual integer payout amount,
 dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
 evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
-targets without a successful reward claim. The intake estimate is retained separately and is not
-the amount-of-record.
+targets without a successful reward claim. Acceptance stores the quote as the immutable conditional
+amount-of-record, and later payout generation copies it without repricing.
+
+The Discord notifier creates `PENDING` and sends the reviewed multisig call to both human signers.
+The read-only payout watcher then derives state from runtime events: a matching
+`StakeAndHotkeyTransferred` on the best chain is `SUBMITTED`, the same event in a finalized block
+is `CONFIRMED`, and a pre-finality reorganization returns it to `PENDING`. It pairs the transfer
+event with that call's `StakeAdded` event because the former reports TAO-equivalent value while the
+latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.
 
 ### What the remaining bounty payout mechanism needs
 
 | Required input | Status |
 | --- | --- |
 | Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` produces the versioned age weight; no subjective difficulty score is used |
-| Payout proof-of-inclusion returned to the miner | **OPEN** |
-| Automated bounty transfer and reconciliation | **OPEN** |
+| Payout proof-of-inclusion returned to the miner | **Implemented.** Owner responses carry the canonical event reference and finalized block |
+| Automated bounty transfer and reconciliation | **Partial.** Transfer signing remains human multisig; best/finalized event reconciliation is automatic |
 
 The payout rule is deterministic and its inputs are persisted. Subnet emissions are independent:
 `emissions_worker` sends one 100% weight to treasury UID 121 after every observed epoch. Executing
-the individual bounty transfer and returning its proof-of-inclusion remain open.
+the individual bounty transfer remains a human multisig operation; returning and maintaining its
+proof-of-inclusion is automatic.
 
 ---
 
@@ -526,8 +534,9 @@ re-hashing on read is a free integrity check.
 
 Ordered by how much they matter, not by where they appear above.
 
-1. **Payout execution is not automated.** Dynamic pricing and its amount-of-record schema exist,
-   but a production signer/reconciler still has to create and finalize the transfer safely.
+1. **Payout signing is not automated.** Approval creates the idempotent payout instruction and
+   notifies both signers. They still submit the multisig call; reconciliation after that is driven
+   automatically from best and finalized chain events.
 2. **No task publication path.** Miners cannot discover `task_id` + digest, so no submission can be
    well-formed. This blocks the whole right-hand side.
 3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets

@@ -59,6 +59,7 @@ from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.dependencies import Services
+from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
     CsrfMiddleware,
@@ -182,6 +183,7 @@ def build_services(
             constant_numerator=settings.bounty_constant_numerator,
             constant_denominator=settings.bounty_constant_denominator,
             age_period_seconds=settings.bounty_age_period_seconds,
+            confirmed_payout_grace_seconds=settings.bounty_balance_cache_seconds,
         ),
         pins=resolved_pins,
         mail=build_mail_sender(settings),
@@ -196,6 +198,7 @@ def build_services(
             version=settings.submission_terms_version,
             effective_from=date.fromisoformat(settings.submission_terms_effective_from),
         ),
+        google=build_google_credential_verifier(settings.google_client_id),
         bounty_usd=(
             TaoStatsAlphaUsdPriceReader(
                 api_key=settings.taostats_api_key,
@@ -331,7 +334,13 @@ def create_app(
         # an HMAC over the raw body — see `routers/tmc_pay.py`. It would pass the middleware
         # anyway, since the `Origin` check fails open on absence, but relying on that would make
         # the route's correctness a property of a middleware detail rather than of a decision.
-        exempt_prefixes=("/v1/submissions/preflight", tmc_pay_router.WEBHOOK_PATH),
+        exempt_prefixes=(
+            "/v1/submissions/preflight",
+            tmc_pay_router.WEBHOOK_PATH,
+            # Google posts the credential from accounts.google.com. This route performs the
+            # provider's own double-submit `g_csrf_token` check before reading the ID token.
+            "/v1/auth/google/callback",
+        ),
     )
     if resolved_settings.cors_enabled:
         # Skipped entirely when no origin is configured. An empty allowlist and no CORS layer are

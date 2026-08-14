@@ -4,8 +4,8 @@ The strictest disclosure surface in the API. Three rules, each enforced structur
 by remembering to omit a field:
 
 * **Solver credit, but no money trail.** `conjectures_subnet.db.public.ResultRow` carries the
-  submitting `hotkey`, and every result here is credited to it. It still has no coldkey, payment
-  reference or extrinsic, so this module cannot publish those — it was never handed them.
+  submitting `hotkey` and optional signed public credit. It still has no coldkey, payment reference
+  or extrinsic, so this module cannot publish those — it was never handed them.
 * **Proof bytes only after approval.** `Main.lean` is served by `/{id}/solution`, and only once
   review has approved the submission. An in-review result carries no artifact: the proof has
   passed the Lean kernel but not the reward decision, and handing the artifact out before that
@@ -53,6 +53,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Path, Query, Response
 
+from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import public as public_store
 from submission_api import conjectures, slugs
@@ -185,9 +186,13 @@ def _result(
     alpha_usd: Decimal | None,
 ) -> public.PublicResult:
     named = named_of(index, row)
+    credit = public_credit(
+        row.public_credit_name, row.public_credit_url, row.public_credit_orcid
+    )
     return public.PublicResult(
         id=row.id,
         hotkey=row.hotkey,
+        public_credit=None if credit is None else credit.to_dict(),
         # Serialised as the enum's value, matching `/v1/submissions/{id}` and the account panel,
         # so a client reads one vocabulary of state names across the whole API.
         verification_status=str(row.verification_status),
@@ -229,9 +234,13 @@ def _in_review(
     _alpha_usd: Decimal | None,
 ) -> public.InReviewResult:
     named = named_of(index, row)
+    credit = public_credit(
+        row.public_credit_name, row.public_credit_url, row.public_credit_orcid
+    )
     return public.InReviewResult(
         id=row.id,
         hotkey=row.hotkey,
+        public_credit=None if credit is None else credit.to_dict(),
         slug=slug_of(row),
         task_id=row.task_id,
         display_title=named.display_title,
@@ -473,11 +482,15 @@ async def read_solution(
         # "never" look the same from outside.
         raise NotFound("no solution is published for this result")
     content, digest, byte_length = found
+    credit = public_credit(
+        row.public_credit_name, row.public_credit_url, row.public_credit_orcid
+    )
 
     _cache(response, services.settings)
     return public.PublicSolution(
         id=row.id,
         hotkey=row.hotkey,
+        public_credit=None if credit is None else credit.to_dict(),
         slug=slug_of(row),
         # The name the bytes carry inside the verified bundle, from the module that enforces it,
         # so the published filename cannot drift from the one intake accepted.

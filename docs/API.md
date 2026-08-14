@@ -66,6 +66,7 @@ unauthenticated, and it writes nothing.
 | `GET`/`POST` | `/v1/auth/session`, `/v1/auth/logout` | Read or end the session |
 | `POST` | `/v1/auth/email/request-link`, `/v1/auth/email/verify` | Magic-link sign-in |
 | `POST` | `/v1/auth/wallet/challenge`, `/v1/auth/wallet/verify` | Coldkey sign-in |
+| `POST` | `/v1/auth/google/callback`, `/v1/auth/google/link` | Google sign-in and explicit account linking |
 | `GET`/`PATCH` | `/v1/me` | Profile, roles, linked keys, payout |
 | `POST` | `/v1/me/hotkeys`, `/v1/me/hotkeys/challenge` | Link a hotkey by signature |
 | `PUT` | `/v1/me/payout` | Payout destination: coldkey plus hotkey |
@@ -130,6 +131,7 @@ X-Conjectures-Task-Id: fc-379fc029-erdos11-erdos-11-2bde7d8572-formalized-v1
 X-Conjectures-Task-Sha256: sha256:31687f…
 X-Conjectures-Proof-Sha256: sha256:09da51…
 X-Conjectures-Payment-Ref: 8769916-13-151
+X-Conjectures-Public-Credit: eyJuYW1lIjoiRW1teSBOb2V0aGVyIiwib3JjaWQiOiIwMDAwLTAwMDItMTgyNS0wMDk3In0
 
 <submission.zip bytes>
 ```
@@ -146,6 +148,7 @@ X-Conjectures-Payment-Ref: 8769916-13-151
 | `X-Conjectures-Task-Sha256` | That task's published digest |
 | `X-Conjectures-Proof-Sha256` | Digest of the archived `Main.lean`, recomputed and compared |
 | `X-Conjectures-Payment-Ref` | The finalized transfer that funds this attempt, as `block-extrinsic[-event]` |
+| `X-Conjectures-Public-Credit` | Optional canonical base64url UTF-8 JSON: `name`, optional HTTPS `url`, optional checksum-valid `orcid` |
 
 `201` returns the submission state; an exact replay returns `200`.
 
@@ -153,6 +156,11 @@ X-Conjectures-Payment-Ref: 8769916-13-151
 {
   "submission_id": "7ee1de44-3708-47ff-a383-9248cdf2b412",
   "hotkey": "5Grw…",
+  "public_credit": {
+    "name": "Emmy Noether",
+    "url": "https://example.org/emmy-noether",
+    "orcid": "0000-0002-1825-0097"
+  },
   "task_id": "fc-379fc029-erdos11-…",
   "task_bundle_sha256": "sha256:31687f…",
   "proof_sha256": "sha256:09da51…",
@@ -172,11 +180,11 @@ X-Conjectures-Payment-Ref: 8769916-13-151
   "bounty": {
     "amount_rao": 1000000000,
     "amount_usd": "52.14",
-    "policy_version": "dynamic-age-v1",
+    "policy_version": "dynamic-age-v2-locked",
     "available": true,
-    "reason": "OPEN",
+    "reason": "LOCKED_AT_SUBMISSION",
     "as_of": "2026-07-30T15:20:00Z",
-    "locked": false
+    "locked": true
   },
   "verification": { "status": "UNVERIFIED", "report_available": false },
   "created_at": "2026-07-30T15:20:11.025465Z",
@@ -184,17 +192,19 @@ X-Conjectures-Payment-Ref: 8769916-13-151
 }
 ```
 
-`bounty` is a live Subnet Alpha estimate, not a promise. `locked` remains false until a payout event fixes
-the amount. Before that, a replay and a later status read are repriced from the current bounty-wallet
-balance, open-target set, and task ages. If a
-different proof establishes the same `reward_target_id` first, `amount_rao` becomes null,
-`available` becomes false, and `reason` is `ALREADY_SOLVED`. `amount_usd` is a current display
-estimate, returned as a decimal string and rounded to cents. It combines TaoStats' Subnet Alpha/TAO
+`bounty` is the Subnet Alpha amount fixed when the API accepted this submission. Replays and later
+status reads return the same `amount_rao`, policy, and lock timestamp. The lock remains conditional
+on verification, review approval, and winning the shared `reward_target_id`; rejection releases
+its treasury exposure. `amount_usd` is a current display value, returned as a decimal string and
+rounded to cents. It combines TaoStats' Subnet Alpha/TAO
 and TAO/USD prices as `(amount_rao / 1e9) * alpha_price_tao * tao_price_usd`; it is null when
 `amount_rao` is null, no TaoStats key is configured, or the
-external rate is temporarily unavailable. The intake estimate and its inputs
-remain on the submission row only as an audit record; a payout event records its own amount,
-policy version, and inputs.
+external rate is temporarily unavailable. On approval, the automatically generated payout event
+must copy the submission's locked amount, policy version, and inputs exactly.
+
+Submissions accepted before the V012 policy boundary are grandfathered. Their `locked` flag remains
+false and the payout event records a fresh payout-time quote; they are never retroactively promised
+the historical intake estimate.
 
 The three statuses are independent axes, not one lifecycle. A submission always has a
 verification status **and** a review status **and** a reward status; collapsing them would imply
@@ -208,15 +218,18 @@ queue table.
 ## Authentication
 
 The signed message is the canonical **request digest**: the 32 raw bytes of the SHA-256 over
-canonical JSON (sorted keys, no spaces, one trailing newline) of exactly these six fields.
+canonical JSON (sorted keys, no spaces, one trailing newline) of the six base fields below and,
+when requested, a seventh `public_credit` object.
 
 ```json
-{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"8769916-13-151","proof_sha256":"sha256:09da51…","task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
+{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"8769916-13-151","proof_sha256":"sha256:09da51…","public_credit":{"name":"Emmy Noether","orcid":"0000-0002-1825-0097"},"task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
 ```
 
 ```python
+from conjectures_subnet.attribution import encode_public_credit_header, public_credit
 from conjectures_subnet.db.submissions import canonical_request_digest
 
+credit = public_credit("Emmy Noether", orcid="0000-0002-1825-0097")
 digest = canonical_request_digest(
     hotkey=keypair.ss58_address,
     task_id=TASK_ID,
@@ -224,8 +237,10 @@ digest = canonical_request_digest(
     proof_sha256=PROOF_SHA256,
     payment_reference=PAYMENT_REF,
     idempotency_key=IDEMPOTENCY_KEY,
+    public_credit=credit,
 )
 signature = keypair.sign(bytes.fromhex(digest.removeprefix("sha256:")))
+credit_header = encode_public_credit_header(credit)
 ```
 
 [`../scripts/submit_proof.py`](../scripts/submit_proof.py) does this end to end and
@@ -242,6 +257,9 @@ Three properties worth calling out:
 
 - **The proof is bound.** `proof_sha256` is inside the digest and is compared against the
   archived `Main.lean`, so bytes cannot be substituted under a captured signature.
+- **Public credit is consensual and bound.** Its exact name, URL, and ORCID are inside the signed
+  digest and snapshotted on the submission. Omitting the header omits name credit; an account's
+  mutable display name is never substituted later.
 - **Replay cannot create a second submission.** `payment_reference` is unique, `(hotkey,
   idempotency_key)` is unique, and `proof_digest` is globally unique. A captured request has
   nothing left to consume.
@@ -380,7 +398,7 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `BOUNTY_WALLET_HOTKEY_SS58` | required in `PROD` | Hotkey identifying the bounty stake position |
 | `BOUNTY_NETUID` | `66` | Subnet whose finalized Alpha balance is `B` |
 | `BOUNTY_POOL_BALANCE_RAO` | `4000000000` in `DEV` | Development-only deterministic balance; refused in `PROD` |
-| `BOUNTY_POLICY_VERSION` | `dynamic-age-v1` | Version written with estimates and payouts |
+| `BOUNTY_POLICY_VERSION` | `dynamic-age-v2-locked` | Version written with catalog quotes and submission locks |
 | `BOUNTY_CONSTANT_NUMERATOR` | `1` | Numerator of `c` |
 | `BOUNTY_CONSTANT_DENOMINATOR` | `4` | Denominator of `c` |
 | `BOUNTY_AGE_PERIOD_SECONDS` | `86400` | One increment in the linear age weight |

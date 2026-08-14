@@ -34,7 +34,9 @@ from conftest_api import (
     postgres_dsn,
 )
 
+from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import credits as credit_store
+from conjectures_subnet.db import digests
 from conjectures_subnet.db.models import (
     CreditEntryKind,
     IntentState,
@@ -47,6 +49,7 @@ from conjectures_subnet.db.models import (
 )
 from submission_api.auth import development_signature
 from submission_api.credits import btcli_command, parse_packages
+from submission_api.routers.intents import intent_request_digest
 from submission_api.sessions import CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE
 
 pytestmark = pytest.mark.skipif(
@@ -647,6 +650,188 @@ def test_roles_are_never_client_input():
     run(scenario())
 
 
+# --- The session envelope ------------------------------------------------------------------
+# `GET /v1/auth/session` answers with everything a signed-in shell needs to draw itself. What
+# these test is that the derived halves cannot disagree with `account`, and that `capabilities`
+# reports the same refusal the endpoint it describes would.
+
+
+async def grant_role(kit, account_id: str, role: str) -> None:
+    """Grant a role out of band, the way an operator bootstraps the first admin."""
+    from conjectures_subnet.db import accounts as account_store
+    from conjectures_subnet.db.models import MINER_ROLE
+
+    async with kit.session() as session:
+        account = await account_store.get_account(session, uuid.UUID(account_id))
+        await account_store.set_roles(session, account, [MINER_ROLE, role])
+        await session.commit()
+
+
+def test_the_session_envelope_carries_identities_holdings_and_capabilities():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                account = await sign_in_by_email(kit, http)
+                read = await http.get("/v1/auth/session")
+                assert read.status_code == 200, read.text
+                # A body carrying a balance and a set of permissions must never be cached.
+                assert read.headers["cache-control"] == "no-store"
+                body = read.json()
+
+                # The verified mailbox is a way back in, and is listed as one.
+                assert body["identities"] == [
+                    {
+                        "provider": "email",
+                        "label": EMAIL,
+                        "linked_at": body["account"]["created_at"],
+                    }
+                ]
+                assert body["hotkeys"] == []
+                assert body["payout"] is None
+                assert body["credits"] == {"balance": 0, "held": 0}
+                assert body["counts"] == {
+                    "submissions_total": 0,
+                    "submissions_in_review": 0,
+                    "rewards_unclaimed": 0,
+                    # Null rather than a number: this caller may not open the queue, and a
+                    # populated badge would lead to a 403.
+                    "review_queue": None,
+                }
+
+                # Nothing linked and nothing bought, so both reasons are reported — in the
+                # order the endpoint would hit them.
+                assert body["capabilities"]["submit"] == {
+                    "allowed": False,
+                    "missing": ["HOTKEY_NOT_LINKED", "INSUFFICIENT_CREDITS"],
+                }
+                assert body["capabilities"]["set_payout"] == {
+                    "allowed": False,
+                    "missing": ["HOTKEY_NOT_LINKED"],
+                }
+                # A browser session can always buy: the declared-deposit path needs nothing
+                # beyond the cookie.
+                assert body["capabilities"]["buy_credits"]["allowed"] is True
+                assert body["capabilities"]["review"] == {
+                    "allowed": False,
+                    "missing": ["ROLE_REQUIRED"],
+                }
+                assert body["capabilities"]["manage_roles"]["allowed"] is False
+                del account
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_capabilities_open_as_the_account_gains_what_they_require():
+    """The point of `missing`: a client greys a button out for a named reason and can watch it
+    go away, rather than re-deriving the rule from roles, hotkeys and a balance."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                account = await sign_in_by_email(kit, http)
+
+                await link(kit, http, HOTKEY)
+                after_link = (await http.get("/v1/auth/session")).json()
+                # The hotkey reason is gone; the credit one is not.
+                assert after_link["capabilities"]["submit"]["missing"] == [
+                    "INSUFFICIENT_CREDITS"
+                ]
+                assert after_link["capabilities"]["set_payout"]["allowed"] is True
+                assert [item["hotkey"] for item in after_link["hotkeys"]] == [HOTKEY]
+                # No column to name a key yet, and the field says so rather than inventing one.
+                assert after_link["hotkeys"][0]["label"] is None
+
+                await grant_credits(kit, uuid.UUID(account["id"]), 3)
+                funded = (await http.get("/v1/auth/session")).json()
+                assert funded["capabilities"]["submit"] == {
+                    "allowed": True,
+                    "missing": [],
+                }
+                assert funded["credits"] == {"balance": 3, "held": 0}
+
+                # And the payout, once set, appears at the top level and inside `account` —
+                # derived from one read, so the two cannot drift.
+                await http.put(
+                    "/v1/me/payout",
+                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    headers=csrf(http),
+                )
+                paid = (await http.get("/v1/auth/session")).json()
+                assert paid["payout"] == {"coldkey": COLDKEY, "hotkey": HOTKEY}
+                assert paid["payout"] == paid["account"]["payout"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_wallet_account_lists_its_coldkey_as_the_identity_that_reaches_it():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                challenge = await http.post(
+                    "/v1/auth/wallet/challenge", json={"address": COLDKEY}
+                )
+                verified = await http.post(
+                    "/v1/auth/wallet/verify",
+                    json={
+                        "address": COLDKEY,
+                        "signature": sign(COLDKEY, challenge.json()["message"]),
+                    },
+                )
+                assert verified.status_code == 200, verified.text
+
+                # A sign-in answers with the whole envelope, so a client need not immediately
+                # re-read the session it was just handed.
+                body = verified.json()
+                assert body["identities"] == [
+                    {
+                        "provider": "coldkey",
+                        "label": COLDKEY,
+                        "linked_at": body["account"]["wallets"][0]["linked_at"],
+                    }
+                ]
+                # No mailbox, so no email identity is invented for one.
+                assert body["account"]["email"] is None
+                assert body["capabilities"]["buy_credits"]["allowed"] is True
+
+                # And reading the session back gives the same thing.
+                assert (await http.get("/v1/auth/session")).json() == body
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_review_queue_depth_is_served_only_to_a_reviewer():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                account = await sign_in_by_email(kit, http)
+                assert (await http.get("/v1/auth/session")).json()["counts"][
+                    "review_queue"
+                ] is None
+
+                await grant_role(kit, account["id"], "REVIEWER")
+                body = (await http.get("/v1/auth/session")).json()
+                assert body["capabilities"]["review"] == {
+                    "allowed": True,
+                    "missing": [],
+                }
+                # A number now, because this caller can act on it. Empty database, so zero.
+                assert body["counts"]["review_queue"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 # --- Credits -----------------------------------------------------------------------------
 
 
@@ -914,7 +1099,9 @@ def test_a_held_credit_cannot_be_spent_twice_by_opening_two_intents():
     run(scenario())
 
 
-async def full_intent(kit, http, account_id, marker="0001"):
+async def full_intent(
+    kit, http, account_id, marker="0001", public_credit_payload=None
+):
     """Open an intent, upload a bundle, and return the intent plus the digest to sign."""
     await grant_credits(kit, account_id, 1)
     opened = await http.post(
@@ -923,6 +1110,11 @@ async def full_intent(kit, http, account_id, marker="0001"):
             "task_id": TASK_ID,
             "task_bundle_sha256": TASK_DIGEST,
             "hotkey": HOTKEY,
+            **(
+                {}
+                if public_credit_payload is None
+                else {"public_credit": public_credit_payload}
+            ),
         },
         headers=csrf(http),
     )
@@ -1012,6 +1204,61 @@ def test_confirm_debits_the_credit_and_writes_the_submission_once():
                 assert again.status_code == 409
                 assert again.json()["reason_code"] == "INTENT_ALREADY_CONFIRMED"
                 assert again.json()["submission_id"] == submission["id"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_credit_funded_submission_signs_and_snapshots_public_credit():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                account = await sign_in_by_email(kit, http)
+                await link(kit, http, HOTKEY)
+                credit = {
+                    "name": "Ramanujan Collaboration",
+                    "url": "https://example.org/ramanujan",
+                    "orcid": "0000-0002-1825-0097",
+                }
+                intent_id, uploaded = await full_intent(
+                    kit,
+                    http,
+                    uuid.UUID(account["id"]),
+                    marker="public-credit",
+                    public_credit_payload=credit,
+                )
+                assert uploaded["intent"]["public_credit"] == credit
+
+                confirmed = await http.post(
+                    f"/v1/submissions/intents/{intent_id}/confirm",
+                    json={"signature": development_signature()},
+                    headers=csrf(http),
+                )
+                assert confirmed.status_code == 201, confirmed.text
+                assert confirmed.json()["submission"]["public_credit"] == credit
+
+                async with kit.session() as session:
+                    submission = await session.get(
+                        Submission,
+                        uuid.UUID(confirmed.json()["submission"]["id"]),
+                    )
+                    assert submission.public_credit_name == credit["name"]
+                    assert submission.public_credit_url == credit["url"]
+                    assert submission.public_credit_orcid == credit["orcid"]
+                    signed_credit = public_credit(
+                        credit["name"], credit["url"], credit["orcid"]
+                    )
+                    expected = intent_request_digest(
+                        intent_id=uuid.UUID(intent_id),
+                        hotkey=HOTKEY,
+                        task_id=TASK_ID,
+                        task_bundle_sha256=TASK_DIGEST,
+                        proof_sha256=uploaded["proof_sha256"],
+                        public_credit=signed_credit,
+                    )
+                    assert digests.to_prefixed(submission.request_digest) == expected
         finally:
             await kit.teardown()
 
@@ -1279,12 +1526,13 @@ def test_credit_pricing_and_terms_are_public():
 
                 terms = await http.get("/v1/catalog/submission-terms")
                 assert terms.status_code == 200
-                # v3 publishes the expanded v2 `NOT_NOVEL` contract. The version moves
-                # with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so the
-                # two must not drift.
-                assert terms.json()["version"] == "v3"
+                # v4 adds signed opt-in public credit to the expanded v2 review contract. It
+                # moves with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so
+                # the two must not drift.
+                assert terms.json()["version"] == "v4"
                 assert "One credit buys" in terms.json()["body_md"]
                 assert "Your hotkey is published" in terms.json()["body_md"]
+                assert "Public name credit is optional" in terms.json()["body_md"]
                 approval_codes = {
                     item["code"] for item in terms.json()["approval_reasons"]
                 }

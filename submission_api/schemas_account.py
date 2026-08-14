@@ -3,7 +3,8 @@
 The third of three model modules, and the split is the whole point:
 
 * ``schemas.py`` — the miner-facing hotkey-signature surface.
-* ``schemas_public.py`` — world-readable. Nothing here may identify a miner.
+* ``schemas_public.py`` — world-readable. It carries only identity explicitly signed for public
+  credit, never account or payment identity.
 * ``schemas_account.py`` — this file. Served **only** to the authenticated owner of the
   data, so it is the one place where a hotkey, a payout address, a payment reference or a
   balance is allowed to appear.
@@ -47,14 +48,66 @@ class LinkedHotkey(Model):
 
     Also how a deposit is attributed: a transfer's sender is a coldkey, and that coldkey
     owning one of these is what ties the money to an account.
+
+    `label` is always null today. It is here because the account page wants to show "rig-01"
+    rather than a 48-character address, and shipping the field now means the page can be built
+    against its final shape; populating it needs a nullable column on `linked_hotkeys` and an
+    endpoint to set it, which is a separate change. Null is honest — there is no name — and a
+    client should fall back to a truncated `hotkey`.
     """
 
     hotkey: str
+    label: str | None = Field(
+        default=None, description="A name the owner gave this key. Always null today."
+    )
     linked_at: dt.datetime
 
 
 class LinkedWallet(Model):
     coldkey: str
+    linked_at: dt.datetime
+
+
+class LinkedIdentity(Model):
+    """An external sign-in method. The provider's stable subject is never exposed."""
+
+    provider: str
+    email: str
+    linked_at: dt.datetime
+    last_used_at: dt.datetime
+
+
+# The ways an account can be reached. Not an enum on the wire: a client should render an
+# unknown provider as "some other login" rather than fail to parse the session it is signed in
+# with, and this list will grow.
+PROVIDER_EMAIL = "email"
+PROVIDER_GOOGLE = "google"
+PROVIDER_COLDKEY = "coldkey"
+
+
+class Identity(Model):
+    """One way in to this account, as a sign-in page lists them.
+
+    A flattened view of what is already on `Account`: the verified email address, every external
+    provider in `identities`, and every linked coldkey. It exists because "how can I get back
+    into this account" is one question, and answering it from three differently-shaped arrays is
+    work every client would otherwise repeat.
+
+    `label` is what to show: the address for `email` and `google`, the SS58 for `coldkey`. Full
+    values, never truncated — where to elide is a layout decision, and a server that shortened
+    them would make "is this the key I think it is" unanswerable.
+
+    **The Google subject is deliberately not here.** `LinkedIdentity` withholds it and so does
+    this; the label is the provider's email, which is what a person recognises. The subject is
+    the login key and belongs in the database, not in a body a browser extension can read.
+
+    **`coldkey` does not say which wallet signed.** Talisman, the tao.com wallet and `btcli`
+    produce the same sr25519 signature over the same message, and nothing in the flow records
+    which one produced it, so there is no honest field for it here.
+    """
+
+    provider: str = Field(description="email | google | coldkey")
+    label: str
     linked_at: dt.datetime
 
 
@@ -77,6 +130,7 @@ class Account(Model):
     )
     hotkeys: tuple[LinkedHotkey, ...]
     wallets: tuple[LinkedWallet, ...]
+    identities: tuple[LinkedIdentity, ...]
     created_at: dt.datetime
 
 
@@ -92,10 +146,103 @@ class WalletChallenge(Model):
     expires_at: dt.datetime
 
 
+class SessionCredits(Model):
+    """The balance in whole credits, for a header badge.
+
+    Deliberately not `CreditBalance`. That model is rao-denominated and is what a purchase page
+    needs; this is the two numbers a "3 credits" chip needs, and mixing the units in one place
+    is how a page ends up rendering 1500000000 as a credit count.
+
+    The two do not overlap: `balance` is spendable *now*, already net of `held`, and `held` is
+    what open submission intents have claimed. So the account's total is `balance + held`, and a
+    client must not subtract one from the other again. `GET /v1/me/credits` remains the full
+    picture, including the sub-credit remainder this rounds away.
+    """
+
+    balance: int = Field(description="Whole credits spendable now, after holds")
+    held: int = Field(description="Whole credits claimed by open intents")
+
+
+class SessionCounts(Model):
+    """The badge numbers, so a shell can render its navigation in one request.
+
+    Every one of these is also reachable by paginating the feed it summarises. They are here
+    because a count is not a page: rendering "2 in review" by fetching submissions would either
+    read one page and undercount, or read all of them to count.
+
+    `rewards_unclaimed` is approved work whose payout has not confirmed. Nothing is *claimed* in
+    this system — the payout worker pushes rewards on chain — so read it as "owed", not as an
+    action waiting for the account holder.
+    """
+
+    submissions_total: int
+    submissions_in_review: int
+    rewards_unclaimed: int
+    review_queue: int | None = Field(
+        default=None,
+        description="Depth of the shared review queue. Null unless this caller may review.",
+    )
+
+
+class Capability(Model):
+    """Whether this session may do one thing, and what is missing if not.
+
+    `missing` is the point of the model. A bare boolean makes a client either grey out a button
+    with no explanation or re-derive the rules from `roles`, `hotkeys` and `credits` — and a
+    client that re-derives them is a second copy of the authorisation logic that drifts from the
+    server's the first time a rule changes.
+
+    The codes are the same `reason_code` strings the corresponding endpoint refuses with, so
+    "why is this greyed out" and "why did that 403" answer with the same word.
+
+    **It is advice, never enforcement.** Every gate is checked again at the endpoint, against
+    state that may have moved since this was read. A client that trusted `allowed: true` and
+    skipped the error path would still be wrong the moment a credit is spent in another tab.
+    """
+
+    allowed: bool
+    missing: tuple[str, ...] = ()
+
+
+class Capabilities(Model):
+    """What this session may do, evaluated once so the navigation does not have to guess.
+
+    Five actions rather than a permission per endpoint: these are the five things the site
+    offers as an affordance. Reads are omitted deliberately — a page the caller may not read
+    answers 403 on its own, and listing every readable route here would make this a mirror of
+    the router that has to be maintained alongside it.
+    """
+
+    submit: Capability
+    buy_credits: Capability
+    set_payout: Capability
+    review: Capability
+    manage_roles: Capability
+
+
 class SessionEnvelope(Model):
-    """What a successful browser sign-in returns. The credential itself is in a cookie."""
+    """The whole signed-in state: who, how they got in, what they hold, what they may do.
+
+    Returned by `GET /v1/auth/session` and by both sign-in endpoints, identically populated, so
+    a client that has just signed in does not have to immediately re-read the session to render
+    its shell.
+
+    `account` is unchanged and stays the canonical record — `identities`, `hotkeys` and `payout`
+    are **derived from it in the same call**, never read separately, so the two halves of this
+    body cannot disagree. They are flattened here because the account page groups by "ways in"
+    and "keys I mine with", which is not how the account row is shaped.
+
+    Everything here is redacted for a CLI bearer session, on the same rule as `Account`: see
+    `routers/_account.session_envelope`.
+    """
 
     account: Account
+    identities: tuple[Identity, ...] = ()
+    hotkeys: tuple[LinkedHotkey, ...] = ()
+    payout: PayoutDestination | None = None
+    credits: SessionCredits
+    counts: SessionCounts
+    capabilities: Capabilities
 
 
 class CliSession(Model):
@@ -345,6 +492,14 @@ class SubmissionTerms(Model):
 # --- Submission intents ------------------------------------------------------------------
 
 
+class PublicCredit(Model):
+    """Opt-in authorship frozen on the submission and later shown publicly."""
+
+    name: str
+    url: str | None = None
+    orcid: str | None = None
+
+
 class PreflightResult(Model):
     """A free static check, before a credit is spent.
 
@@ -375,6 +530,7 @@ class SubmissionIntent(Model):
         description="OPEN | BUNDLE_ATTACHED | CONFIRMED | EXPIRED | CANCELLED"
     )
     hotkey: str
+    public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
     credits_held: int
@@ -439,6 +595,7 @@ class SubmissionSummary(Model):
 
     id: uuid.UUID
     hotkey: str
+    public_credit: PublicCredit | None = None
     task_id: str
     proof_sha256: str
     verification_status: str
@@ -446,12 +603,12 @@ class SubmissionSummary(Model):
     reward_status: str
     failure_reason: str | None = None
     bounty_amount_rao: int = Field(
-        description="The estimate captured at intake; not a reserved payout amount."
+        description="The accepted quote; authoritative when bounty_locked is true."
     )
     bounty_policy_version: str
     bounty_locked: bool = Field(
-        default=False,
-        description="Always false for the intake estimate; `reward` carries any fixed payout.",
+        default=True,
+        description="True for V012+ locks; false for grandfathered payout-time submissions.",
     )
     created_at: dt.datetime
     updated_at: dt.datetime
@@ -486,6 +643,7 @@ class SubmissionDetail(Model):
 
     id: uuid.UUID
     hotkey: str
+    public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
     proof_sha256: str
@@ -497,12 +655,12 @@ class SubmissionDetail(Model):
     manual_review_required: bool
     review_policy_version: str
     bounty_amount_rao: int = Field(
-        description="The estimate captured at intake; not a reserved payout amount."
+        description="The accepted quote; authoritative when bounty_locked is true."
     )
     bounty_policy_version: str
     bounty_locked: bool = Field(
-        default=False,
-        description="Always false for the intake estimate; `reward` carries any fixed payout.",
+        default=True,
+        description="True for V012+ locks; false for grandfathered payout-time submissions.",
     )
     funding: FundingSummary
     verification: VerificationSummary | None = None
@@ -565,8 +723,13 @@ ConfirmedSubmission.model_rebuild()
 
 
 __all__ = [
+    "PROVIDER_COLDKEY",
+    "PROVIDER_EMAIL",
+    "PROVIDER_GOOGLE",
     "Account",
     "ApprovalReason",
+    "Capabilities",
+    "Capability",
     "ConfirmedSubmission",
     "CreditBalance",
     "CreditLedgerEntry",
@@ -576,16 +739,21 @@ __all__ = [
     "Deposit",
     "DisqualificationReason",
     "FundingSummary",
+    "Identity",
     "IntentBundleResult",
     "LinkedHotkey",
+    "LinkedIdentity",
     "LinkedWallet",
     "Model",
     "OwnerVerificationReport",
     "PayoutDestination",
     "PreflightResult",
+    "PublicCredit",
     "ReviewDecisionView",
     "RewardItem",
     "RewardSummary",
+    "SessionCounts",
+    "SessionCredits",
     "SessionEnvelope",
     "SubmissionDetail",
     "SubmissionEvent",
