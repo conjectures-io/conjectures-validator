@@ -481,7 +481,7 @@ def test_buying_needs_a_rate_and_a_configured_processor():
                 assert refused.json()["reason_code"] == "TMC_PAY_NOT_CONFIGURED"
 
                 pricing = await http.get("/v1/catalog/credit-pricing")
-                assert pricing.json()["methods"] == ["wallet_extension"]
+                assert pricing.json()["methods"] == ["btcli"]
         finally:
             await plain.teardown()
 
@@ -496,7 +496,7 @@ def test_the_pricing_page_offers_tmc_pay_once_it_is_configured():
                 pricing = await http.get("/v1/catalog/credit-pricing")
                 assert pricing.status_code == 200
                 body = pricing.json()
-                assert body["methods"] == ["wallet_extension", "tmc_pay"]
+                assert body["methods"] == ["btcli", "tmc_pay"]
                 assert body["price_rao"] == CREDIT_PRICE_RAO
         finally:
             await kit.teardown()

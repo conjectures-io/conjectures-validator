@@ -245,7 +245,8 @@ DEFAULT_DEPOSIT_HOURS = 24
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
 DEFAULT_CREDIT_PACKAGES = "1"
-# Only one credit is sold per purchase; see `routers/catalog.py` and `MAX_DEPOSIT_CREDITS`.
+# One credit per purchase, enforced at startup by `credits.parse_packages` against
+# `credits.MAX_CREDITS_PER_PURCHASE` — a larger default here would refuse to boot.
 # v3 was the v2 manual-review rule that expands `NOT_NOVEL`; v4 adds the two things a miner is now
 # actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
 # credit frozen into the request digest. The terms version and manual-review version are separate

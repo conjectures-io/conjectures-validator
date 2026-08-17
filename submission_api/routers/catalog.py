@@ -809,10 +809,13 @@ async def read_credit_pricing(
                 total_credits=item.total_credits,
                 price_rao=item.price_rao,
             )
+            # Every configured package, unfiltered. `parse_packages` has already refused
+            # anything above `MAX_CREDITS_PER_PURCHASE` at startup, so what is configured and
+            # what is sellable are the same list — filtering here as well would only be able to
+            # hide a misconfiguration this process would not have started with.
             for item in services.packages
-            if item.credits == 1 and item.bonus_credits == 0
         ),
-        # Filtered by what this deployment can actually take money through: a method the page
+        # Every method this deployment can actually take money through: a method the page
         # renders and the API refuses is worse than one it never offers.
         methods=credit_config.payment_methods(
             tmc_pay_enabled=settings.tmc_pay_enabled

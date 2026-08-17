@@ -88,8 +88,17 @@ REASON_NO_OPEN_DEPOSIT = "NO_OPEN_DEPOSIT"
 # deployment, so it is a constant — and a null link is better than a wrong one.
 EXPLORER_TEMPLATE = "https://taostats.io/extrinsic/{reference}"
 
-MAX_DEPOSIT_CREDITS = 1
+# The per-purchase ceiling, taken from `credits` rather than restated. Both funding paths and
+# the package parser have to agree on this number, and the way they stay agreed is by there
+# being one of it.
+MAX_DEPOSIT_CREDITS = credit_config.MAX_CREDITS_PER_PURCHASE
 UUID_LENGTH = 36
+
+# Upper bound on a nonce echoed back to `POST /wallets`. The value is a `sessions.new_token()`,
+# about 43 characters at `TOKEN_BYTES = 32`; this only has to refuse an absurd body before it
+# reaches a digest. Deliberately the same generous 256 as `routers/auth.py`'s MAX_TOKEN_LENGTH —
+# restated rather than imported, to keep one router from depending on another for a bound.
+MAX_NONCE_LENGTH = 256
 
 
 class Payload(BaseModel):
@@ -115,6 +124,11 @@ class ColdkeyChallengeRequest(Payload):
 
 class ColdkeyLinkRequest(Payload):
     coldkey: str = Field(min_length=48, max_length=48)
+    # Echoed back, as the CLI session flow does it. The nonce is not the proof — the signature
+    # is, and it is checked against the message stored on the row this nonce names — but naming
+    # the row is what bounds the attempts against it and what stops one challenge from
+    # superseding another. See `accounts.open_challenge_by_nonce`.
+    nonce: str = Field(min_length=16, max_length=MAX_NONCE_LENGTH)
     signature: str = Field(min_length=128, max_length=132)
 
 
@@ -354,6 +368,10 @@ async def coldkey_challenge(
     This is separate from wallet sign-in, so a signature collected while adding a wallet
     cannot be replayed as a login credential. The private key remains in the user's wallet;
     the service stores only the public address and the proof that it was controlled.
+
+    The returned `nonce` must be echoed back to `POST /v1/me/wallets` alongside the signature.
+    It names the row the signature is checked against, which is what lets two challenges for
+    one coldkey coexist instead of the newer silently invalidating the one being signed.
     """
     settings = services.settings
     coldkey = _assert_ss58(payload.coldkey, "coldkey")
@@ -400,6 +418,7 @@ async def coldkey_challenge(
 async def link_coldkey(
     payload: ColdkeyLinkRequest,
     principal: CookieWriterDep,
+    services: ServicesDep,
     session: SessionDep,
 ) -> schemas.Account:
     """Attach a coldkey the account proved control of.
@@ -407,26 +426,56 @@ async def link_coldkey(
     An account may have multiple coldkeys, but a coldkey belongs to exactly one account. There
     is deliberately no rebind or unlink operation: moving a login credential between accounts
     needs a separate recovery policy rather than a silent ownership change.
+
+    The order is the CLI session flow's, for the CLI session flow's reasons:
+
+    1. **Find the challenge by its own nonce**, bounded by the account that minted it, rather
+       than taking the newest open row for the address. `accounts.open_challenge_by_nonce`
+       explains why "which challenge is current" is the attackable question and "which
+       challenge is this" is not.
+    2. **Verify the signature over the stored message**, before anything is consumed. The
+       message comes off the row and is never rebuilt from the request.
+    3. **Count a failed attempt** if it did not verify, and refuse. The challenge survives a
+       wrong signature — otherwise a mistyped passphrase costs a whole new challenge — but not
+       unboundedly many, or an open challenge would be free sr25519 work.
+    4. **Consume, then link.** The conditional UPDATE is what makes two simultaneous
+       redemptions of one valid signature link the coldkey once.
     """
+    settings = services.settings
     coldkey = _assert_ss58(payload.coldkey, "coldkey")
     signature = _signature_bytes(payload.signature)
     now = _now()
 
-    challenge = await account_store.latest_open_challenge(
+    challenge = await account_store.open_challenge_by_nonce(
         session,
         kind=LoginChallengeKind.COLDKEY_LINK,
         ss58=coldkey,
+        secret_digest=account_store.digest(payload.nonce),
         now=now,
+        max_attempts=settings.challenge_attempts,
         account_id=principal.account.id,
     )
     if challenge is None or challenge.message is None:
+        # One refusal for expired, already-used, out-of-attempts, another account's nonce and
+        # never-existed. The caller learns nothing about which, and the remedy is the same for
+        # all of them: request a new challenge.
         raise Unauthorized(
-            "no open link challenge for that coldkey; request a new one",
+            "no open link challenge for that coldkey and nonce; request a new one",
             reason_code=login.REASON_CHALLENGE_INVALID,
         )
-    login.verify_signature(
-        address=coldkey, message=challenge.message, signature=signature
-    )
+
+    try:
+        login.verify_signature(
+            address=coldkey, message=challenge.message, signature=signature
+        )
+    except Unauthorized:
+        # Counted and committed before re-raising, so the attempt is recorded even though the
+        # request fails. Without the commit the increment would roll back with the response and
+        # the ceiling would never be reached.
+        await account_store.record_failed_attempt(session, challenge.id)
+        await session.commit()
+        raise
+
     consumed = await account_store.consume_challenge(
         session,
         kind=LoginChallengeKind.COLDKEY_LINK,

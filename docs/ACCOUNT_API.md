@@ -21,6 +21,8 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `GET` | `/v1/me/sessions` | `SessionView[]` | Every live session, both kinds |
 | `DELETE` | `/v1/me/sessions/{id}` | `204` | Revoke one session |
 | `DELETE` | `/v1/me/sessions?kind=` | `204` | Revoke every *other* session, optionally of one kind |
+| `POST` | `/v1/me/wallets/challenge` | `{ nonce, message }` | A nonce for linking another coldkey — browser only |
+| `POST` | `/v1/me/wallets` | `Account` | Link another coldkey by signature — browser only |
 | `POST` | `/v1/me/hotkeys/challenge` | `{ nonce, message }` | A nonce for linking a hotkey — browser only |
 | `POST` | `/v1/me/hotkeys` | `Account` | Link a hotkey by signature — browser only |
 | `PUT` | `/v1/me/payout` | `Account` | Payout destination: coldkey plus hotkey — browser only |
@@ -420,11 +422,12 @@ account owner. The stable provider subject is deliberately never returned.
 
 ### Wallet
 
-Five things this validator asks a key to sign, each **domain-separated** so a signature harvested
+Six things this validator asks a key to sign, each **domain-separated** so a signature harvested
 from one is worthless in another:
 
 ```
 conjectures-login-v1          sign in with a coldkey
+conjectures-coldkey-link-v1   attach another coldkey to an account
 conjectures-hotkey-link-v1    attach a hotkey to an account
 conjectures-cli-session-v1    open a CLI session with an already-linked hotkey
 conjectures-deposit-claim-v1  claim a transfer you made
@@ -440,8 +443,23 @@ meaningless.
 The signature is verified **before** the nonce is consumed, so a wrong signature does not burn it.
 Otherwise one bad request would force the user to start over, and an attacker could grief a known
 address by spamming invalid signatures. The cost of that choice is that an open challenge would
-otherwise accept unlimited signature attempts on an unauthenticated path, so a challenge is spent
-after `LOGIN_CHALLENGE_ATTEMPTS` failures.
+otherwise accept unlimited signature attempts, so a challenge is spent after
+`LOGIN_CHALLENGE_ATTEMPTS` failures.
+
+**An account may hold several coldkeys.** `POST /v1/me/wallets/challenge` mints a nonce bound to
+both the signed-in account and the coldkey; `POST /v1/me/wallets` redeems it with the nonce echoed
+back beside the signature:
+
+```
+POST /v1/me/wallets/challenge  { coldkey }                      -> { nonce, message, expires_at }
+POST /v1/me/wallets            { coldkey, nonce, signature }    -> Account
+```
+
+The nonce is echoed for the reason the CLI flow echoes its own: it names the row the signature is
+checked against, so two challenges for one coldkey coexist instead of the newer invalidating the
+one being signed, and the attempt ceiling applies per challenge rather than per address. A coldkey
+belongs to exactly one account, and there is deliberately no unlink or rebind — moving a login
+credential between accounts needs a recovery policy, not a silent ownership change.
 
 ### CLI
 
