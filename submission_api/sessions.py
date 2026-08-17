@@ -140,6 +140,24 @@ def new_bearer_token() -> str:
     return f"{BEARER_TOKEN_PREFIX}{secrets.token_urlsafe(TOKEN_BYTES)}"
 
 
+def accept_bearer(token: str | None) -> str | None:
+    """The credential this API is willing to hash, out of whatever arrived, or None.
+
+    Split out of `bearer_token` so the same rule applies however the value was extracted —
+    the `fastapi.security` declaration in `security.py` parses the header itself, and an
+    acceptance rule that only ran on one of the two paths would be no rule at all.
+
+    An absurdly long value is None rather than an error: the digest of a multi-megabyte
+    header is a wasted allocation, not a match.
+    """
+    if not token:
+        return None
+    token = token.strip()
+    if not token or len(token) > MAX_BEARER_LENGTH:
+        return None
+    return token
+
+
 def bearer_token(header_value: str | None) -> str | None:
     """The token out of an `Authorization: Bearer <t>` header, or None.
 
@@ -153,10 +171,7 @@ def bearer_token(header_value: str | None) -> str | None:
     scheme, _, token = header_value.partition(" ")
     if scheme.lower() != BEARER_SCHEME:
         return None
-    token = token.strip()
-    if not token or len(token) > MAX_BEARER_LENGTH:
-        return None
-    return token
+    return accept_bearer(token)
 
 
 async def issue(
@@ -365,6 +380,7 @@ __all__ = [
     "IssuedBearer",
     "IssuedSession",
     "Principal",
+    "accept_bearer",
     "bearer_token",
     "cleared_cookies",
     "csrf_cookie",

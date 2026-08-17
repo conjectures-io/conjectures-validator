@@ -2,7 +2,9 @@
 
 Expensive, immutable state is built once during lifespan. Interactive docs are exposed only
 outside production; leaving the schema and Swagger UI reachable on a live miner-facing endpoint
-is a mistake worth not repeating.
+is a mistake worth not repeating. What those docs say about credentials comes from
+`security.py`, which declares the CLI bearer token, the session cookie and the CSRF header as
+security schemes so every endpoint that needs one advertises it.
 
 This process now serves two audiences on one port: the miner-facing intake and status surface,
 and the unauthenticated public read surface the website is built on. They share the task catalog,

@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from conjectures_subnet.bounty import BountyPricer
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db.models import MINER_ROLE, AccountSessionKind
+from submission_api import security
 from submission_api import sessions as session_layer
 from submission_api.auth import Authenticator
 from submission_api.conjectures import ConjectureIndex
@@ -142,12 +143,28 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 #
 # Two credentials can satisfy them: the browser's cookie and the CLI's bearer token. Which one
 # arrived is on the resolved principal, and only the two writer dependencies care.
+#
+# All four chain down to `get_optional_principal`, which takes the credentials as declared
+# security schemes. That is what makes the requirement visible outside the code: naming any of
+# these four in a signature now also puts the padlock on that operation in `/docs`, and lists
+# the schemes in `/openapi.json` for whatever is generated from it. `security.py` holds the
+# declarations and the two places where the document is necessarily less precise than the code.
 
 
 async def get_optional_principal(
-    request: Request, services: ServicesDep, session: SessionDep
+    services: ServicesDep,
+    session: SessionDep,
+    credentials: security.BearerCredentialsDep,
+    cookie: security.SessionCookieDep,
 ) -> Principal | None:
     """Resolve whichever credential the request carries, if any. Never raises for absence.
+
+    The two credentials arrive as declared security schemes rather than as raw header and
+    cookie reads, which is what puts them in the OpenAPI document — every operation reached
+    through this dependency advertises that it takes a bearer token or a session cookie, and
+    `/docs` grows an Authorize dialog for the former. The reads themselves are unchanged, and
+    both schemes are `auto_error=False`: what an absent credential means is decided below and
+    in `require_principal`, not by FastAPI. See `security.py`.
 
     **An `Authorization: Bearer` header, when present, is the credential — there is no
     fallback to the cookie if it turns out to be expired or revoked.** A client that offers
@@ -162,9 +179,7 @@ async def get_optional_principal(
     else to commit and would otherwise roll it back.
     """
     settings = services.settings
-    offered = session_layer.bearer_token(
-        request.headers.get(session_layer.AUTHORIZATION_HEADER)
-    )
+    offered = security.offered_bearer(credentials)
     if offered is not None:
         principal = await session_layer.resolve(
             session, offered, kind=AccountSessionKind.BEARER, now=_now()
@@ -178,7 +193,7 @@ async def get_optional_principal(
     else:
         principal = await session_layer.resolve(
             session,
-            request.cookies.get(session_layer.SESSION_COOKIE),
+            cookie,
             kind=AccountSessionKind.COOKIE,
             now=_now(),
         )
@@ -240,7 +255,7 @@ PrincipalDep = Annotated[Principal, Depends(require_principal)]
 
 
 async def require_writer(
-    request: Request, principal: PrincipalDep
+    principal: PrincipalDep, csrf_token: security.CsrfTokenDep
 ) -> Principal:
     """A signed-in account that also proved this request was not cross-site.
 
@@ -259,12 +274,14 @@ async def require_writer(
     out of, which would make every CLI write a 403 for no security gain. The exemption is read
     off the authenticated session row (`requires_csrf`), never off the shape of the request, so
     it cannot be claimed by a caller who merely presents a header.
+
+    The header arrives as a declared scheme so that a write documents the credential it needs;
+    the scheme extracts and nothing more, and the comparison below is what decides. See
+    `security.py` on why the document cannot say "cookie *and* this header".
     """
     if not principal.requires_csrf:
         return principal
-    if not session_layer.csrf_matches(
-        principal, request.headers.get(session_layer.CSRF_HEADER)
-    ):
+    if not session_layer.csrf_matches(principal, csrf_token):
         raise Forbidden(
             f"{session_layer.CSRF_HEADER} is missing or does not match this session",
             reason_code=session_layer.REASON_CSRF_FAILED,
