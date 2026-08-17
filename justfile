@@ -8,6 +8,7 @@
 #   just up-all        # ... and all four workers
 #   just logs api
 #   just reset         # destroy the database and start clean
+#   just env-sync      # add new settings from .env.example without touching your values
 #
 # Why this exists rather than a longer README line: every service belongs to a
 # single Compose project, and *which* project depends on the order of the `-f`
@@ -399,6 +400,176 @@ doctor: _preflight
     @echo "==> project: {{ project }}   volume: {{ project }}_pgdata"
     @echo "==> worker would run as {{ uid }}:{{ gid }}"
     @echo "==> all checks passed"
+
+# --- configuration -------------------------------------------------------------
+
+# .env.example gains keys as the API does, and the failure that causes is quiet: the service
+# starts, falls back to a built-in default, and behaves subtly differently from the deployment
+# beside it. `cp .env.example .env` stopped being the fix the moment .env held a real secret,
+# and eyeballing a 500-line template against a live one is not a fix either.
+#
+# Three outcomes per key, and only the middle one rewrites a line that already exists:
+#
+#   added    absent from .env                          -> appended, with its comment block
+#   enabled  commented out in .env, live in the         -> the commented line is replaced
+#            template (an option that became a setting)
+#   kept     .env already assigns it                    -> untouched, whatever the template says
+#
+# **A value you have set is never overwritten.** That is the whole contract, and it is what
+# makes this safe to run against a production .env: the worst it can do is append. The one
+# exception is deliberate and narrow — a key you left commented out is not a value you set, so
+# when the template promotes it from optional to live, so does this.
+#
+# Appends go in one block at the end rather than being spliced into place. Matching the
+# template's layout would mean rewriting the whole file around lines the operator arranged
+# themselves, and a diff that touches everything is a diff nobody reads.
+
+# Add new settings from .env.example to .env, never overwriting a value already set.
+env-sync mode="apply":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Associative arrays. macOS still ships bash 3.2 as /bin/bash; `env bash` usually finds a
+    # newer one, and saying so beats failing with "declare: -A: invalid option".
+    if (( BASH_VERSINFO[0] < 4 )); then
+      echo "error: needs bash 4+ (found ${BASH_VERSION}); on macOS: brew install bash" >&2
+      exit 1
+    fi
+
+    template=.env.example
+    target=.env
+    mode="{{ mode }}"
+
+    case "$mode" in
+      apply|check) ;;
+      *) echo "error: mode must be 'apply' or 'check', got '$mode'" >&2; exit 1 ;;
+    esac
+    [[ -f "$template" ]] || { echo "error: $template is missing" >&2; exit 1; }
+
+    # No .env at all is the bootstrap case, and the template is exactly the right starting
+    # point — there is nothing yet to preserve.
+    if [[ ! -f "$target" ]]; then
+      if [[ "$mode" == check ]]; then
+        echo "==> $target does not exist; apply would create it from $template"
+        exit 0
+      fi
+      cp "$template" "$target"
+      chmod 600 "$target"
+      echo "==> created $target from $template"
+      echo "    fill in the values marked REQUIRED IN PROD, then run: just doctor"
+      exit 0
+    fi
+
+    assign='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$'
+    # A commented assignment, not prose. The `=` must follow the name immediately, so
+    # "# b_i = c * B * N * w_i / W" stays prose and "# BOUNTY_NETUID=66" is a key.
+    commented='^[[:space:]]*#[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$'
+
+    declare -A live=() dormant_at=()
+    lineno=0
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      lineno=$(( lineno + 1 ))
+      if [[ "$line" =~ $assign ]]; then
+        # Last assignment wins, which is also how the readers of this file resolve duplicates.
+        live[${BASH_REMATCH[1]}]=1
+      elif [[ "$line" =~ $commented ]]; then
+        dormant_at[${BASH_REMATCH[1]}]=$lineno
+      fi
+    done < "$target"
+
+    # Which keys the template sets live *anywhere*. Some appear twice — a worked example in one
+    # section and the real entry in another — and which of the two comes first is not something
+    # this should depend on. A live entry decides, wherever it sits.
+    declare -A tmpl_live=()
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" =~ $assign ]]; then
+        tmpl_live[${BASH_REMATCH[1]}]=1
+      fi
+    done < "$template"
+
+    declare -A enable_at=() seen=()
+    added=() enabled=() block=() pending=()
+    kept=0
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      key="" ; is_live=0
+      if [[ "$line" =~ $assign ]]; then
+        key=${BASH_REMATCH[1]} ; is_live=1
+      elif [[ "$line" =~ $commented ]]; then
+        key=${BASH_REMATCH[1]}
+      elif [[ -z "${line//[[:space:]]/}" ]]; then
+        block=() ; continue                    # a blank line ends a comment block
+      elif [[ "$line" == \#* ]]; then
+        block+=("$line") ; continue            # prose: remember it for whatever it introduces
+      else
+        continue
+      fi
+
+      # Skip a commented mention of a key the template also sets live, and skip anything
+      # already decided. Between them these collapse a repeated key to exactly one outcome.
+      if [[ -n "${seen[$key]:-}" ]] || { (( ! is_live )) && [[ -n "${tmpl_live[$key]:-}" ]]; }; then
+        block=() ; continue
+      fi
+      seen[$key]=1
+
+      if [[ -n "${live[$key]:-}" ]]; then
+        kept=$(( kept + 1 ))
+      elif (( is_live )) && [[ -n "${dormant_at[$key]:-}" ]]; then
+        enable_at[${dormant_at[$key]}]=$line
+        enabled+=("$key")
+      elif [[ -z "${dormant_at[$key]:-}" ]]; then
+        # Absent entirely. Carried over exactly as the template has it — a key the template
+        # leaves commented is an option on offer, not a value, and arrives as one.
+        added+=("$key")
+        block+=("$line")
+        pending+=("${block[@]}" "")
+      fi
+      block=()
+    done < "$template"
+
+    if (( ${#added[@]} == 0 && ${#enabled[@]} == 0 )); then
+      echo "==> $target is already in step with $template ($kept keys set)"
+      exit 0
+    fi
+
+    # Guarded rather than iterated bare: `set -u` treats an empty array expansion as unset on
+    # bash before 4.4, which is exactly the vintage the version check above lets through.
+    if (( ${#enabled[@]} )); then
+      for key in "${enabled[@]}"; do echo "  enabled  $key"; done
+    fi
+    if (( ${#added[@]} )); then
+      for key in "${added[@]}"; do echo "  added    $key"; done
+    fi
+
+    if [[ "$mode" == check ]]; then
+      echo "==> would change $target: ${#added[@]} added, ${#enabled[@]} enabled, $kept kept"
+      echo "    run 'just env-sync' to apply"
+      exit 0
+    fi
+
+    tmp=$(mktemp)
+    trap 'rm -f "$tmp"' EXIT
+    lineno=0
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      lineno=$(( lineno + 1 ))
+      printf '%s\n' "${enable_at[$lineno]:-$line}"
+    done < "$target" > "$tmp"
+
+    if (( ${#added[@]} )); then
+      printf '\n# --- added by "just env-sync" on %s ---\n\n' "$(date -u +%Y-%m-%d)" >> "$tmp"
+      printf '%s\n' "${pending[@]}" >> "$tmp"
+    fi
+
+    # Written through the existing file rather than moved over it, so .env keeps the inode,
+    # ownership and mode it had — a bind-mounted or root-owned .env must not silently become a
+    # fresh 600 file belonging to whoever ran this.
+    cp -p "$target" "$target.bak"
+    cat "$tmp" > "$target"
+    echo "==> $target updated: ${#added[@]} added, ${#enabled[@]} enabled, $kept kept"
+    echo "    previous version saved as $target.bak"
+    if (( ${#added[@]} )); then
+      echo "    new keys are appended at the end — review them before starting the stack"
+    fi
 
 # --- private ------------------------------------------------------------------
 
