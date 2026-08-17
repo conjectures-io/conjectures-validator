@@ -87,7 +87,7 @@ REASON_NO_OPEN_DEPOSIT = "NO_OPEN_DEPOSIT"
 # deployment, so it is a constant — and a null link is better than a wrong one.
 EXPLORER_TEMPLATE = "https://taostats.io/extrinsic/{reference}"
 
-MAX_DEPOSIT_CREDITS = 10_000
+MAX_DEPOSIT_CREDITS = 1
 UUID_LENGTH = 36
 
 
@@ -105,6 +105,15 @@ class HotkeyChallengeRequest(Payload):
 
 class HotkeyLinkRequest(Payload):
     hotkey: str = Field(min_length=48, max_length=48)
+    signature: str = Field(min_length=128, max_length=132)
+
+
+class ColdkeyChallengeRequest(Payload):
+    coldkey: str = Field(min_length=48, max_length=48)
+
+
+class ColdkeyLinkRequest(Payload):
+    coldkey: str = Field(min_length=48, max_length=48)
     signature: str = Field(min_length=128, max_length=132)
 
 
@@ -325,7 +334,122 @@ async def patch_me(
     return await account_response(session, principal.account)
 
 
-# --- Linked hotkeys ----------------------------------------------------------------------
+# --- Linked wallets and hotkeys ----------------------------------------------------------
+
+
+@router.post(
+    "/wallets/challenge",
+    response_model=schemas.WalletChallenge,
+    summary="A nonce for linking another coldkey",
+)
+async def coldkey_challenge(
+    payload: ColdkeyChallengeRequest,
+    principal: CookieWriterDep,
+    services: ServicesDep,
+    session: SessionDep,
+) -> schemas.WalletChallenge:
+    """Mint a single-use nonce bound to this account and coldkey.
+
+    This is separate from wallet sign-in, so a signature collected while adding a wallet
+    cannot be replayed as a login credential. The private key remains in the user's wallet;
+    the service stores only the public address and the proof that it was controlled.
+    """
+    settings = services.settings
+    coldkey = _assert_ss58(payload.coldkey, "coldkey")
+    now = _now()
+    issued = await account_store.recent_challenge_count(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        since=now - dt.timedelta(hours=1),
+        ss58=coldkey,
+    )
+    if issued >= settings.challenges_per_hour:
+        raise TooManyRequests(
+            "too many link challenges for that coldkey; try again later",
+            reason_code=REASON_TOO_MANY_CHALLENGES,
+        )
+
+    nonce = sessions.new_token()
+    expires_at = now + dt.timedelta(minutes=settings.challenge_minutes)
+    message = login.coldkey_link_message(
+        domain=settings.login_domain,
+        address=coldkey,
+        nonce=nonce,
+        expires_at=expires_at,
+    )
+    await account_store.create_challenge(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        secret_digest=account_store.digest(nonce),
+        expires_at=expires_at,
+        account_id=principal.account.id,
+        ss58=coldkey,
+        message=message,
+    )
+    await session.commit()
+    return schemas.WalletChallenge(nonce=nonce, message=message, expires_at=expires_at)
+
+
+@router.post(
+    "/wallets",
+    response_model=schemas.Account,
+    status_code=status.HTTP_201_CREATED,
+    summary="Link another coldkey by signature",
+)
+async def link_coldkey(
+    payload: ColdkeyLinkRequest,
+    principal: CookieWriterDep,
+    session: SessionDep,
+) -> schemas.Account:
+    """Attach a coldkey the account proved control of.
+
+    An account may have multiple coldkeys, but a coldkey belongs to exactly one account. There
+    is deliberately no rebind or unlink operation: moving a login credential between accounts
+    needs a separate recovery policy rather than a silent ownership change.
+    """
+    coldkey = _assert_ss58(payload.coldkey, "coldkey")
+    signature = _signature_bytes(payload.signature)
+    now = _now()
+
+    challenge = await account_store.latest_open_challenge(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        ss58=coldkey,
+        now=now,
+        account_id=principal.account.id,
+    )
+    if challenge is None or challenge.message is None:
+        raise Unauthorized(
+            "no open link challenge for that coldkey; request a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+    login.verify_signature(
+        address=coldkey, message=challenge.message, signature=signature
+    )
+    consumed = await account_store.consume_challenge(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        secret_digest=bytes(challenge.secret_sha256),
+        now=now,
+    )
+    if consumed is None:
+        raise Unauthorized(
+            "that challenge has already been used; request a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+
+    await account_store.link_wallet(
+        session, principal.account, coldkey=coldkey, signature=signature
+    )
+    await session.commit()
+    get_axiom().info(
+        source="api-me",
+        event_type="wallet_linked",
+        account_id=str(principal.account.id),
+        kind="coldkey",
+        coldkey=coldkey,
+    )
+    return await account_response(session, principal.account)
 
 
 @router.post(
@@ -586,7 +710,7 @@ def _deposit(deposit, *, settings: Settings) -> schemas.Deposit:
     "/deposits",
     response_model=schemas.Deposit,
     status_code=status.HTTP_201_CREATED,
-    summary="Declare a deposit and get the transfer command",
+    summary="Declare one credit purchase for a wallet-extension transfer",
 )
 async def create_deposit(
     payload: DepositRequest,
@@ -594,7 +718,7 @@ async def create_deposit(
     services: ServicesDep,
     session: SessionDep,
 ) -> schemas.Deposit:
-    """Record what will be sent, and return a ready-to-copy `btcli` command.
+    """Record the one-credit transfer the browser wallet will submit.
 
     Nothing is credited here. This records the expectation, so that when a transfer is seen it
     can be checked against a declared amount and recipient rather than credited on trust. What

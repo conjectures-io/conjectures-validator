@@ -935,6 +935,7 @@ class LoginChallengeKind(enum.StrEnum):
     WALLET = "WALLET"  # a coldkey sign-in nonce
     HOTKEY_LINK = "HOTKEY_LINK"  # attaching a hotkey to an existing account
     HOTKEY_SESSION = "HOTKEY_SESSION"  # a hotkey opening a CLI session
+    COLDKEY_LINK = "COLDKEY_LINK"  # attaching another coldkey to an account
 
 
 class AccountSessionKind(enum.StrEnum):
@@ -1060,6 +1061,52 @@ class Account(Base):
             unique=True,
             postgresql_where=text("email IS NOT NULL"),
         ),
+    )
+
+
+class AccountIdentity(Base):
+    """An external identity explicitly attached to one website account.
+
+    ``subject`` is the provider's stable identifier. Email is an observed claim retained for
+    account recovery UX and audit, never the key used to find a returning federated user.
+    """
+
+    __tablename__ = "account_identities"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    linked_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_used_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("provider = 'google'", name="account_identity_provider_known"),
+        CheckConstraint(
+            "length(subject) BETWEEN 1 AND 255", name="account_identity_subject_length"
+        ),
+        CheckConstraint(
+            f"email ~ '{EMAIL_SHAPE}'", name="account_identity_email_shape"
+        ),
+        CheckConstraint(
+            "last_used_at >= linked_at", name="account_identity_used_after_link"
+        ),
+        UniqueConstraint(
+            "provider", "subject", name="account_identities_provider_subject_key"
+        ),
+        UniqueConstraint(
+            "account_id", "provider", name="account_identities_account_provider_key"
+        ),
+        Index("account_identities_account_idx", "account_id", "linked_at"),
     )
 
 
@@ -1224,9 +1271,9 @@ class AccountSession(Base):
 
 
 class LoginChallenge(Base):
-    """A single-use, short-lived secret for one of the three login flows.
+    """A single-use, short-lived secret for an authentication or key-link flow.
 
-    One table for all three because the rules are identical: single use, short
+    One table for all of them because the rules are identical: single use, short
     lived, rate limited, and the secret stored only as a digest.
     """
 
@@ -1239,7 +1286,7 @@ class LoginChallenge(Base):
         LOGIN_CHALLENGE_KIND, nullable=False
     )
 
-    # Set for HOTKEY_LINK, which attaches to a known account. NULL for the two
+    # Set for HOTKEY_LINK and COLDKEY_LINK, which attach to a known account. NULL for
     # sign-in kinds, where the account may not exist yet.
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE")
@@ -1272,12 +1319,12 @@ class LoginChallenge(Base):
         ),
         CheckConstraint("attempts >= 0", name="challenge_attempts_not_negative"),
         CheckConstraint(
-            "kind NOT IN ('WALLET', 'HOTKEY_LINK', 'HOTKEY_SESSION') "
+            "kind NOT IN ('WALLET', 'HOTKEY_LINK', 'HOTKEY_SESSION', 'COLDKEY_LINK') "
             "OR (ss58 IS NOT NULL AND message IS NOT NULL)",
             name="challenge_wallet_present",
         ),
         CheckConstraint(
-            "kind <> 'HOTKEY_LINK' OR account_id IS NOT NULL",
+            "kind NOT IN ('HOTKEY_LINK', 'COLDKEY_LINK') OR account_id IS NOT NULL",
             name="challenge_link_has_account",
         ),
         CheckConstraint(
@@ -2286,6 +2333,7 @@ __all__ = [
     "MINER_ROLE",
     "REVIEWER_ROLE",
     "Account",
+    "AccountIdentity",
     "AccountSession",
     "AccountSessionKind",
     "AccountWallet",

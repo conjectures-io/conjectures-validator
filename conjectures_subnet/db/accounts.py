@@ -37,6 +37,7 @@ from conjectures_subnet.db.models import (
     ACCOUNT_ROLES,
     MINER_ROLE,
     Account,
+    AccountIdentity,
     AccountSession,
     AccountSessionKind,
     AccountWallet,
@@ -51,6 +52,8 @@ from conjectures_subnet.db.models import (
 HOTKEY_UNIQUE = "linked_hotkeys_hotkey_key"
 WALLET_PRIMARY = "account_wallets_pkey"
 EMAIL_UNIQUE = "accounts_email_idx"
+IDENTITY_SUBJECT_UNIQUE = "account_identities_provider_subject_key"
+IDENTITY_PROVIDER_UNIQUE = "account_identities_account_provider_key"
 
 
 def digest(secret: str) -> bytes:
@@ -106,6 +109,23 @@ async def find_by_hotkey(session: AsyncSession, hotkey: str) -> Account | None:
         .where(LinkedHotkey.hotkey == hotkey)
     )
     return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def find_by_identity(
+    session: AsyncSession, *, provider: str, subject: str
+) -> tuple[Account, AccountIdentity] | None:
+    """The account attached to a provider's stable subject, never to its email claim."""
+
+    statement = (
+        select(Account, AccountIdentity)
+        .join(AccountIdentity, AccountIdentity.account_id == Account.id)
+        .where(
+            AccountIdentity.provider == provider,
+            AccountIdentity.subject == subject,
+        )
+    )
+    row = (await session.execute(statement)).one_or_none()
+    return None if row is None else (row[0], row[1])
 
 
 async def create_account(
@@ -188,6 +208,77 @@ async def set_payout(
     account.payout_hotkey = hotkey
     await session.flush()
     return account
+
+
+# --- External identities --------------------------------------------------------------
+
+
+async def link_identity(
+    session: AsyncSession,
+    account: Account,
+    *,
+    provider: str,
+    subject: str,
+    email: str,
+) -> AccountIdentity:
+    """Attach one verified provider subject to an account.
+
+    The two unique constraints refuse both dangerous ambiguities: one Google subject on two
+    local accounts, and two Google subjects on one local account.  The caller decides whether a
+    collision is a login or an explicit-link conflict; this seam only reports it faithfully.
+    """
+
+    identity = AccountIdentity(
+        account_id=account.id,
+        provider=provider,
+        subject=subject,
+        email=normalise_email(email),
+    )
+    session.add(identity)
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        await session.rollback()
+        constraint = getattr(getattr(exc, "orig", None), "diag", None)
+        name = getattr(constraint, "constraint_name", "")
+        reason = (
+            "IDENTITY_ALREADY_LINKED"
+            if name == IDENTITY_SUBJECT_UNIQUE
+            else "PROVIDER_ALREADY_LINKED"
+            if name == IDENTITY_PROVIDER_UNIQUE
+            else "IDENTITY_LINK_CONFLICT"
+        )
+        raise RecordConflict(
+            "that external identity cannot be linked to this account",
+            reason_code=reason,
+        ) from exc
+    return identity
+
+
+async def touch_identity(
+    session: AsyncSession,
+    identity: AccountIdentity,
+    *,
+    email: str,
+    now: dt.datetime,
+) -> AccountIdentity:
+    """Record the provider's current email claim and successful use."""
+
+    identity.email = normalise_email(email)
+    identity.last_used_at = now
+    await session.flush()
+    return identity
+
+
+async def identities_for(
+    session: AsyncSession, account_id: uuid.UUID
+) -> Sequence[AccountIdentity]:
+    statement = (
+        select(AccountIdentity)
+        .where(AccountIdentity.account_id == account_id)
+        .order_by(AccountIdentity.linked_at.asc())
+    )
+    return list((await session.execute(statement)).scalars())
 
 
 # --- Linked keys -------------------------------------------------------------------

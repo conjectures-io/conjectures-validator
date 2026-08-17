@@ -187,6 +187,10 @@ def production_env(**overrides: str) -> dict[str, str]:
         # Stage 2 additions production also refuses to start without.
         "WEBSITE_BASE_URL": "https://conjectures.io",
         "MAIL_SENDER": "smtp",
+        "SMTP_HOST": "smtp.example.com",
+        "SMTP_USERNAME": "smtp-user",
+        "SMTP_PASSWORD": "smtp-password",
+        "SMTP_FROM_ADDRESS": "login@conjectures.io",
     }
     environ.update(overrides)
     return environ
@@ -198,6 +202,39 @@ def test_production_defaults_are_all_hardened():
     assert isinstance(build_payment_verifier(settings), ChainPaymentVerifier)
     assert settings.expose_docs is False
     assert settings.production is True
+
+
+def test_smtp_configuration_is_complete_and_tls_is_mandatory_in_production():
+    for missing in ("SMTP_HOST", "SMTP_FROM_ADDRESS"):
+        environ = production_env()
+        del environ[missing]
+        with pytest.raises(SettingsError, match=missing):
+            Settings.from_env(environ)
+
+    with pytest.raises(SettingsError, match="both be set"):
+        Settings.from_env(production_env(SMTP_PASSWORD=""))
+    with pytest.raises(SettingsError, match="must use TLS"):
+        Settings.from_env(production_env(SMTP_SECURITY="none"))
+
+    settings = Settings.from_env(
+        production_env(SMTP_PORT="465", SMTP_SECURITY="implicit-tls")
+    )
+    assert settings.smtp_port == 465
+    assert settings.smtp_security == "implicit-tls"
+    assert "smtp-password" not in repr(settings)
+
+
+def test_google_client_id_is_optional_and_shape_checked():
+    assert Settings.from_env(base_env()).google_client_id == ""
+    client_id = (
+        "1081377001123-4kkh4sfuemmr66b5a5sl64b8d6jlhmme.apps.googleusercontent.com"
+    )
+    assert (
+        Settings.from_env({**base_env(), "GOOGLE_CLIENT_ID": client_id}).google_client_id
+        == client_id
+    )
+    with pytest.raises(SettingsError, match="GOOGLE_CLIENT_ID"):
+        Settings.from_env({**base_env(), "GOOGLE_CLIENT_ID": "not-a-google-web-client"})
 
 
 def test_production_refuses_a_static_bounty_balance():

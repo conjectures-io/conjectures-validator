@@ -58,6 +58,15 @@ class LinkedWallet(Model):
     linked_at: dt.datetime
 
 
+class LinkedIdentity(Model):
+    """An external sign-in method. The provider's stable subject is never exposed."""
+
+    provider: str
+    email: str
+    linked_at: dt.datetime
+    last_used_at: dt.datetime
+
+
 class PayoutDestination(Model):
     """Where rewards go. Both keys or neither — alpha is held as stake."""
 
@@ -77,6 +86,7 @@ class Account(Model):
     )
     hotkeys: tuple[LinkedHotkey, ...]
     wallets: tuple[LinkedWallet, ...]
+    identities: tuple[LinkedIdentity, ...]
     created_at: dt.datetime
 
 
@@ -578,6 +588,7 @@ __all__ = [
     "FundingSummary",
     "IntentBundleResult",
     "LinkedHotkey",
+    "LinkedIdentity",
     "LinkedWallet",
     "Model",
     "OwnerVerificationReport",

@@ -39,6 +39,7 @@ RUN pip install --constraint requirements-service.lock \
       fastapi \
       uvicorn \
       httpx \
+      google-auth \
       pydantic \
       SQLAlchemy \
       greenlet \

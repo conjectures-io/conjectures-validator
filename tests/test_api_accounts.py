@@ -56,12 +56,14 @@ pytestmark = pytest.mark.skipif(
 
 ORIGIN = "https://conjectures.io"
 EMAIL = "solver@example.com"
+OTHER_COLDKEY = Keypair.create_from_uri("//Eve").ss58_address
 
 # The fixture addresses are the standard development keys, so a test can sign as them.
 URI = {
     HOTKEY: "//Alice",
     OTHER_HOTKEY: "//Bob",
     COLDKEY: "//Dave",
+    OTHER_COLDKEY: "//Eve",
 }
 
 
@@ -523,6 +525,79 @@ def test_every_account_response_is_no_store():
 # --- Linked hotkeys and payout -----------------------------------------------------------
 
 
+async def link_wallet(kit, http, coldkey: str):
+    challenge = await http.post(
+        "/v1/me/wallets/challenge", json={"coldkey": coldkey}, headers=csrf(http)
+    )
+    assert challenge.status_code == 200, challenge.text
+    message = challenge.json()["message"]
+    assert message.startswith("conjectures-coldkey-link-v1\n")
+    return await http.post(
+        "/v1/me/wallets",
+        json={"coldkey": coldkey, "signature": sign(coldkey, message)},
+        headers=csrf(http),
+    )
+
+
+def test_multiple_coldkeys_can_be_linked_but_never_rebound_between_accounts():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as first, await client(kit) as second:
+                account = await sign_in_by_email(kit, first, email="wallet-one@example.com")
+                assert account["wallets"] == []
+
+                linked = await link_wallet(kit, first, COLDKEY)
+                assert linked.status_code == 201, linked.text
+                linked_again = await link_wallet(kit, first, OTHER_COLDKEY)
+                assert linked_again.status_code == 201, linked_again.text
+                assert {item["coldkey"] for item in linked_again.json()["wallets"]} == {
+                    COLDKEY,
+                    OTHER_COLDKEY,
+                }
+
+                await sign_in_by_email(kit, second, email="wallet-two@example.com")
+                stolen = await link_wallet(kit, second, COLDKEY)
+                assert stolen.status_code == 409
+                assert stolen.json()["reason_code"] == "WALLET_ALREADY_LINKED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_coldkey_link_signature_cannot_be_replayed_as_a_sign_in():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                challenge = await http.post(
+                    "/v1/me/wallets/challenge",
+                    json={"coldkey": COLDKEY},
+                    headers=csrf(http),
+                )
+                link_message = challenge.json()["message"]
+
+            async with await client(kit) as attacker:
+                await attacker.post(
+                    "/v1/auth/wallet/challenge", json={"address": COLDKEY}
+                )
+                replayed = await attacker.post(
+                    "/v1/auth/wallet/verify",
+                    json={
+                        "address": COLDKEY,
+                        "signature": sign(COLDKEY, link_message),
+                    },
+                )
+                assert replayed.status_code == 401
+                assert replayed.json()["reason_code"] == "SIGNATURE_INVALID"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 async def link(kit, http, hotkey: str):
     challenge = await http.post(
         "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=csrf(http)
@@ -749,28 +824,44 @@ def test_the_ledger_records_the_deposit_and_pages_newest_first():
     run(scenario())
 
 
-def test_a_deposit_declares_an_amount_and_returns_a_copyable_command():
+def test_a_deposit_declares_exactly_one_credit():
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
                 created = await http.post(
-                    "/v1/me/deposits", json={"credits": 4}, headers=csrf(http)
+                    "/v1/me/deposits", json={"credits": 1}, headers=csrf(http)
                 )
                 assert created.status_code == 201, created.text
                 body = created.json()
                 assert body["status"] == "AWAITING_TRANSFER"
-                assert body["amount_rao"] == 2_000_000_000
-                assert body["credits_expected"] == 4
+                assert body["amount_rao"] == 500_000_000
+                assert body["credits_expected"] == 1
                 # Nothing is credited by declaring a deposit.
                 assert body["credited_rao"] is None
                 assert "btcli wallet transfer" in body["btcli_command"]
-                assert "--amount 2" in body["btcli_command"]
+                assert "--amount 0.5" in body["btcli_command"]
 
                 assert (
                     await http.get(f"/v1/me/deposits/{body['id']}")
                 ).json()["id"] == body["id"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_deposit_refuses_a_multi_credit_purchase():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                refused = await http.post(
+                    "/v1/me/deposits", json={"credits": 2}, headers=csrf(http)
+                )
+                assert refused.status_code == 400
         finally:
             await kit.teardown()
 
@@ -1265,8 +1356,14 @@ def test_credit_pricing_and_terms_are_public():
                 # No pinned USD rate configured, so the field is null rather than invented.
                 assert body["price_usd"] is None
                 assert body["price_usd_asof"] is None
-                assert body["methods"] == ["btcli"]
+                assert body["methods"] == ["wallet_extension"]
                 assert body["recipient"] == kit.settings.payment_recipient
+                assert body["packages"] == [{
+                    "credits": 1,
+                    "bonus_credits": 0,
+                    "total_credits": 1,
+                    "price_rao": 500_000_000,
+                }]
                 # A bonus is extra credits, never a discount: the price is credits x price.
                 for package in body["packages"]:
                     assert (

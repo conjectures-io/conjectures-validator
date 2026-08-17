@@ -810,6 +810,7 @@ async def read_credit_pricing(
                 price_rao=item.price_rao,
             )
             for item in services.packages
+            if item.credits == 1 and item.bonus_credits == 0
         ),
         # Filtered by what this deployment can actually take money through: a method the page
         # renders and the API refuses is worse than one it never offers.

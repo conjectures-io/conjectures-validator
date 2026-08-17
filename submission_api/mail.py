@@ -1,14 +1,9 @@
 """Sending the magic link.
 
-The validator has no mail transport, and adding one is a deployment decision rather than
-a code one: an SMTP client, an API client for a provider, and the credentials either
-needs, all belong to whoever operates the service. So this is a seam, shaped exactly
-like `payments.PaymentVerifier` and for the same reason.
-
-`SmtpSender` is the production shape and **fails closed until a transport is injected**.
-It refuses to send rather than pretending to, because the alternative — an interface that
-silently discards mail — means a production deployment where nobody can sign in and
-nothing in the logs says why.
+`SmtpTransport` is provider-agnostic SMTP: authenticated or relay delivery, STARTTLS on port
+587, or implicit TLS on port 465. Network work is moved off the async event loop and every
+delivery failure becomes a fail-closed 503 rather than a request that appears to have mailed a
+credential it actually discarded.
 
 `ConsoleSender` writes the link to the process log for local development, and `Settings`
 refuses it in production. It is not a mock: a developer genuinely needs to click the
@@ -21,12 +16,22 @@ template would be more surface for no benefit.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+import smtplib
+import ssl
+from asyncio import to_thread
+from dataclasses import dataclass, field
+from email.message import EmailMessage
 from typing import Protocol
 from urllib.parse import quote
 
 from submission_api.errors import ServiceUnavailable
-from submission_api.settings import CONSOLE_MAIL, SMTP_MAIL, Settings
+from submission_api.settings import (
+    CONSOLE_MAIL,
+    SMTP_IMPLICIT_TLS,
+    SMTP_MAIL,
+    SMTP_STARTTLS,
+    Settings,
+)
 
 logger = logging.getLogger("submission_api.mail")
 
@@ -61,37 +66,78 @@ class MailSender(Protocol):
         ...
 
 
-@dataclass(frozen=True)
-class SmtpTransport(Protocol):
-    """What a real transport has to provide. Injected; not implemented here."""
-
+class MailTransport(Protocol):
     async def send(self, *, to: str, subject: str, body: str) -> None: ...
 
 
 @dataclass(frozen=True)
+class SmtpTransport:
+    """A minimal SMTP transport with explicit TLS and authentication policy."""
+
+    host: str
+    port: int
+    username: str
+    password: str = field(repr=False)
+    from_address: str
+    security: str
+    timeout_seconds: float
+
+    async def send(self, *, to: str, subject: str, body: str) -> None:
+        await to_thread(self._send, to=to, subject=subject, body=body)
+
+    def _send(self, *, to: str, subject: str, body: str) -> None:
+        message = EmailMessage()
+        message["From"] = self.from_address
+        message["To"] = to
+        message["Subject"] = subject
+        message.set_content(body)
+
+        context = ssl.create_default_context()
+        if self.security == SMTP_IMPLICIT_TLS:
+            connection = smtplib.SMTP_SSL(
+                self.host,
+                self.port,
+                timeout=self.timeout_seconds,
+                context=context,
+            )
+        else:
+            connection = smtplib.SMTP(
+                self.host, self.port, timeout=self.timeout_seconds
+            )
+
+        with connection as smtp:
+            if self.security == SMTP_STARTTLS:
+                smtp.ehlo()
+                smtp.starttls(context=context)
+                smtp.ehlo()
+            if self.username:
+                smtp.login(self.username, self.password)
+            smtp.send_message(message)
+
+
+@dataclass(frozen=True)
 class SmtpSender:
-    """Production. Fails closed until a transport is injected.
+    """Production sender. SMTP failures are deliberately visible to the caller."""
 
-    Refusing is the only safe default for something that gates access: an interface that
-    accepted the call and dropped the mail would look healthy while locking every user
-    out.
-    """
-
-    transport: SmtpTransport | None = None
+    transport: MailTransport
 
     async def send_login_link(
         self, *, email: str, link: str, expires_in_minutes: int
     ) -> None:
-        if self.transport is None:
+        try:
+            await self.transport.send(
+                to=email,
+                subject=SUBJECT,
+                body=BODY.format(link=link, minutes=expires_in_minutes),
+            )
+        except (OSError, smtplib.SMTPException, ValueError) as exc:
+            # Do not log the mailbox, provider response, or link. Any of those may contain PII
+            # or a live credential; the exception type is enough for operational triage.
+            logger.error("SMTP delivery failed (%s)", type(exc).__name__)
             raise ServiceUnavailable(
                 "email sign-in is not available on this deployment",
                 reason_code=REASON_MAIL_UNAVAILABLE,
-            )
-        await self.transport.send(
-            to=email,
-            subject=SUBJECT,
-            body=BODY.format(link=link, minutes=expires_in_minutes),
-        )
+            ) from exc
 
 
 @dataclass(frozen=True)
@@ -116,7 +162,17 @@ class ConsoleSender:
 
 def build_mail_sender(settings: Settings) -> MailSender:
     if settings.mail_sender == SMTP_MAIL:
-        return SmtpSender()
+        return SmtpSender(
+            transport=SmtpTransport(
+                host=settings.smtp_host,
+                port=settings.smtp_port,
+                username=settings.smtp_username,
+                password=settings.smtp_password,
+                from_address=settings.smtp_from_address,
+                security=settings.smtp_security,
+                timeout_seconds=settings.smtp_timeout_seconds,
+            )
+        )
     if settings.mail_sender == CONSOLE_MAIL:
         if settings.production:  # pragma: no cover - Settings already refuses this
             raise RuntimeError("the console mail sender is not permitted in production")
@@ -128,6 +184,7 @@ __all__ = [
     "REASON_MAIL_UNAVAILABLE",
     "ConsoleSender",
     "MailSender",
+    "MailTransport",
     "SmtpSender",
     "SmtpTransport",
     "build_mail_sender",
