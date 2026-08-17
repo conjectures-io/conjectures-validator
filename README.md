@@ -14,6 +14,7 @@ This repository is the system boundary for the entire validator, including:
 - the miner-facing paid submission and status API;
 - payment confirmation, idempotency, and reconciliation;
 - durable submission, verification, review, and reward records;
+- signed, opt-in public author/team credit snapshotted per submission;
 - immutable proof artifacts and verifier reports;
 - asynchronous verification workers and the hardened Lean verifier;
 - the optional manual reward-review queue;
@@ -41,6 +42,8 @@ verification core.
 | Asynchronous verification worker | Implemented |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
+| DB-driven Discord payout command notifications | Implemented |
+| Best/finalized chain reconciliation for Paying/Paid payout status | Implemented |
 | Subnet 66 treasury weight setter (100% to UID 121 every epoch) | Implemented |
 | Proof-specific scoring and automated bounty payout | To build |
 | Production launch and operating runbooks | To build |
@@ -62,17 +65,19 @@ remaining work.
 ## Validator flow
 
 1. A miner chooses an eligible committed task — proving the conjecture, or refuting it with a
-   counterexample — prepares one candidate Lean proof, and checks it locally with
-   `verifier bundle scan`: a rejected bundle costs nothing to fix.
+   counterexample — prepares one candidate Lean proof, checks its format with
+   `verifier bundle scan`, then runs `verifier bundle verify` for the real Comparator and Lean
+   kernel result: a rejected bundle costs nothing to fix.
 2. The miner pays exactly **0.5 TAO** and submits the proof bundle through the validator API with
    its task ID and digest, the payment reference, miner identity, and an idempotency key.
 3. The API admits the bundle, authenticates the hotkey signature, and confirms the transfer
    against finalized chain state. Intake is payment-gated: a refused request creates no
    submission and is recorded in `api_rejection_log` instead.
 4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
-   submission ID together with the current bounty estimate. The estimate is explicitly unlocked:
-   the wallet balance, task ages, and winning claim may change while verification is in flight.
-   The submission is queued for verification by being `UNVERIFIED`.
+   submission ID together with its locked bounty amount. New submissions are priced from the
+   treasury balance left after outstanding locks; this submission's amount no longer changes
+   while verification or review is in flight. The submission is queued for verification by being
+   `UNVERIFIED`.
 5. A verification worker claims it under a lease and passes the exact proof bytes and task digest
    to the isolated verifier, in a container holding neither the database nor any key.
 6. A proof rejected by policy, Comparator, or the Lean kernel is recorded as rejected and never
@@ -84,10 +89,10 @@ remaining work.
    approves or rejects reward eligibility. Manual review cannot override a failed Lean verdict.
 9. If manual reward review is not required, or if a held proof is approved, the submission becomes
    reward-eligible and is passed to the reward pipeline.
-10. The first successful proof to hold the reward target is eligible for a payout priced from the
-    then-current policy inputs. Later proofs remain valid verification results but cannot earn the
-    already-solved bounty. The payout event records its own amount, policy, inputs, and chain
-    evidence; the intake estimate is not used as the amount-of-record.
+10. The first successful proof to hold the reward target is eligible for its submission-time
+    locked amount. Later proofs remain valid verification results but cannot earn the already-
+    solved bounty. The automatic payout event copies the winner's locked amount, policy, and
+    inputs, then records the chain evidence as signing progresses.
 
 ```text
 miner pays 0.5 TAO
@@ -219,7 +224,14 @@ python3 scripts/build_submission_bundle.py \
   --hotkey <ss58> --output submission.zip
 
 python -m verifier bundle scan --bundle submission.zip
+
+python -m verifier bundle verify \
+  --bundle submission.zip --task ../conjectures-tasks/pool/<tier>/<task>
 ```
+
+`bundle scan` is a fast archive and static-policy check; it does not compile Lean. `bundle verify`
+runs the authoritative proof path and must report `accepted: true` before the miner pays. The
+reference submission client repeats that full check by default before sending any bytes.
 
 `GET /v1/tasks` publishes the submittable task ids, their committed digests, the price, and the
 payment address. Start at [`docs/MINER.md`](docs/MINER.md) for the miner's path end to end, then
@@ -407,14 +419,14 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 136
-active audited targets (118 Erdős targets and 18 Green's Open Problems targets), including complete
-statements and independently formalized parts or variants. Ten additional audited targets are
-retired from admission — six for dependency or semantic-fidelity defects, four after a verified
-submission settled them — and are absent from the deny-by-default allowlist. The source
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 162
+active audited targets (142 Erdős targets and 20 Green's Open Problems targets), including complete
+statements and independently formalized parts or variants. Fourteen additional audited targets are
+retired from admission — eight for dependency or semantic-fidelity defects, four after verified
+submissions settled them, and two after literature solutions — and are absent from the deny-by-default allowlist. The source
 snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
 derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
-correction patch. The tier contains 272 active immutable bundles for 136 theorem targets. Every
+correction patch. The tier contains 324 active immutable bundles for 162 theorem targets. Every
 target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
 
 Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
@@ -452,7 +464,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 136 active audited direct propositions, generates committed `formalized` and
+the 162 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
@@ -569,18 +581,55 @@ For each open reward target `i`, the API publishes the integer-RAO estimate
 b_i = c * B * N * w_i / W = c * B * w_i / w_avg
 ```
 
-`B` is the finalized Subnet 66 Alpha stake held by the configured bounty coldkey/hotkey, `N` is
-the number of open stable reward targets, `w_i` is `1 + floor(age / age_period)`, and `W` is the
-sum of the open targets'
+`B` is the finalized Subnet 66 Alpha stake held by the configured bounty coldkey/hotkey minus
+outstanding locked exposure, `N` is the number of open stable reward targets, `w_i` is
+`1 + floor(age / age_period)`, and `W` is the sum of the open targets'
 weights. The default policy uses `c = 1/4` and a one-day age period. Multiplying by `N` removes the
 otherwise accidental division of every task's bounty by the number of tasks in the pool: an
 average-age task is worth `c * B` regardless of `N`.
 
 `bounty_tasks.opened_at` is inserted once per stable `reward_target_id`, so an API restart or source
 repin does not reset age. A target leaves the pricing pool as soon as one submission holds its
-unique reward claim. Catalog and submission responses publish `available`, `reason`, `as_of`, and
-`locked: false`; accepting a submission never reserves the displayed amount. It becomes locked
-only when a payout event records the actual amount and pricing inputs.
+unique reward claim. Catalog responses are live and publish `locked: false`; accepting a
+submission serializes a fresh quote and stores it with `locked: true`. New quotes use the live
+chain balance minus outstanding locks. Competing attempts for one target contribute only their
+maximum locked amount because at most one can win; verification or review rejection releases an
+attempt's exposure. The policy is prospective: submissions accepted before V012 retain their
+payout-time pricing contract and are not retroactively converted into locks.
+
+### Automatic payout signer notifications
+
+The payout notifier watches PostgreSQL for newly `ELIGIBLE` submissions. It idempotently creates a
+`PENDING` reward event by copying the submission's locked amount and payout destination, then uses
+the payout generator to send each signer their own multisig command in Discord. Start it with the
+application stack:
+
+```bash
+just up
+```
+
+Set `PAYOUT_DISCORD_WEBHOOK_URL` in the ignored `.env`. Delivery state is stored per reward event
+and signer in PostgreSQL, so a normal poll or process restart does not ping someone twice. Failed
+webhook requests retry; the generator remains available as a read-only operator command when a
+human wants to print a selected event without notifying anyone. Signer SS58 identities are used
+for Discord routing and durable delivery ownership, but `btcli -w` receives the signer's configured
+local wallet name. WEJH's notice also tells them to paste only the shell code block and to wait for
+the first signer's `call_hash` and `timepoint` before confirming an existing multisig operation.
+
+The paired payout watcher holds no wallet and reads successful
+`SubtensorModule.StakeAndHotkeyTransferred` plus `StakeAdded` events. A matching event on the best
+chain changes the owner-facing tracker to `SUBMITTED`/Paying; only the same event in a finalized
+block changes it to `CONFIRMED`/Paid and moves the submission to `REWARDED`. If an unfinalized event
+is reorganized away, the watcher returns the instruction to `PENDING`. The exact Alpha amount comes
+from `StakeAdded` — the transfer event reports TAO-equivalent value — and the finalized event
+reference is stored as `block-extrinsic-event`.
+
+The migration deliberately marks historical operator-entered payout states as unverified and
+returns their cached submission status to `ELIGIBLE`. They remain hidden from Paying/Paid while the
+watcher replays history, then reappear only when the matching best/finalized event is decoded. The
+existing reward row prevents this catch-up from generating a duplicate signer notification.
+Set `BITTENSOR_ARCHIVE_NETWORK` when the normal node has pruned the blocks that replay must inspect;
+an unavailable historical block fails closed and leaves the row hidden.
 
 `source-metadata.json` includes a `references` array when the Formal Conjectures module docstring
 has a `*Reference:*` or `*References:*` section. Each entry preserves the source Markdown so clients
@@ -603,8 +652,9 @@ to `Not P` in `counterexample` mode rather than trusting JSON metadata.
 A miner submits a `conjectures-submission/v1` ZIP bundle, which the exact-shape scanner in
 [`verifier/bundle.py`](verifier/bundle.py) admits only if it contains exactly a bounded strict-JSON
 manifest and one regular UTF-8 `.lean` file. The archive is never extracted: entry names are only
-compared against a two-name allowlist and never used as filesystem paths. Check a bundle before
-submitting it with `python -m verifier bundle scan --bundle submission.zip`. See
+compared against a two-name allowlist and never used as filesystem paths. Check its shape with
+`python -m verifier bundle scan --bundle submission.zip`, then compile and kernel-check it with
+`python -m verifier bundle verify --bundle submission.zip --task <task-dir>`. See
 [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md) for the format and the full admission
 rules.
 

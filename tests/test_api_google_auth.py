@@ -18,7 +18,6 @@ from conftest_api import harness, postgres_dsn
 from conjectures_subnet.db.models import Account, AccountIdentity
 from submission_api.errors import Unauthorized
 from submission_api.google_identity import GoogleIdentity
-from submission_api.sessions import CSRF_COOKIE, CSRF_HEADER
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
@@ -113,8 +112,9 @@ async def sign_in_email(kit, http, email: str):
     return response.json()["account"]
 
 
-def csrf(http) -> dict[str, str]:
-    return {CSRF_HEADER: http.cookies[CSRF_COOKIE]}
+def same_origin(_http=None) -> dict[str, str]:
+    """What a browser sends when the calling page is on this origin. No page can set it."""
+    return {"Sec-Fetch-Site": "same-origin"}
 
 
 def test_google_callback_creates_one_identity_and_the_normal_session():
@@ -135,6 +135,17 @@ def test_google_callback_creates_one_identity_and_the_normal_session():
                 assert account["identities"][0]["email"] == EMAIL
                 assert "subject" not in account["identities"][0]
 
+                # And the flattened envelope lists it beside the mailbox it adopted, so a
+                # "ways back in" panel does not have to reconcile two differently-shaped arrays.
+                body = session.json()
+                assert [item["provider"] for item in body["identities"]] == [
+                    "email",
+                    "google",
+                ]
+                assert {item["label"] for item in body["identities"]} == {EMAIL}
+                # The subject is the login key. It is not in either shape.
+                assert "subject" not in body["identities"][1]
+
                 # A second callback resolves by stable subject rather than creating a duplicate.
                 again = await callback(http)
                 assert again.status_code == 303
@@ -148,6 +159,7 @@ def test_google_callback_creates_one_identity_and_the_normal_session():
             await kit.teardown()
 
     run(scenario())
+
 
 def test_google_callback_requires_the_provider_double_submit_csrf_token():
     async def scenario():
@@ -192,7 +204,7 @@ def test_matching_email_never_silently_merges_and_can_be_explicitly_linked():
                 linked = await http.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
-                    headers={**csrf(http), "Origin": ORIGIN},
+                    headers={**same_origin(http), "Origin": ORIGIN},
                 )
                 assert linked.status_code == 200, linked.text
                 assert linked.json()["account"]["id"] == existing["id"]
@@ -217,7 +229,7 @@ def test_one_google_identity_cannot_be_linked_to_two_accounts():
                 attached = await first.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
-                    headers=csrf(first),
+                    headers=same_origin(first),
                 )
                 assert attached.status_code == 200
 
@@ -225,10 +237,62 @@ def test_one_google_identity_cannot_be_linked_to_two_accounts():
                 refused = await second.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
-                    headers=csrf(second),
+                    headers=same_origin(second),
                 )
                 assert refused.status_code == 409
                 assert refused.json()["reason_code"] == "GOOGLE_IDENTITY_ALREADY_LINKED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_cli_token_can_neither_see_nor_attach_a_google_identity():
+    """Two halves of one rule: a linked provider is a way *in*, so a hotkey-minted token may not
+    read that it exists and may not add another.
+
+    Neither half existed to be tested before — CLI sessions and Google sign-in were built on
+    branches that had never met, so `WriterDep` on the link endpoint read as cookie-only right up
+    until bearer tokens became a thing that could satisfy it.
+    """
+
+    async def scenario():
+        from test_api_accounts import HOTKEY
+        from test_api_cli_sessions import bearer, cli_login, link_hotkey
+
+        kit = await harness(google=google()).setup()
+        try:
+            async with await client(kit) as browser, await client(kit) as cli:
+                await sign_in_email(kit, browser, "miner@example.com")
+                await link_hotkey(kit, browser, HOTKEY)
+                attached = await browser.post(
+                    "/v1/auth/google/link",
+                    json={"credential": CREDENTIAL},
+                    headers=same_origin(browser),
+                )
+                assert attached.status_code == 200, attached.text
+                # The browser sees it, in both shapes.
+                assert attached.json()["account"]["identities"][0]["provider"] == "google"
+                assert "google" in {
+                    item["provider"] for item in attached.json()["identities"]
+                }
+
+                token = (await cli_login(kit, cli, HOTKEY))["access_token"]
+                seen = await cli.get("/v1/auth/session", headers=bearer(token))
+                assert seen.status_code == 200, seen.text
+                # Withheld: the Google account is the next door an attacker would try.
+                assert seen.json()["account"]["identities"] == []
+                assert seen.json()["identities"] == []
+
+                # And it cannot add one. This is the takeover step the cookie-only gate exists
+                # for: link an attacker's Google account, then sign in as them.
+                refused = await cli.post(
+                    "/v1/auth/google/link",
+                    json={"credential": CREDENTIAL},
+                    headers=bearer(token),
+                )
+                assert refused.status_code == 403, refused.text
+                assert refused.json()["reason_code"] == "BROWSER_SESSION_REQUIRED"
         finally:
             await kit.teardown()
 

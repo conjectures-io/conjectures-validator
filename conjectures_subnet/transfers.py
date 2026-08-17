@@ -40,6 +40,12 @@ T = TypeVar("T")
 
 # The pallet and event that mean free TAO moved between two accounts.
 TRANSFER_EVENT = ("Balances", "Transfer")
+# A successful bounty payout moves Subnet Alpha from the treasury stake position to the solver's
+# coldkey/hotkey pair.  The dedicated transfer event proves who sent and received it; the adjacent
+# StakeAdded event carries the exact Alpha amount (the transfer event's `amount` is TAO-equivalent,
+# so comparing that field to `reward_events.amount_rao` would be a unit bug).
+PAYOUT_EVENT = ("SubtensorModule", "StakeAndHotkeyTransferred")
+STAKE_ADDED_EVENT = ("SubtensorModule", "StakeAdded")
 # Storage holding one block's events. Read with `query`, because bittensor 11 exposes no
 # events accessor of its own — `Client.block_info` decodes extrinsics, which is the wrong
 # source for the reason in the module docstring.
@@ -163,6 +169,33 @@ class IncomingTransfer:
         return f"{self.block}-{self.extrinsic_index}-{self.event_index}"
 
 
+@dataclass(frozen=True)
+class ObservedPayout:
+    """One successful stake payout observed in a chain block.
+
+    `amount_rao` is Subnet Alpha in its integer base unit, recovered from the `StakeAdded` event
+    emitted by the same call.  The payout event itself reports the TAO-equivalent amount instead.
+    Keeping that distinction in this type prevents a price-dependent number from being compared
+    with the Alpha amount frozen on a reward event.
+    """
+
+    block: int
+    block_timestamp: dt.datetime
+    extrinsic_index: int
+    event_index: int
+    origin_coldkey: str
+    destination_coldkey: str
+    origin_hotkey: str
+    destination_hotkey: str
+    origin_netuid: int
+    destination_netuid: int
+    amount_rao: int
+
+    @property
+    def reference(self) -> str:
+        return f"{self.block}-{self.extrinsic_index}-{self.event_index}"
+
+
 class TransferSource(Protocol):
     """What the watcher needs of a chain. Narrow on purpose, so a fake is a small class."""
 
@@ -189,6 +222,18 @@ class PaymentSource(TransferSource, Protocol):
     async def transfers_in(self, *, block: int) -> Sequence[IncomingTransfer]: ...
 
     async def coldkey_of(self, *, hotkey: str) -> str | None: ...
+
+
+class PayoutSource(Protocol):
+    """The payout watcher's read-only view of best and finalized chain events."""
+
+    async def best_head(self) -> int: ...
+
+    async def finalized_head(self) -> int: ...
+
+    async def block(self, number: int) -> ObservedBlock: ...
+
+    async def payouts_in(self, *, block: int) -> Sequence[ObservedPayout]: ...
 
 
 def decode_ss58(value: Any) -> str:
@@ -242,6 +287,161 @@ def _attribute(attributes: Any, key: str, index: int) -> Any:
     raise ChainUnavailable(
         f"cannot read attribute {key!r} from {type(attributes).__name__}"
     )
+
+
+def _attribute_one_of(attributes: Any, keys: Sequence[str], index: int) -> Any:
+    """One attribute whose metadata name has changed, or its stable positional field.
+
+    Tuple-style runtime events decode positionally.  Named decoders have used both short names
+    (`alpha`) and call-shaped names (`alpha_amount`) for stake fields, so payout decoding accepts
+    the small explicit alias set rather than silently losing every payout after a metadata change.
+    """
+    if isinstance(attributes, dict):
+        for key in keys:
+            if key in attributes:
+                return attributes[key]
+        raise ChainUnavailable(
+            f"cannot read any of {', '.join(repr(key) for key in keys)} from event attributes"
+        )
+    if isinstance(attributes, tuple | list):
+        return attributes[index]
+    raise ChainUnavailable(
+        f"cannot read attribute index {index} from {type(attributes).__name__}"
+    )
+
+
+def _extrinsic_index(record: Any) -> int:
+    """The outer extrinsic an event belongs to.
+
+    Payout events can only be emitted while applying an extrinsic.  Unlike balance-transfer
+    decoding, there is no meaningful fallback for a missing index: pairing a StakeAdded from one
+    call with a payout event from another would certify the wrong amount, so this path fails loud.
+    """
+    if hasattr(record, "value_serialized"):
+        record = record.value_serialized
+    if not isinstance(record, dict) or record.get("extrinsic_idx") is None:
+        raise ChainUnavailable("payout event carries no extrinsic_idx")
+    return int(record["extrinsic_idx"])
+
+
+@dataclass(frozen=True)
+class _StakeAddition:
+    position: int
+    extrinsic_index: int
+    coldkey: str
+    hotkey: str
+    netuid: int
+    alpha_rao: int
+
+
+def payouts_in_events(
+    records: Sequence[Any],
+    *,
+    block: int,
+    block_timestamp: dt.datetime,
+) -> list[ObservedPayout]:
+    """Successful `transfer_stake_and_hotkey` payouts in one block.
+
+    Runtime events, not extrinsic intent, are the authority.  A failed call is still present in
+    the extrinsic list but emits no stake-transfer event.  Proxy and multisig wrappers still emit
+    the inner call's events under the outer extrinsic index, so this also observes the actual
+    production payout shape.
+
+    `StakeAndHotkeyTransferred.amount` is TAO-equivalent.  The exact Alpha quantity requested by
+    the payout command appears on the preceding `StakeAdded` event, so the two are paired by outer
+    extrinsic and destination stake position.  Missing that companion is an unknown runtime shape,
+    not "no payout": raising leaves the durable cursor in place for a visible retry.
+    """
+    additions: list[_StakeAddition] = []
+    transfers: list[tuple[int, int, Any]] = []
+
+    for position, record in enumerate(records):
+        body = _event_body(record)
+        identity = (body.get("module_id"), body.get("event_id"))
+        if identity == STAKE_ADDED_EVENT:
+            attributes = body.get("attributes")
+            alpha_rao = int(
+                _attribute_one_of(attributes, ("alpha", "alpha_amount"), 3)
+            )
+            if alpha_rao <= 0:
+                continue
+            additions.append(
+                _StakeAddition(
+                    position=position,
+                    extrinsic_index=_extrinsic_index(record),
+                    coldkey=decode_ss58(
+                        _attribute_one_of(attributes, ("coldkey",), 0)
+                    ),
+                    hotkey=decode_ss58(
+                        _attribute_one_of(attributes, ("hotkey",), 1)
+                    ),
+                    netuid=int(_attribute_one_of(attributes, ("netuid",), 4)),
+                    alpha_rao=alpha_rao,
+                )
+            )
+        elif identity == PAYOUT_EVENT:
+            transfers.append((position, _extrinsic_index(record), body.get("attributes")))
+
+    found: list[ObservedPayout] = []
+    used_additions: set[int] = set()
+    for position, extrinsic_index, attributes in transfers:
+        origin_coldkey = decode_ss58(
+            _attribute_one_of(attributes, ("origin_coldkey",), 0)
+        )
+        destination_coldkey = decode_ss58(
+            _attribute_one_of(attributes, ("destination_coldkey",), 1)
+        )
+        origin_hotkey = decode_ss58(
+            _attribute_one_of(attributes, ("origin_hotkey",), 2)
+        )
+        destination_hotkey = decode_ss58(
+            _attribute_one_of(attributes, ("destination_hotkey",), 3)
+        )
+        origin_netuid = int(
+            _attribute_one_of(attributes, ("origin_netuid",), 4)
+        )
+        destination_netuid = int(
+            _attribute_one_of(attributes, ("destination_netuid",), 5)
+        )
+        tao_equivalent = int(_attribute_one_of(attributes, ("amount",), 6))
+        if tao_equivalent <= 0:
+            raise ChainUnavailable("payout event reports a non-positive amount")
+
+        matching = [
+            (index, addition)
+            for index, addition in enumerate(additions)
+            if index not in used_additions
+            and addition.extrinsic_index == extrinsic_index
+            and addition.position < position
+            and addition.coldkey == destination_coldkey
+            and addition.hotkey == destination_hotkey
+            and addition.netuid == destination_netuid
+        ]
+        if not matching:
+            raise ChainUnavailable(
+                "StakeAndHotkeyTransferred has no matching preceding StakeAdded event"
+            )
+        # The transfer implementation emits its own StakeAdded immediately before the dedicated
+        # payout event.  Taking the nearest match also handles a utility batch containing several
+        # payouts to the same stake position without reusing an earlier call's amount.
+        addition_index, addition = max(matching, key=lambda item: item[1].position)
+        used_additions.add(addition_index)
+        found.append(
+            ObservedPayout(
+                block=block,
+                block_timestamp=block_timestamp,
+                extrinsic_index=extrinsic_index,
+                event_index=position,
+                origin_coldkey=origin_coldkey,
+                destination_coldkey=destination_coldkey,
+                origin_hotkey=origin_hotkey,
+                destination_hotkey=destination_hotkey,
+                origin_netuid=origin_netuid,
+                destination_netuid=destination_netuid,
+                amount_rao=addition.alpha_rao,
+            )
+        )
+    return found
 
 
 def transfers_in_events(
@@ -353,6 +553,19 @@ class BittensorTransferSource:
 
         return await self._read(self.network, read)
 
+    async def best_head(self) -> int:
+        """The current best (possibly unfinalized) block.
+
+        The payout watcher uses this only to expose `SUBMITTED` while a real transfer event is
+        waiting for finality.  Money is never declared paid from this head; `CONFIRMED` remains a
+        finalized-head transition.
+        """
+
+        async def read(client: Any) -> int:
+            return int(await client.block())
+
+        return await self._read(self.network, read)
+
     async def block(self, number: int) -> ObservedBlock:
         """One block's identity and its own timestamp, from the archive connection.
 
@@ -392,6 +605,31 @@ class BittensorTransferSource:
         the extrinsic does not exist.
         """
         return await self._transfers(block=block, recipient=None)
+
+    async def payouts_in(self, *, block: int) -> Sequence[ObservedPayout]:
+        """Every successful stake-and-hotkey transfer in one block.
+
+        Unlike incoming free-TAO transfers, payout matching always needs the block timestamp and
+        at least two related events, so there is no empty-block timestamp shortcut here.  Reads
+        use the archive connection because deployment deliberately replays historical/manual paid
+        rows before trusting them; the regular public endpoint may have pruned those blocks.
+        """
+
+        async def read_events(client: Any) -> Any:
+            return await client.query(SYSTEM_EVENTS, block=block)
+
+        records = await self._read(self.archive_network, read_events)
+        if records is None:
+            raise ChainUnavailable(f"block {block} returned no event list")
+
+        async def read_timestamp(client: Any) -> dt.datetime:
+            millis = await client.query(BLOCK_TIMESTAMP, block=block)
+            if millis is None:
+                raise ChainUnavailable(f"block {block} returned no timestamp")
+            return dt.datetime.fromtimestamp(int(millis) / 1000, tz=dt.UTC)
+
+        stamp = await self._read(self.archive_network, read_timestamp)
+        return payouts_in_events(records, block=block, block_timestamp=stamp)
 
     async def _transfers(
         self, *, block: int, recipient: str | None
@@ -605,6 +843,8 @@ async def first_block_at_or_after(
 __all__ = [
     "BLOCKS_PER_DAY",
     "BLOCK_TIMESTAMP",
+    "PAYOUT_EVENT",
+    "STAKE_ADDED_EVENT",
     "HOTKEY_OWNER",
     "REFERENCE",
     "SUBNET_KEYS",
@@ -615,13 +855,16 @@ __all__ = [
     "BittensorTransferSource",
     "ChainUnavailable",
     "IncomingTransfer",
+    "ObservedPayout",
     "ObservedBlock",
     "PaymentSource",
+    "PayoutSource",
     "TransferReference",
     "TransferSource",
     "decode_ss58",
     "finalized_transfer",
     "first_block_at_or_after",
     "parse_reference",
+    "payouts_in_events",
     "transfers_in_events",
 ]

@@ -1,7 +1,7 @@
 # Submission terms
 
-**Terms version:** `v3`<br>
-**Effective date:** 2026-08-07<br>
+**Terms version:** `v4`<br>
+**Effective date:** 2026-08-10<br>
 **Manual review policy:** `v2`
 
 These terms apply only to submissions accepted on or after the effective date. A submission
@@ -76,17 +76,27 @@ when no inspectable artifact, theorem statement, certificate, or other target-sp
 available. A mathematical paper may instead be evaluated under `NOT_NOVEL` using the requirements
 above.
 
-Bounty amounts are dynamic estimates. They are calculated from the live treasury balance and the
-target's age relative to the other open targets. Submitting does not lock the displayed amount or
-reserve the target. If another proof becomes the successful claim while yours is queued, the
-target is solved and your submission is not reward-eligible; if yours wins, the payout amount and
-pricing inputs are recorded on the payout event.
+Bounty amounts shown in the catalog are dynamic estimates. For submissions accepted after the V012
+policy activation, a fresh quote is locked and will not be repriced during verification or review.
+The lock is conditional: it does not reserve the reward target, and another proof may become the
+successful claim first. Rejected attempts release their treasury exposure. If your submission
+wins, its payout event copies the locked amount and pricing inputs exactly.
+
+Submissions accepted before that activation retain the payout-time pricing policy in force when
+they were submitted; the new lock is not applied retroactively.
 
 ## Attribution and publication
 
 **Your hotkey is published with your result.** Every result on the public feeds — certified or
 awaiting review — names the hotkey that submitted it. Submitting is a public act: assume that
 anyone can see which hotkey attempted which conjecture, and when.
+
+**Public name credit is optional and permanent for that submission.** You may attach a public
+credit name and, optionally, an HTTPS profile URL and ORCID. These values are included in the
+request digest your hotkey signs, stored as a snapshot on the submission, and published beside
+your hotkey once the result reaches a public feed. They are not taken from your mutable account
+display name. Omit public credit to remain credited only by hotkey. Do not name another person or
+team without their permission.
 
 **An approved proof is published in full.** Once review approves your submission, the exact
 `Main.lean` you sent is served at `GET /v1/results/{id}/solution`, together with its digest. A

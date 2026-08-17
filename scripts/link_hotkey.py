@@ -25,8 +25,8 @@ The account is created on first sign-in, so there is no separate registration st
 control of a coldkey against an address nobody has claimed *is* signing up.
 
 This is a development utility. It holds a live session cookie in memory and prints nothing
-secret, but it is not a substitute for the real thing — the CSRF token it echoes is a value a
-browser would keep same-origin.
+secret, but it is not a substitute for the real thing — the `Sec-Fetch-Site` header it sends is
+one a browser writes for itself and no page can forge.
 """
 
 from __future__ import annotations
@@ -43,8 +43,10 @@ from bittensor.sp_core import Keypair
 from bittensor.wallet import Wallet
 
 SESSION_COOKIE = "conjectures_session"
-CSRF_COOKIE = "conjectures_csrf"
-CSRF_HEADER = "X-Conjectures-CSRF"
+# The browser sets this itself and no page can forge it. This script is not a browser, so it
+# says so here — see the class docstring for why that is honest rather than a bypass.
+FETCH_SITE_HEADER = "Sec-Fetch-Site"
+SAME_ORIGIN = "same-origin"
 
 LOGIN_PREFIX = "conjectures-login-v1"
 HOTKEY_LINK_PREFIX = "conjectures-hotkey-link-v1"
@@ -57,20 +59,23 @@ class ApiError(RuntimeError):
 class Client:
     """The four calls, with the cookie jar a browser would keep.
 
-    The CSRF token rides in a header on every write, copied out of the cookie the sign-in
-    response set — which is exactly the double-submit the frontend will do. The other two
-    halves of the guard, `Origin` and `Sec-Fetch-Site`, are browser-set headers this script
-    does not send at all; the middleware passes a request that omits them, because a
-    non-browser client has no ambient credential for a cross-site page to abuse.
+    Keeping a cookie jar is what makes this script's credential *ambient* in the same sense a
+    browser's is, so the API's write guard applies to it: a write on a cookie session has to
+    carry either an allowlisted `Origin` or a same-origin `Sec-Fetch-Site`. This sends the
+    latter on every write.
+
+    **That is not a bypass, and it is worth being precise about why.** In a browser both headers
+    are on the forbidden-header list, so no page can set them — which is the entire basis of the
+    guard. Outside a browser they are ordinary strings anyone can type, and it does not matter:
+    the guard exists to stop a *hostile page* from riding on a cookie the browser attached by
+    itself. A local script that can set arbitrary headers is already holding the cookie
+    deliberately, and a token-based check would have been no different — anything able to send
+    the cookie could send the token beside it.
     """
 
     def __init__(self, api_root: str) -> None:
         self._root = api_root.rstrip("/")
         self._cookies: dict[str, str] = {}
-
-    @property
-    def csrf_token(self) -> str | None:
-        return self._cookies.get(CSRF_COOKIE)
 
     @property
     def signed_in(self) -> bool:
@@ -88,10 +93,10 @@ class Client:
                 "Cookie",
                 "; ".join(f"{name}={value}" for name, value in self._cookies.items()),
             )
-        # Only on writes that need it, and only once there is one to send: an unauthenticated
-        # call carrying a stale token is a confusing request to have to read in a log.
-        if self.csrf_token:
-            request.add_header(CSRF_HEADER, self.csrf_token)
+        # Every call here changes state, and once there is a cookie in the jar the credential
+        # is ambient, so the write guard applies. Sent unconditionally: it costs one header,
+        # and a request that omits it is refused rather than merely logged oddly.
+        request.add_header(FETCH_SITE_HEADER, SAME_ORIGIN)
 
         try:
             with urllib.request.urlopen(request) as response:

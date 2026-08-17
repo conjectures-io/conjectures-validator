@@ -31,6 +31,7 @@ from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
 
+from conjectures_subnet.attribution import PublicCredit, encode_public_credit_header
 from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
@@ -131,8 +132,8 @@ def terms() -> SubmissionTerms:
     """
     return SubmissionTerms.load(
         ROOT / "docs" / "SUBMISSION_TERMS.md",
-        version="v3",
-        effective_from=date(2026, 8, 7),
+        version="v4",
+        effective_from=date(2026, 8, 10),
     )
 
 
@@ -380,6 +381,7 @@ def request_digest(
     proof_digest: str,
     payment_reference: str,
     idempotency_key: str,
+    public_credit: PublicCredit | None = None,
 ) -> str:
     return store.canonical_request_digest(
         hotkey=hotkey,
@@ -388,6 +390,7 @@ def request_digest(
         proof_sha256=proof_digest,
         payment_reference=payment_reference,
         idempotency_key=idempotency_key,
+        public_credit=public_credit,
     )
 
 
@@ -403,13 +406,14 @@ def submission_headers(
     signature: str | None = None,
     proof_digest: str | None = None,
     content_type: str = "application/zip",
+    public_credit: PublicCredit | None = None,
 ) -> dict[str, str]:
     from verifier.hashing import sha256_bytes
 
     del bundle  # the proof digest, not the archive digest, is what the request binds
     key = idempotency_key if idempotency_key is not None else new_key()
     proof = proof_digest or sha256_bytes(VALID_PROOF)
-    return {
+    headers = {
         "Content-Type": content_type,
         "Idempotency-Key": key,
         "X-Conjectures-Hotkey": hotkey,
@@ -422,6 +426,9 @@ def submission_headers(
         "X-Conjectures-Proof-Sha256": proof,
         "X-Conjectures-Payment-Ref": payment_reference,
     }
+    if public_credit is not None:
+        headers["X-Conjectures-Public-Credit"] = encode_public_credit_header(public_credit)
+    return headers
 
 
 def read_headers(hotkey: str = HOTKEY, *, signature: str | None = None) -> dict[str, str]:

@@ -57,7 +57,7 @@ DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 # default 1/4 policy constant, an average-age task is displayed at one Alpha. Production never
 # uses this value: its balance is read from the configured Subnet 66 stake position.
 DEVELOPMENT_BOUNTY_BALANCE_RAO = 4 * RAO_PER_TAO
-DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v1"
+DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v2-locked"
 DEFAULT_BOUNTY_CONSTANT_NUMERATOR = 1
 DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 4
 DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
@@ -88,18 +88,23 @@ CORS_WILDCARD = "*"
 # a valid submission — and the endpoint authenticates a hotkey signature rather than a cookie,
 # so there is no ambient credential for it to ride on either.
 CORS_METHODS = ("GET", "HEAD", "OPTIONS", "POST", "PATCH", "PUT", "DELETE")
-# Deliberately narrow, and deliberately without any `X-Conjectures-*` header except the CSRF
-# token. Adding a signature header here would undo the paragraph above.
+# Deliberately narrow, and deliberately without any `X-Conjectures-*` signature header. Adding
+# one here would undo the paragraph above.
 #
-# **`Authorization` must never be added to this list**, and that is now load-bearing in a second
-# way. A CLI bearer session is exempt from the CSRF token check — correctly, because a bearer
-# token is not an ambient credential and no browser attaches one on its own. This allowlist is
-# what keeps that true: it is the only thing preventing a page on an allowlisted origin from
-# sending an `Authorization` header cross-origin at all. Adding it here would make the CSRF
-# exemption browser-reachable, which is the one way the exemption becomes a hole.
+# **`Authorization` must never be added to this list**, and that is load-bearing. A CLI bearer
+# session does not have to prove where it was initiated — correctly, because a bearer token is
+# not an ambient credential and no browser attaches one on its own. This allowlist is what keeps
+# that true: it is the only thing preventing a page on an allowlisted origin from sending an
+# `Authorization` header cross-origin at all. Adding it here would make the exemption
+# browser-reachable, which is the one way the exemption becomes a hole.
 #
 # The CLI is not a browser, sends no `Origin`, and is not subject to CORS, so it loses nothing.
 # `tests/test_api_accounts.py` asserts the absence.
+#
+# `X-Conjectures-CSRF` is **deprecated and ignored**. Nothing reads it; it is listed only so
+# that a frontend build predating the removal of the CSRF token does not fail preflight during
+# a rolling deploy — a header the preflight has not permitted is a blocked request, not an
+# ignored one. Delete this entry once no deployed frontend still sends it.
 CORS_REQUEST_HEADERS = (
     "Accept",
     "Accept-Language",
@@ -207,6 +212,12 @@ DEFAULT_CHALLENGE_MINUTES = 5
 DEFAULT_EMAIL_LINKS_PER_HOUR = 5
 DEFAULT_CHALLENGES_PER_HOUR = 30
 
+# Public OAuth client identifier, not a secret. Empty keeps Google sign-in disabled without
+# weakening either of the existing login methods.
+GOOGLE_CLIENT_ID_SHAPE = re.compile(
+    r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$"
+)
+
 # How many signatures may be offered against one challenge before it is spent.
 #
 # The signature flows verify before consuming, so a wrong signature does not burn the nonce and
@@ -234,12 +245,15 @@ DEFAULT_DEPOSIT_HOURS = 24
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
 DEFAULT_CREDIT_PACKAGES = "1"
-# Bumped to v3 by the v2 manual-review rule that expands `NOT_NOVEL`. The terms version and
-# manual-review version are separate counters because terms v2 was already published.
+# Only one credit is sold per purchase; see `routers/catalog.py` and `MAX_DEPOSIT_CREDITS`.
+# v3 was the v2 manual-review rule that expands `NOT_NOVEL`; v4 adds the two things a miner is now
+# actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
+# credit frozen into the request digest. The terms version and manual-review version are separate
+# counters because terms v2 was already published.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
-# leaving it at v2 would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v3"
-DEFAULT_TERMS_DATE = "2026-08-07"
+# leaving it behind would serve rewritten terms under a version string a miner already accepted.
+DEFAULT_TERMS_VERSION = "v4"
+DEFAULT_TERMS_DATE = "2026-08-10"
 
 # The domain that goes into a signed login message, binding the signature to this
 # deployment so one produced for another instance is not valid here.
@@ -488,6 +502,28 @@ def _secret(
     return value
 
 
+def _write_origins(
+    environ: Mapping[str, str], key: str, *, fallback: tuple[str, ...], production: bool
+) -> tuple[str, ...]:
+    """The origins a browser may make a *state-changing* request from.
+
+    Separate from the read allowlist because the two are different grants: a site that may read
+    the public catalog is not necessarily a site that may spend an account's credits or repoint
+    its payout. Most deployments have one website and want one list, so an unset variable
+    inherits `CORS_ALLOWED_ORIGINS` — the distinction is there when it is needed and invisible
+    when it is not.
+
+    Set-but-empty is *not* the same as unset. It is a valid, fail-closed answer meaning no
+    browser may write to this API at all, and it is the right setting for a deployment that
+    serves only miner tooling. Distinguishing them is why this reads the raw variable rather
+    than asking `_csv` for a tuple that would be empty either way.
+    """
+    raw = environ.get(key)
+    if raw is None:
+        return fallback
+    return _cors_origins(environ, key, production=production)
+
+
 def _cors_origins(
     environ: Mapping[str, str], key: str, *, production: bool
 ) -> tuple[str, ...]:
@@ -497,6 +533,10 @@ def _cors_origins(
     one XSS on any subdomain into read access to this API, and there is no origin here that is
     not known at deploy time. An empty list is a valid, fail-closed answer — it means no
     browser may read the API, which is correct until a site exists.
+
+    `null` cannot be configured, because the pattern below requires a scheme and a host. That
+    matters for the write allowlist in particular: `null` is what a sandboxed iframe, a `data:`
+    URL and a `file://` page send, and it must never name a trusted initiator.
     """
     origins = _csv(environ, key)
     if CORS_WILDCARD in origins:
@@ -570,6 +610,10 @@ class Settings:
     # --- Public read surface ---------------------------------------------------------------
     pins_path: Path
     cors_allowed_origins: tuple[str, ...]
+    # Which origins a browser may make a state-changing request from. Defaults to
+    # `cors_allowed_origins`; see `_write_origins` for why it is separable at all, and
+    # `submission_api/origin_policy.py` for what is done with it.
+    write_allowed_origins: tuple[str, ...]
     rate_limit_enabled: bool
     rate_limit_requests: int
     rate_limit_window_seconds: int
@@ -852,6 +896,13 @@ class Settings:
         if LOGIN_DOMAIN.fullmatch(login_domain) is None:
             raise SettingsError("LOGIN_DOMAIN must be a bare hostname")
 
+        google_client_id = env.get("GOOGLE_CLIENT_ID", "").strip()
+        if google_client_id and GOOGLE_CLIENT_ID_SHAPE.fullmatch(google_client_id) is None:
+            raise SettingsError(
+                "GOOGLE_CLIENT_ID must be a Google OAuth web client ID ending in "
+                ".apps.googleusercontent.com"
+            )
+
         # The CLI token's rolling window and the ceiling it may not roll past. Checked against
         # each other here rather than trusted: a maximum below the rolling window silently
         # means "every token expires at the maximum", which is a lifetime nobody configured
@@ -990,6 +1041,18 @@ class Settings:
         elif production and not taomarketcap_base_url.startswith("https://"):
             raise SettingsError("TAOMARKETCAP_API_BASE_URL must use https in production")
 
+        # Read as a pair: the write allowlist inherits the read one unless it is set, so the
+        # read one has to be resolved first.
+        cors_allowed_origins = _cors_origins(
+            env, "CORS_ALLOWED_ORIGINS", production=production
+        )
+        write_allowed_origins = _write_origins(
+            env,
+            "WRITE_ALLOWED_ORIGINS",
+            fallback=cors_allowed_origins,
+            production=production,
+        )
+
         tmc_pay_fiat_currency = (
             env.get("TMC_PAY_FIAT_CURRENCY", "").strip().upper()
             or DEFAULT_TMC_PAY_FIAT_CURRENCY
@@ -1123,9 +1186,8 @@ class Settings:
             ),
             taomarketcap_base_url=taomarketcap_base_url,
             pins_path=_directory(env, "PINS_LOCK_PATH", PROJECT_ROOT / "pins.lock.json"),
-            cors_allowed_origins=_cors_origins(
-                env, "CORS_ALLOWED_ORIGINS", production=production
-            ),
+            cors_allowed_origins=cors_allowed_origins,
+            write_allowed_origins=write_allowed_origins,
             rate_limit_enabled=rate_limit_enabled,
             rate_limit_requests=_positive_int(
                 env, "RATE_LIMIT_REQUESTS", DEFAULT_RATE_LIMIT_REQUESTS, maximum=1_000_000

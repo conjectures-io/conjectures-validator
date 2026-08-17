@@ -1,12 +1,13 @@
 """Sign in, sign out, and read the current session.
 
-Four ways in. Three are for a browser and end in an HttpOnly cookie: Google, a magic link to an
-email address, and a signature from a coldkey. The fourth is for the miner CLI and ends in a
-bearer token: a signature from a hotkey already linked to an account in the browser. See
-`submission_api/sessions.py` for the two credential forms and why only cookies need CSRF, and
+Four ways in. Three are for a browser and end in an HttpOnly cookie: a Google identity, a magic
+link to an email address, and a signature from a coldkey. The fourth is for the miner CLI and ends
+in a bearer token: a signature from a hotkey that has already been linked to an account in the
+browser. See `submission_api/sessions.py` for the two credentials and why only one of them has to
+prove where a write was initiated, `submission_api/origin_policy.py` for how it proves it, and
 `submission_api/login.py` for the signed messages.
 
-Six things here are security decisions rather than conveniences:
+Seven things here are security decisions rather than conveniences:
 
 * **`request-link` always answers 202.** Whether an account exists for an address is not
   disclosed, so this endpoint cannot be used to enumerate who has signed up. The response
@@ -44,15 +45,16 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
+from conjectures_subnet.db.errors import RecordConflict
 from conjectures_subnet.db.models import (
     MINER_ROLE,
     Account,
     AccountSessionKind,
     LoginChallengeKind,
 )
-from conjectures_subnet.db.errors import RecordConflict
 from submission_api import login, mail, schemas_account as account_schemas, sessions
 from submission_api.dependencies import (
+    CookieWriterDep,
     OptionalPrincipalDep,
     ServicesDep,
     SessionDep,
@@ -68,7 +70,7 @@ from submission_api.errors import (
 )
 from submission_api.google_identity import GOOGLE_PROVIDER, GoogleIdentity
 from submission_api.middleware import client_address
-from submission_api.routers._account import account_response
+from submission_api.routers._account import account_response, session_envelope
 from submission_api.settings import Settings
 from verifier.bundle import SS58_ADDRESS
 
@@ -117,6 +119,10 @@ class WalletVerifyRequest(Payload):
     signature: str = Field(min_length=128, max_length=MAX_SIGNATURE_HEX)
 
 
+class GoogleCredentialRequest(Payload):
+    credential: str = Field(min_length=100, max_length=MAX_GOOGLE_CREDENTIAL_LENGTH)
+
+
 class CliChallengeRequest(Payload):
     address: str = Field(
         min_length=48, max_length=48, description="The hotkey that will sign"
@@ -133,10 +139,6 @@ class CliVerifyRequest(Payload):
     signature: str = Field(min_length=128, max_length=MAX_SIGNATURE_HEX)
 
 
-class GoogleCredentialRequest(Payload):
-    credential: str = Field(min_length=100, max_length=MAX_GOOGLE_CREDENTIAL_LENGTH)
-
-
 def _now() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
 
@@ -150,8 +152,11 @@ def _set_session_cookies(
     response.headers.append(
         "Set-Cookie", sessions.session_cookie(issued.token, max_age=max_age, secure=secure)
     )
+    # One cookie is issued; the second header deletes the CSRF cookie an earlier version set, so
+    # a browser that signs in again is rid of it rather than carrying a cookie nothing reads for
+    # the rest of its 30-day `Max-Age`.
     response.headers.append(
-        "Set-Cookie", sessions.csrf_cookie(issued.csrf_token, max_age=max_age, secure=secure)
+        "Set-Cookie", sessions.expired_legacy_csrf_cookie(secure=secure)
     )
 
 
@@ -203,8 +208,11 @@ async def _sign_in(
         method=method,
         email_verified=account.email_verified,
     )
-    return account_schemas.SessionEnvelope(
-        account=await account_response(session, account)
+    # The full envelope, not just the account. A sign-in is the one moment a client is
+    # guaranteed to need every field in it, and answering with a subset here would mean every
+    # sign-in is immediately followed by a `GET /v1/auth/session` that reads the same rows again.
+    return await session_envelope(
+        session, account, settings=settings, now=_now()
     )
 
 
@@ -272,29 +280,49 @@ def _assert_ss58(value: str) -> str:
 @router.get(
     "/session",
     response_model=account_schemas.SessionEnvelope,
-    summary="The current account, or 401",
+    summary="The current session: account, identities, holdings and capabilities",
 )
 async def read_session(
-    response: Response, principal: OptionalPrincipalDep, session: SessionDep
+    response: Response,
+    principal: OptionalPrincipalDep,
+    services: ServicesDep,
+    session: SessionDep,
 ) -> account_schemas.SessionEnvelope:
-    """What the website calls on load to decide whether to show a sign-in page.
+    """What the website calls on load to decide what to draw.
 
     401 for an absent or expired session, which is what the contract specifies, rather than
     200 with a null account: the status code is the signal, and a client should not have to
     inspect a body to learn it is anonymous.
 
+    **One request, whole shell.** Beyond the account this returns the identities that reach it,
+    the linked hotkeys, the payout destination, the credit balance, the badge counts and the
+    five capability flags — because a client that had to assemble those from `/v1/me`,
+    `/v1/me/credits` and a submissions page would make four round trips on every page load and
+    render a header that disagrees with itself while they land. `account` is unchanged and
+    remains the canonical record; the rest is derived from it in the same call.
+
+    `Cache-Control: no-store` on all of it, via `_no_store`. That was already required — the
+    body is caller-dependent — and is more so now that it carries a balance and a set of
+    permissions: a shared cache serving one account's capabilities to another would be an
+    authorisation bug wearing a caching bug's clothes.
+
     Answers a bearer caller too, redacted — `conjectures auth status` uses it to confirm that a
-    stored token is still live without having to interpret an error body.
+    stored token is still live without having to interpret an error body. What a CLI session
+    sees is narrowed by `account_response`'s rules, and its capabilities reflect the credential
+    rather than only the account: an admin on a rig is told, in `manage_roles.missing`, that the
+    role is held but not exercisable here.
     """
     _no_store(response)
     if principal is None:
         raise Unauthorized(
             "not signed in", reason_code=sessions.REASON_NOT_AUTHENTICATED
         )
-    return account_schemas.SessionEnvelope(
-        account=await account_response(
-            session, principal.account, bearer_scope=principal.hotkey_scope
-        )
+    return await session_envelope(
+        session,
+        principal.account,
+        settings=services.settings,
+        now=_now(),
+        bearer_scope=principal.hotkey_scope,
     )
 
 
@@ -305,11 +333,11 @@ async def logout(
     session: SessionDep,
     services: ServicesDep,
 ) -> None:
-    """Revoke this one session row, and clear both cookies if it was a browser session.
+    """Revoke this one session row, and clear the cookies if it was a browser session.
 
-    A write, so it takes `WriterDep` and its CSRF check: a cross-site page being able to log
-    someone out is a real, if minor, nuisance attack, and the check costs nothing here. A bearer
-    caller passes that check by construction — see `require_writer`.
+    A write, so it takes `WriterDep` and its cross-site check: a cross-site page being able to
+    log someone out is a real, if minor, nuisance attack, and the check costs nothing here. A
+    bearer caller passes it by construction — see `require_writer`.
 
     Revoking server-side is the point. Clearing the cookie alone would leave a credential
     that still works if it was captured.
@@ -654,14 +682,22 @@ async def google_callback(
 )
 async def link_google(
     payload: GoogleCredentialRequest,
-    principal: WriterDep,
+    principal: CookieWriterDep,
     services: ServicesDep,
     session: SessionDep,
 ) -> account_schemas.SessionEnvelope:
     """Explicitly link Google after authenticating with an existing method.
 
-    This endpoint uses the normal session-bound CSRF header because the credential comes from
-    the same-origin Google popup callback in page script. It never merges or deletes an account.
+    This endpoint uses the normal write guard, unlike `/google/callback`, because the credential
+    is posted by same-origin page script rather than by Google. It never merges or deletes an
+    account.
+
+    **`CookieWriterDep`, not `WriterDep`.** Attaching a provider adds a way *in* to the account,
+    which is the same class of change as linking a hotkey or repointing the payout, and it is
+    refused to a CLI token for the same reason: a bearer token is minted by a hotkey that
+    Bittensor stores unencrypted on disk, so allowing this would turn one stolen file into "link
+    my Google account, then sign in as them". This read as cookie-only before CLI sessions
+    existed; it has to say so now that they do.
     """
 
     identity = await services.google.verify(payload.credential)
@@ -679,8 +715,8 @@ async def link_google(
             session, stored, email=identity.email, now=_now()
         )
         await session.commit()
-        return account_schemas.SessionEnvelope(
-            account=await account_response(session, principal.account)
+        return await session_envelope(
+            session, principal.account, settings=services.settings, now=_now()
         )
 
     providers = await account_store.identities_for(session, principal.account.id)
@@ -731,8 +767,8 @@ async def link_google(
         account_id=str(principal.account.id),
         provider=GOOGLE_PROVIDER,
     )
-    return account_schemas.SessionEnvelope(
-        account=await account_response(session, principal.account)
+    return await session_envelope(
+        session, principal.account, settings=services.settings, now=_now()
     )
 
 

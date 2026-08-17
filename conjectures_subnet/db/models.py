@@ -203,6 +203,11 @@ class Submission(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Opt-in public authorship, snapshotted on this submission rather than joined from the
+    # account's mutable display name. The hotkey signature covers all three fields.
+    public_credit_name: Mapped[str | None] = mapped_column(Text)
+    public_credit_url: Mapped[str | None] = mapped_column(Text)
+    public_credit_orcid: Mapped[str | None] = mapped_column(Text)
     idempotency_key: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False
     )
@@ -276,8 +281,9 @@ class Submission(Base):
     )
     review_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # An audit snapshot of what the API displayed at intake. The payout event is the
-    # amount-of-record and may use a later live quote; this column never reserves funds.
+    # The amount-of-record, locked when intake accepts the submission. Eligibility remains
+    # conditional on verification/review and winning the stable reward target, but this amount
+    # is never repriced afterward.
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
@@ -311,6 +317,26 @@ class Submission(Base):
         CheckConstraint(
             "length(reward_target_id) BETWEEN 1 AND 255",
             name="reward_target_id_nonempty",
+        ),
+        CheckConstraint(
+            "public_credit_name IS NULL "
+            "OR (length(public_credit_name) BETWEEN 1 AND 128 "
+            "AND public_credit_name = btrim(public_credit_name))",
+            name="submission_public_credit_name_shape",
+        ),
+        CheckConstraint(
+            "public_credit_url IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND length(public_credit_url) BETWEEN 1 AND 2048 "
+            "AND public_credit_url LIKE 'https://%')",
+            name="submission_public_credit_url_shape",
+        ),
+        CheckConstraint(
+            "public_credit_orcid IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND public_credit_orcid ~ "
+            "'^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$')",
+            name="submission_public_credit_orcid_shape",
         ),
         CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128",
@@ -476,6 +502,33 @@ event.listen(
     "before_drop",
     DDL("DROP FUNCTION IF EXISTS submissions_touch_updated_at() CASCADE;"),
 )
+event.listen(
+    Submission.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION submissions_protect_public_credit() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.public_credit_name IS DISTINCT FROM OLD.public_credit_name\n"
+        "       OR NEW.public_credit_url IS DISTINCT FROM OLD.public_credit_url\n"
+        "       OR NEW.public_credit_orcid IS DISTINCT FROM OLD.public_credit_orcid THEN\n"
+        "        RAISE EXCEPTION 'submission public credit is immutable'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'submission_public_credit_immutable';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submissions_protect_public_credit\n"
+        "    BEFORE UPDATE OF public_credit_name, public_credit_url, public_credit_orcid "
+        "ON submissions\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submissions_protect_public_credit();"
+    ),
+)
+event.listen(
+    Submission.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submissions_protect_public_credit() CASCADE;"),
+)
 
 
 class VerificationRun(Base):
@@ -542,8 +595,8 @@ class VerificationRun(Base):
 class RewardEvent(Base):
     """One payout attempt, paid as a direct transfer.
 
-    The amount and pricing inputs on this event are the payout facts. The submission's bounty
-    fields are only the estimate displayed at intake and are never copied implicitly here.
+    The amount and pricing inputs on an automatically generated event copy the immutable bounty
+    lock on its submission. Manually reconciled retry attempts remain representable.
 
     The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
     then its chain fields fill in as it progresses. Inserting after the transfer
@@ -569,6 +622,7 @@ class RewardEvent(Base):
     amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     pricing_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     pricing_inputs: Mapped[dict | None] = mapped_column(JSONB)
+    generation_key: Mapped[str | None] = mapped_column(Text)
 
     # Captured, not derived from submissions: this is where the money actually
     # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
@@ -577,6 +631,12 @@ class RewardEvent(Base):
 
     status: Mapped[PayoutState] = mapped_column(
         PAYOUT_STATE, nullable=False, server_default=PayoutState.PENDING.value
+    )
+    # True only after the payout watcher decoded the matching successful Subtensor event.  Legacy
+    # operator-entered SUBMITTED/CONFIRMED rows remain representable, but read APIs deliberately
+    # ignore them until the watcher replays the chain and establishes this provenance.
+    chain_observed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
     )
     extrinsic_reference: Mapped[str | None] = mapped_column(Text)
     submitted_block: Mapped[int | None] = mapped_column(BigInteger)
@@ -612,6 +672,10 @@ class RewardEvent(Base):
             "status NOT IN ('SUBMITTED', 'CONFIRMED') "
             "OR (extrinsic_reference IS NOT NULL AND submitted_at IS NOT NULL)",
             name="reward_submitted_needs_reference",
+        ),
+        CheckConstraint(
+            "NOT chain_observed OR status IN ('SUBMITTED', 'CONFIRMED')",
+            name="reward_chain_observation_needs_chain_state",
         ),
         CheckConstraint(
             "status <> 'CONFIRMED' OR (finalized_block IS NOT NULL AND confirmed_at IS NOT NULL)",
@@ -654,7 +718,10 @@ class RewardEvent(Base):
         Index(
             "reward_events_pending_idx",
             "created_at",
-            postgresql_where=text("status IN ('PENDING', 'SUBMITTED')"),
+            postgresql_where=text(
+                "status IN ('PENDING', 'SUBMITTED') "
+                "OR (status = 'CONFIRMED' AND NOT chain_observed)"
+            ),
         ),
         Index(
             "reward_events_destination_idx",
@@ -946,7 +1013,7 @@ class AccountSessionKind(enum.StrEnum):
     ``V015__cli_bearer_sessions.sql``.
     """
 
-    COOKIE = "COOKIE"  # the browser: HttpOnly cookie plus a row-bound CSRF token
+    COOKIE = "COOKIE"  # the browser: an HttpOnly cookie, attached ambiently
     BEARER = "BEARER"  # the CLI: an Authorization header, scoped to one linked hotkey
 
 
@@ -1067,7 +1134,7 @@ class Account(Base):
 class AccountIdentity(Base):
     """An external identity explicitly attached to one website account.
 
-    ``subject`` is the provider's stable identifier. Email is an observed claim retained for
+    ``subject`` is the provider's stable identifier.  Email is an observed claim retained for
     account recovery UX and audit, never the key used to find a returning federated user.
     """
 
@@ -1198,8 +1265,10 @@ class AccountSession(Base):
     replayable as a credential, exactly as for a password.
 
     One table for both kinds because everything that matters is shared: an opaque
-    256-bit secret, a digest, an expiry, and revocation in one UPDATE. The two
-    biconditional CHECKs below are what keep the differences from being optional.
+    256-bit secret, a digest, an expiry, and revocation in one UPDATE. The
+    biconditional CHECK below is what keeps the one remaining difference — a bearer
+    session is bounded to the hotkey that minted it, a cookie session is not — from
+    being optional.
     """
 
     __tablename__ = "account_sessions"
@@ -1216,11 +1285,12 @@ class AccountSession(Base):
         ACCOUNT_SESSION_KIND, nullable=False, server_default=text("'COOKIE'")
     )
     token_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
-    # Bound to the session rather than a bare double-submit cookie, so a value the
-    # client can set is not itself the proof. NULL for a BEARER session: a bearer
-    # token is not an ambient credential, so there is no cross-site attachment to
-    # defend against and nowhere for a CLI to read the cookie half from.
-    csrf_sha256: Mapped[bytes | None] = mapped_column(SHA256)
+    # There was a `csrf_sha256` here. The column still exists in a migrated database and is
+    # left behind on purpose — see V021 — but nothing writes or reads it, so it is not mapped.
+    # A cookie session now proves where a write was initiated from the browser's own `Origin`
+    # and `Sec-Fetch-Site` headers; `submission_api/origin_policy.py` says why that is the
+    # stronger of the two mechanisms rather than merely the cheaper one.
+    #
     # Where a BEARER session's authority stops: the linked hotkey that minted it.
     # NULL for a COOKIE session, which is scoped to the account rather than a key.
     hotkey_scope: Mapped[str | None] = mapped_column(SS58)
@@ -1244,12 +1314,6 @@ class AccountSession(Base):
     __table_args__ = (
         CheckConstraint(
             "expires_at > issued_at", name="session_expires_after_issue"
-        ),
-        # Biconditional, not one-sided: neither a cookie session missing its CSRF
-        # token nor a bearer session carrying one that nothing would check.
-        CheckConstraint(
-            "(kind = 'COOKIE') = (csrf_sha256 IS NOT NULL)",
-            name="session_csrf_belongs_to_cookie_sessions",
         ),
         CheckConstraint(
             "(kind = 'BEARER') = (hotkey_scope IS NOT NULL)",
@@ -1867,6 +1931,11 @@ class SubmissionIntent(Base):
     # Checked against linked_hotkeys at creation, and what the confirming
     # signature must come from.
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Chosen while the intent is opened, then included in the server-generated request digest
+    # and copied byte-for-byte onto the confirmed submission.
+    public_credit_name: Mapped[str | None] = mapped_column(Text)
+    public_credit_url: Mapped[str | None] = mapped_column(Text)
+    public_credit_orcid: Mapped[str | None] = mapped_column(Text)
 
     task_id: Mapped[str] = mapped_column(Text, nullable=False)
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
@@ -1902,6 +1971,26 @@ class SubmissionIntent(Base):
     __table_args__ = (
         CheckConstraint(
             "length(task_id) BETWEEN 1 AND 255", name="intent_task_id_nonempty"
+        ),
+        CheckConstraint(
+            "public_credit_name IS NULL "
+            "OR (length(public_credit_name) BETWEEN 1 AND 128 "
+            "AND public_credit_name = btrim(public_credit_name))",
+            name="intent_public_credit_name_shape",
+        ),
+        CheckConstraint(
+            "public_credit_url IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND length(public_credit_url) BETWEEN 1 AND 2048 "
+            "AND public_credit_url LIKE 'https://%')",
+            name="intent_public_credit_url_shape",
+        ),
+        CheckConstraint(
+            "public_credit_orcid IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND public_credit_orcid ~ "
+            "'^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$')",
+            name="intent_public_credit_orcid_shape",
         ),
         CheckConstraint("credits_held > 0", name="intent_holds_something"),
         CheckConstraint("credit_price_rao > 0", name="intent_price_positive"),
@@ -2238,6 +2327,65 @@ class ChainWatchCursor(Base):
     )
 
 
+class PayoutWatchCursor(Base):
+    """Finalized-chain high-water mark for outbound bounty payouts.
+
+    This is separate from ``ChainWatchCursor`` because that cursor identifies an incoming free-TAO
+    address by subnet UID.  A payout watch identifies the treasury stake position by coldkey,
+    hotkey and netuid instead.  Reusing the incoming table would make its ``recipient`` and ``uid``
+    columns lie about what is being watched.
+
+    The first row is opened from the creation time of the oldest unresolved reward event.  A
+    payout command cannot be shown to a signer before that row exists, so earlier chain history is
+    outside this watcher's business.  Once recorded, the boundary never moves or gets recomputed.
+    """
+
+    __tablename__ = "payout_watch_cursor"
+
+    watcher: Mapped[str] = mapped_column(Text, primary_key=True)
+    network: Mapped[str] = mapped_column(Text, nullable=False)
+    origin_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    origin_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    netuid: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    watch_from: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    start_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    start_block_timestamp: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_scanned_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    last_scanned_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "watcher ~ '^[a-z][a-z0-9-]{0,63}$'",
+            name="payout_watcher_name_shape",
+        ),
+        CheckConstraint(
+            "length(network) BETWEEN 1 AND 128", name="payout_network_nonempty"
+        ),
+        CheckConstraint("netuid >= 0", name="payout_cursor_netuid_nonnegative"),
+        CheckConstraint(
+            "start_block > 0", name="payout_cursor_start_block_positive"
+        ),
+        CheckConstraint(
+            "last_scanned_block >= start_block - 1",
+            name="payout_cursor_never_reads_before_start",
+        ),
+        CheckConstraint(
+            "start_block_timestamp >= watch_from",
+            name="payout_cursor_start_at_or_after_watch",
+        ),
+    )
+
+
 # --- V011: payout notifications -----------------------------------------------
 
 
@@ -2327,6 +2475,28 @@ class PayoutDiscordDelivery(Base):
     )
 
 
+# The `autoreview` schema's tables, which live in their own module because they are advisory
+# projection rather than part of the submission and payout schema this file describes.
+#
+# Imported HERE, at the bottom, rather than left to whoever needs them. A declarative class in a
+# module nobody imported is absent from `Base.metadata`, so `create_all` would silently omit both
+# tables and `scripts/check_schema_drift.py` would report them missing with no hint as to why.
+# Every existing `from conjectures_subnet.db.models import Base` — the drift check, the test
+# harnesses — then sees the whole schema without having to know this module exists.
+#
+# The circular import is safe and deliberate: `autoreview_models` needs only `Base` and `SHA256`,
+# both defined at the top of this file, so the partially-executed module already has what it asks
+# for. `tests/test_db_autoreview.py` asserts the tables are present after importing only `models`,
+# so deleting this line fails a test rather than producing a confusing drift report.
+from conjectures_subnet.db.autoreview_models import (
+    AutoreviewRun,
+    AutoreviewStageResult,
+)
+
+# Bound to a name so neither a linter nor a reader mistakes the import above for a dead one.
+_AUTOREVIEW_TABLES = (AutoreviewRun, AutoreviewStageResult)
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",
@@ -2354,6 +2524,7 @@ __all__ = [
     "ManualReviewState",
     "PayoutDiscordDelivery",
     "PayoutState",
+    "PayoutWatchCursor",
     "Proof",
     "ReviewDecision",
     "ReviewOutcome",

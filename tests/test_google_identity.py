@@ -57,3 +57,4 @@ def test_certificate_cache_obeys_max_age_and_caps_unreasonable_values():
     assert _cache_lifetime({"cache-control": "public, max-age=3600"}, now=0) == 3600
     assert _cache_lifetime({"cache-control": "max-age=9999999"}, now=0) == 86_400
     assert _cache_lifetime({}, now=0) == 0
+

@@ -21,12 +21,14 @@ from conjectures_subnet.transfers import (
     BittensorTransferSource,
     ChainUnavailable,
     IncomingTransfer,
+    ObservedPayout,
     ObservedBlock,
     TransferReference,
     decode_ss58,
     finalized_transfer,
     first_block_at_or_after,
     parse_reference,
+    payouts_in_events,
     transfers_in_events,
 )
 
@@ -63,6 +65,47 @@ def _found(records):
     )
 
 
+def _payout_events(
+    *,
+    amount=1_044_286_814_577,
+    origin_coldkey=SENDER,
+    destination_coldkey=RECIPIENT,
+    origin_hotkey=STRANGER,
+    destination_hotkey=RECIPIENT,
+    extrinsic_idx=7,
+):
+    """The event sequence emitted by a same-subnet transfer_stake_and_hotkey call."""
+    return [
+        _record(
+            "SubtensorModule",
+            "StakeRemoved",
+            [origin_coldkey, origin_hotkey, 400_000_000, amount, 66, 0],
+            extrinsic_idx=extrinsic_idx,
+        ),
+        _record(
+            "SubtensorModule",
+            "StakeAdded",
+            [destination_coldkey, destination_hotkey, 400_000_000, amount, 66, 0],
+            extrinsic_idx=extrinsic_idx,
+        ),
+        _record(
+            "SubtensorModule",
+            "StakeAndHotkeyTransferred",
+            {
+                "origin_coldkey": origin_coldkey,
+                "destination_coldkey": destination_coldkey,
+                "origin_hotkey": origin_hotkey,
+                "destination_hotkey": destination_hotkey,
+                "origin_netuid": 66,
+                "destination_netuid": 66,
+                # Deliberately not the Alpha amount: the runtime reports TAO-equivalent here.
+                "amount": 400_000_000,
+            },
+            extrinsic_idx=extrinsic_idx,
+        ),
+    ]
+
+
 # --- Reading the events ------------------------------------------------------------------
 
 
@@ -97,6 +140,66 @@ def test_reference_names_the_event_not_just_the_extrinsic():
 
     assert [item.reference for item in found] == ["100-7-0", "100-7-2"]
     assert len({item.reference for item in found}) == 2
+
+
+def test_payout_uses_the_exact_alpha_from_the_companion_stake_event():
+    records = [
+        _record("System", "ExtrinsicSuccess", [], extrinsic_idx=2),
+        *_payout_events(),
+        _record("Proxy", "ProxyExecuted", [{"Ok": None}], extrinsic_idx=7),
+    ]
+
+    found = payouts_in_events(records, block=100, block_timestamp=WHEN)
+
+    assert found == [
+        ObservedPayout(
+            block=100,
+            block_timestamp=WHEN,
+            extrinsic_index=7,
+            event_index=3,
+            origin_coldkey=SENDER,
+            destination_coldkey=RECIPIENT,
+            origin_hotkey=STRANGER,
+            destination_hotkey=RECIPIENT,
+            origin_netuid=66,
+            destination_netuid=66,
+            amount_rao=1_044_286_814_577,
+        )
+    ]
+    assert found[0].reference == "100-7-3"
+
+
+def test_batched_payouts_to_one_destination_pair_with_their_own_alpha_amounts():
+    records = [
+        *_payout_events(amount=700, extrinsic_idx=9),
+        *_payout_events(amount=800, extrinsic_idx=9),
+    ]
+
+    found = payouts_in_events(records, block=100, block_timestamp=WHEN)
+
+    assert [item.amount_rao for item in found] == [700, 800]
+    assert [item.reference for item in found] == ["100-9-2", "100-9-5"]
+
+
+def test_a_payout_event_without_its_alpha_event_fails_loud():
+    records = _payout_events()
+    del records[1]
+
+    with pytest.raises(ChainUnavailable, match="no matching preceding StakeAdded"):
+        payouts_in_events(records, block=100, block_timestamp=WHEN)
+
+
+def test_an_ordinary_stake_add_is_not_a_payout():
+    records = [
+        _record(
+            "SubtensorModule",
+            "StakeAdded",
+            [RECIPIENT, STRANGER, 123, 456, 66, 0],
+            extrinsic_idx=5,
+        )
+    ]
+
+    assert payouts_in_events(records, block=100, block_timestamp=WHEN) == []
 
 
 def test_events_are_read_from_the_nested_envelope_when_that_is_all_there_is():
@@ -317,6 +420,25 @@ def test_the_connection_is_reused_across_reads_rather_than_reopened():
     # all on the same client, which was never closed.
     assert len(client.queries) == 5
     assert not client.closed
+
+
+def test_historical_payout_events_use_the_archive_connection():
+    client = _FakeClient()
+    source = BittensorTransferSource("finney", archive_network="archive-finney")
+    connected: list[str] = []
+
+    async def connect(network):
+        connected.append(network)
+        held = source._clients.get(network)
+        if held is None:
+            source._clients[network] = client
+            held = client
+        return held
+
+    source._connect = connect
+    asyncio.run(source.payouts_in(block=100))
+
+    assert connected == ["archive-finney", "archive-finney"]
 
 
 def test_a_block_with_no_arrivals_costs_one_read_not_two():

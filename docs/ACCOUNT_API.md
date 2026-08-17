@@ -6,11 +6,13 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 
 | Method | Path | Contract | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/v1/auth/session` | `{ account }` | The current account, or `401` |
+| `GET` | `/v1/auth/session` | `SessionEnvelope` | The whole signed-in state, or `401` |
 | `POST` | `/v1/auth/email/request-link` | `202` | Mail a single-use sign-in link |
-| `POST` | `/v1/auth/email/verify` | `{ account }` | Exchange the token for a session |
+| `POST` | `/v1/auth/email/verify` | `SessionEnvelope` | Exchange the token for a session |
+| `POST` | `/v1/auth/google/callback` | `303` | Verify Google's redirect-mode ID token, open a session |
+| `POST` | `/v1/auth/google/link` | `SessionEnvelope` | Attach Google to the signed-in account — browser only |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
-| `POST` | `/v1/auth/wallet/verify` | `{ account }` | Verify the signature, open a session |
+| `POST` | `/v1/auth/wallet/verify` | `SessionEnvelope` | Verify the signature, open a session |
 | `POST` | `/v1/auth/cli/challenge` | `{ nonce, message, expires_at }` | A nonce for a hotkey to sign |
 | `POST` | `/v1/auth/cli/verify` | `CliSession` | Verify the hotkey signature, mint a bearer token |
 | `POST` | `/v1/auth/logout` | `204` | Revoke **this** session; clear the cookies if it is one |
@@ -49,6 +51,127 @@ three model modules, and the one where a hotkey, an email, a payout address or a
 data. The separation is the point: a field on `Account` would be a serious disclosure on
 `PublicResult`.
 
+`PENDING` reward events are internal instructions and are not returned by `SubmissionDetail.reward`
+or `/v1/me/rewards`: no successful chain event exists yet, so calling them Paying would be false.
+The payout watcher exposes `SUBMITTED` only while a matching event exists on the best chain and
+`CONFIRMED` only after that block finalizes. A best-chain reorganization removes `SUBMITTED` and
+returns the tracker to pending. `extrinsic_reference`, `submitted_block`, `finalized_block`, and
+`confirmed_at` therefore come from chain events rather than an operator-maintained flag.
+Rows created before chain reconciliation carry no observation provenance and are hidden until the
+watcher replays and verifies them; a database `CONFIRMED` assertion by itself is never exposed as
+Paid.
+
+## The session envelope
+
+`GET /v1/auth/session` is what a client calls on load, and it answers with everything the
+signed-in shell needs to draw itself. Both sign-in endpoints return the identical body, so a
+client that has just signed in does not have to immediately read the session back.
+
+```jsonc
+{
+  "account":  { "id": "…", "email": "…", "email_verified": true, "display_name": null,
+                "roles": ["MINER"], "payout": null, "hotkeys": [], "wallets": [],
+                "identities": [ … ], "created_at": "2026-07-02T09:14:00Z" },
+
+  "identities": [ { "provider": "email",   "label": "db@dendrite.holdings",
+                    "linked_at": "2026-07-02T09:14:00Z" },
+                  { "provider": "google",  "label": "db@dendrite.holdings",
+                    "linked_at": "2026-08-14T08:02:00Z" },
+                  { "provider": "coldkey", "label": "5Fh3…9xQ",
+                    "linked_at": "2026-08-01T11:20:00Z" } ],
+
+  "hotkeys":  [ { "hotkey": "5Gk2…7aP", "label": null,
+                  "linked_at": "2026-08-03T18:44:00Z" } ],
+  "payout":   { "coldkey": "5Fh3…9xQ", "hotkey": "5Gk2…7aP" },   // null until set
+
+  "credits":  { "balance": 3, "held": 1 },                        // whole credits
+  "counts":   { "submissions_total": 12, "submissions_in_review": 2,
+                "rewards_unclaimed": 1, "review_queue": null },
+
+  "capabilities": {
+    "submit":       { "allowed": false, "missing": ["INSUFFICIENT_CREDITS"] },
+    "buy_credits":  { "allowed": true,  "missing": [] },
+    "set_payout":   { "allowed": true,  "missing": [] },
+    "review":       { "allowed": false, "missing": ["ROLE_REQUIRED"] },
+    "manage_roles": { "allowed": false, "missing": ["ROLE_REQUIRED"] }
+  }
+}
+```
+
+`account` is the canonical record and is unchanged. **`identities`, `hotkeys` and `payout` are
+derived from it in the same call**, never read separately, so the two halves of the body cannot
+disagree. They are flattened because the account page groups by "ways in" and "keys I mine with",
+which is not how the account row is shaped.
+
+**`identities` is every way back in: a verified mailbox, each linked external provider, and each
+linked coldkey.** An unverified address is not listed — it is not a way in, and saying otherwise
+would tell someone they have a recovery channel they do not have. `provider` is a plain string
+rather than an enum on the wire, so a client renders an unrecognised value as "some other login"
+rather than failing to parse the session it is signed in with; `google` is the only external
+provider the database accepts today, and the column's CHECK is what will admit the next one.
+
+`account.identities` is the provider-shaped record — the same rows with `last_used_at`. The
+top-level array is the flattened union across all three kinds, which is what a "how do I get back
+in" list actually needs. Neither exposes the Google **subject**: that is the login key, and it
+belongs in the database rather than in a body page script can read.
+
+**`linked_at` on the `email` row is a lower bound, not an exact answer.** It is the account's
+creation time, which is exact for a magic-link signup — setting the address *is* what creates the
+account — and early for a coldkey-first account that later linked Google and adopted the
+provider's address. `accounts.email` has no companion timestamp, so there is nothing more
+accurate to report; the Google row beside it carries its own true `linked_at`.
+
+A `coldkey` identity does **not** record which wallet produced the signature. Talisman, the
+tao.com wallet and `btcli` all emit the same sr25519 signature over the same message, and nothing
+in the sign-in flow observes the difference, so there is no honest field for it. If wallet
+provenance is ever needed, it has to be captured at sign-in — it cannot be recovered later.
+
+**`credits` is whole credits, and the two numbers do not overlap.** `balance` is spendable *now*,
+already net of `held`; `held` is what open submission intents have claimed. The account's total
+is `balance + held` — do not subtract again. `GET /v1/me/credits` remains the rao-denominated
+picture, including the sub-credit remainder this rounds away.
+
+**`counts` are badge numbers.** `rewards_unclaimed` is approved work whose payout has not
+confirmed: nothing is *claimed* in this system, since the payout worker pushes rewards on chain,
+so read it as "owed" rather than as an action waiting for the account holder. `review_queue` is
+the shared queue depth and is `null` unless this caller may actually open the queue — a populated
+badge for someone who cannot act on it only leads to a `403`.
+
+**`capabilities` is advice, never enforcement.** Every gate is checked again at the endpoint,
+against state that may have moved since this was read; a client that trusted `allowed: true` and
+dropped its error path would still be wrong the moment a credit is spent in another tab. What it
+buys is that a greyed-out button has a reason: `missing` carries the same `reason_code` strings
+the corresponding endpoint refuses with, in the order that endpoint checks them, so "why is this
+disabled" and "why did that `403`" answer with the same word. Without it, every client
+re-implements the authorisation rules from `roles`, `hotkeys` and `credits` — and drifts from the
+server the first time one changes.
+
+| Capability | Gated on |
+| --- | --- |
+| `submit` | `SUBMISSIONS_PAUSED`, `HOTKEY_NOT_LINKED`, `INSUFFICIENT_CREDITS` |
+| `buy_credits` | `BROWSER_SESSION_REQUIRED` — both funding paths are cookie-only |
+| `set_payout` | `BROWSER_SESSION_REQUIRED`, `HOTKEY_NOT_LINKED` |
+| `review` | `ROLE_REQUIRED` (`REVIEWER`), `ROLE_REQUIRES_BROWSER_SESSION` |
+| `manage_roles` | `ROLE_REQUIRED` (`ADMIN`), `ROLE_REQUIRES_BROWSER_SESSION` |
+
+Both role codes can appear at once, and that is the useful case rather than an edge one: an admin
+on the CLI is told the role is held *and* that this credential cannot exercise it.
+
+The whole envelope is redacted for a CLI bearer session on the same rule as `Account`, and
+inherits it rather than re-implementing it — everything is built from the already-redacted
+account, so a bearer caller gets `identities: []`, `payout: null` and only its own hotkey without
+the builder branching on the credential. `credits` is the deliberate exception: spending them is
+most of what the CLI does, and discovering an empty balance by being refused would be worse.
+
+`Cache-Control: no-store` on all of it. The body was already caller-dependent; it now also
+carries a balance and a set of permissions, and a shared cache serving one account's capabilities
+to another would be an authorisation bug wearing a caching bug's clothes.
+
+`hotkeys[].label` is always `null` today. The field ships now so the account page can be built
+against its final shape; populating it needs a nullable column on `linked_hotkeys` and an endpoint
+to set it. Null is honest — there is no name — and a client should fall back to a truncated
+`hotkey`.
+
 ## Sessions
 
 An opaque token backed by a row. Deliberately not a JWT: a JWT here would be either short-lived —
@@ -65,7 +188,7 @@ logic and then drift.
 | --- | --- | --- |
 | Opened by | coldkey signature, or a mailbox | a **linked** hotkey's signature |
 | Held in | `conjectures_session` cookie | `~/.config/conjectures/session.json`, mode `0600` |
-| CSRF token | required | none, and none stored |
+| Ambient (browser attaches it unasked) | yes — so writes must prove their initiator | no — nothing to prove |
 | Scoped to | the account | one hotkey (`hotkey_scope`) |
 | Lifetime | `SESSION_DAYS` rolling, uncapped | `CLI_SESSION_DAYS` rolling, capped at `CLI_SESSION_MAX_DAYS` |
 | May take over the account | yes — it is the account holder | **no**, see below |
@@ -74,7 +197,7 @@ The two are **not interchangeable**. `accounts.authenticate` takes the kind it e
 it in the predicate, so a cookie token replayed in an `Authorization` header resolves to nothing,
 and a bearer token planted in the session cookie resolves to nothing. Neither is reachable by an
 attacker who does not already hold the secret — the cookie is HttpOnly — but the two carry
-different CSRF obligations, and a credential that can change which rules apply to it by changing
+different write obligations, and a credential that can change which rules apply to it by changing
 where it is presented is much cheaper to forbid than to reason about at every call site.
 
 **A bearer token is the weaker credential, and the API treats it that way.** Bittensor stores a
@@ -93,12 +216,16 @@ enforced rather than advised:
 * `REVIEWER` and `ADMIN` cannot be exercised from one at all — `403`
   `ROLE_REQUIRES_BROWSER_SESSION`, even when the account genuinely holds the role.
 
-Two cookies, and the split is intentional:
+One cookie, and nothing script can read:
 
 | Cookie | Flags | Why |
 | --- | --- | --- |
 | `conjectures_session` | `HttpOnly`, `Secure`, `SameSite=Lax` | The credential. HttpOnly so page script cannot exfiltrate it — an XSS is then confined to acting within the page rather than stealing something durable. |
-| `conjectures_csrf` | `Secure`, `SameSite=Lax`, **not** HttpOnly | Readable by script on purpose: the frontend copies it into `X-Conjectures-CSRF`. Only same-origin code can read it, which is exactly what a cross-site attacker cannot do. |
+
+There used to be a second, `conjectures_csrf`, deliberately readable by script so the frontend
+could echo it into a header. It is gone; see [Cross-site writes](#cross-site-writes). Sign-in and
+sign-out both send a `Max-Age=0` header for that name so a browser holding one from the previous
+version is rid of it rather than carrying it for the rest of its 30-day lifetime.
 
 `SameSite=Lax`, not `Strict`: a magic link arrives from a mail client as a cross-site top-level
 navigation, and `Strict` would withhold the cookie on precisely the request that has to carry it.
@@ -131,44 +258,104 @@ An account holds at most `CLI_SESSIONS_PER_ACCOUNT` live CLI tokens. Reaching th
 the oldest rather than refusing the newest: a stale token on a decommissioned rig must not be
 able to lock a miner out of the machine they are sitting at.
 
-## CSRF
+## Cross-site writes
 
-Cookies mean the browser sends credentials on cross-origin requests, so every state-changing
-request must pass **three independent checks**. All three, not any of three:
+A cookie is an **ambient** credential: the browser attaches it to any request to this origin,
+including one a page on another site caused. That is the whole of cross-site request forgery, and
+it is why a write authenticated by a cookie has to prove where it was initiated.
 
-1. **`Origin` is on the allowlist.** Browsers send it on state-changing requests and a page
-   cannot forge it. Enforced in `CsrfMiddleware`.
-2. **`Sec-Fetch-Site` is `same-origin` or `none`.** Set by the browser, unforgeable by script.
-   `same-site` is refused too: a subdomain is not this origin, and treating it as one is how a
-   single compromised subdomain becomes account access. Not universal across older browsers,
-   which is why it is not the only check.
-3. **`X-Conjectures-CSRF` matches the session.** Compared against the digest stored on the
-   session row, not against the cookie — a bare double-submit compares two client-supplied values
-   to each other and fails to subdomain cookie injection. Enforced in the route dependency,
-   because only the resolved route knows which session is authenticated.
+The proof is two request headers the browser writes and **no page can set** — both are on the
+Fetch spec's forbidden-header list, so `fetch`, `XMLHttpRequest`, `<form>` and `sendBeacon` are
+all barred from setting or overriding them:
+
+| Header | What it says | Where it is blind |
+| --- | --- | --- |
+| `Origin` | The origin of the document that initiated the request. Sent by every current browser on every state-changing request, cross-origin *and* same-origin, in all three form encodings. A document with an opaque origin — sandboxed iframe, `data:` URL, `file://` — sends the literal `null`, which is refused by name. | Can be stripped by an intermediary; absent from browsers old enough not to matter. |
+| `Sec-Fetch-Site` | How the initiator relates to the target: `same-origin`, `same-site`, `cross-site`, or `none`. | Chrome 76+, Firefox 90+, **Safari 16.4+** (March 2023). Older Safari sends nothing. |
+
+The rule, in `submission_api/origin_policy.py`, is an **OR** and produces three outcomes:
+
+* **`Origin` is on the write allowlist** → allowed, whatever `Sec-Fetch-Site` says. This is not a
+  gap; it is what lets the website live on an origin other than the API's. `conjectures.io`
+  calling `api.conjectures.io` is `same-site`, and `www.conjectures.io` calling the apex is too.
+  Demanding `same-origin` as well would mean the API can only ever be reverse-proxied under the
+  website's own origin.
+* **`Origin` is present and *not* on the allowlist** → refused. Likewise `Origin: null`.
+* **No `Origin`, but `Sec-Fetch-Site` is `same-origin` or `none`** → allowed. The fallback for a
+  stripped or absent `Origin`. `same-site` is refused alongside `cross-site`: a sibling subdomain
+  is not this origin, and treating it as one is how one subdomain takeover becomes account access.
+* **Neither header** → *unproven*, which is neither of the above and is the reason the result is
+  not a boolean.
+
+Unproven is handled in two places that fail in **opposite directions**, and the pair is the
+design:
+
+| Layer | On unproven | Why |
+| --- | --- | --- |
+| `CrossOriginWriteGuard` (middleware, all `/v1` writes) | lets it through | A request with neither header is not from a browser, and a non-browser has no ambient credential for a hostile page to ride on. Miner tooling, the CLI, `curl` and the TMC PAY webhook all land here. It still catches the unauthenticated writes that have no principal to inspect — `POST /v1/auth/email/request-link` sends mail, so a cross-site page must not be able to trigger it. |
+| `require_writer` (route dependency, authenticated writes) | **refuses** | It knows the request authenticated with a cookie. Silence is not proof, and this is the load-bearing half: with no token as a backstop, absence has to be a refusal. |
+
+Refusals are `403` with `reason_code: CROSS_SITE_WRITE_REFUSED`.
 
 Which dependency a handler names *is* its access control:
 
 ```python
 OptionalPrincipalDep   # may be signed in — GET /v1/auth/session only
 PrincipalDep           # must be signed in — every read
-WriterDep              # signed in AND proved the request was not cross-site — every write
+WriterDep              # signed in AND proved where the request was initiated — every write
 CookieWriterDep        # all of that, from a browser session — the writes a CLI may not make
 ```
 
-A state-changing handler that names `PrincipalDep` is a CSRF hole, which is why the names are
+A state-changing handler that names `PrincipalDep` is a forgery hole, which is why the names are
 deliberately not interchangeable-looking.
 
-**A bearer session skips check 3, because there is nothing for it to prove.** CSRF is the risk
-that a browser attaches an *ambient* credential to a request some other page caused. A bearer
-token is not ambient: it is sent only by code that deliberately set the header, and code on this
-origin that can set it can already make the request directly. There is also no cookie for a CLI
-to read a CSRF value out of, so requiring one would make every CLI write a `403` for no security
-gain.
+### The allowlist
 
-That exemption is read off the authenticated **session row**, never off the shape of the request
-— a caller cannot claim it by presenting a header. Two things keep it sound, and both are load-
-bearing:
+`WRITE_ALLOWED_ORIGINS`, which defaults to `CORS_ALLOWED_ORIGINS` when unset. They are separable
+because reading the public catalog and spending an account's credits are different grants; most
+deployments have one website and want one list, and then the distinction is invisible. Set-but-
+empty is meaningful and not the same as unset: it means no browser may write here at all.
+
+Both lists take the same validation — exact `scheme://host[:port]`, no wildcard and no `http://`
+in production, and `null` is unrepresentable.
+
+### Why there is no CSRF token
+
+There was one until recently: a second cookie, `conjectures_csrf`, deliberately readable by page
+script so the frontend could echo it into `X-Conjectures-CSRF`, compared against a digest on the
+session row. It is gone, and the reasoning is worth keeping written down.
+
+* **It defended against nothing the headers do not.** Both are unforgeable by a cross-site page,
+  and a cross-site page is the entire threat model of CSRF.
+* **It never defended against XSS on an allowlisted origin.** It could not: it had to be readable
+  by same-origin script in order to be echoed. Script that can read the token can also just make
+  the request. The header check has exactly the same property, and neither is a mitigation for
+  XSS — that is what the CSP, the HttpOnly session cookie and the exact-origin allowlist are for.
+* **It cost a second cookie, a database column, a biconditional CHECK, and a contract the
+  frontend had to implement correctly on every write.** Each of those is a place to get it wrong.
+
+What was *not* free about the removal: the check must now **fail closed** when neither header
+arrives, and non-browser clients holding a cookie session must send one of them themselves.
+`scripts/link_hotkey.py` sends `Sec-Fetch-Site: same-origin`. That is not a bypass — outside a
+browser the header is an ordinary string anybody can type, and it does not matter, because the
+guard exists to stop a hostile *page* from riding on a cookie the browser attached by itself. A
+local process that can set arbitrary headers is already holding the cookie deliberately, and a
+token would have been no different: whatever can send the cookie can send the token beside it.
+
+`X-Conjectures-CSRF` remains in `CORS_REQUEST_HEADERS`, deprecated and unread, only so that a
+frontend build predating the change does not fail preflight during a rolling deploy. Delete it
+once no deployed frontend still sends it.
+
+### The bearer exemption
+
+**A bearer session does not have to prove anything, because there is nothing for it to prove.** A
+bearer token is not ambient: it is sent only by code that deliberately set the header, and code on
+this origin that can set it can already make the request directly. A CLI sends neither initiator
+header, so a fail-closed check would refuse every CLI write for no security gain.
+
+The exemption is read off the authenticated **session row**, never off the shape of the request —
+a caller cannot claim it by presenting a header. Two things keep it sound, and both are
+load-bearing:
 
 * `authenticate` matches on `kind`, so a cookie credential offered in an `Authorization` header
   does not resolve at all and therefore cannot inherit the exemption.
@@ -177,14 +364,26 @@ bearing:
   and adding it is the single change that would make the exemption browser-reachable. The CLI is
   not a browser, sends no `Origin`, and is not subject to CORS, so it loses nothing.
 
-`POST /v1/auth/email/request-link` is guarded too, even though it is unauthenticated: it sends
-mail, so a cross-site page must not be able to trigger it either.
+### Path exemptions
 
-`POST /v1/submissions` and `/v1/submissions/preflight` are exempt by path. They carry no cookie,
-so there is no ambient credential to abuse, and miner tooling sends neither header. The CLI
-session endpoints are deliberately **not** added to that path exemption: `Origin` and
-`Sec-Fetch-Site` already fail open when absent, which is exactly the non-browser case, and a path
-exemption would also exempt a browser holding a cookie session on those routes.
+`POST /v1/submissions` and `/v1/submissions/preflight` carry no cookie and authenticate a hotkey
+signature instead, so there is no ambient credential to abuse. `POST /v1/auth/google/callback` is
+exempt because it is a genuine cross-site POST from `accounts.google.com`; it performs Google's
+own `g_csrf_token` double-submit before reading the ID token, and `SameSite=Lax` means no session
+cookie rides along with it anyway. The TMC PAY webhook is exempt because its caller is a payment
+processor authenticated by an HMAC over the raw body.
+
+The CLI session endpoints are deliberately **not** on that list. An unproven request already
+passes the middleware, which is exactly the non-browser case, and a path exemption would also
+exempt a browser holding a cookie session on those routes.
+
+### What this does not cover
+
+`SameSite=Lax` on the session cookie is a third, independent layer: a current browser does not
+attach a `Lax` cookie to *any* cross-site POST, so the header checks are the belt to its braces.
+What none of them address is script running **on an allowlisted origin** — an XSS on the website
+passes every check here, because the browser is truthfully reporting a trusted initiator. Nothing
+in this section is an XSS mitigation, and the previous token was not one either.
 
 ## Signing in
 
@@ -200,6 +399,24 @@ someone else's mailbox, and the IP limiter cannot see who is being mailed.
 `POST /v1/auth/email/verify` consumes the token in one conditional `UPDATE`, so a forwarded email
 or a double-clicked link signs in once. It is signup and sign-in at once — verifying a token
 proves receipt at that address, which is the whole of what an email account proves.
+
+### Google
+
+The frontend uses Google Identity Services in redirect mode and posts the credential to
+`POST /v1/auth/google/callback`. That callback is the one cross-site write exempt from the normal
+session CSRF middleware: Google supplies `g_csrf_token` in both a cookie and the form body, and the
+route compares them before it reads the ID token. `google-auth` then verifies the token signature,
+issuer, expiry, and exact `GOOGLE_CLIENT_ID` audience. No Google access or refresh token is stored.
+
+The provider's stable `sub` claim identifies the account. Email is bounded metadata and may
+change. A callback whose email already belongs to a wallet or magic-link account never merges it
+silently; it redirects to `/login?reason=GOOGLE_ACCOUNT_LINK_REQUIRED`. The person signs into the
+account they intend to keep and calls `POST /v1/auth/google/link`, which goes through the normal
+write guard. One Google subject can belong to one local account, and one local account can have at
+most one Google subject; both rules are database unique constraints.
+
+`Account.identities` exposes provider, observed email, linked time, and last-used time to the
+account owner. The stable provider subject is deliberately never returned.
 
 ### Wallet
 
@@ -332,10 +549,10 @@ available credits rather than to `-1`, which is what Python's floor division wou
 ```json
 {
   "status": "AWAITING_TRANSFER",
-  "amount_rao": 2000000000,
-  "credits_expected": 4,
+  "amount_rao": 500000000,
+  "credits_expected": 1,
   "credited_rao": null,
-  "btcli_command": "btcli wallet transfer --dest 5C4h… --amount 2"
+  "btcli_command": "btcli wallet transfer --dest 5C4h… --amount 0.5"
 }
 ```
 
@@ -379,7 +596,7 @@ of transferring to the treasury and waiting for the watcher, the buyer pays a TM
 TAO; the processor confirms it and settles to the treasury later, in batches, net of commission.
 
 ```
-POST /v1/me/credits/tmc-pay/orders          browser session + CSRF; creates an invoice
+POST /v1/me/credits/tmc-pay/orders          browser session + write guard; creates an invoice
 GET  /v1/me/credits/tmc-pay/orders          this account's purchases
 GET  /v1/me/credits/tmc-pay/orders/{id}     poll; refreshes from TMC PAY while it is open
 POST /v1/webhooks/tmc-pay                   TMC PAY only, authenticated by HMAC
@@ -514,6 +731,25 @@ PUT  /v1/submissions/intents/{id}/bundle    admits the bundle, returns the diges
 POST /v1/submissions/intents/{id}/confirm   debits the credit, writes the submission
 ```
 
+The intent creation body may include the same opt-in authorship used by the direct-payment path:
+
+```json
+{
+  "task_id": "fc-…",
+  "task_bundle_sha256": "sha256:…",
+  "hotkey": "5Grw…",
+  "public_credit": {
+    "name": "Emmy Noether",
+    "url": "https://example.org/emmy-noether",
+    "orcid": "0000-0002-1825-0097"
+  }
+}
+```
+
+It is optional. When present, it is frozen on the intent, included in the server-generated digest
+the hotkey signs, and copied unchanged to the submission. The account's mutable `display_name` is
+not used for result credit.
+
 **Why hold at step 2 rather than charge at step 4.** Without a hold, a miner with one credit could
 open any number of intents, upload to all of them, and race the confirmations. `open_intent` locks
 the account row before reading the balance, so two concurrent calls cannot both see the last
@@ -521,10 +757,10 @@ credit.
 
 **Why the server computes the digest at step 3.** The client must never choose what it is signing.
 `request_digest` is canonical JSON over the intent id, the submitting hotkey, the task, the task
-digest, and the proof digest **as admitted** — so a captured signature cannot be moved to
-different bytes, a different task, or a different attempt. Re-uploading replaces the bundle and
-recomputes the digest, invalidating the old signature, so a miner who uploaded the wrong file does
-not lose the held credit.
+digest, the proof digest **as admitted**, and any public credit — so a captured signature cannot be
+moved to different bytes, a different task, a different author credit, or a different attempt.
+Re-uploading replaces the bundle and recomputes the digest, invalidating the old signature, so a
+miner who uploaded the wrong file does not lose the held credit.
 
 **`confirm` is atomic.** Under an account-level lock: lock, re-read the intent under that lock,
 write the proof, append the `SPEND`, insert the submission pointing at it, mark the intent
@@ -567,7 +803,7 @@ in V003 is *what names the money*:
 | | Extrinsic path | Credit path |
 | --- | --- | --- |
 | Endpoint | `POST /v1/submissions` | the four-call intent flow |
-| Auth | hotkey signature | session cookie + CSRF |
+| Auth | hotkey signature | session cookie + write guard |
 | Funded by | one finalized transfer | one `SPEND` ledger entry |
 | Row names | `payment_reference`, `payment_sender`, `payment_amount_rao`, `payment_block` | `credit_ledger_id`, `intent_id`, `account_id` |
 | Idempotency key | client-supplied UUID | the intent id |
@@ -597,13 +833,29 @@ Five rules on the admin surface, each a decision rather than an accident:
 * **`PUT` the whole set, not a delta.** The set is what the column stores and what every read
   wants; a grant/revoke API over a three-element array would invent a lost-update problem that
   replacing the value does not have. Unknown roles are `409 UNKNOWN_ROLE`.
-* **`ADMIN` cannot be exercised from a CLI session** — `403 ROLE_REQUIRES_BROWSER_SESSION`, even
-  for an account that genuinely holds it. A hotkey-minted token in a file must not be a route to
-  the surface that decides whether a proof earns money.
+* **Neither `ADMIN` nor `REVIEWER` can be exercised from a CLI session** — `403
+  ROLE_REQUIRES_BROWSER_SESSION`, even for an account that genuinely holds the role.
+  `dependencies.BEARER_ROLES` is `{MINER}`: a hotkey-minted token in a file must not be a route to
+  the surface that decides whether a proof earns money. Anything privileged needs the cookie, so a
+  reviewer being tested against needs a cookie session and not just a bearer token.
 * **There is no bootstrap endpoint.** The first `ADMIN` is granted with
   [`../scripts/grant_admin.sql`](../scripts/grant_admin.sql), by someone with database access. An
   endpoint that could mint the first admin could mint the second, and its access control would
   then be some other secret needing its own rotation story.
+
+Three scripts do this from the database side, for a development deployment only. A session token
+is an opaque string stored as a SHA-256 digest, so a row written by hand authenticates exactly as
+a minted one does — which is why each of them refuses to run without `-v allow_dev_seed=1`.
+
+| Script | What it does | Credentials |
+| --- | --- | --- |
+| [`grant_admin.sql`](../scripts/grant_admin.sql) | Grants `ADMIN` to an existing account | none |
+| [`seed_dev_accounts.sql`](../scripts/seed_dev_accounts.sql) | Creates a `MINER` and a `REVIEWER` account, each with a linked hotkey | bearer + cookie |
+| [`seed_dev_admin.sql`](../scripts/seed_dev_admin.sql) | Creates an `ADMIN`, or adds `ADMIN` to an account named by `-v email=` | cookie only |
+
+The admin script issues no bearer token on purpose: a bearer caller cannot exercise `ADMIN`, so
+minting one would mean linking a hotkey to an admin account to produce a credential that cannot
+do admin work.
 * **An admin cannot remove their own `ADMIN`.** With no other admin it is unrecoverable without
   database access, and the failure is silent until the next time someone needs it.
 * **Every grant is an Axiom `roles_changed` event naming both accounts.** `accounts.roles` is
@@ -617,8 +869,8 @@ event.
 
 ## Configuration
 
-See [`../.env.example`](../.env.example). The four that production refuses to start without or
-with the wrong value:
+See [`../.env.example`](../.env.example). Google remains fail-closed when its client ID is absent;
+the other four values below are ones production refuses to start without or with the wrong value:
 
 | Variable | Rule |
 | --- | --- |
@@ -627,6 +879,7 @@ with the wrong value:
 | `SMTP_HOST`, `SMTP_FROM_ADDRESS` | Required with SMTP. The provider host and verified sender address |
 | `SMTP_PORT`, `SMTP_SECURITY` | Defaults to port 587 with `starttls`; `implicit-tls` supports port 465. Production refuses plaintext |
 | `SMTP_USERNAME`, `SMTP_PASSWORD` | Must both be set or both omitted for a trusted network relay. The password is excluded from settings representations |
+| `GOOGLE_CLIENT_ID` | Google OAuth web-client ID. Empty disables Google sign-in; accepted tokens must have this exact audience |
 | `PUBLIC_CURSOR_SECRET` | Required, 32+ chars, and refused if it is the constant published in `settings.py` |
 | `PUBLIC_ACTIVITY_SALT` | Same rules |
 
@@ -666,10 +919,15 @@ docker compose -f docker-compose.pytest-db.yml up -d
     tests/test_api_tmc_pay.py
 ```
 
-Mostly about what must *not* work: a write without a CSRF token, a token borrowed from another
-session, a magic link used twice, a signature replayed from the link flow into the sign-in flow, an
-account reading another account's rows, one credit spent twice. The signatures are real sr25519 over
-the exact messages the server minted.
+Mostly about what must *not* work: a write a hostile page could have caused, a magic link used
+twice, a signature replayed from the link flow into the sign-in flow, an account reading another
+account's rows, one credit spent twice. The signatures are real sr25519 over the exact messages
+the server minted.
+
+`tests/test_origin_policy.py` needs no database. It is the truth table for the cross-site rule —
+including the three-way `ALLOWED`/`REFUSED`/`UNPROVEN` result, which is the part that would be
+easy to collapse into a boolean and thereby either break every non-browser client or reopen the
+hole the rule closes.
 
 `test_api_tmc_pay.py` is negative in the same spirit, because the processor path is the one whose
 evidence is a signed message rather than chain state: an unsigned, wrongly-signed, tampered or

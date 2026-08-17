@@ -12,9 +12,11 @@ this file without taking on dependencies.
       --output submission.zip
 
 The archive is written with exactly the two admitted entries, in the required order, with no
-extra fields, no comments, and no directory entries. Verify one locally before submitting:
+extra fields, no comments, and no directory entries. Scan its shape, then run the real verifier
+before submitting:
 
     python3 -m verifier bundle scan --bundle submission.zip
+    python3 -m verifier bundle verify --bundle submission.zip --task /path/to/task
 """
 
 from __future__ import annotations

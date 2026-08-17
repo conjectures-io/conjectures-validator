@@ -33,6 +33,11 @@ from typing import Annotated
 from fastapi import APIRouter, Header, Path, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from conjectures_subnet.attribution import (
+    PublicCredit as PublicCreditValue,
+    public_credit,
+    public_credit_from_values,
+)
 from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import digests
@@ -77,10 +82,17 @@ class Payload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class PublicCreditRequest(Payload):
+    name: str = Field(min_length=1, max_length=128)
+    url: str | None = Field(default=None, min_length=1, max_length=2048)
+    orcid: str | None = Field(default=None, min_length=19, max_length=19)
+
+
 class IntentRequest(Payload):
     task_id: str = Field(min_length=1, max_length=255, pattern=r"^[a-z0-9][a-z0-9-]{0,254}$")
     task_bundle_sha256: str = Field(min_length=71, max_length=71)
     hotkey: str = Field(min_length=48, max_length=48)
+    public_credit: PublicCreditRequest | None = None
 
 
 class ConfirmRequest(Payload):
@@ -107,7 +119,13 @@ def _signature_bytes(value: str) -> bytes:
 
 
 def intent_request_digest(
-    *, intent_id: uuid.UUID, hotkey: str, task_id: str, task_bundle_sha256: str, proof_sha256: str
+    *,
+    intent_id: uuid.UUID,
+    hotkey: str,
+    task_id: str,
+    task_bundle_sha256: str,
+    proof_sha256: str,
+    public_credit: PublicCreditValue | None = None,
 ) -> str:
     """The identity of a credit-funded attempt, and the message the miner signs.
 
@@ -118,17 +136,16 @@ def intent_request_digest(
     Every field a signature must not be transferable across is inside it: the proof bytes (by
     digest), the task, the submitting hotkey, and the specific attempt.
     """
-    return sha256_bytes(
-        canonical_json_bytes(
-            {
-                "hotkey": hotkey,
-                "intent_id": str(intent_id),
-                "proof_sha256": proof_sha256,
-                "task_bundle_sha256": task_bundle_sha256,
-                "task_id": task_id,
-            }
-        )
-    )
+    value = {
+        "hotkey": hotkey,
+        "intent_id": str(intent_id),
+        "proof_sha256": proof_sha256,
+        "task_bundle_sha256": task_bundle_sha256,
+        "task_id": task_id,
+    }
+    if public_credit is not None:
+        value["public_credit"] = public_credit.to_dict()
+    return sha256_bytes(canonical_json_bytes(value))
 
 
 def _intent(intent) -> schemas.SubmissionIntent:
@@ -136,6 +153,11 @@ def _intent(intent) -> schemas.SubmissionIntent:
         id=intent.id,
         status=str(intent.status),
         hotkey=intent.hotkey,
+        public_credit=(
+            None
+            if (credit := public_credit_from_values(intent)) is None
+            else credit.to_dict()
+        ),
         task_id=intent.task_id,
         task_bundle_sha256=digests.to_prefixed(intent.task_bundle_sha256),
         credits_held=intent.credits_held,
@@ -311,6 +333,23 @@ async def create_intent(
     # the request's content, and a caller who may not act as this hotkey should be refused
     # without the server first doing catalog work on their behalf.
     assert_hotkey_in_scope(principal, payload.hotkey)
+
+    # Then the content. Parsed before the task is resolved for the same reason — a malformed
+    # credit is the caller's error and costs nothing to refuse — but after the credential check,
+    # so a caller who may not act as this hotkey learns that first.
+    try:
+        credit = (
+            None
+            if payload.public_credit is None
+            else public_credit(
+                payload.public_credit.name,
+                payload.public_credit.url,
+                payload.public_credit.orcid,
+            )
+        )
+    except ValueError as exc:
+        raise BadRequest(str(exc)) from exc
+
     entry = _resolve_task(services, payload.task_id, payload.task_bundle_sha256)
     if not await account_store.owns_hotkey(
         session, principal.account.id, payload.hotkey
@@ -329,6 +368,7 @@ async def create_intent(
         credit_price_rao=settings.payment_amount_rao,
         expires_at=_now() + dt.timedelta(minutes=settings.intent_minutes),
         now=_now(),
+        public_credit=credit,
     )
     await session.commit()
     # A held credit is money committed, so the three intent events are the funnel an operator
@@ -390,6 +430,7 @@ async def upload_bundle(
         task_id=intent.task_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         proof_sha256=bundle.proof.sha256,
+        public_credit=public_credit_from_values(intent),
     )
     await intent_store.attach_bundle(
         session,
@@ -466,18 +507,20 @@ async def confirm_intent(
     entry = _resolve_task(
         services, intent.task_id, digests.to_prefixed(intent.task_bundle_sha256)
     )
-    quote = await services.pricing.quote(
+    # Serialize the remaining-balance quote with every other submission until this transaction
+    # commits the debit and submission. The amount returned here is the permanent bounty lock.
+    quote = await services.pricing.lock_quote(
         session, reward_target_id=entry.reward_target_id
     )
-    if not quote.available:
+    if not quote.available and quote.reason in {"ALREADY_SOLVED", "NOT_IN_BOUNTY_POOL"}:
         raise Conflict(
             "this bounty has already been solved",
             reason_code="BOUNTY_CLOSED",
             extra={"reward_target_id": entry.reward_target_id},
         )
-    if quote.amount_rao is None or quote.amount_rao <= 0:
+    if not quote.available or quote.amount_rao is None or quote.amount_rao <= 0:
         raise Conflict(
-            "the bounty treasury currently has no payable balance",
+            "the bounty treasury has no uncommitted payable balance",
             reason_code="BOUNTY_UNFUNDED",
         )
     try:

@@ -4,8 +4,8 @@ The strictest disclosure surface in the API. Three rules, each enforced structur
 by remembering to omit a field:
 
 * **Solver credit, but no money trail.** `conjectures_subnet.db.public.ResultRow` carries the
-  submitting `hotkey`, and every result here is credited to it. It still has no coldkey, payment
-  reference or extrinsic, so this module cannot publish those — it was never handed them.
+  submitting `hotkey` and optional signed public credit. It still has no coldkey, payment reference
+  or extrinsic, so this module cannot publish those — it was never handed them.
 * **Proof bytes only after approval.** `Main.lean` is served by `/{id}/solution`, and only once
   review has approved the submission. An in-review result carries no artifact: the proof has
   passed the Lean kernel but not the reward decision, and handing the artifact out before that
@@ -35,7 +35,7 @@ It publishes *that* an attempt exists and where it got to — the three `*_statu
 nothing more: its proof is still gated on approval, its report on Lean verification, and the money
 trail is absent from the row type either way.
 
-The conjecture each result names is resolved by `_named`, which reads the live index and then the
+The conjecture each result names is resolved by `named_of`, which reads the live index and then the
 retired one — the same two steps `GET /v1/catalog/conjectures/{slug}` takes. A result outlives the
 pin it was produced under and can outlive the target itself, and neither event may change how it is
 labelled: what a solver earned credit for is the theorem, and the theorem does not move.
@@ -53,6 +53,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Path, Query, Response
 
+from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import public as public_store
 from submission_api import conjectures, slugs
@@ -112,8 +113,12 @@ def _cache(response: Response, settings: Settings) -> None:
     )
 
 
-def _slug(row: public_store.ResultRow) -> str:
+def slug_of(row: public_store.ResultRow) -> str:
     """The stable slug for the conjecture a result is against.
+
+    Public, with `named_of` below, because the reviewer surface in `routers/admin.py` names the same
+    conjecture from the same row type. Duplicating the fallback chain there is how the public feed
+    and the review panel would come to disagree about what a retired conjecture is called.
 
     Derived from the row's own `reward_target_id`, not looked up in the catalog. A result outlives
     the pin set it was produced under, so after a rotation its `task_id` names a task the current
@@ -133,7 +138,7 @@ def _slug(row: public_store.ResultRow) -> str:
 
 
 @dataclass(frozen=True)
-class _Named:
+class Named:
     """Everything a result publishes about the conjecture it is against."""
 
     display_title: str
@@ -142,7 +147,7 @@ class _Named:
     statement: str
 
 
-def _named(index: ConjectureIndex, row: public_store.ResultRow) -> _Named:
+def named_of(index: ConjectureIndex, row: public_store.ResultRow) -> Named:
     """The conjecture a result is against, as the catalog names and states it.
 
     Looked up by slug rather than by `task_id`, so a result produced under an earlier pin still
@@ -157,17 +162,17 @@ def _named(index: ConjectureIndex, row: public_store.ResultRow) -> _Named:
     fragment rather than the theorem it closed.
 
     One case reaches the fallback: a `reward_target_id` in neither index, which is what the `V004`
-    backfill left behind when it could not map a row's `problem_id` — see `_slug`. Those name no
+    backfill left behind when it could not map a row's `problem_id` — see `slug_of`. Those name no
     conjecture in any pin, so there is nothing to look up and no name being withheld. `title_parts`
     is null there rather than invented, and `display_title` degrades to the slug, because a public
     feed must not fail over one historical row.
     """
-    slug = _slug(row)
+    slug = slug_of(row)
     item = index.get(slug) or index.get_retired(slug)
     if item is None:
-        return _Named(display_title=slug, title_parts=None, title=slug, statement="")
+        return Named(display_title=slug, title_parts=None, title=slug, statement="")
     name = conjectures.display_name(item)
-    return _Named(
+    return Named(
         display_title=name.display_title,
         title_parts=public.TitleParts.of(name),
         title=conjectures.title(item),
@@ -180,16 +185,20 @@ def _result(
     index: ConjectureIndex,
     alpha_usd: Decimal | None,
 ) -> public.PublicResult:
-    named = _named(index, row)
+    named = named_of(index, row)
+    credit = public_credit(
+        row.public_credit_name, row.public_credit_url, row.public_credit_orcid
+    )
     return public.PublicResult(
         id=row.id,
         hotkey=row.hotkey,
+        public_credit=None if credit is None else credit.to_dict(),
         # Serialised as the enum's value, matching `/v1/submissions/{id}` and the account panel,
         # so a client reads one vocabulary of state names across the whole API.
         verification_status=str(row.verification_status),
         manual_review_status=str(row.manual_review_status),
         reward_status=str(row.reward_status),
-        slug=_slug(row),
+        slug=slug_of(row),
         task_id=row.task_id,
         display_title=named.display_title,
         title_parts=named.title_parts,
@@ -224,11 +233,15 @@ def _in_review(
     index: ConjectureIndex,
     _alpha_usd: Decimal | None,
 ) -> public.InReviewResult:
-    named = _named(index, row)
+    named = named_of(index, row)
+    credit = public_credit(
+        row.public_credit_name, row.public_credit_url, row.public_credit_orcid
+    )
     return public.InReviewResult(
         id=row.id,
         hotkey=row.hotkey,
-        slug=_slug(row),
+        public_credit=None if credit is None else credit.to_dict(),
+        slug=slug_of(row),
         task_id=row.task_id,
         display_title=named.display_title,
         title_parts=named.title_parts,
@@ -432,7 +445,7 @@ async def read_report(
     _cache(response, services.settings)
     return public.PublicVerificationReport(
         id=row.id,
-        slug=_slug(row),
+        slug=slug_of(row),
         # The digest of the *full* report, not of the subset below, so it still matches the
         # immutable bytes recorded on the run and the miner's own copy of the same report.
         report_sha256=digests.to_prefixed(digest),
@@ -469,12 +482,16 @@ async def read_solution(
         # "never" look the same from outside.
         raise NotFound("no solution is published for this result")
     content, digest, byte_length = found
+    credit = public_credit(
+        row.public_credit_name, row.public_credit_url, row.public_credit_orcid
+    )
 
     _cache(response, services.settings)
     return public.PublicSolution(
         id=row.id,
         hotkey=row.hotkey,
-        slug=_slug(row),
+        public_credit=None if credit is None else credit.to_dict(),
+        slug=slug_of(row),
         # The name the bytes carry inside the verified bundle, from the module that enforces it,
         # so the published filename cannot drift from the one intake accepted.
         filename=PROOF_NAME,

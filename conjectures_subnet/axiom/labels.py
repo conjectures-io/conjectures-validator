@@ -47,6 +47,7 @@ Source: TypeAlias = Literal[
     # --- submission API ---------------------------------------------------------------------
     # The process itself: startup, shutdown, and anything that is not attributable to a router.
     "api",
+    "api-admin",
     "api-auth",
     "api-catalog",
     "api-health",
@@ -56,7 +57,7 @@ Source: TypeAlias = Literal[
     "api-submissions",
     "api-system",
     "api-tasks",
-    # The cross-cutting ASGI layers — rate limiting, CORS, CSRF, security headers.
+    # The cross-cutting ASGI layers — rate limiting, CORS, the write guard, security headers.
     "api-middleware",
     # Outbound side effects the API owns, worth separating because they fail for reasons that
     # have nothing to do with the request that triggered them.
@@ -65,7 +66,9 @@ Source: TypeAlias = Literal[
     # --- background services ----------------------------------------------------------------
     "verification-worker",
     "deposit-watcher",
+    "payout-watcher",
     "emissions-worker",
+    "autoreview",
     # Sweeps the TMC PAY orders no webhook resolved. Separate from `deposit-watcher` because it
     # watches a payment processor rather than a chain, and its failures are HTTP ones.
     "tmc-pay-reconciler",
@@ -109,6 +112,10 @@ EventType: TypeAlias = Literal[
     "login_completed",
     "logout",
     "wallet_linked",
+    # An external sign-in provider was attached to an existing account. Separate from
+    # `login_completed` because it changes *how many ways in* an account has rather than
+    # exercising one, which is the shape of a takeover step and so worth its own type.
+    "identity_linked",
     # A session ended by something other than its own holder logging out: the per-account CLI
     # ceiling evicting the oldest token, an owner killing a session from the listing, or an
     # operator cutting an account off. `reason` says which. Worth its own type because a
@@ -136,6 +143,10 @@ EventType: TypeAlias = Literal[
     "transfer_unattributed",
     "transfer_ignored",
     "transfer_conflict",
+    # --- payout watcher --------------------------------------------------------------------
+    "payout_confirmed",
+    "payout_reorged",
+    "payout_unmatched",
     # --- TMC PAY credit purchases -----------------------------------------------------------
     # The processor-settled funding path. Separate from the deposit watcher's `transfer_*` types
     # because the evidence is different in kind — a signed webhook rather than finalized chain

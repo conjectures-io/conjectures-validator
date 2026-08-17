@@ -4,11 +4,11 @@ Separate from ``submissions`` because the audience is different and the rules th
 follow from that are worth enforcing in the query layer rather than trusting a
 router to remember. Two invariants hold for everything in this module:
 
-* **The submitting hotkey is published; the money is not.** ``ResultRow.hotkey`` names the
-  solver, by product decision — a result is credited to the hotkey that produced it. Nothing
-  here carries the paying coldkey, the payment reference or the extrinsic, and that boundary is
-  the one still worth enforcing structurally: the hotkey is a public chain identity a miner
-  signs with, whereas the coldkey and the payment reference lead to the funds behind it.
+* **The signed solver identity is published; the money is not.** ``ResultRow.hotkey`` names the
+  solver, and its optional public-credit columns carry only the name/profile/ORCID that hotkey
+  signed for publication. Nothing here carries the paying coldkey, payment reference or
+  extrinsic, and that boundary is enforced structurally: the former values are public credit,
+  whereas the latter lead to the funds behind it.
   ``activity`` still pseudonymises, but see the caveat on that function — publishing the hotkey
   on a result makes those pseudonyms correlatable by timing, so the two are no longer
   independent.
@@ -43,7 +43,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, func, select, tuple_
+from sqlalchemy import Select, and_, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.models import (
@@ -60,11 +60,23 @@ from conjectures_subnet.db.models import (
     VerificationState,
 )
 
+# The submission flag is a cheap cached projection used by partial indexes.  The correlated event
+# predicate is the authority: legacy/operator-entered paid flags cannot publish a certification
+# until the watcher has decoded the matching finalized chain event.
+CONFIRMED_ON_CHAIN = exists(
+    select(RewardEvent.id).where(
+        RewardEvent.submission_id == Submission.id,
+        RewardEvent.status == PayoutState.CONFIRMED,
+        RewardEvent.chain_observed.is_(True),
+    )
+).correlate(Submission)
+
 # A submission is on the public certified feed once it has been paid out. The review status is
 # APPROVED in both paths that get there — a human approval, or the recorded AUTOMATIC decision
 # when manual review is disabled — so requiring it costs nothing and states the intent.
 CERTIFIED = (
     Submission.reward_status == RewardState.REWARDED,
+    CONFIRMED_ON_CHAIN,
     Submission.manual_review_status == ManualReviewState.APPROVED,
     Submission.verification_status == VerificationState.VERIFIED,
 )
@@ -113,6 +125,9 @@ class ResultRow:
     id: uuid.UUID
     # The hotkey that submitted this proof. Published: a result is credited to its solver.
     hotkey: str
+    public_credit_name: str | None
+    public_credit_url: str | None
+    public_credit_orcid: str | None
     # Where this submission has got to on each of the three axes the schema tracks. Carried on the
     # row because the dashboard feed is unfiltered: a client that reads a queued, rejected and
     # certified row from one feed needs the row itself to say which it is, and re-deriving that
@@ -354,6 +369,9 @@ async def _decorate(
             ResultRow(
                 id=submission.id,
                 hotkey=submission.hotkey,
+                public_credit_name=submission.public_credit_name,
+                public_credit_url=submission.public_credit_url,
+                public_credit_orcid=submission.public_credit_orcid,
                 verification_status=submission.verification_status,
                 manual_review_status=submission.manual_review_status,
                 reward_status=submission.reward_status,
@@ -484,6 +502,7 @@ async def _confirmed_payouts(
         .where(
             RewardEvent.submission_id.in_(submission_ids),
             RewardEvent.status == PayoutState.CONFIRMED,
+            RewardEvent.chain_observed.is_(True),
         )
         .distinct(RewardEvent.submission_id)
         .order_by(

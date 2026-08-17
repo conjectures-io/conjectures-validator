@@ -2,7 +2,9 @@
 
 Expensive, immutable state is built once during lifespan. Interactive docs are exposed only
 outside production; leaving the schema and Swagger UI reachable on a live miner-facing endpoint
-is a mistake worth not repeating.
+is a mistake worth not repeating. What those docs say about credentials comes from
+`security.py`, which declares the CLI bearer token and the session cookie as security schemes
+so every endpoint that needs one advertises it.
 
 This process now serves two audiences on one port: the miner-facing intake and status surface,
 and the unauthenticated public read surface the website is built on. They share the task catalog,
@@ -36,8 +38,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncIterator
-from datetime import date
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -57,16 +59,16 @@ from conjectures_subnet.db import (
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
-from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.dependencies import Services
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
-    CsrfMiddleware,
-    SessionCookieRefreshMiddleware,
+    CrossOriginWriteGuard,
     RateLimitMiddleware,
     ScopedCORSMiddleware,
     SecurityHeadersMiddleware,
+    SessionCookieRefreshMiddleware,
     cors_options,
 )
 from submission_api.observability import (
@@ -75,8 +77,8 @@ from submission_api.observability import (
 )
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
-from submission_api.retired import RetiredIndex
 from submission_api.ratelimit import SlidingWindowLimiter
+from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
@@ -86,10 +88,12 @@ from submission_api.routers import (
     intents,
     me,
     results,
+    reviews,
     submissions,
     system,
     tasks,
 )
+from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
 from submission_api.rates import build_tao_usd_reader
@@ -97,6 +101,7 @@ from submission_api.taostats import (
     TaoStatsAlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
+from submission_api.taskpool import TaskCatalog
 from submission_api.tmc_pay import TmcPayClient, UnavailableGateway
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
@@ -180,6 +185,7 @@ def build_services(
             constant_numerator=settings.bounty_constant_numerator,
             constant_denominator=settings.bounty_constant_denominator,
             age_period_seconds=settings.bounty_age_period_seconds,
+            confirmed_payout_grace_seconds=settings.bounty_balance_cache_seconds,
         ),
         pins=resolved_pins,
         mail=build_mail_sender(settings),
@@ -255,6 +261,7 @@ def create_app(
             tasks=len(application.state.services.catalog.entries),
             docs_exposed=resolved_settings.expose_docs,
             cors_origins=len(resolved_settings.cors_allowed_origins),
+            write_origins=len(resolved_settings.write_allowed_origins),
             rate_limit_enabled=resolved_settings.rate_limit_enabled,
             submissions_paused=resolved_settings.submissions_paused,
             tmc_pay_enabled=resolved_settings.tmc_pay_enabled,
@@ -320,16 +327,17 @@ def create_app(
     # Between the limiter and CORS: a refused write should still carry the CORS grant so the
     # browser reports the 403 rather than an opaque CORS error.
     application.add_middleware(
-        CsrfMiddleware,
-        allowed_origins=resolved_settings.cors_allowed_origins,
+        CrossOriginWriteGuard,
+        allowed_origins=resolved_settings.write_allowed_origins,
         # The hotkey-signature endpoints carry no cookie, so there is no ambient credential for
         # a cross-site page to abuse, and miner tooling sends neither header.
         #
         # The TMC PAY webhook is exempt for the same reason and one more: its caller is a payment
         # processor, not a browser. It sends no `Origin` and no cookie, and it is authenticated by
-        # an HMAC over the raw body — see `routers/tmc_pay.py`. It would pass the middleware
-        # anyway, since the `Origin` check fails open on absence, but relying on that would make
-        # the route's correctness a property of a middleware detail rather than of a decision.
+        # an HMAC over the raw body — see `routers/tmc_pay.py`. It would pass the guard anyway,
+        # since a request with neither initiator header is `UNPROVEN` rather than refused, but
+        # relying on that would make the route's correctness a property of a middleware detail
+        # rather than of a decision.
         exempt_prefixes=(
             "/v1/submissions/preflight",
             tmc_pay_router.WEBHOOK_PATH,
@@ -370,6 +378,12 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
+    # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
+    # advisory record behind it). Both are role-gated at every route, and gated again on the
+    # session being a browser one — see `routers/admin.py` for why a privileged credential must
+    # not be reachable from a CLI token. So there is no ordering relationship here, with each
+    # other or with the prefixes above, and nothing on /v1/admin is reachable without a role.
     # The second way to buy credits. Its account routes extend `/v1/me/credits`, so it is included
     # after `me.router`; the webhook it also carries is mounted outside `/v1/me` because its caller
     # is TMC PAY rather than an account.
@@ -377,4 +391,5 @@ def create_app(
     # Stage 3. Role-gated, and gated again on the session being a browser one — see
     # `routers/admin.py` for why an admin credential must not be reachable from a CLI token.
     application.include_router(admin.router)
+    application.include_router(reviews.router)
     return application

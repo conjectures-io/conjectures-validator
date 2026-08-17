@@ -30,11 +30,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.attribution import PublicCredit
 from conjectures_subnet.db import digests
 from conjectures_subnet.db.errors import (
     DuplicatePayment,
@@ -45,6 +46,7 @@ from conjectures_subnet.db.errors import (
 from conjectures_subnet.db.models import (
     ApiRejectionLog,
     ManualReviewState,
+    PayoutState,
     Proof,
     ReviewDecision,
     ReviewerKind,
@@ -94,6 +96,9 @@ class NewSubmission:
     bounty_amount_rao: int
     bounty_policy_version: str
     bounty_inputs: Mapping[str, Any] | None = None
+    public_credit_name: str | None = None
+    public_credit_url: str | None = None
+    public_credit_orcid: str | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +116,20 @@ class RecordedVerdict:
     applied: bool
 
 
+@dataclass(frozen=True)
+class AccountCounts:
+    """How much work one account has in each state. Every field is a count of its own rows.
+
+    Three numbers rather than a status histogram because these are the three a signed-in page
+    has a decision to make about: how much has been submitted at all, how much is still waiting
+    on the reward decision, and how much has been approved but not yet paid.
+    """
+
+    submissions_total: int
+    submissions_in_review: int
+    rewards_unclaimed: int
+
+
 def canonical_request_digest(
     *,
     hotkey: str,
@@ -119,6 +138,7 @@ def canonical_request_digest(
     proof_sha256: str,
     payment_reference: str,
     idempotency_key: str,
+    public_credit: PublicCredit | None = None,
 ) -> str:
     """The identity of a request, and the message the miner signs.
 
@@ -126,18 +146,19 @@ def canonical_request_digest(
     replay, so every one of them is part of the digest. It binds the proof digest too, so a
     signature cannot be reused for different proof bytes.
     """
-    return sha256_bytes(
-        canonical_json_bytes(
-            {
-                "hotkey": hotkey,
-                "idempotency_key": idempotency_key,
-                "payment_reference": payment_reference,
-                "proof_sha256": proof_sha256,
-                "task_bundle_sha256": task_bundle_sha256,
-                "task_id": task_id,
-            }
-        )
-    )
+    payload = {
+        "hotkey": hotkey,
+        "idempotency_key": idempotency_key,
+        "payment_reference": payment_reference,
+        "proof_sha256": proof_sha256,
+        "task_bundle_sha256": task_bundle_sha256,
+        "task_id": task_id,
+    }
+    # Omit rather than encode null, preserving the v1 digest for miners who do not request public
+    # name credit. When present, every published byte is protected by the hotkey signature.
+    if public_credit is not None:
+        payload["public_credit"] = public_credit.to_dict()
+    return sha256_bytes(canonical_json_bytes(payload))
 
 
 def _violates(exc: IntegrityError, constraint: str) -> bool:
@@ -226,6 +247,9 @@ async def create_submission(
 
     submission = Submission(
         hotkey=request.hotkey,
+        public_credit_name=request.public_credit_name,
+        public_credit_url=request.public_credit_url,
+        public_credit_orcid=request.public_credit_orcid,
         idempotency_key=request.idempotency_key,
         request_digest=digests.to_bytes(request.request_digest),
         task_id=request.task_id,
@@ -545,6 +569,40 @@ async def get_for_account(
     return await load_view(session, submission)
 
 
+async def counts_for_account(
+    session: AsyncSession, account_id: uuid.UUID
+) -> AccountCounts:
+    """The three per-account totals, in one pass over that account's rows.
+
+    Filtered aggregates rather than three round trips, the same shape `public.queue_depths`
+    uses: this is read on every session load, so it is one query against
+    `submissions_account_idx` rather than three separate scans of the same rows.
+
+    `submissions_in_review` uses the same predicate as the public in-review feed —
+    Lean-verified and not yet decided — so an account's own count and the public queue cannot
+    disagree about what "in review" means.
+
+    `rewards_unclaimed` counts `ELIGIBLE`, which is *approved and not yet paid out*. There is no
+    claim action in this system — a reward is pushed on chain by the payout worker, never pulled
+    — so this is money owed rather than money waiting to be collected, and a client should label
+    it accordingly.
+    """
+    statement = select(
+        func.count(),
+        func.count().filter(
+            (Submission.verification_status == VerificationState.VERIFIED)
+            & (Submission.manual_review_status == ManualReviewState.UNREVIEWED)
+        ),
+        func.count().filter(Submission.reward_status == RewardState.ELIGIBLE),
+    ).where(Submission.account_id == account_id)
+    row = (await session.execute(statement)).one()
+    return AccountCounts(
+        submissions_total=row[0],
+        submissions_in_review=row[1],
+        rewards_unclaimed=row[2],
+    )
+
+
 async def rewards_for_account(
     session: AsyncSession,
     account_id: uuid.UUID,
@@ -561,7 +619,14 @@ async def rewards_for_account(
     statement = (
         select(RewardEvent, Submission.task_id)
         .join(Submission, Submission.id == RewardEvent.submission_id)
-        .where(Submission.account_id == account_id)
+        # A PENDING event is an internal payout instruction, not on-chain activity.  The account
+        # reward tracker begins at SUBMITTED (best-chain event) and advances to CONFIRMED only
+        # after finality, so it cannot claim a signer is paying merely because a command exists.
+        .where(
+            Submission.account_id == account_id,
+            RewardEvent.chain_observed.is_(True),
+            RewardEvent.status.in_((PayoutState.SUBMITTED, PayoutState.CONFIRMED)),
+        )
         .order_by(RewardEvent.id.desc())
         .limit(limit)
     )

@@ -40,6 +40,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.attribution import PublicCredit
 from conjectures_subnet.db import credits, digests
 from conjectures_subnet.db import submissions as submission_store
 from conjectures_subnet.db.errors import (
@@ -57,6 +58,11 @@ from conjectures_subnet.db.models import (
 )
 
 PROOF_CONSTRAINT = "submissions_proof_digest_key"
+
+# Named rather than inline, because two callers have to agree on it: `open_intent` refuses with
+# it, and the session envelope reports it as the reason `submit` is unavailable. A greyed-out
+# button and the 409 it would have produced must say the same word.
+REASON_INSUFFICIENT_CREDITS = "INSUFFICIENT_CREDITS"
 
 # The event kinds this module writes. The timeline is what a miner reads while
 # waiting, so every state change worth asking about gets one.
@@ -82,6 +88,7 @@ async def open_intent(
     expires_at: dt.datetime,
     now: dt.datetime,
     credits_held: int = 1,
+    public_credit: PublicCredit | None = None,
 ) -> tuple[SubmissionIntent, credits.CreditBalance]:
     """Hold a credit and open an intent, or refuse for insufficient credit.
 
@@ -97,7 +104,7 @@ async def open_intent(
     if balance.credits_available < credits_held:
         raise RecordConflict(
             "not enough credits for another verification attempt",
-            reason_code="INSUFFICIENT_CREDITS",
+            reason_code=REASON_INSUFFICIENT_CREDITS,
             credits_available=balance.credits_available,
             credits_required=credits_held,
         )
@@ -105,6 +112,9 @@ async def open_intent(
     intent = SubmissionIntent(
         account_id=account_id,
         hotkey=hotkey,
+        public_credit_name=None if public_credit is None else public_credit.name,
+        public_credit_url=None if public_credit is None else public_credit.url,
+        public_credit_orcid=None if public_credit is None else public_credit.orcid,
         task_id=task_id,
         task_bundle_sha256=digests.to_bytes(task_bundle_sha256),
         credits_held=credits_held,
@@ -263,6 +273,9 @@ async def confirm(
 
     submission = Submission(
         hotkey=intent.hotkey,
+        public_credit_name=intent.public_credit_name,
+        public_credit_url=intent.public_credit_url,
+        public_credit_orcid=intent.public_credit_orcid,
         # The intent id is the idempotency key: one intent is one attempt, so an
         # accidental double confirm has nothing new to create.
         idempotency_key=intent.id,
@@ -305,6 +318,9 @@ async def confirm(
     # the other.
     intent.proof_content = None
     intent.proof_sha256 = None
+    intent.public_credit_name = None
+    intent.public_credit_url = None
+    intent.public_credit_orcid = None
     await session.flush()
 
     await record_event(
@@ -335,6 +351,9 @@ async def cancel(
     intent.status = IntentState.CANCELLED
     intent.proof_content = None
     intent.proof_sha256 = None
+    intent.public_credit_name = None
+    intent.public_credit_url = None
+    intent.public_credit_orcid = None
     await session.flush()
     return intent
 
@@ -352,7 +371,14 @@ async def expire_lapsed(session: AsyncSession, *, now: dt.datetime) -> int:
             SubmissionIntent.status.in_(credits.LIVE_INTENT_STATES),
             SubmissionIntent.expires_at <= now,
         )
-        .values(status=IntentState.EXPIRED, proof_content=None, proof_sha256=None)
+        .values(
+            status=IntentState.EXPIRED,
+            proof_content=None,
+            proof_sha256=None,
+            public_credit_name=None,
+            public_credit_url=None,
+            public_credit_orcid=None,
+        )
     )
     return result.rowcount
 

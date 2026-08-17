@@ -370,23 +370,21 @@ async def create_session(
     token_digest: bytes,
     expires_at: dt.datetime,
     kind: AccountSessionKind = AccountSessionKind.COOKIE,
-    csrf_digest: bytes | None = None,
     hotkey_scope: str | None = None,
     user_agent: str | None = None,
     source_ip: str | None = None,
 ) -> AccountSession:
     """Record a new session. The caller holds the only copy of the token.
 
-    ``kind`` decides which of the two remaining arguments is required, and the schema's
-    biconditional CHECKs are what enforce it: a COOKIE session must carry a CSRF digest
-    and no hotkey scope, a BEARER session the reverse. Passing the wrong pair is an
-    IntegrityError rather than a session that quietly cannot be checked.
+    ``kind`` decides whether ``hotkey_scope`` is required, and the schema's biconditional
+    CHECK is what enforces it: a BEARER session is bounded to the hotkey that minted it, a
+    COOKIE session is scoped to the account and must not carry one. Passing the wrong pair
+    is an IntegrityError rather than a session whose authority is quietly unbounded.
     """
     row = AccountSession(
         account_id=account.id,
         kind=kind,
         token_sha256=token_digest,
-        csrf_sha256=csrf_digest,
         hotkey_scope=hotkey_scope,
         expires_at=expires_at,
         user_agent=user_agent,
@@ -417,8 +415,8 @@ async def authenticate(
     non-interchangeable: a cookie token replayed in an ``Authorization`` header matches
     nothing, and a bearer token planted in the session cookie matches nothing. Neither
     is reachable by an attacker who does not already hold the secret — the cookie is
-    HttpOnly, so no script reads it to move it — but the two carry *different* CSRF
-    obligations, and a credential that can change which rules apply to it by changing
+    HttpOnly, so no script reads it to move it — but only one of the two is *ambient*,
+    and a credential that can change which rules apply to it by changing
     where it is presented is the kind of confusion that is much easier to forbid here
     than to reason about at every call site.
     """

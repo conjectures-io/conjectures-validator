@@ -18,11 +18,11 @@ The webhook route sits apart, and everything about it is deliberate:
   There is no cookie and no bearer token; there is an HMAC over the raw body, keyed by the
   merchant's webhook secret. So the signature check happens before the body is parsed, before the
   invoice is looked up, and before anything is written.
-* **It is exempt from the CSRF middleware by path.** Not because CSRF does not apply, but because
-  it cannot: TMC PAY is not a browser, sends no `Origin`, and carries no ambient credential for a
-  cross-site page to abuse. Left un-exempt it would still pass — `CsrfMiddleware` fails open on an
-  absent `Origin` — but relying on that would make the route's correctness depend on a middleware
-  detail rather than on a decision someone made.
+* **It is exempt from the cross-site write guard by path.** Not because forgery does not apply,
+  but because it cannot: TMC PAY is not a browser, sends no `Origin`, and carries no ambient
+  credential for a cross-site page to abuse. Left un-exempt it would still pass — a request with
+  neither initiator header is `UNPROVEN` rather than refused — but relying on that would make the
+  route's correctness depend on a middleware detail rather than on a decision someone made.
 * **It credits from stored state, never from the payload.** The amount credited is the
   `crypto_amount_rao` recorded when the invoice was created. A webhook body decides *whether* to
   credit, by carrying a status; it never decides *how much*. This is the single most important
@@ -820,7 +820,7 @@ async def apply_invoice(
 
 # Mounted outside `/v1/me` because there is no `me`: the caller is TMC PAY. Under `/v1` so it
 # still gets the security headers, the rate limiter and the request event, and exempted from the
-# CSRF middleware by path in `app.py` — see this module's docstring.
+# cross-site write guard by path in `app.py` — see this module's docstring.
 WEBHOOK_PATH = "/v1/webhooks/tmc-pay"
 
 

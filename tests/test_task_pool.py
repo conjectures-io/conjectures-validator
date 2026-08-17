@@ -73,7 +73,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
-    ) == 18
+    ) == 20
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -81,7 +81,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 115
+    assert len({item.source_path for item in selected}) == 141
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -213,6 +213,13 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
         "Erdos939.erdos_939",
         "Green29.green_29",
         "Green42.green_42",
+        # 2026-08-12: one mechanically ineligible formalization and one
+        # conjecture solved in the literature before admission.
+        "Erdos510.erdos_510",
+        "Erdos1199.erdos_1199",
+        # Production retirements that predated this pool expansion.
+        "Erdos567.erdos_567.parts.i",
+        "Green3.green_3",
     }
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")

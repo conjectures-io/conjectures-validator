@@ -5,6 +5,6 @@
 --
 -- The enum addition is intentionally isolated. PostgreSQL does not permit a new enum value to
 -- be referenced by a CHECK constraint until the transaction that added it has committed, so the
--- corresponding constraints are updated by V019.
+-- corresponding constraints are updated by V023.
 
 ALTER TYPE login_challenge_kind ADD VALUE 'COLDKEY_LINK';

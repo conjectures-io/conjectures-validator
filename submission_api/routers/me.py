@@ -2,8 +2,9 @@
 
 Everything under `/v1/me` is served only to the signed-in owner of the data. The access control
 is in the signature of each handler: `PrincipalDep` for a read, `WriterDep` for a write — the
-latter also enforcing the session-bound CSRF token. A state-changing handler that names
-`PrincipalDep` is a CSRF hole, which is why the two names do not look interchangeable.
+latter also demanding that a browser session prove where the request was initiated. A
+state-changing handler that names `PrincipalDep` is a cross-site request forgery hole, which is
+why the two names do not look interchangeable.
 
 There is a third name, `CookieWriterDep`, and it marks the writes a **CLI token may not make**.
 Two credentials reach this router: a browser cookie, opened by a coldkey signature or by proving

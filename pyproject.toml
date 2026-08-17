@@ -54,4 +54,10 @@ markers = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["verifier", "conjectures_subnet", "submission_api"]
+packages = [
+    "verifier",
+    "conjectures_subnet",
+    "submission_api",
+    "payout_notifier",
+    "payout_watcher",
+]
