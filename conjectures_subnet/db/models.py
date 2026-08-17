@@ -1012,7 +1012,7 @@ class AccountSessionKind(enum.StrEnum):
     ``V015__cli_bearer_sessions.sql``.
     """
 
-    COOKIE = "COOKIE"  # the browser: HttpOnly cookie plus a row-bound CSRF token
+    COOKIE = "COOKIE"  # the browser: an HttpOnly cookie, attached ambiently
     BEARER = "BEARER"  # the CLI: an Authorization header, scoped to one linked hotkey
 
 
@@ -1264,8 +1264,10 @@ class AccountSession(Base):
     replayable as a credential, exactly as for a password.
 
     One table for both kinds because everything that matters is shared: an opaque
-    256-bit secret, a digest, an expiry, and revocation in one UPDATE. The two
-    biconditional CHECKs below are what keep the differences from being optional.
+    256-bit secret, a digest, an expiry, and revocation in one UPDATE. The
+    biconditional CHECK below is what keeps the one remaining difference — a bearer
+    session is bounded to the hotkey that minted it, a cookie session is not — from
+    being optional.
     """
 
     __tablename__ = "account_sessions"
@@ -1282,11 +1284,12 @@ class AccountSession(Base):
         ACCOUNT_SESSION_KIND, nullable=False, server_default=text("'COOKIE'")
     )
     token_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
-    # Bound to the session rather than a bare double-submit cookie, so a value the
-    # client can set is not itself the proof. NULL for a BEARER session: a bearer
-    # token is not an ambient credential, so there is no cross-site attachment to
-    # defend against and nowhere for a CLI to read the cookie half from.
-    csrf_sha256: Mapped[bytes | None] = mapped_column(SHA256)
+    # There was a `csrf_sha256` here. The column still exists in a migrated database and is
+    # left behind on purpose — see V021 — but nothing writes or reads it, so it is not mapped.
+    # A cookie session now proves where a write was initiated from the browser's own `Origin`
+    # and `Sec-Fetch-Site` headers; `submission_api/origin_policy.py` says why that is the
+    # stronger of the two mechanisms rather than merely the cheaper one.
+    #
     # Where a BEARER session's authority stops: the linked hotkey that minted it.
     # NULL for a COOKIE session, which is scoped to the account rather than a key.
     hotkey_scope: Mapped[str | None] = mapped_column(SS58)
@@ -1310,12 +1313,6 @@ class AccountSession(Base):
     __table_args__ = (
         CheckConstraint(
             "expires_at > issued_at", name="session_expires_after_issue"
-        ),
-        # Biconditional, not one-sided: neither a cookie session missing its CSRF
-        # token nor a bearer session carrying one that nothing would check.
-        CheckConstraint(
-            "(kind = 'COOKIE') = (csrf_sha256 IS NOT NULL)",
-            name="session_csrf_belongs_to_cookie_sessions",
         ),
         CheckConstraint(
             "(kind = 'BEARER') = (hotkey_scope IS NOT NULL)",

@@ -344,9 +344,9 @@ async def session_envelope(
 def session_view(row, *, current_id) -> schemas.SessionView:
     """One `account_sessions` row as its owner sees it.
 
-    Field by field on purpose. The row carries `token_sha256` and `csrf_sha256`, and a
-    serialiser that walked the columns would publish digests of live credentials the first time
-    someone added a field to the table.
+    Field by field on purpose. The row carries `token_sha256`, and a serialiser that walked the
+    columns would publish the digest of a live credential the first time someone added a field
+    to the table.
     """
     return schemas.SessionView(
         id=row.id,

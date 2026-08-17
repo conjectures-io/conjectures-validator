@@ -3,8 +3,8 @@
 Expensive, immutable state is built once during lifespan. Interactive docs are exposed only
 outside production; leaving the schema and Swagger UI reachable on a live miner-facing endpoint
 is a mistake worth not repeating. What those docs say about credentials comes from
-`security.py`, which declares the CLI bearer token, the session cookie and the CSRF header as
-security schemes so every endpoint that needs one advertises it.
+`security.py`, which declares the CLI bearer token and the session cookie as security schemes
+so every endpoint that needs one advertises it.
 
 This process now serves two audiences on one port: the miner-facing intake and status surface,
 and the unauthenticated public read surface the website is built on. They share the task catalog,
@@ -64,7 +64,7 @@ from submission_api.dependencies import Services
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
-    CsrfMiddleware,
+    CrossOriginWriteGuard,
     RateLimitMiddleware,
     ScopedCORSMiddleware,
     SecurityHeadersMiddleware,
@@ -261,6 +261,7 @@ def create_app(
             tasks=len(application.state.services.catalog.entries),
             docs_exposed=resolved_settings.expose_docs,
             cors_origins=len(resolved_settings.cors_allowed_origins),
+            write_origins=len(resolved_settings.write_allowed_origins),
             rate_limit_enabled=resolved_settings.rate_limit_enabled,
             submissions_paused=resolved_settings.submissions_paused,
             tmc_pay_enabled=resolved_settings.tmc_pay_enabled,
@@ -326,16 +327,17 @@ def create_app(
     # Between the limiter and CORS: a refused write should still carry the CORS grant so the
     # browser reports the 403 rather than an opaque CORS error.
     application.add_middleware(
-        CsrfMiddleware,
-        allowed_origins=resolved_settings.cors_allowed_origins,
+        CrossOriginWriteGuard,
+        allowed_origins=resolved_settings.write_allowed_origins,
         # The hotkey-signature endpoints carry no cookie, so there is no ambient credential for
         # a cross-site page to abuse, and miner tooling sends neither header.
         #
         # The TMC PAY webhook is exempt for the same reason and one more: its caller is a payment
         # processor, not a browser. It sends no `Origin` and no cookie, and it is authenticated by
-        # an HMAC over the raw body — see `routers/tmc_pay.py`. It would pass the middleware
-        # anyway, since the `Origin` check fails open on absence, but relying on that would make
-        # the route's correctness a property of a middleware detail rather than of a decision.
+        # an HMAC over the raw body — see `routers/tmc_pay.py`. It would pass the guard anyway,
+        # since a request with neither initiator header is `UNPROVEN` rather than refused, but
+        # relying on that would make the route's correctness a property of a middleware detail
+        # rather than of a decision.
         exempt_prefixes=(
             "/v1/submissions/preflight",
             tmc_pay_router.WEBHOOK_PATH,

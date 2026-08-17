@@ -7,6 +7,13 @@ this exists to prevent is silent and permanent — authentication that works but
 idea a credential is needed. Nothing fails; the documentation is just wrong, for as long as
 nobody notices.
 
+The other direction is guarded too, and it matters as much: the public read surface must ask
+for nothing, and the **write guard must not become a scheme**. A write on a cookie session has
+to arrive with an allowlisted `Origin` or a same-origin `Sec-Fetch-Site`, and neither is a
+credential a caller can be handed — both are browser-set and forbidden to script, which is the
+whole reason they are proof. Declaring them would put an input box in `/docs` for two values
+nobody can supply. See `submission_api/security.py`.
+
 Built on a bare app carrying the real routers rather than on `create_app`, because schema
 generation needs none of what the real app needs — no PostgreSQL, no task pool, no pin lock.
 The routers, their dependency trees and the scheme declarations under test are all the real
@@ -16,6 +23,7 @@ ones, and `test_the_real_app_serves_the_schemes` covers the wiring that this sho
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 
@@ -62,6 +70,12 @@ ROUTERS = (
     admin,
     reviews,
 )
+
+# The header the retired CSRF token rode in. It must not reappear as a security scheme: it is
+# unread, and documenting a credential nothing checks is worse than documenting nothing. It is
+# still on `CORS_REQUEST_HEADERS` for one deploy cycle, which is a different list — that one is
+# about what a preflight permits, not about what a caller must send.
+RETIRED_CSRF_HEADER = "X-Conjectures-CSRF"
 
 
 def build_app() -> FastAPI:
@@ -128,15 +142,17 @@ def _documented_routes():
             yield method, route.path, _schemes(operation), _calls(route.dependant)
 
 
-def test_the_three_credentials_are_declared_with_the_shape_clients_read():
+def test_the_two_credentials_are_declared_with_the_shape_clients_read():
     """The wire form, not just the presence.
 
-    A client is generated from these three objects: the name of the cookie it must send, the
-    name of the CSRF header it must copy, the fact that the token goes in `Authorization` under
-    the `bearer` scheme. Renaming a scheme or moving one from `header` to `cookie` silently
-    regenerates every client wrong, so the shape is asserted rather than assumed.
+    A client is generated from these two objects: the name of the cookie it must send, and the
+    fact that the token goes in `Authorization` under the `bearer` scheme. Renaming a scheme or
+    moving one from `header` to `cookie` silently regenerates every client wrong, so the shape
+    is asserted rather than assumed.
     """
     schemes = build_app().openapi()["components"]["securitySchemes"]
+
+    assert set(schemes) == {security.BEARER_SCHEME_NAME, security.COOKIE_SCHEME_NAME}
 
     assert schemes[security.BEARER_SCHEME_NAME]["type"] == "http"
     assert schemes[security.BEARER_SCHEME_NAME]["scheme"] == "bearer"
@@ -146,15 +162,45 @@ def test_the_three_credentials_are_declared_with_the_shape_clients_read():
     assert cookie["in"] == "cookie"
     assert cookie["name"] == sessions.SESSION_COOKIE
 
-    csrf = schemes[security.CSRF_SCHEME_NAME]
-    assert csrf["type"] == "apiKey"
-    assert csrf["in"] == "header"
-    assert csrf["name"] == sessions.CSRF_HEADER
-
-    # Every scheme carries prose, because two of the three cannot be used from the Authorize
-    # dialog and the document cannot express "cookie *and* CSRF header" — see `security.py`.
+    # Every scheme carries prose, because neither can be used from the Authorize dialog and the
+    # document cannot express what a cookie-authenticated write additionally needs — see
+    # `security.py`.
     for name, declared in schemes.items():
         assert declared.get("description"), f"{name} has no description"
+
+
+def test_the_write_guard_is_not_declared_as_a_credential():
+    """A write must not advertise an input box for something no caller can supply.
+
+    `Origin` and `Sec-Fetch-Site` are on the Fetch spec's forbidden-header list: the browser
+    writes them and no client may, which is exactly what makes them proof that a request was
+    not caused by another site. A scheme for either would imply a value a caller can be handed
+    and reuse. This also pins that the retired CSRF header has not come back as a scheme, in
+    the document or in any operation.
+    """
+    schema = build_app().openapi()
+    document = json.dumps(schema)
+
+    for scheme in schema["components"]["securitySchemes"].values():
+        assert scheme.get("name", "") not in (
+            "Origin",
+            "Sec-Fetch-Site",
+            RETIRED_CSRF_HEADER,
+        )
+    assert f'"name": "{RETIRED_CSRF_HEADER}"' not in document
+
+    # The gated writes are found, and each of them declares only the two real credentials.
+    gated = 0
+    for method, path, declared, calls in _documented_routes():
+        if require_writer not in calls and require_cookie_writer not in calls:
+            continue
+        gated += 1
+        assert declared <= {
+            security.BEARER_SCHEME_NAME,
+            security.COOKIE_SCHEME_NAME,
+        }, f"{method} {path} declares {sorted(declared)}"
+    # A guard that silently stops finding anything to guard passes forever.
+    assert gated > 10, f"only {gated} guarded writes were walked"
 
 
 def test_every_endpoint_that_resolves_a_principal_advertises_both_credentials():
@@ -177,22 +223,6 @@ def test_every_endpoint_that_resolves_a_principal_advertises_both_credentials():
     # A guard that silently stops finding anything to guard passes forever. The count only has
     # to be implausible-if-broken, so it is a floor rather than the exact number.
     assert authenticated > 20, f"only {authenticated} authenticated routes were walked"
-
-
-def test_every_csrf_gated_write_advertises_the_csrf_header():
-    """A write behind `require_writer` needs a header a caller has to be told about.
-
-    Includes the `require_cookie_writer` routes, which sit above the same gate. They also list
-    the bearer scheme, which is honest about what happens — the token is read, then refused with
-    `BROWSER_SESSION_REQUIRED` — if not about what succeeds.
-    """
-    offenders = [
-        f"{method} {path}: CSRF-gated but no {security.CSRF_SCHEME_NAME}"
-        for method, path, declared, calls in _documented_routes()
-        if (require_writer in calls or require_cookie_writer in calls)
-        and security.CSRF_SCHEME_NAME not in declared
-    ]
-    assert offenders == [], offenders
 
 
 def test_the_public_read_surface_asks_for_nothing():
@@ -225,17 +255,13 @@ def test_the_real_app_serves_the_schemes():
             assert set(schema["components"]["securitySchemes"]) == {
                 security.BEARER_SCHEME_NAME,
                 security.COOKIE_SCHEME_NAME,
-                security.CSRF_SCHEME_NAME,
             }
-            assert _schemes(schema["paths"]["/v1/me"]["get"]) == {
-                security.BEARER_SCHEME_NAME,
-                security.COOKIE_SCHEME_NAME,
-            }
-            assert _schemes(schema["paths"]["/v1/me/payout"]["put"]) == {
-                security.BEARER_SCHEME_NAME,
-                security.COOKIE_SCHEME_NAME,
-                security.CSRF_SCHEME_NAME,
-            }
+            both = {security.BEARER_SCHEME_NAME, security.COOKIE_SCHEME_NAME}
+            assert _schemes(schema["paths"]["/v1/me"]["get"]) == both
+            # A write declares the same two. What it *additionally* requires — an allowlisted
+            # `Origin` or a same-origin `Sec-Fetch-Site` — is not a credential and so is not
+            # here; it is in the `BrowserSession` description.
+            assert _schemes(schema["paths"]["/v1/me/payout"]["put"]) == both
             assert _schemes(schema["paths"]["/v1/catalog/index"]["get"]) == set()
         finally:
             await kit.teardown()

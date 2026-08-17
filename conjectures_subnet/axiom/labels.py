@@ -57,7 +57,7 @@ Source: TypeAlias = Literal[
     "api-submissions",
     "api-system",
     "api-tasks",
-    # The cross-cutting ASGI layers — rate limiting, CORS, CSRF, security headers.
+    # The cross-cutting ASGI layers — rate limiting, CORS, the write guard, security headers.
     "api-middleware",
     # Outbound side effects the API owns, worth separating because they fail for reasons that
     # have nothing to do with the request that triggered them.

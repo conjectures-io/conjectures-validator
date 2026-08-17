@@ -16,7 +16,7 @@ Four rules, each of which is a decision rather than an accident:
 * **ADMIN cannot be exercised from a CLI session.** `require_role_writer` refuses it. A bearer
   token is minted by a hotkey, which Bittensor stores unencrypted on disk; an admin credential
   must not be reachable by reading one file off a mining box. Privileged work happens in a
-  browser, behind a coldkey signature or a mailbox, with an HttpOnly cookie and CSRF.
+  browser, behind a coldkey signature or a mailbox, with an HttpOnly cookie and a write guard.
 * **There is no bootstrap endpoint.** The first ADMIN is granted with SQL, by someone with
   database access — see `scripts/grant_admin.sql`. An endpoint that could mint the first admin
   is an endpoint that can mint the second one, and its access control would have to be some

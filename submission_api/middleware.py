@@ -6,9 +6,9 @@ Five concerns. The order they are composed in is in `app.py`; what each one owns
 * `SessionCookieRefreshMiddleware` — keeps the browser's cookie expiry in step with the rolling
   server-side session.
 * `ScopedCORSMiddleware` — browser access to `/v1`, and nothing else.
-* `CsrfMiddleware` — the `Origin` and `Sec-Fetch-Site` halves of the CSRF guard on writes. The
-  third half, the session-bound token, is a route dependency because only the resolved route
-  knows which session is authenticated.
+* `CrossOriginWriteGuard` — refuses a write whose initiator headers name a site that may not
+  write here. The fail-closed counterpart for authenticated writes is a route dependency,
+  because only the resolved route knows whether the credential was an ambient one.
 * `RateLimitMiddleware` — the per-client ceiling on `/v1`.
 
 Written as raw ASGI rather than as `BaseHTTPMiddleware` subclasses on purpose.
@@ -30,6 +30,7 @@ from typing import Any
 from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from submission_api import origin_policy
 from submission_api.errors import PROBLEM_MEDIA_TYPE
 from submission_api.ratelimit import Decision, SlidingWindowLimiter
 from submission_api.settings import Settings
@@ -268,7 +269,7 @@ class SessionCookieRefreshMiddleware:
     cookie, so a request authenticated by an `Authorization: Bearer` header never reaches the
     `Set-Cookie` path. That is not incidental: putting a bearer token into a `Set-Cookie` header
     would make a CLI credential ambient in any client that keeps a cookie jar, which is exactly
-    the property the bearer flow's CSRF exemption assumes it does not have. The obvious future
+    the property the bearer flow's write-guard exemption assumes it does not have. The obvious future
     "improvement" — refresh the credential for every authenticated session, not just cookie ones
     — is the way that invariant gets broken, so it is written down here and asserted in
     `tests/test_api_accounts.py`.
@@ -361,8 +362,12 @@ def cors_options(settings: Settings) -> MutableMapping[str, Any]:
     exact-origin allowlist load-bearing rather than merely tidy: with credentials allowed, an
     allowlisted origin can read authenticated responses, so an XSS on any listed site reaches
     the reader's account. Two consequences are enforced elsewhere and worth naming here —
-    `Settings` refuses a wildcard or plaintext origin in production, and `CsrfMiddleware` below
-    guards every state-changing request.
+    `Settings` refuses a wildcard or plaintext origin in production, and `CrossOriginWriteGuard`
+    below guards every state-changing request.
+
+    This list is the *read* allowlist. Writes have their own, `WRITE_ALLOWED_ORIGINS`, which
+    defaults to this one; see `Settings`. They are separable because reading the catalog and
+    spending an account's credits are not the same grant.
 
     Methods still exclude `POST /v1/submissions`' verb set for the browser: writes are allowed
     only on the account surface. `POST /v1/submissions` is called by miner tooling, never by a
@@ -386,41 +391,32 @@ def cors_options(settings: Settings) -> MutableMapping[str, Any]:
     }
 
 
-# --- CSRF ------------------------------------------------------------------------------------
-
-# Methods that cannot change state, and so need no CSRF guard. Everything else does.
-SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
-
-# `Sec-Fetch-Site` values a state-changing request may carry. `same-origin` is the website
-# calling its own API; `none` is a direct navigation or a non-browser client. `cross-site` and
-# `same-site` are refused: a subdomain is not this origin, and treating it as one is how a
-# single compromised subdomain becomes account access.
-ALLOWED_FETCH_SITES = frozenset({"same-origin", "none"})
+# --- Cross-site writes -------------------------------------------------------------------------
 
 
-class CsrfMiddleware:
-    """Refuse a state-changing request that a cross-site page could have caused.
+class CrossOriginWriteGuard:
+    """Refuse a state-changing request that a browser said came from somewhere else.
 
-    Three independent checks, all of which must pass. Defense in depth, because each one has a
-    known failure mode and they do not share it:
+    The coarse half of the write guard. It reads the two initiator headers — `Origin` and
+    `Sec-Fetch-Site`, neither of which a page can set — and refuses when they name an initiator
+    that is not on the write allowlist. `submission_api/origin_policy.py` holds the decision and
+    the reasoning behind it.
 
-    1. **`Origin` on the allowlist.** Browsers send `Origin` on every state-changing request and
-       a page cannot forge it. Fails open only when absent, which a browser does not do for
-       these methods — so absence means a non-browser client, which the token check still
-       covers.
-    2. **`Sec-Fetch-Site` is same-origin or none.** Set by the browser, unforgeable by script,
-       and it distinguishes "this site called its own API" from "some other page did". Not
-       universal across older browsers, which is why it is not the only check.
-    3. **The session-bound CSRF token**, checked in the route dependency rather than here,
-       because only the route knows which session is authenticated. See
-       `dependencies.require_csrf`.
+    **It refuses only a positive `REFUSED`, never an `UNPROVEN`.** A request carrying neither
+    header is not a browser request, and a client that is not a browser has no ambient
+    credential for a cross-site page to abuse — it has to have been handed the credential
+    deliberately. Miner tooling, the CLI, `curl`, and the payment processor's webhook all land
+    here, and refusing them would buy nothing. The fail-*closed* half of the guard is
+    `dependencies.require_writer`, which knows that the request authenticated with a cookie and
+    so demands an `ALLOWED` outright.
 
-    This middleware owns 1 and 2. It runs on `/v1` only, and it deliberately does *not* exempt
-    unauthenticated writes: `POST /v1/auth/email/request-link` changes state — it sends mail —
-    so a cross-site page must not be able to trigger it either.
+    Running here as well as there is not redundancy for its own sake. This layer covers the
+    writes that have no authenticated principal for a dependency to inspect —
+    `POST /v1/auth/email/request-link` sends mail, so a cross-site page must not be able to
+    trigger it — and it refuses before a route parses a body.
 
-    The hotkey-signature endpoints are exempt by path. They carry no cookie, so there is no
-    ambient credential for a cross-site page to abuse, and miner tooling sends neither header.
+    The hotkey-signature endpoints are exempt by path. They carry no cookie and authenticate a
+    signature instead, so there is no ambient credential in play at all.
     """
 
     def __init__(
@@ -440,32 +436,29 @@ class CsrfMiddleware:
         path = scope.get("path", "")
         if (
             scope["type"] != "http"
-            or scope.get("method", "GET") in SAFE_METHODS
+            or scope.get("method", "GET") in origin_policy.SAFE_METHODS
             or not path.startswith(self._prefix)
             or path.startswith(self._exempt)
         ):
             await self._app(scope, receive, send)
             return
 
-        origin = _header(scope, b"origin")
-        if origin and origin not in self._allowed:
-            await _csrf_refusal(
-                send, "request origin is not permitted to make this call"
-            )
-            return
-
-        fetch_site = _header(scope, b"sec-fetch-site")
-        if fetch_site and fetch_site not in ALLOWED_FETCH_SITES:
-            await _csrf_refusal(
-                send, "cross-site requests may not change state on this API"
+        verdict = origin_policy.classify(
+            origin=_header(scope, b"origin") or None,
+            fetch_site=_header(scope, b"sec-fetch-site") or None,
+            allowed_origins=self._allowed,
+        )
+        if verdict is origin_policy.Initiator.REFUSED:
+            await _cross_site_refusal(
+                send, "this request was initiated by a site that may not change state here"
             )
             return
 
         await self._app(scope, receive, send)
 
 
-async def _csrf_refusal(send: Send, detail: str) -> None:
-    from submission_api.sessions import REASON_CSRF_FAILED
+async def _cross_site_refusal(send: Send, detail: str) -> None:
+    from submission_api.sessions import REASON_CROSS_SITE_REFUSED
 
     body = json.dumps(
         {
@@ -473,7 +466,7 @@ async def _csrf_refusal(send: Send, detail: str) -> None:
             "title": "Not permitted",
             "status": 403,
             "detail": detail,
-            "reason_code": REASON_CSRF_FAILED,
+            "reason_code": REASON_CROSS_SITE_REFUSED,
         }
     ).encode("utf-8")
     await send(
@@ -490,12 +483,10 @@ async def _csrf_refusal(send: Send, detail: str) -> None:
 
 
 __all__ = [
-    "ALLOWED_FETCH_SITES",
     "API_CSP",
     "PUBLIC_PREFIX",
     "REASON_RATE_LIMITED",
-    "SAFE_METHODS",
-    "CsrfMiddleware",
+    "CrossOriginWriteGuard",
     "SessionCookieRefreshMiddleware",
     "RateLimitMiddleware",
     "ScopedCORSMiddleware",

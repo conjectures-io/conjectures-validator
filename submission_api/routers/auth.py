@@ -3,8 +3,9 @@
 Four ways in. Three are for a browser and end in an HttpOnly cookie: a Google identity, a magic
 link to an email address, and a signature from a coldkey. The fourth is for the miner CLI and ends
 in a bearer token: a signature from a hotkey that has already been linked to an account in the
-browser. See `submission_api/sessions.py` for the two credentials and why only one of them needs
-CSRF, and `submission_api/login.py` for the signed messages.
+browser. See `submission_api/sessions.py` for the two credentials and why only one of them has to
+prove where a write was initiated, `submission_api/origin_policy.py` for how it proves it, and
+`submission_api/login.py` for the signed messages.
 
 Seven things here are security decisions rather than conveniences:
 
@@ -151,8 +152,11 @@ def _set_session_cookies(
     response.headers.append(
         "Set-Cookie", sessions.session_cookie(issued.token, max_age=max_age, secure=secure)
     )
+    # One cookie is issued; the second header deletes the CSRF cookie an earlier version set, so
+    # a browser that signs in again is rid of it rather than carrying a cookie nothing reads for
+    # the rest of its 30-day `Max-Age`.
     response.headers.append(
-        "Set-Cookie", sessions.csrf_cookie(issued.csrf_token, max_age=max_age, secure=secure)
+        "Set-Cookie", sessions.expired_legacy_csrf_cookie(secure=secure)
     )
 
 
@@ -329,11 +333,11 @@ async def logout(
     session: SessionDep,
     services: ServicesDep,
 ) -> None:
-    """Revoke this one session row, and clear both cookies if it was a browser session.
+    """Revoke this one session row, and clear the cookies if it was a browser session.
 
-    A write, so it takes `WriterDep` and its CSRF check: a cross-site page being able to log
-    someone out is a real, if minor, nuisance attack, and the check costs nothing here. A bearer
-    caller passes that check by construction — see `require_writer`.
+    A write, so it takes `WriterDep` and its cross-site check: a cross-site page being able to
+    log someone out is a real, if minor, nuisance attack, and the check costs nothing here. A
+    bearer caller passes it by construction — see `require_writer`.
 
     Revoking server-side is the point. Clearing the cookie alone would leave a credential
     that still works if it was captured.
@@ -684,8 +688,9 @@ async def link_google(
 ) -> account_schemas.SessionEnvelope:
     """Explicitly link Google after authenticating with an existing method.
 
-    This endpoint uses the normal session-bound CSRF header because the credential comes from
-    the same-origin Google popup callback in page script. It never merges or deletes an account.
+    This endpoint uses the normal write guard, unlike `/google/callback`, because the credential
+    is posted by same-origin page script rather than by Google. It never merges or deletes an
+    account.
 
     **`CookieWriterDep`, not `WriterDep`.** Attaching a provider adds a way *in* to the account,
     which is the same class of change as linking a hotkey or repointing the payout, and it is

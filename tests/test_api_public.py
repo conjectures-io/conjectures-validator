@@ -90,6 +90,48 @@ def test_no_configured_origin_means_no_browser_access_rather_than_all():
     settings = Settings.from_env(production_env())
     assert settings.cors_allowed_origins == ()
     assert settings.cors_enabled is False
+    assert settings.write_allowed_origins == ()
+
+
+def test_the_write_allowlist_inherits_the_read_one_unless_it_is_set():
+    """Most deployments have one website and want one list, so the split stays invisible."""
+    origins = "https://conjectures.io,https://www.conjectures.io"
+    inherited = Settings.from_env(production_env(CORS_ALLOWED_ORIGINS=origins))
+    assert inherited.write_allowed_origins == inherited.cors_allowed_origins
+
+    narrowed = Settings.from_env(
+        production_env(
+            CORS_ALLOWED_ORIGINS=origins,
+            WRITE_ALLOWED_ORIGINS="https://conjectures.io",
+        )
+    )
+    assert narrowed.write_allowed_origins == ("https://conjectures.io",)
+    assert len(narrowed.cors_allowed_origins) == 2
+
+
+def test_an_explicitly_empty_write_allowlist_is_not_the_same_as_an_unset_one():
+    """Set-but-empty means no browser may write here at all — the right setting for a
+    deployment that serves only miner tooling. Inheriting the read list instead would silently
+    grant writes to every origin permitted to read."""
+    settings = Settings.from_env(
+        production_env(
+            CORS_ALLOWED_ORIGINS="https://conjectures.io",
+            WRITE_ALLOWED_ORIGINS="",
+        )
+    )
+    assert settings.cors_allowed_origins == ("https://conjectures.io",)
+    assert settings.write_allowed_origins == ()
+
+
+def test_production_refuses_a_wildcard_or_plaintext_write_origin():
+    """The write allowlist gets the read allowlist's validation, because it is the same risk
+    one step further along: an origin that may write can spend an account's credits."""
+    with pytest.raises(SettingsError, match="WRITE_ALLOWED_ORIGINS"):
+        Settings.from_env(production_env(WRITE_ALLOWED_ORIGINS="*"))
+    with pytest.raises(SettingsError, match="https"):
+        Settings.from_env(
+            production_env(WRITE_ALLOWED_ORIGINS="http://conjectures.io")
+        )
 
 
 def test_production_refuses_the_published_development_secrets():
@@ -380,7 +422,9 @@ def test_a_browser_cannot_form_a_submission_even_from_an_allowed_origin():
             allowed_headers = refused.headers.get("access-control-allow-headers", "")
             assert "x-conjectures-hotkey" not in allowed_headers.lower()
             assert "x-conjectures-signature" not in allowed_headers.lower()
-            # Only the CSRF token is permitted, and it is useless to the intake path.
+            # The one `X-Conjectures-*` header still on the preflight allowlist is the retired
+            # CSRF token, kept only so a frontend build predating its removal does not fail
+            # preflight mid-rollout. Nothing reads it, and it is useless to the intake path.
             assert "x-conjectures-csrf" in allowed_headers.lower()
 
             assert allowed.status_code == 200
