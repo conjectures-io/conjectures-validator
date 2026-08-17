@@ -18,7 +18,6 @@ from conftest_api import harness, postgres_dsn
 from conjectures_subnet.db.models import Account, AccountIdentity
 from submission_api.errors import Unauthorized
 from submission_api.google_identity import GoogleIdentity
-from submission_api.sessions import CSRF_COOKIE, CSRF_HEADER
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
@@ -113,8 +112,9 @@ async def sign_in_email(kit, http, email: str):
     return response.json()["account"]
 
 
-def csrf(http) -> dict[str, str]:
-    return {CSRF_HEADER: http.cookies[CSRF_COOKIE]}
+def same_origin(_http=None) -> dict[str, str]:
+    """What a browser sends when the calling page is on this origin. No page can set it."""
+    return {"Sec-Fetch-Site": "same-origin"}
 
 
 def test_google_callback_creates_one_identity_and_the_normal_session():
@@ -204,7 +204,7 @@ def test_matching_email_never_silently_merges_and_can_be_explicitly_linked():
                 linked = await http.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
-                    headers={**csrf(http), "Origin": ORIGIN},
+                    headers={**same_origin(http), "Origin": ORIGIN},
                 )
                 assert linked.status_code == 200, linked.text
                 assert linked.json()["account"]["id"] == existing["id"]
@@ -229,7 +229,7 @@ def test_one_google_identity_cannot_be_linked_to_two_accounts():
                 attached = await first.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
-                    headers=csrf(first),
+                    headers=same_origin(first),
                 )
                 assert attached.status_code == 200
 
@@ -237,7 +237,7 @@ def test_one_google_identity_cannot_be_linked_to_two_accounts():
                 refused = await second.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
-                    headers=csrf(second),
+                    headers=same_origin(second),
                 )
                 assert refused.status_code == 409
                 assert refused.json()["reason_code"] == "GOOGLE_IDENTITY_ALREADY_LINKED"
@@ -268,7 +268,7 @@ def test_a_cli_token_can_neither_see_nor_attach_a_google_identity():
                 attached = await browser.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
-                    headers=csrf(browser),
+                    headers=same_origin(browser),
                 )
                 assert attached.status_code == 200, attached.text
                 # The browser sees it, in both shapes.

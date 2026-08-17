@@ -1,46 +1,42 @@
-"""Sessions: the browser's opaque cookie with its bound CSRF token, and the CLI's bearer token.
+"""Sessions: the browser's opaque cookie, and the CLI's bearer token.
 
 Deliberately not a JWT. A JWT here would have to be either short-lived — which means a
 refresh mechanism, which means a second credential — or long-lived and unrevocable,
 which means a logout that does not log anything out. An opaque token backed by a row is
 revocable in one UPDATE, and the row is where "30-day rolling" actually lives.
 
-**Two kinds, and the difference is CSRF.** A cookie is an *ambient* credential: the browser
-attaches it to any request to this origin, including one a hostile page caused, which is the
-whole of what CSRF is. A bearer token is not ambient — nothing attaches it unless code chose
-to, and code on the page that could choose to is already same-origin and could simply make
-the request. So a bearer session is exempt from the CSRF token check, and that exemption is a
-consequence of the threat model rather than a convenience: there is no cookie for the CLI to
-read a CSRF value out of, and demanding one would make every write from the CLI a 403.
+**Two kinds, and the difference is whether the credential is ambient.** A cookie is *ambient*:
+the browser attaches it to any request to this origin, including one a hostile page caused,
+which is the whole of what cross-site request forgery is. A bearer token is not ambient —
+nothing attaches it unless code chose to, and code on the page that could choose to is already
+same-origin and could simply make the request. So `Principal.is_ambient` is the flag that
+decides whether a write has to prove where it was initiated, and it is read off the session row
+rather than off the shape of the request.
 
 The two are non-interchangeable at the store, not merely by convention: ``accounts.authenticate``
 takes the kind it expects and puts it in the predicate, so a cookie token replayed in an
 ``Authorization`` header resolves to nothing and vice versa. See its docstring for why forbidding
 that is cheaper than reasoning about it.
 
-What the browser holds:
+What the browser holds: one cookie. ``conjectures_session`` — HttpOnly, Secure, SameSite=Lax,
+the session token. HttpOnly so script on the page cannot read it, which is what keeps an XSS
+from exfiltrating a durable credential rather than merely acting within the page.
 
-* ``conjectures_session`` — HttpOnly, Secure, SameSite=Lax, the session token. HttpOnly
-  so script on the page cannot read it, which is what keeps an XSS from exfiltrating a
-  durable credential rather than merely acting within the page.
-* ``conjectures_csrf`` — readable by script *on purpose*, because the frontend has to
-  copy it into a request header. Not a secret in the same sense: it is only useful to
-  code that can already read the page's cookies, which is precisely what a cross-site
-  attacker cannot do.
+**There is no longer a second, script-readable CSRF cookie.** It was removed because the two
+browser-set headers that accompany every state-changing request — ``Origin`` and
+``Sec-Fetch-Site`` — establish the same fact and cannot be forged by a page, while the token
+could only ever be as strong as the cookie a page had to be able to read in order to echo it.
+The reasoning, and what it does and does not defend against, is in
+``submission_api/origin_policy.py``. ``LEGACY_CSRF_COOKIE`` below exists only to expire the
+cookie left in browsers by the version that set it.
 
-Only digests are stored. ``accounts.digest`` hashes both tokens before they touch the
+Only digests are stored. ``accounts.digest`` hashes the token before it touches the
 database, so a dump, a replica, or an over-broad SELECT yields nothing replayable.
-
-The CSRF token is stored on the session row rather than being a pure double-submit
-cookie. A bare double-submit compares two values the client supplied to each other,
-which fails to a subdomain cookie-injection attack; comparing the header against the
-digest recorded server-side does not.
 """
 
 from __future__ import annotations
 
 import datetime as dt
-import hmac
 import secrets
 from dataclasses import dataclass
 
@@ -48,8 +44,11 @@ from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db.models import Account, AccountSession, AccountSessionKind
 
 SESSION_COOKIE = "conjectures_session"
-CSRF_COOKIE = "conjectures_csrf"
-CSRF_HEADER = "X-Conjectures-CSRF"
+# Set by every version up to and including the one that carried a row-bound CSRF token. Kept
+# only so that `cleared_cookies` and a fresh sign-in can expire it; nothing reads it, and the
+# name must not be reused. Safe to delete once no live browser can still be holding one — its
+# `Max-Age` was `SESSION_DAYS`, so one session lifetime after this ships.
+LEGACY_CSRF_COOKIE = "conjectures_csrf"
 
 AUTHORIZATION_HEADER = "Authorization"
 BEARER_SCHEME = "bearer"
@@ -66,25 +65,23 @@ MAX_BEARER_LENGTH = 256
 TOKEN_BYTES = 32
 
 REASON_NOT_AUTHENTICATED = "NOT_AUTHENTICATED"
-REASON_CSRF_FAILED = "CSRF_CHECK_FAILED"
+# A write that could not show it was initiated by something permitted to write here. Replaces
+# the older `CSRF_CHECK_FAILED`, which named a mechanism that no longer exists; the situation it
+# reports is the same one, and it is still a 403.
+REASON_CROSS_SITE_REFUSED = "CROSS_SITE_WRITE_REFUSED"
 
 
 @dataclass(frozen=True)
 class IssuedSession:
-    """A newly created cookie session: the row, plus the two secrets only the caller holds."""
+    """A newly created cookie session: the row, plus the one secret only the caller holds."""
 
     row: AccountSession
     token: str
-    csrf_token: str
 
 
 @dataclass(frozen=True)
 class IssuedBearer:
-    """A newly created CLI session: the row, plus the one secret only the caller holds.
-
-    No CSRF token, and no field to hold one. A bearer session that carried a CSRF value
-    would imply a check nothing performs — see the module docstring.
-    """
+    """A newly created CLI session: the row, plus the one secret only the caller holds."""
 
     row: AccountSession
     token: str
@@ -105,13 +102,14 @@ class Principal:
         return self.session.kind is AccountSessionKind.BEARER
 
     @property
-    def requires_csrf(self) -> bool:
-        """Whether a write by this principal has to prove it was not cross-site.
+    def is_ambient(self) -> bool:
+        """Whether the browser attached this credential without being asked to.
 
-        True exactly for cookie sessions. Derived from the session row rather than from
-        how the request looked, so a caller cannot opt out of the check by presenting a
-        cookie credential in a different place — `authenticate` already refuses that, and
-        this is the second half of the same guarantee.
+        True exactly for cookie sessions, and it is the whole input to whether a write must
+        prove where it was initiated. Derived from the session row rather than from how the
+        request looked, so a caller cannot opt out of the check by presenting a cookie
+        credential in a different place — `authenticate` already refuses that, and this is the
+        second half of the same guarantee.
         """
         return self.session.kind is AccountSessionKind.COOKIE
 
@@ -183,25 +181,23 @@ async def issue(
     user_agent: str | None = None,
     source_ip: str | None = None,
 ) -> IssuedSession:
-    """Create a browser session and return the secrets to set as cookies.
+    """Create a browser session and return the secret to set as a cookie.
 
-    The tokens are generated here and hashed on the way in, so this is the only moment
-    they exist in the process. Nothing later can recover them, which is what makes the
-    stored form safe.
+    The token is generated here and hashed on the way in, so this is the only moment it
+    exists in the process. Nothing later can recover it, which is what makes the stored
+    form safe.
     """
     token = new_token()
-    csrf_token = new_token()
     row = await account_store.create_session(
         session,
         account,
         kind=AccountSessionKind.COOKIE,
         token_digest=account_store.digest(token),
-        csrf_digest=account_store.digest(csrf_token),
         expires_at=now + lifetime,
         user_agent=user_agent,
         source_ip=source_ip,
     )
-    return IssuedSession(row=row, token=token, csrf_token=csrf_token)
+    return IssuedSession(row=row, token=token)
 
 
 async def issue_bearer(
@@ -291,25 +287,6 @@ async def refresh(
     )
 
 
-def csrf_matches(principal: Principal, header_value: str | None) -> bool:
-    """Whether the request carried the CSRF token for *this* session.
-
-    Compared against the digest on the session row, so a value the client can set is
-    not itself the proof. `compare_digest` because the comparison is against a stored
-    secret's digest and there is no reason to leak timing.
-
-    A session with no stored digest is a bearer session, and the answer is False: this
-    function reports whether a CSRF token matched, and for a bearer session none can. The
-    decision about whether that matters belongs to the caller, which asks
-    `principal.requires_csrf` first — answering True here to mean "no check needed" would
-    make a missing check indistinguishable from a passed one.
-    """
-    stored = principal.session.csrf_sha256
-    if not header_value or stored is None:
-        return False
-    return hmac.compare_digest(account_store.digest(header_value), bytes(stored))
-
-
 # --- Cookie serialisation ----------------------------------------------------------
 # Written by hand rather than through Starlette's `set_cookie` so that the flags are
 # visible in one place and reviewable as a set. `Secure` is conditional on production
@@ -347,14 +324,22 @@ def session_cookie(token: str, *, max_age: int, secure: bool) -> str:
     return _cookie(SESSION_COOKIE, token, max_age=max_age, http_only=True, secure=secure)
 
 
-def csrf_cookie(token: str, *, max_age: int, secure: bool) -> str:
-    """The CSRF token. Readable by script on purpose — the frontend copies it into a
-    header, and only same-origin code can read it."""
-    return _cookie(CSRF_COOKIE, token, max_age=max_age, http_only=False, secure=secure)
+def expired_legacy_csrf_cookie(*, secure: bool) -> str:
+    """A header that deletes the CSRF cookie an earlier version set.
+
+    Sent on sign-in as well as on sign-out, so a browser holding one from before this change
+    is rid of it at the next sign-in rather than at the end of its 30-day `Max-Age`. Not a
+    security measure — the value was never a credential on its own — but leaving a cookie
+    named after a mechanism that no longer exists is how the next person reading a request
+    in a debugger loses an hour.
+    """
+    return _cookie(
+        LEGACY_CSRF_COOKIE, "", max_age=0, http_only=False, secure=secure
+    )
 
 
-def cleared_cookies(*, secure: bool) -> tuple[str, str]:
-    """Both cookies, expired.
+def cleared_cookies(*, secure: bool) -> tuple[str, ...]:
+    """Every cookie this API has ever set for a session, expired.
 
     `Max-Age=0` with an empty value, and the same `Path`, `SameSite` and `Secure` as
     when they were set — a browser only replaces a cookie whose attributes match, so a
@@ -362,7 +347,7 @@ def cleared_cookies(*, secure: bool) -> tuple[str, str]:
     """
     return (
         _cookie(SESSION_COOKIE, "", max_age=0, http_only=True, secure=secure),
-        _cookie(CSRF_COOKIE, "", max_age=0, http_only=False, secure=secure),
+        expired_legacy_csrf_cookie(secure=secure),
     )
 
 
@@ -371,10 +356,9 @@ __all__ = [
     "BEARER_SCHEME",
     "BEARER_TOKEN_PREFIX",
     "BEARER_TOKEN_TYPE",
-    "CSRF_COOKIE",
-    "CSRF_HEADER",
+    "LEGACY_CSRF_COOKIE",
     "MAX_BEARER_LENGTH",
-    "REASON_CSRF_FAILED",
+    "REASON_CROSS_SITE_REFUSED",
     "REASON_NOT_AUTHENTICATED",
     "SESSION_COOKIE",
     "IssuedBearer",
@@ -383,8 +367,7 @@ __all__ = [
     "accept_bearer",
     "bearer_token",
     "cleared_cookies",
-    "csrf_cookie",
-    "csrf_matches",
+    "expired_legacy_csrf_cookie",
     "issue",
     "issue_bearer",
     "new_bearer_token",

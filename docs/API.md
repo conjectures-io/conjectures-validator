@@ -58,8 +58,9 @@ the total bounty-pool balance as `bounty.balance_usd` beside `bounty.balance_rao
 
 ### Signed-in account — see [ACCOUNT_API.md](ACCOUNT_API.md)
 
-Session cookie plus a CSRF token. `POST /v1/submissions/preflight` is the one exception: free,
-unauthenticated, and it writes nothing.
+Session cookie, plus — on writes — an `Origin` on the write allowlist or a same-origin
+`Sec-Fetch-Site`. `POST /v1/submissions/preflight` is the one exception: free, unauthenticated,
+and it writes nothing.
 
 | Method | Path | Purpose |
 | --- | --- | --- |

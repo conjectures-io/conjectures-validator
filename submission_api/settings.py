@@ -88,18 +88,23 @@ CORS_WILDCARD = "*"
 # a valid submission — and the endpoint authenticates a hotkey signature rather than a cookie,
 # so there is no ambient credential for it to ride on either.
 CORS_METHODS = ("GET", "HEAD", "OPTIONS", "POST", "PATCH", "PUT", "DELETE")
-# Deliberately narrow, and deliberately without any `X-Conjectures-*` header except the CSRF
-# token. Adding a signature header here would undo the paragraph above.
+# Deliberately narrow, and deliberately without any `X-Conjectures-*` signature header. Adding
+# one here would undo the paragraph above.
 #
-# **`Authorization` must never be added to this list**, and that is now load-bearing in a second
-# way. A CLI bearer session is exempt from the CSRF token check — correctly, because a bearer
-# token is not an ambient credential and no browser attaches one on its own. This allowlist is
-# what keeps that true: it is the only thing preventing a page on an allowlisted origin from
-# sending an `Authorization` header cross-origin at all. Adding it here would make the CSRF
-# exemption browser-reachable, which is the one way the exemption becomes a hole.
+# **`Authorization` must never be added to this list**, and that is load-bearing. A CLI bearer
+# session does not have to prove where it was initiated — correctly, because a bearer token is
+# not an ambient credential and no browser attaches one on its own. This allowlist is what keeps
+# that true: it is the only thing preventing a page on an allowlisted origin from sending an
+# `Authorization` header cross-origin at all. Adding it here would make the exemption
+# browser-reachable, which is the one way the exemption becomes a hole.
 #
 # The CLI is not a browser, sends no `Origin`, and is not subject to CORS, so it loses nothing.
 # `tests/test_api_accounts.py` asserts the absence.
+#
+# `X-Conjectures-CSRF` is **deprecated and ignored**. Nothing reads it; it is listed only so
+# that a frontend build predating the removal of the CSRF token does not fail preflight during
+# a rolling deploy — a header the preflight has not permitted is a blocked request, not an
+# ignored one. Delete this entry once no deployed frontend still sends it.
 CORS_REQUEST_HEADERS = (
     "Accept",
     "Accept-Language",
@@ -480,6 +485,28 @@ def _secret(
     return value
 
 
+def _write_origins(
+    environ: Mapping[str, str], key: str, *, fallback: tuple[str, ...], production: bool
+) -> tuple[str, ...]:
+    """The origins a browser may make a *state-changing* request from.
+
+    Separate from the read allowlist because the two are different grants: a site that may read
+    the public catalog is not necessarily a site that may spend an account's credits or repoint
+    its payout. Most deployments have one website and want one list, so an unset variable
+    inherits `CORS_ALLOWED_ORIGINS` — the distinction is there when it is needed and invisible
+    when it is not.
+
+    Set-but-empty is *not* the same as unset. It is a valid, fail-closed answer meaning no
+    browser may write to this API at all, and it is the right setting for a deployment that
+    serves only miner tooling. Distinguishing them is why this reads the raw variable rather
+    than asking `_csv` for a tuple that would be empty either way.
+    """
+    raw = environ.get(key)
+    if raw is None:
+        return fallback
+    return _cors_origins(environ, key, production=production)
+
+
 def _cors_origins(
     environ: Mapping[str, str], key: str, *, production: bool
 ) -> tuple[str, ...]:
@@ -489,6 +516,10 @@ def _cors_origins(
     one XSS on any subdomain into read access to this API, and there is no origin here that is
     not known at deploy time. An empty list is a valid, fail-closed answer — it means no
     browser may read the API, which is correct until a site exists.
+
+    `null` cannot be configured, because the pattern below requires a scheme and a host. That
+    matters for the write allowlist in particular: `null` is what a sandboxed iframe, a `data:`
+    URL and a `file://` page send, and it must never name a trusted initiator.
     """
     origins = _csv(environ, key)
     if CORS_WILDCARD in origins:
@@ -562,6 +593,10 @@ class Settings:
     # --- Public read surface ---------------------------------------------------------------
     pins_path: Path
     cors_allowed_origins: tuple[str, ...]
+    # Which origins a browser may make a state-changing request from. Defaults to
+    # `cors_allowed_origins`; see `_write_origins` for why it is separable at all, and
+    # `submission_api/origin_policy.py` for what is done with it.
+    write_allowed_origins: tuple[str, ...]
     rate_limit_enabled: bool
     rate_limit_requests: int
     rate_limit_window_seconds: int
@@ -937,6 +972,18 @@ class Settings:
         elif production and not taomarketcap_base_url.startswith("https://"):
             raise SettingsError("TAOMARKETCAP_API_BASE_URL must use https in production")
 
+        # Read as a pair: the write allowlist inherits the read one unless it is set, so the
+        # read one has to be resolved first.
+        cors_allowed_origins = _cors_origins(
+            env, "CORS_ALLOWED_ORIGINS", production=production
+        )
+        write_allowed_origins = _write_origins(
+            env,
+            "WRITE_ALLOWED_ORIGINS",
+            fallback=cors_allowed_origins,
+            production=production,
+        )
+
         tmc_pay_fiat_currency = (
             env.get("TMC_PAY_FIAT_CURRENCY", "").strip().upper()
             or DEFAULT_TMC_PAY_FIAT_CURRENCY
@@ -1070,9 +1117,8 @@ class Settings:
             ),
             taomarketcap_base_url=taomarketcap_base_url,
             pins_path=_directory(env, "PINS_LOCK_PATH", PROJECT_ROOT / "pins.lock.json"),
-            cors_allowed_origins=_cors_origins(
-                env, "CORS_ALLOWED_ORIGINS", production=production
-            ),
+            cors_allowed_origins=cors_allowed_origins,
+            write_allowed_origins=write_allowed_origins,
             rate_limit_enabled=rate_limit_enabled,
             rate_limit_requests=_positive_int(
                 env, "RATE_LIMIT_REQUESTS", DEFAULT_RATE_LIMIT_REQUESTS, maximum=1_000_000

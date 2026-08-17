@@ -1,8 +1,8 @@
-"""Accounts, sessions, CSRF, credits, and the credit-funded submission path.
+"""Accounts, sessions, cross-site writes, credits, and the credit-funded submission path.
 
-Mostly about what must *not* work: a write without a CSRF token, a magic link used twice, a
-signature replayed from another flow, an account reading another account's rows, a credit spent
-twice. Needs a real PostgreSQL server:
+Mostly about what must *not* work: a write a hostile page could have caused, a magic link used
+twice, a signature replayed from another flow, an account reading another account's rows, a
+credit spent twice. Needs a real PostgreSQL server:
 
     docker compose -f docker-compose.pytest-db.yml up -d
 
@@ -50,7 +50,7 @@ from conjectures_subnet.db.models import (
 from submission_api.auth import development_signature
 from submission_api.credits import btcli_command, parse_packages
 from submission_api.routers.intents import intent_request_digest
-from submission_api.sessions import CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE
+from submission_api.sessions import LEGACY_CSRF_COOKIE, SESSION_COOKIE
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
@@ -132,9 +132,18 @@ async def _mint_email_token(kit, email: str) -> str:
     return token
 
 
-def csrf(http) -> dict[str, str]:
-    """The CSRF header the frontend copies out of the readable cookie."""
-    return {CSRF_HEADER: http.cookies[CSRF_COOKIE]}
+def same_origin(_http=None) -> dict[str, str]:
+    """What a browser sends when the page calling the API is served from this very origin.
+
+    A page cannot set this header — it is on the Fetch spec's forbidden list — so a test that
+    sends it is standing in for the browser, not for the attacker. The tests that stand in for
+    the attacker send `cross-site`, or an `Origin` that is not on the allowlist.
+
+    Takes and ignores an argument so that the call sites read the same whichever client they
+    are acting for; the header does not depend on the session the way the old CSRF token did,
+    which is most of the point of the change.
+    """
+    return {"Sec-Fetch-Site": "same-origin"}
 
 
 async def grant_credits(kit, account_id, credits_: int, *, price: int = 500_000_000):
@@ -192,37 +201,39 @@ def test_the_session_endpoint_is_401_until_signed_in():
     run(scenario())
 
 
-def test_the_session_cookie_is_httponly_and_the_csrf_cookie_is_not():
-    """The split is the design: script must not be able to read the credential, but must be able
-    to read the CSRF token in order to echo it back in a header."""
+def test_sign_in_sets_one_httponly_cookie_and_expires_the_retired_one():
+    """One credential, and script cannot read it.
+
+    There used to be a second, deliberately script-readable cookie holding a CSRF token. It is
+    gone — the browser's own `Origin` and `Sec-Fetch-Site` prove the same thing and cannot be
+    read *or* written by a page — so the only thing a sign-in says about that name now is
+    `Max-Age=0`, clearing one left behind by the previous version.
+    """
 
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
-                cookies = [
-                    value
-                    for key, value in http._transport.__dict__.items()  # noqa: SLF001
-                    if False
-                ] or None
-                del cookies
                 # Re-request so the Set-Cookie headers are on a fresh response to inspect.
                 token = await _mint_email_token(kit, "second@example.com")
                 fresh = await http.post("/v1/auth/email/verify", json={"token": token})
                 headers = fresh.headers.get_list("set-cookie")
                 session_header = next(h for h in headers if h.startswith(SESSION_COOKIE))
-                csrf_header = next(h for h in headers if h.startswith(CSRF_COOKIE))
+                retired = next(h for h in headers if h.startswith(LEGACY_CSRF_COOKIE))
 
                 assert "HttpOnly" in session_header
-                assert "HttpOnly" not in csrf_header
                 # Lax, not Strict: a magic link arrives as a cross-site top-level navigation,
                 # and Strict would withhold the cookie on exactly that request.
                 assert "SameSite=Lax" in session_header
-                assert "SameSite=Lax" in csrf_header
                 # Not Secure in development, or a browser on plain-HTTP localhost would refuse
                 # to send it back.
                 assert "Secure" not in session_header
+
+                # Expired, never re-issued with a value, and so absent from the jar afterwards.
+                assert retired.startswith(f"{LEGACY_CSRF_COOKIE}=;")
+                assert "Max-Age=0" in retired
+                assert LEGACY_CSRF_COOKIE not in http.cookies
         finally:
             await kit.teardown()
 
@@ -360,7 +371,7 @@ def test_logout_revokes_the_session_server_side():
                 await sign_in_by_email(kit, http)
                 stolen = http.cookies[SESSION_COOKIE]
 
-                out = await http.post("/v1/auth/logout", headers=csrf(http))
+                out = await http.post("/v1/auth/logout", headers=same_origin(http))
                 assert out.status_code == 204
 
                 # The same token, presented directly, is now dead.
@@ -394,56 +405,48 @@ def test_signing_in_again_retires_the_previous_session():
     run(scenario())
 
 
-# --- CSRF --------------------------------------------------------------------------------
+# --- Cross-site writes ---------------------------------------------------------------------
+#
+# The guard has two halves and they fail in opposite directions on purpose. `CrossOriginWriteGuard`
+# in middleware refuses only what the headers positively say is cross-site, so a non-browser
+# client that sends neither header keeps working. `require_writer` refuses anything that is not
+# positive proof, because it knows the request authenticated with a cookie — a credential the
+# browser attached by itself. The tests below pin both directions, and pinning the *combination*
+# is the point: fail-open middleware alone would be a hole, and fail-closed middleware alone
+# would refuse the miner CLI.
 
 
-def test_a_write_without_the_csrf_header_is_refused():
+def test_a_cookie_write_that_proves_nothing_is_refused():
+    """The header check fails closed for an ambient credential.
+
+    This is the load-bearing change. The old guard let a request through when both initiator
+    headers were absent, because a session-bound token was there to catch it; with the token
+    gone, absence has to be a refusal or there is no protection left at all.
+    """
+
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
 
-                missing = await http.patch("/v1/me", json={"display_name": "Ada"})
-                assert missing.status_code == 403
-                assert missing.json()["reason_code"] == "CSRF_CHECK_FAILED"
+                silent = await http.patch("/v1/me", json={"display_name": "Ada"})
+                assert silent.status_code == 403
+                assert silent.json()["reason_code"] == "CROSS_SITE_WRITE_REFUSED"
 
-                wrong = await http.patch(
+                # A value no browser emits is not proof of anything either.
+                nonsense = await http.patch(
                     "/v1/me",
                     json={"display_name": "Ada"},
-                    headers={CSRF_HEADER: "not-the-token"},
+                    headers={"Sec-Fetch-Site": "totally-fine-honest"},
                 )
-                assert wrong.status_code == 403
+                assert nonsense.status_code == 403
 
                 ok = await http.patch(
-                    "/v1/me", json={"display_name": "Ada"}, headers=csrf(http)
+                    "/v1/me", json={"display_name": "Ada"}, headers=same_origin(http)
                 )
                 assert ok.status_code == 200
                 assert ok.json()["display_name"] == "Ada"
-        finally:
-            await kit.teardown()
-
-    run(scenario())
-
-
-def test_the_csrf_token_is_bound_to_its_own_session():
-    """A bare double-submit cookie compares two client-supplied values to each other. This
-    compares the header against the digest on the session row, so another session's token — or
-    an injected cookie — does not pass."""
-
-    async def scenario():
-        kit = await harness().setup()
-        try:
-            async with await client(kit) as first, await client(kit) as second:
-                await sign_in_by_email(kit, first, email="one@example.com")
-                await sign_in_by_email(kit, second, email="two@example.com")
-
-                borrowed = await first.patch(
-                    "/v1/me",
-                    json={"display_name": "Ada"},
-                    headers={CSRF_HEADER: second.cookies[CSRF_COOKIE]},
-                )
-                assert borrowed.status_code == 403
         finally:
             await kit.teardown()
 
@@ -456,31 +459,54 @@ def test_a_cross_site_origin_cannot_change_state():
         try:
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
-                headers = csrf(http)
 
+                # An Origin off the allowlist is refused even though Sec-Fetch-Site says
+                # same-origin: a browser sends both, and the pair cannot disagree honestly.
                 refused = await http.patch(
                     "/v1/me",
                     json={"display_name": "Ada"},
-                    headers={**headers, "Origin": "https://evil.example"},
+                    headers={
+                        **same_origin(http),
+                        "Origin": "https://evil.example",
+                    },
                 )
                 assert refused.status_code == 403
-                assert refused.json()["reason_code"] == "CSRF_CHECK_FAILED"
+                assert refused.json()["reason_code"] == "CROSS_SITE_WRITE_REFUSED"
 
-                # Sec-Fetch-Site is the second, independent check.
+                # Sec-Fetch-Site alone is enough to refuse, with no Origin at all — the case of
+                # an intermediary that strips Origin but cannot strip a Sec- header.
                 cross = await http.patch(
                     "/v1/me",
                     json={"display_name": "Ada"},
-                    headers={**headers, "Sec-Fetch-Site": "cross-site"},
+                    headers={"Sec-Fetch-Site": "cross-site"},
                 )
                 assert cross.status_code == 403
+
+                # A sibling subdomain is not this origin. `same-site` is refused for the same
+                # reason the allowlist is exact: one subdomain takeover must not become account
+                # access.
+                sibling = await http.patch(
+                    "/v1/me",
+                    json={"display_name": "Ada"},
+                    headers={"Sec-Fetch-Site": "same-site"},
+                )
+                assert sibling.status_code == 403
+
+                # `null` is what a sandboxed iframe, a data: URL and a file:// page send. It can
+                # never be configured onto the allowlist, and it is refused by name as well.
+                opaque = await http.patch(
+                    "/v1/me",
+                    json={"display_name": "Ada"},
+                    headers={"Origin": "null", "Sec-Fetch-Site": "cross-site"},
+                )
+                assert opaque.status_code == 403
 
                 allowed = await http.patch(
                     "/v1/me",
                     json={"display_name": "Ada"},
                     headers={
-                        **headers,
+                        **same_origin(http),
                         "Origin": ORIGIN,
-                        "Sec-Fetch-Site": "same-origin",
                     },
                 )
                 assert allowed.status_code == 200
@@ -490,7 +516,103 @@ def test_a_cross_site_origin_cannot_change_state():
     run(scenario())
 
 
-def test_reads_need_no_csrf_token():
+def test_an_allowlisted_origin_may_write_cross_site():
+    """The half of the rule that is a deliberate widening, and why it is not a weakening.
+
+    A website on its own origin calling an API on another — `conjectures.io` to
+    `api.conjectures.io`, or `www.` to the apex — produces `Sec-Fetch-Site: same-site` or
+    `cross-site`. Demanding `same-origin` *as well as* an allowlisted `Origin` would mean the
+    API can only ever be reverse-proxied under the website's own origin. The allowlist is the
+    trust boundary; a browser naming an entry on it has said everything there is to say.
+    """
+
+    async def scenario():
+        kit = await harness(CORS_ALLOWED_ORIGINS=ORIGIN).setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                for site in ("same-site", "cross-site"):
+                    allowed = await http.patch(
+                        "/v1/me",
+                        json={"display_name": "Ada"},
+                        headers={"Origin": ORIGIN, "Sec-Fetch-Site": site},
+                    )
+                    assert allowed.status_code == 200, site
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_write_allowlist_can_be_narrower_than_the_read_allowlist():
+    """Reading the catalog and spending an account's credits are different grants.
+
+    `WRITE_ALLOWED_ORIGINS` defaults to `CORS_ALLOWED_ORIGINS`, so the split is invisible until
+    it is set. Set, it is authoritative: an origin that may read is not thereby an origin that
+    may write.
+    """
+
+    async def scenario():
+        reader = "https://docs.example"
+        kit = await harness(
+            CORS_ALLOWED_ORIGINS=f"{ORIGIN},{reader}",
+            WRITE_ALLOWED_ORIGINS=ORIGIN,
+        ).setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+
+                refused = await http.patch(
+                    "/v1/me",
+                    json={"display_name": "Ada"},
+                    headers={"Origin": reader, "Sec-Fetch-Site": "cross-site"},
+                )
+                assert refused.status_code == 403
+                assert refused.json()["reason_code"] == "CROSS_SITE_WRITE_REFUSED"
+
+                allowed = await http.patch(
+                    "/v1/me",
+                    json={"display_name": "Ada"},
+                    headers={"Origin": ORIGIN, "Sec-Fetch-Site": "cross-site"},
+                )
+                assert allowed.status_code == 200
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unauthenticated_write_is_guarded_too():
+    """`request-link` sends mail, so a cross-site page must not be able to trigger it.
+
+    There is no principal here for `require_writer` to inspect, which is exactly why the
+    middleware half exists. It refuses the positively-cross-site case and lets the silent one
+    through — a client with no cookie has nothing for a hostile page to ride on.
+    """
+
+    async def scenario():
+        kit = await harness(CORS_ALLOWED_ORIGINS=ORIGIN).setup()
+        try:
+            async with await client(kit) as http:
+                hostile = await http.post(
+                    "/v1/auth/email/request-link",
+                    json={"email": EMAIL},
+                    headers={"Origin": "https://evil.example"},
+                )
+                assert hostile.status_code == 403
+                assert hostile.json()["reason_code"] == "CROSS_SITE_WRITE_REFUSED"
+
+                silent = await http.post(
+                    "/v1/auth/email/request-link", json={"email": EMAIL}
+                )
+                assert silent.status_code == 202
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_reads_need_no_proof_of_initiator():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -528,7 +650,7 @@ def test_every_account_response_is_no_store():
 
 async def link(kit, http, hotkey: str):
     challenge = await http.post(
-        "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=csrf(http)
+        "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=same_origin(http)
     )
     assert challenge.status_code == 200, challenge.text
     message = challenge.json()["message"]
@@ -536,7 +658,7 @@ async def link(kit, http, hotkey: str):
     return await http.post(
         "/v1/me/hotkeys",
         json={"hotkey": hotkey, "signature": sign(hotkey, message)},
-        headers=csrf(http),
+        headers=same_origin(http),
     )
 
 
@@ -574,7 +696,7 @@ def test_a_link_signature_cannot_be_replayed_as_a_sign_in():
                 challenge = await http.post(
                     "/v1/me/hotkeys/challenge",
                     json={"hotkey": HOTKEY},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 link_message = challenge.json()["message"]
 
@@ -610,7 +732,7 @@ def test_a_payout_destination_must_be_a_hotkey_the_account_linked():
                 premature = await http.put(
                     "/v1/me/payout",
                     json={"coldkey": COLDKEY, "hotkey": HOTKEY},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 assert premature.status_code == 409
                 assert premature.json()["reason_code"] == "PAYOUT_HOTKEY_NOT_LINKED"
@@ -619,7 +741,7 @@ def test_a_payout_destination_must_be_a_hotkey_the_account_linked():
                 ok = await http.put(
                     "/v1/me/payout",
                     json={"coldkey": COLDKEY, "hotkey": HOTKEY},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 assert ok.status_code == 200
                 assert ok.json()["payout"] == {"coldkey": COLDKEY, "hotkey": HOTKEY}
@@ -638,7 +760,7 @@ def test_roles_are_never_client_input():
                 refused = await http.patch(
                     "/v1/me",
                     json={"display_name": "Ada", "roles": ["ADMIN"]},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 # `extra="forbid"` on the payload model: an unknown field is a 400, not a
                 # silently ignored escalation attempt.
@@ -758,7 +880,7 @@ def test_capabilities_open_as_the_account_gains_what_they_require():
                 await http.put(
                     "/v1/me/payout",
                     json={"coldkey": COLDKEY, "hotkey": HOTKEY},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 paid = (await http.get("/v1/auth/session")).json()
                 assert paid["payout"] == {"coldkey": COLDKEY, "hotkey": HOTKEY}
@@ -941,7 +1063,7 @@ def test_a_deposit_declares_an_amount_and_returns_a_copyable_command():
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
                 created = await http.post(
-                    "/v1/me/deposits", json={"credits": 4}, headers=csrf(http)
+                    "/v1/me/deposits", json={"credits": 4}, headers=same_origin(http)
                 )
                 assert created.status_code == 201, created.text
                 body = created.json()
@@ -969,7 +1091,7 @@ def test_a_deposit_belonging_to_another_account_is_absent_not_forbidden():
             async with await client(kit) as mine, await client(kit) as theirs:
                 await sign_in_by_email(kit, mine, email="one@example.com")
                 created = await mine.post(
-                    "/v1/me/deposits", json={"credits": 1}, headers=csrf(mine)
+                    "/v1/me/deposits", json={"credits": 1}, headers=same_origin(mine)
                 )
                 deposit_id = created.json()["id"]
 
@@ -1036,14 +1158,14 @@ def test_an_intent_needs_a_credit_and_a_linked_hotkey():
                 }
 
                 unlinked = await http.post(
-                    "/v1/submissions/intents", json=body, headers=csrf(http)
+                    "/v1/submissions/intents", json=body, headers=same_origin(http)
                 )
                 assert unlinked.status_code == 409
                 assert unlinked.json()["reason_code"] == "HOTKEY_NOT_LINKED"
 
                 await link(kit, http, HOTKEY)
                 broke = await http.post(
-                    "/v1/submissions/intents", json=body, headers=csrf(http)
+                    "/v1/submissions/intents", json=body, headers=same_origin(http)
                 )
                 assert broke.status_code == 409
                 assert broke.json()["reason_code"] == "INSUFFICIENT_CREDITS"
@@ -1051,7 +1173,7 @@ def test_an_intent_needs_a_credit_and_a_linked_hotkey():
 
                 await grant_credits(kit, uuid.UUID(account["id"]), 1)
                 opened = await http.post(
-                    "/v1/submissions/intents", json=body, headers=csrf(http)
+                    "/v1/submissions/intents", json=body, headers=same_origin(http)
                 )
                 assert opened.status_code == 201, opened.text
                 assert opened.json()["status"] == IntentState.OPEN.value
@@ -1085,11 +1207,11 @@ def test_a_held_credit_cannot_be_spent_twice_by_opening_two_intents():
                     "hotkey": HOTKEY,
                 }
                 first = await http.post(
-                    "/v1/submissions/intents", json=body, headers=csrf(http)
+                    "/v1/submissions/intents", json=body, headers=same_origin(http)
                 )
                 assert first.status_code == 201
                 second = await http.post(
-                    "/v1/submissions/intents", json=body, headers=csrf(http)
+                    "/v1/submissions/intents", json=body, headers=same_origin(http)
                 )
                 assert second.status_code == 409
                 assert second.json()["reason_code"] == "INSUFFICIENT_CREDITS"
@@ -1116,7 +1238,7 @@ async def full_intent(
                 else {"public_credit": public_credit_payload}
             ),
         },
-        headers=csrf(http),
+        headers=same_origin(http),
     )
     assert opened.status_code == 201, opened.text
     intent_id = opened.json()["id"]
@@ -1125,7 +1247,7 @@ async def full_intent(
     uploaded = await http.put(
         f"/v1/submissions/intents/{intent_id}/bundle",
         content=bundle,
-        headers={**csrf(http), "Content-Type": "application/zip"},
+        headers={**same_origin(http), "Content-Type": "application/zip"},
     )
     assert uploaded.status_code == 200, uploaded.text
     return intent_id, uploaded.json()
@@ -1172,7 +1294,7 @@ def test_confirm_debits_the_credit_and_writes_the_submission_once():
                 confirmed = await http.post(
                     f"/v1/submissions/intents/{intent_id}/confirm",
                     json={"signature": development_signature()},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 assert confirmed.status_code == 201, confirmed.text
                 body = confirmed.json()
@@ -1199,7 +1321,7 @@ def test_confirm_debits_the_credit_and_writes_the_submission_once():
                 again = await http.post(
                     f"/v1/submissions/intents/{intent_id}/confirm",
                     json={"signature": development_signature()},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 assert again.status_code == 409
                 assert again.json()["reason_code"] == "INTENT_ALREADY_CONFIRMED"
@@ -1234,7 +1356,7 @@ def test_credit_funded_submission_signs_and_snapshots_public_credit():
                 confirmed = await http.post(
                     f"/v1/submissions/intents/{intent_id}/confirm",
                     json={"signature": development_signature()},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 assert confirmed.status_code == 201, confirmed.text
                 assert confirmed.json()["submission"]["public_credit"] == credit
@@ -1280,12 +1402,12 @@ def test_confirming_without_a_bundle_is_refused():
                         "task_bundle_sha256": TASK_DIGEST,
                         "hotkey": HOTKEY,
                     },
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 refused = await http.post(
                     f"/v1/submissions/intents/{opened.json()['id']}/confirm",
                     json={"signature": development_signature()},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 assert refused.status_code == 409
                 assert refused.json()["reason_code"] == "INTENT_HAS_NO_BUNDLE"
@@ -1316,7 +1438,7 @@ def test_an_intent_belonging_to_another_account_is_absent():
                         else call(
                             path,
                             json={"signature": development_signature()},
-                            headers=csrf(theirs),
+                            headers=same_origin(theirs),
                         )
                     )
                     assert response.status_code == 404, path
@@ -1337,7 +1459,7 @@ def test_the_panel_shows_only_the_accounts_own_submissions():
                 confirmed = await mine.post(
                     f"/v1/submissions/intents/{intent_id}/confirm",
                     json={"signature": development_signature()},
-                    headers=csrf(mine),
+                    headers=same_origin(mine),
                 )
                 submission_id = confirmed.json()["submission"]["id"]
 
@@ -1378,7 +1500,7 @@ def test_submission_detail_returns_public_review_notes_but_never_internal_eviden
                 confirmed = await http.post(
                     f"/v1/submissions/intents/{intent_id}/confirm",
                     json={"signature": development_signature()},
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 submission_id = confirmed.json()["submission"]["id"]
 
@@ -1439,7 +1561,7 @@ def test_intake_endpoints_refuse_while_submissions_are_paused():
                         "task_bundle_sha256": TASK_DIGEST,
                         "hotkey": HOTKEY,
                     },
-                    headers=csrf(http),
+                    headers=same_origin(http),
                 )
                 assert refused.status_code == 503
                 assert refused.json()["reason_code"] == "SUBMISSIONS_PAUSED"

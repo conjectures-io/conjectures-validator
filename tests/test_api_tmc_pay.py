@@ -37,7 +37,7 @@ pytest.importorskip("httpx", reason="submission API tests need the service extra
 pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
 from conftest_api import harness, postgres_dsn
-from test_api_accounts import client, csrf, sign_in_by_email
+from test_api_accounts import client, same_origin, sign_in_by_email
 
 from conjectures_subnet.db import credits as credit_store
 from conjectures_subnet.db import tmc_pay as order_store
@@ -327,7 +327,7 @@ def test_buying_credits_creates_an_invoice_that_covers_them():
         try:
             async with buyer(kit) as (http, account):
                 created = await http.post(
-                    ORDERS, json={"credits": 10}, headers=csrf(http)
+                    ORDERS, json={"credits": 10}, headers=same_origin(http)
                 )
                 assert created.status_code == 201, created.text
                 body = created.json()
@@ -384,7 +384,7 @@ def test_a_short_invoice_is_requoted_at_the_rate_it_locked():
         try:
             async with buyer(kit) as (http, _):
                 created = await http.post(
-                    ORDERS, json={"credits": 1}, headers=csrf(http)
+                    ORDERS, json={"credits": 1}, headers=same_origin(http)
                 )
                 assert created.status_code == 201, created.text
                 order = created.json()["order"]
@@ -417,7 +417,7 @@ def test_a_purchase_is_refused_when_every_quote_comes_back_short():
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, _):
-                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert refused.status_code == 503, refused.text
                 assert refused.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
 
@@ -448,7 +448,7 @@ def test_an_invoice_in_the_wrong_currency_is_refused_without_a_retry():
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, _):
-                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert refused.status_code == 503
                 assert refused.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
                 assert len(gateway.created) == 1
@@ -465,7 +465,7 @@ def test_buying_needs_a_rate_and_a_configured_processor():
         kit = await kit_with(gateway, tao_usd=None).setup()
         try:
             async with buyer(kit) as (http, _):
-                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert refused.status_code == 503
                 assert refused.json()["reason_code"] == "TMC_PAY_RATE_UNAVAILABLE"
                 assert gateway.created == []
@@ -476,7 +476,7 @@ def test_buying_needs_a_rate_and_a_configured_processor():
         plain = await harness().setup()
         try:
             async with buyer(plain) as (http, _):
-                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert refused.status_code == 503
                 assert refused.json()["reason_code"] == "TMC_PAY_NOT_CONFIGURED"
 
@@ -514,10 +514,10 @@ def test_outstanding_invoices_are_capped_per_account():
             async with buyer(kit) as (http, _):
                 for _ in range(2):
                     accepted = await http.post(
-                        ORDERS, json={"credits": 1}, headers=csrf(http)
+                        ORDERS, json={"credits": 1}, headers=same_origin(http)
                     )
                     assert accepted.status_code == 201, accepted.text
-                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert refused.status_code == 409
                 assert refused.json()["reason_code"] == "TMC_PAY_TOO_MANY_OPEN_ORDERS"
                 assert refused.json()["open_orders"] == 2
@@ -527,7 +527,7 @@ def test_outstanding_invoices_are_capped_per_account():
     run(scenario())
 
 
-def test_a_purchase_needs_a_browser_session_and_a_csrf_token():
+def test_a_purchase_needs_a_browser_session_that_proves_where_it_came_from():
     async def scenario():
         gateway = FakeGateway([invoice_body(invoice_id="inv-1")])
         kit = await kit_with(gateway).setup()
@@ -538,7 +538,8 @@ def test_a_purchase_needs_a_browser_session_and_a_csrf_token():
                 ).status_code == 401
 
             async with buyer(kit) as (http, _):
-                # Signed in, but no CSRF header: a state-changing write must prove intent.
+                # Signed in, but neither initiator header: an ambient credential does not get
+                # to spend money on the strength of being present.
                 assert (await http.post(ORDERS, json={"credits": 1})).status_code == 403
                 assert gateway.created == []
         finally:
@@ -552,7 +553,7 @@ def test_the_credit_ceiling_is_enforced():
         kit = await kit_with(FakeGateway([]), TMC_PAY_MAX_CREDITS="5").setup()
         try:
             async with buyer(kit) as (http, _):
-                refused = await http.post(ORDERS, json={"credits": 6}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 6}, headers=same_origin(http))
                 assert refused.status_code == 400
                 assert refused.json()["maximum_credits"] == 5
         finally:
@@ -566,7 +567,7 @@ def test_the_credit_ceiling_is_enforced():
 
 async def _order_for(http, *, credits_: int = 10) -> dict:
     """Buy `credits_` credits and return the new order, asserting the purchase succeeded."""
-    created = await http.post(ORDERS, json={"credits": credits_}, headers=csrf(http))
+    created = await http.post(ORDERS, json={"credits": credits_}, headers=same_origin(http))
     assert created.status_code == 201, created.text
     return created.json()["order"]
 
@@ -1216,7 +1217,7 @@ def test_configured_slippage_decides_whether_an_overshoot_is_requoted():
             try:
                 async with buyer(kit) as (http, _):
                     created = await http.post(
-                        ORDERS, json={"credits": 1}, headers=csrf(http)
+                        ORDERS, json={"credits": 1}, headers=same_origin(http)
                     )
                     assert created.status_code == 201, created.text
                     assert created.json()["order"]["invoice_id"] == expected_id, slippage
@@ -1245,7 +1246,7 @@ def test_an_invoice_that_would_overcharge_the_buyer_is_requoted():
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, _):
-                created = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                created = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert created.status_code == 201, created.text
                 order = created.json()["order"]
                 assert order["invoice_id"] == "right"
@@ -1270,7 +1271,7 @@ def test_an_overshoot_within_the_band_is_accepted_without_a_second_invoice():
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, _):
-                created = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                created = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert created.status_code == 201, created.text
                 assert created.json()["order"]["invoice_id"] == "rounded"
                 assert created.json()["order"]["amount_rao"] == CREDIT_PRICE_RAO + 25_000
@@ -1292,7 +1293,7 @@ def test_a_purchase_is_refused_when_every_quote_overcharges():
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, _):
-                refused = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                refused = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert refused.status_code == 503
                 assert refused.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
 
@@ -1327,12 +1328,12 @@ def test_the_next_quote_is_seeded_from_the_rate_tmc_pay_itself_locked():
         kit = await kit_with(gateway).setup()
         try:
             async with buyer(kit) as (http, _):
-                first = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                first = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert first.status_code == 201, first.text
                 # Nothing local to go on yet, so the external feed priced it.
                 assert gateway.created[0]["fiat_amount"] == "200.00"
 
-                second = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                second = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert second.status_code == 201, second.text
                 # Seeded from the first invoice's own locked rate, not from TaoStats.
                 assert gateway.created[1]["fiat_amount"] == "100.00"
@@ -1358,7 +1359,7 @@ def test_a_zero_rate_ttl_always_asks_the_external_feed():
             async with buyer(kit) as (http, _):
                 for _ in range(2):
                     accepted = await http.post(
-                        ORDERS, json={"credits": 1}, headers=csrf(http)
+                        ORDERS, json={"credits": 1}, headers=same_origin(http)
                     )
                     assert accepted.status_code == 201, accepted.text
                 assert [item["fiat_amount"] for item in gateway.created] == [
@@ -1409,7 +1410,7 @@ def test_a_locked_rate_keeps_credits_on_sale_through_a_taostats_outage():
                     )
                     await session.commit()
 
-                sold = await http.post(ORDERS, json={"credits": 1}, headers=csrf(http))
+                sold = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert sold.status_code == 201, sold.text
                 assert gateway.created[0]["fiat_amount"] == "200.00"
         finally:
@@ -1484,10 +1485,10 @@ def test_the_webhook_is_reachable_from_outside_the_browser_security_model():
                 blocked = await http.post(
                     ORDERS,
                     json={"credits": 1},
-                    headers={**csrf(http), "Origin": "https://evil.example"},
+                    headers={**same_origin(http), "Origin": "https://evil.example"},
                 )
                 assert blocked.status_code == 403
-                assert blocked.json()["reason_code"] == "CSRF_CHECK_FAILED"
+                assert blocked.json()["reason_code"] == "CROSS_SITE_WRITE_REFUSED"
         finally:
             await kit.teardown()
 

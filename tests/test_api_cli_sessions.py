@@ -35,9 +35,9 @@ from conftest_api import (  # noqa: E402
 from test_api_accounts import (  # noqa: E402
     EMAIL,
     client,
-    csrf,
     grant_credits,
     run,
+    same_origin,
     sign,
     sign_in_by_email,
 )
@@ -69,14 +69,14 @@ OTHER_EMAIL = "second@example.com"
 async def link_hotkey(kit, http, hotkey: str = HOTKEY) -> None:
     """Attach a hotkey to the signed-in account, the way the website does."""
     challenge = await http.post(
-        "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=csrf(http)
+        "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=same_origin(http)
     )
     assert challenge.status_code == 200, challenge.text
     message = challenge.json()["message"]
     linked = await http.post(
         "/v1/me/hotkeys",
         json={"hotkey": hotkey, "signature": sign(hotkey, message)},
-        headers=csrf(http),
+        headers=same_origin(http),
     )
     assert linked.status_code == 201, linked.text
 
@@ -177,11 +177,13 @@ def test_the_bearer_token_authenticates_the_account_surface():
     run(scenario())
 
 
-def test_a_bearer_write_needs_no_csrf_token():
+def test_a_bearer_write_needs_no_proof_of_initiator():
     """The exemption exists because a bearer token is not an ambient credential.
 
-    Without it every CLI write would 403 — there is no cookie for a CLI to read a CSRF value
-    out of. `logout` is the simplest write to prove it on.
+    A CLI sends neither `Origin` nor `Sec-Fetch-Site`, so the fail-closed check that a cookie
+    session must pass would refuse every CLI write. It does not apply, and the reason is read
+    off the session row rather than off the shape of the request. `logout` is the simplest
+    write to prove it on.
     """
 
     async def scenario():
@@ -420,7 +422,7 @@ def test_a_hotkey_link_signature_cannot_be_replayed_as_a_cli_login():
                 link_challenge = await browser.post(
                     "/v1/me/hotkeys/challenge",
                     json={"hotkey": HOTKEY},
-                    headers=csrf(browser),
+                    headers=same_origin(browser),
                 )
                 link_message = link_challenge.json()["message"]
                 assert link_message.startswith("conjectures-hotkey-link-v1\n")
@@ -488,8 +490,8 @@ def test_a_cookie_token_presented_as_a_bearer_is_not_accepted():
     """One digest namespace, two kinds. The kind is in the lookup predicate.
 
     Not reachable by an attacker who does not already hold the cookie — it is HttpOnly — but
-    the two carry different CSRF obligations, and a credential that changes which rules apply
-    by changing where it is presented is the confusion worth forbidding outright.
+    only one of the two is ambient, and a credential that changes which rules apply to it by
+    changing where it is presented is the confusion worth forbidding outright.
     """
 
     async def scenario():
@@ -508,8 +510,9 @@ def test_a_cookie_token_presented_as_a_bearer_is_not_accepted():
 
 
 def test_a_bearer_token_planted_in_the_session_cookie_is_not_accepted():
-    """The dangerous direction: a bearer row has no CSRF digest, so accepting it as a cookie
-    would produce an ambient credential exempt from the CSRF check."""
+    """The dangerous direction: a BEARER row is exempt from proving where a write came from, so
+    accepting one out of the session cookie would make that exemption ambient — a credential the
+    browser attaches by itself and nothing then asks about."""
 
     async def scenario():
         kit = await harness().setup()
@@ -564,7 +567,7 @@ def test_a_bearer_request_is_never_answered_with_a_set_cookie():
 
 
 def test_authorization_is_not_a_permitted_cross_origin_request_header():
-    """The allowlist is the only thing keeping the CSRF exemption out of a browser's reach."""
+    """The allowlist is the only thing keeping the bearer exemption out of a browser's reach."""
     assert "Authorization" not in CORS_REQUEST_HEADERS
     assert not any(name.lower() == "authorization" for name in CORS_REQUEST_HEADERS)
 
@@ -662,7 +665,7 @@ def test_a_cli_token_is_scoped_to_the_hotkey_that_minted_it():
                 # The browser session owns both keys and is not scoped, so it gets past the
                 # check — proving the refusal above is about the credential, not the hotkey.
                 allowed = await browser.post(
-                    "/v1/submissions/intents", json=body, headers=csrf(browser)
+                    "/v1/submissions/intents", json=body, headers=same_origin(browser)
                 )
                 assert allowed.status_code != 403, allowed.text
         finally:
@@ -684,7 +687,7 @@ def test_a_cli_session_sees_a_redacted_account():
                 await browser.put(
                     "/v1/me/payout",
                     json={"coldkey": COLDKEY, "hotkey": HOTKEY},
-                    headers=csrf(browser),
+                    headers=same_origin(browser),
                 )
                 token = (await cli_login(kit, cli, HOTKEY))["access_token"]
 
@@ -726,7 +729,7 @@ def test_a_cli_session_sees_a_redacted_session_envelope():
                 await browser.put(
                     "/v1/me/payout",
                     json={"coldkey": COLDKEY, "hotkey": HOTKEY},
-                    headers=csrf(browser),
+                    headers=same_origin(browser),
                 )
                 await grant_credits(kit, uuid.UUID(account["id"]), 2)
                 token = (await cli_login(kit, cli, HOTKEY))["access_token"]
@@ -929,7 +932,7 @@ def test_a_leaked_cli_token_can_be_revoked_from_the_browser():
                 rows = (await browser.get("/v1/me/sessions")).json()
                 target = next(row for row in rows if row["kind"] == "BEARER")
                 killed = await browser.delete(
-                    f"/v1/me/sessions/{target['id']}", headers=csrf(browser)
+                    f"/v1/me/sessions/{target['id']}", headers=same_origin(browser)
                 )
                 assert killed.status_code == 204, killed.text
                 assert (await cli.get("/v1/me", headers=bearer(token))).status_code == 401
@@ -952,11 +955,11 @@ def test_one_account_cannot_revoke_another_accounts_session():
 
                 victim = (await first.get("/v1/me/sessions")).json()[0]["id"]
                 attacked = await second.delete(
-                    f"/v1/me/sessions/{victim}", headers=csrf(second)
+                    f"/v1/me/sessions/{victim}", headers=same_origin(second)
                 )
                 assert attacked.status_code == 404
                 missing = await second.delete(
-                    f"/v1/me/sessions/{uuid.uuid4()}", headers=csrf(second)
+                    f"/v1/me/sessions/{uuid.uuid4()}", headers=same_origin(second)
                 )
                 assert missing.status_code == 404
                 assert attacked.json()["reason_code"] == missing.json()["reason_code"]
@@ -981,7 +984,7 @@ def test_revoking_every_other_session_spares_the_caller_and_can_select_a_kind():
                 token = (await cli_login(kit, cli))["access_token"]
 
                 cleared = await browser.delete(
-                    "/v1/me/sessions?kind=BEARER", headers=csrf(browser)
+                    "/v1/me/sessions?kind=BEARER", headers=same_origin(browser)
                 )
                 assert cleared.status_code == 204, cleared.text
                 assert (await cli.get("/v1/me", headers=bearer(token))).status_code == 401
@@ -1024,7 +1027,7 @@ def test_an_admin_can_grant_and_remove_the_reviewer_role():
                 granted = await admin.put(
                     f"/v1/admin/accounts/{subject['id']}/roles",
                     json={"roles": [REVIEWER_ROLE]},
-                    headers=csrf(admin),
+                    headers=same_origin(admin),
                 )
                 assert granted.status_code == 200, granted.text
                 # MINER is retained whatever was asked for.
@@ -1033,7 +1036,7 @@ def test_an_admin_can_grant_and_remove_the_reviewer_role():
                 removed = await admin.put(
                     f"/v1/admin/accounts/{subject['id']}/roles",
                     json={"roles": []},
-                    headers=csrf(admin),
+                    headers=same_origin(admin),
                 )
                 assert removed.json()["roles"] == [MINER_ROLE]
         finally:
@@ -1052,7 +1055,7 @@ def test_an_unknown_role_is_refused_rather_than_stored():
                 refused = await admin.put(
                     f"/v1/admin/accounts/{boss['id']}/roles",
                     json={"roles": [ADMIN_ROLE, "SUPERUSER"]},
-                    headers=csrf(admin),
+                    headers=same_origin(admin),
                 )
                 assert refused.status_code == 409, refused.text
                 assert refused.json()["reason_code"] == "UNKNOWN_ROLE"
@@ -1074,7 +1077,7 @@ def test_an_admin_cannot_remove_their_own_admin_role():
                 refused = await admin.put(
                     f"/v1/admin/accounts/{boss['id']}/roles",
                     json={"roles": [MINER_ROLE]},
-                    headers=csrf(admin),
+                    headers=same_origin(admin),
                 )
                 assert refused.status_code == 409, refused.text
                 assert refused.json()["reason_code"] == "CANNOT_REMOVE_OWN_ADMIN"
@@ -1137,7 +1140,7 @@ def test_an_admin_can_cut_every_credential_an_account_holds():
                 assert all(row["current"] is False for row in listed.json())
 
                 cut = await admin.delete(
-                    f"/v1/admin/accounts/{subject['id']}/sessions", headers=csrf(admin)
+                    f"/v1/admin/accounts/{subject['id']}/sessions", headers=same_origin(admin)
                 )
                 assert cut.status_code == 204, cut.text
                 assert (await member.get("/v1/me")).status_code == 401
@@ -1161,7 +1164,7 @@ def test_roles_are_never_taken_from_client_input_on_signup():
                 refused = await browser.patch(
                     "/v1/me",
                     json={"display_name": "x", "roles": [ADMIN_ROLE]},
-                    headers=csrf(browser),
+                    headers=same_origin(browser),
                 )
                 assert refused.status_code == 400
         finally:
