@@ -21,8 +21,11 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
 
 # `credits:bonus`, comma-separated. A compact spec rather than a JSON config file,
 # because it is three numbers per package and a file would be one more thing to mount.
@@ -31,14 +34,19 @@ PACKAGE_SPEC = re.compile(r"^(\d{1,6})(?::(\d{1,6}))?$")
 MAX_PACKAGES = 8
 MAX_TERMS_BYTES = 256 * 1024
 
-# How many credits one purchase may buy, across every payment method and every funding path.
+# How many credits one purchase may PAY FOR, across every payment method and funding path.
 #
 # The single source of truth for the rule. `parse_packages` refuses a `CREDIT_PACKAGES` entry
 # that exceeds it, so a deployment cannot be configured into offering a package the write paths
 # would then reject — which is the failure this constant exists to make impossible. The two
 # request models that take a credit count (`me.DepositRequest` and `tmc_pay.PurchaseRequest`)
 # bound themselves by it rather than by a literal, so raising the cap is one edit here.
-MAX_CREDITS_PER_PURCHASE = 1
+#
+# **Paid credits, not granted credits.** A package bonus is extra credits the validator gives
+# away, not something a buyer can ask for — the request models only ever carry a paid count, so
+# that count is what has to be bounded. `10:3` grants 13 credits under a cap of 10 and that is
+# correct: nobody can request 13.
+MAX_CREDITS_PER_PURCHASE = 10
 
 # How credits can be paid for.
 #
@@ -97,7 +105,7 @@ class CreditPackage:
 
 
 def parse_packages(spec: str, *, credit_price_rao: int) -> tuple[CreditPackage, ...]:
-    """Read `CREDIT_PACKAGES`, e.g. `1` — or `1,10:1,50:8` once the cap is raised.
+    """Read `CREDIT_PACKAGES`, e.g. `1,5:1,10:3`.
 
     Ordered by size and deduplicated on the paid credit count, so the same configuration
     always produces the same list and two entries cannot offer different bonuses for the
@@ -131,24 +139,12 @@ def parse_packages(spec: str, *, credit_price_rao: int) -> tuple[CreditPackage, 
             )
         if bonus > credits_:
             # A bonus larger than the purchase is far more likely a typo than an
-            # intended promotion, and it would be a money mistake.
-            #
-            # Ahead of the ceiling check below on purpose: a lopsided bonus trips both rules at
-            # once, and "you typed the bonus wrong" is the more specific and more actionable of
-            # the two diagnoses. Behind it, this branch would be unreachable for exactly the
-            # inputs it was written to catch.
+            # intended promotion, and it would be a money mistake. This is the only bound on a
+            # bonus: the cap above governs what a buyer may *pay for*, and a grant the validator
+            # chooses to make is not bounded by what anyone can request.
             raise CreditsConfigError(
                 f"package bonus {bonus} exceeds its {credits_} paid credits; "
                 "check CREDIT_PACKAGES"
-            )
-        if bonus > 0 and credits_ + bonus > MAX_CREDITS_PER_PURCHASE:
-            # A bonus is extra credits, so it counts against the same ceiling. Checked separately
-            # from the cap above so the message names the bonus as the reason rather than leaving
-            # an operator to work out why a package inside the cap was refused.
-            raise CreditsConfigError(
-                f"a {credits_}-credit package with a {bonus}-credit bonus grants "
-                f"{credits_ + bonus} credits, exceeding the {MAX_CREDITS_PER_PURCHASE} "
-                "allowed per purchase; check CREDIT_PACKAGES"
             )
         packages[credits_] = CreditPackage(
             credits=credits_,
@@ -160,6 +156,45 @@ def parse_packages(spec: str, *, credit_price_rao: int) -> tuple[CreditPackage, 
             f"CREDIT_PACKAGES lists {len(packages)} packages; the maximum is {MAX_PACKAGES}"
         )
     return tuple(packages[key] for key in sorted(packages))
+
+
+def bonus_schedule(packages: Iterable[CreditPackage]) -> dict[int, int]:
+    """Paid credit count -> bonus credits, for the packages that actually grant one.
+
+    The form the crediting paths want. They are handed a rao amount and have to answer "does
+    this purchase earn a bonus", which is a lookup on the paid count — not a scan of a list of
+    dataclasses that also carries prices they already know.
+
+    Packages with no bonus are omitted rather than mapped to zero, so an empty result means
+    "no deal is on offer" and a funding path can skip the whole question on identity.
+    """
+    return {
+        item.credits: item.bonus_credits for item in packages if item.bonus_credits > 0
+    }
+
+
+@lru_cache(maxsize=8)
+def bonus_schedule_for(spec: str, *, credit_price_rao: int) -> Mapping[int, int]:
+    """The deals a deployment is configured for, from the raw `CREDIT_PACKAGES` spec.
+
+    For the crediting paths that hold a `Settings` but not the assembled `Services` — notably
+    `routers.tmc_pay.apply_invoice`, whose narrow signature is what lets
+    `scripts/reconcile_tmc_pay.py` reuse it without building the whole service graph. Deriving the
+    schedule from settings there rather than threading it in keeps that property, and means the
+    reconciler grants exactly the deals the API advertises without anyone remembering to pass them.
+
+    Cached because it is reached on every settlement and a process has one configuration. Keyed on
+    the spec and the price, so a test building several `Settings` gets the right answer for each
+    rather than the first one's. The result is a read-only view: a cached mutable dict handed to
+    several callers is a bug waiting for one of them to write to it.
+
+    Startup has already validated the spec — `app.py` parses the same string through
+    `parse_packages` — so a `CreditsConfigError` here would mean a process running on a
+    configuration it refused to start with, and is deliberately left to propagate.
+    """
+    return MappingProxyType(
+        bonus_schedule(parse_packages(spec, credit_price_rao=credit_price_rao))
+    )
 
 
 def btcli_command(*, treasury: str, amount_rao: int, rao_per_tao: int) -> str:
@@ -306,6 +341,8 @@ __all__ = [
     "CreditPackage",
     "CreditsConfigError",
     "SubmissionTerms",
+    "bonus_schedule",
+    "bonus_schedule_for",
     "btcli_command",
     "parse_packages",
     "payment_methods",

@@ -153,17 +153,32 @@ def _state(status_text: str) -> TmcPayOrderState:
 
 def _order(order: TmcPayOrder, *, settings: Settings) -> schemas.TmcPayOrder:
     amount_rao = order.crypto_amount_rao
+    # The package bonus this order earned, if it earned one. Recomputed from the same schedule
+    # `settle` granted it from, rather than read back off the ledger: the BONUS entry names no
+    # order — `credit_ledger_tmc_pay_idx` is unique across every kind, so it cannot — and the
+    # inputs are both immutable, so the two cannot drift.
+    bonus_rao = credit_store.bonus_rao_for_credits(
+        paid_credits=order.credits,
+        credit_price_rao=order.credit_price_rao,
+        bonus_schedule=credit_config.bonus_schedule_for(
+            settings.credit_packages, credit_price_rao=settings.payment_amount_rao
+        ),
+    )
     hosted = settings.tmc_pay_hosted_base_url
     return schemas.TmcPayOrder(
         id=order.id,
         status=str(order.status),
         credits_expected=order.credits,
         credit_price_rao=order.credit_price_rao,
-        # Derived from the amount actually credited rather than from the credit count asked for,
-        # so this field says what the balance gained and not what was hoped for. Zero until the
-        # ledger entry exists, which is the same instant the credits become spendable.
+        # Derived from what was actually credited rather than from the credit count asked for, so
+        # this field says what the balance gained and not what was hoped for. Zero until the ledger
+        # entry exists, which is the same instant the credits become spendable.
+        #
+        # The package bonus is included, because it is part of what the balance gained: an order
+        # for ten credits on the `10:3` deal reports thirteen. Reporting only the paid amount here
+        # would have the purchase page contradict the ledger page beside it.
         credits_credited=(
-            amount_rao // order.credit_price_rao
+            (amount_rao + bonus_rao) // order.credit_price_rao
             if order.credited_ledger_id is not None and amount_rao is not None
             else 0
         ),
@@ -777,6 +792,10 @@ async def apply_invoice(
                 event_id=event_id,
                 polled_at=polled_at,
                 now=now,
+                bonus_schedule=credit_config.bonus_schedule_for(
+                    settings.credit_packages,
+                    credit_price_rao=settings.payment_amount_rao,
+                ),
             )
         except RecordConflict:
             # Already credited by a concurrent webhook or reconciler pass. Nothing to do, and not

@@ -1267,16 +1267,25 @@ def test_a_deposit_declares_exactly_one_credit():
     run(scenario())
 
 
-def test_a_deposit_refuses_a_multi_credit_purchase():
+def test_a_deposit_refuses_more_credits_than_a_purchase_may_pay_for():
+    """The write path and `MAX_CREDITS_PER_PURCHASE` agree, so the largest package still fits."""
+
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
                 refused = await http.post(
-                    "/v1/me/deposits", json={"credits": 2}, headers=same_origin(http)
+                    "/v1/me/deposits", json={"credits": 11}, headers=same_origin(http)
                 )
                 assert refused.status_code == 400
+                # The biggest configured deal is a purchase this endpoint accepts. A cap that
+                # refused it would make the pricing page advertise a 400.
+                allowed = await http.post(
+                    "/v1/me/deposits", json={"credits": 10}, headers=same_origin(http)
+                )
+                assert allowed.status_code == 201, allowed.text
+                assert allowed.json()["amount_rao"] == 5_000_000_000
         finally:
             await kit.teardown()
 
@@ -1835,12 +1844,27 @@ def test_credit_pricing_and_terms_are_public():
                 assert body["price_usd_asof"] is None
                 assert body["methods"] == ["btcli"]
                 assert body["recipient"] == kit.settings.payment_recipient
-                assert body["packages"] == [{
-                    "credits": 1,
-                    "bonus_credits": 0,
-                    "total_credits": 1,
-                    "price_rao": 500_000_000,
-                }]
+                # One single credit and the two deals, smallest first.
+                assert body["packages"] == [
+                    {
+                        "credits": 1,
+                        "bonus_credits": 0,
+                        "total_credits": 1,
+                        "price_rao": 500_000_000,
+                    },
+                    {
+                        "credits": 5,
+                        "bonus_credits": 1,
+                        "total_credits": 6,
+                        "price_rao": 2_500_000_000,
+                    },
+                    {
+                        "credits": 10,
+                        "bonus_credits": 3,
+                        "total_credits": 13,
+                        "price_rao": 5_000_000_000,
+                    },
+                ]
                 # A bonus is extra credits, never a discount: the price is credits x price.
                 for package in body["packages"]:
                     assert (
@@ -1953,21 +1977,64 @@ def test_a_bonus_larger_than_its_purchase_is_refused_as_a_typo(monkeypatch):
         parse_packages("10:99", credit_price_rao=500_000_000)
 
 
-def test_a_package_above_the_per_purchase_cap_is_refused_at_startup():
+def test_a_package_paying_for_more_than_the_cap_is_refused_at_startup():
     """The cap is config validation, not a display filter.
 
     A package the write paths would refuse must not be loadable in the first place, or the
-    pricing page advertises a purchase that 422s. Both halves are checked: the paid credits,
-    and a bonus that would carry the total over on its own.
+    pricing page advertises a purchase that 400s.
     """
     from submission_api.credits import CreditsConfigError
 
     with pytest.raises(CreditsConfigError, match="may be bought per purchase"):
-        parse_packages("10", credit_price_rao=500_000_000)
-    with pytest.raises(CreditsConfigError, match="exceeding the 1"):
-        parse_packages("1:1", credit_price_rao=500_000_000)
-    # The one package the cap does allow still loads.
-    assert parse_packages("1", credit_price_rao=500_000_000)[0].total_credits == 1
+        parse_packages("11", credit_price_rao=500_000_000)
+    # The cap bounds what a purchase PAYS FOR, not what it is granted. `10:3` grants thirteen
+    # credits under a cap of ten and that is correct: nobody can request thirteen.
+    granted = parse_packages("10:3", credit_price_rao=500_000_000)[0]
+    assert (granted.credits, granted.total_credits) == (10, 13)
+
+
+def test_the_bonus_lookup_is_keyed_on_the_paid_credit_count():
+    from conjectures_subnet.db.credits import bonus_rao_for_credits, package_bonus_rao
+    from submission_api.credits import bonus_schedule
+
+    deals = bonus_schedule(parse_packages("1,5:1,10:3", credit_price_rao=500_000_000))
+    # Packages with no bonus are absent rather than mapped to zero, so "no deal on offer" is a
+    # falsy schedule a funding path can skip on.
+    assert deals == {5: 1, 10: 3}
+
+    def bonus_credits(paid_credits):
+        return (
+            bonus_rao_for_credits(
+                paid_credits=paid_credits,
+                credit_price_rao=500_000_000,
+                bonus_schedule=deals,
+            )
+            // 500_000_000
+        )
+
+    assert [bonus_credits(n) for n in (1, 4, 5, 6, 10)] == [0, 0, 1, 0, 3]
+    # No schedule configured is not the same as no matching package, but both grant nothing.
+    assert (
+        bonus_rao_for_credits(
+            paid_credits=5, credit_price_rao=500_000_000, bonus_schedule=None
+        )
+        == 0
+    )
+
+    # The chain path knows only an amount, so it reads the count back out — and a remainder means
+    # the payment did not land on the deal. 2.6 TAO buys five credits and change, not the deal.
+    def bonus_from_rao(rao):
+        return (
+            package_bonus_rao(
+                paid_rao=rao, credit_price_rao=500_000_000, bonus_schedule=deals
+            )
+            // 500_000_000
+        )
+
+    assert bonus_from_rao(5 * 500_000_000) == 1
+    assert bonus_from_rao(10 * 500_000_000) == 3
+    assert bonus_from_rao(5 * 500_000_000 + 1) == 0
+    assert bonus_from_rao(5 * 500_000_000 - 1) == 0
 
 
 def test_the_btcli_amount_is_rendered_from_integer_rao():
