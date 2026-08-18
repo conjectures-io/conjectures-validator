@@ -244,9 +244,11 @@ DEFAULT_DEPOSIT_HOURS = 24
 # they cannot end up reading different chains.
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
-DEFAULT_CREDIT_PACKAGES = "1"
-# One credit per purchase, enforced at startup by `credits.parse_packages` against
-# `credits.MAX_CREDITS_PER_PURCHASE` — a larger default here would refuse to boot.
+# One single credit, and two deals: pay for five get one free, pay for ten get three free.
+# `credits.parse_packages` refuses anything paying for more than
+# `credits.MAX_CREDITS_PER_PURCHASE` at startup. The bonuses are granted, not just advertised —
+# see `conjectures_subnet.db.credits.package_bonus_rao` for where and on what condition.
+DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # v3 was the v2 manual-review rule that expands `NOT_NOVEL`; v4 adds the two things a miner is now
 # actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
 # credit frozen into the request digest. The terms version and manual-review version are separate

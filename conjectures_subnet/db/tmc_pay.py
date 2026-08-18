@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import func, select, update
@@ -384,6 +384,7 @@ async def settle(
     event_id: str | None = None,
     polled_at: dt.datetime | None = None,
     now: dt.datetime,
+    bonus_schedule: Mapping[int, int] | None = None,
     created_by: str = "system",
 ) -> SettledOrder:
     """Issue credits for a paid invoice, once.
@@ -394,7 +395,11 @@ async def settle(
     2. re-read this order under a row lock and refuse if it is already credited — the check has
        to happen after the lock, not before it;
     3. append the DEPOSIT entry, naming the order;
-    4. point the order at that entry and record the status.
+    4. append a BONUS entry if the paid amount earns a package bonus, in this same transaction so
+       the two are granted or rolled back together — see `credits.credit_deposit` for why that,
+       rather than a new unique index, is what stops a duplicate webhook granting free credits
+       twice, and why the BONUS entry cannot name the order;
+    5. point the order at the DEPOSIT entry and record the status.
 
     What is credited is `crypto_amount_rao`: the TAO the invoice locked, which is what TMC PAY
     requires before reporting a paid status, and therefore what arrived. Not the fiat figure, not
@@ -433,6 +438,28 @@ async def settle(
         tmc_pay_order_id=locked.id,
         created_by=created_by,
     )
+    # Keyed on `locked.credits`, the count this invoice was opened for, NOT on the rao that
+    # arrived. An invoice only has to cover the credits it names, so `crypto_amount_rao` usually
+    # carries a remainder — matching on the amount would have advertised these deals and then
+    # silently declined to grant them on this path. See `credits.package_bonus_rao`.
+    bonus_rao = credits.bonus_rao_for_credits(
+        paid_credits=locked.credits,
+        credit_price_rao=locked.credit_price_rao,
+        bonus_schedule=bonus_schedule,
+    )
+    if bonus_rao:
+        await credits.record_entry(
+            session,
+            account_id=locked.account_id,
+            kind=CreditEntryKind.BONUS,
+            amount_rao=bonus_rao,
+            reason=credits.bonus_reason(
+                paid_credits=locked.credits,
+                bonus_rao=bonus_rao,
+                credit_price_rao=locked.credit_price_rao,
+            ),
+            created_by=created_by,
+        )
     locked.status = status
     locked.confirmed_at = confirmed_at or now
     locked.credited_ledger_id = entry.id

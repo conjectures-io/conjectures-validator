@@ -350,16 +350,134 @@ def test_half_a_tao_buys_one_credit():
 
 
 def test_two_and_a_half_tao_buys_five_credits():
+    """The price arithmetic on its own, with no deal on offer.
+
+    `CREDIT_PACKAGES` is pinned to the single credit deliberately: 2.5 TAO is exactly the
+    pay-for-5 deal in the shipped configuration, and this test is about rao dividing into
+    credits, not about bonuses. The deals get their own tests below.
+    """
+
     async def body(kit: Kit):
         account_id = await kit.account(coldkey=COLDKEY)
         chain = FakeChain(head=START_BLOCK + 3)
         chain.add(block=START_BLOCK + 1, sender=COLDKEY, amount_rao=5 * CREDIT_PRICE)
 
-        watcher = kit.watcher(chain)
+        watcher = kit.watcher(chain, CREDIT_PACKAGES="1")
         await watcher.resolve_cursor()
         await watcher.catch_up()
 
         assert (await kit.balance(account_id)).credits_available == 5
+
+    with_kit(body)
+
+
+# --- Package deals -----------------------------------------------------------------------
+# The watcher is the service that grants a bonus for a treasury transfer, so this is where the
+# advertised deal either becomes real or silently does not. `CREDIT_PACKAGES` is stated in each
+# test rather than relying on the default, so a change to the shipped deals cannot quietly
+# rewrite what these assert.
+
+DEALS = "1,5:1,10:3"
+
+
+def test_a_transfer_landing_on_a_deal_is_granted_its_bonus():
+    async def body(kit: Kit):
+        account_id = await kit.account(coldkey=COLDKEY)
+        chain = FakeChain(head=START_BLOCK + 3)
+        chain.add(block=START_BLOCK + 1, sender=COLDKEY, amount_rao=5 * CREDIT_PRICE)
+
+        watcher = kit.watcher(chain, CREDIT_PACKAGES=DEALS)
+        await watcher.resolve_cursor()
+        await watcher.catch_up()
+
+        # Six spendable credits for five credits' worth of TAO.
+        balance = await kit.balance(account_id)
+        assert balance.credits_available == 6
+        assert balance.balance_rao == 6 * CREDIT_PRICE
+        assert balance.remainder_rao == 0
+
+        # Two entries: what arrived, and what was given. The bonus explains itself, because it
+        # names no deposit — `credit_ledger_tmc_pay_idx` forbids that on the other path, so both
+        # paths carry the provenance in `reason` instead.
+        async with async_session_scope(kit.sessions) as session:
+            rows = list(
+                (
+                    await session.execute(
+                        select(CreditLedgerEntry).order_by(CreditLedgerEntry.id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        assert [str(row.kind) for row in rows] == ["DEPOSIT", "BONUS"]
+        assert rows[0].amount_rao == 5 * CREDIT_PRICE
+        assert rows[1].amount_rao == CREDIT_PRICE
+        assert rows[1].deposit_id is None
+        assert rows[1].reason == (
+            "package bonus: 1 credit(s) granted with a 5-credit purchase"
+        )
+
+
+    with_kit(body)
+
+
+def test_the_larger_deal_grants_three_free_credits():
+    async def body(kit: Kit):
+        account_id = await kit.account(coldkey=COLDKEY)
+        chain = FakeChain(head=START_BLOCK + 3)
+        chain.add(block=START_BLOCK + 1, sender=COLDKEY, amount_rao=10 * CREDIT_PRICE)
+
+        watcher = kit.watcher(chain, CREDIT_PACKAGES=DEALS)
+        await watcher.resolve_cursor()
+        await watcher.catch_up()
+
+        assert (await kit.balance(account_id)).credits_available == 13
+
+    with_kit(body)
+
+
+def test_an_amount_that_misses_a_deal_earns_no_bonus():
+    """Two accounts, two off-package amounts, one pass.
+
+    Six paid credits is not a deal, and five credits' worth plus a single rao is not the
+    five-credit deal — the rule needs a zero remainder, so there is no band of overpayment that
+    silently qualifies. The full off-package matrix is checked against the pure lookup in
+    `test_the_bonus_lookup_is_keyed_on_the_paid_credit_count`; this is the end-to-end half.
+    """
+
+    async def body(kit: Kit):
+        six = await kit.account(coldkey=COLDKEY)
+        just_over = await kit.account(coldkey=OTHER_COLDKEY)
+        chain = FakeChain(head=START_BLOCK + 5)
+        chain.add(block=START_BLOCK + 1, sender=COLDKEY, amount_rao=6 * CREDIT_PRICE)
+        chain.add(
+            block=START_BLOCK + 2,
+            sender=OTHER_COLDKEY,
+            amount_rao=5 * CREDIT_PRICE + 1,
+        )
+
+        watcher = kit.watcher(chain, CREDIT_PACKAGES=DEALS)
+        await watcher.resolve_cursor()
+        await watcher.catch_up()
+
+        assert (await kit.balance(six)).credits_available == 6
+        over = await kit.balance(just_over)
+        assert over.credits_available == 5
+        assert over.remainder_rao == 1
+
+        # No BONUS entry was written at all, for either of them.
+        async with async_session_scope(kit.sessions) as session:
+            kinds = [
+                str(row.kind)
+                for row in (
+                    await session.execute(
+                        select(CreditLedgerEntry).order_by(CreditLedgerEntry.id)
+                    )
+                )
+                .scalars()
+                .all()
+            ]
+        assert kinds == ["DEPOSIT", "DEPOSIT"]
 
     with_kit(body)
 

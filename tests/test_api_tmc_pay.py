@@ -548,13 +548,13 @@ def test_a_purchase_needs_a_browser_session_that_proves_where_it_came_from():
     run(scenario())
 
 
-def test_a_purchase_refuses_more_than_one_credit():
+def test_a_purchase_refuses_more_credits_than_it_may_pay_for():
     async def scenario():
         kit = await kit_with(FakeGateway([]), TMC_PAY_MAX_CREDITS="5").setup()
         try:
             async with buyer(kit) as (http, _):
                 refused = await http.post(
-                    ORDERS, json={"credits": 2}, headers=same_origin(http)
+                    ORDERS, json={"credits": 11}, headers=same_origin(http)
                 )
                 assert refused.status_code == 400
         finally:
@@ -636,6 +636,113 @@ def test_a_confirmed_webhook_credits_the_locked_amount_once():
                 assert entry.kind is CreditEntryKind.DEPOSIT
                 assert entry.tmc_pay_order_id == stored.id
                 assert entry.deposit_id is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_deal_is_granted_its_bonus_once_however_many_webhooks_arrive():
+    """The TMC PAY half of the package deals, and the property that keeps them safe.
+
+    **Keyed on the order's declared credit count, not on the rao that arrived.** An invoice only
+    has to *cover* the credits it was opened for, so `crypto_amount_rao` routinely carries a
+    remainder — matched on the amount, this path would have advertised the deals and then quietly
+    declined to grant them. The invoice here pays 2.6 TAO for a 5-credit order to pin that down:
+    off-package as an amount, still the five-credit deal as a purchase.
+
+    **Granted once.** The BONUS entry is written in the same transaction as the DEPOSIT entry, so
+    the guards that already stop a duplicate webhook crediting twice stop it granting free credits
+    twice — without a second unique index. TMC PAY reuses `X-Webhook-ID` on retry and also sends
+    fresh ids for the same invoice, so both are replayed here.
+    """
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-deal", crypto_amount="2.6")])
+        # Slippage is allowed here, unlike the rest of this file: the whole point is an invoice
+        # that locks MORE than the credits cost, which the default zero band would refuse at
+        # order creation before the deal could be tested at all.
+        kit = await kit_with(
+            gateway,
+            CREDIT_PACKAGES="1,5:1,10:3",
+            TMC_PAY_MAX_SLIPPAGE_BPS="500",
+        ).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=5)
+
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="inv-deal",
+                        status="confirmed",
+                        crypto_amount="2.6",
+                        confirmed_at=_iso(dt.datetime.now(dt.UTC)),
+                    ),
+                    webhook_id="deal-1",
+                )
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                # Five paid credits, one free, and the 0.1 TAO overpayment still the buyer's.
+                balance = (await http.get("/v1/me/credits")).json()
+                assert balance["credits_available"] == 6
+                assert balance["remainder_rao"] == 100_000_000
+
+                # The purchase page agrees with the ledger page beside it.
+                refreshed = await http.get(f"{ORDERS}/{order['id']}")
+                assert refreshed.json()["credits_credited"] == 6
+
+                ledger = (await http.get("/v1/me/credits/ledger")).json()["items"]
+                bonuses = [row for row in ledger if row["kind"] == "BONUS"]
+                assert len(bonuses) == 1
+                assert bonuses[0]["amount_rao"] == CREDIT_PRICE_RAO
+                assert bonuses[0]["reason"] == (
+                    "package bonus: 1 credit(s) granted with a 5-credit purchase"
+                )
+                # It names neither source. `credit_ledger_tmc_pay_idx` is unique across every
+                # kind, so the DEPOSIT entry has already claimed the order and a second row
+                # referencing it would violate the index.
+                assert bonuses[0]["deposit_id"] is None
+
+                # The same delivery again, then a different id for the same invoice.
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).json()["status"] == "duplicate"
+                raw2, headers2 = signed(
+                    invoice_body(
+                        invoice_id="inv-deal", status="confirmed", crypto_amount="2.6"
+                    ),
+                    webhook_id="deal-2",
+                )
+                assert (await http.post(WEBHOOK, content=raw2, headers=headers2)).status_code == 200
+
+                # Still six. A bonus granted per delivery would be free credits on demand.
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 6
+                after = (await http.get("/v1/me/credits/ledger")).json()["items"]
+                assert len([row for row in after if row["kind"] == "BONUS"]) == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_order_off_every_deal_earns_no_bonus():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-plain", crypto_amount="1.5")])
+        kit = await kit_with(gateway, CREDIT_PACKAGES="1,5:1,10:3").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=3)
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="inv-plain",
+                        status="confirmed",
+                        crypto_amount="1.5",
+                        confirmed_at=_iso(dt.datetime.now(dt.UTC)),
+                    ),
+                    webhook_id="plain-1",
+                )
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 3
+                ledger = (await http.get("/v1/me/credits/ledger")).json()["items"]
+                assert [row["kind"] for row in ledger] == ["DEPOSIT"]
         finally:
             await kit.teardown()
 

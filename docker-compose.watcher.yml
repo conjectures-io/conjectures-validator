@@ -81,6 +81,12 @@ services:
       # an API quoting one price while the watcher credits at another shows up as a wrong balance.
       CREDIT_PRICE_RAO: ${CREDIT_PRICE_RAO:-500000000}
 
+      # The package deals, and it MUST equal the API's CREDIT_PACKAGES for the same reason the
+      # price must: this is the service that grants the bonus for a treasury transfer, so a
+      # watcher reading a different spec than the pricing page advertises is a deal the site
+      # offers and the ledger never honours.
+      CREDIT_PACKAGES: ${CREDIT_PACKAGES:-1,5:1,10:3}
+
       # --- Chain ------------------------------------------------------------
       # `finney` is mainnet. The archive endpoint is used only by the one-off bisection that
       # resolves the genesis timestamp to a block, which reads state outside a lite node's pruned
