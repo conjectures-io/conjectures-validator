@@ -1037,10 +1037,15 @@ class DepositState(enum.StrEnum):
 class TmcPayOrderState(enum.StrEnum):
     """A credit purchase made through TMC PAY.
 
-    Two of these are ours and the other eight are TMC PAY's invoice lifecycle,
-    label for label. Kept identical on purpose: a status this validator invented
-    would be a mapping to maintain, and a mapping is a place for the two systems
-    to disagree about whether money arrived.
+    Two of these are ours and the rest are TMC PAY's invoice lifecycle, label for
+    label. Kept identical on purpose: a status this validator invented would be a
+    mapping to maintain, and a mapping is a place for the two systems to disagree
+    about whether money arrived.
+
+    LATE_PAYMENT is the one exception, and it is not a label TMC PAY sends. They
+    publish no status for a payment confirmed after its TTL, so it is derived from
+    `confirmed_at` against `expires_at` and stored here to keep the operator queue
+    able to find such an order.
     """
 
     NEW = "NEW"  # the row exists; the invoice has not been created yet
@@ -1052,7 +1057,9 @@ class TmcPayOrderState(enum.StrEnum):
     CONFIRMED = "CONFIRMED"  # paid, confirmed, amount matches
     OVERPAID = "OVERPAID"  # paid more than the invoice; terminal
     EXPIRED = "EXPIRED"  # the TTL elapsed with no confirming payment
-    LATE_PAYMENT = "LATE_PAYMENT"  # confirmed after expiry; reconciled by hand
+    LATE_PAYMENT = "LATE_PAYMENT"  # derived: confirmed after expiry; reconciled by hand
+    # Last because the migration appends it; see V024. Terminal and unpaid, like EXPIRED.
+    CANCELLED = "CANCELLED"  # cancelled by the merchant or the buyer
 
 
 class IntentState(enum.StrEnum):

@@ -289,13 +289,20 @@ def test_no_rate_means_no_quote():
 
 
 def test_only_confirmed_and_overpaid_earn_credits_by_default():
-    """`late_payment` is real money and still not automatic — see `credits_are_earned`."""
+    """A late payment is real money and still not automatic — see `credits_are_earned`."""
     for status in ("confirmed", "overpaid"):
-        assert tmc_pay.credits_are_earned(status, credit_late_payments=False)
-    for status in ("created", "pending", "confirming", "underpaid", "expired", "late_payment"):
-        assert not tmc_pay.credits_are_earned(status, credit_late_payments=False)
-    assert tmc_pay.credits_are_earned("late_payment", credit_late_payments=True)
-    assert not tmc_pay.credits_are_earned("expired", credit_late_payments=True)
+        assert tmc_pay.credits_are_earned(status, late=False, credit_late_payments=False)
+    for status in ("created", "pending", "confirming", "underpaid", "expired", "cancelled"):
+        assert not tmc_pay.credits_are_earned(status, late=False, credit_late_payments=False)
+
+
+def test_lateness_decides_a_paid_status_either_way():
+    """The opt-in governs late payments alone, and never gates a punctual confirmation."""
+    assert not tmc_pay.credits_are_earned("confirmed", late=True, credit_late_payments=False)
+    assert tmc_pay.credits_are_earned("confirmed", late=True, credit_late_payments=True)
+    # An unpaid status stays unpaid however the flag is set: there is nothing to credit.
+    assert not tmc_pay.credits_are_earned("expired", late=False, credit_late_payments=True)
+    assert tmc_pay.credits_are_earned("confirmed", late=False, credit_late_payments=False)
 
 
 def test_the_signature_check_is_over_the_raw_bytes():
@@ -899,7 +906,46 @@ def test_underpaid_and_overpaid_are_handled_differently_and_both_flag_for_review
     run(scenario())
 
 
+def test_a_cancelled_invoice_is_recorded_as_terminal_and_credits_nothing():
+    """`cancelled` is in TMC PAY's published enum, and reaches the stored enum unchanged.
+
+    Before it was accepted, parsing refused the body, the webhook answered 4xx, and TMC PAY was
+    left retrying a delivery that described an ordinary cancellation.
+    """
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="gone", crypto_amount="0.5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+
+                raw, headers = signed(
+                    invoice_body(invoice_id="gone", status="cancelled", crypto_amount="0.5")
+                )
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                body = (await http.get(f"{ORDERS}/{order['id']}")).json()
+                assert body["status"] == "CANCELLED"
+                assert body["credits_credited"] == 0
+                # Nothing arrived, so there is nothing for an operator to settle.
+                assert body["needs_review"] is False
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_late_payment_credits_nothing_unless_the_operator_opted_in():
+    """TMC PAY sends no `late_payment` status, so lateness is read off the timestamps.
+
+    A confirmation stamped after the invoice's own `expires_at` is the exceptional case: the
+    stored state is still LATE_PAYMENT and the operator opt-in still decides whether it credits.
+    """
+    # Comfortably past the 30-minute `expires_at` that `invoice_body` builds.
+    late_confirmation = _iso(dt.datetime.now(dt.UTC) + dt.timedelta(minutes=45))
+
     async def scenario():
         for opted_in, expected_credits in ((False, 0), (True, 1)):
             gateway = FakeGateway([invoice_body(invoice_id="late", crypto_amount="0.5")])
@@ -912,8 +958,9 @@ def test_a_late_payment_credits_nothing_unless_the_operator_opted_in():
                     raw, headers = signed(
                         invoice_body(
                             invoice_id="late",
-                            status="late_payment",
+                            status="confirmed",
                             crypto_amount="0.5",
+                            confirmed_at=late_confirmation,
                         )
                     )
                     assert (

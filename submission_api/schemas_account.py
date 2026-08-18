@@ -410,7 +410,7 @@ class TmcPayOrder(Model):
     id: uuid.UUID
     status: str = Field(
         description="NEW | FAILED | CREATED | PENDING | CONFIRMING | UNDERPAID | "
-        "CONFIRMED | OVERPAID | EXPIRED | LATE_PAYMENT"
+        "CONFIRMED | OVERPAID | CANCELLED | EXPIRED | LATE_PAYMENT"
     )
     credits_expected: int
     credit_price_rao: int
