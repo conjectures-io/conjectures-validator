@@ -31,23 +31,49 @@ PACKAGE_SPEC = re.compile(r"^(\d{1,6})(?::(\d{1,6}))?$")
 MAX_PACKAGES = 8
 MAX_TERMS_BYTES = 256 * 1024
 
+# How many credits one purchase may buy, across every payment method and every funding path.
+#
+# The single source of truth for the rule. `parse_packages` refuses a `CREDIT_PACKAGES` entry
+# that exceeds it, so a deployment cannot be configured into offering a package the write paths
+# would then reject — which is the failure this constant exists to make impossible. The two
+# request models that take a credit count (`me.DepositRequest` and `tmc_pay.PurchaseRequest`)
+# bound themselves by it rather than by a literal, so raising the cap is one edit here.
+MAX_CREDITS_PER_PURCHASE = 1
+
 # How credits can be paid for.
 #
 # `btcli` is a transfer straight to the treasury, confirmed by reading finalized chain state —
-# `payments.py` and `deposit_watcher/`. `tmc_pay` is an invoice at the TMC PAY processor, which
-# derives its own deposit address, confirms the payment, and settles to the treasury later; see
-# `submission_api/tmc_pay.py` for what that changes about the evidence behind a credit.
+# `payments.py` and `deposit_watcher/`. `POST /v1/me/deposits` hands back the exact command to
+# run. `tmc_pay` is an invoice at the TMC PAY processor, which derives its own deposit address,
+# confirms the payment, and settles to the treasury later; see `submission_api/tmc_pay.py` for
+# what that changes about the evidence behind a credit.
 #
-# Both charge the same `CREDIT_PRICE_RAO` per credit. `payment_methods` filters the list by what
-# the deployment is actually configured for, because a method the website renders and the API
-# cannot serve is worse than one it does not offer.
+# Every method charges the same `CREDIT_PRICE_RAO` per credit. `payment_methods` returns all of
+# them the deployment can actually take money through, because a method the website renders and
+# the API cannot serve is worse than one it never offers.
 METHOD_BTCLI = "btcli"
 METHOD_TMC_PAY = "tmc_pay"
+
+# NOT SERVED YET, deliberately. The Talisman / tao.com browser-extension flow signs the *same*
+# treasury transfer in the page instead of in a terminal, so it needs no new evidence path — the
+# finalized-transfer reader already confirms it, and `POST /v1/me/deposits` already declares the
+# expectation it is checked against. What is missing is only a frontend that can sign.
+#
+# Uncomment this and add it to `PAYMENT_METHODS` in the same change that ships that frontend.
+# Announcing it before then is the same mistake as announcing a method the API cannot serve: the
+# purchase page would render a button that goes nowhere.
+# METHOD_WALLET_EXTENSION = "wallet_extension"
+
 PAYMENT_METHODS = (METHOD_BTCLI, METHOD_TMC_PAY)
 
 
 def payment_methods(*, tmc_pay_enabled: bool) -> tuple[str, ...]:
-    """The methods this deployment can actually take money through."""
+    """Every method this deployment can actually take money through.
+
+    `btcli` is always available: it needs nothing configured beyond the treasury address that
+    payments already require. TMC PAY is added only when the processor credentials are present,
+    so the list is the deployment's real capability rather than the build's.
+    """
     if tmc_pay_enabled:
         return PAYMENT_METHODS
     return (METHOD_BTCLI,)
@@ -71,11 +97,18 @@ class CreditPackage:
 
 
 def parse_packages(spec: str, *, credit_price_rao: int) -> tuple[CreditPackage, ...]:
-    """Read `CREDIT_PACKAGES`, e.g. `1,10:1,50:8`.
+    """Read `CREDIT_PACKAGES`, e.g. `1` — or `1,10:1,50:8` once the cap is raised.
 
     Ordered by size and deduplicated on the paid credit count, so the same configuration
     always produces the same list and two entries cannot offer different bonuses for the
     same purchase.
+
+    **`MAX_CREDITS_PER_PURCHASE` is enforced here, at startup, and that is the point.** The
+    write paths bound themselves by the same constant, so a package larger than the cap could
+    only ever be a package the API would refuse to sell — a purchase page advertising a
+    purchase that 422s. Refused at startup rather than filtered out of the pricing response,
+    because a deployment silently serving fewer packages than it was configured with is a
+    misconfiguration that looks like working software.
     """
     packages: dict[int, CreditPackage] = {}
     for item in (part.strip() for part in spec.split(",")):
@@ -90,12 +123,32 @@ def parse_packages(spec: str, *, credit_price_rao: int) -> tuple[CreditPackage, 
         bonus = int(matched.group(2) or 0)
         if credits_ <= 0:
             raise CreditsConfigError("a credit package must contain at least one credit")
+        if credits_ > MAX_CREDITS_PER_PURCHASE:
+            raise CreditsConfigError(
+                f"CREDIT_PACKAGES offers a {credits_}-credit package, but at most "
+                f"{MAX_CREDITS_PER_PURCHASE} credit(s) may be bought per purchase; "
+                "raise MAX_CREDITS_PER_PURCHASE to sell larger packages"
+            )
         if bonus > credits_:
             # A bonus larger than the purchase is far more likely a typo than an
             # intended promotion, and it would be a money mistake.
+            #
+            # Ahead of the ceiling check below on purpose: a lopsided bonus trips both rules at
+            # once, and "you typed the bonus wrong" is the more specific and more actionable of
+            # the two diagnoses. Behind it, this branch would be unreachable for exactly the
+            # inputs it was written to catch.
             raise CreditsConfigError(
                 f"package bonus {bonus} exceeds its {credits_} paid credits; "
                 "check CREDIT_PACKAGES"
+            )
+        if bonus > 0 and credits_ + bonus > MAX_CREDITS_PER_PURCHASE:
+            # A bonus is extra credits, so it counts against the same ceiling. Checked separately
+            # from the cap above so the message names the bonus as the reason rather than leaving
+            # an operator to work out why a package inside the cap was refused.
+            raise CreditsConfigError(
+                f"a {credits_}-credit package with a {bonus}-credit bonus grants "
+                f"{credits_ + bonus} credits, exceeding the {MAX_CREDITS_PER_PURCHASE} "
+                "allowed per purchase; check CREDIT_PACKAGES"
             )
         packages[credits_] = CreditPackage(
             credits=credits_,
@@ -245,6 +298,7 @@ __all__ = [
     "APPROVAL_REASONS",
     "DISQUALIFICATION_CODES",
     "DISQUALIFICATION_REASONS",
+    "MAX_CREDITS_PER_PURCHASE",
     "MAX_PACKAGES",
     "METHOD_BTCLI",
     "METHOD_TMC_PAY",

@@ -114,7 +114,7 @@ class PurchaseRequest(Payload):
     the buyer to do the conversion, and then to explain the remainder.
     """
 
-    credits: int = Field(ge=1)
+    credits: int = Field(ge=1, le=credit_config.MAX_CREDITS_PER_PURCHASE)
 
 
 def _now() -> dt.datetime:

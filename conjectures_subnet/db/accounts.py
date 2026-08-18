@@ -746,6 +746,7 @@ async def open_challenge_by_nonce(
     secret_digest: bytes,
     now: dt.datetime,
     max_attempts: int,
+    account_id: uuid.UUID | None = None,
 ) -> LoginChallenge | None:
     """The one unconsumed challenge this nonce names, or None.
 
@@ -765,6 +766,12 @@ async def open_challenge_by_nonce(
     ``ss58`` stays in the predicate as well, so a nonce minted for one address cannot be
     redeemed for another even if it leaks, and ``attempts`` bounds how many signatures may be
     offered against a single challenge.
+
+    ``account_id`` is for the kinds that attach a credential to an account that is already
+    known — COLDKEY_LINK, whose challenge is minted by a signed-in caller. Passing it puts the
+    ownership check in the *query*, so a nonce belonging to another account matches nothing and
+    is reported by the same "no open challenge" refusal as every other miss. Left ``None`` for
+    the sign-in kinds, where the account is what the flow is still establishing.
     """
     statement = select(LoginChallenge).where(
         LoginChallenge.secret_sha256 == secret_digest,
@@ -774,6 +781,8 @@ async def open_challenge_by_nonce(
         LoginChallenge.expires_at > now,
         LoginChallenge.attempts < max_attempts,
     )
+    if account_id is not None:
+        statement = statement.where(LoginChallenge.account_id == account_id)
     return (await session.execute(statement)).scalar_one_or_none()
 
 

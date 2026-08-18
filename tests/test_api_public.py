@@ -61,6 +61,10 @@ def production_env(**overrides: str) -> dict[str, str]:
         # Stage 2 additions production also refuses to start without.
         "WEBSITE_BASE_URL": "https://conjectures.io",
         "MAIL_SENDER": "smtp",
+        "SMTP_HOST": "smtp.example.com",
+        "SMTP_USERNAME": "smtp-user",
+        "SMTP_PASSWORD": "smtp-password",
+        "SMTP_FROM_ADDRESS": "login@conjectures.io",
     }
     environ.update(overrides)
     return environ

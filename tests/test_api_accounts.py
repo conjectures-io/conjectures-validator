@@ -59,12 +59,14 @@ pytestmark = pytest.mark.skipif(
 
 ORIGIN = "https://conjectures.io"
 EMAIL = "solver@example.com"
+OTHER_COLDKEY = Keypair.create_from_uri("//Eve").ss58_address
 
 # The fixture addresses are the standard development keys, so a test can sign as them.
 URI = {
     HOTKEY: "//Alice",
     OTHER_HOTKEY: "//Bob",
     COLDKEY: "//Dave",
+    OTHER_COLDKEY: "//Eve",
 }
 
 
@@ -648,6 +650,187 @@ def test_every_account_response_is_no_store():
 # --- Linked hotkeys and payout -----------------------------------------------------------
 
 
+async def link_wallet(kit, http, coldkey: str):
+    challenge = await http.post(
+        "/v1/me/wallets/challenge", json={"coldkey": coldkey}, headers=same_origin(http)
+    )
+    assert challenge.status_code == 200, challenge.text
+    body = challenge.json()
+    message = body["message"]
+    assert message.startswith("conjectures-coldkey-link-v1\n")
+    return await http.post(
+        "/v1/me/wallets",
+        json={
+            "coldkey": coldkey,
+            "nonce": body["nonce"],
+            "signature": sign(coldkey, message),
+        },
+        headers=same_origin(http),
+    )
+
+
+def test_multiple_coldkeys_can_be_linked_but_never_rebound_between_accounts():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as first, await client(kit) as second:
+                account = await sign_in_by_email(kit, first, email="wallet-one@example.com")
+                assert account["wallets"] == []
+
+                linked = await link_wallet(kit, first, COLDKEY)
+                assert linked.status_code == 201, linked.text
+                linked_again = await link_wallet(kit, first, OTHER_COLDKEY)
+                assert linked_again.status_code == 201, linked_again.text
+                assert {item["coldkey"] for item in linked_again.json()["wallets"]} == {
+                    COLDKEY,
+                    OTHER_COLDKEY,
+                }
+
+                await sign_in_by_email(kit, second, email="wallet-two@example.com")
+                stolen = await link_wallet(kit, second, COLDKEY)
+                assert stolen.status_code == 409
+                assert stolen.json()["reason_code"] == "WALLET_ALREADY_LINKED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_coldkey_link_challenge_is_spent_after_too_many_failed_signatures():
+    """An open link challenge is not unbounded free sr25519 work.
+
+    The same ceiling the CLI session flow applies, for the same reason: verifying before
+    consuming means a wrong signature does not force the user to start over, and the attempt
+    count is what stops that kindness from being an amplification primitive.
+    """
+
+    async def scenario():
+        kit = await harness(LOGIN_CHALLENGE_ATTEMPTS="2").setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                minted = (
+                    await http.post(
+                        "/v1/me/wallets/challenge",
+                        json={"coldkey": COLDKEY},
+                        headers=same_origin(http),
+                    )
+                ).json()
+
+                # Valid sr25519, over the wrong bytes.
+                wrong = sign(COLDKEY, "conjectures-coldkey-link-v1\nnot the message")
+                for _ in range(2):
+                    bad = await http.post(
+                        "/v1/me/wallets",
+                        json={
+                            "coldkey": COLDKEY,
+                            "nonce": minted["nonce"],
+                            "signature": wrong,
+                        },
+                        headers=same_origin(http),
+                    )
+                    assert bad.status_code == 401, bad.text
+
+                # The ceiling is reached, so even the right signature no longer finds the row.
+                spent = await http.post(
+                    "/v1/me/wallets",
+                    json={
+                        "coldkey": COLDKEY,
+                        "nonce": minted["nonce"],
+                        "signature": sign(COLDKEY, minted["message"]),
+                    },
+                    headers=same_origin(http),
+                )
+                assert spent.status_code == 401
+                assert spent.json()["reason_code"] == "CHALLENGE_INVALID"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_another_accounts_link_nonce_is_not_redeemable():
+    """The account binding is in the query, so a leaked nonce is inert elsewhere.
+
+    Two challenges for the same coldkey, minted by two accounts. The second account holding
+    the first's nonce must get the same "no open challenge" refusal as any other miss.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as first, await client(kit) as second:
+                await sign_in_by_email(kit, first, email="nonce-one@example.com")
+                minted = (
+                    await first.post(
+                        "/v1/me/wallets/challenge",
+                        json={"coldkey": COLDKEY},
+                        headers=same_origin(first),
+                    )
+                ).json()
+
+                await sign_in_by_email(kit, second, email="nonce-two@example.com")
+                stolen = await second.post(
+                    "/v1/me/wallets",
+                    json={
+                        "coldkey": COLDKEY,
+                        "nonce": minted["nonce"],
+                        "signature": sign(COLDKEY, minted["message"]),
+                    },
+                    headers=same_origin(second),
+                )
+                assert stolen.status_code == 401
+                assert stolen.json()["reason_code"] == "CHALLENGE_INVALID"
+
+                # And the rightful owner's challenge is untouched by the attempt.
+                linked = await first.post(
+                    "/v1/me/wallets",
+                    json={
+                        "coldkey": COLDKEY,
+                        "nonce": minted["nonce"],
+                        "signature": sign(COLDKEY, minted["message"]),
+                    },
+                    headers=same_origin(first),
+                )
+                assert linked.status_code == 201, linked.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_coldkey_link_signature_cannot_be_replayed_as_a_sign_in():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                challenge = await http.post(
+                    "/v1/me/wallets/challenge",
+                    json={"coldkey": COLDKEY},
+                    headers=same_origin(http),
+                )
+                link_message = challenge.json()["message"]
+
+            async with await client(kit) as attacker:
+                await attacker.post(
+                    "/v1/auth/wallet/challenge", json={"address": COLDKEY}
+                )
+                replayed = await attacker.post(
+                    "/v1/auth/wallet/verify",
+                    json={
+                        "address": COLDKEY,
+                        "signature": sign(COLDKEY, link_message),
+                    },
+                )
+                assert replayed.status_code == 401
+                assert replayed.json()["reason_code"] == "SIGNATURE_INVALID"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 async def link(kit, http, hotkey: str):
     challenge = await http.post(
         "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=same_origin(http)
@@ -1056,28 +1239,44 @@ def test_the_ledger_records_the_deposit_and_pages_newest_first():
     run(scenario())
 
 
-def test_a_deposit_declares_an_amount_and_returns_a_copyable_command():
+def test_a_deposit_declares_exactly_one_credit():
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
                 created = await http.post(
-                    "/v1/me/deposits", json={"credits": 4}, headers=same_origin(http)
+                    "/v1/me/deposits", json={"credits": 1}, headers=same_origin(http)
                 )
                 assert created.status_code == 201, created.text
                 body = created.json()
                 assert body["status"] == "AWAITING_TRANSFER"
-                assert body["amount_rao"] == 2_000_000_000
-                assert body["credits_expected"] == 4
+                assert body["amount_rao"] == 500_000_000
+                assert body["credits_expected"] == 1
                 # Nothing is credited by declaring a deposit.
                 assert body["credited_rao"] is None
                 assert "btcli wallet transfer" in body["btcli_command"]
-                assert "--amount 2" in body["btcli_command"]
+                assert "--amount 0.5" in body["btcli_command"]
 
                 assert (
                     await http.get(f"/v1/me/deposits/{body['id']}")
                 ).json()["id"] == body["id"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_deposit_refuses_a_multi_credit_purchase():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                refused = await http.post(
+                    "/v1/me/deposits", json={"credits": 2}, headers=same_origin(http)
+                )
+                assert refused.status_code == 400
         finally:
             await kit.teardown()
 
@@ -1636,6 +1835,12 @@ def test_credit_pricing_and_terms_are_public():
                 assert body["price_usd_asof"] is None
                 assert body["methods"] == ["btcli"]
                 assert body["recipient"] == kit.settings.payment_recipient
+                assert body["packages"] == [{
+                    "credits": 1,
+                    "bonus_credits": 0,
+                    "total_credits": 1,
+                    "price_rao": 500_000_000,
+                }]
                 # A bonus is extra credits, never a discount: the price is credits x price.
                 for package in body["packages"]:
                     assert (
@@ -1720,7 +1925,16 @@ def test_a_pinned_usd_price_must_carry_the_date_it_was_pinned():
 # --- Package and command arithmetic ------------------------------------------------------
 
 
-def test_a_package_bonus_is_extra_credits_not_a_discount():
+def test_a_package_bonus_is_extra_credits_not_a_discount(monkeypatch):
+    """The arithmetic that applies once `MAX_CREDITS_PER_PURCHASE` is raised.
+
+    Raised here rather than rewritten around the current cap of one, because a bonus is
+    meaningless on a single-credit package and the rule being checked — bonus adds credits, it
+    does not reduce the price — is the one that has to survive the cap moving.
+    """
+    from submission_api import credits as credit_config
+
+    monkeypatch.setattr(credit_config, "MAX_CREDITS_PER_PURCHASE", 100)
     packages = parse_packages("1,10:1,50:8", credit_price_rao=500_000_000)
     assert [(item.credits, item.bonus_credits, item.price_rao) for item in packages] == [
         (1, 0, 500_000_000),
@@ -1730,11 +1944,30 @@ def test_a_package_bonus_is_extra_credits_not_a_discount():
     assert packages[1].total_credits == 11
 
 
-def test_a_bonus_larger_than_its_purchase_is_refused_as_a_typo():
+def test_a_bonus_larger_than_its_purchase_is_refused_as_a_typo(monkeypatch):
+    from submission_api import credits as credit_config
     from submission_api.credits import CreditsConfigError
 
-    with pytest.raises(CreditsConfigError, match="exceeds"):
+    monkeypatch.setattr(credit_config, "MAX_CREDITS_PER_PURCHASE", 100)
+    with pytest.raises(CreditsConfigError, match="exceeds its"):
         parse_packages("10:99", credit_price_rao=500_000_000)
+
+
+def test_a_package_above_the_per_purchase_cap_is_refused_at_startup():
+    """The cap is config validation, not a display filter.
+
+    A package the write paths would refuse must not be loadable in the first place, or the
+    pricing page advertises a purchase that 422s. Both halves are checked: the paid credits,
+    and a bonus that would carry the total over on its own.
+    """
+    from submission_api.credits import CreditsConfigError
+
+    with pytest.raises(CreditsConfigError, match="may be bought per purchase"):
+        parse_packages("10", credit_price_rao=500_000_000)
+    with pytest.raises(CreditsConfigError, match="exceeding the 1"):
+        parse_packages("1:1", credit_price_rao=500_000_000)
+    # The one package the cap does allow still loads.
+    assert parse_packages("1", credit_price_rao=500_000_000)[0].total_credits == 1
 
 
 def test_the_btcli_amount_is_rendered_from_integer_rao():

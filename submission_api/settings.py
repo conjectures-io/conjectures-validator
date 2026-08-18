@@ -167,6 +167,16 @@ MAX_BANNER_LENGTH = 500
 SMTP_MAIL = "smtp"
 CONSOLE_MAIL = "console"
 MAIL_SENDERS = (SMTP_MAIL, CONSOLE_MAIL)
+SMTP_STARTTLS = "starttls"
+SMTP_IMPLICIT_TLS = "implicit-tls"
+SMTP_PLAINTEXT = "none"
+SMTP_SECURITY_MODES = (SMTP_STARTTLS, SMTP_IMPLICIT_TLS, SMTP_PLAINTEXT)
+DEFAULT_SMTP_PORT = 587
+DEFAULT_SMTP_TIMEOUT_SECONDS = 10.0
+SMTP_FROM_ADDRESS = re.compile(
+    r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@"
+    r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$"
+)
 
 # 30-day rolling, as the account contract states. Rolling means extended on use, which is
 # why the refresh interval exists: without it every authenticated request would write.
@@ -216,6 +226,12 @@ GOOGLE_CLIENT_ID_SHAPE = re.compile(
 # past any plausible client bug and nowhere near useful for guessing a 64-byte signature.
 DEFAULT_CHALLENGE_ATTEMPTS = 5
 
+# Public OAuth client identifier, not a secret. Empty keeps Google sign-in disabled without
+# weakening either of the existing login methods.
+GOOGLE_CLIENT_ID_SHAPE = re.compile(
+    r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$"
+)
+
 # How long a held credit stays held. Long enough to upload a bundle and sign a digest,
 # short enough that an abandoned intent does not strand a credit for the day.
 DEFAULT_INTENT_MINUTES = 30
@@ -228,7 +244,9 @@ DEFAULT_DEPOSIT_HOURS = 24
 # they cannot end up reading different chains.
 DEFAULT_BITTENSOR_NETWORK = "finney"
 
-DEFAULT_CREDIT_PACKAGES = "1,10:1,50:8"
+DEFAULT_CREDIT_PACKAGES = "1"
+# One credit per purchase, enforced at startup by `credits.parse_packages` against
+# `credits.MAX_CREDITS_PER_PURCHASE` — a larger default here would refuse to boot.
 # v3 was the v2 manual-review rule that expands `NOT_NOVEL`; v4 adds the two things a miner is now
 # actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
 # credit frozen into the request digest. The terms version and manual-review version are separate
@@ -617,6 +635,13 @@ class Settings:
 
     # --- Accounts and sessions (Stage 2) ---------------------------------------------------
     mail_sender: str
+    smtp_host: str
+    smtp_port: int
+    smtp_username: str
+    smtp_password: str = field(repr=False)
+    smtp_from_address: str
+    smtp_security: str
+    smtp_timeout_seconds: float
     # Where the magic link points. The website's origin, not this API's: the link is
     # clicked by a person in a browser and lands on a page, which then calls the API.
     website_base_url: str
@@ -830,6 +855,44 @@ class Settings:
                 "links, which are credentials, to the process log"
             )
 
+        smtp_host = env.get("SMTP_HOST", "").strip()
+        smtp_port = _positive_int(env, "SMTP_PORT", DEFAULT_SMTP_PORT, maximum=65_535)
+        smtp_username = env.get("SMTP_USERNAME", "").strip()
+        smtp_password = env.get("SMTP_PASSWORD", "")
+        smtp_from_address = env.get("SMTP_FROM_ADDRESS", "").strip()
+        smtp_security = _choice(
+            env, "SMTP_SECURITY", SMTP_SECURITY_MODES, SMTP_STARTTLS
+        )
+        smtp_timeout_seconds = _positive_float(
+            env,
+            "SMTP_TIMEOUT_SECONDS",
+            DEFAULT_SMTP_TIMEOUT_SECONDS,
+            maximum=120.0,
+        )
+        if mail_sender == SMTP_MAIL:
+            if not smtp_host:
+                raise SettingsError("SMTP_HOST is required when MAIL_SENDER=smtp")
+            if (
+                len(smtp_host) > 253
+                or any(char.isspace() for char in smtp_host)
+                or any(ord(char) < 32 for char in smtp_host)
+            ):
+                raise SettingsError("SMTP_HOST must be a hostname without whitespace")
+            if not smtp_from_address:
+                raise SettingsError(
+                    "SMTP_FROM_ADDRESS is required when MAIL_SENDER=smtp"
+                )
+            if SMTP_FROM_ADDRESS.fullmatch(smtp_from_address) is None:
+                raise SettingsError("SMTP_FROM_ADDRESS must be one email address")
+            if bool(smtp_username) != bool(smtp_password):
+                raise SettingsError(
+                    "SMTP_USERNAME and SMTP_PASSWORD must either both be set or both be empty"
+                )
+            if "\x00" in smtp_password or "\r" in smtp_password or "\n" in smtp_password:
+                raise SettingsError("SMTP_PASSWORD must not contain NUL or line breaks")
+            if production and smtp_security == SMTP_PLAINTEXT:
+                raise SettingsError("production SMTP must use TLS")
+
         login_domain = env.get("LOGIN_DOMAIN", DEFAULT_LOGIN_DOMAIN).strip()
         if LOGIN_DOMAIN.fullmatch(login_domain) is None:
             raise SettingsError("LOGIN_DOMAIN must be a bare hostname")
@@ -855,6 +918,13 @@ class Settings:
             raise SettingsError(
                 "CLI_SESSION_MAX_DAYS must not be less than CLI_SESSION_DAYS; the maximum is "
                 "the ceiling a rolling window may not pass, not a second window"
+            )
+
+        google_client_id = env.get("GOOGLE_CLIENT_ID", "").strip()
+        if google_client_id and GOOGLE_CLIENT_ID_SHAPE.fullmatch(google_client_id) is None:
+            raise SettingsError(
+                "GOOGLE_CLIENT_ID must be a Google OAuth web client ID ending in "
+                ".apps.googleusercontent.com"
             )
 
         # The magic link is clicked by a person in a browser, so it points at the website,
@@ -1180,6 +1250,13 @@ class Settings:
                 maximum=10_080,
             ),
             mail_sender=mail_sender,
+            smtp_host=smtp_host,
+            smtp_port=smtp_port,
+            smtp_username=smtp_username,
+            smtp_password=smtp_password,
+            smtp_from_address=smtp_from_address,
+            smtp_security=smtp_security,
+            smtp_timeout_seconds=smtp_timeout_seconds,
             website_base_url=website_base_url,
             login_domain=login_domain,
             google_client_id=google_client_id,
