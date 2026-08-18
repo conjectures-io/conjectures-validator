@@ -178,6 +178,11 @@ class AutoreviewRun(Base):
     # The durable cause: 'lease expired', an unpackable bundle, a provider outage.
     last_error: Mapped[str | None] = mapped_column(Text)
 
+    # The run rendered as one signable markdown document, written at publish time by
+    # conjectures-autoreview's deterministic report generator (code, no model). Nullable: runs
+    # published before the generator existed, and runs that did not complete, have none.
+    report: Mapped[str | None] = mapped_column(Text)
+
     # started_at is the claim; there is no separate created_at, because at claim time they are the
     # same instant and two columns that can disagree are a bug waiting for a clock skew.
     started_at: Mapped[dt.datetime] = mapped_column(

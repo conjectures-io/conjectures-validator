@@ -224,6 +224,7 @@ async def _assess(
     detail: str | None = None,
     attempt: int = 1,
     started_at: dt.datetime | None = None,
+    report: str | None = None,
 ) -> int:
     """One advisory run and one stage row against it, as autoreview would have published them."""
     body = VERDICT if verdict is None else verdict
@@ -239,6 +240,7 @@ async def _assess(
             pack_sha256=PACK_SHA256,
             review_policy_version="v1",
             tool_version="0.1.0",
+            report=report,
             started_at=started,
             finished_at=started + dt.timedelta(seconds=40),
         )
@@ -665,6 +667,63 @@ def test_attempts_come_back_newest_first_with_never_run_stages_last():
                 assert keys[:2] == ["faithfulness-02020202", "faithfulness-01010101"]
                 assert keys[2].startswith("originality-row")
                 assert len(keys) == 3
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_run_report_is_served_verbatim_newest_attempt_first():
+    """The report is canonical bytes written at publish: served byte-for-byte, never re-rendered,
+    and the newest attempt's document wins for the same reason `attempts_for` orders newest
+    first — a later pass read a later pack."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "run-report")
+            await _assess(
+                kit,
+                submission_id,
+                attempt=1,
+                attempt_sha256=bytes.fromhex("31" * 32),
+                report="# Autoreview report — old\n",
+            )
+            await _assess(
+                kit,
+                submission_id,
+                attempt=2,
+                attempt_sha256=bytes.fromhex("32" * 32),
+                report="# Autoreview report — new\n\n> *[model output -- untrusted text]*\n",
+            )
+            async with await _client(kit) as http:
+                anonymous = await http.get(f"/v1/admin/reviews/{submission_id}/run-report")
+                assert anonymous.status_code == 401  # the router gate covers new routes too
+
+                await _reviewer(kit, http)
+                served = await http.get(f"/v1/admin/reviews/{submission_id}/run-report")
+                assert served.status_code == 200
+                assert served.text.startswith("# Autoreview report — new")
+                assert served.headers["cache-control"] == "no-store"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_submission_without_a_rendered_report_is_404_not_empty():
+    """Absence means 'not rendered' — runs published before the generator existed have none, and
+    an empty 200 would read as a rendered-empty document, which must not exist."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "no-report")
+            await _assess(kit, submission_id)  # a run, but no rendered document on it
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                missing = await http.get(f"/v1/admin/reviews/{submission_id}/run-report")
+                assert missing.status_code == 404
         finally:
             await kit.teardown()
 

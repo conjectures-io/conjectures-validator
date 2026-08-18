@@ -39,6 +39,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Response
+from fastapi.responses import PlainTextResponse
 
 from conjectures_subnet.db import autoreview as autoreview_store
 from conjectures_subnet.db import digests
@@ -279,3 +280,34 @@ async def read_review(
 
     _no_store(response)
     return _review(row, services.index, attempts.get(row.id, ()))
+
+
+@router.get(
+    "/reviews/{submission_id}/run-report",
+    response_class=PlainTextResponse,
+    summary="The newest advisory run rendered as one document, verbatim",
+)
+async def read_run_report(
+    response: Response,
+    session: SessionDep,
+    submission_id: Annotated[uuid.UUID, Path()],
+) -> str:
+    """The run's report: canonical markdown written at publish, served byte-for-byte.
+
+    conjectures-autoreview assembles it by code from the stage records — no model writes a word
+    of the report's own voice — and stores it with the run so the document a reviewer signs
+    cannot differ between two reads. Served verbatim for the same reason; rendering here would
+    be a second implementation that could drift.
+
+    Named `run-report` rather than `report` because in this API "report" already means the
+    verifier's — `report_available` on the review row is Lean's report, not this document.
+
+    `404` covers both an unknown submission and one whose runs predate the report generator;
+    the advisory rows in `GET /v1/admin/reviews/{id}` exist either way, so nothing is hidden —
+    only the assembled rendering is absent.
+    """
+    rendered = await autoreview_store.latest_run_report(session, submission_id)
+    if rendered is None:
+        raise NotFound("no rendered report for this submission")
+    _no_store(response)
+    return rendered

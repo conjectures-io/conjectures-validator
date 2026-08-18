@@ -216,4 +216,23 @@ async def attempts_for(
     return {key: tuple(value) for key, value in grouped.items()}
 
 
-__all__ = ["AttemptRow", "attempts_for"]
+async def latest_run_report(session: AsyncSession, submission_id: uuid.UUID) -> str | None:
+    """The newest run's rendered report for this submission, or None when no run carries one.
+
+    The document is written once at publish by conjectures-autoreview's deterministic generator
+    and served verbatim — canonical bytes, never re-rendered here, for the same reason the rows
+    are read rather than recomputed: two reads must not be able to disagree about what a reviewer
+    signs. Newest `attempt` first, matching `attempts_for`'s ordering rationale.
+    """
+    return await session.scalar(
+        select(AutoreviewRun.report)
+        .where(
+            AutoreviewRun.submission_id == submission_id,
+            AutoreviewRun.report.is_not(None),
+        )
+        .order_by(AutoreviewRun.attempt.desc())
+        .limit(1)
+    )
+
+
+__all__ = ["AttemptRow", "attempts_for", "latest_run_report"]
