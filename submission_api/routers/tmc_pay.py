@@ -151,6 +151,25 @@ def _state(status_text: str) -> TmcPayOrderState:
     return TmcPayOrderState(status_text.upper())
 
 
+def _payment_url(order: TmcPayOrder, *, hosted_base_url: str) -> str | None:
+    """Where to send the buyer to pay.
+
+    TMC PAY's own `hosted_invoice_url` when the order has one, because it is the only correct
+    answer: their public invoice route is keyed by an opaque `hosted_token`, so a URL built from a
+    base and an invoice id addresses nothing.
+
+    The constructed link survives only as a fallback for orders created before that URL was
+    recorded. It is very probably wrong for them too, but it is what those rows already returned,
+    and replacing a bad link with no link would take the payment page away from an order that is
+    still open.
+    """
+    if order.hosted_invoice_url:
+        return order.hosted_invoice_url
+    if hosted_base_url and order.invoice_id:
+        return f"{hosted_base_url}/i/{order.invoice_id}"
+    return None
+
+
 def _order(order: TmcPayOrder, *, settings: Settings) -> schemas.TmcPayOrder:
     amount_rao = order.crypto_amount_rao
     # The package bonus this order earned, if it earned one. Recomputed from the same schedule
@@ -201,9 +220,7 @@ def _order(order: TmcPayOrder, *, settings: Settings) -> schemas.TmcPayOrder:
         exchange_rate=order.exchange_rate,
         commission_amount=order.commission_amount,
         invoice_id=order.invoice_id,
-        payment_url=(
-            f"{hosted}/i/{order.invoice_id}" if hosted and order.invoice_id else None
-        ),
+        payment_url=_payment_url(order, hosted_base_url=hosted),
         needs_review=order.needs_review,
         failure_reason=order.failure_reason,
         expires_at=utc(order.invoice_expires_at) if order.invoice_expires_at else None,
@@ -316,6 +333,7 @@ async def create_order(
         crypto_amount_rao=invoice.crypto_amount_rao,
         deposit_address=invoice.deposit_address,
         invoice_expires_at=invoice.expires_at,
+        hosted_invoice_url=invoice.hosted_invoice_url,
     )
     balance = await credit_store.credit_balance(
         session, principal.account.id, credit_price_rao=credit_price_rao, now=now
@@ -1013,6 +1031,7 @@ async def receive_webhook(
             crypto_amount_rao=invoice.crypto_amount_rao,
             deposit_address=invoice.deposit_address,
             invoice_expires_at=invoice.expires_at,
+            hosted_invoice_url=invoice.hosted_invoice_url,
         )
 
     before = order.credited_ledger_id

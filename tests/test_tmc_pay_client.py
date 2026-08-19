@@ -42,6 +42,7 @@ INVOICE_BODY = {
     "crypto_network": "Bittensor",
     "deposit_address": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
     "exchange_rate": "39.99",
+    "hosted_invoice_url": "https://pay.example.com/invoice/9f3c1a2e-hosted-token",
 }
 
 
@@ -314,3 +315,55 @@ def test_an_overpayment_can_also_be_late() -> None:
     assert tmc_pay.payment_was_late(
         invoice_with(status="overpaid", confirmed_offset_minutes=45)
     )
+
+
+# --- The hosted payment page ------------------------------------------------------------------
+# The URL the buyer is redirected to. Taken from TMC PAY rather than constructed, because their
+# public invoice route is keyed by an opaque `hosted_token` and not by the invoice id.
+
+
+def test_the_hosted_payment_url_is_read() -> None:
+    invoice = run(create(gateway(Upstream())))
+    assert invoice.hosted_invoice_url == INVOICE_BODY["hosted_invoice_url"]
+
+
+def test_an_absent_hosted_url_is_not_an_error() -> None:
+    """A webhook body need not carry one, and a purchase must not fail over a convenience."""
+    body = {k: v for k, v in INVOICE_BODY.items() if k != "hosted_invoice_url"}
+    invoice = run(create(gateway(Upstream(body=body))))
+    assert invoice.hosted_invoice_url is None
+    # Everything else still parsed, so the order is recorded and payable.
+    assert invoice.invoice_id == INVOICE_BODY["id"]
+
+
+def test_a_non_http_hosted_url_is_dropped_rather_than_trusted() -> None:
+    """This value becomes a browser navigation target, so only http(s) may survive parsing."""
+    for hostile in (
+        "javascript:alert(1)",
+        "JavaScript:alert(1)",
+        "data:text/html;base64,PHNjcmlwdD4=",
+        "  javascript:alert(1)",
+        "file:///etc/passwd",
+        "//pay.example.com/invoice/x",
+        "",
+        "   ",
+        "x" * (tmc_pay.MAX_HOSTED_URL_LENGTH + 1),
+    ):
+        body = dict(INVOICE_BODY, hosted_invoice_url=hostile)
+        invoice = run(create(gateway(Upstream(body=body))))
+        assert invoice.hosted_invoice_url is None, hostile
+        # Dropped, never fatal: the rest of the invoice is still usable.
+        assert invoice.invoice_id == INVOICE_BODY["id"]
+
+
+def test_a_non_string_hosted_url_is_dropped() -> None:
+    for hostile in (12345, {"url": "https://x"}, ["https://x"], True):
+        body = dict(INVOICE_BODY, hosted_invoice_url=hostile)
+        assert run(create(gateway(Upstream(body=body)))).hosted_invoice_url is None, hostile
+
+
+def test_an_http_hosted_url_is_accepted() -> None:
+    """Permitted for a development processor; production URLs are https in practice."""
+    body = dict(INVOICE_BODY, hosted_invoice_url="http://localhost:8080/invoice/tok")
+    invoice = run(create(gateway(Upstream(body=body))))
+    assert invoice.hosted_invoice_url == "http://localhost:8080/invoice/tok"

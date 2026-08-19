@@ -439,7 +439,11 @@ class TmcPayOrder(Model):
     )
     invoice_id: str | None = None
     payment_url: str | None = Field(
-        default=None, description="TMC PAY's hosted payment page, when one is configured"
+        default=None,
+        description=(
+            "TMC PAY's hosted payment page for this invoice, as TMC PAY reported it. Send the "
+            "buyer here to pay. Absent until an invoice exists"
+        ),
     )
     needs_review: bool = Field(
         description="An operator has to look at this: over- or underpaid, or paid late"

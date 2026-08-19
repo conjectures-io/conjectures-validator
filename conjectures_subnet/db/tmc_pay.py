@@ -172,6 +172,7 @@ async def attach_invoice(
     crypto_amount_rao: int,
     deposit_address: str,
     invoice_expires_at: dt.datetime | None,
+    hosted_invoice_url: str | None = None,
 ) -> TmcPayOrder:
     """Record the invoice TMC PAY created for this order.
 
@@ -196,6 +197,10 @@ async def attach_invoice(
     order.crypto_amount_rao = crypto_amount_rao
     order.deposit_address = deposit_address
     order.invoice_expires_at = invoice_expires_at
+    # Only ever set, never cleared. A later invoice read that omits the field must not take away a
+    # link the buyer is looking at.
+    if hosted_invoice_url is not None:
+        order.hosted_invoice_url = hosted_invoice_url
     try:
         await session.flush()
     except IntegrityError as exc:
