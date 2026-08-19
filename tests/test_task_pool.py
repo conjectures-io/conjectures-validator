@@ -72,7 +72,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
-    ) == 21
+    ) == 20
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -80,7 +80,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 143
+    assert len({item.source_path for item in selected}) == 139
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -204,7 +204,12 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
         "Erdos1055.erdos_1055.variants.selfridge_limit",
         "Erdos1093.erdos_1093.parts.ii",
         "Erdos15.erdos_15",
+        "Erdos477.erdos_477.variants.X_pow_three",
+        "Erdos477.erdos_477.variants.monomial",
         "Erdos510.erdos_510",
+        "Erdos536.erdos_536",
+        "Erdos567.erdos_567.parts.i",
+        "Green3.green_3",
         "Green54.green_54",
         "Green77.green_77",
     }
@@ -281,6 +286,7 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
                 "pool_size": MINIMUM_ERDOS_TASKS * len(PRODUCTION_TASK_MODES),
                 "reward_target_count": MINIMUM_ERDOS_TASKS,
                 "reward_target_policy": REWARD_TARGET_POLICY,
+                "retired_conjectures_sha256": "sha256:" + "c" * 64,
                 "retired_source_theorems_sha256": "sha256:" + "d" * 64,
                 "selection": TASK_POOL_SELECTION,
                 "selection_audit_sha256": "sha256:" + "e" * 64,

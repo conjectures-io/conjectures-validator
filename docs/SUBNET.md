@@ -255,8 +255,8 @@ for the exact security boundary and residual risks.
 The repository currently includes:
 
 - deterministic extraction and task generation from the pinned Formal Conjectures revision;
-- an audited allowlist of 328 proof/counterexample bundles for 164 active theorem targets (143
-  Erdős and 21 Green) in 164 stable reward targets, with twelve additional audited targets recorded
+- an audited allowlist of 318 proof/counterexample bundles for 159 active theorem targets (139
+  Erdős and 20 Green) in 159 stable reward targets, with seventeen additional audited targets recorded
   as retirements and excluded from admission;
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;
