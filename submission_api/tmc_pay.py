@@ -121,6 +121,17 @@ MAX_WEBHOOK_BYTES = 64 * 1024
 # started streaming would otherwise be able to exhaust this process's memory.
 MAX_RESPONSE_BYTES = 256 * 1024
 
+# The hosted payment page's URL. TMC PAY publishes no length for it; 2048 is the bound their own
+# redirect-URL fields carry, and it is the practical ceiling for something that has to survive a
+# browser address bar.
+MAX_HOSTED_URL_LENGTH = 2048
+
+# The only schemes a hosted payment URL may use. This value is handed to a browser as a
+# navigation target, so anything else — `javascript:` above all — must not survive parsing. The
+# provenance is authenticated either way (TLS on a read, a verified signature on a webhook), so
+# this is defence in depth rather than the primary control.
+HOSTED_URL_SCHEMES = ("https://", "http://")
+
 
 class TmcPayError(RuntimeError):
     """Any failure to get a usable answer out of TMC PAY."""
@@ -165,6 +176,10 @@ class Invoice:
     deposit_address: str
     exchange_rate: str
     commission_amount: str | None
+    # Where TMC PAY wants the buyer sent to pay. Authoritative, and not something to construct:
+    # their public invoice route is keyed by an opaque `hosted_token`, not by the invoice id, so a
+    # URL assembled from a base and an id points at nothing.
+    hosted_invoice_url: str | None
     created_at: dt.datetime | None
     expires_at: dt.datetime | None
     confirmed_at: dt.datetime | None
@@ -421,6 +436,7 @@ def parse_invoice(payload: object) -> Invoice:
         deposit_address=_text(payload, "deposit_address", limit=128),
         exchange_rate=_text(payload, "exchange_rate", limit=64),
         commission_amount=_optional_text(payload, "commission_amount", limit=64),
+        hosted_invoice_url=_hosted_url(payload, "hosted_invoice_url"),
         created_at=_optional_timestamp(payload, "created_at"),
         expires_at=_optional_timestamp(payload, "expires_at"),
         confirmed_at=_optional_timestamp(payload, "confirmed_at"),
@@ -466,6 +482,32 @@ def _either_mapping(
         if isinstance(value, Mapping):
             return value
     return None
+
+
+def _hosted_url(payload: Mapping[str, Any], key: str) -> str | None:
+    """An absolute http(s) URL, or None — never a raise.
+
+    Absent is ordinary: an invoice read back from the API carries one, and a webhook body may not.
+    A *present but unusable* value is treated the same way rather than refused, because the payment
+    page is a convenience and rejecting the whole invoice over it would fail a purchase that is
+    otherwise fine. The refusal is logged so a URL this never surfaces is visible.
+    """
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        logger.warning("TMC PAY sent a non-string %s; ignoring it", key)
+        return None
+    candidate = value.strip()
+    if not candidate or len(candidate) > MAX_HOSTED_URL_LENGTH:
+        logger.warning("TMC PAY sent an empty or oversized %s; ignoring it", key)
+        return None
+    # Case-folded, because a scheme is case-insensitive and `JavaScript:` must not slip past a
+    # comparison that only knows the lowercase spelling.
+    if not candidate.casefold().startswith(HOSTED_URL_SCHEMES):
+        logger.warning("TMC PAY sent a %s that is not an http(s) URL; ignoring it", key)
+        return None
+    return candidate
 
 
 def _optional_text(payload: Mapping[str, Any], key: str, *, limit: int) -> str | None:

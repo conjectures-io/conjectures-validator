@@ -1710,6 +1710,10 @@ class TmcPayOrder(Base):
     crypto_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
     deposit_address: Mapped[str | None] = mapped_column(SS58)
 
+    # TMC PAY's hosted payment page for this invoice, verbatim. Stored rather than derived: their
+    # public route is keyed by an opaque token, so this URL cannot be rebuilt from the invoice id.
+    hosted_invoice_url: Mapped[str | None] = mapped_column(Text)
+
     credited_ledger_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("credit_ledger.id"), unique=True
     )
@@ -1746,6 +1750,11 @@ class TmcPayOrder(Base):
         CheckConstraint(
             "merchant_id IS NULL OR length(merchant_id) BETWEEN 1 AND 64",
             name="tmc_pay_merchant_id_length",
+        ),
+        CheckConstraint(
+            "hosted_invoice_url IS NULL "
+            "OR length(hosted_invoice_url) BETWEEN 1 AND 2048",
+            name="tmc_pay_hosted_invoice_url_length",
         ),
         CheckConstraint(
             "fiat_amount IS NULL OR length(fiat_amount) BETWEEN 1 AND 64",

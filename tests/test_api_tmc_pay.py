@@ -106,6 +106,7 @@ def invoice_body(
     crypto_currency: str = "TAO",
     crypto_network: str = "bittensor",
     exchange_rate: str = "0.0025",
+    hosted_invoice_url: str | None = "https://pay.test/invoice/hosted-token-1",
 ) -> dict:
     """A TMC PAY invoice object, shaped exactly as the published payload schema.
 
@@ -130,6 +131,7 @@ def invoice_body(
         "deposit_address": DEPOSIT_ADDRESS,
         "exchange_rate": exchange_rate,
         "commission_amount": "2.00",
+        "hosted_invoice_url": hosted_invoice_url,
         "created_at": _iso(now),
         "expires_at": _iso(now + dt.timedelta(minutes=30)),
         "confirmed_at": confirmed_at,
@@ -354,7 +356,9 @@ def test_buying_credits_creates_an_invoice_that_covers_them():
                 assert order["btcli_command"] == (
                     f"btcli wallet transfer --dest {DEPOSIT_ADDRESS} --amount 0.5"
                 )
-                assert order["payment_url"] == "https://pay.test/i/inv-1"
+                # TMC PAY's own hosted URL, not one assembled from a base and the invoice id:
+                # their public invoice route is keyed by an opaque token.
+                assert order["payment_url"] == "https://pay.test/invoice/hosted-token-1"
                 assert order["invoice_id"] == "inv-1"
 
                 # The fiat request was sized from the rate: 0.5 TAO at $400/TAO is $200.
@@ -900,6 +904,68 @@ def test_underpaid_and_overpaid_are_handled_differently_and_both_flag_for_review
                 assert over_body["needs_review"] is True
 
                 assert (await http.get("/v1/me/credits")).json()["credits_available"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_payment_url_is_tmc_pays_own_and_survives_a_reread():
+    """Stored at attach time, so a later read returns it without another outbound call."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="hosted", hosted_invoice_url="https://pay.test/p/tok-9")]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                assert order["payment_url"] == "https://pay.test/p/tok-9"
+
+                reread = (await http.get(f"{ORDERS}/{order['id']}")).json()
+                assert reread["payment_url"] == "https://pay.test/p/tok-9"
+
+                listed = (await http.get(ORDERS)).json()["items"]
+                assert listed[0]["payment_url"] == "https://pay.test/p/tok-9"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_invoice_without_a_hosted_url_falls_back_to_the_constructed_link():
+    """Only reachable for rows recorded before the URL was stored, and better than no link."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="nolink", hosted_invoice_url=None)]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                assert order["payment_url"] == "https://pay.test/i/nolink"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_hostile_hosted_url_never_reaches_the_buyer():
+    """The redirect target is validated at parse time, so it cannot become a javascript: URL."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="evil", hosted_invoice_url="javascript:alert(1)")]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                # Dropped during parsing, so the response carries the constructed link instead.
+                assert order["payment_url"] == "https://pay.test/i/evil"
+                assert "javascript" not in (order["payment_url"] or "")
         finally:
             await kit.teardown()
 
