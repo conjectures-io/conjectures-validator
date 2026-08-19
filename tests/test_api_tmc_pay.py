@@ -1192,7 +1192,7 @@ def test_a_hostile_hosted_url_never_reaches_the_buyer():
     run(scenario())
 
 
-CURRENCIES = "/v1/me/credits/tmc-pay/currencies"
+CURRENCIES = "/v1/catalog/payment-currencies"
 
 
 # --- Paying in something other than TAO -------------------------------------------------------
@@ -1521,15 +1521,31 @@ def test_the_currency_list_reports_every_pair_and_flags_what_is_payable():
     run(scenario())
 
 
-def test_the_currency_list_needs_a_session():
-    """Not account data, but not something to publish to anonymous callers either."""
+def test_the_currency_list_needs_no_session():
+    """Unauthenticated on purpose: a visitor weighs the payment options before signing up.
+
+    It sits beside `credit-pricing`, which is already anonymous and already says this deployment
+    takes TMC PAY, so there is nothing here a session would be protecting.
+    """
 
     async def scenario():
-        kit = await kit_with(FakeGateway([])).setup()
+        gateway = FakeGateway([])
+        kit = await kit_with(gateway).setup()
         try:
             http = await client(kit)
             async with http:
-                assert (await http.get(CURRENCIES)).status_code == 401
+                answer = await http.get(CURRENCIES)
+                assert answer.status_code == 200, answer.text
+                body = answer.json()
+                assert body["default_currency"] == "TAO"
+                assert {c["code"] for c in body["currencies"]} == {
+                    "TAO",
+                    "USDC",
+                    "BTC",
+                    "XMR",
+                }
+                # Identical for every caller, so a shared cache may serve one copy to everyone.
+                assert "public" in answer.headers.get("cache-control", "")
         finally:
             await kit.teardown()
 
