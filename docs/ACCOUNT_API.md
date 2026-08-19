@@ -715,8 +715,9 @@ already in the right currency and there is nothing to correct.
 This is why the path needs `TAOSTATS_API_KEY`. Without a live rate there is no honest fiat figure,
 and the endpoint answers `503 TMC_PAY_RATE_UNAVAILABLE` rather than inventing one.
 
-**A buyer may pay in any currency TMC PAY accepts.** `GET /v1/me/credits/tmc-pay/currencies`
-reports the catalogue — eight currencies over thirteen chains — each pair flagged `payable`.
+**A buyer may pay in any currency TMC PAY accepts.** `GET /v1/catalog/payment-currencies`
+reports the catalogue — unauthenticated, beside `credit-pricing`, so a visitor can see the payment
+options before signing up — — eight currencies over thirteen chains — each pair flagged `payable`.
 `POST .../orders` takes optional `crypto_currency` and `crypto_network`, defaulting to TAO on
 Bittensor; the network may be omitted for a currency that has only one.
 

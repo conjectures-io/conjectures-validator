@@ -125,7 +125,7 @@ class PurchaseRequest(Payload):
         default=None,
         max_length=tmc_pay.MAX_CURRENCY_CODE_LENGTH,
         description=(
-            "Ticker to pay in, from `GET /v1/me/credits/tmc-pay/currencies`. Defaults to TAO"
+            "Ticker to pay in, from `GET /v1/catalog/payment-currencies`. Defaults to TAO"
         ),
     )
     crypto_network: str | None = Field(
@@ -833,73 +833,6 @@ def _balance(balance: credit_store.CreditBalance) -> schemas.CreditBalance:
 
 
 # --- Reading ---------------------------------------------------------------------------------
-
-
-@router.get(
-    "/v1/me/credits/tmc-pay/currencies",
-    response_model=schemas.PaymentOptions,
-    summary="What a buyer may pay in",
-)
-async def list_payment_currencies(
-    response: Response,
-    principal: PrincipalDep,
-    services: ServicesDep,
-) -> schemas.PaymentOptions:
-    """TMC PAY's currency catalogue, with this deployment's default and what it will honour.
-
-    A read of the processor's own capabilities rather than of anything belonging to this account —
-    but behind a session all the same, because it is only reachable from a purchase page and there
-    is no reason to publish which processor funds this validator to anonymous callers.
-
-    Every pair TMC PAY supports is reported, each flagged with whether an invoice can currently be
-    issued in it. Returning only the payable one would leave a page unable to tell "we do not
-    support that chain" from "the processor does not", and the answer to those is different.
-
-    Cached in the gateway, so a page that renders this on every visit costs one outbound call per
-    `CURRENCIES_CACHE_SECONDS` for the whole process.
-    """
-    del principal
-    settings = services.settings
-    if not settings.tmc_pay_enabled:
-        raise ServiceUnavailable(
-            "buying credits with a card or another chain is not configured on this deployment",
-            reason_code=REASON_NOT_CONFIGURED,
-        )
-    _no_store(response)
-    try:
-        catalogue = await services.tmc_pay.list_currencies()
-    except tmc_pay.TmcPayUnavailable as exc:
-        raise ServiceUnavailable(
-            "TMC PAY is temporarily unavailable; retry shortly",
-            reason_code=REASON_UPSTREAM_UNAVAILABLE,
-        ) from exc
-    except tmc_pay.TmcPayRejected as exc:
-        logger.warning("TMC PAY returned an unusable currency catalogue: %s", exc)
-        raise ServiceUnavailable(
-            "TMC PAY did not return a usable list of payment currencies",
-            reason_code=REASON_UPSTREAM_REFUSED,
-        ) from exc
-
-    return schemas.PaymentOptions(
-        currencies=tuple(
-            schemas.PaymentCurrency(
-                code=currency.code,
-                networks=tuple(
-                    schemas.PaymentNetwork(
-                        network=network.network,
-                        decimals=network.decimals,
-                        display_decimals=network.display_decimals,
-                        payable=(currency.code, network.network) in tmc_pay.PAYABLE_PAIRS,
-                    )
-                    for network in currency.networks
-                ),
-                payable=bool(currency.payable_networks()),
-            )
-            for currency in catalogue
-        ),
-        default_currency=tmc_pay.CRYPTO_CURRENCY,
-        default_network=tmc_pay.CRYPTO_NETWORK,
-    )
 
 
 @router.get(
