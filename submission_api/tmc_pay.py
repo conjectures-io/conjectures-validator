@@ -165,6 +165,12 @@ MAX_RESPONSE_BYTES = 256 * 1024
 # browser address bar.
 MAX_HOSTED_URL_LENGTH = 2048
 
+# What TMC PAY accepts for the two post-payment redirect targets. Their schema caps both at 2048,
+# and a longer one is refused by them rather than truncated — so it is checked here, where the
+# message can say which setting is too long instead of arriving as a validation error about a
+# field name the operator never typed.
+MAX_REDIRECT_URL_LENGTH = 2048
+
 # Bounds on the currency catalogue's own text and numbers. A ticker is a handful of characters and
 # a chain name a short word; 36 decimals is past every token in circulation.
 MAX_CURRENCY_CODE_LENGTH = 16
@@ -742,6 +748,8 @@ class InvoiceGateway(Protocol):
         ttl_minutes: int,
         crypto_currency: str = CRYPTO_CURRENCY,
         crypto_network: str = CRYPTO_NETWORK,
+        success_redirect_url: str | None = None,
+        failure_redirect_url: str | None = None,
     ) -> Invoice: ...
 
     async def read_invoice(self, invoice_id: str) -> Invoice: ...
@@ -829,6 +837,8 @@ class TmcPayClient:
         ttl_minutes: int,
         crypto_currency: str = CRYPTO_CURRENCY,
         crypto_network: str = CRYPTO_NETWORK,
+        success_redirect_url: str | None = None,
+        failure_redirect_url: str | None = None,
     ) -> Invoice:
         """One invoice for `fiat_amount`, payable in the given pair.
 
@@ -852,6 +862,21 @@ class TmcPayClient:
             "metadata": dict(metadata),
             "ttl_minutes": ttl_minutes,
         }
+        # Omitted rather than sent as null when unset. TMC PAY treats both the same, but a body
+        # that only carries the fields this integration is actually using is easier to read in a
+        # capture, and it leaves their default behaviour to them.
+        for field, value in (
+            ("success_redirect_url", success_redirect_url),
+            ("failure_redirect_url", failure_redirect_url),
+        ):
+            if not value:
+                continue
+            if len(value) > MAX_REDIRECT_URL_LENGTH:
+                raise TmcPayRejected(
+                    f"{field} is longer than the {MAX_REDIRECT_URL_LENGTH} characters TMC PAY "
+                    "accepts; shorten WEBSITE_BASE_URL"
+                )
+            body[field] = value
         payload = await self._request("POST", INVOICES_PATH, json=body)
         return parse_invoice(payload)
 

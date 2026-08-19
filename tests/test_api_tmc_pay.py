@@ -1450,6 +1450,105 @@ def test_an_invoice_in_a_currency_other_than_the_one_asked_for_is_refused():
     run(scenario())
 
 
+# --- Where the buyer lands when the payment window closes --------------------------------------
+
+
+def test_the_invoice_carries_both_redirect_targets():
+    """TMC PAY's hosted window is a separate tab; these are how the buyer gets back."""
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="redirects")])
+        kit = await kit_with(gateway, WEBSITE_BASE_URL="https://conjectures.test").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                sent = gateway.created[0]
+
+                assert sent["success_redirect_url"] == (
+                    f"https://conjectures.test/account/credits?order={order['id']}"
+                )
+                assert sent["failure_redirect_url"] == (
+                    f"https://conjectures.test/account/credits/top-up?order={order['id']}"
+                )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_trailing_slash_on_the_website_base_does_not_double():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="redirect-slash")])
+        kit = await kit_with(gateway, WEBSITE_BASE_URL="https://conjectures.test/").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+                assert "//account" not in gateway.created[0]["success_redirect_url"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_requote_keeps_the_same_redirect_targets():
+    """They name the order, not the attempt, so a second invoice lands in the same place."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                # Short, so the first attempt is refused and a second is quoted.
+                invoice_body(invoice_id="rq-1", crypto_amount="0.1"),
+                invoice_body(invoice_id="rq-2", crypto_amount="0.5"),
+            ]
+        )
+        kit = await kit_with(
+            gateway, TMC_PAY_QUOTE_ATTEMPTS="2", WEBSITE_BASE_URL="https://conjectures.test"
+        ).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+                assert len(gateway.created) == 2
+                first, second = gateway.created
+                assert first["success_redirect_url"] == second["success_redirect_url"]
+                assert first["failure_redirect_url"] == second["failure_redirect_url"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_client_cannot_choose_where_it_is_redirected():
+    """Client-supplied targets would make this an open redirect wearing TMC PAY's domain."""
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="no-inject")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                refused = await http.post(
+                    ORDERS,
+                    json={
+                        "credits": 1,
+                        "success_redirect_url": "https://evil.example/harvest",
+                    },
+                    headers=same_origin(),
+                )
+                assert refused.status_code == 400, refused.text
+                body = refused.json()
+                assert body["reason_code"] == "MALFORMED_REQUEST"
+                assert any(
+                    e["location"] == "body.success_redirect_url"
+                    and e["type"] == "extra_forbidden"
+                    for e in body["errors"]
+                ), body["errors"]
+                # Refused before anything reached the processor.
+                assert gateway.created == []
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_the_default_is_still_tao_on_bittensor():
     async def scenario():
         gateway = FakeGateway([invoice_body(invoice_id="tao-default")])

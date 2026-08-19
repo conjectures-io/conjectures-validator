@@ -723,6 +723,15 @@ visitor can weigh the payment options before signing up.
 `POST .../orders` takes optional `crypto_currency` and `crypto_network`, defaulting to TAO on
 Bittensor; the network may be omitted for a currency that has only one.
 
+**The buyer is sent back when the payment window closes.** TMC PAY's hosted page opens in its own
+tab, so every invoice carries `success_redirect_url` and `failure_redirect_url`: `/account/credits`
+and `/account/credits/top-up` on `WEBSITE_BASE_URL`, both with `?order=<id>` so the page that opens
+knows which purchase to report on. A requote reuses them — they name the order, not the attempt.
+
+They are built server-side and **cannot be supplied by a caller**. A client-chosen target would
+make the purchase endpoint an open redirect wearing TMC PAY's domain, so `PurchaseRequest` forbids
+unknown fields and one sent anyway is a `400 MALFORMED_REQUEST`.
+
 `TMC_PAY_PAYABLE_PAIRS` decides what is payable. Unset — the default — permits every pair TMC PAY
 offers. The same list is read by both endpoints, so what a page advertises is what the purchase
 accepts and the two cannot drift.
