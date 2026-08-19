@@ -328,6 +328,12 @@ DEFAULT_TMC_PAY_MAX_OPEN_ORDERS = 3
 # invoice somebody has to explain.
 DEFAULT_TMC_PAY_MAX_CREDITS = 1_000
 
+# Which currency/network pairs a buyer may be invoiced in. Empty — the default — means every pair
+# TMC PAY offers, because the credit price is in TAO and the fiat figure carries it across whatever
+# the buyer sends, so no currency is unsafe on its own. Entries are `CODE` for every network of a
+# currency, or `CODE:network` for one, e.g. `TAO:bittensor,USDC:base,USDT`.
+PAYABLE_PAIR_SHAPE = re.compile(r"^[A-Za-z0-9]{1,16}(:[A-Za-z0-9-]{1,32})?$")
+
 DEFAULT_TMC_PAY_TIMEOUT_SECONDS = 10.0
 
 # How often the owner reading their own order may cause a poll of TMC PAY. The payment page polls
@@ -469,6 +475,27 @@ def _csv(environ: Mapping[str, str], key: str) -> tuple[str, ...]:
     return tuple(
         item.strip() for item in environ.get(key, "").split(",") if item.strip()
     )
+
+
+def _payable_pairs(
+    environ: Mapping[str, str], key: str
+) -> tuple[tuple[str, str | None], ...]:
+    """An allowlist of `CODE` or `CODE:network` entries, normalised.
+
+    Unset and empty both mean "every pair TMC PAY offers", which is the same answer and is what an
+    operator who has not thought about this should get. Refused at startup rather than ignored when
+    an entry is malformed: a typo that silently permitted everything would be the opposite of what
+    was written down.
+    """
+    pairs: list[tuple[str, str | None]] = []
+    for item in _csv(environ, key):
+        if PAYABLE_PAIR_SHAPE.fullmatch(item) is None:
+            raise SettingsError(
+                f"{key} entries must be CODE or CODE:network, got {item!r}"
+            )
+        code, _, network = item.partition(":")
+        pairs.append((code.upper(), network.lower() or None))
+    return tuple(pairs)
 
 
 def _clock_minutes(environ: Mapping[str, str], key: str, default: str) -> int:
@@ -680,6 +707,9 @@ class Settings:
     # renders the deposit address and amount itself needs no redirect — every field it would
     # need is already on the order.
     tmc_pay_hosted_base_url: str
+    # An operator's allowlist of payment pairs. Empty permits every pair TMC PAY offers; see
+    # `tmc_pay.pair_is_payable`, which is the one rule both the listing and the purchase read.
+    tmc_pay_payable_pairs: tuple[tuple[str, str | None], ...]
     # Optional. When set, a webhook whose payload names a different merchant is refused rather
     # than matched on invoice id alone — the one check that a delivery aimed at somebody else's
     # integration cannot move money here.
@@ -1095,6 +1125,7 @@ class Settings:
         tmc_pay_merchant_id = env.get("TMC_PAY_MERCHANT_ID", "").strip()
         if len(tmc_pay_merchant_id) > 64:
             raise SettingsError("TMC_PAY_MERCHANT_ID must not exceed 64 characters")
+        tmc_pay_payable_pairs = _payable_pairs(env, "TMC_PAY_PAYABLE_PAIRS")
         tmc_pay_hosted_base_url = (
             env.get("TMC_PAY_HOSTED_BASE_URL", "").strip().rstrip("/")
         )
@@ -1316,6 +1347,7 @@ class Settings:
             tmc_pay_api_key=tmc_pay_api_key,
             tmc_pay_webhook_secret=tmc_pay_webhook_secret,
             tmc_pay_hosted_base_url=tmc_pay_hosted_base_url,
+            tmc_pay_payable_pairs=tmc_pay_payable_pairs,
             tmc_pay_merchant_id=tmc_pay_merchant_id,
             tmc_pay_fiat_currency=tmc_pay_fiat_currency,
             tmc_pay_fiat_decimals=_bounded_int(

@@ -66,15 +66,36 @@ def invoice_path(invoice_id: str) -> str:
 CRYPTO_CURRENCY = "TAO"
 CRYPTO_NETWORK = "bittensor"
 
-# The currency/network pairs a buyer may actually be invoiced in on this deployment.
+# An operator's allowlist of currency/network pairs, as parsed from `TMC_PAY_PAYABLE_PAIRS`.
+# Empty means every pair TMC PAY offers, which is the default: the credit price is in TAO and the
+# fiat figure carries it across, so no currency is unsafe on its own. The switch exists because
+# some are unattractive for other reasons — a chain that is awkward to reconcile, or a token thin
+# enough that the processor's own rate is not worth trusting — and turning one off should not need
+# a deploy of new code.
 #
-# TMC PAY supports more than this — `list_currencies` reports the full set — but accepting one
-# means accepting money the credit price is *not* denominated in, and the whole safety argument for
-# how many credits to issue currently runs through rao: `tmc_pay_invoice_covers_the_credits`
-# compares `crypto_amount_rao` against what the credits cost, and `settle` credits that same
-# number. Until crediting is anchored to the fiat figure instead, TAO is the only pair this
-# validator can honour, and the listing endpoint says so per pair rather than hiding the others.
-PAYABLE_PAIRS = ((CRYPTO_CURRENCY, CRYPTO_NETWORK),)
+# A pair with no network means every network TMC PAY offers for that currency.
+PayablePairs = tuple[tuple[str, str | None], ...]
+
+
+def pair_is_payable(
+    currency: str, network: str, *, allowlist: PayablePairs
+) -> bool:
+    """Whether this deployment will issue an invoice in this pair.
+
+    One rule, read by both the endpoint that advertises a pair and the endpoint that invoices in
+    one. Kept as a function rather than two comparisons, because the failure mode of having two is
+    exactly what shipped once already: a purchase page reporting a currency unavailable while the
+    POST behind it accepted that currency perfectly happily.
+
+    An empty allowlist permits everything. That is the default, and it means an operator who has
+    not thought about this gets what TMC PAY supports rather than a silently narrowed list.
+    """
+    if not allowlist:
+        return True
+    return any(
+        code == currency and (name is None or name == network)
+        for code, name in allowlist
+    )
 
 # TMC PAY's currency catalogue, and how long it is held. Public, no credential. Cached generously
 # because the set of chains a processor supports changes on the order of months, and a purchase
@@ -193,12 +214,12 @@ class PaymentCurrency:
     code: str
     networks: tuple[PaymentNetwork, ...]
 
-    def payable_networks(self) -> tuple[PaymentNetwork, ...]:
-        """The networks this deployment would actually invoice in — see `PAYABLE_PAIRS`."""
+    def payable_networks(self, allowlist: PayablePairs) -> tuple[PaymentNetwork, ...]:
+        """The networks this deployment would actually invoice in — see `pair_is_payable`."""
         return tuple(
             network
             for network in self.networks
-            if (self.code, network.network) in PAYABLE_PAIRS
+            if pair_is_payable(self.code, network.network, allowlist=allowlist)
         )
 
 
@@ -942,7 +963,6 @@ __all__ = [
     "MAX_CURRENCY_CODE_LENGTH",
     "MAX_WEBHOOK_BYTES",
     "PAID_STATUSES",
-    "PAYABLE_PAIRS",
     "SETTLED_STATUSES",
     "STATUS_CANCELLED",
     "STATUS_CONFIRMED",
@@ -958,6 +978,7 @@ __all__ = [
     "WEBHOOK_TIMESTAMP_HEADER",
     "Invoice",
     "InvoiceGateway",
+    "PayablePairs",
     "PaymentCurrency",
     "PaymentNetwork",
     "TmcPayClient",
@@ -967,6 +988,7 @@ __all__ = [
     "UnavailableGateway",
     "credits_are_earned",
     "invoice_path",
+    "pair_is_payable",
     "parse_currencies",
     "parse_invoice",
     "payment_was_late",

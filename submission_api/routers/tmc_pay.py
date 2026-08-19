@@ -186,9 +186,14 @@ async def _resolve_pair(
     BTC and XMR. Where there is a choice the buyer has to make it: defaulting to the first would
     quietly pick a chain whose fees differ by orders of magnitude from another.
 
+    A pair TMC PAY offers but this deployment has switched off is refused here too, by the same
+    rule the listing endpoint advertises with. Reading the allowlist in one place and enforcing it
+    in another is how the two came to disagree once already.
+
     A 400 rather than a 503: the deployment is fine and the processor is fine, the request named a
-    pair that does not exist.
+    pair this deployment will not invoice in.
     """
+    settings = services.settings
     requested = (payload.crypto_currency or "").strip().upper()
     network = (payload.crypto_network or "").strip().lower()
     if not requested and not network:
@@ -233,6 +238,14 @@ async def _resolve_pair(
             f"TMC PAY does not accept {requested} on {network}",
             reason_code=REASON_UNSUPPORTED_PAIR,
             extra={"networks": list(names)},
+        )
+    if not tmc_pay.pair_is_payable(
+        requested, network, allowlist=settings.tmc_pay_payable_pairs
+    ):
+        raise BadRequest(
+            f"this deployment does not accept {requested} on {network}",
+            reason_code=REASON_UNSUPPORTED_PAIR,
+            extra={"payable": [f"{c}:{n or '*'}" for c, n in settings.tmc_pay_payable_pairs]},
         )
     return PaymentPair(requested, network)
 
