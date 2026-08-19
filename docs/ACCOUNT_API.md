@@ -647,24 +647,28 @@ required_rao       = credits × CREDIT_PRICE_RAO                     # 10 credit
 fiat_amount        = ⌈ required_rao/1e9 ÷ crypto_per_fiat × (1 + margin_bps/10000) ⌉   to the cent
 ```
 
-**The rate is TMC's own, at every rung that matters.** TMC PAY publishes no rate endpoint, but two
-of its rates are readable anyway, and both beat a third-party feed:
+**The rate is TMC's own, at every rung that matters.** Three of TMC PAY's own rates are readable,
+and all of them beat a third-party feed:
 
 | Rung | `rate_source` | Source | When |
 | --- | --- | --- | --- |
 | 1 | `invoice` | `exchange_rate` on our last invoice | It is newer than `TMC_PAY_RATE_TTL_SECONDS` (300) and in this currency |
-| 2 | `taomarketcap` | TaoMarketCap 5-minute candles | No fresh locked rate, merchant currency is USD |
-| 3 | `taostats` | TaoStats, if `TAOSTATS_API_KEY` is set | TaoMarketCap unreachable |
-| 4 | `invoice-stale` | Any locked rate we have | Both feeds down, or currency is not USD |
-| 5 | `<source>-currency-mismatch` | A USD feed, used for a non-USD merchant | First-ever non-USD purchase. Warns |
+| 2 | `tmc-pay` | TMC PAY's `GET /api/v1/rates` | No fresh locked rate, merchant currency is USD |
+| 3 | `taomarketcap` | TaoMarketCap 5-minute candles | The rate endpoint is unreachable |
+| 4 | `taostats` | TaoStats, if `TAOSTATS_API_KEY` is set | Both of the above unreachable |
+| 5 | `invoice-stale` | Any locked rate we have | Every feed down, or currency is not USD |
+| 6 | `<source>-currency-mismatch` | A USD feed, used for a non-USD merchant | First-ever non-USD purchase. Warns |
 | — | `503 TMC_PAY_RATE_UNAVAILABLE` | — | Nothing to price from. The sale is refused |
 
 Rung 1 is the best because it is the rate the platform *actually locked*, spread and rounding
-included, already in the merchant's currency. Rung 2 is next because TaoMarketCap **is** TMC PAY —
-its own market data is closer to what its payment platform will lock than any outsider's — and it
-needs no API key, so a deployment can price invoices with no rate configuration at all.
+included, already in the merchant's currency. Rung 2 is TMC PAY quoting the rate it prices invoices
+with, which is the same thing one step before the lock; it publishes fiat per whole crypto unit, so
+it is the reciprocal of rung 1's figure and `_seed_rate` inverts it. Rung 3 is the same platform's
+market data rather than its quote. Rungs 2 and 3 both need no API key, so a deployment can price
+invoices with no rate configuration at all — and rung 2 sends **no** merchant credential, because
+the endpoint requires none.
 
-Rung 4 is deliberate: because the band below cannot be fooled by a bad seed, an hour-old rate is a
+Rung 5 is deliberate: because the band below cannot be fooled by a bad seed, an hour-old rate is a
 far better answer to a feed outage than refusing to sell credits. `rate_source` and `quote_attempts`
 are on the `tmc_pay_order_created` event, so "which source are we actually running on" and "how
 often does a purchase cost two invoices" are each one query.
@@ -923,7 +927,7 @@ page appears and a confirmation never does:
 | `TMC_PAY_API_BASE_URL` | Absolute http(s); https in production. The published docs quote `api.example.com`, so there is nothing to guess |
 | `TMC_PAY_API_KEY` | The merchant API key. Shown once at merchant creation; it can create invoices payable to this merchant account |
 | `TMC_PAY_WEBHOOK_SECRET` | 16+ chars. The only thing standing between an unauthenticated endpoint and the credit ledger |
-| `TAOSTATS_API_KEY` | Optional. A second external rate source behind TaoMarketCap's keyless candle feed; the ladder prefers TMC PAY's own locked rate over both |
+| `TAOSTATS_API_KEY` | Optional. The last external rate source, behind TMC PAY's own rate endpoint and TaoMarketCap's keyless candle feed; the ladder prefers TMC PAY's own locked rate over all three |
 | `TMC_PAY_MERCHANT_ID` | Optional. When set, a webhook naming another merchant is ignored rather than matched on invoice id alone |
 
 The rest have defaults chosen so that setting only the required values behaves correctly:

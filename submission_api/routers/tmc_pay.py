@@ -381,7 +381,8 @@ async def _seed_rate(
       no conversion and no euro price feed.
 
     So the ladder is: a fresh rate off one of our own invoices, then an external feed
-    (TaoMarketCap's own candles first, TaoStats second — see `rates.build_tao_usd_reader`), then a
+    (TMC PAY's own rate table first, then TaoMarketCap's candles, then TaoStats — see
+    `rates.build_tao_usd_reader`), then a
     stale rate off our own invoices. The last rung exists because the quote band makes a bad seed a
     wasted round trip rather than a wrong price — so an hour-old rate is a far better answer to a
     feed outage than refusing to sell credits.
