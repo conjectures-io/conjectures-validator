@@ -466,15 +466,15 @@ def test_the_redirect_targets_are_sent_when_given() -> None:
             description="d",
             metadata={},
             ttl_minutes=30,
-            success_redirect_url="https://site.example/account/credits?order=abc",
-            failure_redirect_url="https://site.example/account/credits/top-up?order=abc",
+            success_redirect_url="https://site.example/tmc-pay/success?order=abc",
+            failure_redirect_url="https://site.example/tmc-pay/failure?order=abc",
         )
     )
     body = json.loads(upstream.requests[0].content)
-    assert body["success_redirect_url"] == "https://site.example/account/credits?order=abc"
+    assert body["success_redirect_url"] == "https://site.example/tmc-pay/success?order=abc"
     assert (
         body["failure_redirect_url"]
-        == "https://site.example/account/credits/top-up?order=abc"
+        == "https://site.example/tmc-pay/failure?order=abc"
     )
 
 

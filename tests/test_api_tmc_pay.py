@@ -1465,10 +1465,10 @@ def test_the_invoice_carries_both_redirect_targets():
                 sent = gateway.created[0]
 
                 assert sent["success_redirect_url"] == (
-                    f"https://conjectures.test/account/credits?order={order['id']}"
+                    f"https://conjectures.test/tmc-pay/success?order={order['id']}"
                 )
                 assert sent["failure_redirect_url"] == (
-                    f"https://conjectures.test/account/credits/top-up?order={order['id']}"
+                    f"https://conjectures.test/tmc-pay/failure?order={order['id']}"
                 )
         finally:
             await kit.teardown()
@@ -1483,7 +1483,7 @@ def test_a_trailing_slash_on_the_website_base_does_not_double():
         try:
             async with buyer(kit) as (http, _):
                 await _order_for(http, credits_=1)
-                assert "//account" not in gateway.created[0]["success_redirect_url"]
+                assert "//tmc-pay" not in gateway.created[0]["success_redirect_url"]
         finally:
             await kit.teardown()
 

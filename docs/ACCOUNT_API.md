@@ -724,9 +724,13 @@ visitor can weigh the payment options before signing up.
 Bittensor; the network may be omitted for a currency that has only one.
 
 **The buyer is sent back when the payment window closes.** TMC PAY's hosted page opens in its own
-tab, so every invoice carries `success_redirect_url` and `failure_redirect_url`: `/account/credits`
-and `/account/credits/top-up` on `WEBSITE_BASE_URL`, both with `?order=<id>` so the page that opens
-knows which purchase to report on. A requote reuses them — they name the order, not the attempt.
+tab, so every invoice carries `success_redirect_url` and `failure_redirect_url`: `/tmc-pay/success`
+and `/tmc-pay/failure` on `WEBSITE_BASE_URL`, both with `?order=<id>` so the page can name or poll
+the purchase it is reporting on. A requote reuses them — they name the order, not the attempt.
+
+Two pages of their own rather than the account pages: a buyer coming back from a third-party tab may
+not know whether anything worked, and credits appear when TMC PAY's webhook arrives rather than when
+the browser returns, so a balance page could honestly show nothing yet.
 
 They are built server-side and **cannot be supplied by a caller**. A client-chosen target would
 make the purchase endpoint an open redirect wearing TMC PAY's domain, so `PurchaseRequest` forbids

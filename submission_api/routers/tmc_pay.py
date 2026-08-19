@@ -99,13 +99,19 @@ REASON_SIGNATURE_INVALID = "TMC_PAY_SIGNATURE_INVALID"
 REASON_WEBHOOK_MALFORMED = "TMC_PAY_WEBHOOK_MALFORMED"
 REASON_UNSUPPORTED_PAIR = "TMC_PAY_UNSUPPORTED_PAIR"
 
-# Where TMC PAY sends the buyer when its hosted payment window finishes. These mirror routes on the
-# website — `/account/credits` shows the balance the purchase was for, `/account/credits/top-up` is
-# where another attempt starts — the same way `routers/auth.py` names `/login` and `/account`. Both
-# carry the order id, so the page that opens knows which purchase to report on rather than making
-# the buyer find it.
-PAYMENT_SUCCESS_PATH = "/account/credits"
-PAYMENT_FAILURE_PATH = "/account/credits/top-up"
+# Where TMC PAY sends the buyer when its hosted payment window finishes, as routes on the website —
+# the same way `routers/auth.py` names `/login` and `/account`.
+#
+# Two pages of their own rather than the account pages the money landed on. A buyer arriving here
+# has just come back from a third-party tab and may have no idea whether anything worked, so the
+# page's whole job is to say so; pointing at `/account/credits` instead would drop them on a balance
+# that has not necessarily updated yet, because credits appear when TMC PAY's webhook arrives and
+# not when the browser returns.
+#
+# Both carry the order id, so the page can name or poll the purchase it is reporting on instead of
+# making the buyer find it. A placeholder page is free to ignore it.
+PAYMENT_SUCCESS_PATH = "/tmc-pay/success"
+PAYMENT_FAILURE_PATH = "/tmc-pay/failure"
 
 # `X-Webhook-ID` is TMC PAY's deduplication key and the primary key of the delivery table, so a
 # delivery without one cannot be deduplicated and is refused rather than processed twice.
