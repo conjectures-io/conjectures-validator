@@ -30,13 +30,14 @@ decimal strings for the same reason, and they stay strings until they become int
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import hashlib
 import hmac
 import logging
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_CEILING
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Protocol
 
 import httpx
@@ -59,11 +60,28 @@ def invoice_path(invoice_id: str) -> str:
     return f"{INVOICES_PATH.rstrip('/')}/{invoice_id}"
 
 
-# The crypto side is fixed. TMC PAY supports BTC, ETH, USDT and TAO; this integration buys
-# credits, credits are priced in rao, and accepting anything else would mean holding a currency
-# the credit price is not denominated in.
+# What an invoice is denominated in unless a buyer picks otherwise. TAO on Bittensor, because
+# credits are priced in rao: an invoice in TAO can be checked against `credits * CREDIT_PRICE_RAO`
+# in the same unit the ledger uses, which is what makes crediting the amount that arrived safe.
 CRYPTO_CURRENCY = "TAO"
 CRYPTO_NETWORK = "bittensor"
+
+# The currency/network pairs a buyer may actually be invoiced in on this deployment.
+#
+# TMC PAY supports more than this — `list_currencies` reports the full set — but accepting one
+# means accepting money the credit price is *not* denominated in, and the whole safety argument for
+# how many credits to issue currently runs through rao: `tmc_pay_invoice_covers_the_credits`
+# compares `crypto_amount_rao` against what the credits cost, and `settle` credits that same
+# number. Until crediting is anchored to the fiat figure instead, TAO is the only pair this
+# validator can honour, and the listing endpoint says so per pair rather than hiding the others.
+PAYABLE_PAIRS = ((CRYPTO_CURRENCY, CRYPTO_NETWORK),)
+
+# TMC PAY's currency catalogue, and how long it is held. Public, no credential. Cached generously
+# because the set of chains a processor supports changes on the order of months, and a purchase
+# page should not cost an outbound call per render.
+CURRENCIES_PATH = "/api/v1/currencies"
+CURRENCIES_CACHE_SECONDS = 600
+MAX_CURRENCIES_BYTES = 64 * 1024
 
 # Invoice statuses, verbatim from TMC PAY's `InvoiceStatus` enum. Non-terminal ones may still
 # move; the terminal ones will not, except that UNDERPAID is documented as non-terminal because a
@@ -126,6 +144,12 @@ MAX_RESPONSE_BYTES = 256 * 1024
 # browser address bar.
 MAX_HOSTED_URL_LENGTH = 2048
 
+# Bounds on the currency catalogue's own text and numbers. A ticker is a handful of characters and
+# a chain name a short word; 36 decimals is past every token in circulation.
+MAX_CURRENCY_CODE_LENGTH = 16
+MAX_NETWORK_NAME_LENGTH = 32
+MAX_DECIMAL_PLACES = 36
+
 # The only schemes a hosted payment URL may use. This value is handed to a browser as a
 # navigation target, so anything else — `javascript:` above all — must not survive parsing. The
 # provenance is authenticated either way (TLS on a read, a verified signature on a webhook), so
@@ -151,6 +175,31 @@ class TmcPayRejected(TmcPayError):
     A 4xx, or a 2xx whose body does not describe an invoice denominated in TAO on Bittensor for
     at least the amount asked for. Not retryable without changing something.
     """
+
+
+@dataclass(frozen=True)
+class PaymentNetwork:
+    """One chain a currency can be paid over, with the precision TMC PAY reports for it."""
+
+    network: str
+    decimals: int
+    display_decimals: int
+
+
+@dataclass(frozen=True)
+class PaymentCurrency:
+    """One currency TMC PAY accepts, across every chain it accepts for it."""
+
+    code: str
+    networks: tuple[PaymentNetwork, ...]
+
+    def payable_networks(self) -> tuple[PaymentNetwork, ...]:
+        """The networks this deployment would actually invoice in — see `PAYABLE_PAIRS`."""
+        return tuple(
+            network
+            for network in self.networks
+            if (self.code, network.network) in PAYABLE_PAIRS
+        )
 
 
 @dataclass(frozen=True)
@@ -399,6 +448,101 @@ def signature_matches(raw_body: bytes, header: str | None, secret: str) -> bool:
 # --- Parsing ---------------------------------------------------------------------------------
 
 
+def parse_currencies(payload: object) -> tuple[PaymentCurrency, ...]:
+    """TMC PAY's currency catalogue, reduced to the pairs and precisions it publishes.
+
+    The endpoint answers a list of entries shaped like:
+
+        {"code": "USDT", "networks": ["ethereum", "tron", "base"],
+         "network_metadata": [{"network": "ethereum", "decimals": 6, "display_decimals": 2}, ...],
+         "decimals": 6, "display_decimals": 2}
+
+    `networks` and `network_metadata` are two views of the same thing, and only the second carries
+    precision. This trusts neither to be complete: a network named in `networks` with no metadata
+    falls back to the currency-level decimals, which is what the entry itself says they are.
+
+    **A malformed entry is skipped, not fatal.** The catalogue is a menu; one unreadable line
+    should cost that one currency rather than every payment option on the page. Anything skipped
+    is logged, because a currency silently missing from a purchase page is otherwise invisible.
+    """
+    if not isinstance(payload, Sequence) or isinstance(payload, (str, bytes)):
+        raise TmcPayRejected("TMC PAY returned something that is not a currency list")
+
+    currencies: list[PaymentCurrency] = []
+    for entry in payload:
+        parsed = _currency_entry(entry)
+        if parsed is not None:
+            currencies.append(parsed)
+    if not currencies:
+        raise TmcPayRejected("TMC PAY returned no usable currencies")
+    return tuple(currencies)
+
+
+def _currency_entry(entry: object) -> PaymentCurrency | None:
+    if not isinstance(entry, Mapping):
+        logger.warning("skipping a TMC PAY currency entry that is not an object")
+        return None
+    code = entry.get("code")
+    if not isinstance(code, str) or not (1 <= len(code) <= MAX_CURRENCY_CODE_LENGTH):
+        logger.warning("skipping a TMC PAY currency with an unusable code: %r", code)
+        return None
+    code = code.upper()
+
+    fallback = _decimal_places(entry, "decimals")
+    fallback_display = _decimal_places(entry, "display_decimals")
+    metadata = entry.get("network_metadata")
+    by_network: dict[str, PaymentNetwork] = {}
+    if isinstance(metadata, Sequence) and not isinstance(metadata, (str, bytes)):
+        for item in metadata:
+            if not isinstance(item, Mapping):
+                continue
+            name = item.get("network")
+            if not isinstance(name, str) or not (1 <= len(name) <= MAX_NETWORK_NAME_LENGTH):
+                continue
+            decimals = _decimal_places(item, "decimals")
+            by_network[name.lower()] = PaymentNetwork(
+                network=name.lower(),
+                decimals=fallback if decimals is None else decimals,
+                display_decimals=(
+                    _decimal_places(item, "display_decimals")
+                    or fallback_display
+                    or (fallback if decimals is None else decimals)
+                    or 0
+                ),
+            )
+
+    names = entry.get("networks")
+    ordered: list[PaymentNetwork] = []
+    if isinstance(names, Sequence) and not isinstance(names, (str, bytes)):
+        for name in names:
+            if not isinstance(name, str) or not (1 <= len(name) <= MAX_NETWORK_NAME_LENGTH):
+                continue
+            key = name.lower()
+            ordered.append(
+                by_network.get(
+                    key,
+                    PaymentNetwork(
+                        network=key,
+                        decimals=fallback or 0,
+                        display_decimals=fallback_display or fallback or 0,
+                    ),
+                )
+            )
+    # A currency with no readable network cannot be paid over anything, so it is not an option.
+    if not ordered:
+        logger.warning("skipping TMC PAY currency %s: it names no usable network", code)
+        return None
+    return PaymentCurrency(code=code, networks=tuple(ordered))
+
+
+def _decimal_places(payload: Mapping[str, Any], key: str) -> int | None:
+    """A plausible decimal count, or None. Never raises on upstream text."""
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if 0 <= value <= MAX_DECIMAL_PLACES else None
+
+
 def parse_invoice(payload: object) -> Invoice:
     """One `Invoice` from a TMC PAY JSON object, or `TmcPayRejected`.
 
@@ -549,6 +693,10 @@ class InvoiceGateway(Protocol):
 
     async def read_invoice(self, invoice_id: str) -> Invoice: ...
 
+    async def list_currencies(self) -> tuple[PaymentCurrency, ...]:
+        """Every currency and network TMC PAY accepts, whatever this deployment will honour."""
+        ...
+
     async def aclose(self) -> None: ...
 
 
@@ -565,6 +713,9 @@ class UnavailableGateway:
 
     async def read_invoice(self, invoice_id: str) -> Invoice:
         del invoice_id
+        raise TmcPayUnavailable("TMC PAY is not configured on this deployment")
+
+    async def list_currencies(self) -> tuple[PaymentCurrency, ...]:
         raise TmcPayUnavailable("TMC PAY is not configured on this deployment")
 
     async def aclose(self) -> None:
@@ -590,6 +741,7 @@ class TmcPayClient:
         api_key: str,
         timeout_seconds: float = 10.0,
         client: httpx.AsyncClient | None = None,
+        now: Callable[[], dt.datetime] | None = None,
     ) -> None:
         if not base_url:
             raise ValueError("a TMC PAY base URL is required")
@@ -607,6 +759,11 @@ class TmcPayClient:
             },
         )
         self._owns_client = client is None
+        # Injected so the catalogue's cache boundary is testable without waiting ten minutes.
+        self._now = now or (lambda: dt.datetime.now(dt.UTC))
+        self._currencies_lock = asyncio.Lock()
+        self._currencies: tuple[PaymentCurrency, ...] | None = None
+        self._currencies_expire_at: dt.datetime | None = None
 
     async def create_invoice(
         self,
@@ -642,14 +799,65 @@ class TmcPayClient:
         payload = await self._request("GET", invoice_path(invoice_id))
         return parse_invoice(payload)
 
+    async def list_currencies(self) -> tuple[PaymentCurrency, ...]:
+        """The currency catalogue, cached for `CURRENCIES_CACHE_SECONDS`.
+
+        Cached in the client rather than in the router because it is a property of the processor,
+        not of a request: every account's purchase page wants the same answer, and the set changes
+        on the order of months.
+
+        A failed refresh is never cached, and a previously fetched catalogue keeps being served
+        while every call retries. The same reasoning as the rate readers: a menu one window out of
+        date is a far better answer than an empty payment page.
+        """
+        now = self._now()
+        if (
+            self._currencies is not None
+            and self._currencies_expire_at is not None
+            and now < self._currencies_expire_at
+        ):
+            return self._currencies
+
+        async with self._currencies_lock:
+            now = self._now()
+            if (
+                self._currencies is not None
+                and self._currencies_expire_at is not None
+                and now < self._currencies_expire_at
+            ):
+                return self._currencies
+            try:
+                payload = await self._request("GET", CURRENCIES_PATH, authenticated=False)
+                currencies = parse_currencies(payload)
+            except (TmcPayUnavailable, TmcPayRejected):
+                if self._currencies is not None:
+                    logger.warning(
+                        "serving a stale TMC PAY currency catalogue; the upstream is unreachable"
+                    )
+                    return self._currencies
+                raise
+            self._currencies = currencies
+            self._currencies_expire_at = now + dt.timedelta(
+                seconds=CURRENCIES_CACHE_SECONDS
+            )
+            return currencies
+
     async def _request(
-        self, method: str, path: str, *, json: Mapping[str, Any] | None = None
+        self,
+        method: str,
+        path: str,
+        *,
+        json: Mapping[str, Any] | None = None,
+        authenticated: bool = True,
     ) -> object:
         url = f"{self._base_url}{path}"
         # TMC PAY declares the credential as a required `X-API-Key` header parameter on every
         # invoice endpoint, not as a bearer token. Sending `Authorization` instead is not an auth
         # failure at their end: FastAPI reports the missing header as a 422 validation error.
-        headers = {API_KEY_HEADER: self._api_key}
+        #
+        # The currency catalogue declares no credential and needs none, so it is fetched without
+        # one: a merchant key on a request that does not require it is exposure bought for nothing.
+        headers = {API_KEY_HEADER: self._api_key} if authenticated else {}
         try:
             response = await self._client.request(method, url, json=json, headers=headers)
         except httpx.HTTPError as exc:
@@ -689,9 +897,13 @@ __all__ = [
     "API_KEY_HEADER",
     "CRYPTO_CURRENCY",
     "CRYPTO_NETWORK",
+    "CURRENCIES_CACHE_SECONDS",
+    "CURRENCIES_PATH",
     "INVOICE_STATUSES",
+    "MAX_CURRENCY_CODE_LENGTH",
     "MAX_WEBHOOK_BYTES",
     "PAID_STATUSES",
+    "PAYABLE_PAIRS",
     "SETTLED_STATUSES",
     "STATUS_CANCELLED",
     "STATUS_CONFIRMED",
@@ -707,6 +919,8 @@ __all__ = [
     "WEBHOOK_TIMESTAMP_HEADER",
     "Invoice",
     "InvoiceGateway",
+    "PaymentCurrency",
+    "PaymentNetwork",
     "TmcPayClient",
     "TmcPayError",
     "TmcPayRejected",
@@ -714,6 +928,7 @@ __all__ = [
     "UnavailableGateway",
     "credits_are_earned",
     "invoice_path",
+    "parse_currencies",
     "parse_invoice",
     "payment_was_late",
     "quote_ceiling",

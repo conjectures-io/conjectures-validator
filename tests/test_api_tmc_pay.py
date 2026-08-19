@@ -156,6 +156,42 @@ def signed(body: dict, *, secret: str = SECRET, webhook_id: str | None = None) -
     return raw, headers
 
 
+# TMC PAY's live `/api/v1/currencies` shape, trimmed to four entries. `network_metadata` carries
+# the precision and `networks` the ordering, exactly as the real response does.
+CURRENCY_CATALOGUE = [
+    {
+        "code": "TAO",
+        "networks": ["bittensor"],
+        "network_metadata": [
+            {"network": "bittensor", "decimals": 9, "display_decimals": 4}
+        ],
+        "decimals": 9,
+        "display_decimals": 4,
+    },
+    {
+        "code": "USDC",
+        "networks": ["ethereum", "base"],
+        "network_metadata": [
+            {"network": "ethereum", "decimals": 6, "display_decimals": 2},
+            {"network": "base", "decimals": 6, "display_decimals": 2},
+        ],
+        "decimals": 6,
+        "display_decimals": 2,
+    },
+    {
+        "code": "BTC",
+        "networks": ["bitcoin"],
+        "network_metadata": [
+            {"network": "bitcoin", "decimals": 8, "display_decimals": 8}
+        ],
+        "decimals": 8,
+        "display_decimals": 8,
+    },
+    # No metadata at all, so the currency-level decimals have to carry it.
+    {"code": "XMR", "networks": ["monero"], "decimals": 12, "display_decimals": 8},
+]
+
+
 class FakeGateway:
     """An `InvoiceGateway` that answers from a script instead of a network.
 
@@ -164,11 +200,18 @@ class FakeGateway:
     the body a poll should see.
     """
 
-    def __init__(self, invoices: list[dict], reads: dict[str, dict] | None = None) -> None:
+    def __init__(
+        self,
+        invoices: list[dict],
+        reads: dict[str, dict] | None = None,
+        currencies: list[dict] | None = None,
+    ) -> None:
         self.invoices = list(invoices)
         self.reads = dict(reads or {})
         self.created: list[dict] = []
         self.read_calls: list[str] = []
+        self.currency_calls = 0
+        self.currencies = CURRENCY_CATALOGUE if currencies is None else list(currencies)
         self.error: Exception | None = None
 
     async def create_invoice(self, **kwargs) -> tmc_pay.Invoice:
@@ -188,6 +231,12 @@ class FakeGateway:
             # records the attempt, so a test that cares can assert on it either way.
             raise tmc_pay.TmcPayUnavailable(f"no scripted read for {invoice_id}")
         return tmc_pay.parse_invoice(self.reads[invoice_id])
+
+    async def list_currencies(self) -> tuple[tmc_pay.PaymentCurrency, ...]:
+        self.currency_calls += 1
+        if self.error is not None:
+            raise self.error
+        return tmc_pay.parse_currencies(self.currencies)
 
     async def aclose(self) -> None:
         return None
@@ -966,6 +1015,103 @@ def test_a_hostile_hosted_url_never_reaches_the_buyer():
                 # Dropped during parsing, so the response carries the constructed link instead.
                 assert order["payment_url"] == "https://pay.test/i/evil"
                 assert "javascript" not in (order["payment_url"] or "")
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+CURRENCIES = "/v1/me/credits/tmc-pay/currencies"
+
+
+def test_the_currency_list_reports_every_pair_and_flags_what_is_payable():
+    """The whole catalogue, so a page can distinguish "we do not" from "the processor does not"."""
+
+    async def scenario():
+        gateway = FakeGateway([])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                body = (await http.get(CURRENCIES)).json()
+
+                assert body["default_currency"] == "TAO"
+                assert body["default_network"] == "bittensor"
+
+                by_code = {c["code"]: c for c in body["currencies"]}
+                assert set(by_code) == {"TAO", "USDC", "BTC", "XMR"}
+
+                # Only TAO on Bittensor can be invoiced today, and the flag says so per pair.
+                assert by_code["TAO"]["payable"] is True
+                assert by_code["TAO"]["networks"][0]["network"] == "bittensor"
+                assert by_code["TAO"]["networks"][0]["payable"] is True
+                for code in ("USDC", "BTC", "XMR"):
+                    assert by_code[code]["payable"] is False, code
+                    assert all(not n["payable"] for n in by_code[code]["networks"]), code
+
+                # Precision comes from `network_metadata` where present.
+                assert by_code["USDC"]["networks"][0] == {
+                    "network": "ethereum",
+                    "decimals": 6,
+                    "display_decimals": 2,
+                    "payable": False,
+                }
+                # ...and falls back to the currency's own decimals where it is absent.
+                assert by_code["XMR"]["networks"][0]["decimals"] == 12
+                assert by_code["XMR"]["networks"][0]["display_decimals"] == 8
+
+                # Multi-chain currencies keep TMC PAY's ordering.
+                assert [n["network"] for n in by_code["USDC"]["networks"]] == [
+                    "ethereum",
+                    "base",
+                ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_currency_list_needs_a_session():
+    """Not account data, but not something to publish to anonymous callers either."""
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            http = await client(kit)
+            async with http:
+                assert (await http.get(CURRENCIES)).status_code == 401
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unreachable_processor_makes_the_currency_list_a_503():
+    async def scenario():
+        gateway = FakeGateway([])
+        gateway.error = tmc_pay.TmcPayUnavailable("down")
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                answer = await http.get(CURRENCIES)
+                assert answer.status_code == 503
+                assert answer.json()["reason_code"] == "TMC_PAY_UNAVAILABLE"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unusable_catalogue_is_a_503_rather_than_an_empty_menu():
+    """An empty list would read as "no way to pay", which is a different and wrong statement."""
+
+    async def scenario():
+        gateway = FakeGateway([], currencies=[{"code": "", "networks": []}])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                answer = await http.get(CURRENCIES)
+                assert answer.status_code == 503
+                assert answer.json()["reason_code"] == "TMC_PAY_REFUSED"
         finally:
             await kit.teardown()
 
