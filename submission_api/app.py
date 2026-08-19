@@ -211,9 +211,9 @@ def build_services(
             else UnavailableAlphaUsdPriceReader()
         ),
         # The TMC PAY funding path, both halves of it. Unavailable unless configured, so the
-        # purchase endpoints refuse rather than reach a network — and note that a deployment which
-        # configures TMC PAY without `TAOSTATS_API_KEY` can create no invoices at all: TMC PAY
-        # quotes in fiat, so pricing one at 0.5 TAO per credit needs a live TAO/USD rate.
+        # purchase endpoints refuse rather than reach a network. TMC PAY quotes in fiat, so pricing
+        # an invoice at 0.5 TAO per credit needs a live TAO/USD rate — and configuring TMC PAY now
+        # supplies one by itself, because its own keyless rate endpoint is the first rung below.
         tmc_pay=(
             TmcPayClient(
                 base_url=settings.tmc_pay_base_url,
@@ -223,10 +223,12 @@ def build_services(
             if settings.tmc_pay_enabled
             else UnavailableGateway()
         ),
-        # TaoMarketCap's public candles first, TaoStats second. See `rates.py` on why that order
-        # and not the other: TaoMarketCap is TMC PAY, so its market data is closer to the rate the
-        # payment platform is about to lock — and it needs no API key, so this works out of the box.
+        # TMC PAY's own rate table first, then TaoMarketCap's public candles, then TaoStats. See
+        # `rates.py` on why that order: the first is the rate the invoice will be priced from
+        # rather than market data about it, and the two behind it need no API key, so this works
+        # out of the box. An unconfigured TMC PAY passes an empty URL and starts one rung lower.
         tao_usd=build_tao_usd_reader(
+            tmc_pay_base_url=settings.tmc_pay_base_url,
             taomarketcap_base_url=settings.taomarketcap_base_url,
             taostats_api_key=settings.taostats_api_key,
             taostats_ttl_seconds=settings.taostats_price_cache_seconds,

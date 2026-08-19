@@ -290,3 +290,222 @@ def test_the_chain_takes_the_first_source_that_answers_and_says_which():
         assert await rates.FallbackTaoUsdPriceReader.of(primary, primary).tao_usd() is None
 
     run(scenario())
+
+
+# --- TMC PAY's own rate table -----------------------------------------------------------------
+# The preferred source, so the orientation of its number is the thing most worth pinning down: it
+# publishes fiat per crypto unit, which is the reciprocal of an invoice's `exchange_rate`.
+
+
+def rate_table(tao: str = "191.52707097907592", *, fiat: str = "USD") -> dict:
+    """The shape TMC PAY answers `/api/v1/rates` with."""
+    return {
+        "fiat_currency": fiat,
+        # Bare JSON numbers, like the real endpoint, so `parse_float=Decimal` is exercised.
+        "rates": {
+            "USDC": 1.0,
+            "USDT": 1.0,
+            "BTC": 64323.85838008977,
+            "TAO": float(tao),
+        },
+    }
+
+
+def rate_reader(feed: Feed, clock=None, **kwargs) -> rates.TmcPayRatesPriceReader:
+    return rates.TmcPayRatesPriceReader(
+        base_url="https://pay-api.example.com",
+        client=feed.client(),
+        now=clock,
+        **kwargs,
+    )
+
+
+def test_the_table_is_read_as_dollars_per_tao():
+    """191.53 is the price of one TAO, not the TAO one dollar buys.
+
+    Getting this backwards would price a credit at about 36,000 times the intended amount, and
+    every downstream check works off the inverted figure, so it is asserted on the raw number.
+    """
+    feed = Feed([rate_table("191.52707097907592")])
+    quote = run(rate_reader(feed).tao_usd())
+
+    assert quote.price == Decimal("191.52707097907592")
+    assert quote.source == rates.SOURCE_TMC_PAY
+    # A plausibility check that a flipped rate could not pass: one TAO is worth many dollars.
+    assert quote.price > 1
+
+
+def test_the_price_never_becomes_a_float():
+    feed = Feed([rate_table("191.52707097907592")])
+    quote = run(rate_reader(feed).tao_usd())
+
+    assert isinstance(quote.price, Decimal)
+    # The exact published digits, which a binary float would not preserve.
+    assert str(quote.price) == "191.52707097907592"
+
+
+def test_the_requested_fiat_currency_is_sent_and_no_credential_is():
+    feed = Feed([rate_table()])
+    run(rate_reader(feed).tao_usd())
+
+    request = feed.requests[0]
+    assert request.url.path == rates.RATES_PATH
+    assert dict(request.url.params) == {"fiat": "USD"}
+    # The endpoint is public. Sending the merchant key here would be exposure for nothing.
+    assert "x-api-key" not in request.headers
+    assert "authorization" not in request.headers
+
+
+def test_a_table_in_another_currency_is_not_a_price():
+    """The `fiat` parameter is optional upstream, so a 200 can still be the wrong currency."""
+    feed = Feed([rate_table(fiat="EUR")])
+    assert run(rate_reader(feed).tao_usd()) is None
+
+
+def test_a_table_without_tao_is_not_a_price():
+    body = rate_table()
+    del body["rates"]["TAO"]
+    assert run(rate_reader(Feed([body])).tao_usd()) is None
+
+
+def test_a_malformed_or_negative_table_is_not_a_price():
+    for body in (
+        [],
+        {"rates": {"TAO": 1.0}},
+        {"fiat_currency": "USD"},
+        {"fiat_currency": "USD", "rates": []},
+        {"fiat_currency": "USD", "rates": {"TAO": 0}},
+        {"fiat_currency": "USD", "rates": {"TAO": -5}},
+        {"fiat_currency": "USD", "rates": {"TAO": "not a number"}},
+    ):
+        assert run(rate_reader(Feed([body])).tao_usd()) is None, body
+
+
+def test_one_request_per_ttl_window():
+    moment = at(13, 12)
+    feed = Feed([rate_table("191.5"), rate_table("205.0")])
+    reader = rate_reader(feed, clock=lambda: moment, ttl_seconds=60)
+
+    assert run(reader.tao_usd()).price == Decimal("191.5")
+    assert len(feed.requests) == 1
+
+    # Inside the window: served from the cache, no second request.
+    moment = at(13, 12, 59)
+    assert run(reader.tao_usd()).price == Decimal("191.5")
+    assert len(feed.requests) == 1
+
+    # Past it: refreshed.
+    moment = at(13, 13, 1)
+    assert run(reader.tao_usd()).price == Decimal("205.0")
+    assert len(feed.requests) == 2
+
+
+def test_a_failed_refresh_serves_the_last_good_rate_and_keeps_trying():
+    moment = at(13, 12)
+    feed = Feed([rate_table("191.5")])
+    reader = rate_reader(feed, clock=lambda: moment, ttl_seconds=60)
+
+    assert run(reader.tao_usd()).price == Decimal("191.5")
+
+    feed.fail = httpx.ConnectError("no route")
+    moment = at(13, 20)
+    assert run(reader.tao_usd()).price == Decimal("191.5")
+    # Nothing was cached, so the call after it tries again rather than waiting out a window.
+    before = len(feed.requests)
+    assert run(reader.tao_usd()).price == Decimal("191.5")
+    assert len(feed.requests) == before + 1
+
+
+def test_a_rate_too_old_to_seed_with_stops_being_served():
+    moment = at(13, 12)
+    feed = Feed([rate_table("191.5")])
+    reader = rate_reader(feed, clock=lambda: moment, ttl_seconds=60)
+    assert run(reader.tao_usd()) is not None
+
+    feed.fail = httpx.ConnectError("no route")
+    moment = at(13, 12) + dt.timedelta(seconds=rates.MAX_STALE_SECONDS + 1)
+    assert run(reader.tao_usd()) is None
+
+
+def test_an_http_error_is_not_a_price():
+    feed = Feed([rate_table()])
+    feed.status = 503
+    assert run(rate_reader(feed).tao_usd()) is None
+
+
+def test_the_reader_refuses_impossible_construction():
+    for kwargs in (
+        {"base_url": ""},
+        {"base_url": "https://x", "ttl_seconds": 0},
+        {"base_url": "https://x", "timeout_seconds": 0},
+        {"base_url": "https://x", "fiat_currency": ""},
+    ):
+        with pytest.raises(ValueError):
+            rates.TmcPayRatesPriceReader(**kwargs)
+
+
+# --- The ladder ------------------------------------------------------------------------------
+
+
+def test_tmc_pay_leads_the_configured_chain():
+    reader = rates.build_tao_usd_reader(
+        tmc_pay_base_url="https://pay-api.example.com",
+        taomarketcap_base_url=rates.TAOMARKETCAP_API_BASE_URL,
+        taostats_api_key="",
+        taostats_ttl_seconds=60,
+    )
+    assert isinstance(reader, rates.FallbackTaoUsdPriceReader)
+    assert isinstance(reader.readers[0], rates.TmcPayRatesPriceReader)
+    assert isinstance(reader.readers[1], rates.TaoMarketCapPriceReader)
+    run(reader.aclose())
+
+
+def test_an_unconfigured_tmc_pay_starts_one_rung_lower():
+    reader = rates.build_tao_usd_reader(
+        tmc_pay_base_url="",
+        taomarketcap_base_url=rates.TAOMARKETCAP_API_BASE_URL,
+        taostats_api_key="",
+        taostats_ttl_seconds=60,
+    )
+    assert isinstance(reader, rates.TaoMarketCapPriceReader)
+    run(reader.aclose())
+
+
+def parsed(body: dict) -> object:
+    """`body` as the reader sees it: through the parser that keeps numbers exact.
+
+    Not the dict itself. `positive_decimal` rejects `float` on purpose — a float means the value
+    went through the default JSON parser and has already lost digits — so a fixture handed over
+    directly would be testing the guard rather than the parsing.
+    """
+    return json.loads(json.dumps(body), parse_float=Decimal)
+
+
+def test_the_table_parser_is_asserted_directly():
+    """Module-level, because which number is the price is what would be wrong silently."""
+    table = parsed(rate_table("191.5"))
+    assert rates.rate_from_table(
+        table, fiat_currency="USD", crypto_currency="TAO"
+    ) == Decimal("191.5")
+    # Case-insensitive on the currency, because the response's casing is not ours to assume.
+    assert rates.rate_from_table(
+        parsed({"fiat_currency": "usd", "rates": {"TAO": 191.5}}),
+        fiat_currency="USD",
+        crypto_currency="TAO",
+    ) == Decimal("191.5")
+    with pytest.raises(ValueError, match="answered in EUR"):
+        rates.rate_from_table(
+            parsed(rate_table(fiat="EUR")), fiat_currency="USD", crypto_currency="TAO"
+        )
+    with pytest.raises(KeyError):
+        rates.rate_from_table(table, fiat_currency="USD", crypto_currency="DOGE")
+
+
+def test_a_rate_that_went_through_the_default_json_parser_is_refused():
+    """The same guard the candle feed has: a float here has already lost digits."""
+    with pytest.raises(TypeError, match="parse_float=Decimal"):
+        rates.rate_from_table(
+            {"fiat_currency": "USD", "rates": {"TAO": 191.5}},
+            fiat_currency="USD",
+            crypto_currency="TAO",
+        )

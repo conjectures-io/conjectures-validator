@@ -9,12 +9,16 @@ what happens to the answer; this module is about where it comes from and how it 
 the response with `parse_float=Decimal`, so the number that reaches the arithmetic is the number
 that was published.
 
-Two sources, tried in order, because they are not equally good:
+Three sources, tried in order, because they are not equally good:
 
-* `TaoMarketCapPriceReader` — TaoMarketCap's own 5-minute candles. **Preferred**, because
-  TaoMarketCap is TMC PAY: a price from the payment platform's own market data is closer to the
-  rate that platform is about to lock than any third party's. Public, no API key.
-* `TaoStatsTaoUsdPriceReader` (in `taostats.py`) — the secondary. Needs `TAOSTATS_API_KEY`, and is
+* `TmcPayRatesPriceReader` — TMC PAY's own `/api/v1/rates`. **Preferred**, because this is not
+  market data about the platform, it is the platform quoting the rate it prices invoices with. The
+  candle feed below was chosen on the argument that TaoMarketCap *is* TMC PAY; this is the same
+  argument's conclusion, one step nearer the source. Public — no API key, and deliberately none
+  sent.
+* `TaoMarketCapPriceReader` — TaoMarketCap's own 5-minute candles. The same platform's market data,
+  kept as the first fallback. Public, no API key.
+* `TaoStatsTaoUsdPriceReader` (in `taostats.py`) — the last resort. Needs `TAOSTATS_API_KEY`, and is
   kept because redundancy on the path that prices money is worth thirty lines.
 
 Above both of them sits a better source still, which is not in this module: the `exchange_rate` TMC
@@ -40,12 +44,32 @@ logger = logging.getLogger(__name__)
 # Where a price came from. Reported alongside the number rather than inferred by the caller,
 # because "which source answered" is part of the answer — it is what makes "are we still leaning on
 # the secondary" a question the telemetry can settle.
+SOURCE_TMC_PAY = "tmc-pay"
 SOURCE_TAOMARKETCAP = "taomarketcap"
 SOURCE_TAOSTATS = "taostats"
 SOURCE_STATIC = "static"
 
 TAOMARKETCAP_API_BASE_URL = "https://api.taomarketcap.com"
 CANDLE_PATH = "/public/v1/market/candle-data/"
+
+# TMC PAY's own rate endpoint, on the merchant API host. Public: the schema declares no
+# `X-API-Key` for it, and no credential is sent — a merchant key on a request that does not
+# need one is exposure bought for nothing.
+RATES_PATH = "/api/v1/rates"
+
+# The fiat currency this module can report, and the key the response must agree on. Mirrors
+# `settings.EXTERNAL_RATE_CURRENCY`, declared here rather than imported because `settings`
+# imports this module.
+RATES_FIAT_CURRENCY = "USD"
+
+# How long one rate is served before another is fetched. Unlike the candle feed there is no
+# published boundary to align to — the endpoint answers with whatever it holds now — so this is a
+# plain TTL, and a short one: the request is a few hundred bytes against a host this integration
+# already depends on, and a fresher seed is one fewer requote.
+RATES_CACHE_SECONDS = 60
+
+# A rate table for a handful of currencies. Bounded for the same reason as the candle response.
+MAX_RATES_BYTES = 64 * 1024
 
 # The candle period to ask for, and its length. TaoMarketCap refreshes these every five minutes,
 # which is what makes the cache boundary below the natural one.
@@ -167,6 +191,135 @@ class FallbackTaoUsdPriceReader:
     async def aclose(self) -> None:
         for reader in self.readers:
             await reader.aclose()
+
+
+class TmcPayRatesPriceReader:
+    """TMC PAY's `/api/v1/rates`, cached for `RATES_CACHE_SECONDS`.
+
+    **What the endpoint means.** It answers with the fiat currency it priced in and a table of
+    crypto codes, each mapping to the price of one whole unit in that currency:
+
+        {"fiat_currency": "USD", "rates": {"TAO": "191.52707097907592", "USDC": "1.0", ...}}
+
+    So the TAO entry is dollars per TAO, which is exactly what `TaoUsdQuote.price` means and the
+    same orientation as the other readers. It is the *reciprocal* of an invoice's `exchange_rate`,
+    which TMC PAY publishes as crypto per fiat unit — `routers/tmc_pay._seed_rate` performs that
+    inversion, in one place, for whichever source answered.
+
+    **The currency is verified, not assumed.** `fiat` is sent explicitly and the response's
+    `fiat_currency` has to agree, so a default changing upstream cannot turn a EUR table into a
+    number this module labels as dollars. A disagreement is treated as no answer.
+
+    **No credential.** The rate table is public, so this holds its own client with no
+    `X-API-Key` header. `TmcPayClient` in `tmc_pay.py` is the authenticated half and stays
+    separate; a reader that cannot leak a merchant key is worth more than a shared connection.
+
+    Caching and failure handling follow `TaoMarketCapPriceReader` exactly — a failed refresh is
+    never cached, and the last good price is served for up to `MAX_STALE_SECONDS` while every call
+    retries. See that class for why that is the right trade on this path.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        fiat_currency: str = RATES_FIAT_CURRENCY,
+        crypto_currency: str = "TAO",
+        ttl_seconds: int = RATES_CACHE_SECONDS,
+        timeout_seconds: float = 5.0,
+        client: httpx.AsyncClient | None = None,
+        now: Callable[[], dt.datetime] | None = None,
+    ) -> None:
+        if not base_url:
+            raise ValueError("a TMC PAY base URL is required")
+        if not fiat_currency:
+            raise ValueError("a fiat currency is required")
+        if not crypto_currency:
+            raise ValueError("a crypto currency is required")
+        if ttl_seconds <= 0:
+            raise ValueError("the TMC PAY rate TTL must be positive")
+        if timeout_seconds <= 0:
+            raise ValueError("the TMC PAY rate timeout must be positive")
+        self._base_url = base_url.rstrip("/")
+        self._fiat_currency = fiat_currency.upper()
+        self._crypto_currency = crypto_currency.upper()
+        self._ttl = dt.timedelta(seconds=ttl_seconds)
+        self._now = now or (lambda: dt.datetime.now(dt.UTC))
+        self._client = client or httpx.AsyncClient(
+            timeout=timeout_seconds,
+            headers={
+                "accept": "application/json",
+                "User-Agent": "conjectures-validator/0.1",
+            },
+        )
+        self._owns_client = client is None
+        self._lock = asyncio.Lock()
+        self._cached: TaoUsdQuote | None = None
+        self._cached_at: dt.datetime | None = None
+        self._expires_at: dt.datetime | None = None
+
+    async def tao_usd(self) -> TaoUsdQuote | None:
+        now = self._now()
+        if self._cached is not None and self._expires_at is not None and now < self._expires_at:
+            return self._cached
+
+        async with self._lock:
+            now = self._now()
+            if (
+                self._cached is not None
+                and self._expires_at is not None
+                and now < self._expires_at
+            ):
+                return self._cached
+            try:
+                price = await self._fetch()
+            except (
+                httpx.HTTPError,
+                InvalidOperation,
+                KeyError,
+                TypeError,
+                ValueError,
+            ) as exc:
+                logger.warning("the TMC PAY %s rate is unavailable: %s", self._crypto_currency, exc)
+                return self._still_usable(now)
+
+            quote = TaoUsdQuote(price=price, source=SOURCE_TMC_PAY)
+            self._cached = quote
+            self._cached_at = now
+            self._expires_at = now + self._ttl
+            return quote
+
+    def _still_usable(self, now: dt.datetime) -> TaoUsdQuote | None:
+        """The last good price, if it is not too old to seed a quote with."""
+        if self._cached is None or self._cached_at is None:
+            return None
+        age = (now - self._cached_at).total_seconds()
+        if age > MAX_STALE_SECONDS:
+            logger.warning(
+                "the last TMC PAY rate is %.0fs old; treating it as unavailable", age
+            )
+            return None
+        logger.info("serving a %.0fs-old TMC PAY rate while the upstream is unreachable", age)
+        return self._cached
+
+    async def _fetch(self) -> Decimal:
+        response = await self._client.get(
+            f"{self._base_url}{RATES_PATH}", params={"fiat": self._fiat_currency}
+        )
+        response.raise_for_status()
+        if len(response.content) > MAX_RATES_BYTES:
+            raise ValueError("TMC PAY returned an implausibly large rate table")
+        # `parse_float=Decimal` for the same reason as the candle feed: the table may publish
+        # prices as bare JSON numbers, and the default parser would make them binary floats.
+        return rate_from_table(
+            json.loads(response.text, parse_float=Decimal),
+            fiat_currency=self._fiat_currency,
+            crypto_currency=self._crypto_currency,
+        )
+
+    async def aclose(self) -> None:
+        if self._owns_client:
+            await self._client.aclose()
 
 
 class TaoMarketCapPriceReader:
@@ -348,6 +501,42 @@ def newest_candle(payload: object, *, now: dt.datetime) -> Mapping[str, object]:
     return candle
 
 
+def rate_from_table(
+    payload: object, *, fiat_currency: str, crypto_currency: str
+) -> Decimal:
+    """One crypto's price from a TMC PAY rate table, in the fiat currency it says it used.
+
+    The currency check is the point of doing this here rather than inline. The endpoint takes
+    `fiat` as an *optional* query parameter, so a request that failed to apply it still answers
+    200 with a perfectly well-formed table — in some other currency. Comparing what came back
+    against what was asked for is the only thing standing between that and a price labelled
+    dollars that is not dollars.
+
+    A missing crypto code raises rather than returning None: the caller distinguishes "no answer"
+    from "malformed answer" by catching, and both land on the same rung of the ladder.
+    """
+    if not isinstance(payload, Mapping):
+        raise ValueError("TMC PAY returned something that is not a rate table")
+
+    reported = payload.get("fiat_currency")
+    if not isinstance(reported, str):
+        raise ValueError("the TMC PAY rate table names no fiat currency")
+    if reported.upper() != fiat_currency.upper():
+        raise ValueError(
+            f"asked TMC PAY for {fiat_currency} rates and it answered in {reported}"
+        )
+
+    rates = payload.get("rates")
+    if not isinstance(rates, Mapping):
+        raise ValueError("the TMC PAY rate table carries no rates")
+    if crypto_currency not in rates:
+        raise KeyError(f"TMC PAY quotes no {crypto_currency} rate in {fiat_currency}")
+
+    return positive_decimal(
+        rates[crypto_currency], field=f"the TMC PAY {crypto_currency}/{fiat_currency} rate"
+    )
+
+
 def positive_decimal(value: object, *, field: str) -> Decimal:
     """A finite, positive `Decimal` from a JSON number that was parsed as one.
 
@@ -357,45 +546,54 @@ def positive_decimal(value: object, *, field: str) -> Decimal:
     """
     if isinstance(value, float):
         raise TypeError(
-            f"candle {field} arrived as a float; parse the response with parse_float=Decimal"
+            f"{field} arrived as a float; parse the response with parse_float=Decimal"
         )
     if isinstance(value, bool) or not isinstance(value, (Decimal, int, str)):
-        raise TypeError(f"candle {field} is not a number: {value!r}")
+        raise TypeError(f"{field} is not a number: {value!r}")
     price = Decimal(value)
     if not price.is_finite() or price <= 0:
-        raise ValueError(f"candle {field} is not finite and positive: {value!r}")
+        raise ValueError(f"{field} is not finite and positive: {value!r}")
     return price
 
 
 def build_tao_usd_reader(
     *,
+    tmc_pay_base_url: str,
     taomarketcap_base_url: str,
     taostats_api_key: str,
     taostats_ttl_seconds: int,
     extra: Iterable[TaoUsdPriceReader] = (),
 ) -> TaoUsdPriceReader:
-    """The configured chain: TaoMarketCap first, TaoStats second.
+    """The configured chain: TMC PAY's own rates, then TaoMarketCap's candles, then TaoStats.
 
-    TaoMarketCap leads because it is the payment platform's own market data and needs no API key,
-    which also means a deployment that has never configured TaoStats can still price an invoice.
+    TMC PAY leads because it is the rate the invoice will actually be priced from rather than
+    market data about it. The two below are fallbacks for the case that matters — the rate endpoint
+    being down is also the moment a purchase most needs a number — and neither needs an API key, so
+    a deployment that has never configured TaoStats can still price an invoice.
+
+    A deployment with TMC PAY switched off passes an empty base URL and simply starts one rung
+    lower, which is what makes this safe to order this way.
     """
     # Imported here rather than at module scope: `taostats` imports this module for the protocol,
     # and doing it the other way at import time would be a cycle.
     from submission_api.taostats import TaoStatsTaoUsdPriceReader
 
     primary = (
+        TmcPayRatesPriceReader(base_url=tmc_pay_base_url) if tmc_pay_base_url else None
+    )
+    secondary = (
         TaoMarketCapPriceReader(base_url=taomarketcap_base_url)
         if taomarketcap_base_url
         else None
     )
-    secondary = (
+    tertiary = (
         TaoStatsTaoUsdPriceReader(
             api_key=taostats_api_key, ttl_seconds=taostats_ttl_seconds
         )
         if taostats_api_key
         else None
     )
-    return FallbackTaoUsdPriceReader.of(primary, secondary, *extra)
+    return FallbackTaoUsdPriceReader.of(primary, secondary, tertiary, *extra)
 
 
 __all__ = [
@@ -403,19 +601,23 @@ __all__ = [
     "CANDLE_PERIOD_SECONDS",
     "MAX_CANDLE_AGE_SECONDS",
     "MAX_STALE_SECONDS",
+    "RATES_CACHE_SECONDS",
     "SOURCE_STATIC",
     "SOURCE_TAOMARKETCAP",
     "SOURCE_TAOSTATS",
+    "SOURCE_TMC_PAY",
     "TAOMARKETCAP_API_BASE_URL",
     "FallbackTaoUsdPriceReader",
     "StaticTaoUsdPriceReader",
     "TaoMarketCapPriceReader",
     "TaoUsdPriceReader",
     "TaoUsdQuote",
+    "TmcPayRatesPriceReader",
     "UnavailableTaoUsdPriceReader",
     "build_tao_usd_reader",
     "floor_to_period",
     "newest_candle",
     "next_boundary",
     "positive_decimal",
+    "rate_from_table",
 ]
