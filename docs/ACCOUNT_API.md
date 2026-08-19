@@ -715,11 +715,30 @@ already in the right currency and there is nothing to correct.
 This is why the path needs `TAOSTATS_API_KEY`. Without a live rate there is no honest fiat figure,
 and the endpoint answers `503 TMC_PAY_RATE_UNAVAILABLE` rather than inventing one.
 
-**A buyer may pay in any currency TMC PAY accepts.** `GET /v1/catalog/payment-currencies`
-reports the catalogue — unauthenticated, beside `credit-pricing`, so a visitor can see the payment
-options before signing up — — eight currencies over thirteen chains — each pair flagged `payable`.
+**A buyer may pay in any currency TMC PAY accepts.** `GET /v1/catalog/payment-currencies` reports
+the catalogue — eight currencies over thirteen chains at the time of writing — with each pair's
+precision and a `payable` flag. It is unauthenticated and sits beside `credit-pricing`, so a
+visitor can weigh the payment options before signing up.
+
 `POST .../orders` takes optional `crypto_currency` and `crypto_network`, defaulting to TAO on
 Bittensor; the network may be omitted for a currency that has only one.
+
+**The buyer is sent back when the payment window closes.** TMC PAY's hosted page opens in its own
+tab, so every invoice carries `success_redirect_url` and `failure_redirect_url`: `/tmc-pay/success`
+and `/tmc-pay/failure` on `WEBSITE_BASE_URL`, both with `?order=<id>` so the page can name or poll
+the purchase it is reporting on. A requote reuses them — they name the order, not the attempt.
+
+Two pages of their own rather than the account pages: a buyer coming back from a third-party tab may
+not know whether anything worked, and credits appear when TMC PAY's webhook arrives rather than when
+the browser returns, so a balance page could honestly show nothing yet.
+
+They are built server-side and **cannot be supplied by a caller**. A client-chosen target would
+make the purchase endpoint an open redirect wearing TMC PAY's domain, so `PurchaseRequest` forbids
+unknown fields and one sent anyway is a `400 MALFORMED_REQUEST`.
+
+`TMC_PAY_PAYABLE_PAIRS` decides what is payable. Unset — the default — permits every pair TMC PAY
+offers. The same list is read by both endpoints, so what a page advertises is what the purchase
+accepts and the two cannot drift.
 
 **The price is in TAO whatever arrives.** A purchase is `credits x CREDIT_PRICE_RAO`, converted to
 fiat at the current rate, and that fiat figure is what TMC PAY is asked for. TMC PAY converts it to

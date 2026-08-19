@@ -46,6 +46,7 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Path, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -97,6 +98,20 @@ REASON_QUOTE_FAILED = "TMC_PAY_QUOTE_FAILED"
 REASON_SIGNATURE_INVALID = "TMC_PAY_SIGNATURE_INVALID"
 REASON_WEBHOOK_MALFORMED = "TMC_PAY_WEBHOOK_MALFORMED"
 REASON_UNSUPPORTED_PAIR = "TMC_PAY_UNSUPPORTED_PAIR"
+
+# Where TMC PAY sends the buyer when its hosted payment window finishes, as routes on the website —
+# the same way `routers/auth.py` names `/login` and `/account`.
+#
+# Two pages of their own rather than the account pages the money landed on. A buyer arriving here
+# has just come back from a third-party tab and may have no idea whether anything worked, so the
+# page's whole job is to say so; pointing at `/account/credits` instead would drop them on a balance
+# that has not necessarily updated yet, because credits appear when TMC PAY's webhook arrives and
+# not when the browser returns.
+#
+# Both carry the order id, so the page can name or poll the purchase it is reporting on instead of
+# making the buyer find it. A placeholder page is free to ignore it.
+PAYMENT_SUCCESS_PATH = "/tmc-pay/success"
+PAYMENT_FAILURE_PATH = "/tmc-pay/failure"
 
 # `X-Webhook-ID` is TMC PAY's deduplication key and the primary key of the delivery table, so a
 # delivery without one cannot be deduplicated and is refused rather than processed twice.
@@ -186,9 +201,14 @@ async def _resolve_pair(
     BTC and XMR. Where there is a choice the buyer has to make it: defaulting to the first would
     quietly pick a chain whose fees differ by orders of magnitude from another.
 
+    A pair TMC PAY offers but this deployment has switched off is refused here too, by the same
+    rule the listing endpoint advertises with. Reading the allowlist in one place and enforcing it
+    in another is how the two came to disagree once already.
+
     A 400 rather than a 503: the deployment is fine and the processor is fine, the request named a
-    pair that does not exist.
+    pair this deployment will not invoice in.
     """
+    settings = services.settings
     requested = (payload.crypto_currency or "").strip().upper()
     network = (payload.crypto_network or "").strip().lower()
     if not requested and not network:
@@ -234,6 +254,14 @@ async def _resolve_pair(
             reason_code=REASON_UNSUPPORTED_PAIR,
             extra={"networks": list(names)},
         )
+    if not tmc_pay.pair_is_payable(
+        requested, network, allowlist=settings.tmc_pay_payable_pairs
+    ):
+        raise BadRequest(
+            f"this deployment does not accept {requested} on {network}",
+            reason_code=REASON_UNSUPPORTED_PAIR,
+            extra={"payable": [f"{c}:{n or '*'}" for c, n in settings.tmc_pay_payable_pairs]},
+        )
     return PaymentPair(requested, network)
 
 
@@ -247,6 +275,28 @@ class PaymentPair:
     @property
     def is_tao(self) -> bool:
         return self.currency == tmc_pay.CRYPTO_CURRENCY
+
+
+def _redirect_targets(settings: Settings, *, order_id: uuid.UUID) -> tuple[str, str]:
+    """Where the buyer lands when TMC PAY's payment window finishes, success and failure.
+
+    **Built here, never accepted from the caller.** These are handed to a third party that will
+    redirect a browser to them, so a client-supplied value would make this endpoint an open
+    redirect wearing TMC PAY's domain — a link that looks like it goes to the payment processor and
+    ends up anywhere. `WEBSITE_BASE_URL` is already validated at startup, https in production, so
+    deriving from it means the only reachable destination is the site this deployment belongs to.
+    `PurchaseRequest` forbids unknown fields, so a client cannot smuggle one in either.
+
+    No empty case to handle: settings refuses to start without `WEBSITE_BASE_URL` in production and
+    falls back to localhost otherwise, so there is always a base and it is always one somebody
+    chose.
+    """
+    base = settings.website_base_url.rstrip("/")
+    query = urlencode({"order": str(order_id)})
+    return (
+        f"{base}{PAYMENT_SUCCESS_PATH}?{query}",
+        f"{base}{PAYMENT_FAILURE_PATH}?{query}",
+    )
 
 
 def _same_fiat_amount(offered: str, asked: str) -> bool:
@@ -626,6 +676,9 @@ async def _quote_invoice(
     """
     crypto_per_fiat_unit = seed.value
     failure = "TMC PAY could not price this purchase"
+    # Resolved once: they name the order, not the attempt, so a requote sends the buyer to the same
+    # place as the first invoice would have.
+    success_url, failure_url = _redirect_targets(settings, order_id=order.id)
     for attempt in range(1, settings.tmc_pay_quote_attempts + 1):
         fiat_amount = tmc_pay.quote_fiat_amount(
             required_rao,
@@ -655,6 +708,8 @@ async def _quote_invoice(
                 ttl_minutes=settings.tmc_pay_ttl_minutes,
                 crypto_currency=pair.currency,
                 crypto_network=pair.network,
+                success_redirect_url=success_url,
+                failure_redirect_url=failure_url,
             )
         except tmc_pay.TmcPayUnavailable as exc:
             await _fail(session, order, reason=str(exc))

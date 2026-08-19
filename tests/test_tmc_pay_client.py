@@ -451,3 +451,58 @@ def test_the_catalogue_is_fetched_without_the_merchant_key() -> None:
     assert request.url.path == tmc_pay.CURRENCIES_PATH
     assert "x-api-key" not in request.headers
     assert "authorization" not in request.headers
+
+
+# --- The post-payment redirect targets ---------------------------------------------------------
+
+
+def test_the_redirect_targets_are_sent_when_given() -> None:
+    upstream = Upstream()
+    run(
+        gateway(upstream).create_invoice(
+            fiat_amount="200.00",
+            fiat_currency="USD",
+            external_id="order-1",
+            description="d",
+            metadata={},
+            ttl_minutes=30,
+            success_redirect_url="https://site.example/tmc-pay/success?order=abc",
+            failure_redirect_url="https://site.example/tmc-pay/failure?order=abc",
+        )
+    )
+    body = json.loads(upstream.requests[0].content)
+    assert body["success_redirect_url"] == "https://site.example/tmc-pay/success?order=abc"
+    assert (
+        body["failure_redirect_url"]
+        == "https://site.example/tmc-pay/failure?order=abc"
+    )
+
+
+def test_the_redirect_fields_are_omitted_rather_than_nulled() -> None:
+    """A body carrying only the fields in use is easier to read in a capture."""
+    upstream = Upstream()
+    run(create(gateway(upstream)))
+    body = json.loads(upstream.requests[0].content)
+    assert "success_redirect_url" not in body
+    assert "failure_redirect_url" not in body
+
+
+def test_an_oversized_redirect_target_is_refused_here() -> None:
+    """TMC PAY caps both at 2048 and refuses rather than truncating, so it is caught first."""
+    upstream = Upstream()
+    too_long = "https://site.example/" + "x" * tmc_pay.MAX_REDIRECT_URL_LENGTH
+    with pytest.raises(tmc_pay.TmcPayRejected, match="WEBSITE_BASE_URL"):
+        run(
+            gateway(upstream).create_invoice(
+                fiat_amount="200.00",
+                fiat_currency="USD",
+                external_id="order-1",
+                description="d",
+                metadata={},
+                ttl_minutes=30,
+                success_redirect_url=too_long,
+            )
+        )
+    # Refused before the request went out, so no invoice was created for a body TMC PAY would
+    # have rejected anyway.
+    assert upstream.requests == []

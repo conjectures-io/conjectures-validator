@@ -879,11 +879,17 @@ async def read_payment_currencies(
                         network=network.network,
                         decimals=network.decimals,
                         display_decimals=network.display_decimals,
-                        payable=(currency.code, network.network) in tmc_pay.PAYABLE_PAIRS,
+                        payable=tmc_pay.pair_is_payable(
+                            currency.code,
+                            network.network,
+                            allowlist=settings.tmc_pay_payable_pairs,
+                        ),
                     )
                     for network in currency.networks
                 ),
-                payable=bool(currency.payable_networks()),
+                payable=bool(
+                    currency.payable_networks(settings.tmc_pay_payable_pairs)
+                ),
             )
             for currency in catalogue
         ),

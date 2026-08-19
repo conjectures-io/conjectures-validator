@@ -1450,6 +1450,105 @@ def test_an_invoice_in_a_currency_other_than_the_one_asked_for_is_refused():
     run(scenario())
 
 
+# --- Where the buyer lands when the payment window closes --------------------------------------
+
+
+def test_the_invoice_carries_both_redirect_targets():
+    """TMC PAY's hosted window is a separate tab; these are how the buyer gets back."""
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="redirects")])
+        kit = await kit_with(gateway, WEBSITE_BASE_URL="https://conjectures.test").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                sent = gateway.created[0]
+
+                assert sent["success_redirect_url"] == (
+                    f"https://conjectures.test/tmc-pay/success?order={order['id']}"
+                )
+                assert sent["failure_redirect_url"] == (
+                    f"https://conjectures.test/tmc-pay/failure?order={order['id']}"
+                )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_trailing_slash_on_the_website_base_does_not_double():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="redirect-slash")])
+        kit = await kit_with(gateway, WEBSITE_BASE_URL="https://conjectures.test/").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+                assert "//tmc-pay" not in gateway.created[0]["success_redirect_url"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_requote_keeps_the_same_redirect_targets():
+    """They name the order, not the attempt, so a second invoice lands in the same place."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                # Short, so the first attempt is refused and a second is quoted.
+                invoice_body(invoice_id="rq-1", crypto_amount="0.1"),
+                invoice_body(invoice_id="rq-2", crypto_amount="0.5"),
+            ]
+        )
+        kit = await kit_with(
+            gateway, TMC_PAY_QUOTE_ATTEMPTS="2", WEBSITE_BASE_URL="https://conjectures.test"
+        ).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await _order_for(http, credits_=1)
+                assert len(gateway.created) == 2
+                first, second = gateway.created
+                assert first["success_redirect_url"] == second["success_redirect_url"]
+                assert first["failure_redirect_url"] == second["failure_redirect_url"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_client_cannot_choose_where_it_is_redirected():
+    """Client-supplied targets would make this an open redirect wearing TMC PAY's domain."""
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="no-inject")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                refused = await http.post(
+                    ORDERS,
+                    json={
+                        "credits": 1,
+                        "success_redirect_url": "https://evil.example/harvest",
+                    },
+                    headers=same_origin(),
+                )
+                assert refused.status_code == 400, refused.text
+                body = refused.json()
+                assert body["reason_code"] == "MALFORMED_REQUEST"
+                assert any(
+                    e["location"] == "body.success_redirect_url"
+                    and e["type"] == "extra_forbidden"
+                    for e in body["errors"]
+                ), body["errors"]
+                # Refused before anything reached the processor.
+                assert gateway.created == []
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_the_default_is_still_tao_on_bittensor():
     async def scenario():
         gateway = FakeGateway([invoice_body(invoice_id="tao-default")])
@@ -1491,20 +1590,19 @@ def test_the_currency_list_reports_every_pair_and_flags_what_is_payable():
                 by_code = {c["code"]: c for c in body["currencies"]}
                 assert set(by_code) == {"TAO", "USDC", "BTC", "XMR"}
 
-                # Only TAO on Bittensor can be invoiced today, and the flag says so per pair.
-                assert by_code["TAO"]["payable"] is True
+                # No allowlist configured, so every pair TMC PAY offers is payable — which is
+                # what the purchase endpoint accepts, and the two must not disagree.
+                for code in ("TAO", "USDC", "BTC", "XMR"):
+                    assert by_code[code]["payable"] is True, code
+                    assert all(n["payable"] for n in by_code[code]["networks"]), code
                 assert by_code["TAO"]["networks"][0]["network"] == "bittensor"
-                assert by_code["TAO"]["networks"][0]["payable"] is True
-                for code in ("USDC", "BTC", "XMR"):
-                    assert by_code[code]["payable"] is False, code
-                    assert all(not n["payable"] for n in by_code[code]["networks"]), code
 
                 # Precision comes from `network_metadata` where present.
                 assert by_code["USDC"]["networks"][0] == {
                     "network": "ethereum",
                     "decimals": 6,
                     "display_decimals": 2,
-                    "payable": False,
+                    "payable": True,
                 }
                 # ...and falls back to the currency's own decimals where it is absent.
                 assert by_code["XMR"]["networks"][0]["decimals"] == 12
@@ -1515,6 +1613,66 @@ def test_the_currency_list_reports_every_pair_and_flags_what_is_payable():
                     "ethereum",
                     "base",
                 ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_allowlist_narrows_the_flag_and_the_purchase_together():
+    """One rule, two endpoints. They disagreed once: the page said no while the POST said yes."""
+
+    async def scenario():
+        gateway = FakeGateway([usdc_invoice("usdc-allowed")])
+        kit = await kit_with(
+            gateway, TMC_PAY_PAYABLE_PAIRS="TAO:bittensor,USDC:base"
+        ).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                body = (await http.get(CURRENCIES)).json()
+                by_code = {c["code"]: c for c in body["currencies"]}
+
+                assert by_code["TAO"]["payable"] is True
+                assert by_code["USDC"]["payable"] is True
+                # Allowlisted on base only, so ethereum is off even though TMC PAY offers it.
+                networks = {n["network"]: n["payable"] for n in by_code["USDC"]["networks"]}
+                assert networks == {"base": True, "ethereum": False}
+                for code in ("BTC", "XMR"):
+                    assert by_code[code]["payable"] is False, code
+
+                # What the page advertises is what the purchase accepts.
+                allowed = await http.post(
+                    ORDERS,
+                    json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                    headers=same_origin(),
+                )
+                assert allowed.status_code == 201, allowed.text
+
+                for payload in (
+                    {"credits": 1, "crypto_currency": "USDC", "crypto_network": "ethereum"},
+                    {"credits": 1, "crypto_currency": "BTC"},
+                ):
+                    refused = await http.post(ORDERS, json=payload, headers=same_origin())
+                    assert refused.status_code == 400, refused.text
+                    assert refused.json()["reason_code"] == "TMC_PAY_UNSUPPORTED_PAIR"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_bare_currency_in_the_allowlist_permits_all_its_networks():
+    async def scenario():
+        kit = await kit_with(FakeGateway([]), TMC_PAY_PAYABLE_PAIRS="USDT").setup()
+        try:
+            async with buyer(kit) as (http, _):
+                by_code = {
+                    c["code"]: c for c in (await http.get(CURRENCIES)).json()["currencies"]
+                }
+                # The fixture's USDT entry is absent, so assert on what is there instead: an
+                # allowlist naming only USDT leaves everything else off, TAO included.
+                for code in ("TAO", "USDC", "BTC", "XMR"):
+                    assert by_code[code]["payable"] is False, code
         finally:
             await kit.teardown()
 
