@@ -46,7 +46,6 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
-from urllib.parse import urlencode
 
 from fastapi import APIRouter, Path, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -107,9 +106,6 @@ REASON_UNSUPPORTED_PAIR = "TMC_PAY_UNSUPPORTED_PAIR"
 # page's whole job is to say so; pointing at `/account/credits` instead would drop them on a balance
 # that has not necessarily updated yet, because credits appear when TMC PAY's webhook arrives and
 # not when the browser returns.
-#
-# Both carry the order id, so the page can name or poll the purchase it is reporting on instead of
-# making the buyer find it. A placeholder page is free to ignore it.
 PAYMENT_SUCCESS_PATH = "/tmc-pay/success"
 PAYMENT_FAILURE_PATH = "/tmc-pay/failure"
 
@@ -277,8 +273,13 @@ class PaymentPair:
         return self.currency == tmc_pay.CRYPTO_CURRENCY
 
 
-def _redirect_targets(settings: Settings, *, order_id: uuid.UUID) -> tuple[str, str]:
+def _redirect_targets(settings: Settings) -> tuple[str, str]:
     """Where the buyer lands when TMC PAY's payment window finishes, success and failure.
+
+    Static: two fixed pages on this deployment's website, carrying nothing about the purchase. The
+    order id is deliberately not appended — a page that has to work for every buyer should not need
+    a different URL per invoice, and TMC PAY is told the same two strings every time, so what it
+    was told is knowable from settings alone rather than from a stored per-order column.
 
     **Built here, never accepted from the caller.** These are handed to a third party that will
     redirect a browser to them, so a client-supplied value would make this endpoint an open
@@ -292,11 +293,7 @@ def _redirect_targets(settings: Settings, *, order_id: uuid.UUID) -> tuple[str, 
     chose.
     """
     base = settings.website_base_url.rstrip("/")
-    query = urlencode({"order": str(order_id)})
-    return (
-        f"{base}{PAYMENT_SUCCESS_PATH}?{query}",
-        f"{base}{PAYMENT_FAILURE_PATH}?{query}",
-    )
+    return f"{base}{PAYMENT_SUCCESS_PATH}", f"{base}{PAYMENT_FAILURE_PATH}"
 
 
 def _same_fiat_amount(offered: str, asked: str) -> bool:
@@ -535,9 +532,12 @@ async def create_order(
         rate_source=seed.source,
         quote_attempts=quote.attempts,
     )
+    success_url, failure_url = _redirect_targets(settings)
     return schemas.TmcPayPurchase(
         order=_order(order, settings=settings),
         balance=_balance(balance),
+        success_redirect_url=success_url,
+        failure_redirect_url=failure_url,
     )
 
 
@@ -678,7 +678,7 @@ async def _quote_invoice(
     failure = "TMC PAY could not price this purchase"
     # Resolved once: they name the order, not the attempt, so a requote sends the buyer to the same
     # place as the first invoice would have.
-    success_url, failure_url = _redirect_targets(settings, order_id=order.id)
+    success_url, failure_url = _redirect_targets(settings)
     for attempt in range(1, settings.tmc_pay_quote_attempts + 1):
         fiat_amount = tmc_pay.quote_fiat_amount(
             required_rao,

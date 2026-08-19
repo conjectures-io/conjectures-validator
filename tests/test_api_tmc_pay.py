@@ -1453,23 +1453,38 @@ def test_an_invoice_in_a_currency_other_than_the_one_asked_for_is_refused():
 # --- Where the buyer lands when the payment window closes --------------------------------------
 
 
-def test_the_invoice_carries_both_redirect_targets():
-    """TMC PAY's hosted window is a separate tab; these are how the buyer gets back."""
+def test_the_invoice_carries_both_redirect_targets_and_the_response_reports_them():
+    """TMC PAY's hosted window is a separate tab; these are how the buyer gets back.
+
+    Static, and the same two strings in both directions: what the purchase response reports is
+    exactly what TMC PAY was told, so a page never has to guess where its buyer will land.
+    """
+    success = "https://conjectures.test/tmc-pay/success"
+    failure = "https://conjectures.test/tmc-pay/failure"
 
     async def scenario():
         gateway = FakeGateway([invoice_body(invoice_id="redirects")])
         kit = await kit_with(gateway, WEBSITE_BASE_URL="https://conjectures.test").setup()
         try:
             async with buyer(kit) as (http, _):
-                order = await _order_for(http, credits_=1)
-                sent = gateway.created[0]
+                created = await http.post(
+                    ORDERS, json={"credits": 1}, headers=same_origin()
+                )
+                assert created.status_code == 201, created.text
+                body = created.json()
 
-                assert sent["success_redirect_url"] == (
-                    f"https://conjectures.test/tmc-pay/success?order={order['id']}"
-                )
-                assert sent["failure_redirect_url"] == (
-                    f"https://conjectures.test/tmc-pay/failure?order={order['id']}"
-                )
+                # Reported on the purchase response.
+                assert body["success_redirect_url"] == success
+                assert body["failure_redirect_url"] == failure
+
+                # And sent to TMC PAY, verbatim.
+                sent = gateway.created[0]
+                assert sent["success_redirect_url"] == success
+                assert sent["failure_redirect_url"] == failure
+
+                # Static: nothing about the order is in them.
+                assert body["order"]["id"] not in success
+                assert "?" not in success and "?" not in failure
         finally:
             await kit.teardown()
 
@@ -1511,6 +1526,9 @@ def test_a_requote_keeps_the_same_redirect_targets():
                 first, second = gateway.created
                 assert first["success_redirect_url"] == second["success_redirect_url"]
                 assert first["failure_redirect_url"] == second["failure_redirect_url"]
+                assert first["success_redirect_url"] == (
+                    "https://conjectures.test/tmc-pay/success"
+                )
         finally:
             await kit.teardown()
 

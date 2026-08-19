@@ -521,6 +521,15 @@ class TmcPayPurchase(Model):
 
     order: TmcPayOrder
     balance: CreditBalance
+    success_redirect_url: str = Field(
+        description=(
+            "Where TMC PAY will send the buyer after a successful payment. Static for this "
+            "deployment, and the exact string TMC PAY was given for this invoice"
+        )
+    )
+    failure_redirect_url: str = Field(
+        description="Where TMC PAY will send the buyer if the payment does not complete"
+    )
 
 
 # --- Submission terms --------------------------------------------------------------------
