@@ -725,8 +725,11 @@ Bittensor; the network may be omitted for a currency that has only one.
 
 **The buyer is sent back when the payment window closes.** TMC PAY's hosted page opens in its own
 tab, so every invoice carries `success_redirect_url` and `failure_redirect_url`: `/tmc-pay/success`
-and `/tmc-pay/failure` on `WEBSITE_BASE_URL`, both with `?order=<id>` so the page can name or poll
-the purchase it is reporting on. A requote reuses them — they name the order, not the attempt.
+and `/tmc-pay/failure` on `WEBSITE_BASE_URL`. Static — the same two strings for every invoice, with
+nothing about the purchase in them.
+
+`POST .../orders` returns both alongside the order, so a page never has to guess where its buyer
+will land: what the response reports is exactly what TMC PAY was told.
 
 Two pages of their own rather than the account pages: a buyer coming back from a third-party tab may
 not know whether anything worked, and credits appear when TMC PAY's webhook arrives rather than when
