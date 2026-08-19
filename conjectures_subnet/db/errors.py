@@ -14,6 +14,30 @@ from collections.abc import Mapping
 from typing import Any
 
 
+def violated_constraint(exc: Exception) -> str | None:
+    """The constraint or unique index a driver's integrity error names, or None.
+
+    Exists because `IntegrityError` is one exception class for several unrelated failures: a
+    uniqueness violation, a CHECK violation, a foreign-key violation. Code that catches it and
+    assumes the *one* it was expecting reports every other cause as that one — a duplicate-key
+    message for what is actually a malformed row, which sends a reader looking for a second record
+    that does not exist.
+
+    PostgreSQL names the offending object in the error, and psycopg exposes it as
+    `exc.orig.diag.constraint_name`; for a unique index that is the index name. Read defensively
+    through `getattr`, because a driver that exposes no diagnostics should make this return None
+    rather than raise a second error while handling the first.
+
+    **None means "could not tell", and a caller must treat that as "not the case I expected".**
+    Guessing would restore the bug this exists to prevent, and on a money path an unexplained 500
+    is better than a confident wrong answer.
+    """
+    orig = getattr(exc, "orig", None)
+    diag = getattr(orig, "diag", None)
+    name = getattr(diag, "constraint_name", None)
+    return name if isinstance(name, str) and name else None
+
+
 class DatabaseError(Exception):
     """Base class for durable-state failures callers are expected to handle."""
 

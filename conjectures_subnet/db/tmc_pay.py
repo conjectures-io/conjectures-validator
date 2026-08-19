@@ -33,7 +33,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db import credits
-from conjectures_subnet.db.errors import RecordConflict, RecordNotFound
+from conjectures_subnet.db.errors import (
+    RecordConflict,
+    RecordNotFound,
+    violated_constraint,
+)
 from conjectures_subnet.db.models import (
     CreditEntryKind,
     CreditLedgerEntry,
@@ -48,6 +52,21 @@ from conjectures_subnet.db.models import (
 # the operator-facing list; these two are the one currency this layer's arithmetic understands.
 TAO_CURRENCY = "TAO"
 TAO_NETWORK = "bittensor"
+
+# The unique indexes this module expects to collide with, by the name PostgreSQL reports when one
+# does. Spelled out so that catching `IntegrityError` can mean "the duplicate I was expecting"
+# rather than "any way a write can be refused": a CHECK violation caught by the same clause used to
+# be reported as a duplicate, which describes a record that does not exist and sends whoever reads
+# it looking for one.
+ORDER_EXTERNAL_ID_INDEX = "tmc_pay_orders_external_idx"
+ORDER_INVOICE_ID_INDEX = "tmc_pay_orders_invoice_idx"
+DELIVERY_ID_INDEX = "tmc_pay_webhook_deliveries_pkey"
+# Two ways the same fact is enforced, so either name means "this order is already credited": the
+# order's own pointer at its ledger entry, and the ledger's one-DEPOSIT-per-order index.
+CREDITED_INDEXES = (
+    "tmc_pay_orders_credited_ledger_id_key",
+    "credit_ledger_tmc_pay_idx",
+)
 
 # Order states in which TMC PAY may still change its mind, so the reconciler keeps asking.
 # UNDERPAID is here because TMC PAY documents it as non-terminal — the buyer may top up — and NEW
@@ -157,6 +176,8 @@ async def create_order(
         await session.flush()
     except IntegrityError as exc:
         await session.rollback()
+        if violated_constraint(exc) != ORDER_EXTERNAL_ID_INDEX:
+            raise
         raise RecordConflict(
             "that purchase reference has already been used",
             reason_code="DUPLICATE_TMC_PAY_ORDER",
@@ -253,6 +274,11 @@ async def attach_invoice(
         await session.flush()
     except IntegrityError as exc:
         await session.rollback()
+        # Only the invoice-id index means what the message below says. Anything else — a CHECK on
+        # the amount, the currency shape, the completeness of an invoiced row — is a row this
+        # process built wrongly, and it is raised as itself so the log names the real constraint.
+        if violated_constraint(exc) != ORDER_INVOICE_ID_INDEX:
+            raise
         raise RecordConflict(
             "that invoice already belongs to another order",
             reason_code="DUPLICATE_TMC_PAY_INVOICE",
@@ -537,6 +563,8 @@ async def settle(
         await session.flush()
     except IntegrityError as exc:
         await session.rollback()
+        if violated_constraint(exc) not in CREDITED_INDEXES:
+            raise
         raise RecordConflict(
             "that order has already been credited",
             reason_code="TMC_PAY_ORDER_ALREADY_CREDITED",
@@ -609,7 +637,14 @@ async def claim_delivery(
         async with session.begin_nested():
             session.add(delivery)
             await session.flush()
-    except IntegrityError:
+    except IntegrityError as exc:
+        # Only a collision on the delivery id means "already claimed". Any other violation is a row
+        # this process built wrongly, and returning False for it would be the worst outcome
+        # available on this path: the caller reads False as "a duplicate, already handled" and
+        # drops the delivery, so a webhook that should have issued credits is discarded in silence.
+        # Raised instead, which fails the request and leaves TMC PAY's own delivery record unacked.
+        if violated_constraint(exc) != DELIVERY_ID_INDEX:
+            raise
         return False
     return True
 

@@ -39,8 +39,11 @@ pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 from conftest_api import harness, postgres_dsn
 from test_api_accounts import client, same_origin, sign_in_by_email
 
+from sqlalchemy.exc import IntegrityError
+
 from conjectures_subnet.db import credits as credit_store
 from conjectures_subnet.db import tmc_pay as order_store
+from conjectures_subnet.db.errors import RecordConflict, violated_constraint
 from conjectures_subnet.db.models import CreditEntryKind, TmcPayOrderState
 from submission_api import tmc_pay
 from submission_api.settings import RAO_PER_TAO
@@ -914,6 +917,174 @@ def test_a_webhook_for_another_merchant_or_an_unknown_invoice_is_recorded_and_ig
             await kit.teardown()
 
     run(scenario())
+
+
+# --- Which integrity violations mean "duplicate" -----------------------------------------------
+# `IntegrityError` is one exception class for uniqueness, CHECK and foreign-key violations. Each of
+# these store functions catches it to recognise the duplicate it expects, so each has to be shown
+# not to claim that for a violation it did not expect.
+
+
+def test_a_duplicate_invoice_is_still_reported_as_one():
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                await sign_in_by_email(kit, http)
+            async with kit.session() as session:
+                account = await _an_account(kit, session)
+                first = await order_store.create_order(
+                    session,
+                    account_id=account,
+                    credits_requested=1,
+                    credit_price_rao=CREDIT_PRICE_RAO,
+                    external_id="dup-a",
+                )
+                await _attach(session, first, invoice_id="shared-invoice")
+                await session.commit()
+
+                second = await order_store.create_order(
+                    session,
+                    account_id=account,
+                    credits_requested=1,
+                    credit_price_rao=CREDIT_PRICE_RAO,
+                    external_id="dup-b",
+                )
+                with pytest.raises(RecordConflict) as caught:
+                    await _attach(session, second, invoice_id="shared-invoice")
+                assert caught.value.reason_code == "DUPLICATE_TMC_PAY_INVOICE"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_check_violation_is_not_reported_as_a_duplicate_invoice():
+    """The bug this guards: any refused write used to read as "belongs to another order".
+
+    A fiat currency that is not three upper-case letters violates `tmc_pay_fiat_currency_shape`,
+    which is exactly the shape of upstream surprise this path has to survive honestly — and the
+    misreport sent a reader looking for a second order that was never there.
+    """
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with kit.session() as session:
+                account = await _an_account(kit, session)
+                order = await order_store.create_order(
+                    session,
+                    account_id=account,
+                    credits_requested=1,
+                    credit_price_rao=CREDIT_PRICE_RAO,
+                    external_id="badcurrency",
+                )
+                with pytest.raises(IntegrityError):
+                    await _attach(
+                        session, order, invoice_id="bad-fiat", fiat_currency="dollars"
+                    )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_duplicate_external_id_is_still_reported_as_one():
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with kit.session() as session:
+                account = await _an_account(kit, session)
+                await order_store.create_order(
+                    session,
+                    account_id=account,
+                    credits_requested=1,
+                    credit_price_rao=CREDIT_PRICE_RAO,
+                    external_id="same-key",
+                )
+                await session.commit()
+                with pytest.raises(RecordConflict) as caught:
+                    await order_store.create_order(
+                        session,
+                        account_id=account,
+                        credits_requested=1,
+                        credit_price_rao=CREDIT_PRICE_RAO,
+                        external_id="same-key",
+                    )
+                assert caught.value.reason_code == "DUPLICATE_TMC_PAY_ORDER"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_repeated_delivery_id_is_still_a_duplicate_and_nothing_else_is():
+    """`claim_delivery` returns False for a duplicate. Anything else must not be silent.
+
+    False means "already handled, drop it", so a violation misread as one discards a webhook that
+    should have issued credits — the worst available outcome on this path.
+    """
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with kit.session() as session:
+                assert await order_store.claim_delivery(
+                    session, webhook_id="wh-1", invoice_id="i", event="paid", status="confirmed"
+                )
+                # The same id again is the duplicate this is for.
+                assert not await order_store.claim_delivery(
+                    session, webhook_id="wh-1", invoice_id="i", event="paid", status="confirmed"
+                )
+                await session.commit()
+
+                # A different violation on the same insert is raised, not swallowed as a duplicate.
+                with pytest.raises(IntegrityError):
+                    await order_store.claim_delivery(
+                        session,
+                        webhook_id="wh-2",
+                        invoice_id="i",
+                        event="paid",
+                        status="x" * 400,
+                    )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unrecognised_violation_reads_as_not_the_expected_one():
+    """`violated_constraint` returns None when it cannot tell, and None must never match."""
+    assert violated_constraint(RuntimeError("no diagnostics here")) is None
+    assert violated_constraint(IntegrityError("stmt", {}, Exception("orig"))) is None
+
+
+async def _an_account(kit, session):
+    """One account id, created directly: these tests are about the store, not about sign-in."""
+    from conjectures_subnet.db import accounts as account_store
+
+    account = await account_store.create_account(
+        session, email=f"store-{uuid.uuid4()}@example.com", email_verified=True
+    )
+    await session.flush()
+    return account.id
+
+
+async def _attach(session, order, *, invoice_id: str, fiat_currency: str = "USD"):
+    return await order_store.attach_invoice(
+        session,
+        order,
+        invoice_id=invoice_id,
+        merchant_id=MERCHANT,
+        status=order_store.TmcPayOrderState.CREATED,
+        fiat_amount="200.00",
+        fiat_currency=fiat_currency,
+        exchange_rate="0.0025",
+        commission_amount="2.00",
+        crypto_amount_rao=CREDIT_PRICE_RAO,
+        deposit_address=DEPOSIT_ADDRESS,
+        invoice_expires_at=None,
+    )
 
 
 def test_underpaid_and_overpaid_are_handled_differently_and_both_flag_for_review():
