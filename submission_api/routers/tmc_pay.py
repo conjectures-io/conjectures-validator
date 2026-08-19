@@ -96,6 +96,7 @@ REASON_UPSTREAM_REFUSED = "TMC_PAY_REFUSED"
 REASON_QUOTE_FAILED = "TMC_PAY_QUOTE_FAILED"
 REASON_SIGNATURE_INVALID = "TMC_PAY_SIGNATURE_INVALID"
 REASON_WEBHOOK_MALFORMED = "TMC_PAY_WEBHOOK_MALFORMED"
+REASON_UNSUPPORTED_PAIR = "TMC_PAY_UNSUPPORTED_PAIR"
 
 # `X-Webhook-ID` is TMC PAY's deduplication key and the primary key of the delivery table, so a
 # delivery without one cannot be deduplicated and is refused rather than processed twice.
@@ -109,12 +110,32 @@ class Payload(BaseModel):
 class PurchaseRequest(Payload):
     """Declared in whole credits, exactly as `POST /v1/me/deposits` is.
 
-    Buying credits is the operation; TAO is how it is paid, and the fiat figure on the invoice is
-    an artefact of the processor quoting in fiat. Accepting an amount instead of a count would ask
-    the buyer to do the conversion, and then to explain the remainder.
+    Buying credits is the operation; the pair below is only how it is paid, and the fiat figure on
+    the invoice is an artefact of the processor quoting in fiat. Accepting an amount instead of a
+    count would ask the buyer to do the conversion, and then to explain the remainder.
+
+    **The price is in TAO whatever the buyer sends.** `credits x CREDIT_PRICE_RAO` is converted to
+    fiat at the current rate and that fiat figure is what TMC PAY is asked for; TMC PAY then
+    converts it to the chosen currency at its own rate. So choosing USDC changes what arrives in
+    the treasury, never what a credit costs.
     """
 
     credits: int = Field(ge=1, le=credit_config.MAX_CREDITS_PER_PURCHASE)
+    crypto_currency: str | None = Field(
+        default=None,
+        max_length=tmc_pay.MAX_CURRENCY_CODE_LENGTH,
+        description=(
+            "Ticker to pay in, from `GET /v1/me/credits/tmc-pay/currencies`. Defaults to TAO"
+        ),
+    )
+    crypto_network: str | None = Field(
+        default=None,
+        max_length=tmc_pay.MAX_NETWORK_NAME_LENGTH,
+        description=(
+            "Chain to pay over. Defaults to the currency's only network when it has exactly one, "
+            "so a single-chain currency needs no second field"
+        ),
+    )
 
 
 def _now() -> dt.datetime:
@@ -151,8 +172,124 @@ def _state(status_text: str) -> TmcPayOrderState:
     return TmcPayOrderState(status_text.upper())
 
 
+async def _resolve_pair(
+    payload: PurchaseRequest, services: Services
+) -> PaymentPair:
+    """The pair to invoice in, checked against TMC PAY's own catalogue.
+
+    Validated against the live catalogue rather than a list kept here, because a hardcoded one is a
+    second source of truth that goes stale silently — a chain TMC PAY drops would keep being
+    offered, and every invoice for it would fail at creation with a message about a currency
+    instead of about a chain.
+
+    Omitting the network is allowed when the currency has exactly one, which is true for TAO,
+    BTC and XMR. Where there is a choice the buyer has to make it: defaulting to the first would
+    quietly pick a chain whose fees differ by orders of magnitude from another.
+
+    A 400 rather than a 503: the deployment is fine and the processor is fine, the request named a
+    pair that does not exist.
+    """
+    requested = (payload.crypto_currency or "").strip().upper()
+    network = (payload.crypto_network or "").strip().lower()
+    if not requested and not network:
+        return PaymentPair(tmc_pay.CRYPTO_CURRENCY, tmc_pay.CRYPTO_NETWORK)
+    if not requested:
+        raise BadRequest(
+            "crypto_network was given without crypto_currency",
+            reason_code=REASON_UNSUPPORTED_PAIR,
+        )
+
+    try:
+        catalogue = await services.tmc_pay.list_currencies()
+    except tmc_pay.TmcPayUnavailable as exc:
+        raise ServiceUnavailable(
+            "TMC PAY is temporarily unavailable; retry shortly",
+            reason_code=REASON_UPSTREAM_UNAVAILABLE,
+        ) from exc
+    except tmc_pay.TmcPayRejected as exc:
+        raise ServiceUnavailable(
+            "TMC PAY did not return a usable list of payment currencies",
+            reason_code=REASON_UPSTREAM_REFUSED,
+        ) from exc
+
+    currency = next((c for c in catalogue if c.code == requested), None)
+    if currency is None:
+        raise BadRequest(
+            f"TMC PAY does not accept {requested}",
+            reason_code=REASON_UNSUPPORTED_PAIR,
+            extra={"currencies": [c.code for c in catalogue]},
+        )
+    names = tuple(n.network for n in currency.networks)
+    if not network:
+        if len(names) != 1:
+            raise BadRequest(
+                f"{requested} can be paid over more than one network; name one",
+                reason_code=REASON_UNSUPPORTED_PAIR,
+                extra={"networks": list(names)},
+            )
+        network = names[0]
+    elif network not in names:
+        raise BadRequest(
+            f"TMC PAY does not accept {requested} on {network}",
+            reason_code=REASON_UNSUPPORTED_PAIR,
+            extra={"networks": list(names)},
+        )
+    return PaymentPair(requested, network)
+
+
+@dataclass(frozen=True)
+class PaymentPair:
+    """The currency and network one purchase is to be invoiced in."""
+
+    currency: str
+    network: str
+
+    @property
+    def is_tao(self) -> bool:
+        return self.currency == tmc_pay.CRYPTO_CURRENCY
+
+
+def _same_fiat_amount(offered: str, asked: str) -> bool:
+    """Whether two fiat strings are the same amount, not merely the same text.
+
+    Compared as decimals: `"95.80"` and `"95.8"` are one amount written two ways, and TMC PAY is
+    under no obligation to echo the formatting it was sent. Anything unparseable is not equal,
+    because "we could not tell" must not read as "it matched".
+    """
+    try:
+        return Decimal(offered.strip()) == Decimal(asked.strip())
+    except (InvalidOperation, AttributeError):
+        return False
+
+
+def _payment_url(order: TmcPayOrder, *, hosted_base_url: str) -> str | None:
+    """Where to send the buyer to pay.
+
+    TMC PAY's own `hosted_invoice_url` when the order has one, because it is the only correct
+    answer: their public invoice route is keyed by an opaque `hosted_token`, so a URL built from a
+    base and an invoice id addresses nothing.
+
+    The constructed link survives only as a fallback for orders created before that URL was
+    recorded. It is very probably wrong for them too, but it is what those rows already returned,
+    and replacing a bad link with no link would take the payment page away from an order that is
+    still open.
+    """
+    if order.hosted_invoice_url:
+        return order.hosted_invoice_url
+    if hosted_base_url and order.invoice_id:
+        return f"{hosted_base_url}/i/{order.invoice_id}"
+    return None
+
+
 def _order(order: TmcPayOrder, *, settings: Settings) -> schemas.TmcPayOrder:
-    amount_rao = order.crypto_amount_rao
+    # What the order is worth in rao — the locked TAO, or the credit price for a purchase paid in
+    # something else. `order_store.paid_rao` is the same rule `settle` credits by, so the count
+    # reported here cannot disagree with the ledger.
+    amount_rao = order_store.paid_rao(order)
+    # TAO-denominated fields stay empty for any other currency rather than being converted: a rao
+    # figure for a BTC invoice would be an exchange rate this side invented.
+    tao_denominated = order.crypto_currency in (None, tmc_pay.CRYPTO_CURRENCY)
+    locked_tao_rao = order.crypto_amount_rao if tao_denominated else None
     # The package bonus this order earned, if it earned one. Recomputed from the same schedule
     # `settle` granted it from, rather than read back off the ledger: the BONUS entry names no
     # order — `credit_ledger_tmc_pay_idx` is unique across every kind, so it cannot — and the
@@ -182,18 +319,25 @@ def _order(order: TmcPayOrder, *, settings: Settings) -> schemas.TmcPayOrder:
             if order.credited_ledger_id is not None and amount_rao is not None
             else 0
         ),
-        amount_rao=amount_rao,
-        amount_tao=tmc_pay.tao_from_rao(amount_rao) if amount_rao is not None else None,
+        amount_rao=locked_tao_rao,
+        amount_tao=(
+            tmc_pay.tao_from_rao(locked_tao_rao) if locked_tao_rao is not None else None
+        ),
+        crypto_amount=order.crypto_amount,
+        crypto_currency=order.crypto_currency,
+        crypto_network=order.crypto_network,
         deposit_address=order.deposit_address,
         # The same convenience the treasury path offers, pointed at TMC PAY's invoice address.
         # Integer rao rendered by string arithmetic; see `credits.btcli_command`.
         btcli_command=(
             credit_config.btcli_command(
                 treasury=order.deposit_address,
-                amount_rao=amount_rao,
+                amount_rao=locked_tao_rao,
                 rao_per_tao=RAO_PER_TAO,
             )
-            if order.deposit_address is not None and amount_rao is not None
+            # `btcli` transfers TAO on Bittensor. Offering it for a Bitcoin invoice would be a
+            # command that sends the wrong asset to an address that cannot receive it.
+            if order.deposit_address is not None and locked_tao_rao is not None
             else None
         ),
         fiat_amount=order.fiat_amount,
@@ -201,9 +345,7 @@ def _order(order: TmcPayOrder, *, settings: Settings) -> schemas.TmcPayOrder:
         exchange_rate=order.exchange_rate,
         commission_amount=order.commission_amount,
         invoice_id=order.invoice_id,
-        payment_url=(
-            f"{hosted}/i/{order.invoice_id}" if hosted and order.invoice_id else None
-        ),
+        payment_url=_payment_url(order, hosted_base_url=hosted),
         needs_review=order.needs_review,
         failure_reason=order.failure_reason,
         expires_at=utc(order.invoice_expires_at) if order.invoice_expires_at else None,
@@ -276,8 +418,9 @@ async def create_order(
     credit_price_rao = settings.payment_amount_rao
     required_rao = payload.credits * credit_price_rao
 
-    # Resolved before the order row exists, so a purchase that cannot be priced leaves nothing
-    # behind to explain.
+    # Both resolved before the order row exists, so a purchase that cannot be priced — or names a
+    # pair TMC PAY does not accept — leaves nothing behind to explain.
+    pair = await _resolve_pair(payload, services)
     seed = await _seed_rate(session, services, settings, now=now)
 
     external_id = f"credits-{uuid.uuid4()}"
@@ -300,6 +443,7 @@ async def create_order(
         required_rao=required_rao,
         seed=seed,
         session=session,
+        pair=pair,
     )
     invoice = quote.invoice
 
@@ -314,8 +458,12 @@ async def create_order(
         exchange_rate=invoice.exchange_rate,
         commission_amount=invoice.commission_amount,
         crypto_amount_rao=invoice.crypto_amount_rao,
+        crypto_amount=invoice.crypto_amount,
+        crypto_currency=invoice.crypto_currency,
+        crypto_network=invoice.crypto_network,
         deposit_address=invoice.deposit_address,
         invoice_expires_at=invoice.expires_at,
+        hosted_invoice_url=invoice.hosted_invoice_url,
     )
     balance = await credit_store.credit_balance(
         session, principal.account.id, credit_price_rao=credit_price_rao, now=now
@@ -456,6 +604,7 @@ async def _quote_invoice(
     required_rao: int,
     seed: RateSeed,
     session: AsyncSession,
+    pair: PaymentPair,
 ) -> Quote:
     """An invoice priced inside the band, or a refusal with the order marked FAILED.
 
@@ -463,6 +612,13 @@ async def _quote_invoice(
     figure is the only one that matters. The first attempt uses `seed`; a later attempt uses the
     rate the previous invoice locked, which is not an estimate at all. Two attempts is the default
     and is enough unless the rate is moving faster than a round trip.
+
+    **Only a TAO invoice can need a second attempt.** For any other pair the fiat figure *is* the
+    contract — `credited_rao` grants what that figure was computed from — so an invoice for the
+    amount requested is correct by construction and the loop returns on the first pass. The quote
+    margin is dropped for those too: it exists to keep a moving rate from leaving the locked TAO
+    below what the credits cost, and with nothing denominated in TAO there is nothing for it to
+    protect. Charging it anyway would be a surcharge for paying in USDC.
 
     An abandoned invoice from a mispriced attempt is left to expire. It cannot be cancelled through
     the API, and cancelling it locally would be worse than leaving it: a buyer who pays an invoice
@@ -474,7 +630,7 @@ async def _quote_invoice(
         fiat_amount = tmc_pay.quote_fiat_amount(
             required_rao,
             crypto_per_fiat_unit=crypto_per_fiat_unit,
-            margin_bps=settings.tmc_pay_quote_margin_bps,
+            margin_bps=(settings.tmc_pay_quote_margin_bps if pair.is_tao else 0),
             decimals=settings.tmc_pay_fiat_decimals,
         )
         try:
@@ -497,6 +653,8 @@ async def _quote_invoice(
                     "credit_price_rao": order.credit_price_rao,
                 },
                 ttl_minutes=settings.tmc_pay_ttl_minutes,
+                crypto_currency=pair.currency,
+                crypto_network=pair.network,
             )
         except tmc_pay.TmcPayUnavailable as exc:
             await _fail(session, order, reason=str(exc))
@@ -512,7 +670,13 @@ async def _quote_invoice(
                 reason_code=REASON_UPSTREAM_REFUSED,
             ) from exc
 
-        problem = _invoice_problem(invoice, settings=settings, required_rao=required_rao)
+        problem = _invoice_problem(
+            invoice,
+            settings=settings,
+            required_rao=required_rao,
+            pair=pair,
+            fiat_asked=fiat_amount,
+        )
         if problem is None:
             return Quote(invoice=invoice, attempts=attempt)
 
@@ -540,7 +704,12 @@ async def _quote_invoice(
 
 
 def _invoice_problem(
-    invoice: tmc_pay.Invoice, *, settings: Settings, required_rao: int
+    invoice: tmc_pay.Invoice,
+    *,
+    settings: Settings,
+    required_rao: int,
+    pair: PaymentPair,
+    fiat_asked: str,
 ) -> tuple[str, bool] | None:
     """Why this invoice cannot be used and whether requoting could fix it, or None if it can.
 
@@ -561,10 +730,22 @@ def _invoice_problem(
     * above the ceiling **overcharges the buyer**, which a stale rate or a non-USD merchant
       currency produces just as easily as a mistyped margin. See `tmc_pay.quote_ceiling`.
     """
-    if invoice.crypto_currency != tmc_pay.CRYPTO_CURRENCY:
-        return f"invoice is denominated in {invoice.crypto_currency}, not TAO", False
-    if invoice.crypto_network != tmc_pay.CRYPTO_NETWORK:
-        return f"invoice is on the {invoice.crypto_network} network, not Bittensor", False
+    if invoice.crypto_currency != pair.currency:
+        return (
+            (
+                f"invoice is denominated in {invoice.crypto_currency}, not the requested "
+                f"{pair.currency}"
+            ),
+            False,
+        )
+    if invoice.crypto_network != pair.network:
+        return (
+            (
+                f"invoice is on the {invoice.crypto_network} network, not the requested "
+                f"{pair.network}"
+            ),
+            False,
+        )
     if (
         settings.tmc_pay_merchant_id
         and invoice.merchant_id != settings.tmc_pay_merchant_id
@@ -573,6 +754,35 @@ def _invoice_problem(
             f"invoice belongs to merchant {invoice.merchant_id}, not this deployment's",
             False,
         )
+    if invoice.fiat_currency != settings.tmc_pay_fiat_currency:
+        return (
+            (
+                f"invoice is priced in {invoice.fiat_currency}, not this merchant's "
+                f"{settings.tmc_pay_fiat_currency}"
+            ),
+            False,
+        )
+
+    if pair.currency != tmc_pay.CRYPTO_CURRENCY:
+        # Not TAO, so there is no rao to band. The fiat figure is the whole contract: this side
+        # computed it from `required_rao` and asked for it, TMC PAY converts it to the chosen
+        # currency at its own rate, and `credited_rao` grants exactly what was asked for. So the
+        # only thing to verify is that the invoice is for the amount requested — and a mismatch is
+        # not repriceable, because asking again would not make TMC PAY echo a different number.
+        if not _same_fiat_amount(invoice.fiat_amount, fiat_asked):
+            return (
+                (
+                    f"invoice is for {invoice.fiat_amount} {invoice.fiat_currency}, not the "
+                    f"{fiat_asked} {settings.tmc_pay_fiat_currency} this purchase asked for"
+                ),
+                False,
+            )
+        return None
+
+    if invoice.crypto_amount_rao is None:
+        # A TAO invoice whose amount would not convert. `parse_invoice` only leaves this None for a
+        # non-TAO currency, so reaching it here means the two disagree about what TAO is.
+        return f"invoice reports an unusable TAO amount {invoice.crypto_amount!r}", False
     ceiling = tmc_pay.quote_ceiling(
         required_rao,
         exchange_rate=invoice.exchange_rate,
@@ -623,6 +833,73 @@ def _balance(balance: credit_store.CreditBalance) -> schemas.CreditBalance:
 
 
 # --- Reading ---------------------------------------------------------------------------------
+
+
+@router.get(
+    "/v1/me/credits/tmc-pay/currencies",
+    response_model=schemas.PaymentOptions,
+    summary="What a buyer may pay in",
+)
+async def list_payment_currencies(
+    response: Response,
+    principal: PrincipalDep,
+    services: ServicesDep,
+) -> schemas.PaymentOptions:
+    """TMC PAY's currency catalogue, with this deployment's default and what it will honour.
+
+    A read of the processor's own capabilities rather than of anything belonging to this account —
+    but behind a session all the same, because it is only reachable from a purchase page and there
+    is no reason to publish which processor funds this validator to anonymous callers.
+
+    Every pair TMC PAY supports is reported, each flagged with whether an invoice can currently be
+    issued in it. Returning only the payable one would leave a page unable to tell "we do not
+    support that chain" from "the processor does not", and the answer to those is different.
+
+    Cached in the gateway, so a page that renders this on every visit costs one outbound call per
+    `CURRENCIES_CACHE_SECONDS` for the whole process.
+    """
+    del principal
+    settings = services.settings
+    if not settings.tmc_pay_enabled:
+        raise ServiceUnavailable(
+            "buying credits with a card or another chain is not configured on this deployment",
+            reason_code=REASON_NOT_CONFIGURED,
+        )
+    _no_store(response)
+    try:
+        catalogue = await services.tmc_pay.list_currencies()
+    except tmc_pay.TmcPayUnavailable as exc:
+        raise ServiceUnavailable(
+            "TMC PAY is temporarily unavailable; retry shortly",
+            reason_code=REASON_UPSTREAM_UNAVAILABLE,
+        ) from exc
+    except tmc_pay.TmcPayRejected as exc:
+        logger.warning("TMC PAY returned an unusable currency catalogue: %s", exc)
+        raise ServiceUnavailable(
+            "TMC PAY did not return a usable list of payment currencies",
+            reason_code=REASON_UPSTREAM_REFUSED,
+        ) from exc
+
+    return schemas.PaymentOptions(
+        currencies=tuple(
+            schemas.PaymentCurrency(
+                code=currency.code,
+                networks=tuple(
+                    schemas.PaymentNetwork(
+                        network=network.network,
+                        decimals=network.decimals,
+                        display_decimals=network.display_decimals,
+                        payable=(currency.code, network.network) in tmc_pay.PAYABLE_PAIRS,
+                    )
+                    for network in currency.networks
+                ),
+                payable=bool(currency.payable_networks()),
+            )
+            for currency in catalogue
+        ),
+        default_currency=tmc_pay.CRYPTO_CURRENCY,
+        default_network=tmc_pay.CRYPTO_NETWORK,
+    )
 
 
 @router.get(
@@ -1011,8 +1288,12 @@ async def receive_webhook(
             exchange_rate=invoice.exchange_rate,
             commission_amount=invoice.commission_amount,
             crypto_amount_rao=invoice.crypto_amount_rao,
+            crypto_amount=invoice.crypto_amount,
+            crypto_currency=invoice.crypto_currency,
+            crypto_network=invoice.crypto_network,
             deposit_address=invoice.deposit_address,
             invoice_expires_at=invoice.expires_at,
+            hosted_invoice_url=invoice.hosted_invoice_url,
         )
 
     before = order.credited_ledger_id

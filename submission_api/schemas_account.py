@@ -387,6 +387,46 @@ class Deposit(Model):
     updated_at: dt.datetime
 
 
+class PaymentNetwork(Model):
+    """One chain a currency can be paid over."""
+
+    network: str = Field(description="TMC PAY's network name, e.g. `bittensor` or `base`")
+    decimals: int = Field(description="The chain's smallest unit, as a power of ten")
+    display_decimals: int = Field(
+        description="How many decimals TMC PAY renders for this pair. For display only"
+    )
+    payable: bool = Field(
+        description=(
+            "Whether this deployment will issue an invoice in this pair. Only TAO on Bittensor "
+            "today: credits are priced in rao, so a payment in anything else cannot yet be "
+            "turned into a credit balance"
+        )
+    )
+
+
+class PaymentCurrency(Model):
+    """One currency TMC PAY accepts, across every chain it accepts for it."""
+
+    code: str = Field(description="Ticker, upper-case, e.g. `TAO` or `USDC`")
+    networks: tuple[PaymentNetwork, ...]
+    payable: bool = Field(
+        description="Whether any of this currency's networks is payable on this deployment"
+    )
+
+
+class PaymentOptions(Model):
+    """What a purchase page may offer, and what it defaults to.
+
+    Reports TMC PAY's whole catalogue rather than only the payable part, so a page can show which
+    chains the processor supports instead of silently omitting them — and `payable` says, per pair,
+    which ones this deployment will actually invoice in today.
+    """
+
+    currencies: tuple[PaymentCurrency, ...]
+    default_currency: str = Field(description="The pair an invoice uses when none is chosen")
+    default_network: str
+
+
 class TmcPayOrder(Model):
     """A credit purchase paid through TMC PAY, and what has been observed for it.
 
@@ -417,8 +457,25 @@ class TmcPayOrder(Model):
     credits_credited: int = Field(
         description="Credits this order has added to the balance; 0 until it is confirmed"
     )
+    crypto_amount: str | None = Field(
+        default=None,
+        description=(
+            "The amount to send, in `crypto_currency`, verbatim from TMC PAY. Use this rather "
+            "than `amount_tao` whenever the invoice is not in TAO"
+        ),
+    )
+    crypto_currency: str | None = Field(
+        default=None, description="What this invoice is payable in, e.g. `TAO` or `USDC`"
+    )
+    crypto_network: str | None = Field(
+        default=None, description="The chain to send it over, e.g. `bittensor` or `base`"
+    )
     amount_rao: int | None = Field(
-        default=None, description="The TAO the invoice locked, in integer rao"
+        default=None,
+        description=(
+            "The TAO the invoice locked, in integer rao. Null when the invoice is payable in "
+            "another currency — rao is TAO's unit, and converting would invent a rate"
+        ),
     )
     amount_tao: str | None = Field(
         default=None, description="The same amount as a decimal string, for display"
@@ -439,7 +496,11 @@ class TmcPayOrder(Model):
     )
     invoice_id: str | None = None
     payment_url: str | None = Field(
-        default=None, description="TMC PAY's hosted payment page, when one is configured"
+        default=None,
+        description=(
+            "TMC PAY's hosted payment page for this invoice, as TMC PAY reported it. Send the "
+            "buyer here to pay. Absent until an invoice exists"
+        ),
     )
     needs_review: bool = Field(
         description="An operator has to look at this: over- or underpaid, or paid late"

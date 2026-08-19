@@ -715,6 +715,26 @@ already in the right currency and there is nothing to correct.
 This is why the path needs `TAOSTATS_API_KEY`. Without a live rate there is no honest fiat figure,
 and the endpoint answers `503 TMC_PAY_RATE_UNAVAILABLE` rather than inventing one.
 
+**A buyer may pay in any currency TMC PAY accepts.** `GET /v1/me/credits/tmc-pay/currencies`
+reports the catalogue — eight currencies over thirteen chains — each pair flagged `payable`.
+`POST .../orders` takes optional `crypto_currency` and `crypto_network`, defaulting to TAO on
+Bittensor; the network may be omitted for a currency that has only one.
+
+**The price is in TAO whatever arrives.** A purchase is `credits x CREDIT_PRICE_RAO`, converted to
+fiat at the current rate, and that fiat figure is what TMC PAY is asked for. TMC PAY converts it to
+the chosen currency at its own rate. So the currency changes what lands in the treasury, never what
+a credit costs.
+
+Two consequences on the order body:
+
+* `amount_rao` and `amount_tao` are null for a non-TAO invoice, and `btcli_command` with them —
+  rao is TAO's unit, and converting would mean inventing a rate. Use `crypto_amount` with
+  `crypto_currency` and `crypto_network`, which say what to send and where.
+* A TAO purchase credits the TAO that arrived, so rounding the fiat figure up leaves the buyer a
+  `remainder_rao`. Any other currency credits `credits x CREDIT_PRICE_RAO` exactly, with no
+  remainder, and is not charged `TMC_PAY_QUOTE_MARGIN_BPS` — that margin exists to keep a moving
+  rate from leaving the locked TAO short, and with no TAO locked it would be a surcharge.
+
 **Status is TMC PAY's word, not a translation.** `NEW` and `FAILED` are ours; the other eight —
 `CREATED`, `PENDING`, `CONFIRMING`, `UNDERPAID`, `CONFIRMED`, `OVERPAID`, `CANCELLED`, `EXPIRED` —
 are TMC PAY's invoice lifecycle label for label, so what this API reports and what the TMC PAY

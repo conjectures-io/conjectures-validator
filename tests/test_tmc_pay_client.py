@@ -42,6 +42,7 @@ INVOICE_BODY = {
     "crypto_network": "Bittensor",
     "deposit_address": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
     "exchange_rate": "39.99",
+    "hosted_invoice_url": "https://pay.example.com/invoice/9f3c1a2e-hosted-token",
 }
 
 
@@ -314,3 +315,139 @@ def test_an_overpayment_can_also_be_late() -> None:
     assert tmc_pay.payment_was_late(
         invoice_with(status="overpaid", confirmed_offset_minutes=45)
     )
+
+
+# --- The hosted payment page ------------------------------------------------------------------
+# The URL the buyer is redirected to. Taken from TMC PAY rather than constructed, because their
+# public invoice route is keyed by an opaque `hosted_token` and not by the invoice id.
+
+
+def test_the_hosted_payment_url_is_read() -> None:
+    invoice = run(create(gateway(Upstream())))
+    assert invoice.hosted_invoice_url == INVOICE_BODY["hosted_invoice_url"]
+
+
+def test_an_absent_hosted_url_is_not_an_error() -> None:
+    """A webhook body need not carry one, and a purchase must not fail over a convenience."""
+    body = {k: v for k, v in INVOICE_BODY.items() if k != "hosted_invoice_url"}
+    invoice = run(create(gateway(Upstream(body=body))))
+    assert invoice.hosted_invoice_url is None
+    # Everything else still parsed, so the order is recorded and payable.
+    assert invoice.invoice_id == INVOICE_BODY["id"]
+
+
+def test_a_non_http_hosted_url_is_dropped_rather_than_trusted() -> None:
+    """This value becomes a browser navigation target, so only http(s) may survive parsing."""
+    for hostile in (
+        "javascript:alert(1)",
+        "JavaScript:alert(1)",
+        "data:text/html;base64,PHNjcmlwdD4=",
+        "  javascript:alert(1)",
+        "file:///etc/passwd",
+        "//pay.example.com/invoice/x",
+        "",
+        "   ",
+        "x" * (tmc_pay.MAX_HOSTED_URL_LENGTH + 1),
+    ):
+        body = dict(INVOICE_BODY, hosted_invoice_url=hostile)
+        invoice = run(create(gateway(Upstream(body=body))))
+        assert invoice.hosted_invoice_url is None, hostile
+        # Dropped, never fatal: the rest of the invoice is still usable.
+        assert invoice.invoice_id == INVOICE_BODY["id"]
+
+
+def test_a_non_string_hosted_url_is_dropped() -> None:
+    for hostile in (12345, {"url": "https://x"}, ["https://x"], True):
+        body = dict(INVOICE_BODY, hosted_invoice_url=hostile)
+        assert run(create(gateway(Upstream(body=body)))).hosted_invoice_url is None, hostile
+
+
+def test_an_http_hosted_url_is_accepted() -> None:
+    """Permitted for a development processor; production URLs are https in practice."""
+    body = dict(INVOICE_BODY, hosted_invoice_url="http://localhost:8080/invoice/tok")
+    invoice = run(create(gateway(Upstream(body=body))))
+    assert invoice.hosted_invoice_url == "http://localhost:8080/invoice/tok"
+
+
+# --- Paying in something other than TAO -------------------------------------------------------
+
+
+def test_the_requested_pair_is_what_is_sent() -> None:
+    upstream = Upstream(body=dict(INVOICE_BODY, crypto_currency="usdc", crypto_network="Base"))
+    run(
+        gateway(upstream).create_invoice(
+            fiat_amount="200.00",
+            fiat_currency="USD",
+            external_id="order-1",
+            description="d",
+            metadata={},
+            ttl_minutes=30,
+            crypto_currency="USDC",
+            crypto_network="base",
+        )
+    )
+    body = json.loads(upstream.requests[0].content)
+    assert body["crypto_currency"] == "USDC"
+    assert body["crypto_network"] == "base"
+
+
+def test_the_default_pair_is_tao_on_bittensor() -> None:
+    upstream = Upstream()
+    run(create(gateway(upstream)))
+    body = json.loads(upstream.requests[0].content)
+    assert body["crypto_currency"] == tmc_pay.CRYPTO_CURRENCY
+    assert body["crypto_network"] == tmc_pay.CRYPTO_NETWORK
+
+
+def test_rao_is_only_derived_for_a_tao_invoice() -> None:
+    """A BTC amount run through `rao_from_tao` would be a rao figure that means nothing."""
+    tao = run(create(gateway(Upstream())))
+    assert tao.crypto_amount_rao == 1_250_000_000  # 1.25 TAO
+
+    for currency, amount in (
+        ("BTC", "0.00311"),
+        ("USDC", "200.00"),
+        # Eighteen decimals: `rao_from_tao` would refuse this outright rather than rescale it.
+        ("ETH", "0.104382919283746152"),
+    ):
+        body = dict(INVOICE_BODY, crypto_currency=currency, crypto_amount=amount)
+        invoice = run(create(gateway(Upstream(body=body))))
+        assert invoice.crypto_amount_rao is None, currency
+        # The amount itself is kept verbatim, because it is what the buyer must send.
+        assert invoice.crypto_amount == amount
+        assert invoice.crypto_currency == currency
+
+
+def test_what_a_purchase_is_worth_in_rao() -> None:
+    """TAO credits what arrived; anything else credits the price the fiat figure came from."""
+    required = 500_000_000
+
+    tao = run(create(gateway(Upstream())))
+    assert tmc_pay.credited_rao(tao, required_rao=required) == tao.crypto_amount_rao
+
+    usdc = run(
+        create(gateway(Upstream(body=dict(INVOICE_BODY, crypto_currency="USDC"))))
+    )
+    assert tmc_pay.credited_rao(usdc, required_rao=required) == required
+
+
+def test_the_catalogue_is_fetched_without_the_merchant_key() -> None:
+    catalogue = [
+        {
+            "code": "TAO",
+            "networks": ["bittensor"],
+            "network_metadata": [
+                {"network": "bittensor", "decimals": 9, "display_decimals": 4}
+            ],
+            "decimals": 9,
+            "display_decimals": 4,
+        }
+    ]
+    upstream = Upstream(body=catalogue)
+    currencies = run(gateway(upstream).list_currencies())
+
+    assert [c.code for c in currencies] == ["TAO"]
+    request = upstream.requests[0]
+    assert request.url.path == tmc_pay.CURRENCIES_PATH
+    assert "x-api-key" not in request.headers
+    assert "authorization" not in request.headers
