@@ -698,9 +698,10 @@ class Settings:
     tmc_pay_poll_seconds: int
     tmc_pay_rate_ttl_seconds: int
     # Whether a payment confirmed after its invoice expired issues credits automatically. Off by
-    # default: TMC PAY documents `late_payment` as a manual reconciliation case, and this process
-    # cannot tell from the outside whether such a payment settles to the treasury or is returned
-    # to the sender. An operator who has established that it settles can turn it on.
+    # default: this process cannot tell from the outside whether such a payment settles to the
+    # treasury or is returned to the sender. An operator who has established that it settles can
+    # turn it on. TMC PAY publishes no status for the case, so it is derived from `confirmed_at`
+    # against `expires_at` — see `tmc_pay.payment_was_late`.
     tmc_pay_credit_late_payments: bool
 
     @property

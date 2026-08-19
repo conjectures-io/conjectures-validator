@@ -712,17 +712,21 @@ This is why the path needs `TAOSTATS_API_KEY`. Without a live rate there is no h
 and the endpoint answers `503 TMC_PAY_RATE_UNAVAILABLE` rather than inventing one.
 
 **Status is TMC PAY's word, not a translation.** `NEW` and `FAILED` are ours; the other eight —
-`CREATED`, `PENDING`, `CONFIRMING`, `UNDERPAID`, `CONFIRMED`, `OVERPAID`, `EXPIRED`,
-`LATE_PAYMENT` — are TMC PAY's invoice lifecycle label for label, so what this API reports and what
-the TMC PAY dashboard shows are the same word.
+`CREATED`, `PENDING`, `CONFIRMING`, `UNDERPAID`, `CONFIRMED`, `OVERPAID`, `CANCELLED`, `EXPIRED` —
+are TMC PAY's invoice lifecycle label for label, so what this API reports and what the TMC PAY
+dashboard shows are the same word.
+
+`LATE_PAYMENT` is the one status this validator derives rather than receives. TMC PAY publishes no
+label for a payment confirmed after its own TTL, so an invoice that arrives `confirmed` with a
+`confirmed_at` later than its `expires_at` is recorded under this status instead.
 
 Only `CONFIRMED` and `OVERPAID` issue credits. `OVERPAID` credits the invoice amount and flags the
 order `needs_review`, because only a person with the dashboard can settle the surplus. `UNDERPAID`
 credits nothing and flags too: real money arrived, and part-crediting a whole credit is not a
-decision to automate. `LATE_PAYMENT` credits nothing unless an operator sets
-`TMC_PAY_CREDIT_LATE_PAYMENTS` — TMC PAY documents it as a manual reconciliation case, and from
-outside there is no way to tell whether such a payment settles to the treasury or returns to the
-sender.
+decision to automate. `CANCELLED` and `EXPIRED` credit nothing and flag nothing — no money
+arrived. `LATE_PAYMENT` credits nothing unless an operator sets `TMC_PAY_CREDIT_LATE_PAYMENTS`,
+because from outside there is no way to tell whether such a payment settles to the treasury or
+returns to the sender.
 
 **TMC PAY dispatches each webhook once and never retries automatically.** A delivery lost to a
 deploy is lost, so two things back it up: `GET .../orders/{id}` refreshes from the processor while

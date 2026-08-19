@@ -759,23 +759,28 @@ async def apply_invoice(
 
     * **paid** — one DEPOSIT entry, once. A second attempt raises `RecordConflict` from the store
       and is treated as success, because a duplicate delivery has already achieved what it wanted.
-    * **paid, but not cleanly** — `overpaid`, or a credited `late_payment`. Credits are issued for
+    * **paid, but not cleanly** — `overpaid`, or a credited late payment. Credits are issued for
       the invoice amount and the order is flagged for review, because the surplus (or the
       lateness) is something a person has to settle with TMC PAY.
     * **not paid** — the status is recorded and nothing moves. `underpaid` is flagged for review:
       real money arrived, and part-crediting a whole credit is not a decision to automate.
     """
-    state = _state(invoice.status)
+    # TMC PAY reports no status for a payment that confirmed after the TTL, so the stored state
+    # is the one thing here that is not a straight relabel of `invoice.status`: lateness comes
+    # from the timestamps and maps onto LATE_PAYMENT, which is what the operator queue looks for.
+    late = tmc_pay.payment_was_late(invoice)
+    state = TmcPayOrderState.LATE_PAYMENT if late else _state(invoice.status)
     earned = tmc_pay.credits_are_earned(
-        invoice.status, credit_late_payments=settings.tmc_pay_credit_late_payments
+        invoice.status,
+        late=late,
+        credit_late_payments=settings.tmc_pay_credit_late_payments,
     )
     # Money arrived but the amount or the timing is not what the invoice asked for. Flagged rather
     # than resolved: only a person with the TMC PAY dashboard can settle a surplus or chase a
     # part-payment, and quietly ignoring it would lose somebody's TAO.
-    review = invoice.status in (
+    review = late or invoice.status in (
         tmc_pay.STATUS_OVERPAID,
         tmc_pay.STATUS_UNDERPAID,
-        tmc_pay.STATUS_LATE_PAYMENT,
     )
 
     if earned and order.credited_ledger_id is None:

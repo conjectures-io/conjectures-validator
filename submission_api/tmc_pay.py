@@ -48,11 +48,15 @@ logger = logging.getLogger("submission_api.tmc_pay")
 # The invoice endpoints, relative to the configured API base URL. Paths rather than full URLs
 # because the base is per-deployment: the published documentation quotes `api.example.com`, so
 # the real host is something an operator is told and this module must not guess.
-INVOICES_PATH = "/api/invoices"
+INVOICES_PATH = "/api/v1/invoices/"
+
+# The merchant credential goes in this header, verbatim, on both invoice endpoints.
+API_KEY_HEADER = "X-API-Key"
 
 
 def invoice_path(invoice_id: str) -> str:
-    return f"{INVOICES_PATH}/{invoice_id}"
+    """The single-invoice path, whether or not `INVOICES_PATH` carries a trailing separator."""
+    return f"{INVOICES_PATH.rstrip('/')}/{invoice_id}"
 
 
 # The crypto side is fixed. TMC PAY supports BTC, ETH, USDT and TAO; this integration buys
@@ -61,9 +65,15 @@ def invoice_path(invoice_id: str) -> str:
 CRYPTO_CURRENCY = "TAO"
 CRYPTO_NETWORK = "bittensor"
 
-# Invoice statuses, verbatim from TMC PAY's lifecycle. Non-terminal ones may still move; the
-# terminal ones will not, except that UNDERPAID is documented as non-terminal because a buyer
-# can top up on most chains.
+# Invoice statuses, verbatim from TMC PAY's `InvoiceStatus` enum. Non-terminal ones may still
+# move; the terminal ones will not, except that UNDERPAID is documented as non-terminal because a
+# buyer can top up on most chains.
+#
+# There is deliberately no `late_payment` here. Earlier documentation described one, but the
+# live schema does not publish it, so accepting it would mean reserving a label TMC PAY cannot
+# send. A payment that lands after the TTL arrives as `confirmed` with a `confirmed_at` past
+# `expires_at` instead — see `payment_was_late`, which is what now drives the manual-review
+# path that status used to.
 STATUS_CREATED = "created"
 STATUS_PENDING = "pending"
 STATUS_CONFIRMING = "confirming"
@@ -71,7 +81,7 @@ STATUS_UNDERPAID = "underpaid"
 STATUS_CONFIRMED = "confirmed"
 STATUS_OVERPAID = "overpaid"
 STATUS_EXPIRED = "expired"
-STATUS_LATE_PAYMENT = "late_payment"
+STATUS_CANCELLED = "cancelled"
 
 INVOICE_STATUSES = (
     STATUS_CREATED,
@@ -81,18 +91,17 @@ INVOICE_STATUSES = (
     STATUS_CONFIRMED,
     STATUS_OVERPAID,
     STATUS_EXPIRED,
-    STATUS_LATE_PAYMENT,
+    STATUS_CANCELLED,
 )
 
 # Statuses in which TMC PAY has confirmed that the invoice's locked amount arrived. These are the
-# only two that may cause credits to exist. `late_payment` is deliberately not here — see
-# `credits_are_earned`.
+# only two that may cause credits to exist.
 PAID_STATUSES = frozenset({STATUS_CONFIRMED, STATUS_OVERPAID})
 
 # Statuses from which nothing further will happen, so a poller can stop asking. UNDERPAID is
 # excluded on purpose: the buyer may still top up.
 SETTLED_STATUSES = frozenset(
-    {STATUS_CONFIRMED, STATUS_OVERPAID, STATUS_EXPIRED, STATUS_LATE_PAYMENT}
+    {STATUS_CONFIRMED, STATUS_OVERPAID, STATUS_EXPIRED, STATUS_CANCELLED}
 )
 
 # Webhook delivery headers, verbatim.
@@ -303,24 +312,45 @@ def quote_ceiling(
     return int((allowance + minor_unit_rao).to_integral_value(rounding=ROUND_CEILING))
 
 
-def credits_are_earned(status: str, *, credit_late_payments: bool) -> bool:
+def payment_was_late(invoice: Invoice) -> bool:
+    """Whether TMC PAY confirmed this invoice after its own TTL had elapsed.
+
+    TMC PAY has no `late_payment` status to report, so lateness is read off the two timestamps it
+    does publish. Both must be present and the confirmation strictly later than the expiry: an
+    invoice confirmed exactly at its deadline was paid on time, and a missing timestamp is not
+    evidence of anything.
+
+    Unpaid statuses cannot be late. `expired` means the TTL elapsed with nothing confirmed, which
+    is an ordinary abandonment rather than the exceptional case this guards.
+    """
+    if invoice.status not in PAID_STATUSES:
+        return False
+    if invoice.confirmed_at is None or invoice.expires_at is None:
+        return False
+    return invoice.confirmed_at > invoice.expires_at
+
+
+def credits_are_earned(status: str, *, late: bool, credit_late_payments: bool) -> bool:
     """Whether a status means credits may be issued.
 
     `confirmed` and `overpaid` are unambiguous: TMC PAY saw the locked amount arrive with enough
-    confirmations. Every other status is a no, including two that are worth naming:
+    confirmations. Every other status is a no, including two cases worth naming:
 
     * `underpaid` — real money arrived, but less than the invoice. Non-terminal, because the
       buyer may top up, and crediting a part-payment for a whole credit is not something to do
       automatically.
-    * `late_payment` — the amount arrived after the invoice expired. Real money again, but TMC
-      PAY documents this as a manual reconciliation case rather than a fulfilment case, and this
-      integration cannot tell from the outside whether such a payment will be settled to the
-      treasury or returned to the sender. Off by default, and an operator who has established
-      with TMC PAY that late payments do settle can turn it on.
+    * a *late* payment — the amount arrived after the invoice expired, per `payment_was_late`.
+      Real money again, but this integration cannot tell from the outside whether such a payment
+      will be settled to the treasury or returned to the sender, so it is a reconciliation case
+      rather than a fulfilment case. Held by default; an operator who has established with TMC
+      PAY that late payments do settle sets `TMC_PAY_CREDIT_LATE_PAYMENTS`.
+
+    Note the order: lateness overrides an otherwise-paid status, so the opt-in is what decides a
+    late payment either way and a plain `confirmed` is never gated by it.
     """
-    if status in PAID_STATUSES:
-        return True
-    return credit_late_payments and status == STATUS_LATE_PAYMENT
+    if late:
+        return credit_late_payments
+    return status in PAID_STATUSES
 
 
 # --- Webhook signatures ----------------------------------------------------------------------
@@ -360,11 +390,17 @@ def parse_invoice(payload: object) -> Invoice:
     Used for both the create/read responses and the webhook body, which carry the same shape —
     so an invoice that has been through a webhook is validated exactly as strictly as one read
     back from the API, and neither is trusted to be well formed.
+
+    Two fields are read under either of two names. TMC PAY's live `InvoiceResponse` calls them
+    `id` and `metadata_json`, while earlier documentation — and possibly the webhook body, which
+    the published schema leaves untyped — calls them `invoice_id` and `metadata`. Accepting both
+    costs one lookup and removes a whole class of silent breakage; the live name is preferred
+    where a body carries both.
     """
     if not isinstance(payload, Mapping):
         raise TmcPayRejected("TMC PAY returned something that is not a JSON object")
 
-    invoice_id = _text(payload, "invoice_id", limit=64)
+    invoice_id = _either_text(payload, "id", "invoice_id", limit=64)
     merchant_id = _text(payload, "merchant_id", limit=64)
     status = _text(payload, "status", limit=32).lower()
     if status not in INVOICE_STATUSES:
@@ -388,7 +424,7 @@ def parse_invoice(payload: object) -> Invoice:
         created_at=_optional_timestamp(payload, "created_at"),
         expires_at=_optional_timestamp(payload, "expires_at"),
         confirmed_at=_optional_timestamp(payload, "confirmed_at"),
-        metadata=payload.get("metadata") if isinstance(payload.get("metadata"), Mapping) else None,
+        metadata=_either_mapping(payload, "metadata_json", "metadata"),
     )
 
 
@@ -406,6 +442,30 @@ def _text(payload: Mapping[str, Any], key: str, *, limit: int) -> str:
     if len(text) > limit:
         raise TmcPayRejected(f"invoice field {key!r} is implausibly long")
     return text
+
+
+def _either_text(
+    payload: Mapping[str, Any], preferred: str, fallback: str, *, limit: int
+) -> str:
+    """One required string under whichever of two names carries it.
+
+    The error names the preferred key alone. A message listing both spellings would invite the
+    reader to try the deprecated one.
+    """
+    if payload.get(preferred) is None and payload.get(fallback) is not None:
+        return _text(payload, fallback, limit=limit)
+    return _text(payload, preferred, limit=limit)
+
+
+def _either_mapping(
+    payload: Mapping[str, Any], preferred: str, fallback: str
+) -> Mapping[str, Any] | None:
+    """One optional JSON object under whichever of two names carries it."""
+    for key in (preferred, fallback):
+        value = payload.get(key)
+        if isinstance(value, Mapping):
+            return value
+    return None
 
 
 def _optional_text(payload: Mapping[str, Any], key: str, *, limit: int) -> str | None:
@@ -544,7 +604,10 @@ class TmcPayClient:
         self, method: str, path: str, *, json: Mapping[str, Any] | None = None
     ) -> object:
         url = f"{self._base_url}{path}"
-        headers = {"Authorization": f"Bearer {self._api_key}"}
+        # TMC PAY declares the credential as a required `X-API-Key` header parameter on every
+        # invoice endpoint, not as a bearer token. Sending `Authorization` instead is not an auth
+        # failure at their end: FastAPI reports the missing header as a 422 validation error.
+        headers = {API_KEY_HEADER: self._api_key}
         try:
             response = await self._client.request(method, url, json=json, headers=headers)
         except httpx.HTTPError as exc:
@@ -581,17 +644,18 @@ def _short(text: str, *, limit: int = 200) -> str:
 
 
 __all__ = [
+    "API_KEY_HEADER",
     "CRYPTO_CURRENCY",
     "CRYPTO_NETWORK",
     "INVOICE_STATUSES",
     "MAX_WEBHOOK_BYTES",
     "PAID_STATUSES",
     "SETTLED_STATUSES",
+    "STATUS_CANCELLED",
     "STATUS_CONFIRMED",
     "STATUS_CONFIRMING",
     "STATUS_CREATED",
     "STATUS_EXPIRED",
-    "STATUS_LATE_PAYMENT",
     "STATUS_OVERPAID",
     "STATUS_PENDING",
     "STATUS_UNDERPAID",
@@ -609,6 +673,7 @@ __all__ = [
     "credits_are_earned",
     "invoice_path",
     "parse_invoice",
+    "payment_was_late",
     "quote_ceiling",
     "quote_fiat_amount",
     "rao_from_tao",
