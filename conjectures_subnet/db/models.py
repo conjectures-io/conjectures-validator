@@ -1707,7 +1707,13 @@ class TmcPayOrder(Base):
     exchange_rate: Mapped[str | None] = mapped_column(Text)
     commission_amount: Mapped[str | None] = mapped_column(Text)
 
+    # Rao only when `crypto_currency` is TAO, because rao is TAO's own smallest unit. Every other
+    # currency keeps its amount in `crypto_amount` as the verbatim decimal string TMC PAY sent, and
+    # `db.tmc_pay.paid_rao` is the one place that turns either into a credit amount.
     crypto_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
+    crypto_amount: Mapped[str | None] = mapped_column(Text)
+    crypto_currency: Mapped[str | None] = mapped_column(Text)
+    crypto_network: Mapped[str | None] = mapped_column(Text)
     deposit_address: Mapped[str | None] = mapped_column(SS58)
 
     # TMC PAY's hosted payment page for this invoice, verbatim. Stored rather than derived: their
@@ -1780,11 +1786,14 @@ class TmcPayOrder(Base):
             "last_event_id IS NULL OR length(last_event_id) BETWEEN 1 AND 64",
             name="tmc_pay_last_event_length",
         ),
-        # Once an invoice exists, everything a buyer needs in order to pay it exists too.
+        # Once an invoice exists, everything a buyer needs in order to pay it exists too. The
+        # amount is required in whichever column holds it: rao for TAO, the verbatim decimal
+        # string for every other currency. What this refuses is an invoiced row a buyer could not
+        # act on, which is the same thing it always refused.
         CheckConstraint(
             "status IN ('NEW', 'FAILED') "
             "OR (invoice_id IS NOT NULL "
-            "AND crypto_amount_rao IS NOT NULL "
+            "AND (crypto_amount_rao IS NOT NULL OR crypto_amount IS NOT NULL) "
             "AND deposit_address IS NOT NULL "
             "AND fiat_amount IS NOT NULL "
             "AND fiat_currency IS NOT NULL)",
@@ -1793,14 +1802,39 @@ class TmcPayOrder(Base):
         # What makes crediting the locked amount safe: floor(crypto_amount_rao /
         # credit_price_rao) is then at least `credits`, so a buyer cannot receive fewer
         # credits than they paid for.
+        # The covering rule, restricted to the currency it can be stated in. A rao figure is only
+        # comparable to a rao price when the invoice is denominated in TAO; for any other currency
+        # the collected fiat figure was computed from `credits * credit_price_rao` and the purchase
+        # is worth exactly that, which is a rule about arithmetic elsewhere rather than about a
+        # column here. Non-TAO rows carry no rao at all, which the second half enforces.
         CheckConstraint(
             "crypto_amount_rao IS NULL "
             "OR crypto_amount_rao >= credits * credit_price_rao",
             name="tmc_pay_invoice_covers_the_credits",
         ),
         CheckConstraint(
+            "crypto_currency IS NULL "
+            "OR crypto_currency = 'TAO' "
+            "OR crypto_amount_rao IS NULL",
+            name="tmc_pay_rao_is_tao_only",
+        ),
+        CheckConstraint(
+            "crypto_amount IS NULL OR length(crypto_amount) BETWEEN 1 AND 64",
+            name="tmc_pay_crypto_amount_length",
+        ),
+        CheckConstraint(
+            "crypto_currency IS NULL OR length(crypto_currency) BETWEEN 1 AND 16",
+            name="tmc_pay_crypto_currency_length",
+        ),
+        CheckConstraint(
+            "crypto_network IS NULL OR length(crypto_network) BETWEEN 1 AND 32",
+            name="tmc_pay_crypto_network_length",
+        ),
+        CheckConstraint(
             "credited_ledger_id IS NULL "
-            "OR (invoice_id IS NOT NULL AND crypto_amount_rao IS NOT NULL)",
+            "OR (invoice_id IS NOT NULL "
+            "AND (crypto_amount_rao IS NOT NULL "
+            "OR (crypto_currency IS NOT NULL AND crypto_currency <> 'TAO')))",
             name="tmc_pay_credited_needs_an_invoice",
         ),
         CheckConstraint(

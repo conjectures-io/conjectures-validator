@@ -42,6 +42,13 @@ from conjectures_subnet.db.models import (
     TmcPayWebhookDelivery,
 )
 
+# The currency whose amounts are directly comparable to a rao price, because rao is its own
+# smallest unit. Spelled out here rather than imported from `submission_api.tmc_pay`: this package
+# is the layer below, and importing upwards would invert the dependency. `PAYABLE_PAIRS` there is
+# the operator-facing list; these two are the one currency this layer's arithmetic understands.
+TAO_CURRENCY = "TAO"
+TAO_NETWORK = "bittensor"
+
 # Order states in which TMC PAY may still change its mind, so the reconciler keeps asking.
 # UNDERPAID is here because TMC PAY documents it as non-terminal — the buyer may top up — and NEW
 # is here because an order stuck in it means a create whose response never arrived.
@@ -158,6 +165,31 @@ async def create_order(
     return order
 
 
+def paid_rao(order: TmcPayOrder) -> int | None:
+    """What this order is worth, in the unit the credit ledger uses, or None before an invoice.
+
+    Two cases, and they are different in kind rather than in degree:
+
+    * **Invoiced in TAO.** `crypto_amount_rao` is the amount that arrived, guaranteed to cover the
+      credits by `tmc_pay_invoice_covers_the_credits`. The surplus from rounding the fiat figure up
+      belongs to the buyer and reaches them as `CreditBalance.remainder_rao`.
+    * **Invoiced in anything else.** There is no rao on the row to compare. The fiat figure that
+      was collected was computed *from* `credits * credit_price_rao`, so that product is what the
+      purchase is worth — exactly, with no remainder. Converting the crypto amount instead would
+      mean choosing an exchange rate after the money arrived.
+
+    Mirrors `submission_api.tmc_pay.credited_rao`, which answers the same question from an invoice
+    rather than from a row. Two callers, one rule, stated twice on purpose: the API layer decides
+    whether to accept an invoice and this layer decides what to write, and a single helper shared
+    across that boundary would put a money rule in whichever module happened to import first.
+    """
+    if order.invoice_id is None:
+        return None
+    if order.crypto_currency is None or order.crypto_currency == TAO_CURRENCY:
+        return order.crypto_amount_rao
+    return order.credits * order.credit_price_rao
+
+
 async def attach_invoice(
     session: AsyncSession,
     order: TmcPayOrder,
@@ -169,10 +201,13 @@ async def attach_invoice(
     fiat_currency: str,
     exchange_rate: str,
     commission_amount: str | None,
-    crypto_amount_rao: int,
+    crypto_amount_rao: int | None,
     deposit_address: str,
     invoice_expires_at: dt.datetime | None,
     hosted_invoice_url: str | None = None,
+    crypto_amount: str | None = None,
+    crypto_currency: str = TAO_CURRENCY,
+    crypto_network: str = TAO_NETWORK,
 ) -> TmcPayOrder:
     """Record the invoice TMC PAY created for this order.
 
@@ -182,10 +217,20 @@ async def attach_invoice(
     one.
     """
     required = order.credits * order.credit_price_rao
-    if crypto_amount_rao < required:
+    if crypto_currency == TAO_CURRENCY:
+        # The covering check applies to TAO alone, because it is the only currency whose amount is
+        # comparable to a rao price. The schema enforces the same condition under the same
+        # restriction; see `tmc_pay_invoice_covers_the_credits`.
+        if crypto_amount_rao is None:
+            raise ValueError("a TAO invoice must carry an amount in rao")
+        if crypto_amount_rao < required:
+            raise ValueError(
+                f"invoice locks {crypto_amount_rao} rao, which is less than the "
+                f"{required} rao the credits cost"
+            )
+    elif crypto_amount_rao is not None:
         raise ValueError(
-            f"invoice locks {crypto_amount_rao} rao, which is less than the "
-            f"{required} rao the credits cost"
+            f"an invoice in {crypto_currency} must not carry a rao amount; rao is TAO's unit"
         )
     order.invoice_id = invoice_id
     order.merchant_id = merchant_id
@@ -195,6 +240,9 @@ async def attach_invoice(
     order.exchange_rate = exchange_rate
     order.commission_amount = commission_amount
     order.crypto_amount_rao = crypto_amount_rao
+    order.crypto_amount = crypto_amount
+    order.crypto_currency = crypto_currency
+    order.crypto_network = crypto_network
     order.deposit_address = deposit_address
     order.invoice_expires_at = invoice_expires_at
     # Only ever set, never cleared. A later invoice read that omits the field must not take away a
@@ -406,16 +454,18 @@ async def settle(
        twice, and why the BONUS entry cannot name the order;
     5. point the order at the DEPOSIT entry and record the status.
 
-    What is credited is `crypto_amount_rao`: the TAO the invoice locked, which is what TMC PAY
-    requires before reporting a paid status, and therefore what arrived. Not the fiat figure, not
-    anything from a webhook body, and not `credits * credit_price_rao` — the invoice is never
-    worth less than that (`tmc_pay_invoice_covers_the_credits`) and the difference belongs to the
-    buyer, where `CreditBalance.remainder_rao` keeps it visible.
+    What is credited is `paid_rao`, never anything from a webhook body. For a TAO invoice that is
+    `crypto_amount_rao` — the TAO that arrived, which TMC PAY requires before reporting a paid
+    status. It is never below `credits * credit_price_rao`
+    (`tmc_pay_invoice_covers_the_credits`), and the difference belongs to the buyer, where
+    `CreditBalance.remainder_rao` keeps it visible. For any other currency it is
+    `credits * credit_price_rao` exactly, because that product is what the collected fiat figure
+    was computed from and there is no rao amount to have arrived.
 
     Raises `RecordConflict` if the order was already credited, which is the normal outcome of a
     duplicate webhook and must be handled as success by the caller, not as an error.
     """
-    if order.crypto_amount_rao is None or order.invoice_id is None:
+    if paid_rao(order) is None:
         raise RecordConflict(
             "that order has no invoice to settle",
             reason_code="TMC_PAY_ORDER_NOT_INVOICED",
@@ -435,11 +485,20 @@ async def settle(
             order_id=str(locked.id),
         )
 
+    # Re-derived from the locked row rather than reused from `order`: the row was re-read under
+    # `FOR UPDATE` above and is the only version of it that a concurrent settle cannot have moved.
+    amount_rao = paid_rao(locked)
+    if amount_rao is None:
+        raise RecordConflict(
+            "that order has no invoice to settle",
+            reason_code="TMC_PAY_ORDER_NOT_INVOICED",
+            order_id=str(locked.id),
+        )
     entry = await credits.record_entry(
         session,
         account_id=locked.account_id,
         kind=CreditEntryKind.DEPOSIT,
-        amount_rao=locked.crypto_amount_rao,
+        amount_rao=amount_rao,
         tmc_pay_order_id=locked.id,
         created_by=created_by,
     )

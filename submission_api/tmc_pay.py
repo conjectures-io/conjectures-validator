@@ -219,7 +219,8 @@ class Invoice:
     fiat_amount: str
     fiat_currency: str
     crypto_amount: str
-    crypto_amount_rao: int
+    # The same amount in rao, and only when `crypto_currency` is TAO. See `parse_invoice`.
+    crypto_amount_rao: int | None
     crypto_currency: str
     crypto_network: str
     deposit_address: str
@@ -374,6 +375,27 @@ def quote_ceiling(
     # One minor unit of fiat is `minor_unit * rate` TAO, which is that many rao.
     minor_unit_rao = Decimal(1).scaleb(-decimals) * rate * RAO_PER_TAO
     return int((allowance + minor_unit_rao).to_integral_value(rounding=ROUND_CEILING))
+
+
+def credited_rao(invoice: Invoice, *, required_rao: int) -> int:
+    """How much rao an invoice is worth, in the unit the credit ledger uses.
+
+    Credits are priced in rao and that does not change with what the buyer sends — a purchase is
+    `credits x CREDIT_PRICE_RAO` of value, quoted through fiat and collected in whatever currency
+    was chosen. So there are two cases and they are different in kind:
+
+    * **TAO.** The locked amount *is* rao, and it is at least `required_rao` because the quote band
+      refused it otherwise. Credit what arrived, so the rounding-up surplus lands in the buyer's
+      balance as `remainder_rao` rather than being kept.
+    * **Anything else.** There is no rao to compare against. What was collected is the fiat figure
+      this side asked for, and that figure was computed *from* `required_rao` — so the purchase is
+      worth exactly `required_rao` and no more. Crediting a converted crypto amount instead would
+      mean inventing an exchange rate after the fact, which is the one thing this module refuses to
+      do anywhere else either.
+    """
+    if invoice.crypto_currency == CRYPTO_CURRENCY and invoice.crypto_amount_rao is not None:
+        return invoice.crypto_amount_rao
+    return required_rao
 
 
 def payment_was_late(invoice: Invoice) -> bool:
@@ -566,6 +588,7 @@ def parse_invoice(payload: object) -> Invoice:
         raise TmcPayRejected(f"unknown invoice status {status!r}")
 
     crypto_amount = _text(payload, "crypto_amount", limit=64)
+    crypto_currency = _text(payload, "crypto_currency", limit=MAX_CURRENCY_CODE_LENGTH).upper()
     return Invoice(
         invoice_id=invoice_id,
         merchant_id=merchant_id,
@@ -574,9 +597,16 @@ def parse_invoice(payload: object) -> Invoice:
         fiat_amount=_text(payload, "fiat_amount", limit=64),
         fiat_currency=_text(payload, "fiat_currency", limit=8).upper(),
         crypto_amount=crypto_amount,
-        crypto_amount_rao=rao_from_tao(crypto_amount),
-        crypto_currency=_text(payload, "crypto_currency", limit=16).upper(),
-        crypto_network=_text(payload, "crypto_network", limit=32).lower(),
+        # Rao only when the invoice is actually denominated in TAO. Every other currency has its
+        # own precision — BTC 8 places, USDC 6, ETH 18 — so running one through `rao_from_tao`
+        # would either be refused for having too many decimals or, worse, silently rescaled into a
+        # rao figure that means nothing. `None` is the honest answer, and it is what keeps the
+        # ledger's unit and this field's unit the same thing wherever it is not None.
+        crypto_amount_rao=(
+            rao_from_tao(crypto_amount) if crypto_currency == CRYPTO_CURRENCY else None
+        ),
+        crypto_currency=crypto_currency,
+        crypto_network=_text(payload, "crypto_network", limit=MAX_NETWORK_NAME_LENGTH).lower(),
         deposit_address=_text(payload, "deposit_address", limit=128),
         exchange_rate=_text(payload, "exchange_rate", limit=64),
         commission_amount=_optional_text(payload, "commission_amount", limit=64),
@@ -689,6 +719,8 @@ class InvoiceGateway(Protocol):
         description: str,
         metadata: Mapping[str, Any],
         ttl_minutes: int,
+        crypto_currency: str = CRYPTO_CURRENCY,
+        crypto_network: str = CRYPTO_NETWORK,
     ) -> Invoice: ...
 
     async def read_invoice(self, invoice_id: str) -> Invoice: ...
@@ -774,8 +806,15 @@ class TmcPayClient:
         description: str,
         metadata: Mapping[str, Any],
         ttl_minutes: int,
+        crypto_currency: str = CRYPTO_CURRENCY,
+        crypto_network: str = CRYPTO_NETWORK,
     ) -> Invoice:
-        """One invoice, in TAO on Bittensor, for `fiat_amount`.
+        """One invoice for `fiat_amount`, payable in the given pair.
+
+        The pair defaults to TAO on Bittensor and the caller is responsible for having checked any
+        other against `list_currencies` — this method sends what it is given, because a second
+        allowlist here would be a second place for the two to disagree.
+
 
         `external_id` is TMC PAY's idempotency key: a repeat with the same value returns the
         existing invoice in its current state rather than creating a second one, which is what
@@ -785,8 +824,8 @@ class TmcPayClient:
         body = {
             "fiat_amount": fiat_amount,
             "fiat_currency": fiat_currency,
-            "crypto_currency": CRYPTO_CURRENCY,
-            "crypto_network": CRYPTO_NETWORK,
+            "crypto_currency": crypto_currency,
+            "crypto_network": crypto_network,
             "external_id": external_id,
             "description": description,
             "metadata": dict(metadata),

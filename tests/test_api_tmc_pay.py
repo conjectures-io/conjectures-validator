@@ -1024,6 +1024,286 @@ def test_a_hostile_hosted_url_never_reaches_the_buyer():
 CURRENCIES = "/v1/me/credits/tmc-pay/currencies"
 
 
+# --- Paying in something other than TAO -------------------------------------------------------
+# The price stays `credits x CREDIT_PRICE_RAO` of TAO. It is converted to fiat, and TMC PAY
+# converts that to the chosen currency. So what changes is what arrives, never what a credit costs.
+
+
+def usdc_invoice(invoice_id: str, **overrides) -> dict:
+    """An invoice TMC PAY would return for a USDC-on-Base purchase of one credit.
+
+    `fiat_amount` is $200 because one credit is 0.5 TAO and the test rate is $400/TAO — the same
+    figure a TAO invoice for this purchase carries, which is the point.
+
+    The id is explicit because `tmc_pay_orders_invoice_idx` is unique and this module shares one
+    database across every test in it.
+    """
+    return invoice_body(
+        **{
+            "invoice_id": invoice_id,
+            "crypto_currency": "USDC",
+            "crypto_network": "base",
+            "crypto_amount": "200.00",
+            "fiat_amount": "200.00",
+            "exchange_rate": "1.0",
+            **overrides,
+        }
+    )
+
+
+def test_a_purchase_can_be_paid_in_another_currency_at_the_same_tao_price():
+    async def scenario():
+        gateway = FakeGateway([usdc_invoice("usdc-pair")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                created = await http.post(
+                    ORDERS,
+                    json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                    headers=same_origin(),
+                )
+                assert created.status_code == 201, created.text
+                order = created.json()["order"]
+
+                # The pair TMC PAY was asked for, and the pair it answered with.
+                assert gateway.created[0]["crypto_currency"] == "USDC"
+                assert gateway.created[0]["crypto_network"] == "base"
+                assert order["crypto_currency"] == "USDC"
+                assert order["crypto_network"] == "base"
+                assert order["crypto_amount"] == "200.00"
+
+                # The fiat figure is the same one a TAO purchase of one credit would carry: the
+                # price is in TAO and the currency only changes what is sent.
+                assert order["fiat_amount"] == "200.00"
+
+                # No rao, and no btcli command: neither means anything for a USDC invoice.
+                assert order["amount_rao"] is None
+                assert order["amount_tao"] is None
+                assert order["btcli_command"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_quote_margin_is_not_charged_on_a_non_tao_purchase():
+    """The margin protects the locked TAO from rate movement. With no TAO locked, it is a surcharge."""
+
+    async def scenario():
+        gateway = FakeGateway([usdc_invoice("usdc-margin")])
+        # The ceiling has to clear the margin or settings refuse to start; both are raised so the
+        # margin is the only thing under test.
+        kit = await kit_with(
+            gateway, TMC_PAY_QUOTE_MARGIN_BPS="500", TMC_PAY_MAX_SLIPPAGE_BPS="1000"
+        ).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                created = await http.post(
+                    ORDERS,
+                    json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                    headers=same_origin(),
+                )
+                assert created.status_code == 201, created.text
+                # 5% would have asked for $210. The buyer is asked for the honest $200.
+                assert gateway.created[0]["fiat_amount"] == "200.00"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_non_tao_purchase_credits_the_tao_price_exactly():
+    async def scenario():
+        gateway = FakeGateway([usdc_invoice("usdc-credit")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await http.post(
+                    ORDERS,
+                    json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                    headers=same_origin(),
+                )
+                order_id = order.json()["order"]["id"]
+
+                raw, headers = signed(usdc_invoice("usdc-credit", status="confirmed"))
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                body = (await http.get(f"{ORDERS}/{order_id}")).json()
+                assert body["status"] == "CONFIRMED"
+                assert body["credits_credited"] == 1
+                assert body["needs_review"] is False
+
+                balance = (await http.get("/v1/me/credits")).json()
+                assert balance["credits_available"] == 1
+                # Exactly the price, with no remainder: the fiat figure was computed from it.
+                assert balance["balance_rao"] == CREDIT_PRICE_RAO
+                assert balance["remainder_rao"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_single_network_currency_needs_no_network():
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(
+                    invoice_id="btc-single",
+                    crypto_currency="BTC",
+                    crypto_network="bitcoin",
+                    crypto_amount="0.00311",
+                    fiat_amount="200.00",
+                )
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                created = await http.post(
+                    ORDERS, json={"credits": 1, "crypto_currency": "BTC"}, headers=same_origin()
+                )
+                assert created.status_code == 201, created.text
+                assert gateway.created[0]["crypto_network"] == "bitcoin"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_multi_network_currency_must_name_one():
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                answer = await http.post(
+                    ORDERS, json={"credits": 1, "crypto_currency": "USDC"}, headers=same_origin()
+                )
+                assert answer.status_code == 400
+                body = answer.json()
+                assert body["reason_code"] == "TMC_PAY_UNSUPPORTED_PAIR"
+                assert set(body["networks"]) == {"ethereum", "base"}
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_pair_tmc_pay_does_not_accept_is_refused_before_an_order_exists():
+    """400 rather than 503: the deployment and the processor are both fine."""
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                for payload, expected in (
+                    ({"credits": 1, "crypto_currency": "DOGE"}, "DOGE"),
+                    (
+                        {"credits": 1, "crypto_currency": "BTC", "crypto_network": "base"},
+                        "bitcoin",
+                    ),
+                ):
+                    answer = await http.post(ORDERS, json=payload, headers=same_origin())
+                    assert answer.status_code == 400, answer.text
+                    assert answer.json()["reason_code"] == "TMC_PAY_UNSUPPORTED_PAIR"
+                    del expected
+
+                # Nothing was recorded for a request that never reached the processor.
+                listed = (await http.get(ORDERS)).json()["items"]
+                assert listed == []
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_network_without_a_currency_is_refused():
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                answer = await http.post(
+                    ORDERS, json={"credits": 1, "crypto_network": "base"}, headers=same_origin()
+                )
+                assert answer.status_code == 400
+                assert answer.json()["reason_code"] == "TMC_PAY_UNSUPPORTED_PAIR"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_invoice_for_the_wrong_fiat_amount_is_refused_and_not_requoted():
+    """For a non-TAO pair the fiat figure is the whole contract, so a mismatch is structural."""
+
+    async def scenario():
+        gateway = FakeGateway([usdc_invoice("usdc-shortfiat", fiat_amount="150.00")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                answer = await http.post(
+                    ORDERS,
+                    json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                    headers=same_origin(),
+                )
+                assert answer.status_code == 503
+                assert answer.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
+                # Structural, so exactly one invoice was attempted rather than a requote.
+                assert len(gateway.created) == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_invoice_in_a_currency_other_than_the_one_asked_for_is_refused():
+    """The buyer chose USDC. An invoice in BTC funds something they did not agree to."""
+
+    async def scenario():
+        gateway = FakeGateway(
+            [usdc_invoice("usdc-wrongpair", crypto_currency="BTC", crypto_network="bitcoin")]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                answer = await http.post(
+                    ORDERS,
+                    json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                    headers=same_origin(),
+                )
+                assert answer.status_code == 503
+                assert answer.json()["reason_code"] == "TMC_PAY_QUOTE_FAILED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_default_is_still_tao_on_bittensor():
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="tao-default")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                created = await http.post(
+                    ORDERS, json={"credits": 1}, headers=same_origin()
+                )
+                assert created.status_code == 201, created.text
+                assert gateway.created[0]["crypto_currency"] == "TAO"
+                assert gateway.created[0]["crypto_network"] == "bittensor"
+                # A default purchase never consults the catalogue.
+                assert gateway.currency_calls == 0
+                order = created.json()["order"]
+                assert order["amount_rao"] == CREDIT_PRICE_RAO
+                assert order["btcli_command"] is not None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+
+
 def test_the_currency_list_reports_every_pair_and_flags_what_is_payable():
     """The whole catalogue, so a page can distinguish "we do not" from "the processor does not"."""
 

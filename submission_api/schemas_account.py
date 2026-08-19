@@ -457,8 +457,25 @@ class TmcPayOrder(Model):
     credits_credited: int = Field(
         description="Credits this order has added to the balance; 0 until it is confirmed"
     )
+    crypto_amount: str | None = Field(
+        default=None,
+        description=(
+            "The amount to send, in `crypto_currency`, verbatim from TMC PAY. Use this rather "
+            "than `amount_tao` whenever the invoice is not in TAO"
+        ),
+    )
+    crypto_currency: str | None = Field(
+        default=None, description="What this invoice is payable in, e.g. `TAO` or `USDC`"
+    )
+    crypto_network: str | None = Field(
+        default=None, description="The chain to send it over, e.g. `bittensor` or `base`"
+    )
     amount_rao: int | None = Field(
-        default=None, description="The TAO the invoice locked, in integer rao"
+        default=None,
+        description=(
+            "The TAO the invoice locked, in integer rao. Null when the invoice is payable in "
+            "another currency — rao is TAO's unit, and converting would invent a rate"
+        ),
     )
     amount_tao: str | None = Field(
         default=None, description="The same amount as a decimal string, for display"
