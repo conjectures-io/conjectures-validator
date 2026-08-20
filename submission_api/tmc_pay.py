@@ -149,7 +149,17 @@ WEBHOOK_TIMESTAMP_HEADER = "X-Webhook-Timestamp"
 WEBHOOK_SIGNATURE_HEADER = "X-Webhook-Signature"
 WEBHOOK_EVENT_HEADER = "X-Webhook-Event"
 
-SIGNATURE_PREFIX = "sha256="
+# What TMC PAY prefixes the digest with. Not `sha256=`: the label names a signing *version*,
+# which is theirs to change if the scheme changes, so an unrecognised one is a refusal and not a
+# guess at what they meant.
+SIGNATURE_PREFIX = "v1="
+
+# Separates the delivery timestamp from the body inside the signed message.
+SIGNED_MESSAGE_SEPARATOR = b"."
+
+# How much of a candidate MAC the troubleshooting log prints. Long enough that a match is
+# unambiguous, far too short to forge a signature with.
+PREFIX_LENGTH = 12
 
 # A webhook body is a small JSON object. Bounded before it is read, because the endpoint is
 # unauthenticated until the signature is checked and the signature cannot be checked without
@@ -469,29 +479,95 @@ def credits_are_earned(status: str, *, late: bool, credit_late_payments: bool) -
 # --- Webhook signatures ----------------------------------------------------------------------
 
 
-def signature_matches(raw_body: bytes, header: str | None, secret: str) -> bool:
-    """Whether `header` is TMC PAY's HMAC-SHA256 over exactly these bytes.
+def signed_message(raw_body: bytes, timestamp: str | None) -> bytes:
+    """The octets TMC PAY signs: the delivery timestamp, a dot, then the body verbatim.
 
-    Three things this gets right on purpose, because each has a well-known way of going wrong:
+    Their documentation says the body on its own. It is wrong, and this is measured rather than
+    assumed: `signature_diagnosis` computed both schemes against real deliveries and this one
+    matched every time while the documented one matched none. The timestamp is used exactly as it
+    arrived — an ISO-8601 string, not an epoch — because it is signed as text and reformatting it
+    would change the message.
+
+    Binding the timestamp is the better design anyway, and it is why no freshness window is
+    checked here. Re-signing a captured body under a newer timestamp needs the secret, so it is
+    already out of reach; replaying the delivery verbatim is caught by the `X-Webhook-ID`
+    deduplication the handler does next. A clock-skew rejection would only cost a paying customer
+    their credits for a delivery that is provably genuine.
+    """
+    return (timestamp or "").encode("utf-8") + SIGNED_MESSAGE_SEPARATOR + raw_body
+
+
+def signature_matches(
+    raw_body: bytes, header: str | None, secret: str, *, timestamp: str | None
+) -> bool:
+    """Whether `header` is TMC PAY's HMAC-SHA256 over this delivery.
+
+    Four things this gets right on purpose, because each has a well-known way of going wrong:
 
     * **The raw body, verbatim.** Not the re-serialised parse. A JSON round trip changes key
       order and whitespace, and the signature is over the octets that arrived.
+    * **The timestamp too**, per `signed_message`. A `timestamp` of `None` therefore cannot
+      verify, which is the wanted answer: without it there is nothing to check the signature of.
     * **Constant-time comparison.** `compare_digest`, not `==`: a byte-at-a-time comparison of a
       MAC leaks how much of a guess was right.
-    * **No exception on malformed input.** A missing header, a wrong prefix or non-hex digits are
-      all just "does not match". Distinguishing them would answer questions for an attacker and
-      helps a legitimate sender not at all.
+    * **No exception on malformed input.** A missing header, an unknown prefix, non-hex digits and
+      non-ASCII bytes are all just "does not match". Distinguishing them would answer questions
+      for an attacker and helps a legitimate sender not at all.
     """
     if not header or not secret:
         return False
     candidate = header.strip()
     if not candidate.startswith(SIGNATURE_PREFIX):
         return False
-    offered = candidate[len(SIGNATURE_PREFIX) :].lower()
+    try:
+        offered = candidate[len(SIGNATURE_PREFIX) :].lower().encode("ascii")
+    except UnicodeEncodeError:
+        # `compare_digest` raises on non-ASCII text, and this function promises never to raise.
+        # A byte outside ASCII cannot be part of a hex digest regardless.
+        return False
     expected = hmac.new(
-        secret.encode("utf-8"), raw_body, hashlib.sha256
+        secret.encode("utf-8"), signed_message(raw_body, timestamp), hashlib.sha256
     ).hexdigest()
-    return hmac.compare_digest(offered, expected)
+    return hmac.compare_digest(offered, expected.encode("ascii"))
+
+
+def signature_diagnosis(
+    raw_body: bytes, *, secret: str, timestamp: str | None, webhook_id: str | None
+) -> tuple[tuple[str, str], ...]:
+    """Which signing scheme, if any, would have matched this body — for troubleshooting only.
+
+    A rejected webhook has exactly two plausible causes and they need different fixes: the secret
+    is wrong, or the message being signed is not what this code thinks it is. One bit of
+    information — "did any scheme match" — separates them, and guessing between them by redeploying
+    is slow and inconclusive.
+
+    So each candidate is computed and reported as a **short prefix**. A prefix is enough to compare
+    against the offered signature by eye and useless for forging one, which matters because this
+    runs on a body an unauthenticated caller supplied: logging a full valid MAC for
+    attacker-chosen bytes would hand out exactly the signature they could not compute themselves.
+
+    The candidates are the schemes payment processors actually use. The first is the one
+    `signature_matches` implements; the second is the one TMC PAY documents. They are not the
+    same, which is what this helper was built to discover, and is why it stays: a processor whose
+    published payload schema does not match what it sends may change its signing without saying
+    so either.
+    """
+    if not secret:
+        return ()
+    key = secret.encode("utf-8")
+    ts = (timestamp or "").encode("utf-8")
+    wid = (webhook_id or "").encode("utf-8")
+    candidates: tuple[tuple[str, bytes], ...] = (
+        ("timestamp.body (ours)", signed_message(raw_body, timestamp)),
+        ("raw body (documented)", raw_body),
+        ("timestamp + body", ts + raw_body),
+        ("id.timestamp.body", wid + b"." + ts + b"." + raw_body),
+        ("body.timestamp", raw_body + b"." + ts),
+    )
+    return tuple(
+        (label, hmac.new(key, message, hashlib.sha256).hexdigest()[:PREFIX_LENGTH])
+        for label, message in candidates
+    )
 
 
 # --- Parsing ---------------------------------------------------------------------------------
@@ -599,11 +675,28 @@ def parse_invoice(payload: object) -> Invoice:
     so an invoice that has been through a webhook is validated exactly as strictly as one read
     back from the API, and neither is trusted to be well formed.
 
-    Two fields are read under either of two names. TMC PAY's live `InvoiceResponse` calls them
-    `id` and `metadata_json`, while earlier documentation — and possibly the webhook body, which
-    the published schema leaves untyped — calls them `invoice_id` and `metadata`. Accepting both
-    costs one lookup and removes a whole class of silent breakage; the live name is preferred
-    where a body carries both.
+    Four fields are read under either of two names, because TMC PAY's REST API and its webhook
+    are two different serialisations of the same invoice:
+
+        REST `InvoiceResponse`   webhook body
+        ----------------------   --------------------------
+        id                       invoice_id
+        metadata_json            metadata
+        crypto_amount            expected_crypto_amount
+        fiat_amount              expected_fiat_amount
+
+    That is established rather than assumed: their OpenAPI document defines `InvoiceResponse` with
+    the left-hand names and defines no webhook payload schema at all — the delivery record types it
+    `additionalProperties: true` — so the right-hand shape is undocumented and knowable only from
+    real deliveries. Accepting both spellings costs one lookup and removes a whole class of silent
+    breakage; the REST name is preferred where a body carries both.
+
+    The webhook splits each amount four ways: `expected_`, `received_`, `remaining_`, `excess_`.
+    `expected_` is the counterpart of the REST field — the amount the invoice asks for, locked at
+    `exchange_rate`, and the figure the quote band already checked against the credit price. It is
+    deliberately not `received_`, which reads `"0"` on every `created` and `pending` delivery:
+    whether the money arrived is what `status` reports, and crediting a received figure straight
+    from the wire would credit nothing on exactly the deliveries that arrive first.
     """
     if not isinstance(payload, Mapping):
         raise TmcPayRejected("TMC PAY returned something that is not a JSON object")
@@ -614,14 +707,18 @@ def parse_invoice(payload: object) -> Invoice:
     if status not in INVOICE_STATUSES:
         raise TmcPayRejected(f"unknown invoice status {status!r}")
 
-    crypto_amount = _text(payload, "crypto_amount", limit=64)
+    crypto_amount = _either_text(
+        payload, "crypto_amount", "expected_crypto_amount", limit=64
+    )
     crypto_currency = _text(payload, "crypto_currency", limit=MAX_CURRENCY_CODE_LENGTH).upper()
     return Invoice(
         invoice_id=invoice_id,
         merchant_id=merchant_id,
         status=status,
         external_id=_optional_text(payload, "external_id", limit=128),
-        fiat_amount=_text(payload, "fiat_amount", limit=64),
+        fiat_amount=_either_text(
+            payload, "fiat_amount", "expected_fiat_amount", limit=64
+        ),
         fiat_currency=_text(payload, "fiat_currency", limit=8).upper(),
         crypto_amount=crypto_amount,
         # Rao only when the invoice is actually denominated in TAO. Every other currency has its
@@ -1020,6 +1117,8 @@ __all__ = [
     "quote_ceiling",
     "quote_fiat_amount",
     "rao_from_tao",
+    "signature_diagnosis",
     "signature_matches",
+    "signed_message",
     "tao_from_rao",
 ]

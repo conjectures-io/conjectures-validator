@@ -23,6 +23,7 @@ import hashlib
 import hmac
 import importlib
 import json
+import logging
 import pathlib
 import sys
 import uuid
@@ -141,19 +142,60 @@ def invoice_body(
     }
 
 
+def webhook_shaped(body: dict) -> dict:
+    """`body` re-spelled the way TMC PAY's webhook actually serialises an invoice.
+
+    Their REST API and their webhook are two different serialisations of the same object, and the
+    webhook's is undocumented — their OpenAPI defines no payload schema for it at all, only an
+    `additionalProperties: true` blob on the delivery record. So a webhook test that posts the REST
+    shape proves nothing about the deliveries production actually receives, and three defects
+    reached production through exactly that gap: the id spelling, the amount spellings, and a
+    commission silently nulled on every order.
+
+    The captured original this mirrors is `test_tmc_pay_client.LIVE_WEBHOOK_BODY`, kept there as
+    the verbatim bytes of one real delivery.
+    """
+    shaped = dict(body)
+    for rest, wire in (
+        ("crypto_amount", "expected_crypto_amount"),
+        ("fiat_amount", "expected_fiat_amount"),
+    ):
+        if rest in shaped:
+            shaped[wire] = shaped.pop(rest)
+    # A delivery carries no commission field, under any spelling.
+    shaped.pop("commission_amount", None)
+    # Each amount arrives as a quadruple. Nothing reads the other three; they are here so a test
+    # body has the keys a real one has, and so anything that starts reading them meets a plausible
+    # value rather than a hole.
+    paid = shaped.get("status") in {"confirmed", "overpaid"}
+    for unit in ("crypto", "fiat"):
+        expected = shaped.get(f"expected_{unit}_amount", "0")
+        shaped[f"received_{unit}_amount"] = expected if paid else "0"
+        shaped[f"remaining_{unit}_amount"] = "0" if paid else expected
+        shaped[f"excess_{unit}_amount"] = "0"
+    return shaped
+
+
 def signed(body: dict, *, secret: str = SECRET, webhook_id: str | None = None) -> tuple:
     """The exact bytes and headers TMC PAY would send for `body`.
 
+    `body` is given in the REST shape the rest of this suite uses and posted in the webhook shape,
+    via `webhook_shaped` — because that is what a delivery looks like.
+
     Signed over the serialised bytes and posted as those same bytes — not re-serialised by the
-    client — because that is the property the verifier depends on.
+    client — because that is the property the verifier depends on. The timestamp is an ISO-8601
+    string and part of the signed message, both as TMC PAY sends them.
     """
-    raw = json.dumps(body).encode("utf-8")
-    signature = hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    raw = json.dumps(webhook_shaped(body)).encode("utf-8")
+    stamp = "2026-08-20T10:02:14.126755+00:00"
+    signature = hmac.new(
+        secret.encode("utf-8"), tmc_pay.signed_message(raw, stamp), hashlib.sha256
+    ).hexdigest()
     headers = {
         "Content-Type": "application/json",
         tmc_pay.WEBHOOK_ID_HEADER: webhook_id or str(uuid.uuid4()),
-        tmc_pay.WEBHOOK_TIMESTAMP_HEADER: "1786000000",
-        tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"sha256={signature}",
+        tmc_pay.WEBHOOK_TIMESTAMP_HEADER: stamp,
+        tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"v1={signature}",
         tmc_pay.WEBHOOK_EVENT_HEADER: f"invoice.{body['status']}",
     }
     return raw, headers
@@ -359,23 +401,38 @@ def test_lateness_decides_a_paid_status_either_way():
     assert tmc_pay.credits_are_earned("confirmed", late=False, credit_late_payments=False)
 
 
-def test_the_signature_check_is_over_the_raw_bytes():
+STAMP = "2026-08-20T10:02:14.126755+00:00"
+
+
+def test_the_signature_check_is_over_the_timestamp_and_the_raw_bytes():
     body = invoice_body(invoice_id="inv-1")
     raw = json.dumps(body).encode("utf-8")
-    digest = hmac.new(SECRET.encode("utf-8"), raw, hashlib.sha256).hexdigest()
 
-    assert tmc_pay.signature_matches(raw, f"sha256={digest}", SECRET)
+    def mac(message: bytes) -> str:
+        return hmac.new(SECRET.encode("utf-8"), message, hashlib.sha256).hexdigest()
+
+    digest = mac(tmc_pay.signed_message(raw, STAMP))
+    assert tmc_pay.signature_matches(raw, f"v1={digest}", SECRET, timestamp=STAMP)
     # Upper-case hex is still the same MAC.
-    assert tmc_pay.signature_matches(raw, f"sha256={digest.upper()}", SECRET)
+    assert tmc_pay.signature_matches(raw, f"v1={digest.upper()}", SECRET, timestamp=STAMP)
+
+    # The timestamp is signed, so a delivery cannot be replayed under a different one, and a
+    # signature over the body alone — the scheme TMC PAY documents — is not accepted.
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", SECRET, timestamp="2026-01-01T00:00:00+00:00")
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", SECRET, timestamp=None)
+    assert not tmc_pay.signature_matches(raw, f"v1={mac(raw)}", SECRET, timestamp=STAMP)
+
     # Re-serialising the parse changes the bytes, so the signature no longer matches — the exact
     # mistake the TMC PAY documentation warns about.
     reserialised = json.dumps(json.loads(raw), indent=2).encode("utf-8")
-    assert not tmc_pay.signature_matches(reserialised, f"sha256={digest}", SECRET)
-    # Everything malformed is simply "no match", never an exception.
-    for header in (None, "", digest, "sha512=" + digest, "sha256=zz", "sha256="):
-        assert not tmc_pay.signature_matches(raw, header, SECRET)
-    assert not tmc_pay.signature_matches(raw, f"sha256={digest}", "another-secret")
-    assert not tmc_pay.signature_matches(raw, f"sha256={digest}", "")
+    assert not tmc_pay.signature_matches(reserialised, f"v1={digest}", SECRET, timestamp=STAMP)
+
+    # Everything malformed is simply "no match", never an exception — including a non-ASCII
+    # header, which the constant-time comparison would otherwise raise on.
+    for header in (None, "", digest, "sha256=" + digest, "v2=" + digest, "v1=zz", "v1=", "v1=é"):
+        assert not tmc_pay.signature_matches(raw, header, SECRET, timestamp=STAMP)
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", "another-secret", timestamp=STAMP)
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", "", timestamp=STAMP)
 
 
 # --- Buying ------------------------------------------------------------------------------
@@ -705,6 +762,41 @@ def test_a_confirmed_webhook_credits_the_locked_amount_once():
     run(scenario())
 
 
+def test_a_webhook_does_not_erase_the_commission_the_invoice_recorded():
+    """TMC PAY's REST invoice carries a commission; their webhook body carries none at all.
+
+    So the fee recorded at purchase has to survive every delivery that lands on top of it. It does,
+    and this pins the outcome rather than the mechanism: today because the webhook re-attaches an
+    invoice only when the create response was lost, and additionally because `attach_invoice` now
+    reads an absent commission as silence instead of as a retraction.
+    """
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _account):
+                order = await _order_for(http)
+                # Recorded from the create response, which is the REST shape and carries the fee.
+                stored = await http.get(f"{ORDERS}/{order['id']}")
+                assert stored.json()["commission_amount"] == "2.00"
+
+                raw, headers = signed(
+                    invoice_body(invoice_id="inv-1", crypto_amount="0.5"),
+                    webhook_id="delivery-1",
+                )
+                # The delivery genuinely has no commission field — this is the hazard, not a mock.
+                assert "commission_amount" not in json.loads(raw)
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                kept = await http.get(f"{ORDERS}/{order['id']}")
+                assert kept.json()["commission_amount"] == "2.00"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_deal_is_granted_its_bonus_once_however_many_webhooks_arrive():
     """The TMC PAY half of the package deals, and the property that keeps them safe.
 
@@ -836,6 +928,101 @@ def test_the_credited_amount_comes_from_the_invoice_and_not_from_the_webhook():
                 balance = (await http.get("/v1/me/credits")).json()
                 assert balance["balance_rao"] == CREDIT_PRICE_RAO
                 assert balance["credits_available"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- Troubleshooting a rejected webhook -------------------------------------------------------
+
+
+async def _post_badly_signed(
+    kit, *, signed_over: bytes, body: bytes, timestamp: str = STAMP
+) -> str:
+    """POST a webhook whose signature is over `signed_over`, and return the offered hex."""
+    http = await client(kit)
+    async with http:
+        sig = hmac.new(SECRET.encode(), signed_over, hashlib.sha256).hexdigest()
+        answer = await http.post(
+            WEBHOOK,
+            content=body,
+            headers={
+                tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"v1={sig}",
+                tmc_pay.WEBHOOK_TIMESTAMP_HEADER: timestamp,
+                tmc_pay.WEBHOOK_ID_HEADER: "11111111-2222-3333-4444-555555555555",
+                "Authorization": "Bearer must-not-be-logged",
+            },
+        )
+        assert answer.status_code == 401, answer.text
+    return sig
+
+
+def test_the_request_is_not_logged_unless_an_operator_asks(caplog):
+    """Off by default: the body carries an account id, so this is not a standing log line."""
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            with caplog.at_level(logging.WARNING):
+                await _post_badly_signed(kit, signed_over=b"nope", body=b'{"a":1}')
+            assert "invalid signature" in caplog.text
+            assert "TMC PAY webhook diagnostics" not in caplog.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_diagnostic_names_the_scheme_that_would_have_matched(caplog):
+    """The one bit that separates "wrong secret" from "wrong signed message"."""
+    body = b'{"invoice_id":"ecd53a85","status":"pending"}'
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([]), TMC_PAY_WEBHOOK_DEBUG="true").setup()
+        try:
+            with caplog.at_level(logging.WARNING):
+                # Signed over `body.timestamp`: a scheme a processor might plausibly use and this
+                # service does not, which is the situation the diagnostic exists to identify.
+                offered = await _post_badly_signed(
+                    kit, signed_over=body + b"." + STAMP.encode(), body=body
+                )
+            text = caplog.text
+            assert "TMC PAY webhook diagnostics" in text
+            # The request verbatim, so a body mismatch is visible rather than inferred.
+            assert body.decode() in text
+            assert f"body: {len(body)} bytes" in text
+            # And the matching scheme is named, with the offered prefix beside it.
+            assert f"{'body.timestamp':24} {offered[:12]}" in text
+            # The scheme actually in force is offered for comparison and did *not* match.
+            ours = hmac.new(
+                SECRET.encode(), tmc_pay.signed_message(body, STAMP), hashlib.sha256
+            ).hexdigest()
+            assert f"{'timestamp.body (ours)':24} {ours[:12]}" in text
+            assert ours[:12] != offered[:12]
+
+            # The offered signature is echoed whole, which is safe: the caller sent it. What must
+            # never be whole is a MAC *this service* computed over caller-chosen bytes — that is a
+            # signature they could not otherwise produce. Only its prefix may appear.
+            computed = hmac.new(SECRET.encode(), body, hashlib.sha256).hexdigest()
+            assert computed[:12] in text
+            assert computed not in text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_diagnostic_redacts_credentials_and_never_prints_the_secret(caplog):
+    async def scenario():
+        kit = await kit_with(FakeGateway([]), TMC_PAY_WEBHOOK_DEBUG="true").setup()
+        try:
+            with caplog.at_level(logging.WARNING):
+                await _post_badly_signed(kit, signed_over=b"nope", body=b'{"a":1}')
+            text = caplog.text
+            assert "must-not-be-logged" not in text
+            assert "authorization: <redacted>" in text
+            assert SECRET not in text
         finally:
             await kit.teardown()
 

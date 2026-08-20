@@ -259,7 +259,6 @@ async def attach_invoice(
     order.fiat_amount = fiat_amount
     order.fiat_currency = fiat_currency
     order.exchange_rate = exchange_rate
-    order.commission_amount = commission_amount
     order.crypto_amount_rao = crypto_amount_rao
     order.crypto_amount = crypto_amount
     order.crypto_currency = crypto_currency
@@ -270,6 +269,14 @@ async def attach_invoice(
     # link the buyer is looking at.
     if hosted_invoice_url is not None:
         order.hosted_invoice_url = hosted_invoice_url
+    # Same rule, different reason, and defensive rather than a repair. TMC PAY's REST invoice
+    # carries a commission; their webhook body carries no commission field under any spelling.
+    # Today that is harmless, because the webhook only reaches this function on the recovery path
+    # — an order whose create response was lost, which has no commission stored to lose. It stops
+    # being harmless the moment anything calls this for an order that already has an invoice, and
+    # nothing in the signature says it may not. An omitted field is silence, not a retraction.
+    if commission_amount is not None:
+        order.commission_amount = commission_amount
     try:
         await session.flush()
     except IntegrityError as exc:

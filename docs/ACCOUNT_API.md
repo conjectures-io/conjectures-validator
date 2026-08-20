@@ -373,7 +373,7 @@ signature instead, so there is no ambient credential to abuse. `POST /v1/auth/go
 exempt because it is a genuine cross-site POST from `accounts.google.com`; it performs Google's
 own `g_csrf_token` double-submit before reading the ID token, and `SameSite=Lax` means no session
 cookie rides along with it anyway. The TMC PAY webhook is exempt because its caller is a payment
-processor authenticated by an HMAC over the raw body.
+processor authenticated by an HMAC over the delivery timestamp and the raw body.
 
 The CLI session endpoints are deliberately **not** on that list. An unproven request already
 passes the middleware, which is exactly the non-browser case, and a path exemption would also
