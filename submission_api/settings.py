@@ -710,6 +710,11 @@ class Settings:
     # An operator's allowlist of payment pairs. Empty permits every pair TMC PAY offers; see
     # `tmc_pay.pair_is_payable`, which is the one rule both the listing and the purchase read.
     tmc_pay_payable_pairs: tuple[tuple[str, str | None], ...]
+    # Log the full request whenever a TMC PAY webhook fails its signature check. Off by default and
+    # meant for troubleshooting: the body carries an account id, so this is request-level data in
+    # the log for as long as it stays on. It fires only on the failure path, so a healthy
+    # deployment with it enabled logs nothing.
+    tmc_pay_webhook_debug: bool
     # Optional. When set, a webhook whose payload names a different merchant is refused rather
     # than matched on invoice id alone — the one check that a delivery aimed at somebody else's
     # integration cannot move money here.
@@ -1126,6 +1131,7 @@ class Settings:
         if len(tmc_pay_merchant_id) > 64:
             raise SettingsError("TMC_PAY_MERCHANT_ID must not exceed 64 characters")
         tmc_pay_payable_pairs = _payable_pairs(env, "TMC_PAY_PAYABLE_PAIRS")
+        tmc_pay_webhook_debug = _flag(env, "TMC_PAY_WEBHOOK_DEBUG", False)
         tmc_pay_hosted_base_url = (
             env.get("TMC_PAY_HOSTED_BASE_URL", "").strip().rstrip("/")
         )
@@ -1348,6 +1354,7 @@ class Settings:
             tmc_pay_webhook_secret=tmc_pay_webhook_secret,
             tmc_pay_hosted_base_url=tmc_pay_hosted_base_url,
             tmc_pay_payable_pairs=tmc_pay_payable_pairs,
+            tmc_pay_webhook_debug=tmc_pay_webhook_debug,
             tmc_pay_merchant_id=tmc_pay_merchant_id,
             tmc_pay_fiat_currency=tmc_pay_fiat_currency,
             tmc_pay_fiat_decimals=_bounded_int(

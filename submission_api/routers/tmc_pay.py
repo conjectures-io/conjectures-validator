@@ -40,6 +40,7 @@ while the owner is watching, and `scripts/reconcile_tmc_pay.py` sweeps everythin
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import logging
 import uuid
@@ -172,6 +173,61 @@ def _as_uuid(value: str) -> uuid.UUID:
         # Absent, not malformed: the identifier space is opaque to the caller, and a distinct
         # error for "not a UUID" tells them nothing they can act on.
         raise NotFound("order not found") from exc
+
+
+# Header names that must never reach a log line, checked against the lowercased name. None is
+# expected on a webhook — TMC PAY authenticates by signature, not by credential — which is exactly
+# why they are worth refusing: an unauthenticated caller chooses what to send, and this log is
+# reachable by anyone who can POST to the endpoint.
+UNLOGGABLE_HEADERS = frozenset({"authorization", "cookie", "x-api-key", "proxy-authorization"})
+
+
+def _log_rejected_request(request: Request, raw: bytes, settings: Settings) -> None:
+    """Dump a rejected webhook so its signature can be diagnosed. Enabled by an operator only.
+
+    Prints the request as it arrived — every header, the body verbatim, and the body's own digest,
+    so a difference between what was signed and what was received is visible rather than inferred.
+
+    Then the part that answers the question: for each signing scheme a processor might plausibly
+    use, a short prefix of the MAC it would produce with the configured secret. One matching the
+    offered signature means the secret is right and the signed message is not what this code
+    assumes; none matching means the secret is wrong. Those need different fixes and are otherwise
+    indistinguishable from a 401.
+
+    Prefixes, never whole MACs, and the secret never appears — see `tmc_pay.signature_diagnosis`.
+    """
+    offered = request.headers.get(tmc_pay.WEBHOOK_SIGNATURE_HEADER) or ""
+    headers = "\n".join(
+        f"      {name}: {'<redacted>' if name.lower() in UNLOGGABLE_HEADERS else value}"
+        for name, value in sorted(request.headers.items())
+    )
+    diagnosis = "\n".join(
+        f"      {label:24} {prefix}…"
+        for label, prefix in tmc_pay.signature_diagnosis(
+            raw,
+            secret=settings.tmc_pay_webhook_secret,
+            timestamp=request.headers.get(tmc_pay.WEBHOOK_TIMESTAMP_HEADER),
+            webhook_id=request.headers.get(tmc_pay.WEBHOOK_ID_HEADER),
+        )
+    )
+    logger.warning(
+        "TMC PAY webhook diagnostics (TMC_PAY_WEBHOOK_DEBUG is on)\n"
+        "  request: %s %s\n"
+        "  headers:\n%s\n"
+        "  body: %d bytes, sha256 %s\n"
+        "  body verbatim:\n%s\n"
+        "  offered signature: %s\n"
+        "  a scheme below whose prefix matches the offered one means the secret is right and the\n"
+        "  signed message is not the raw body; none matching means the secret does not match:\n%s",
+        request.method,
+        request.url.path,
+        headers,
+        len(raw),
+        hashlib.sha256(raw).hexdigest(),
+        raw.decode("utf-8", "replace"),
+        offered or "<absent>",
+        diagnosis or "      <no secret configured>",
+    )
 
 
 def _state(status_text: str) -> TmcPayOrderState:
@@ -1168,6 +1224,8 @@ async def receive_webhook(
         logger.warning(
             "rejected a TMC PAY webhook with an invalid signature (%d bytes)", len(raw)
         )
+        if settings.tmc_pay_webhook_debug:
+            _log_rejected_request(request, raw, settings)
         get_axiom().warn(
             source="api",
             event_type="tmc_pay_webhook_rejected",
