@@ -112,6 +112,10 @@ WEBHOOK_EVENT_HEADER = "X-Webhook-Event"
 
 SIGNATURE_PREFIX = "sha256="
 
+# How much of a candidate MAC the troubleshooting log prints. Long enough that a match is
+# unambiguous, far too short to forge a signature with.
+PREFIX_LENGTH = 12
+
 # A webhook body is a small JSON object. Bounded before it is read, because the endpoint is
 # unauthenticated until the signature is checked and the signature cannot be checked without
 # buffering the body first.
@@ -379,6 +383,43 @@ def signature_matches(raw_body: bytes, header: str | None, secret: str) -> bool:
         secret.encode("utf-8"), raw_body, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(offered, expected)
+
+
+def signature_diagnosis(
+    raw_body: bytes, *, secret: str, timestamp: str | None, webhook_id: str | None
+) -> tuple[tuple[str, str], ...]:
+    """Which signing scheme, if any, would have matched this body — for troubleshooting only.
+
+    A rejected webhook has exactly two plausible causes and they need different fixes: the secret
+    is wrong, or the message being signed is not what this code thinks it is. One bit of
+    information — "did any scheme match" — separates them, and guessing between them by redeploying
+    is slow and inconclusive.
+
+    So each candidate is computed and reported as a **short prefix**. A prefix is enough to compare
+    against the offered signature by eye and useless for forging one, which matters because this
+    runs on a body an unauthenticated caller supplied: logging a full valid MAC for
+    attacker-chosen bytes would hand out exactly the signature they could not compute themselves.
+
+    The candidates are the schemes payment processors actually use. TMC PAY documents the first;
+    the rest are here because their published payload schema turned out not to match what they
+    send, so their signature documentation is not proof either.
+    """
+    if not secret:
+        return ()
+    key = secret.encode("utf-8")
+    ts = (timestamp or "").encode("utf-8")
+    wid = (webhook_id or "").encode("utf-8")
+    candidates: tuple[tuple[str, bytes], ...] = (
+        ("raw body (documented)", raw_body),
+        ("timestamp.body", ts + b"." + raw_body),
+        ("timestamp + body", ts + raw_body),
+        ("id.timestamp.body", wid + b"." + ts + b"." + raw_body),
+        ("body.timestamp", raw_body + b"." + ts),
+    )
+    return tuple(
+        (label, hmac.new(key, message, hashlib.sha256).hexdigest()[:PREFIX_LENGTH])
+        for label, message in candidates
+    )
 
 
 # --- Parsing ---------------------------------------------------------------------------------
@@ -677,6 +718,7 @@ __all__ = [
     "quote_ceiling",
     "quote_fiat_amount",
     "rao_from_tao",
+    "signature_diagnosis",
     "signature_matches",
     "tao_from_rao",
 ]

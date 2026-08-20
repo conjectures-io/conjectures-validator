@@ -23,6 +23,7 @@ import hashlib
 import hmac
 import importlib
 import json
+import logging
 import pathlib
 import sys
 import uuid
@@ -780,6 +781,98 @@ def test_the_credited_amount_comes_from_the_invoice_and_not_from_the_webhook():
                 balance = (await http.get("/v1/me/credits")).json()
                 assert balance["balance_rao"] == CREDIT_PRICE_RAO
                 assert balance["credits_available"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- Troubleshooting a rejected webhook -------------------------------------------------------
+
+
+async def _post_badly_signed(
+    kit, *, signed_over: bytes, body: bytes, timestamp: str = "1755635632"
+) -> str:
+    """POST a webhook whose signature is over `signed_over`, and return the offered hex."""
+    http = await client(kit)
+    async with http:
+        sig = hmac.new(SECRET.encode(), signed_over, hashlib.sha256).hexdigest()
+        answer = await http.post(
+            WEBHOOK,
+            content=body,
+            headers={
+                tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"sha256={sig}",
+                tmc_pay.WEBHOOK_TIMESTAMP_HEADER: timestamp,
+                tmc_pay.WEBHOOK_ID_HEADER: "11111111-2222-3333-4444-555555555555",
+                "Authorization": "Bearer must-not-be-logged",
+            },
+        )
+        assert answer.status_code == 401, answer.text
+    return sig
+
+
+def test_the_request_is_not_logged_unless_an_operator_asks(caplog):
+    """Off by default: the body carries an account id, so this is not a standing log line."""
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            with caplog.at_level(logging.WARNING):
+                await _post_badly_signed(kit, signed_over=b"nope", body=b'{"a":1}')
+            assert "invalid signature" in caplog.text
+            assert "TMC PAY webhook diagnostics" not in caplog.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_diagnostic_names_the_scheme_that_would_have_matched(caplog):
+    """The one bit that separates "wrong secret" from "wrong signed message"."""
+    body = b'{"invoice_id":"ecd53a85","status":"pending"}'
+    timestamp = "1755635632"
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([]), TMC_PAY_WEBHOOK_DEBUG="true").setup()
+        try:
+            with caplog.at_level(logging.WARNING):
+                # Signed over `timestamp.body`, which this service does not implement.
+                offered = await _post_badly_signed(
+                    kit,
+                    signed_over=timestamp.encode() + b"." + body,
+                    body=body,
+                    timestamp=timestamp,
+                )
+            text = caplog.text
+            assert "TMC PAY webhook diagnostics" in text
+            # The request verbatim, so a body mismatch is visible rather than inferred.
+            assert body.decode() in text
+            assert f"body: {len(body)} bytes" in text
+            # And the matching scheme is named, with the offered prefix beside it.
+            assert f"timestamp.body           {offered[:12]}" in text
+
+            # The offered signature is echoed whole, which is safe: the caller sent it. What must
+            # never be whole is a MAC *this service* computed over caller-chosen bytes — that is a
+            # signature they could not otherwise produce. Only its prefix may appear.
+            computed = hmac.new(SECRET.encode(), body, hashlib.sha256).hexdigest()
+            assert computed[:12] in text
+            assert computed not in text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_diagnostic_redacts_credentials_and_never_prints_the_secret(caplog):
+    async def scenario():
+        kit = await kit_with(FakeGateway([]), TMC_PAY_WEBHOOK_DEBUG="true").setup()
+        try:
+            with caplog.at_level(logging.WARNING):
+                await _post_badly_signed(kit, signed_over=b"nope", body=b'{"a":1}')
+            text = caplog.text
+            assert "must-not-be-logged" not in text
+            assert "authorization: <redacted>" in text
+            assert SECRET not in text
         finally:
             await kit.teardown()
 
