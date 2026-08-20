@@ -371,9 +371,10 @@ the Alpha amount remains authoritative when this display-only conversion is abse
 distinguishes an open target from one already solved, and `locked` is false because catalog prices
 remain live until a submission is accepted. The
 pool-wide `/v1/catalog/meta` response publishes `bounty.balance_rao` and its display-only
-`bounty.balance_usd` conversion, plus the open-target count, total age weight, and rational policy
-constant behind the task estimates. Acceptance takes a serialized fresh quote, subtracting
-outstanding locks from the treasury balance, and fixes that amount for the submission.
+`bounty.balance_usd` conversion, plus the open-target count, total age weight, rational policy
+constant, maximum age weight, and rational per-target share cap behind the task estimates.
+Acceptance takes a serialized fresh quote, subtracting outstanding locks from the treasury balance,
+and fixes that amount for the submission.
 
 ### Filters and facets
 

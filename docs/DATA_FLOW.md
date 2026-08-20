@@ -467,8 +467,9 @@ review is configured globally, per task, or per submission.
 `reward_events` records the submission, eligibility reason, actual integer payout amount,
 dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
 evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
-targets without a successful reward claim. Acceptance stores the quote as the immutable conditional
-amount-of-record, and later payout generation copies it without repricing.
+targets without a successful reward claim. Age weight stops accruing at 60 periods and every target
+quote is capped at 33/100 of the uncommitted balance. Acceptance stores the quote as the immutable
+conditional amount-of-record, and later payout generation copies it without repricing.
 
 The Discord notifier creates `PENDING` and sends the reviewed multisig call to both human signers.
 The read-only payout watcher then derives state from runtime events: a matching
