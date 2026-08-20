@@ -23,5 +23,12 @@ build/
 vendor/
 
 *.dump
+# A database dump must never be trackable, whichever extension pg_dump was asked for. The
+# negations keep the SQL that *is* source: the Flyway migrations, which are the schema's source of
+# truth, and the operator scripts beside them. Without them a new migration is silently left out
+# of `git add -A` and goes missing from a deploy — V001..V026 are tracked only because they
+# predate this rule, and four scripts under scripts/ were swallowed by it.
 *.sql
+!deploy/migrate/sql/*.sql
+!scripts/*.sql
 deploy/axiom
