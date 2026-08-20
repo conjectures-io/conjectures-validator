@@ -34,9 +34,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.errors import RecordConflict, RecordNotFound
 from conjectures_subnet.db.models import (
+    ACCOUNT_ROLES,
     MINER_ROLE,
     Account,
+    AccountIdentity,
     AccountSession,
+    AccountSessionKind,
     AccountWallet,
     LinkedHotkey,
     LoginChallenge,
@@ -49,6 +52,8 @@ from conjectures_subnet.db.models import (
 HOTKEY_UNIQUE = "linked_hotkeys_hotkey_key"
 WALLET_PRIMARY = "account_wallets_pkey"
 EMAIL_UNIQUE = "accounts_email_idx"
+IDENTITY_SUBJECT_UNIQUE = "account_identities_provider_subject_key"
+IDENTITY_PROVIDER_UNIQUE = "account_identities_account_provider_key"
 
 
 def digest(secret: str) -> bytes:
@@ -106,6 +111,23 @@ async def find_by_hotkey(session: AsyncSession, hotkey: str) -> Account | None:
     return (await session.execute(statement)).scalar_one_or_none()
 
 
+async def find_by_identity(
+    session: AsyncSession, *, provider: str, subject: str
+) -> tuple[Account, AccountIdentity] | None:
+    """The account attached to a provider's stable subject, never to its email claim."""
+
+    statement = (
+        select(Account, AccountIdentity)
+        .join(AccountIdentity, AccountIdentity.account_id == Account.id)
+        .where(
+            AccountIdentity.provider == provider,
+            AccountIdentity.subject == subject,
+        )
+    )
+    row = (await session.execute(statement)).one_or_none()
+    return None if row is None else (row[0], row[1])
+
+
 async def create_account(
     session: AsyncSession,
     *,
@@ -143,6 +165,37 @@ async def set_display_name(
     return account
 
 
+async def set_roles(
+    session: AsyncSession, account: Account, roles: Sequence[str]
+) -> Account:
+    """Replace an account's roles.
+
+    Whole-set replacement rather than grant/revoke deltas, because the set is what the
+    schema stores and what every read wants: a delta API over a five-element array would
+    invent a concurrency problem — two simultaneous grants each reading and rewriting the
+    array — that PUT-the-set does not have.
+
+    MINER is re-added unconditionally. It is the role every account has by virtue of
+    existing, `create_account` grants it, and an "admin only" account that could not
+    submit would be a state no part of this system expects. Unknown roles are refused
+    here as well as by the `account_roles_are_known` CHECK, so the caller gets a named
+    error rather than an IntegrityError.
+    """
+    requested = {role.strip().upper() for role in roles if role and role.strip()}
+    unknown = sorted(requested - set(ACCOUNT_ROLES))
+    if unknown:
+        raise RecordConflict(
+            f"unknown roles: {', '.join(unknown)}",
+            reason_code="UNKNOWN_ROLE",
+            roles=unknown,
+        )
+    # Sorted so the stored array has one canonical order, which makes an audit diff of
+    # two role sets readable rather than an exercise in set comparison.
+    account.roles = sorted(requested | {MINER_ROLE})
+    await session.flush()
+    return account
+
+
 async def set_payout(
     session: AsyncSession, account: Account, *, coldkey: str, hotkey: str
 ) -> Account:
@@ -155,6 +208,77 @@ async def set_payout(
     account.payout_hotkey = hotkey
     await session.flush()
     return account
+
+
+# --- External identities --------------------------------------------------------------
+
+
+async def link_identity(
+    session: AsyncSession,
+    account: Account,
+    *,
+    provider: str,
+    subject: str,
+    email: str,
+) -> AccountIdentity:
+    """Attach one verified provider subject to an account.
+
+    The two unique constraints refuse both dangerous ambiguities: one Google subject on two
+    local accounts, and two Google subjects on one local account.  The caller decides whether a
+    collision is a login or an explicit-link conflict; this seam only reports it faithfully.
+    """
+
+    identity = AccountIdentity(
+        account_id=account.id,
+        provider=provider,
+        subject=subject,
+        email=normalise_email(email),
+    )
+    session.add(identity)
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        await session.rollback()
+        constraint = getattr(getattr(exc, "orig", None), "diag", None)
+        name = getattr(constraint, "constraint_name", "")
+        reason = (
+            "IDENTITY_ALREADY_LINKED"
+            if name == IDENTITY_SUBJECT_UNIQUE
+            else "PROVIDER_ALREADY_LINKED"
+            if name == IDENTITY_PROVIDER_UNIQUE
+            else "IDENTITY_LINK_CONFLICT"
+        )
+        raise RecordConflict(
+            "that external identity cannot be linked to this account",
+            reason_code=reason,
+        ) from exc
+    return identity
+
+
+async def touch_identity(
+    session: AsyncSession,
+    identity: AccountIdentity,
+    *,
+    email: str,
+    now: dt.datetime,
+) -> AccountIdentity:
+    """Record the provider's current email claim and successful use."""
+
+    identity.email = normalise_email(email)
+    identity.last_used_at = now
+    await session.flush()
+    return identity
+
+
+async def identities_for(
+    session: AsyncSession, account_id: uuid.UUID
+) -> Sequence[AccountIdentity]:
+    statement = (
+        select(AccountIdentity)
+        .where(AccountIdentity.account_id == account_id)
+        .order_by(AccountIdentity.linked_at.asc())
+    )
+    return list((await session.execute(statement)).scalars())
 
 
 # --- Linked keys -------------------------------------------------------------------
@@ -244,16 +368,24 @@ async def create_session(
     account: Account,
     *,
     token_digest: bytes,
-    csrf_digest: bytes,
     expires_at: dt.datetime,
+    kind: AccountSessionKind = AccountSessionKind.COOKIE,
+    hotkey_scope: str | None = None,
     user_agent: str | None = None,
     source_ip: str | None = None,
 ) -> AccountSession:
-    """Record a new session. The caller holds the only copy of the token."""
+    """Record a new session. The caller holds the only copy of the token.
+
+    ``kind`` decides whether ``hotkey_scope`` is required, and the schema's biconditional
+    CHECK is what enforces it: a BEARER session is bounded to the hotkey that minted it, a
+    COOKIE session is scoped to the account and must not carry one. Passing the wrong pair
+    is an IntegrityError rather than a session whose authority is quietly unbounded.
+    """
     row = AccountSession(
         account_id=account.id,
+        kind=kind,
         token_sha256=token_digest,
-        csrf_sha256=csrf_digest,
+        hotkey_scope=hotkey_scope,
         expires_at=expires_at,
         user_agent=user_agent,
         source_ip=source_ip,
@@ -264,9 +396,13 @@ async def create_session(
 
 
 async def authenticate(
-    session: AsyncSession, token_digest: bytes, *, now: dt.datetime
+    session: AsyncSession,
+    token_digest: bytes,
+    *,
+    kind: AccountSessionKind,
+    now: dt.datetime,
 ) -> Authenticated | None:
-    """Resolve a session token digest to a live session, or None.
+    """Resolve a session token digest to a live session of that kind, or None.
 
     A read, not a write. The rolling extension is a separate call the API makes only
     when one is due — see ``touch_session`` — because writing on every authenticated
@@ -274,12 +410,22 @@ async def authenticate(
 
     Expiry and revocation are part of the predicate rather than checked afterwards,
     so there is no window where an expired row is treated as live.
+
+    ``kind`` is part of the predicate, which makes the two credentials
+    non-interchangeable: a cookie token replayed in an ``Authorization`` header matches
+    nothing, and a bearer token planted in the session cookie matches nothing. Neither
+    is reachable by an attacker who does not already hold the secret — the cookie is
+    HttpOnly, so no script reads it to move it — but only one of the two is *ambient*,
+    and a credential that can change which rules apply to it by changing
+    where it is presented is the kind of confusion that is much easier to forbid here
+    than to reason about at every call site.
     """
     statement = (
         select(AccountSession, Account)
         .join(Account, Account.id == AccountSession.account_id)
         .where(
             AccountSession.token_sha256 == token_digest,
+            AccountSession.kind == kind,
             AccountSession.revoked_at.is_(None),
             AccountSession.expires_at > now,
         )
@@ -297,6 +443,7 @@ async def touch_session(
     now: dt.datetime,
     expires_at: dt.datetime,
     refresh_after: dt.timedelta,
+    max_lifetime: dt.timedelta | None = None,
 ) -> bool:
     """Extend a session's life, but only if it has gone unused for long enough.
 
@@ -307,7 +454,20 @@ async def touch_session(
 
     Still conditioned on the session being live, so a request that races a logout
     does not resurrect the session it was revoking.
+
+    ``max_lifetime`` is the ceiling a rolling window may not roll past, measured from
+    ``issued_at``. Without it "rolling" means a credential that is used regularly never
+    expires at all — acceptable for an HttpOnly cookie the user can see and clear from
+    their browser, much less so for a bearer token sitting in a file on a laptop. The cap
+    is applied in SQL as ``LEAST`` rather than computed by the caller, because the caller
+    does not have ``issued_at`` and fetching it first would open a race with a concurrent
+    revoke.
     """
+    ceiling = (
+        func.least(expires_at, AccountSession.issued_at + max_lifetime)
+        if max_lifetime is not None
+        else expires_at
+    )
     statement = (
         update(AccountSession)
         .where(
@@ -316,7 +476,7 @@ async def touch_session(
             AccountSession.expires_at > now,
             AccountSession.last_seen_at < now - refresh_after,
         )
-        .values(last_seen_at=now, expires_at=expires_at)
+        .values(last_seen_at=now, expires_at=ceiling)
     )
     return (await session.execute(statement)).rowcount > 0
 
@@ -330,21 +490,159 @@ async def revoke_session(session: AsyncSession, session_id: uuid.UUID) -> None:
     )
 
 
-async def revoke_all_sessions(session: AsyncSession, account_id: uuid.UUID) -> int:
-    """Every live session for an account.
+async def revoke_session_for_account(
+    session: AsyncSession, session_id: uuid.UUID, account_id: uuid.UUID
+) -> bool:
+    """Revoke one session, but only if it belongs to this account.
 
-    Used when an account's reachability changes — a new email verified, a payout
-    address moved — so a session established under the old state cannot outlive it.
+    Ownership is in the predicate rather than checked first. A read-then-revoke would be
+    both a race and an id-enumeration oracle: the caller would learn whether a session id
+    exists before being told they may not touch it. Here a foreign id and a nonexistent
+    one are the same `False`, and the same 404.
     """
     result = await session.execute(
         update(AccountSession)
         .where(
+            AccountSession.id == session_id,
             AccountSession.account_id == account_id,
             AccountSession.revoked_at.is_(None),
         )
         .values(revoked_at=func.now())
     )
+    return result.rowcount > 0
+
+
+async def revoke_all_sessions(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    kind: AccountSessionKind | None = None,
+    except_session_id: uuid.UUID | None = None,
+) -> int:
+    """Every live session for an account, or every one of a single kind.
+
+    Used when an account's reachability changes — a new email verified, a payout
+    address moved — so a session established under the old state cannot outlive it.
+
+    ``kind`` exists because signing in to the website must **not** evict a miner's CLI
+    tokens. A browser sign-in is a clean boundary for the browser: whatever that cookie
+    could reach before, the only live cookie afterwards is the one just issued. It is not
+    a statement about a long-running CLI on another machine, and treating it as one would
+    mean every visit to the website silently broke `conjectures submissions --watch`.
+    Passing no ``kind`` still revokes everything, which is what an account-wide security
+    action wants.
+
+    ``except_session_id`` keeps the caller's own session alive — "sign out everywhere
+    else", which is the useful shape of that button.
+    """
+    statement = update(AccountSession).where(
+        AccountSession.account_id == account_id,
+        AccountSession.revoked_at.is_(None),
+    )
+    if kind is not None:
+        statement = statement.where(AccountSession.kind == kind)
+    if except_session_id is not None:
+        statement = statement.where(AccountSession.id != except_session_id)
+    result = await session.execute(statement.values(revoked_at=func.now()))
     return result.rowcount
+
+
+async def revoke_sessions_for_hotkey(session: AsyncSession, hotkey: str) -> int:
+    """Every live bearer session scoped to this hotkey.
+
+    Called when a hotkey stops belonging to the account that minted the token — an
+    unlink, or a re-link elsewhere. The token names the account it was issued for, so
+    without this it would keep working against an account that no longer holds the key
+    that proved it, which is exactly the authority the scope was supposed to bound.
+    """
+    result = await session.execute(
+        update(AccountSession)
+        .where(
+            AccountSession.kind == AccountSessionKind.BEARER,
+            AccountSession.hotkey_scope == hotkey,
+            AccountSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=func.now())
+    )
+    return result.rowcount
+
+
+async def live_sessions_for(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    now: dt.datetime,
+    kind: AccountSessionKind | None = None,
+) -> Sequence[AccountSession]:
+    """The account's live sessions, newest first. Never the digests — the caller decides
+    what is safe to serialise, and `schemas_account.SessionView` is the only shape that
+    crosses the API boundary."""
+    statement = (
+        select(AccountSession)
+        .where(
+            AccountSession.account_id == account_id,
+            AccountSession.revoked_at.is_(None),
+            AccountSession.expires_at > now,
+        )
+        .order_by(AccountSession.issued_at.desc())
+    )
+    if kind is not None:
+        statement = statement.where(AccountSession.kind == kind)
+    return list((await session.execute(statement)).scalars())
+
+
+async def live_session_count(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    kind: AccountSessionKind,
+    now: dt.datetime,
+) -> int:
+    """How many live sessions of one kind this account holds.
+
+    The per-account ceiling on concurrent CLI tokens. Without a ceiling, a hotkey that
+    can mint a session can mint unboundedly many, and every one of them is a durable
+    credential that has to be revoked individually to be got rid of.
+    """
+    statement = (
+        select(func.count())
+        .select_from(AccountSession)
+        .where(
+            AccountSession.account_id == account_id,
+            AccountSession.kind == kind,
+            AccountSession.revoked_at.is_(None),
+            AccountSession.expires_at > now,
+        )
+    )
+    return (await session.execute(statement)).scalar_one()
+
+
+async def oldest_live_session(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    kind: AccountSessionKind,
+    now: dt.datetime,
+) -> AccountSession | None:
+    """The least recently issued live session of one kind.
+
+    What the per-account ceiling evicts when it is reached. Evicting the oldest rather
+    than refusing the new login is the choice that cannot lock a miner out of their own
+    tooling: a stale token on a machine they no longer use would otherwise be able to
+    deny them a working one.
+    """
+    statement = (
+        select(AccountSession)
+        .where(
+            AccountSession.account_id == account_id,
+            AccountSession.kind == kind,
+            AccountSession.revoked_at.is_(None),
+            AccountSession.expires_at > now,
+        )
+        .order_by(AccountSession.issued_at.asc())
+        .limit(1)
+    )
+    return (await session.execute(statement)).scalar_one_or_none()
 
 
 # --- Login challenges --------------------------------------------------------------
@@ -440,6 +738,87 @@ async def latest_open_challenge(
     return (await session.execute(statement)).scalar_one_or_none()
 
 
+async def open_challenge_by_nonce(
+    session: AsyncSession,
+    *,
+    kind: LoginChallengeKind,
+    ss58: str,
+    secret_digest: bytes,
+    now: dt.datetime,
+    max_attempts: int,
+    account_id: uuid.UUID | None = None,
+) -> LoginChallenge | None:
+    """The one unconsumed challenge this nonce names, or None.
+
+    The alternative — ``latest_open_challenge``, which the coldkey flow uses — picks the
+    newest open row for an address, and that is a denial-of-service primitive whenever the
+    address is public knowledge. Hotkeys are published on chain. An attacker who requests a
+    challenge for someone else's hotkey supersedes the challenge that person is in the middle
+    of signing, so their signature arrives valid over a message that is no longer "latest"
+    and is refused. Repeat once a minute and that miner can never log in again.
+
+    Naming the row by its own nonce removes the race entirely: two challenges for one address
+    coexist and each is redeemable by whoever holds its nonce. The nonce is not the proof —
+    the signature is, and it is checked against the message stored on *this* row — so echoing
+    it back costs nothing. It is the difference between "which challenge is current" (a global
+    question, and therefore attackable) and "which challenge is this" (a local one).
+
+    ``ss58`` stays in the predicate as well, so a nonce minted for one address cannot be
+    redeemed for another even if it leaks, and ``attempts`` bounds how many signatures may be
+    offered against a single challenge.
+
+    ``account_id`` is for the kinds that attach a credential to an account that is already
+    known — COLDKEY_LINK, whose challenge is minted by a signed-in caller. Passing it puts the
+    ownership check in the *query*, so a nonce belonging to another account matches nothing and
+    is reported by the same "no open challenge" refusal as every other miss. Left ``None`` for
+    the sign-in kinds, where the account is what the flow is still establishing.
+    """
+    statement = select(LoginChallenge).where(
+        LoginChallenge.secret_sha256 == secret_digest,
+        LoginChallenge.kind == kind,
+        LoginChallenge.ss58 == ss58,
+        LoginChallenge.consumed_at.is_(None),
+        LoginChallenge.expires_at > now,
+        LoginChallenge.attempts < max_attempts,
+    )
+    if account_id is not None:
+        statement = statement.where(LoginChallenge.account_id == account_id)
+    return (await session.execute(statement)).scalar_one_or_none()
+
+
+async def record_failed_attempt(session: AsyncSession, challenge_id: uuid.UUID) -> int:
+    """Count one failed signature against a challenge, and return the new total.
+
+    Incremented in SQL rather than read-modify-written, so concurrent attempts each count.
+    A read-then-write would let a burst of parallel guesses all observe the same low value.
+    """
+    statement = (
+        update(LoginChallenge)
+        .where(LoginChallenge.id == challenge_id)
+        .values(attempts=LoginChallenge.attempts + 1)
+        .returning(LoginChallenge.attempts)
+    )
+    return (await session.execute(statement)).scalar_one()
+
+
+async def hotkey_still_linked(
+    session: AsyncSession, *, hotkey: str, account_id: uuid.UUID
+) -> bool:
+    """Whether this hotkey is *currently* linked to this account.
+
+    Checked on every request a bearer session authenticates, not only at mint. A bearer token
+    records the hotkey that proved it, and that hotkey is the entire basis for the token's
+    existence — so if the link is gone, the token's authority is gone with it, and the next
+    request must fail rather than the next expiry. Revoking scoped sessions eagerly on unlink
+    is the other half of this (``revoke_sessions_for_hotkey``); this is the half that does not
+    depend on remembering to call it.
+    """
+    statement = select(LinkedHotkey.id).where(
+        LinkedHotkey.hotkey == hotkey, LinkedHotkey.account_id == account_id
+    )
+    return (await session.execute(statement)).first() is not None
+
+
 async def recent_challenge_count(
     session: AsyncSession,
     *,
@@ -478,17 +857,24 @@ __all__ = [
     "find_by_email",
     "find_by_hotkey",
     "get_account",
+    "hotkey_still_linked",
     "hotkeys_for",
     "latest_open_challenge",
     "link_hotkey",
     "link_wallet",
+    "live_session_count",
+    "live_sessions_for",
     "normalise_email",
+    "oldest_live_session",
     "owns_hotkey",
     "recent_challenge_count",
     "revoke_all_sessions",
     "revoke_session",
+    "revoke_session_for_account",
+    "revoke_sessions_for_hotkey",
     "set_display_name",
     "set_payout",
+    "set_roles",
     "touch_session",
     "wallets_for",
 ]

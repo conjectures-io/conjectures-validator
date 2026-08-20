@@ -48,12 +48,12 @@ flowchart TD
         CAT["data/catalog.json<br/>3267 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>162 active asserted picks"]
+        PICK["task target policy<br/>159 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>324 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>318 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -177,6 +177,7 @@ the pipeline.
 | 5 | audited candidate selection | **176** targets from 154 files (151 Erdős over 132 files, 25 Green over 22) |
 | 6 | active after dependency and semantic-fidelity retirements | **168** targets from 147 files (145 Erdős over 127 files, 23 Green over 20) |
 | 7 | active after retiring settled or literature-solved targets | **162** targets from 141 files (142 Erdős over 124 files, 20 Green over 17) |
+| 8 | active after maintainer-request withdrawals | **159** targets from 139 files (139 Erdős over 122 files, 20 Green over 17) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -186,7 +187,7 @@ one of them starts firing is the day upstream changed something that matters.
 
 ### Retired theorems
 
-`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 179 source theorems and 191
+`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 182 source theorems and 194
 canonical types that must not be offered again, committed by both `theorem` name **and**
 `source_type_sha256` — so retiring survives a rename. An audited target may explicitly supersede a
 prior theorem-name retirement; all remaining retirement entries are checked by name *or* type hash at
@@ -194,7 +195,7 @@ selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 162 active targets are **not computed** from the 506. They are the admitted subset of 176
+The 159 active targets are **not computed** from the 506. They are the admitted subset of 176
 audited candidates and are asserted by hand in one target file. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
@@ -206,7 +207,7 @@ refuses to accept any pick that is not simultaneously:
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: at least 142 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: at least 139 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
 Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
@@ -301,7 +302,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-162 `allowed_source_theorems` and 324 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+159 `allowed_source_theorems` and 318 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
@@ -317,13 +318,13 @@ combined with a tampered audit file:
 | Commitment | Covers |
 | --- | --- |
 | `selection_audit_sha256` | the tier's selected human reviews |
-| `retired_source_theorems_sha256` | the 178 retirements |
+| `retired_source_theorems_sha256` | the 182 source-theorem retirements and 194 retired type hashes |
 | `task_targets_sha256` | the tier's exact targets and per-target reward identities |
 | `task_groups_sha256` | the group policy (currently empty) |
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 142 active Erdős targets and 20 Green targets.
+all 139 active Erdős targets and 20 Green targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
@@ -461,26 +462,34 @@ duplication, eligibility, or abuse — it may **not** rewrite the Lean verdict.
 **OPEN:** what criteria may reject a Lean-valid proof, whether there is an appeal, and whether
 review is configured globally, per task, or per submission.
 
-## 13. Reward event — **IMPLEMENTED SCHEMA**, payout execution **OPEN**
+## 13. Reward event — **IMPLEMENTED SCHEMA AND CHAIN RECONCILIATION**
 
 `reward_events` records the submission, eligibility reason, actual integer payout amount,
 dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
-evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the
-set of targets without a successful reward claim. Age weight is capped at 60 and every target quote
-is capped at 33/100 of the current treasury balance. The intake estimate is retained separately and
-is not the amount-of-record.
+evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
+targets without a successful reward claim. Age weight stops accruing at 60 periods and every target
+quote is capped at 33/100 of the uncommitted balance. Acceptance stores the quote as the immutable
+conditional amount-of-record, and later payout generation copies it without repricing.
+
+The Discord notifier creates `PENDING` and sends the reviewed multisig call to both human signers.
+The read-only payout watcher then derives state from runtime events: a matching
+`StakeAndHotkeyTransferred` on the best chain is `SUBMITTED`, the same event in a finalized block
+is `CONFIRMED`, and a pre-finality reorganization returns it to `PENDING`. It pairs the transfer
+event with that call's `StakeAdded` event because the former reports TAO-equivalent value while the
+latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.
 
 ### What the remaining bounty payout mechanism needs
 
 | Required input | Status |
 | --- | --- |
 | Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` produces the versioned age weight; no subjective difficulty score is used |
-| Payout proof-of-inclusion returned to the miner | **OPEN** |
-| Automated bounty transfer and reconciliation | **OPEN** |
+| Payout proof-of-inclusion returned to the miner | **Implemented.** Owner responses carry the canonical event reference and finalized block |
+| Automated bounty transfer and reconciliation | **Partial.** Transfer signing remains human multisig; best/finalized event reconciliation is automatic |
 
 The payout rule is deterministic and its inputs are persisted. Subnet emissions are independent:
 `emissions_worker` sends one 100% weight to treasury UID 121 after every observed epoch. Executing
-the individual bounty transfer and returning its proof-of-inclusion remain open.
+the individual bounty transfer remains a human multisig operation; returning and maintaining its
+proof-of-inclusion is automatic.
 
 ---
 
@@ -527,8 +536,9 @@ re-hashing on read is a free integrity check.
 
 Ordered by how much they matter, not by where they appear above.
 
-1. **Payout execution is not automated.** Dynamic pricing and its amount-of-record schema exist,
-   but a production signer/reconciler still has to create and finalize the transfer safely.
+1. **Payout signing is not automated.** Approval creates the idempotent payout instruction and
+   notifies both signers. They still submit the multisig call; reconciliation after that is driven
+   automatically from best and finalized chain events.
 2. **No task publication path.** Miners cannot discover `task_id` + digest, so no submission can be
    well-formed. This blocks the whole right-hand side.
 3. **Group tasks commit only the primary target hash.** `task_generator.py:495` sets

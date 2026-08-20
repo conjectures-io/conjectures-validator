@@ -10,23 +10,26 @@
 # a missing mount even when the checkout is present but unreadable to this container's uid.
 # `just pin-tasks` materializes it; `just up` refuses to start without it.
 #
-# `include` pulls in docker-compose.db.yml, so that one command brings up Postgres, applies
-# every pending Flyway migration, waits for both, and then starts the API. There is no ordering
-# to remember and no second command to forget.
+# `include` pulls in the database and notifier definitions, so that one command brings up
+# Postgres, applies every pending Flyway migration, waits for both, and then starts the API and
+# DB-driven payout notifier. There is no ordering to remember and no second command to forget.
 #
 # Named docker-compose.api.yml rather than compose.yaml for the same reason the database stack
 # is: this repository's docker-compose.yml is the hostile-proof verifier sandbox, and Compose
 # gives compose.yaml precedence, so a bare `docker compose up` must not start meaning something
 # else.
 #
-# THE API AND THE VERIFIER ARE DIFFERENT TRUST DOMAINS. This stack starts the API only. The
-# verifier runs from docker-compose.yml with `network_mode: none`, and nothing here mounts its
-# image, its toolchain, or a writable path it shares. See submission_api/__init__.py.
+# THE API AND THE VERIFIER ARE DIFFERENT TRUST DOMAINS. This stack starts the API and payout
+# notifier, neither of which compiles proofs. The verifier runs from docker-compose.yml with
+# `network_mode: none`, and nothing here mounts its image, its toolchain, or a writable path it
+# shares. See submission_api/__init__.py.
 
 name: conjectures-api
 
 include:
   - docker-compose.db.yml
+  # Payout signer notification is DB-driven operational behavior, not an optional manual tool.
+  - docker-compose.payout-notifier.yml
 
 services:
   api:
@@ -48,7 +51,7 @@ services:
       BOUNTY_WALLET_COLDKEY_SS58: ${BOUNTY_WALLET_COLDKEY_SS58:-${PAYMENT_RECIPIENT_SS58}}
       BOUNTY_WALLET_HOTKEY_SS58: ${BOUNTY_WALLET_HOTKEY_SS58:?set the bounty stake hotkey in .env}
       BOUNTY_NETUID: ${BOUNTY_NETUID:-66}
-      BOUNTY_POLICY_VERSION: ${BOUNTY_POLICY_VERSION:-dynamic-age-v1}
+      BOUNTY_POLICY_VERSION: ${BOUNTY_POLICY_VERSION:-dynamic-age-v2-locked}
       BOUNTY_CONSTANT_NUMERATOR: ${BOUNTY_CONSTANT_NUMERATOR:-1}
       BOUNTY_CONSTANT_DENOMINATOR: ${BOUNTY_CONSTANT_DENOMINATOR:-4}
       BOUNTY_AGE_PERIOD_SECONDS: ${BOUNTY_AGE_PERIOD_SECONDS:-86400}
@@ -90,9 +93,17 @@ services:
       # --- Accounts ---------------------------------------------------------
       WEBSITE_BASE_URL: ${WEBSITE_BASE_URL:-}
       LOGIN_DOMAIN: ${LOGIN_DOMAIN:-conjectures.io}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       MAIL_SENDER: ${MAIL_SENDER:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_TIMEOUT_SECONDS: ${SMTP_TIMEOUT_SECONDS:-10}
       SESSION_DAYS: ${SESSION_DAYS:-30}
-      CREDIT_PACKAGES: ${CREDIT_PACKAGES:-1,10:1,50:8}
+      CREDIT_PACKAGES: ${CREDIT_PACKAGES:-1,5:1,10:3}
       CREDIT_PRICE_USD: ${CREDIT_PRICE_USD:-}
       CREDIT_PRICE_USD_ASOF: ${CREDIT_PRICE_USD_ASOF:-}
 

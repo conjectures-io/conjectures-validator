@@ -154,7 +154,7 @@ class BountyPoolInfo(Model):
     max_bounty_share_numerator: int
     max_bounty_share_denominator: int
     as_of: datetime
-    locked_at_submission: bool = False
+    locked_at_submission: bool = True
 
 
 SLUG_DESCRIPTION = (
@@ -596,6 +596,14 @@ RESULT_STATEMENT_DESCRIPTION = (
 )
 
 
+class PublicCredit(Model):
+    """Authorship the submitting hotkey explicitly signed for public display."""
+
+    name: str
+    url: str | None = None
+    orcid: str | None = None
+
+
 class PublicReviewDecision(Model):
     """The binding review decision and its deliberately public rationale.
 
@@ -619,13 +627,17 @@ class PublicResult(Model):
     queued, rejected, in review, or paid out. The three `*_status` fields are how a client tells
     those apart; the timestamps below say when, and are null until the state they name is reached.
 
-    Credited to the `hotkey` that submitted it. Nothing here reaches that miner's funds: no
-    paying coldkey, no payment reference, no extrinsic.
+    Credited to the `hotkey` that submitted it and any public credit that hotkey signed. Nothing
+    here reaches that miner's funds: no paying coldkey, no payment reference, no extrinsic.
     """
 
     id: uuid.UUID
     hotkey: str = Field(
         description="The hotkey that submitted this proof, as an SS58 address"
+    )
+    public_credit: PublicCredit | None = Field(
+        default=None,
+        description="Opt-in public authorship signed with this submission",
     )
     verification_status: str = Field(
         description=(
@@ -725,6 +737,10 @@ class InReviewResult(Model):
     hotkey: str = Field(
         description="The hotkey that submitted this proof, as an SS58 address"
     )
+    public_credit: PublicCredit | None = Field(
+        default=None,
+        description="Opt-in public authorship signed with this submission",
+    )
     slug: str = Field(description="The conjecture this result is against, as a stable slug")
     task_id: str
     display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
@@ -748,12 +764,17 @@ class PublicSolution(Model):
     wants — `Main.lean` is guaranteed UTF-8 and NUL-free by `verifier.submission`, so it survives
     a JSON string intact.
 
-    Credited to the `hotkey` that submitted it, alongside the site attribution.
+    Credited to the `hotkey` that submitted it and any signed public credit, alongside the site
+    attribution.
     """
 
     id: uuid.UUID
     hotkey: str = Field(
         description="The hotkey that submitted this proof, as an SS58 address"
+    )
+    public_credit: PublicCredit | None = Field(
+        default=None,
+        description="Opt-in public authorship signed with this submission",
     )
     slug: str = Field(description="The conjecture this proof closes, as a stable slug")
     filename: str = Field(description="The path the bytes occupy in the verified bundle")
@@ -837,6 +858,7 @@ __all__ = [
     "PinRotationWindow",
     "PoolMeta",
     "PublicActivityItem",
+    "PublicCredit",
     "PublicResult",
     "PublicReviewDecision",
     "PublicSolution",

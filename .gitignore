@@ -12,8 +12,16 @@ __pycache__/
 dist/
 build/
 .env
+# `just env-sync` writes .env.bak, and a real environment file must never be trackable under
+# any name. The negation keeps the template itself, which is the one that is meant to be here.
+.env.*
+!.env.example
 .venv-api/*
 # Default ARTIFACT_ROOT for the submission API; artifact bytes are never committed.
 .artifacts/
 # Recreated at pinned revisions by scripts/pin_dependencies.sh.
 vendor/
+
+*.dump
+*.sql
+deploy/axiom

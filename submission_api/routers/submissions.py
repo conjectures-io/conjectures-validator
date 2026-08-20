@@ -30,11 +30,22 @@ from fastapi import APIRouter, Header, Path, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.attribution import (
+    decode_public_credit_header,
+    public_credit_from_values,
+)
 from conjectures_subnet.axiom import Severity, get_axiom
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.errors import DatabaseError
-from conjectures_subnet.db.models import PayoutState, RewardEvent, Submission, VerificationRun
+from conjectures_subnet.db.models import (
+    ManualReviewState,
+    PayoutState,
+    RewardEvent,
+    Submission,
+    VerificationRun,
+    VerificationState,
+)
 from submission_api import schemas
 from submission_api.auth import (
     SignedRequest,
@@ -148,34 +159,57 @@ async def _status(
     *,
     services: Services,
     session: AsyncSession,
-    quote=None,
 ) -> schemas.SubmissionStatus:
     submission = view.submission
     payout = (
         await session.execute(
             select(RewardEvent)
-            .where(RewardEvent.submission_id == submission.id)
+            .where(
+                RewardEvent.submission_id == submission.id,
+                RewardEvent.chain_observed.is_(True),
+                RewardEvent.status.in_(
+                    (PayoutState.SUBMITTED, PayoutState.CONFIRMED)
+                ),
+            )
             .order_by(RewardEvent.id.desc())
             .limit(1)
         )
     ).scalar_one_or_none()
-    live = None
     alpha_usd = await services.bounty_usd.alpha_usd()
     if payout is None:
-        live = quote or await services.pricing.quote(
-            session,
-            reward_target_id=submission.reward_target_id,
-            claimant_id=submission.id,
-        )
-        bounty = schemas.BountyQuote(
-            amount_rao=live.amount_rao,
-            amount_usd=amount_usd(live.amount_rao, alpha_usd=alpha_usd),
-            policy_version=live.policy_version,
-            available=live.available,
-            reason=live.reason,
-            as_of=live.as_of,
-            locked=False,
-        )
+        if submission.bounty_locked_at is None:
+            # Grandfathered submissions retain the payout-time pricing contract under which they
+            # were accepted. They are the only rows for which a status read remains live-priced.
+            live = await services.pricing.quote(
+                session,
+                reward_target_id=submission.reward_target_id,
+                claimant_id=submission.id,
+            )
+            bounty = schemas.BountyQuote(
+                amount_rao=live.amount_rao,
+                amount_usd=amount_usd(live.amount_rao, alpha_usd=alpha_usd),
+                policy_version=live.policy_version,
+                available=live.available,
+                reason=live.reason,
+                as_of=live.as_of,
+                locked=False,
+            )
+        else:
+            released = (
+                submission.verification_status == VerificationState.REJECTED
+                or submission.manual_review_status == ManualReviewState.REJECTED
+            )
+            bounty = schemas.BountyQuote(
+                amount_rao=submission.bounty_amount_rao,
+                amount_usd=amount_usd(
+                    submission.bounty_amount_rao, alpha_usd=alpha_usd
+                ),
+                policy_version=submission.bounty_policy_version,
+                available=not released,
+                reason="LOCK_RELEASED" if released else "LOCKED_AT_SUBMISSION",
+                as_of=submission.bounty_locked_at,
+                locked=True,
+            )
     else:
         bounty = schemas.BountyQuote(
             amount_rao=payout.amount_rao,
@@ -191,6 +225,11 @@ async def _status(
     return schemas.SubmissionStatus(
         submission_id=submission.id,
         hotkey=submission.hotkey,
+        public_credit=(
+            None
+            if (credit := public_credit_from_values(submission)) is None
+            else credit.to_dict()
+        ),
         task_id=submission.task_id,
         task_bundle_sha256=digests.to_prefixed(submission.task_bundle_sha256),
         proof_sha256=digests.to_prefixed(submission.proof_digest),
@@ -236,6 +275,9 @@ async def create_submission(
     task_sha256: Annotated[str, Header(alias="X-Conjectures-Task-Sha256")],
     proof_sha256: Annotated[str, Header(alias="X-Conjectures-Proof-Sha256")],
     payment_reference: Annotated[str, Header(alias="X-Conjectures-Payment-Ref")],
+    public_credit_header: Annotated[
+        str | None, Header(alias="X-Conjectures-Public-Credit")
+    ] = None,
     content_length: Annotated[int | None, Header(alias="Content-Length")] = None,
     content_type: Annotated[str | None, Header(alias="Content-Type")] = None,
     user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
@@ -284,6 +326,10 @@ async def create_submission(
         task_id = _require_pattern(task_id, TASK_ID, "X-Conjectures-Task-Id")
         task_sha256 = _require_digest(task_sha256, "X-Conjectures-Task-Sha256")
         declared_proof = _require_digest(proof_sha256, "X-Conjectures-Proof-Sha256")
+        try:
+            credit = decode_public_credit_header(public_credit_header)
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
         nonce_ms = _require_nonce(timestamp)
         miner = assert_valid_hotkey(hotkey)
         audit.proof_digest = declared_proof
@@ -301,6 +347,7 @@ async def create_submission(
             proof_sha256=declared_proof,
             payment_reference=payment_reference,
             idempotency_key=str(key),
+            public_credit=credit,
         )
         audit.request_digest = request_digest
 
@@ -319,22 +366,12 @@ async def create_submission(
 
         # Checked before reading the bundle and before confirming payment. A target with an
         # existing successful claim is no longer a bounty; accepting another paid attempt would
-        # charge a miner for work that cannot win. This is still an estimate, not a reservation:
-        # another queued proof can become successful after this check and before this one does.
+        # charge a miner for work that cannot win. This first quote is a cheap early refusal; the
+        # serialized quote immediately before payment is the amount actually locked.
         quote = await services.pricing.quote(
             session, reward_target_id=entry.reward_target_id
         )
-        if not quote.available:
-            raise Conflict(
-                "this bounty has already been solved",
-                reason_code=REASON_BOUNTY_CLOSED,
-                extra={"reward_target_id": entry.reward_target_id},
-            )
-        if quote.amount_rao is None or quote.amount_rao <= 0:
-            raise ServiceUnavailable(
-                "the bounty treasury currently has no payable balance",
-                reason_code=REASON_BOUNTY_UNFUNDED,
-            )
+        _assert_payable_quote(quote, entry.reward_target_id)
 
         raw = await read_body(request, content_length, settings.max_bundle_bytes)
         try:
@@ -363,6 +400,14 @@ async def create_submission(
             )
         )
         assert_fresh_nonce(nonce_ms, settings.nonce_window_seconds)
+
+        # This transaction-level lock serializes the remaining-balance calculation with other
+        # submissions. It is held through the submission INSERT and commit, making this quote the
+        # immutable amount-of-record rather than another display estimate.
+        quote = await services.pricing.lock_quote(
+            session, reward_target_id=entry.reward_target_id
+        )
+        _assert_payable_quote(quote, entry.reward_target_id)
 
         # Payment last, and before any write: the schema has no unpaid state.
         try:
@@ -420,6 +465,9 @@ async def create_submission(
                 bounty_amount_rao=quote.amount_rao,
                 bounty_policy_version=quote.policy_version,
                 bounty_inputs=quote.inputs,
+                public_credit_name=None if credit is None else credit.name,
+                public_credit_url=None if credit is None else credit.url,
+                public_credit_orcid=None if credit is None else credit.orcid,
             ),
         )
         if view.replayed:
@@ -469,7 +517,21 @@ async def create_submission(
         )
         audit.disarm()
         return await _status(
-            refreshed, services=services, session=session, quote=quote
+            refreshed, services=services, session=session
+        )
+
+
+def _assert_payable_quote(quote, reward_target_id: str) -> None:
+    if not quote.available and quote.reason in {"ALREADY_SOLVED", "NOT_IN_BOUNTY_POOL"}:
+        raise Conflict(
+            "this bounty has already been solved",
+            reason_code=REASON_BOUNTY_CLOSED,
+            extra={"reward_target_id": reward_target_id},
+        )
+    if not quote.available or quote.amount_rao is None or quote.amount_rao <= 0:
+        raise ServiceUnavailable(
+            "the bounty treasury has no uncommitted payable balance",
+            reason_code=REASON_BOUNTY_UNFUNDED,
         )
 
 

@@ -8,10 +8,13 @@ Validate a bundle locally before spending a payment on it:
 
 ```bash
 python3 -m verifier bundle scan --bundle submission.zip
+python3 -m verifier bundle verify \
+  --bundle submission.zip --task ../conjectures-tasks/pool/<tier>/<task-directory>
 ```
 
-That prints the same verdict and the same `reason_code` the API would return, so a rejected
-bundle costs nothing to diagnose.
+The scan prints the archive and static-policy admission verdict; it does not compile Lean. The
+verify command continues through the same Comparator and Lean kernel path as the validator. Do not
+pay unless it reports `"accepted": true` and `"lean_kernel_passed": true`.
 
 ## Layout
 

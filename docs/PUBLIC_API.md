@@ -30,11 +30,13 @@ module a field lives in rather than by remembering to leave it out.
 
 Four rules, each enforced structurally rather than by convention.
 
-**Solver credit, but no money trail.** Every result names the `hotkey` that submitted it: a result
-is credited to its solver. Not published: the paying coldkey, the payment reference, the funding
-extrinsic. [`../conjectures_subnet/db/public.py`](../conjectures_subnet/db/public.py) is the only
-query layer these endpoints use, and its row types have no column for any of those three — a router
-cannot leak what it was never handed.
+**Solver credit, but no money trail.** Every result names the `hotkey` that submitted it. A miner
+may also opt into `public_credit` with a name and optional HTTPS profile URL and ORCID. Those values
+are part of the hotkey-signed request digest and are snapshotted on the submission; they are never
+looked up from a mutable account profile. Not published: the paying coldkey, payment reference, or
+funding extrinsic. [`../conjectures_subnet/db/public.py`](../conjectures_subnet/db/public.py) is the
+only query layer these endpoints use, and its row types have no column for those three payment
+values — a router cannot leak what it was never handed.
 
 > Publishing the hotkey weakens the activity pseudonyms below, and the two are no longer
 > independent. A verified result names its solver and carries `verified_at`; an activity event
@@ -272,7 +274,7 @@ published on every surface that publishes `title`:
 
 ```json
 {
-  "display_title": "Erdős problem 1 — lb",
+  "display_title": "Erdős problem 1 - lb",
   "title_parts": {
     "collection": "erdos_problems",
     "collection_label": "Erdős problems",
@@ -300,7 +302,7 @@ reason `title` is not prose. See
 | `title` | `display_title` |
 | --- | --- |
 | `Erdos1.erdos_1` | Erdős problem 1 |
-| `Erdos357.erdos_357.variants.monotone.parts.i` | Erdős problem 357 — monotone, part i |
+| `Erdos357.erdos_357.variants.monotone.parts.i` | Erdős problem 357 - monotone, part i |
 | `Hilbert17.hilbert_17th_problem` | Hilbert's 17th problem |
 | `OeisA228828.a_0` | OEIS sequence A228828 — a 0 |
 | `Arxiv.«0912.2382».curling_number_conjecture` | Curling Number Conjecture (arXiv:0912.2382) |
@@ -366,11 +368,13 @@ Each conjecture carries a live `bounty` object. `amount_rao` is null when `avail
 `amount_usd` is a TaoStats-backed decimal string rounded to cents, or null when the bounty or the
 external rate is unavailable. It is `(amount_rao / 1e9) * alpha_price_tao * tao_price_usd`;
 the Alpha amount remains authoritative when this display-only conversion is absent. `reason`
-distinguishes an open target from one already solved, and `locked` is always false. The
+distinguishes an open target from one already solved, and `locked` is false because catalog prices
+remain live until a submission is accepted. The
 pool-wide `/v1/catalog/meta` response publishes `bounty.balance_rao` and its display-only
 `bounty.balance_usd` conversion, plus the open-target count, total age weight, rational policy
-constant, maximum age weight, and rational per-target treasury-share cap behind the task estimates.
-An accepted submission does not reserve the amount displayed on the website.
+constant, maximum age weight, and rational per-target share cap behind the task estimates.
+Acceptance takes a serialized fresh quote, subtracting outstanding locks from the treasury balance,
+and fixes that amount for the submission.
 
 ### Filters and facets
 
@@ -426,8 +430,12 @@ never parses an attacker-chosen value into a query predicate, and so a tampered 
 `400 INVALID_CURSOR` rather than a database error. Every failure mode returns the same reason code:
 a client learns nothing about whether it was the shape or the signature that was wrong.
 
-`certified` means paid out — `reward_status = 'REWARDED'` with the review approved. `in-review`
-means Lean-verified and awaiting the reward decision.
+`certified` means paid out — `reward_status = 'REWARDED'` with the review approved. The payout
+watcher is the only automatic path to `REWARDED`, and it writes that state atomically with a
+matching `StakeAndHotkeyTransferred` event from a finalized block. A prepared command or a best-
+chain event is not certified. The feed also requires the confirmed reward row's chain-observation
+provenance, so a legacy or manually edited paid flag cannot certify a result. `in-review` means
+Lean-verified and awaiting the reward decision.
 
 Every `PublicResult` carries the payout's `bounty_amount_rao` and a current
 `bounty_amount_usd` display conversion using the same formula as catalog bounties. The USD value

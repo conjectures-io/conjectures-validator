@@ -31,7 +31,8 @@ import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from submission_api.settings import RAO_PER_TAO
+from submission_api.credits import CreditsConfigError, bonus_schedule, parse_packages
+from submission_api.settings import DEFAULT_CREDIT_PACKAGES, RAO_PER_TAO
 from verifier.bundle import SS58_ADDRESS
 
 DEVELOPMENT_MODE = "DEV"
@@ -186,6 +187,11 @@ class WatcherSettings:
     uid: int
     watch_from: dt.datetime
     credit_price_rao: int
+    # Paid credit count -> bonus credits, for the packages that grant one. Parsed from the same
+    # `CREDIT_PACKAGES` the API serves on its pricing page, because this is the service that
+    # actually grants the bonus: a watcher reading a different spec than the page advertises would
+    # be a deal the site offers and the ledger never honours.
+    bonus_schedule: Mapping[int, int]
     batch_blocks: int
     poll_seconds: float
     adopted_deposit_hours: int
@@ -212,6 +218,22 @@ class WatcherSettings:
         # configured (netuid, uid). Skippable only outside production, and only because a local
         # Subtensor has no subnet 66 to answer about — on a real chain a mistyped address is a
         # watcher following somebody else's balance and crediting nothing, forever, quietly.
+        credit_price_rao = _positive_int(
+            env, "CREDIT_PRICE_RAO", DEFAULT_CREDIT_PRICE_RAO
+        )
+        # Parsed here rather than in the constructor call so a malformed spec fails startup as a
+        # `SettingsError`, the way every other bad value in this file does. The watcher and the API
+        # must agree on the deals, so both read `CREDIT_PACKAGES` through `parse_packages`.
+        try:
+            packages = bonus_schedule(
+                parse_packages(
+                    env.get("CREDIT_PACKAGES", "").strip() or DEFAULT_CREDIT_PACKAGES,
+                    credit_price_rao=credit_price_rao,
+                )
+            )
+        except CreditsConfigError as exc:
+            raise SettingsError(f"CREDIT_PACKAGES is unusable: {exc}") from exc
+
         verify_registration = _flag(env, "DEPOSIT_WATCH_VERIFY_REGISTRATION", True)
         if production and not verify_registration:
             raise SettingsError(
@@ -228,9 +250,8 @@ class WatcherSettings:
             netuid=_nonnegative_int(env, "DEPOSIT_WATCH_NETUID"),
             uid=_nonnegative_int(env, "DEPOSIT_WATCH_UID"),
             watch_from=_timestamp(env, "DEPOSIT_WATCH_FROM"),
-            credit_price_rao=_positive_int(
-                env, "CREDIT_PRICE_RAO", DEFAULT_CREDIT_PRICE_RAO
-            ),
+            credit_price_rao=credit_price_rao,
+            bonus_schedule=packages,
             batch_blocks=_positive_int(
                 env,
                 "DEPOSIT_WATCH_BATCH_BLOCKS",

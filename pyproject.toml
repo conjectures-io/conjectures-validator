@@ -20,6 +20,7 @@ dev = ["pytest>=8.2", "pytest-cov>=5", "httpx2>=2.10"]
 service = [
     "formal-conjectures-verifier[db,subnet]",
     "fastapi==0.139.2",
+    "google-auth==2.56.3",
     "httpx==0.28.1",
     "pydantic==2.13.4",
     # Pinned even though fastapi already requires it, because fastapi asks only for
@@ -53,4 +54,10 @@ markers = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["verifier", "conjectures_subnet", "submission_api"]
+packages = [
+    "verifier",
+    "conjectures_subnet",
+    "submission_api",
+    "payout_notifier",
+    "payout_watcher",
+]

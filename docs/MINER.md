@@ -97,8 +97,10 @@ Keep the `task_id` and its `task_bundle_sha256`: both go into your submission, a
 validator refuses anything that does not match the published commitment.
 
 The task itself is in the separately checked-out `conjectures-tasks` repository, at
-`../conjectures-tasks/pool/<tier>/<task_id>/`. `Challenge.lean` is the statement you must prove;
-`SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your file gets wrapped in.
+`../conjectures-tasks/pool/<tier>/<task-directory>/`. The directory is a readable name; use the
+opaque `task_id` from its `manifest.json` in the protocol. `Challenge.lean` is the statement you
+must prove; `SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your file gets wrapped
+in.
 
 ## 2. Write your proof
 
@@ -129,23 +131,28 @@ python3 -m verifier bundle scan --bundle submission.zip
 
 `"admitted": true` means the archive and the static Lean policy both pass. Anything else prints
 a `reason_code` and costs you nothing to fix. The builder also prints the `proof_sha256` you
-will need next.
+will need next. This is deliberately only a fast guardrail check; it does not compile the proof.
 
-You can go further and run the real verifier, which is the same check the validator runs. This
-needs a built checkout — `scripts/bootstrap.sh --miner`, about an hour — which is what
-`conjectures verify --setup` does for you:
+Now run the real verifier locally — the same check the validator runs. It unpacks the proof in
+memory and sends it through the same task reconstruction, Comparator, statement, axiom, and Lean
+kernel checks. This needs a built checkout — `scripts/bootstrap.sh --miner`, about an hour — which
+is what `conjectures verify --setup` does for you:
 
 ```bash
-python3 -m verifier verify \
-  --task ../conjectures-tasks/pool/<tier>/<task_id> \
-  --submission Main.lean \
-  --expected-task-sha256 <task_bundle_sha256> \
-  --allow-insecure-development
+python3 -m verifier bundle verify \
+  --task ../conjectures-tasks/pool/<tier>/<task-directory> \
+  --bundle submission.zip
 ```
 
-Without `--allow-insecure-development` this refuses to start on any host below Landlock ABI 4,
-which is most of them. The flag changes the isolation, not the verdict, and the report names
-which one ran.
+Do not pay unless this reports `"accepted": true` and `"lean_kernel_passed": true`. On a local
+machine without the production Linux sandbox, add `--allow-insecure-development`; without it the
+verifier refuses to start on any host below Landlock ABI 4, which is most of them. The flag
+changes only local process isolation, not the verdict — the full Lean/Comparator proof checks
+still run, the report names which sandbox ran, and the validator always verifies again in its
+hardened environment.
+
+To check a loose `Main.lean` instead of a packaged bundle, `python3 -m verifier verify` takes
+`--submission` and `--expected-task-sha256` in place of `--bundle`.
 
 ## 4. Pay
 
@@ -154,8 +161,10 @@ from step 1. Wait for the block to finalize, then keep the **extrinsic reference
 submit without it, and it can fund only one submission ever.
 
 Payment buys one verification attempt. It does not change Lean's verdict and does not guarantee
-a reward. The bounty shown before or after submission is a live estimate (`locked: false`); if an
-earlier proof establishes the same reward target while yours is queued, that bounty is solved.
+a reward. The catalog bounty is live before submission; acceptance fixes a fresh quote for your
+attempt (`locked: true`). That amount is conditional on verification, review, and winning the
+reward target—an earlier successful proof can still solve the target while yours is queued.
+Submissions accepted before the V012 activation remain under their original payout-time policy.
 
 ## 5. Submit
 
@@ -163,15 +172,30 @@ earlier proof establishes the same reward target while yours is queued, that bou
 python3 scripts/submit_proof.py \
   --api "$CONJECTURES_API" \
   --bundle submission.zip \
+  --task ../conjectures-tasks/pool/<tier>/<task-directory> \
   --task-id <task_id> \
   --task-sha256 <task_bundle_sha256> \
   --payment-ref <extrinsic reference> \
+  --credit-name "Your Name or Team" \
+  --credit-url "https://example.org/your-profile" \
+  --credit-orcid "0000-0002-1825-0097" \
   --wallet <wallet name> --hotkey <hotkey name>
 ```
 
 On success you get `201` and a `submission_id`. Save it.
 
-The script signs the canonical request digest with your hotkey. If you'd rather build the
+The three `--credit-*` flags are optional; URL and ORCID require a name. If supplied, the exact
+credit is covered by your hotkey signature and published beside the hotkey after Lean verification.
+It is a permanent snapshot for this submission, not your account display name. Omit all three to
+receive public credit by hotkey only.
+
+Before opening the network request, the script requires `--task` and repeats the full local
+verification against the bundle bytes it will send. A rejection is printed locally and nothing is
+submitted. `--skip-local-verification` is available for exceptional setups, but removes that
+protection. If your machine needs the development sandbox shim, pass
+`--allow-insecure-local-verification`.
+
+The script then signs the canonical request digest with your hotkey. If you'd rather build the
 request yourself, the headers and the exact digest construction are in
 [API.md](API.md#authentication).
 

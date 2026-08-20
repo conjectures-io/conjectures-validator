@@ -203,6 +203,11 @@ class Submission(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Opt-in public authorship, snapshotted on this submission rather than joined from the
+    # account's mutable display name. The hotkey signature covers all three fields.
+    public_credit_name: Mapped[str | None] = mapped_column(Text)
+    public_credit_url: Mapped[str | None] = mapped_column(Text)
+    public_credit_orcid: Mapped[str | None] = mapped_column(Text)
     idempotency_key: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False
     )
@@ -276,8 +281,9 @@ class Submission(Base):
     )
     review_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # An audit snapshot of what the API displayed at intake. The payout event is the
-    # amount-of-record and may use a later live quote; this column never reserves funds.
+    # The amount-of-record, locked when intake accepts the submission. Eligibility remains
+    # conditional on verification/review and winning the stable reward target, but this amount
+    # is never repriced afterward.
     bounty_amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     bounty_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     bounty_inputs: Mapped[dict | None] = mapped_column(JSONB)
@@ -311,6 +317,26 @@ class Submission(Base):
         CheckConstraint(
             "length(reward_target_id) BETWEEN 1 AND 255",
             name="reward_target_id_nonempty",
+        ),
+        CheckConstraint(
+            "public_credit_name IS NULL "
+            "OR (length(public_credit_name) BETWEEN 1 AND 128 "
+            "AND public_credit_name = btrim(public_credit_name))",
+            name="submission_public_credit_name_shape",
+        ),
+        CheckConstraint(
+            "public_credit_url IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND length(public_credit_url) BETWEEN 1 AND 2048 "
+            "AND public_credit_url LIKE 'https://%')",
+            name="submission_public_credit_url_shape",
+        ),
+        CheckConstraint(
+            "public_credit_orcid IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND public_credit_orcid ~ "
+            "'^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$')",
+            name="submission_public_credit_orcid_shape",
         ),
         CheckConstraint(
             "length(payment_reference) BETWEEN 1 AND 128",
@@ -476,6 +502,33 @@ event.listen(
     "before_drop",
     DDL("DROP FUNCTION IF EXISTS submissions_touch_updated_at() CASCADE;"),
 )
+event.listen(
+    Submission.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION submissions_protect_public_credit() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.public_credit_name IS DISTINCT FROM OLD.public_credit_name\n"
+        "       OR NEW.public_credit_url IS DISTINCT FROM OLD.public_credit_url\n"
+        "       OR NEW.public_credit_orcid IS DISTINCT FROM OLD.public_credit_orcid THEN\n"
+        "        RAISE EXCEPTION 'submission public credit is immutable'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'submission_public_credit_immutable';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submissions_protect_public_credit\n"
+        "    BEFORE UPDATE OF public_credit_name, public_credit_url, public_credit_orcid "
+        "ON submissions\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submissions_protect_public_credit();"
+    ),
+)
+event.listen(
+    Submission.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submissions_protect_public_credit() CASCADE;"),
+)
 
 
 class VerificationRun(Base):
@@ -542,8 +595,8 @@ class VerificationRun(Base):
 class RewardEvent(Base):
     """One payout attempt, paid as a direct transfer.
 
-    The amount and pricing inputs on this event are the payout facts. The submission's bounty
-    fields are only the estimate displayed at intake and are never copied implicitly here.
+    The amount and pricing inputs on an automatically generated event copy the immutable bounty
+    lock on its submission. Manually reconciled retry attempts remain representable.
 
     The row is inserted as PENDING and committed BEFORE the extrinsic is signed,
     then its chain fields fill in as it progresses. Inserting after the transfer
@@ -569,6 +622,7 @@ class RewardEvent(Base):
     amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
     pricing_policy_version: Mapped[str] = mapped_column(Text, nullable=False)
     pricing_inputs: Mapped[dict | None] = mapped_column(JSONB)
+    generation_key: Mapped[str | None] = mapped_column(Text)
 
     # Captured, not derived from submissions: this is where the money actually
     # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
@@ -577,6 +631,12 @@ class RewardEvent(Base):
 
     status: Mapped[PayoutState] = mapped_column(
         PAYOUT_STATE, nullable=False, server_default=PayoutState.PENDING.value
+    )
+    # True only after the payout watcher decoded the matching successful Subtensor event.  Legacy
+    # operator-entered SUBMITTED/CONFIRMED rows remain representable, but read APIs deliberately
+    # ignore them until the watcher replays the chain and establishes this provenance.
+    chain_observed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
     )
     extrinsic_reference: Mapped[str | None] = mapped_column(Text)
     submitted_block: Mapped[int | None] = mapped_column(BigInteger)
@@ -612,6 +672,10 @@ class RewardEvent(Base):
             "status NOT IN ('SUBMITTED', 'CONFIRMED') "
             "OR (extrinsic_reference IS NOT NULL AND submitted_at IS NOT NULL)",
             name="reward_submitted_needs_reference",
+        ),
+        CheckConstraint(
+            "NOT chain_observed OR status IN ('SUBMITTED', 'CONFIRMED')",
+            name="reward_chain_observation_needs_chain_state",
         ),
         CheckConstraint(
             "status <> 'CONFIRMED' OR (finalized_block IS NOT NULL AND confirmed_at IS NOT NULL)",
@@ -654,7 +718,10 @@ class RewardEvent(Base):
         Index(
             "reward_events_pending_idx",
             "created_at",
-            postgresql_where=text("status IN ('PENDING', 'SUBMITTED')"),
+            postgresql_where=text(
+                "status IN ('PENDING', 'SUBMITTED') "
+                "OR (status = 'CONFIRMED' AND NOT chain_observed)"
+            ),
         ),
         Index(
             "reward_events_destination_idx",
@@ -934,6 +1001,20 @@ class LoginChallengeKind(enum.StrEnum):
     EMAIL = "EMAIL"  # a magic link token
     WALLET = "WALLET"  # a coldkey sign-in nonce
     HOTKEY_LINK = "HOTKEY_LINK"  # attaching a hotkey to an existing account
+    HOTKEY_SESSION = "HOTKEY_SESSION"  # a hotkey opening a CLI session
+    COLDKEY_LINK = "COLDKEY_LINK"  # attaching another coldkey to an account
+
+
+class AccountSessionKind(enum.StrEnum):
+    """Which credential a session row backs.
+
+    Both are opaque 256-bit secrets stored as digests; what differs is where the client
+    keeps it and therefore which attack it has to be defended against. See
+    ``V015__cli_bearer_sessions.sql``.
+    """
+
+    COOKIE = "COOKIE"  # the browser: an HttpOnly cookie, attached ambiently
+    BEARER = "BEARER"  # the CLI: an Authorization header, scoped to one linked hotkey
 
 
 class CreditEntryKind(enum.StrEnum):
@@ -953,6 +1034,34 @@ class DepositState(enum.StrEnum):
     FAILED = "FAILED"
 
 
+class TmcPayOrderState(enum.StrEnum):
+    """A credit purchase made through TMC PAY.
+
+    Two of these are ours and the rest are TMC PAY's invoice lifecycle, label for
+    label. Kept identical on purpose: a status this validator invented would be a
+    mapping to maintain, and a mapping is a place for the two systems to disagree
+    about whether money arrived.
+
+    LATE_PAYMENT is the one exception, and it is not a label TMC PAY sends. They
+    publish no status for a payment confirmed after its TTL, so it is derived from
+    `confirmed_at` against `expires_at` and stored here to keep the operator queue
+    able to find such an order.
+    """
+
+    NEW = "NEW"  # the row exists; the invoice has not been created yet
+    FAILED = "FAILED"  # the invoice could not be created, or could not be quoted
+    CREATED = "CREATED"  # invoice exists, no deposit seen
+    PENDING = "PENDING"  # a deposit is visible but below the confirmation target
+    CONFIRMING = "CONFIRMING"  # confirmations accumulating
+    UNDERPAID = "UNDERPAID"  # confirmed below the invoice; the buyer may top up
+    CONFIRMED = "CONFIRMED"  # paid, confirmed, amount matches
+    OVERPAID = "OVERPAID"  # paid more than the invoice; terminal
+    EXPIRED = "EXPIRED"  # the TTL elapsed with no confirming payment
+    LATE_PAYMENT = "LATE_PAYMENT"  # derived: confirmed after expiry; reconciled by hand
+    # Last because the migration appends it; see V024. Terminal and unpaid, like EXPIRED.
+    CANCELLED = "CANCELLED"  # cancelled by the merchant or the buyer
+
+
 class IntentState(enum.StrEnum):
     OPEN = "OPEN"  # credit held, no bundle yet
     BUNDLE_ATTACHED = "BUNDLE_ATTACHED"  # admitted, awaiting a signature
@@ -962,8 +1071,10 @@ class IntentState(enum.StrEnum):
 
 
 LOGIN_CHALLENGE_KIND = _pg_enum(LoginChallengeKind, "login_challenge_kind")
+ACCOUNT_SESSION_KIND = _pg_enum(AccountSessionKind, "account_session_kind")
 CREDIT_ENTRY_KIND = _pg_enum(CreditEntryKind, "credit_entry_kind")
 DEPOSIT_STATE = _pg_enum(DepositState, "deposit_state")
+TMC_PAY_ORDER_STATE = _pg_enum(TmcPayOrderState, "tmc_pay_order_state")
 INTENT_STATE = _pg_enum(IntentState, "intent_state")
 
 EMAIL_SHAPE = r"^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$"
@@ -1024,6 +1135,52 @@ class Account(Base):
             unique=True,
             postgresql_where=text("email IS NOT NULL"),
         ),
+    )
+
+
+class AccountIdentity(Base):
+    """An external identity explicitly attached to one website account.
+
+    ``subject`` is the provider's stable identifier.  Email is an observed claim retained for
+    account recovery UX and audit, never the key used to find a returning federated user.
+    """
+
+    __tablename__ = "account_identities"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    linked_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_used_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("provider = 'google'", name="account_identity_provider_known"),
+        CheckConstraint(
+            "length(subject) BETWEEN 1 AND 255", name="account_identity_subject_length"
+        ),
+        CheckConstraint(
+            f"email ~ '{EMAIL_SHAPE}'", name="account_identity_email_shape"
+        ),
+        CheckConstraint(
+            "last_used_at >= linked_at", name="account_identity_used_after_link"
+        ),
+        UniqueConstraint(
+            "provider", "subject", name="account_identities_provider_subject_key"
+        ),
+        UniqueConstraint(
+            "account_id", "provider", name="account_identities_account_provider_key"
+        ),
+        Index("account_identities_account_idx", "account_id", "linked_at"),
     )
 
 
@@ -1108,11 +1265,17 @@ class LinkedHotkey(Base):
 
 
 class AccountSession(Base):
-    """One signed-in browser session.
+    """One signed-in session: a browser cookie, or a CLI bearer token.
 
     Only the SHA-256 of the token is stored, never the token. A database read — a
     dump, a backup, a replica, an over-broad SELECT — must not yield anything
     replayable as a credential, exactly as for a password.
+
+    One table for both kinds because everything that matters is shared: an opaque
+    256-bit secret, a digest, an expiry, and revocation in one UPDATE. The
+    biconditional CHECK below is what keeps the one remaining difference — a bearer
+    session is bounded to the hotkey that minted it, a cookie session is not — from
+    being optional.
     """
 
     __tablename__ = "account_sessions"
@@ -1125,10 +1288,19 @@ class AccountSession(Base):
         ForeignKey("accounts.id", ondelete="CASCADE"),
         nullable=False,
     )
+    kind: Mapped[AccountSessionKind] = mapped_column(
+        ACCOUNT_SESSION_KIND, nullable=False, server_default=text("'COOKIE'")
+    )
     token_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
-    # Bound to the session rather than a bare double-submit cookie, so a value the
-    # client can set is not itself the proof.
-    csrf_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+    # There was a `csrf_sha256` here. The column still exists in a migrated database and is
+    # left behind on purpose — see V021 — but nothing writes or reads it, so it is not mapped.
+    # A cookie session now proves where a write was initiated from the browser's own `Origin`
+    # and `Sec-Fetch-Site` headers; `submission_api/origin_policy.py` says why that is the
+    # stronger of the two mechanisms rather than merely the cheaper one.
+    #
+    # Where a BEARER session's authority stops: the linked hotkey that minted it.
+    # NULL for a COOKIE session, which is scoped to the account rather than a key.
+    hotkey_scope: Mapped[str | None] = mapped_column(SS58)
 
     issued_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -1150,19 +1322,29 @@ class AccountSession(Base):
         CheckConstraint(
             "expires_at > issued_at", name="session_expires_after_issue"
         ),
+        CheckConstraint(
+            "(kind = 'BEARER') = (hotkey_scope IS NOT NULL)",
+            name="session_scope_belongs_to_bearer_sessions",
+        ),
         Index(
             "account_sessions_live_idx",
             "expires_at",
             postgresql_where=text("revoked_at IS NULL"),
         ),
         Index("account_sessions_account_idx", "account_id", text("issued_at DESC")),
+        Index(
+            "account_sessions_live_kind_idx",
+            "account_id",
+            "kind",
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
     )
 
 
 class LoginChallenge(Base):
-    """A single-use, short-lived secret for one of the three login flows.
+    """A single-use, short-lived secret for an authentication or key-link flow.
 
-    One table for all three because the rules are identical: single use, short
+    One table for all of them because the rules are identical: single use, short
     lived, rate limited, and the secret stored only as a digest.
     """
 
@@ -1175,7 +1357,7 @@ class LoginChallenge(Base):
         LOGIN_CHALLENGE_KIND, nullable=False
     )
 
-    # Set for HOTKEY_LINK, which attaches to a known account. NULL for the two
+    # Set for HOTKEY_LINK and COLDKEY_LINK, which attach to a known account. NULL for
     # sign-in kinds, where the account may not exist yet.
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE")
@@ -1195,18 +1377,25 @@ class LoginChallenge(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    # Failed signature attempts against this challenge. The signature flows verify before
+    # consuming, so a wrong signature must not burn the nonce; this is what still bounds
+    # how many an unauthenticated caller may offer. See V015.
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0")
+    )
 
     __table_args__ = (
         CheckConstraint(
             "kind <> 'EMAIL' OR email IS NOT NULL", name="challenge_email_present"
         ),
+        CheckConstraint("attempts >= 0", name="challenge_attempts_not_negative"),
         CheckConstraint(
-            "kind NOT IN ('WALLET', 'HOTKEY_LINK') "
+            "kind NOT IN ('WALLET', 'HOTKEY_LINK', 'HOTKEY_SESSION', 'COLDKEY_LINK') "
             "OR (ss58 IS NOT NULL AND message IS NOT NULL)",
             name="challenge_wallet_present",
         ),
         CheckConstraint(
-            "kind <> 'HOTKEY_LINK' OR account_id IS NOT NULL",
+            "kind NOT IN ('HOTKEY_LINK', 'COLDKEY_LINK') OR account_id IS NOT NULL",
             name="challenge_link_has_account",
         ),
         CheckConstraint(
@@ -1276,6 +1465,15 @@ class CreditLedgerEntry(Base):
             "submission_intents.id", name="credit_ledger_intent_fkey", use_alter=True
         ),
     )
+    # The other source a DEPOSIT can have: a credit purchase settled by TMC PAY rather
+    # than a transfer read off finalized chain state. Exactly one of the two is set —
+    # see `ledger_deposit_names_its_deposit` below and V016 on why they stay separate.
+    tmc_pay_order_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "tmc_pay_orders.id", name="credit_ledger_tmc_pay_order_fkey", use_alter=True
+        ),
+    )
     reason: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -1308,8 +1506,13 @@ class CreditLedgerEntry(Base):
             "OR (intent_id IS NOT NULL AND credit_price_rao IS NOT NULL)",
             name="ledger_spend_names_its_intent",
         ),
+        # A DEPOSIT names one source and says which: a chain-confirmed transfer, or a
+        # TMC PAY order. Exclusive-or rather than "at least one", so processor-confirmed
+        # rao stays separable from chain-confirmed rao and neither can masquerade as the
+        # other by setting both.
         CheckConstraint(
-            "kind <> 'DEPOSIT' OR deposit_id IS NOT NULL",
+            "kind <> 'DEPOSIT' "
+            "OR ((deposit_id IS NOT NULL) <> (tmc_pay_order_id IS NOT NULL))",
             name="ledger_deposit_names_its_deposit",
         ),
         Index("credit_ledger_account_idx", "account_id", text("id DESC")),
@@ -1320,6 +1523,16 @@ class CreditLedgerEntry(Base):
             "intent_id",
             unique=True,
             postgresql_where=text("kind = 'SPEND'"),
+        ),
+        # One credit entry per TMC PAY order, mirroring the SPEND index above. Belt and
+        # braces with `tmc_pay_orders.credited_ledger_id UNIQUE`: that stops one order
+        # pointing at two entries, this stops two entries pointing at one order — which
+        # is what a duplicate webhook racing the reconciler would otherwise produce.
+        Index(
+            "credit_ledger_tmc_pay_idx",
+            "tmc_pay_order_id",
+            unique=True,
+            postgresql_where=text("tmc_pay_order_id IS NOT NULL"),
         ),
     )
 
@@ -1442,6 +1655,307 @@ event.listen(
 )
 
 
+class TmcPayOrder(Base):
+    """A credit purchase paid through TMC PAY rather than straight to the treasury.
+
+    Separate from `deposits` because the evidence is different in kind. A
+    `deposits` row that is CREDITED must name an extrinsic, an observed amount
+    and a block: rao this validator read off finalized chain state itself. A TMC
+    PAY purchase has none of those, because the buyer pays an address TMC PAY
+    derived and the funds reach the treasury later as a batched payout. Widening
+    `deposits` to admit that would have meant making its finality columns
+    nullable — weakening the one table whose job is to say "seen on chain".
+
+    So the two live side by side, and `credit_ledger.tmc_pay_order_id` is the
+    other half of the arrangement: a DEPOSIT entry names either a chain deposit
+    or one of these, never both, so processor-confirmed rao stays separable from
+    chain-confirmed rao by a WHERE clause.
+
+    `crypto_amount_rao` is the amount TMC PAY locked at invoice creation, and the
+    only amount anything credits. See V016 on why it must cover the credits.
+    """
+
+    __tablename__ = "tmc_pay_orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
+    )
+
+    credits: Mapped[int] = mapped_column(Integer, nullable=False)
+    credit_price_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    status: Mapped[TmcPayOrderState] = mapped_column(
+        TMC_PAY_ORDER_STATE,
+        nullable=False,
+        server_default=TmcPayOrderState.NEW.value,
+    )
+
+    # The `external_id` sent to TMC PAY. Minted before the invoice exists, so a lost
+    # create-response is recoverable: the same key returns the same invoice.
+    external_id: Mapped[str] = mapped_column(Text, nullable=False)
+
+    invoice_id: Mapped[str | None] = mapped_column(Text)
+    merchant_id: Mapped[str | None] = mapped_column(Text)
+
+    # Verbatim strings: the buyer's receipt and an operator's join key against the TMC
+    # PAY dashboard, never arithmetic input again.
+    fiat_amount: Mapped[str | None] = mapped_column(Text)
+    fiat_currency: Mapped[str | None] = mapped_column(Text)
+    exchange_rate: Mapped[str | None] = mapped_column(Text)
+    commission_amount: Mapped[str | None] = mapped_column(Text)
+
+    # Rao only when `crypto_currency` is TAO, because rao is TAO's own smallest unit. Every other
+    # currency keeps its amount in `crypto_amount` as the verbatim decimal string TMC PAY sent, and
+    # `db.tmc_pay.paid_rao` is the one place that turns either into a credit amount.
+    crypto_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
+    crypto_amount: Mapped[str | None] = mapped_column(Text)
+    crypto_currency: Mapped[str | None] = mapped_column(Text)
+    crypto_network: Mapped[str | None] = mapped_column(Text)
+    deposit_address: Mapped[str | None] = mapped_column(SS58)
+
+    # TMC PAY's hosted payment page for this invoice, verbatim. Stored rather than derived: their
+    # public route is keyed by an opaque token, so this URL cannot be rebuilt from the invoice id.
+    hosted_invoice_url: Mapped[str | None] = mapped_column(Text)
+
+    credited_ledger_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("credit_ledger.id"), unique=True
+    )
+
+    needs_review: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    failure_reason: Mapped[str | None] = mapped_column(Text)
+
+    last_event_id: Mapped[str | None] = mapped_column(Text)
+    last_polled_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    invoice_expires_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    confirmed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("credits > 0", name="tmc_pay_credits_positive"),
+        CheckConstraint("credit_price_rao > 0", name="tmc_pay_price_positive"),
+        CheckConstraint(
+            "length(external_id) BETWEEN 1 AND 128", name="tmc_pay_external_id_length"
+        ),
+        CheckConstraint(
+            "invoice_id IS NULL OR length(invoice_id) BETWEEN 1 AND 64",
+            name="tmc_pay_invoice_id_length",
+        ),
+        CheckConstraint(
+            "merchant_id IS NULL OR length(merchant_id) BETWEEN 1 AND 64",
+            name="tmc_pay_merchant_id_length",
+        ),
+        CheckConstraint(
+            "hosted_invoice_url IS NULL "
+            "OR length(hosted_invoice_url) BETWEEN 1 AND 2048",
+            name="tmc_pay_hosted_invoice_url_length",
+        ),
+        CheckConstraint(
+            "fiat_amount IS NULL OR length(fiat_amount) BETWEEN 1 AND 64",
+            name="tmc_pay_fiat_amount_length",
+        ),
+        CheckConstraint(
+            "fiat_currency IS NULL OR fiat_currency ~ '^[A-Z]{3}$'",
+            name="tmc_pay_fiat_currency_shape",
+        ),
+        CheckConstraint(
+            "exchange_rate IS NULL OR length(exchange_rate) BETWEEN 1 AND 64",
+            name="tmc_pay_exchange_rate_length",
+        ),
+        CheckConstraint(
+            "commission_amount IS NULL OR length(commission_amount) BETWEEN 1 AND 64",
+            name="tmc_pay_commission_length",
+        ),
+        CheckConstraint(
+            "crypto_amount_rao IS NULL OR crypto_amount_rao > 0",
+            name="tmc_pay_crypto_amount_positive",
+        ),
+        CheckConstraint(
+            "last_event_id IS NULL OR length(last_event_id) BETWEEN 1 AND 64",
+            name="tmc_pay_last_event_length",
+        ),
+        # Once an invoice exists, everything a buyer needs in order to pay it exists too. The
+        # amount is required in whichever column holds it: rao for TAO, the verbatim decimal
+        # string for every other currency. What this refuses is an invoiced row a buyer could not
+        # act on, which is the same thing it always refused.
+        CheckConstraint(
+            "status IN ('NEW', 'FAILED') "
+            "OR (invoice_id IS NOT NULL "
+            "AND (crypto_amount_rao IS NOT NULL OR crypto_amount IS NOT NULL) "
+            "AND deposit_address IS NOT NULL "
+            "AND fiat_amount IS NOT NULL "
+            "AND fiat_currency IS NOT NULL)",
+            name="tmc_pay_invoiced_rows_are_complete",
+        ),
+        # What makes crediting the locked amount safe: floor(crypto_amount_rao /
+        # credit_price_rao) is then at least `credits`, so a buyer cannot receive fewer
+        # credits than they paid for.
+        # The covering rule, restricted to the currency it can be stated in. A rao figure is only
+        # comparable to a rao price when the invoice is denominated in TAO; for any other currency
+        # the collected fiat figure was computed from `credits * credit_price_rao` and the purchase
+        # is worth exactly that, which is a rule about arithmetic elsewhere rather than about a
+        # column here. Non-TAO rows carry no rao at all, which the second half enforces.
+        CheckConstraint(
+            "crypto_amount_rao IS NULL "
+            "OR crypto_amount_rao >= credits * credit_price_rao",
+            name="tmc_pay_invoice_covers_the_credits",
+        ),
+        CheckConstraint(
+            "crypto_currency IS NULL "
+            "OR crypto_currency = 'TAO' "
+            "OR crypto_amount_rao IS NULL",
+            name="tmc_pay_rao_is_tao_only",
+        ),
+        CheckConstraint(
+            "crypto_amount IS NULL OR length(crypto_amount) BETWEEN 1 AND 64",
+            name="tmc_pay_crypto_amount_length",
+        ),
+        CheckConstraint(
+            "crypto_currency IS NULL OR length(crypto_currency) BETWEEN 1 AND 16",
+            name="tmc_pay_crypto_currency_length",
+        ),
+        CheckConstraint(
+            "crypto_network IS NULL OR length(crypto_network) BETWEEN 1 AND 32",
+            name="tmc_pay_crypto_network_length",
+        ),
+        CheckConstraint(
+            "credited_ledger_id IS NULL "
+            "OR (invoice_id IS NOT NULL "
+            "AND (crypto_amount_rao IS NOT NULL "
+            "OR (crypto_currency IS NOT NULL AND crypto_currency <> 'TAO')))",
+            name="tmc_pay_credited_needs_an_invoice",
+        ),
+        CheckConstraint(
+            "status <> 'FAILED' OR failure_reason IS NOT NULL",
+            name="tmc_pay_failed_needs_a_reason",
+        ),
+        CheckConstraint(
+            "updated_at >= created_at",
+            name="tmc_pay_orders_updated_not_before_created",
+        ),
+        Index("tmc_pay_orders_external_idx", "external_id", unique=True),
+        Index(
+            "tmc_pay_orders_invoice_idx",
+            "invoice_id",
+            unique=True,
+            postgresql_where=text("invoice_id IS NOT NULL"),
+        ),
+        Index("tmc_pay_orders_account_idx", "account_id", text("created_at DESC")),
+        Index(
+            "tmc_pay_orders_open_idx",
+            "created_at",
+            postgresql_where=text(
+                "status IN ('NEW', 'CREATED', 'PENDING', 'CONFIRMING', 'UNDERPAID')"
+            ),
+        ),
+        Index(
+            "tmc_pay_orders_review_idx",
+            "created_at",
+            postgresql_where=text("needs_review"),
+        ),
+        # "The most recent rate TMC PAY locked, for this currency." Every invoice reports
+        # the rate it used, which is the best seed for pricing the next one — same source,
+        # already in the merchant's currency. One row rather than a scan.
+        Index(
+            "tmc_pay_orders_rate_idx",
+            "fiat_currency",
+            text("created_at DESC"),
+            postgresql_where=text("exchange_rate IS NOT NULL"),
+        ),
+    )
+
+
+event.listen(
+    TmcPayOrder.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION tmc_pay_orders_touch_updated_at() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    NEW.updated_at := now();\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER tmc_pay_orders_touch_updated_at\n"
+        "    BEFORE UPDATE ON tmc_pay_orders\n"
+        "    FOR EACH ROW EXECUTE FUNCTION tmc_pay_orders_touch_updated_at();"
+    ),
+)
+event.listen(
+    TmcPayOrder.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS tmc_pay_orders_touch_updated_at() CASCADE;"),
+)
+
+
+class TmcPayWebhookDelivery(Base):
+    """One webhook TMC PAY delivered, by its own `X-Webhook-ID`.
+
+    The primary key is the deduplication: TMC PAY reuses the id across retries, so
+    a repeat is recognised by an insert that conflicts rather than by re-deriving
+    whether the event had already been applied.
+
+    `order_id` is nullable because a delivery can arrive for an invoice this
+    deployment has no row for — a foreign merchant's webhook pointed here, or an
+    order whose create response was lost. Recording it anyway is what makes that
+    case investigable instead of invisible.
+    """
+
+    __tablename__ = "tmc_pay_webhook_deliveries"
+
+    webhook_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tmc_pay_orders.id")
+    )
+    invoice_id: Mapped[str | None] = mapped_column(Text)
+    event: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str | None] = mapped_column(Text)
+    # 'CREDITED', 'RECORDED', 'IGNORED' or 'UNKNOWN'. Text rather than an enum: it is an
+    # observability field, and a new outcome should not need a migration to be writable.
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    received_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(webhook_id) BETWEEN 1 AND 64", name="tmc_pay_delivery_id_length"
+        ),
+        CheckConstraint(
+            "invoice_id IS NULL OR length(invoice_id) BETWEEN 1 AND 64",
+            name="tmc_pay_delivery_invoice_length",
+        ),
+        CheckConstraint(
+            "event IS NULL OR length(event) BETWEEN 1 AND 64",
+            name="tmc_pay_delivery_event_length",
+        ),
+        CheckConstraint(
+            "status IS NULL OR length(status) BETWEEN 1 AND 32",
+            name="tmc_pay_delivery_status_length",
+        ),
+        CheckConstraint(
+            "length(outcome) BETWEEN 1 AND 32", name="tmc_pay_delivery_outcome_length"
+        ),
+        Index(
+            "tmc_pay_webhook_deliveries_order_idx",
+            "order_id",
+            text("received_at DESC"),
+        ),
+    )
+
+
 class SubmissionIntent(Base):
     """A held credit and, once uploaded, the bundle it will be spent on.
 
@@ -1467,6 +1981,11 @@ class SubmissionIntent(Base):
     # Checked against linked_hotkeys at creation, and what the confirming
     # signature must come from.
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Chosen while the intent is opened, then included in the server-generated request digest
+    # and copied byte-for-byte onto the confirmed submission.
+    public_credit_name: Mapped[str | None] = mapped_column(Text)
+    public_credit_url: Mapped[str | None] = mapped_column(Text)
+    public_credit_orcid: Mapped[str | None] = mapped_column(Text)
 
     task_id: Mapped[str] = mapped_column(Text, nullable=False)
     task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
@@ -1502,6 +2021,26 @@ class SubmissionIntent(Base):
     __table_args__ = (
         CheckConstraint(
             "length(task_id) BETWEEN 1 AND 255", name="intent_task_id_nonempty"
+        ),
+        CheckConstraint(
+            "public_credit_name IS NULL "
+            "OR (length(public_credit_name) BETWEEN 1 AND 128 "
+            "AND public_credit_name = btrim(public_credit_name))",
+            name="intent_public_credit_name_shape",
+        ),
+        CheckConstraint(
+            "public_credit_url IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND length(public_credit_url) BETWEEN 1 AND 2048 "
+            "AND public_credit_url LIKE 'https://%')",
+            name="intent_public_credit_url_shape",
+        ),
+        CheckConstraint(
+            "public_credit_orcid IS NULL "
+            "OR (public_credit_name IS NOT NULL "
+            "AND public_credit_orcid ~ "
+            "'^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$')",
+            name="intent_public_credit_orcid_shape",
         ),
         CheckConstraint("credits_held > 0", name="intent_holds_something"),
         CheckConstraint("credit_price_rao > 0", name="intent_price_positive"),
@@ -1838,6 +2377,65 @@ class ChainWatchCursor(Base):
     )
 
 
+class PayoutWatchCursor(Base):
+    """Finalized-chain high-water mark for outbound bounty payouts.
+
+    This is separate from ``ChainWatchCursor`` because that cursor identifies an incoming free-TAO
+    address by subnet UID.  A payout watch identifies the treasury stake position by coldkey,
+    hotkey and netuid instead.  Reusing the incoming table would make its ``recipient`` and ``uid``
+    columns lie about what is being watched.
+
+    The first row is opened from the creation time of the oldest unresolved reward event.  A
+    payout command cannot be shown to a signer before that row exists, so earlier chain history is
+    outside this watcher's business.  Once recorded, the boundary never moves or gets recomputed.
+    """
+
+    __tablename__ = "payout_watch_cursor"
+
+    watcher: Mapped[str] = mapped_column(Text, primary_key=True)
+    network: Mapped[str] = mapped_column(Text, nullable=False)
+    origin_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    origin_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    netuid: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    watch_from: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    start_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    start_block_timestamp: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_scanned_block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    last_scanned_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "watcher ~ '^[a-z][a-z0-9-]{0,63}$'",
+            name="payout_watcher_name_shape",
+        ),
+        CheckConstraint(
+            "length(network) BETWEEN 1 AND 128", name="payout_network_nonempty"
+        ),
+        CheckConstraint("netuid >= 0", name="payout_cursor_netuid_nonnegative"),
+        CheckConstraint(
+            "start_block > 0", name="payout_cursor_start_block_positive"
+        ),
+        CheckConstraint(
+            "last_scanned_block >= start_block - 1",
+            name="payout_cursor_never_reads_before_start",
+        ),
+        CheckConstraint(
+            "start_block_timestamp >= watch_from",
+            name="payout_cursor_start_at_or_after_watch",
+        ),
+    )
+
+
 # --- V011: payout notifications -----------------------------------------------
 
 
@@ -1927,13 +2525,37 @@ class PayoutDiscordDelivery(Base):
     )
 
 
+# The `autoreview` schema's tables, which live in their own module because they are advisory
+# projection rather than part of the submission and payout schema this file describes.
+#
+# Imported HERE, at the bottom, rather than left to whoever needs them. A declarative class in a
+# module nobody imported is absent from `Base.metadata`, so `create_all` would silently omit both
+# tables and `scripts/check_schema_drift.py` would report them missing with no hint as to why.
+# Every existing `from conjectures_subnet.db.models import Base` — the drift check, the test
+# harnesses — then sees the whole schema without having to know this module exists.
+#
+# The circular import is safe and deliberate: `autoreview_models` needs only `Base` and `SHA256`,
+# both defined at the top of this file, so the partially-executed module already has what it asks
+# for. `tests/test_db_autoreview.py` asserts the tables are present after importing only `models`,
+# so deleting this line fails a test rather than producing a confusing drift report.
+from conjectures_subnet.db.autoreview_models import (
+    AutoreviewRun,
+    AutoreviewStageResult,
+)
+
+# Bound to a name so neither a linter nor a reader mistakes the import above for a dead one.
+_AUTOREVIEW_TABLES = (AutoreviewRun, AutoreviewStageResult)
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",
     "MINER_ROLE",
     "REVIEWER_ROLE",
     "Account",
+    "AccountIdentity",
     "AccountSession",
+    "AccountSessionKind",
     "AccountWallet",
     "ApiRejectionLog",
     "Base",
@@ -1952,6 +2574,7 @@ __all__ = [
     "ManualReviewState",
     "PayoutDiscordDelivery",
     "PayoutState",
+    "PayoutWatchCursor",
     "Proof",
     "ReviewDecision",
     "ReviewOutcome",

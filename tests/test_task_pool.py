@@ -81,7 +81,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 141
+    assert len({item.source_path for item in selected}) == 139
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -220,6 +220,10 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
         # Production retirements that predated this pool expansion.
         "Erdos567.erdos_567.parts.i",
         "Green3.green_3",
+        # 2026-08-19: targets withdrawn from the active pool by maintainer request.
+        "Erdos477.erdos_477.variants.X_pow_three",
+        "Erdos477.erdos_477.variants.monomial",
+        "Erdos536.erdos_536",
     }
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")

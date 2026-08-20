@@ -21,6 +21,8 @@ pytest.importorskip("httpx", reason="submission API tests need the service extra
 pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
 from datetime import UTC
+from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 
 from conftest_api import (
     COLDKEY,
@@ -36,9 +38,11 @@ from conftest_api import (
     postgres_dsn,
     read_headers,
     submission_headers,
+    task_entry,
     valid_bundle,
 )
 
+from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import digests
 from conjectures_subnet.db.models import (
     ApiRejectionLog,
@@ -122,7 +126,62 @@ def test_a_paid_submission_is_recorded_and_queued():
     run(scenario())
 
 
-def test_the_bounty_is_estimated_at_intake_but_not_locked():
+def test_a_paid_submission_snapshots_opt_in_public_credit():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            credit = public_credit(
+                "Ada Lovelace",
+                "https://example.org/ada",
+                "0000-0002-1825-0097",
+            )
+            assert credit is not None
+            response = await _post(kit, valid_bundle(), public_credit=credit)
+            assert response.status_code == 201, response.text
+            assert response.json()["public_credit"] == credit.to_dict()
+
+            async with kit.session() as session:
+                stored = await session.get(
+                    Submission, uuid.UUID(response.json()["submission_id"])
+                )
+                assert stored.public_credit_name == "Ada Lovelace"
+                assert stored.public_credit_url == "https://example.org/ada"
+                assert stored.public_credit_orcid == "0000-0002-1825-0097"
+
+                with pytest.raises(IntegrityError, match="public credit is immutable"):
+                    await session.execute(
+                        update(Submission)
+                        .where(Submission.id == stored.id)
+                        .values(public_credit_name="A Different Author")
+                    )
+                    await session.commit()
+                await session.rollback()
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_malformed_public_credit_header_is_refused_before_payment():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            bundle = valid_bundle()
+            headers = submission_headers(bundle)
+            headers["X-Conjectures-Public-Credit"] = "not-base64url-json"
+            async with await _client(kit) as client:
+                response = await client.post(
+                    "/v1/submissions", content=bundle, headers=headers
+                )
+            assert response.status_code == 400
+            assert await _count(kit, Submission) == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_bounty_is_locked_at_intake_and_replay_keeps_the_amount():
     async def scenario():
         kit = await harness(
             BOUNTY_POOL_BALANCE_RAO="16800000000",
@@ -134,20 +193,18 @@ def test_the_bounty_is_estimated_at_intake_but_not_locked():
             key = new_key()
             first = await _post(kit, bundle, idempotency_key=key)
             assert first.status_code == 201, first.text
-            # The miner sees a live estimate together with the submission id, explicitly not a
-            # reservation of either the target or this amount.
+            # Acceptance turns the final serialized pool quote into an immutable amount.
             assert first.json()["bounty"] == {
                 "amount_rao": 4_200_000_000,
                 "amount_usd": "210.00",
                 "policy_version": "dynamic-age-v1",
                 "available": True,
-                "reason": "OPEN",
+                "reason": "LOCKED_AT_SUBMISSION",
                 "as_of": first.json()["bounty"]["as_of"],
-                "locked": False,
+                "locked": True,
             }
 
-            # The row retains the estimate only as an audit snapshot. A replay is repriced and
-            # advertises that it remains unlocked.
+            # The row itself is the lock. Replays read it rather than consulting live pricing.
             async with kit.session() as session:
                 submission = await session.get(
                     Submission, uuid.UUID(first.json()["submission_id"])
@@ -155,10 +212,115 @@ def test_the_bounty_is_estimated_at_intake_but_not_locked():
                 assert submission is not None
                 assert submission.bounty_amount_rao == 4_200_000_000
                 assert submission.bounty_policy_version == "dynamic-age-v1"
+                assert submission.bounty_locked_at is not None
             replay = await _post(kit, bundle, idempotency_key=key)
             assert replay.status_code == 200
             assert replay.json()["bounty"]["amount_rao"] == 4_200_000_000
-            assert replay.json()["bounty"]["locked"] is False
+            assert replay.json()["bounty"]["locked"] is True
+            assert replay.json()["bounty"]["as_of"] == first.json()["bounty"]["as_of"]
+
+            # NULL is the explicit legacy marker. Such rows remain live-priced and are never
+            # silently converted to the historical intake estimate.
+            async with kit.session() as session:
+                submission = await session.get(
+                    Submission, uuid.UUID(first.json()["submission_id"])
+                )
+                assert submission is not None
+                submission.bounty_locked_at = None
+                await session.commit()
+            async with await _client(kit) as client:
+                legacy = await client.get(
+                    f"/v1/submissions/{first.json()['submission_id']}",
+                    headers=read_headers(),
+                )
+            assert legacy.status_code == 200
+            assert legacy.json()["bounty"]["locked"] is False
+            assert legacy.json()["bounty"]["reason"] == "OPEN"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_locked_exposure_uses_target_maximum_and_rejections_release_it():
+    async def scenario():
+        second_target = "fc-target:Fixture.second"
+        kit = await harness(
+            entries=(
+                task_entry(),
+                task_entry(
+                    task_id="second-task",
+                    reward_target_id=second_target,
+                ),
+            ),
+            BOUNTY_POOL_BALANCE_RAO="16800000000",
+        ).setup()
+        try:
+            first = await _post(kit, valid_bundle())
+            assert first.status_code == 201, first.text
+            assert first.json()["bounty"]["amount_rao"] == 4_200_000_000
+
+            competing_bundle, competing_digest = distinct_bundle("second-attempt")
+            second = await _post(
+                kit,
+                competing_bundle,
+                payment_reference="0xpayment-second-attempt",
+                proof_digest=competing_digest,
+            )
+            assert second.status_code == 201, second.text
+            assert second.json()["bounty"]["amount_rao"] == 3_150_000_000
+
+            # Two attempts against one mutually exclusive reward target reserve its maximum,
+            # 4.2 Alpha, rather than their 7.35 Alpha sum.
+            async with kit.session() as session:
+                quote = await kit.services.pricing.quote(
+                    session, reward_target_id=second_target
+                )
+                assert quote.amount_rao == 3_150_000_000
+                assert quote.inputs["committed_bounty_rao"] == 4_200_000_000
+
+                first_row = await session.get(
+                    Submission, uuid.UUID(first.json()["submission_id"])
+                )
+                assert first_row is not None
+                first_row.verification_status = VerificationState.REJECTED
+                await session.commit()
+
+            # The smaller competing lock remains, so only the released difference returns.
+            async with kit.session() as session:
+                quote = await kit.services.pricing.quote(
+                    session, reward_target_id=second_target
+                )
+                assert quote.amount_rao == 3_412_500_000
+                assert quote.inputs["committed_bounty_rao"] == 3_150_000_000
+
+                second_row = await session.get(
+                    Submission, uuid.UUID(second.json()["submission_id"])
+                )
+                assert second_row is not None
+                second_row.manual_review_status = ManualReviewState.REJECTED
+                await session.commit()
+
+            async with kit.session() as session:
+                quote = await kit.services.pricing.quote(
+                    session, reward_target_id=second_target
+                )
+                assert quote.amount_rao == 4_200_000_000
+                assert quote.inputs["committed_bounty_rao"] == 0
+
+                # A live, unresolved legacy row does not consume locked exposure.
+                second_row = await session.get(
+                    Submission, uuid.UUID(second.json()["submission_id"])
+                )
+                assert second_row is not None
+                second_row.manual_review_status = ManualReviewState.UNREVIEWED
+                second_row.bounty_locked_at = None
+                await session.commit()
+            async with kit.session() as session:
+                quote = await kit.services.pricing.quote(
+                    session, reward_target_id=second_target
+                )
+                assert quote.inputs["committed_bounty_rao"] == 0
         finally:
             await kit.teardown()
 
@@ -192,15 +354,14 @@ def test_a_successful_earlier_claim_closes_the_bounty_without_invalidating_its_p
             assert second.json()["reason_code"] == "BOUNTY_CLOSED"
             assert await _count(kit, Submission) == 1
 
-            # The winning miner still sees a live claim estimate. New task discovery omits the
-            # solved target so miners do not mistake it for available work.
+            # The winner retains its accepted amount. New task discovery omits the solved target.
             async with await _client(kit) as client:
                 status = await client.get(
                     f"/v1/submissions/{first_id}", headers=read_headers()
                 )
                 tasks = await client.get("/v1/tasks")
-            assert status.json()["bounty"]["reason"] == "CLAIM_HELD"
-            assert status.json()["bounty"]["locked"] is False
+            assert status.json()["bounty"]["reason"] == "LOCKED_AT_SUBMISSION"
+            assert status.json()["bounty"]["locked"] is True
             assert tasks.json()["tasks"] == []
         finally:
             await kit.teardown()

@@ -42,6 +42,8 @@ from conftest_api import (
     submission_headers,
 )
 
+from conjectures_subnet.attribution import public_credit
+from conjectures_subnet.db import public as public_store
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.models import (
     ManualReviewState,
@@ -110,7 +112,7 @@ async def _get(kit, path: str, **params):
         return await client.get(path, params=params or None)
 
 
-async def _submit(kit, marker: str, *, hotkey: str = HOTKEY) -> str:
+async def _submit(kit, marker: str, *, hotkey: str = HOTKEY, credit=None) -> str:
     bundle, digest = distinct_bundle(marker, hotkey=hotkey)
     async with await _client(kit) as client:
         response = await client.post(
@@ -122,6 +124,7 @@ async def _submit(kit, marker: str, *, hotkey: str = HOTKEY) -> str:
                 idempotency_key=new_key(),
                 payment_reference=f"0xpay-{marker}",
                 proof_digest=digest,
+                public_credit=credit,
             ),
         )
     assert response.status_code == 201, response.text
@@ -156,6 +159,7 @@ async def _certify(
     notes_public: str | None = None,
     notes_internal: str | None = None,
     later_advisory: bool = False,
+    chain_observed: bool = True,
 ):
     """Drive a verified submission all the way to paid out.
 
@@ -192,6 +196,7 @@ async def _certify(
                 destination_coldkey=COLDKEY,
                 destination_hotkey=submission.hotkey,
                 status=PayoutState.CONFIRMED,
+                chain_observed=chain_observed,
                 extrinsic_reference=f"0xpayout-{submission_id[:8]}",
                 submitted_block=100,
                 finalized_block=101,
@@ -269,6 +274,31 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert "private_prompt" not in response.text
             assert "PRIVATE_ADVISORY_CODE" not in response.text
             assert not {"coldkey", "payment_reference", "payment", "extrinsic"} & set(item)
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_operator_paid_assertion_without_chain_provenance_is_not_certified():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "0001-unobserved")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id, chain_observed=False)
+
+            response = await _get(kit, "/v1/results/certified")
+            assert response.status_code == 200
+            assert submission_id not in {item["id"] for item in response.json()["items"]}
+
+            # The record itself is still readable: `public_result` publishes any Lean-verified
+            # submission, and the dashboard feed lists every state. What must not happen is the
+            # row *claiming* a certification the chain never witnessed, so that is what is
+            # asserted rather than the 404 this test wanted before the feed was widened.
+            response = await _get(kit, f"/v1/results/{submission_id}")
+            assert response.status_code == 200, response.text
+            assert response.json()["certified_at"] is None
         finally:
             await kit.teardown()
 
@@ -501,6 +531,36 @@ def test_an_approved_unpaid_result_publishes_its_record_report_and_solution():
             # Credited to the solver who submitted it, with no path to their money.
             assert body["hotkey"] == HOTKEY
             assert COLDKEY not in response.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_signed_public_credit_follows_a_result_from_review_to_the_solution():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            credit = public_credit(
+                "The Noether Research Team",
+                "https://example.org/noether-team",
+                "0000-0002-1825-0097",
+            )
+            assert credit is not None
+            submission_id = await _submit(kit, "credit-0030", credit=credit)
+            await _verify(kit, submission_id)
+
+            in_review = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
+            assert in_review["public_credit"] == credit.to_dict()
+            assert in_review["hotkey"] == HOTKEY
+
+            await _certify(kit, submission_id)
+            result = (await _get(kit, f"/v1/results/{submission_id}")).json()
+            solution = (
+                await _get(kit, f"/v1/results/{submission_id}/solution")
+            ).json()
+            assert result["public_credit"] == credit.to_dict()
+            assert solution["public_credit"] == credit.to_dict()
         finally:
             await kit.teardown()
 
@@ -982,7 +1042,7 @@ def _retired_index():
 RETIRED_THEOREM = "Erdos10.erdos_10.variants.grechuk"
 RETIRED_TARGET = f"fc-target:{RETIRED_THEOREM}"
 RETIRED_SLUG = "erdos10-erdos-10-variants-grechuk"
-RETIRED_DISPLAY_TITLE = "Erdős problem 10 — grechuk"
+RETIRED_DISPLAY_TITLE = "Erdős problem 10 - grechuk"
 # A target in neither index: what `V004` left behind when it could not map a row's `problem_id` to a
 # known reward target. There is no conjecture to look up, so the labels have nowhere to go.
 UNKNOWN_TARGET = "legacy-problem-id-nobody-recognises"
@@ -1022,7 +1082,7 @@ def test_a_result_is_named_for_a_reader_and_not_with_a_lean_identifier():
 
             for row in (feed.json()["items"][0], certified.json()["items"][0], one.json()):
                 assert row["title"] == "VerifierFixtures.direct"
-                assert row["display_title"] == "Test Fixtures — direct"
+                assert row["display_title"] == "Test Fixtures - direct"
                 assert row["title_parts"] == {
                     "collection": "testfixtures",
                     "collection_label": "Test Fixtures",
@@ -1046,7 +1106,7 @@ def test_an_in_review_result_is_named_the_same_way():
 
             item = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
 
-            assert item["display_title"] == "Test Fixtures — direct"
+            assert item["display_title"] == "Test Fixtures - direct"
             assert item["title_parts"]["qualifier"] == "direct"
         finally:
             await kit.teardown()

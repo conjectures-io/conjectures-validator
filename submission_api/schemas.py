@@ -33,16 +33,16 @@ class PaymentRecord(Model):
 
 
 class BountyQuote(Model):
-    """The current estimate for this submission's reward target."""
+    """The submission's bounty quote and whether its pricing contract fixed it."""
 
     amount_rao: int | None = Field(
         description=(
-            "Live Subnet Alpha estimate in base units; null if another proof solved the target."
+            "Subnet Alpha amount; locked for V012+ submissions, live for grandfathered rows."
         )
     )
     amount_usd: str | None = Field(
         description=(
-            "Current USD display estimate from TaoStats; null with amount_rao or when the "
+            "Current USD display value from TaoStats; null with amount_rao or when the "
             "external rate is unavailable."
         )
     )
@@ -51,7 +51,7 @@ class BountyQuote(Model):
     reason: str
     as_of: datetime
     locked: bool = Field(
-        description="False for a live estimate; true once a payout event fixes the amount."
+        description="True when submission acceptance fixed the amount; false for legacy rows."
     )
 
 
@@ -67,9 +67,18 @@ class VerificationStatus(Model):
     finished_at: datetime | None = None
 
 
+class PublicCredit(Model):
+    """Opt-in authorship signed by the submitting hotkey and published with a result."""
+
+    name: str
+    url: str | None = None
+    orcid: str | None = None
+
+
 class SubmissionStatus(Model):
     submission_id: uuid.UUID
     hotkey: str
+    public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
     proof_sha256: str

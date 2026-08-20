@@ -2,8 +2,21 @@
 
 Everything under `/v1/me` is served only to the signed-in owner of the data. The access control
 is in the signature of each handler: `PrincipalDep` for a read, `WriterDep` for a write — the
-latter also enforcing the session-bound CSRF token. A state-changing handler that names
-`PrincipalDep` is a CSRF hole, which is why the two names do not look interchangeable.
+latter also demanding that a browser session prove where the request was initiated. A
+state-changing handler that names `PrincipalDep` is a cross-site request forgery hole, which is
+why the two names do not look interchangeable.
+
+There is a third name, `CookieWriterDep`, and it marks the writes a **CLI token may not make**.
+Two credentials reach this router: a browser cookie, opened by a coldkey signature or by proving
+control of a mailbox, and a CLI bearer token, opened by a hotkey — which Bittensor stores
+unencrypted on disk by design. They are not equal evidence of "this is the account holder", so
+the changes that decide *who the account is* and *where its money goes* — linking a hotkey,
+setting the payout destination, editing the profile, declaring or claiming a deposit — require
+the browser. Left open to a bearer token those compose into account takeover from one stolen
+file: link an attacker's hotkey, repoint the payout, collect. See `require_cookie_writer`.
+
+Reads are open to both, but a bearer session sees a **redacted** account: no email address, no
+payout keys, no coldkey, and only the one hotkey it is scoped to. See `account_response`.
 
 Ownership is enforced in the query, not after it. Every store call takes the account id and
 scopes on it, and a row belonging to someone else is reported **absent** rather than forbidden
@@ -30,10 +43,15 @@ from conjectures_subnet.db import credits as credit_store
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import intents as intent_store
 from conjectures_subnet.db import submissions as submission_store
-from conjectures_subnet.db.models import DepositState, LoginChallengeKind
+from conjectures_subnet.db.models import (
+    AccountSessionKind,
+    DepositState,
+    LoginChallengeKind,
+)
 from submission_api import credits as credit_config
 from submission_api import login, schemas_account as schemas, sessions
 from submission_api.dependencies import (
+    CookieWriterDep,
     PrincipalDep,
     ServicesDep,
     SessionDep,
@@ -46,6 +64,7 @@ from submission_api.routers._account import (
     decode_id_cursor,
     encode_id_cursor,
     page_of,
+    session_view,
     submission_detail,
     submission_summary,
     utc,
@@ -69,8 +88,17 @@ REASON_NO_OPEN_DEPOSIT = "NO_OPEN_DEPOSIT"
 # deployment, so it is a constant — and a null link is better than a wrong one.
 EXPLORER_TEMPLATE = "https://taostats.io/extrinsic/{reference}"
 
-MAX_DEPOSIT_CREDITS = 10_000
+# The per-purchase ceiling, taken from `credits` rather than restated. Both funding paths and
+# the package parser have to agree on this number, and the way they stay agreed is by there
+# being one of it.
+MAX_DEPOSIT_CREDITS = credit_config.MAX_CREDITS_PER_PURCHASE
 UUID_LENGTH = 36
+
+# Upper bound on a nonce echoed back to `POST /wallets`. The value is a `sessions.new_token()`,
+# about 43 characters at `TOKEN_BYTES = 32`; this only has to refuse an absurd body before it
+# reaches a digest. Deliberately the same generous 256 as `routers/auth.py`'s MAX_TOKEN_LENGTH —
+# restated rather than imported, to keep one router from depending on another for a bound.
+MAX_NONCE_LENGTH = 256
 
 
 class Payload(BaseModel):
@@ -87,6 +115,20 @@ class HotkeyChallengeRequest(Payload):
 
 class HotkeyLinkRequest(Payload):
     hotkey: str = Field(min_length=48, max_length=48)
+    signature: str = Field(min_length=128, max_length=132)
+
+
+class ColdkeyChallengeRequest(Payload):
+    coldkey: str = Field(min_length=48, max_length=48)
+
+
+class ColdkeyLinkRequest(Payload):
+    coldkey: str = Field(min_length=48, max_length=48)
+    # Echoed back, as the CLI session flow does it. The nonce is not the proof — the signature
+    # is, and it is checked against the message stored on the row this nonce names — but naming
+    # the row is what bounds the attempts against it and what stops one challenge from
+    # superseding another. See `accounts.open_challenge_by_nonce`.
+    nonce: str = Field(min_length=16, max_length=MAX_NONCE_LENGTH)
     signature: str = Field(min_length=128, max_length=132)
 
 
@@ -155,6 +197,120 @@ def _as_uuid(value: str, what: str) -> uuid.UUID:
         raise NotFound(f"{what} not found") from exc
 
 
+# --- Sessions ----------------------------------------------------------------------------
+# The inventory and the kill switch. Without them a leaked CLI token has no remedy short of
+# waiting for it to expire: signing in again deliberately does not revoke bearer sessions (see
+# `auth._sign_in`), and `POST /v1/auth/logout` only ever revokes the caller's own row.
+
+
+@router.get(
+    "/sessions",
+    response_model=tuple[schemas.SessionView, ...],
+    summary="Every live session for this account",
+)
+async def list_sessions(
+    response: Response, principal: PrincipalDep, session: SessionDep
+) -> tuple[schemas.SessionView, ...]:
+    """Both kinds, newest first, with the caller's own marked.
+
+    A read, so a CLI session may list — a miner should be able to see from the machine they are
+    on that a token exists on a machine they no longer recognise. It discloses no credential:
+    `session_view` names its fields one at a time precisely so that the two digest columns on
+    the row cannot leak into it by accident.
+    """
+    _no_store(response)
+    rows = await account_store.live_sessions_for(
+        session, principal.account.id, now=_now()
+    )
+    return tuple(session_view(row, current_id=principal.session.id) for row in rows)
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke one session",
+)
+async def revoke_session(
+    session_id: Annotated[str, Path(min_length=UUID_LENGTH, max_length=UUID_LENGTH)],
+    response: Response,
+    principal: WriterDep,
+    session: SessionDep,
+) -> None:
+    """Revoke a session belonging to this account, including the caller's own.
+
+    `WriterDep`, not `CookieWriterDep`: revoking is the safe direction. Letting a CLI token kill
+    sessions cannot be used to take an account over, and a miner who suspects a rig is
+    compromised should be able to cut it off from the rig next to it without finding a browser.
+
+    Ownership is in the UPDATE's predicate, and a row belonging to someone else answers 404 —
+    the same as one that never existed. Anything else would let session ids be probed for
+    existence, and they are the identifiers of live credentials.
+
+    Revoking the current session is allowed and is not special-cased: it is `logout` by another
+    name, and refusing it would be a rule with no purpose that a client would have to learn.
+    """
+    _no_store(response)
+    revoked = await account_store.revoke_session_for_account(
+        session, _as_uuid(session_id, "session"), principal.account.id
+    )
+    if not revoked:
+        raise NotFound("no such session", reason_code="SESSION_NOT_FOUND")
+    await session.commit()
+    get_axiom().info(
+        source="api-me",
+        event_type="session_revoked",
+        account_id=str(principal.account.id),
+        reason="owner_request",
+        by_session_kind=str(principal.session.kind),
+    )
+
+
+@router.delete(
+    "/sessions",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke every other session",
+)
+async def revoke_other_sessions(
+    response: Response,
+    principal: WriterDep,
+    session: SessionDep,
+    kind: Annotated[
+        str | None,
+        Query(
+            pattern="^(COOKIE|BEARER)$",
+            description="Limit to one kind. Omit to revoke both.",
+        ),
+    ] = None,
+) -> None:
+    """Sign out everywhere else. The caller's own session survives.
+
+    Keeping the caller alive is what makes this the button people actually want: "something is
+    wrong, cut everything else off" should not also log them out of the page they are clicking
+    it on. `logout` is how you end your own session.
+
+    `kind` exists because the two credentials fail differently. A miner who suspects one rig is
+    compromised wants every CLI token gone and their browser untouched; someone who left a
+    session open on a shared machine wants the opposite.
+    """
+    _no_store(response)
+    revoked = await account_store.revoke_all_sessions(
+        session,
+        principal.account.id,
+        kind=AccountSessionKind(kind) if kind else None,
+        except_session_id=principal.session.id,
+    )
+    await session.commit()
+    get_axiom().info(
+        source="api-me",
+        event_type="session_revoked",
+        account_id=str(principal.account.id),
+        reason="revoke_others",
+        revoked=revoked,
+        kind=kind or "ALL",
+        by_session_kind=str(principal.session.kind),
+    )
+
+
 # --- Profile -----------------------------------------------------------------------------
 
 
@@ -162,15 +318,19 @@ def _as_uuid(value: str, what: str) -> uuid.UUID:
 async def read_me(
     response: Response, principal: PrincipalDep, session: SessionDep
 ) -> schemas.Account:
+    """Redacted for a CLI session: `hotkey_scope` is what decides, so a bearer caller cannot
+    reach the email address or payout keys by asking a different endpoint for the same row."""
     _no_store(response)
-    return await account_response(session, principal.account)
+    return await account_response(
+        session, principal.account, bearer_scope=principal.hotkey_scope
+    )
 
 
 @router.patch("", response_model=schemas.Account, summary="Edit the display name")
 async def patch_me(
     payload: ProfilePatch,
     response: Response,
-    principal: WriterDep,
+    principal: CookieWriterDep,
     session: SessionDep,
 ) -> schemas.Account:
     """The only editable field.
@@ -189,7 +349,157 @@ async def patch_me(
     return await account_response(session, principal.account)
 
 
-# --- Linked hotkeys ----------------------------------------------------------------------
+# --- Linked wallets and hotkeys ----------------------------------------------------------
+
+
+@router.post(
+    "/wallets/challenge",
+    response_model=schemas.WalletChallenge,
+    summary="A nonce for linking another coldkey",
+)
+async def coldkey_challenge(
+    payload: ColdkeyChallengeRequest,
+    principal: CookieWriterDep,
+    services: ServicesDep,
+    session: SessionDep,
+) -> schemas.WalletChallenge:
+    """Mint a single-use nonce bound to this account and coldkey.
+
+    This is separate from wallet sign-in, so a signature collected while adding a wallet
+    cannot be replayed as a login credential. The private key remains in the user's wallet;
+    the service stores only the public address and the proof that it was controlled.
+
+    The returned `nonce` must be echoed back to `POST /v1/me/wallets` alongside the signature.
+    It names the row the signature is checked against, which is what lets two challenges for
+    one coldkey coexist instead of the newer silently invalidating the one being signed.
+    """
+    settings = services.settings
+    coldkey = _assert_ss58(payload.coldkey, "coldkey")
+    now = _now()
+    issued = await account_store.recent_challenge_count(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        since=now - dt.timedelta(hours=1),
+        ss58=coldkey,
+    )
+    if issued >= settings.challenges_per_hour:
+        raise TooManyRequests(
+            "too many link challenges for that coldkey; try again later",
+            reason_code=REASON_TOO_MANY_CHALLENGES,
+        )
+
+    nonce = sessions.new_token()
+    expires_at = now + dt.timedelta(minutes=settings.challenge_minutes)
+    message = login.coldkey_link_message(
+        domain=settings.login_domain,
+        address=coldkey,
+        nonce=nonce,
+        expires_at=expires_at,
+    )
+    await account_store.create_challenge(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        secret_digest=account_store.digest(nonce),
+        expires_at=expires_at,
+        account_id=principal.account.id,
+        ss58=coldkey,
+        message=message,
+    )
+    await session.commit()
+    return schemas.WalletChallenge(nonce=nonce, message=message, expires_at=expires_at)
+
+
+@router.post(
+    "/wallets",
+    response_model=schemas.Account,
+    status_code=status.HTTP_201_CREATED,
+    summary="Link another coldkey by signature",
+)
+async def link_coldkey(
+    payload: ColdkeyLinkRequest,
+    principal: CookieWriterDep,
+    services: ServicesDep,
+    session: SessionDep,
+) -> schemas.Account:
+    """Attach a coldkey the account proved control of.
+
+    An account may have multiple coldkeys, but a coldkey belongs to exactly one account. There
+    is deliberately no rebind or unlink operation: moving a login credential between accounts
+    needs a separate recovery policy rather than a silent ownership change.
+
+    The order is the CLI session flow's, for the CLI session flow's reasons:
+
+    1. **Find the challenge by its own nonce**, bounded by the account that minted it, rather
+       than taking the newest open row for the address. `accounts.open_challenge_by_nonce`
+       explains why "which challenge is current" is the attackable question and "which
+       challenge is this" is not.
+    2. **Verify the signature over the stored message**, before anything is consumed. The
+       message comes off the row and is never rebuilt from the request.
+    3. **Count a failed attempt** if it did not verify, and refuse. The challenge survives a
+       wrong signature — otherwise a mistyped passphrase costs a whole new challenge — but not
+       unboundedly many, or an open challenge would be free sr25519 work.
+    4. **Consume, then link.** The conditional UPDATE is what makes two simultaneous
+       redemptions of one valid signature link the coldkey once.
+    """
+    settings = services.settings
+    coldkey = _assert_ss58(payload.coldkey, "coldkey")
+    signature = _signature_bytes(payload.signature)
+    now = _now()
+
+    challenge = await account_store.open_challenge_by_nonce(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        ss58=coldkey,
+        secret_digest=account_store.digest(payload.nonce),
+        now=now,
+        max_attempts=settings.challenge_attempts,
+        account_id=principal.account.id,
+    )
+    if challenge is None or challenge.message is None:
+        # One refusal for expired, already-used, out-of-attempts, another account's nonce and
+        # never-existed. The caller learns nothing about which, and the remedy is the same for
+        # all of them: request a new challenge.
+        raise Unauthorized(
+            "no open link challenge for that coldkey and nonce; request a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+
+    try:
+        login.verify_signature(
+            address=coldkey, message=challenge.message, signature=signature
+        )
+    except Unauthorized:
+        # Counted and committed before re-raising, so the attempt is recorded even though the
+        # request fails. Without the commit the increment would roll back with the response and
+        # the ceiling would never be reached.
+        await account_store.record_failed_attempt(session, challenge.id)
+        await session.commit()
+        raise
+
+    consumed = await account_store.consume_challenge(
+        session,
+        kind=LoginChallengeKind.COLDKEY_LINK,
+        secret_digest=bytes(challenge.secret_sha256),
+        now=now,
+    )
+    if consumed is None:
+        raise Unauthorized(
+            "that challenge has already been used; request a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+
+    await account_store.link_wallet(
+        session, principal.account, coldkey=coldkey, signature=signature
+    )
+    await session.commit()
+    get_axiom().info(
+        source="api-me",
+        event_type="wallet_linked",
+        account_id=str(principal.account.id),
+        kind="coldkey",
+        coldkey=coldkey,
+    )
+    return await account_response(session, principal.account)
 
 
 @router.post(
@@ -199,7 +509,7 @@ async def patch_me(
 )
 async def hotkey_challenge(
     payload: HotkeyChallengeRequest,
-    principal: WriterDep,
+    principal: CookieWriterDep,
     services: ServicesDep,
     session: SessionDep,
 ) -> schemas.WalletChallenge:
@@ -256,7 +566,7 @@ async def hotkey_challenge(
 )
 async def link_hotkey(
     payload: HotkeyLinkRequest,
-    principal: WriterDep,
+    principal: CookieWriterDep,
     session: SessionDep,
 ) -> schemas.Account:
     """Attach a hotkey the account proved control of.
@@ -319,7 +629,7 @@ async def link_hotkey(
     "/payout", response_model=schemas.Account, summary="Set the payout destination"
 )
 async def put_payout(
-    payload: PayoutRequest, principal: WriterDep, session: SessionDep
+    payload: PayoutRequest, principal: CookieWriterDep, session: SessionDep
 ) -> schemas.Account:
     """Both keys together. Alpha is held as stake, so a payout needs a coldkey and a hotkey.
 
@@ -450,15 +760,15 @@ def _deposit(deposit, *, settings: Settings) -> schemas.Deposit:
     "/deposits",
     response_model=schemas.Deposit,
     status_code=status.HTTP_201_CREATED,
-    summary="Declare a deposit and get the transfer command",
+    summary="Declare one credit purchase for a wallet-extension transfer",
 )
 async def create_deposit(
     payload: DepositRequest,
-    principal: WriterDep,
+    principal: CookieWriterDep,
     services: ServicesDep,
     session: SessionDep,
 ) -> schemas.Deposit:
-    """Record what will be sent, and return a ready-to-copy `btcli` command.
+    """Record the one-credit transfer the browser wallet will submit.
 
     Nothing is credited here. This records the expectation, so that when a transfer is seen it
     can be checked against a declared amount and recipient rather than credited on trust. What
@@ -503,7 +813,7 @@ async def read_deposit(
 )
 async def claim_deposit(
     payload: DepositClaimRequest,
-    principal: WriterDep,
+    principal: CookieWriterDep,
     services: ServicesDep,
     session: SessionDep,
 ) -> schemas.Deposit:

@@ -43,13 +43,16 @@ from pydantic import Field, StringConstraints
 
 from conjectures_subnet.bounty import BountyPoolSnapshot, LiveBounty
 from conjectures_subnet.db import public as public_store
-from submission_api import conjectures, credits as credit_config
+from submission_api import conjectures, credits as credit_config, tmc_pay
 from submission_api import schemas_account as account_schemas, schemas_public as public
 from submission_api.conjectures import Conjecture, ConjectureIndex
 from submission_api.dependencies import ServicesDep, SessionDep
-from submission_api.errors import NotFound
+from submission_api.errors import NotFound, ServiceUnavailable
 from submission_api.pins import PinSet
 from submission_api.retired import RetiredConjecture
+# The reason codes belong to the TMC PAY surface; naming them again here would be a second
+# vocabulary for the same failures.
+from submission_api.routers import tmc_pay as tmc_pay_reasons
 from submission_api.settings import (
     DEFAULT_ACTIVITY_ITEMS,
     DEFAULT_PAGE_SIZE,
@@ -195,7 +198,7 @@ def _bounty_pool(
         max_bounty_share_numerator=snapshot.max_bounty_share_numerator,
         max_bounty_share_denominator=snapshot.max_bounty_share_denominator,
         as_of=snapshot.as_of,
-        locked_at_submission=False,
+        locked_at_submission=True,
     )
 
 
@@ -812,10 +815,89 @@ async def read_credit_pricing(
                 total_credits=item.total_credits,
                 price_rao=item.price_rao,
             )
+            # Every configured package, unfiltered. `parse_packages` has already refused
+            # anything above `MAX_CREDITS_PER_PURCHASE` at startup, so what is configured and
+            # what is sellable are the same list — filtering here as well would only be able to
+            # hide a misconfiguration this process would not have started with.
             for item in services.packages
         ),
-        methods=credit_config.PAYMENT_METHODS,
+        # Every method this deployment can actually take money through: a method the page
+        # renders and the API refuses is worse than one it never offers.
+        methods=credit_config.payment_methods(
+            tmc_pay_enabled=settings.tmc_pay_enabled
+        ),
         recipient=settings.payment_recipient,
+    )
+
+
+@router.get(
+    "/payment-currencies",
+    response_model=account_schemas.PaymentOptions,
+    summary="What a buyer may pay in",
+)
+async def read_payment_currencies(
+    response: Response, services: ServicesDep
+) -> account_schemas.PaymentOptions:
+    """TMC PAY's currency catalogue, with this deployment's default and what it will honour.
+
+    Unauthenticated, and beside `credit-pricing` for the same reason: someone deciding whether to
+    sign up wants to know they can pay in USDC before they have an account, and this deployment
+    already publishes that it takes TMC PAY at all in `credit-pricing.methods`.
+
+    Kept out of that response rather than folded into it, because this one depends on an outbound
+    call to TMC PAY and that one does not. A processor outage must not take down the page that says
+    what a credit costs, so the two fail independently: pricing always answers, and a purchase page
+    that cannot read this offers the default pair alone.
+
+    Every pair TMC PAY supports is reported, each flagged with whether an invoice can currently be
+    issued in it. Returning only the payable ones would leave a page unable to tell "we do not
+    support that chain" from "the processor does not", and the answer to those is different.
+    """
+    settings = services.settings
+    if not settings.tmc_pay_enabled:
+        raise ServiceUnavailable(
+            "buying credits through a payment processor is not configured on this deployment",
+            reason_code=tmc_pay_reasons.REASON_NOT_CONFIGURED,
+        )
+    _cache(response, settings)
+    try:
+        catalogue = await services.tmc_pay.list_currencies()
+    except tmc_pay.TmcPayUnavailable as exc:
+        raise ServiceUnavailable(
+            "TMC PAY is temporarily unavailable; retry shortly",
+            reason_code=tmc_pay_reasons.REASON_UPSTREAM_UNAVAILABLE,
+        ) from exc
+    except tmc_pay.TmcPayRejected as exc:
+        raise ServiceUnavailable(
+            "TMC PAY did not return a usable list of payment currencies",
+            reason_code=tmc_pay_reasons.REASON_UPSTREAM_REFUSED,
+        ) from exc
+
+    return account_schemas.PaymentOptions(
+        currencies=tuple(
+            account_schemas.PaymentCurrency(
+                code=currency.code,
+                networks=tuple(
+                    account_schemas.PaymentNetwork(
+                        network=network.network,
+                        decimals=network.decimals,
+                        display_decimals=network.display_decimals,
+                        payable=tmc_pay.pair_is_payable(
+                            currency.code,
+                            network.network,
+                            allowlist=settings.tmc_pay_payable_pairs,
+                        ),
+                    )
+                    for network in currency.networks
+                ),
+                payable=bool(
+                    currency.payable_networks(settings.tmc_pay_payable_pairs)
+                ),
+            )
+            for currency in catalogue
+        ),
+        default_currency=tmc_pay.CRYPTO_CURRENCY,
+        default_network=tmc_pay.CRYPTO_NETWORK,
     )
 
 

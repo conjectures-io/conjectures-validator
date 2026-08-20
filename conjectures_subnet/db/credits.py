@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import func, select, update
@@ -168,6 +168,77 @@ async def ledger_page(
     return list((await session.execute(statement)).scalars())
 
 
+def bonus_rao_for_credits(
+    *,
+    paid_credits: int,
+    credit_price_rao: int,
+    bonus_schedule: Mapping[int, int] | None,
+) -> int:
+    """The bonus, in rao, that a purchase of ``paid_credits`` earns. Zero if it earns none.
+
+    Pure, and the one place the lookup lives, so a `btcli` transfer and a TMC PAY invoice cannot
+    come to different answers about the same deal. What differs between the two funding paths is
+    only how the paid count is *established* — see ``package_bonus_rao`` for the chain path, and
+    `tmc_pay.settle` for the path that has the count recorded on the order.
+
+    **The bonus is expressed in rao because the ledger is.** Credits are derived
+    (``balance // credit_price_rao``), never stored, so "one free credit" is written as one
+    credit's worth of rao. That is what keeps a bonus indistinguishable from any other credit at
+    spend time, and why granting one needed no schema change.
+    """
+    if not bonus_schedule:
+        return 0
+    return bonus_schedule.get(paid_credits, 0) * credit_price_rao
+
+
+def package_bonus_rao(
+    *,
+    paid_rao: int,
+    credit_price_rao: int,
+    bonus_schedule: Mapping[int, int] | None,
+) -> int:
+    """The bonus earned by a payment known only as an amount of rao.
+
+    For the chain path, where there may be no declared purchase at all: an arrival is credited on
+    what it *is*, so the paid count has to be read back out of the amount.
+
+    **The amount must land exactly on a package.** A payment of 2.6 TAO against a 5-credit deal
+    buys five credits and leaves a remainder towards the sixth; it does not buy the deal.
+    Requiring a zero remainder is what makes the rule predictable in both directions — there is no
+    band of overpayment that silently does or does not qualify, and nobody can discover a cheaper
+    route to the bonus by rounding.
+
+    **Do not reach for this on the TMC PAY path.** An invoice is only required to *cover* the
+    credits it was opened for (`tmc_pay_invoice_covers_the_credits`), so `crypto_amount_rao`
+    routinely carries a remainder that belongs to the buyer — and a remainder here means no
+    bonus. Keyed on the amount, that path would have quietly granted a deal it advertised. It
+    uses `bonus_rao_for_credits` with the count the order already records instead.
+    """
+    if not bonus_schedule:
+        return 0
+    paid_credits, remainder = divmod(paid_rao, credit_price_rao)
+    if remainder:
+        return 0
+    return bonus_rao_for_credits(
+        paid_credits=paid_credits,
+        credit_price_rao=credit_price_rao,
+        bonus_schedule=bonus_schedule,
+    )
+
+
+def bonus_reason(*, paid_credits: int, bonus_rao: int, credit_price_rao: int) -> str:
+    """Why a BONUS entry exists, in the words the account holder's ledger page will show.
+
+    The entry names no deposit or order — see ``credit_deposit`` — so this string is the only
+    provenance it carries, and it has to be enough for an auditor to reconstruct the deal from
+    the row alone: what was paid for, and what was granted on top.
+    """
+    return (
+        f"package bonus: {bonus_rao // credit_price_rao} credit(s) granted with a "
+        f"{paid_credits}-credit purchase"
+    )
+
+
 async def record_entry(
     session: AsyncSession,
     *,
@@ -177,11 +248,17 @@ async def record_entry(
     credit_price_rao: int | None = None,
     deposit_id: uuid.UUID | None = None,
     intent_id: uuid.UUID | None = None,
+    tmc_pay_order_id: uuid.UUID | None = None,
     reason: str | None = None,
     created_by: str = "system",
 ) -> CreditLedgerEntry:
     """Append one entry. The schema fixes the sign per kind, so a debit cannot be
-    recorded as a credit by passing the wrong one."""
+    recorded as a credit by passing the wrong one.
+
+    A DEPOSIT must name exactly one source: ``deposit_id`` for rao this validator read
+    off finalized chain state, or ``tmc_pay_order_id`` for a purchase TMC PAY settled.
+    The schema enforces the exclusive-or, so passing both or neither is a constraint
+    violation rather than a silently untraceable credit."""
     entry = CreditLedgerEntry(
         account_id=account_id,
         kind=kind,
@@ -189,6 +266,7 @@ async def record_entry(
         credit_price_rao=credit_price_rao,
         deposit_id=deposit_id,
         intent_id=intent_id,
+        tmc_pay_order_id=tmc_pay_order_id,
         reason=reason,
         created_by=created_by,
     )
@@ -296,6 +374,7 @@ async def credit_deposit(
     sender_coldkey: str,
     observed_amount_rao: int,
     block: int,
+    bonus_schedule: Mapping[int, int] | None = None,
     created_by: str = "system",
 ) -> CreditLedgerEntry:
     """Issue credits for a finalized transfer, once.
@@ -308,6 +387,19 @@ async def credit_deposit(
     The amount credited is the amount **observed on chain**, not the amount the
     account said it would send. Crediting the intent would let someone promise 10
     TAO, send 1, and be credited for 10.
+
+    A package bonus, if the observed amount earns one, is appended as a second BONUS entry in
+    **this same transaction**. That is what makes the grant safe to retry without a new unique
+    index: the DEPOSIT entry it accompanies is already guarded by ``credited_ledger_id`` and the
+    partial unique index on ``extrinsic_reference``, so a duplicate attempt rolls both entries
+    back together. A bonus written in a later transaction could be granted twice.
+
+    The BONUS entry names no source row. ``credit_ledger_tmc_pay_idx`` is unique on
+    ``tmc_pay_order_id`` across every kind, so on the TMC PAY path the DEPOSIT entry has already
+    claimed the order and a second row cannot reference it; the deposit path could carry
+    ``deposit_id`` but then the two paths would disagree about the shape of the same grant. V003
+    anticipated exactly this — ``reason`` is described there as free text for the kinds that have
+    no other row behind them — so the reason string is where the provenance goes.
     """
     if deposit.status == DepositState.CREDITED:
         raise RecordConflict(
@@ -323,6 +415,24 @@ async def credit_deposit(
         deposit_id=deposit.id,
         created_by=created_by,
     )
+    bonus_rao = package_bonus_rao(
+        paid_rao=observed_amount_rao,
+        credit_price_rao=deposit.credit_price_rao,
+        bonus_schedule=bonus_schedule,
+    )
+    if bonus_rao:
+        await record_entry(
+            session,
+            account_id=deposit.account_id,
+            kind=CreditEntryKind.BONUS,
+            amount_rao=bonus_rao,
+            reason=bonus_reason(
+                paid_credits=observed_amount_rao // deposit.credit_price_rao,
+                bonus_rao=bonus_rao,
+                credit_price_rao=deposit.credit_price_rao,
+            ),
+            created_by=created_by,
+        )
     deposit.status = DepositState.CREDITED
     deposit.extrinsic_reference = extrinsic_reference
     deposit.sender_coldkey = sender_coldkey
@@ -373,6 +483,8 @@ __all__ = [
     "LIVE_INTENT_STATES",
     "CreditBalance",
     "balance_rao",
+    "bonus_rao_for_credits",
+    "bonus_reason",
     "credit_balance",
     "credit_deposit",
     "create_deposit",
@@ -384,5 +496,6 @@ __all__ = [
     "ledger_page",
     "lock_account",
     "mark_seen",
+    "package_bonus_rao",
     "record_entry",
 ]

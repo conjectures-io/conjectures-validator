@@ -6,12 +6,27 @@ message being *domain-separated*. A signature is only meaningful relative to wha
 signed, so every distinct thing this validator ever asks a key to sign gets a distinct,
 unambiguous prefix.
 
-There are now four:
+There are now seven:
 
-    conjectures-login-v1        sign in to an account with a coldkey
-    conjectures-hotkey-link-v1  attach a hotkey to an account
-    conjectures-read-v1         read a submission's status (submission_api/routers)
-    <the request digest>        authorise one paid submission (32 raw bytes)
+    conjectures-login-v1         sign in to an account with a coldkey
+    conjectures-coldkey-link-v1  attach another coldkey to an account
+    conjectures-hotkey-link-v1   attach a hotkey to an account
+    conjectures-cli-session-v1   open a CLI session with an already-linked hotkey
+    conjectures-deposit-claim-v1 claim a transfer this coldkey made
+    conjectures-read-v1          read a submission's status (submission_api/routers)
+    <the request digest>         authorise one paid submission (32 raw bytes)
+
+``conjectures-cli-session-v1`` deserves a note, because it is the one prefix a *hotkey* signs
+for a durable credential, and a hotkey is a key miners sign with routinely. Three things keep
+that from being a way to harvest a session:
+
+* No other prefix is a prefix of it and it is a prefix of none of them, and it sits alone on
+  the message's first line. A `conjectures-read-v1` signature is not a session signature.
+* The nonce is minted and stored by the server that will check it, so a signature collected by
+  anyone else — a hostile validator, a proxy, a phishing page — is valid against no open
+  challenge here.
+* The message is human-readable and the CLI shows it before unlocking the key, so "sign this
+  opaque blob" is not the interaction being asked for.
 
 The properties that matter:
 
@@ -39,11 +54,17 @@ from bittensor.sp_core import Keypair
 from submission_api.errors import Unauthorized
 
 LOGIN_PREFIX = "conjectures-login-v1"
+COLDKEY_LINK_PREFIX = "conjectures-coldkey-link-v1"
 HOTKEY_LINK_PREFIX = "conjectures-hotkey-link-v1"
+CLI_SESSION_PREFIX = "conjectures-cli-session-v1"
 DEPOSIT_CLAIM_PREFIX = "conjectures-deposit-claim-v1"
 
 REASON_SIGNATURE_INVALID = "SIGNATURE_INVALID"
 REASON_CHALLENGE_INVALID = "CHALLENGE_INVALID"
+# The hotkey signed correctly but no account has claimed it. Distinct from the two above
+# because it is the one refusal here the caller can actually fix, and the fix is in the
+# browser: link the hotkey at the website first.
+REASON_HOTKEY_NOT_LINKED = "HOTKEY_NOT_LINKED"
 
 
 def login_message(*, domain: str, address: str, nonce: str, expires_at: dt.datetime) -> str:
@@ -63,6 +84,36 @@ def hotkey_link_message(
     """The exact text a hotkey signs to be attached to an account."""
     return _message(
         HOTKEY_LINK_PREFIX, domain=domain, address=address, nonce=nonce, expires_at=expires_at
+    )
+
+
+def coldkey_link_message(
+    *, domain: str, address: str, nonce: str, expires_at: dt.datetime
+) -> str:
+    """The exact text a coldkey signs to be attached to an account."""
+    return _message(
+        COLDKEY_LINK_PREFIX,
+        domain=domain,
+        address=address,
+        nonce=nonce,
+        expires_at=expires_at,
+    )
+
+
+def cli_session_message(
+    *, domain: str, address: str, nonce: str, expires_at: dt.datetime
+) -> str:
+    """The exact text a hotkey signs to open a CLI session.
+
+    Same shape as the other two nonce flows, and deliberately so — the security of all three
+    rests on the same three facts, and a message built a fourth way would have to be reasoned
+    about separately. What differs is only the prefix, which is what makes a signature
+    collected for a hotkey *link* useless for minting a *session*: linking proves control of a
+    key to an account that is already signed in, while this mints a credential, and the two
+    must not be interchangeable.
+    """
+    return _message(
+        CLI_SESSION_PREFIX, domain=domain, address=address, nonce=nonce, expires_at=expires_at
     )
 
 
@@ -129,11 +180,16 @@ def verify_signature(*, address: str, message: str, signature: bytes) -> None:
 
 
 __all__ = [
+    "CLI_SESSION_PREFIX",
+    "COLDKEY_LINK_PREFIX",
     "DEPOSIT_CLAIM_PREFIX",
     "HOTKEY_LINK_PREFIX",
     "LOGIN_PREFIX",
     "REASON_CHALLENGE_INVALID",
+    "REASON_HOTKEY_NOT_LINKED",
     "REASON_SIGNATURE_INVALID",
+    "cli_session_message",
+    "coldkey_link_message",
     "deposit_claim_message",
     "hotkey_link_message",
     "login_message",

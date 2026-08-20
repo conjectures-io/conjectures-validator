@@ -157,6 +157,14 @@ approval and reward issuance are the same event. What justified a given status i
 the row that caused it: `verification_runs` for a verdict, `review_decisions` for an approval,
 `reward_events` for a payout, each carrying its own timestamps.
 
+The payout timestamps are chain projections, not operator assertions. A successful matching stake
+transfer on the best chain is `SUBMITTED`; the same event after finality is `CONFIRMED` and is the
+atomic transition that sets `submissions.reward_status = REWARDED`. A reorganization before
+finality returns the reward event to `PENDING`.
+`reward_events.chain_observed` distinguishes those decoded projections from historical/manual
+status assertions. Read APIs require it, and deployment resets old `REWARDED` projections to
+`ELIGIBLE` until the finalized-chain replay verifies them.
+
 **The queue is an index, not a table.** A submission is queued for verification by being
 `UNVERIFIED`; workers claim from the partial index `submissions_verification_queue_idx` with
 `FOR UPDATE SKIP LOCKED`. `verification_runs` rows are inserted once, on completion, because every
@@ -167,12 +175,15 @@ Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotenc
 one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
 payment accounting.
 
-**Bounty estimates are live, not submission locks.** For open target `i`, the versioned policy is
+**Catalog bounty estimates are live; accepted submissions are locked.** For open target `i`, the versioned policy is
 `b_i = c * B * N * w_i / W`, evaluated with integer arithmetic. `B` is the finalized bounty-wallet
-balance; `N` and `W` cover only open stable reward targets; and task age comes from the durable
-`bounty_tasks.opened_at` row. The submission stores the estimate shown at intake for audit, while
-the payout event stores the amount, policy, and inputs actually used. If another queued proof wins
-the target first, the later proof can still verify but the bounty is already solved.
+balance after outstanding submission locks; `N` and `W` cover only open stable reward targets; and
+task age comes from the durable `bounty_tasks.opened_at` row. Acceptance serializes quote-and-insert
+with a PostgreSQL advisory transaction lock. Competing proofs contribute the maximum locked amount
+for their shared target, not a sum, because only one can win. Rejection releases exposure, and an
+approved winner's payout event copies its submission amount, policy, and inputs without repricing.
+The migration is prospective: pre-V012 submissions keep payout-time pricing and carry a NULL
+`bounty_locked_at` marker.
 
 **One reward per exact theorem target is a constraint, not a convention.** The pool issues a
 `formalized` and a `counterexample` task for each theorem target. `submissions` carries both its
@@ -244,8 +255,8 @@ for the exact security boundary and residual risks.
 The repository currently includes:
 
 - deterministic extraction and task generation from the pinned Formal Conjectures revision;
-- an audited allowlist of 324 proof/counterexample bundles for 162 active theorem targets (142
-  Erdős and 20 Green) in 162 stable reward targets, with fourteen additional audited targets recorded
+- an audited allowlist of 318 proof/counterexample bundles for 159 active theorem targets (139
+  Erdős and 20 Green) in 159 stable reward targets, with seventeen additional audited targets recorded
   as retirements and excluded from admission;
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;

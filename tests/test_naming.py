@@ -39,7 +39,7 @@ NAMES = (
         # The commonest qualified shape in the pool.
         "FormalConjectures.ErdosProblems.«1»",
         "Erdos1.erdos_1.variants.lb",
-        "Erdős problem 1 — lb",
+        "Erdős problem 1 - lb",
         "erdos_problems",
         "1",
         "lb",
@@ -49,7 +49,7 @@ NAMES = (
         # than the variant, so this is one dotted name and not two.
         "FormalConjectures.ErdosProblems.«357»",
         "Erdos357.erdos_357.variants.monotone.parts.i",
-        "Erdős problem 357 — monotone, part i",
+        "Erdős problem 357 - monotone, part i",
         "erdos_problems",
         "357",
         "monotone, part i",
@@ -59,7 +59,7 @@ NAMES = (
         # everything after the problem's own number.
         "FormalConjectures.ErdosProblems.«100»",
         "Erdos100.erdos_100_piepmeyer",
-        "Erdős problem 100 — piepmeyer",
+        "Erdős problem 100 - piepmeyer",
         "erdos_problems",
         "100",
         "piepmeyer",
@@ -80,7 +80,7 @@ NAMES = (
         # plain "Green's open problem 4", colliding with `green_4` itself.
         "FormalConjectures.GreensOpenProblems.«4»",
         "Green4.large_green_4",
-        "Green's open problem 4 — large",
+        "Green's open problem 4 - large",
         "greens_open_problems",
         "4",
         "large",
@@ -98,7 +98,7 @@ NAMES = (
     (
         "FormalConjectures.OEIS.«228828»",
         "OeisA228828.a_0",
-        "OEIS sequence A228828 — a 0",
+        "OEIS sequence A228828 - a 0",
         "oeis",
         "A228828",
         "a 0",
@@ -106,7 +106,7 @@ NAMES = (
     (
         "FormalConjectures.GreensOpenProblems.«14»",
         "Green14.W_3_10",
-        "Green's open problem 14 — W 3 10",
+        "Green's open problem 14 - W 3 10",
         "greens_open_problems",
         "14",
         "W 3 10",
@@ -114,7 +114,7 @@ NAMES = (
     (
         "FormalConjectures.Mathoverflow.«17560»",
         "Mathoverflow17560.mathoverflow_17560.variants.all_nats",
-        "MathOverflow question 17560 — all nats",
+        "MathOverflow question 17560 - all nats",
         "mathoverflow",
         "17560",
         "all nats",
@@ -132,7 +132,7 @@ NAMES = (
     (
         "FormalConjectures.OpenQuantumProblems.«13»",
         "OpenQuantumProblem13.Qubit.bloch",
-        "Open quantum problem 13 — bloch",
+        "Open quantum problem 13 - bloch",
         "open_quantum_problems",
         "13",
         "bloch",
@@ -152,7 +152,7 @@ NAMES = (
         # "conjecture 1 3" as filler would give both the same title.
         "FormalConjectures.Arxiv.«2303.01089».FurstenbergTimesPTimesQ",
         "Arxiv.id2303_01089.conjecture_1_3",
-        "Furstenberg Times P Times Q (arXiv:2303.01089) — conjecture 1 3",
+        "Furstenberg Times P Times Q (arXiv:2303.01089) - conjecture 1 3",
         "arxiv",
         "2303.01089",
         "conjecture 1 3",
@@ -170,7 +170,7 @@ NAMES = (
         # A bare acronym: `ABC` is the whole name upstream gives it, and re-spacing it is a no-op.
         "FormalConjectures.Wikipedia.ABC",
         "ABC.abc.variants.quality",
-        "ABC — quality",
+        "ABC - quality",
         "wikipedia",
         "ABC",
         "quality",
@@ -181,7 +181,7 @@ NAMES = (
         # `Proof` into "Pro of".
         "FormalConjectures.Millenium.PvsNP",
         "ComplexityTheory.P_ne_NP",
-        "P vs NP — P ne NP",
+        "P vs NP - P ne NP",
         "millennium",
         "P vs NP",
         "P ne NP",
@@ -189,7 +189,7 @@ NAMES = (
     (
         "FormalConjectures.Paper.CasasAlvero",
         "CasasAlvero.casas_alvero.prime_power",
-        "Casas Alvero — prime power",
+        "Casas Alvero - prime power",
         "paper",
         "Casas Alvero",
         "prime power",
@@ -209,7 +209,7 @@ NAMES = (
         # rather than stripping a list of known prefixes is what makes this an ordinary case.
         "FormalConjectures.LittProblems.«1»",
         "_private.FormalConjectures.LittProblems.«1».0.LamLitt.den_coprime_of_mem_adjoinInvNat",
-        "Litt problem 1 — den coprime of mem adjoin Inv Nat",
+        "Litt problem 1 - den coprime of mem adjoin Inv Nat",
         "litt_problems",
         "1",
         "den coprime of mem adjoin Inv Nat",
@@ -248,7 +248,7 @@ def test_a_collection_nobody_taught_this_about_still_reads_as_words():
         module="FormalConjectures.ImaginaryNewCollection.SomeNamedProblem",
         theorem="SomeNamedProblem.some_named_problem.variants.weak",
     )
-    assert name.display_title == "Some Named Problem — weak"
+    assert name.display_title == "Some Named Problem - weak"
     assert name.collection == "imaginarynewcollection"
     assert name.collection_label == "Imaginary New Collection"
     assert name.qualifier == "weak"

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -290,6 +290,7 @@ async def credit(
     credit_price_rao: int,
     deposit_expires_at: dt.datetime,
     created_by: str,
+    bonus_schedule: Mapping[int, int] | None = None,
 ) -> CreditLedgerEntry:
     """Attribute one observed transfer to an account and credit the amount that arrived.
 
@@ -306,6 +307,12 @@ async def credit(
     What is credited is always the amount **observed on chain**. `credits.credit_deposit`
     enforces that against a declared deposit; there is nothing else it could be for an undeclared
     one.
+
+    `bonus_schedule` is the package deals in force, and it is matched against the observed amount
+    — so an arrival that lands exactly on a package earns its bonus whether or not a deposit was
+    declared for it. That follows from crediting what arrived rather than what was promised: an
+    adopted transfer of exactly five credits' worth is the same purchase as a declared one, and
+    paying the deal price is the only thing either of them did to earn it.
     """
     if transfer.status is ChainTransferState.CREDITED:
         raise RecordConflict(
@@ -338,6 +345,7 @@ async def credit(
         sender_coldkey=transfer.sender_coldkey,
         observed_amount_rao=transfer.amount_rao,
         block=transfer.block,
+        bonus_schedule=bonus_schedule,
         created_by=created_by,
     )
 

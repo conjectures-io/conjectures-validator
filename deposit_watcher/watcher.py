@@ -440,6 +440,7 @@ class DepositWatcher:
             deposit_expires_at=dt.datetime.now(dt.UTC)
             + self.settings.adopted_deposit_window,
             created_by=LEDGER_ACTOR,
+            bonus_schedule=self.settings.bonus_schedule,
         )
         logger.info(
             "credited transfer %s: %d rao from %s to account %s = %d credit(s) "

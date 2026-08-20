@@ -31,6 +31,7 @@ from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
 
+from conjectures_subnet.attribution import PublicCredit, encode_public_credit_header
 from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
@@ -39,13 +40,16 @@ from submission_api.app import create_app
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import ConsoleSender
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet
 from submission_api.retired import RetiredIndex
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskEntry, catalog_from_entries
+from submission_api.rates import UnavailableTaoUsdPriceReader
 from submission_api.taostats import UnavailableAlphaUsdPriceReader
+from submission_api.tmc_pay import UnavailableGateway
 from submission_api.verification import QueueDispatcher
 from verifier.models import CatalogDeclaration, Classification
 from verifier.task_pool import reward_target_identity
@@ -128,8 +132,8 @@ def terms() -> SubmissionTerms:
     """
     return SubmissionTerms.load(
         ROOT / "docs" / "SUBMISSION_TERMS.md",
-        version="v3",
-        effective_from=date(2026, 8, 7),
+        version="v4",
+        effective_from=date(2026, 8, 10),
     )
 
 
@@ -298,7 +302,10 @@ def harness(
     dispatcher=None,
     payments=None,
     bounty_usd=None,
+    google=None,
     retired=None,
+    tmc_pay=None,
+    tao_usd=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -310,6 +317,11 @@ def harness(
     `retired` injects a `RetiredIndex`. Empty unless a test asks for one, which is the point:
     every other test in the suite then proves that adding retired conjectures changed nothing
     about the live pool.
+
+    `tmc_pay` and `tao_usd` inject the credit-purchase gateway and its rate source, for the same
+    reason as `payments`: the real ones talk to a payment processor and to TaoStats. Both default
+    to the unavailable implementations, so every test that does not name them proves the purchase
+    endpoints refuse rather than reach a network.
     """
     settings = build_settings(**overrides)
     engine = create_async_db_engine(settings.database_url)
@@ -347,10 +359,17 @@ def harness(
             settings.credit_packages, credit_price_rao=settings.payment_amount_rao
         ),
         terms=terms(),
+        google=(
+            google
+            if google is not None
+            else build_google_credential_verifier(settings.google_client_id)
+        ),
         bounty_usd=(
             bounty_usd if bounty_usd is not None else UnavailableAlphaUsdPriceReader()
         ),
         retired=retired if retired is not None else RetiredIndex.empty(),
+        tmc_pay=tmc_pay if tmc_pay is not None else UnavailableGateway(),
+        tao_usd=tao_usd if tao_usd is not None else UnavailableTaoUsdPriceReader(),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings
@@ -365,6 +384,7 @@ def request_digest(
     proof_digest: str,
     payment_reference: str,
     idempotency_key: str,
+    public_credit: PublicCredit | None = None,
 ) -> str:
     return store.canonical_request_digest(
         hotkey=hotkey,
@@ -373,6 +393,7 @@ def request_digest(
         proof_sha256=proof_digest,
         payment_reference=payment_reference,
         idempotency_key=idempotency_key,
+        public_credit=public_credit,
     )
 
 
@@ -388,13 +409,14 @@ def submission_headers(
     signature: str | None = None,
     proof_digest: str | None = None,
     content_type: str = "application/zip",
+    public_credit: PublicCredit | None = None,
 ) -> dict[str, str]:
     from verifier.hashing import sha256_bytes
 
     del bundle  # the proof digest, not the archive digest, is what the request binds
     key = idempotency_key if idempotency_key is not None else new_key()
     proof = proof_digest or sha256_bytes(VALID_PROOF)
-    return {
+    headers = {
         "Content-Type": content_type,
         "Idempotency-Key": key,
         "X-Conjectures-Hotkey": hotkey,
@@ -407,6 +429,9 @@ def submission_headers(
         "X-Conjectures-Proof-Sha256": proof,
         "X-Conjectures-Payment-Ref": payment_reference,
     }
+    if public_credit is not None:
+        headers["X-Conjectures-Public-Credit"] = encode_public_credit_header(public_credit)
+    return headers
 
 
 def read_headers(hotkey: str = HOTKEY, *, signature: str | None = None) -> dict[str, str]:

@@ -1,0 +1,114 @@
+# Automatic payout operations overlay. The notifier renders durable multisig instructions; the
+# watcher reads best/finalized chain events and makes the website's Paying/Paid tracker follow
+# them. Neither service mounts a wallet or can sign a transaction.
+
+services:
+  payout-notifier:
+    build:
+      context: .
+      dockerfile: Dockerfile.payout-notifier
+    image: conjectures-payout-notifier:local
+    container_name: conjectures_payout_notifier
+    init: true
+    # Match a restrictive development checkout's owner when DOCKER_UID/GID are supplied by just;
+    # a production release with world-readable code uses the image's dedicated notifier uid.
+    user: "${DOCKER_UID:-10104}:${DOCKER_GID:-10104}"
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PAYOUT_DISCORD_WEBHOOK_URL: ${PAYOUT_DISCORD_WEBHOOK_URL:?set the payout Discord webhook in .env}
+      PAYOUT_NOTIFIER_POLL_SECONDS: ${PAYOUT_NOTIFIER_POLL_SECONDS:-5}
+      PAYOUT_NOTIFIER_RETRY_SECONDS: ${PAYOUT_NOTIFIER_RETRY_SECONDS:-30}
+      PAYOUT_NOTIFIER_LEASE_SECONDS: ${PAYOUT_NOTIFIER_LEASE_SECONDS:-60}
+      PAYOUT_NOTIFIER_ID: compose-payout-notifier-1
+      TAOSTATS_API_KEY: ${TAOSTATS_API_KEY:?set the TaoStats API key in .env}
+      BOUNTY_NETUID: ${BOUNTY_NETUID:-66}
+      PAYOUT_TAOSTATS_TIMEOUT_SECONDS: ${PAYOUT_TAOSTATS_TIMEOUT_SECONDS:-10}
+
+    volumes:
+      - ./payout_notifier:/srv/app/payout_notifier:ro
+      - ./conjectures_subnet:/srv/app/conjectures_subnet:ro
+      # conjectures_subnet.db exports the submission stores, whose digest helpers live here.
+      - ./verifier:/srv/app/verifier:ro
+
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+          pids: 64
+
+  payout-watcher:
+    build:
+      context: .
+      # Same read-only chain+database dependency set as the incoming deposit watcher. The command
+      # below selects the outbound package; no wallet path is mounted into either image.
+      dockerfile: Dockerfile.watcher
+    image: conjectures-payout-watcher:local
+    container_name: conjectures_payout_watcher
+    init: true
+    user: "${DOCKER_UID:-10102}:${DOCKER_GID:-10102}"
+    restart: unless-stopped
+    command: ["python", "-m", "payout_watcher", "--log-level", "INFO"]
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      BITTENSOR_ARCHIVE_NETWORK: ${BITTENSOR_ARCHIVE_NETWORK:-}
+      PAYOUT_WATCH_BATCH_BLOCKS: ${PAYOUT_WATCH_BATCH_BLOCKS:-200}
+      PAYOUT_WATCH_POLL_SECONDS: ${PAYOUT_WATCH_POLL_SECONDS:-12}
+      PAYOUT_WATCHER_ID: compose-payout-watcher-1
+      HOME: /tmp
+
+      AXIOM_TOKEN: ${AXIOM_TOKEN:-}
+      AXIOM_DATASET: ${AXIOM_DATASET:-}
+      AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
+
+    volumes:
+      - ./payout_watcher:/srv/app/payout_watcher:ro
+      - ./payout_notifier:/srv/app/payout_notifier:ro
+      - ./conjectures_subnet:/srv/app/conjectures_subnet:ro
+      # db package imports traverse these modules; both stay inert and read-only here.
+      - ./submission_api:/srv/app/submission_api:ro
+      - ./verifier:/srv/app/verifier:ro
+
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+          pids: 256
+        reservations:
+          cpus: "0.1"
+          memory: 128M
