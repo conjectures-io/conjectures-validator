@@ -63,7 +63,25 @@ pytestmark = pytest.mark.skipif(
 
 SECRET = "tmc-pay-webhook-secret-for-tests"
 MERCHANT = "11111111-2222-3333-4444-555555555555"
+# One address per chain, in that chain's own format, because the column stores whatever TMC PAY
+# minted and the formats have nothing in common. Using the Bittensor one for every currency is how
+# the `ss58` domain on `deposit_address` survived the multi-currency work: a USDC invoice paid to a
+# Substrate address satisfied a check no real USDC invoice can. See V027.
 DEPOSIT_ADDRESS = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+ETH_DEPOSIT_ADDRESS = "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+BTC_DEPOSIT_ADDRESS = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+XMR_DEPOSIT_ADDRESS = (
+    "48jLYUvGwLLUXKgTVpTNMYt1gL5aXFXNbGqp4Mfp1YFdCFhaLDcVXpKRTfxCUcYFxLcSAFYsHNVmrPMzMkNBaGnCJHNfsAV"
+)
+
+# The address a given pair's invoice carries, so a test naming a currency gets a plausible one
+# without restating it. TAO is the default for anything unlisted.
+DEPOSIT_ADDRESSES = {
+    "TAO": DEPOSIT_ADDRESS,
+    "USDC": ETH_DEPOSIT_ADDRESS,
+    "BTC": BTC_DEPOSIT_ADDRESS,
+    "XMR": XMR_DEPOSIT_ADDRESS,
+}
 CREDIT_PRICE_RAO = RAO_PER_TAO // 2  # 0.5 TAO, the shipped default
 TAO_USD = Decimal("400")  # so one credit is $200 before the quote margin
 
@@ -111,6 +129,7 @@ def invoice_body(
     crypto_network: str = "bittensor",
     exchange_rate: str = "0.0025",
     hosted_invoice_url: str | None = "https://pay.test/invoice/hosted-token-1",
+    deposit_address: str | None = None,
 ) -> dict:
     """A TMC PAY invoice object, shaped exactly as the published payload schema.
 
@@ -132,7 +151,11 @@ def invoice_body(
         "crypto_amount": crypto_amount,
         "crypto_currency": crypto_currency,
         "crypto_network": crypto_network,
-        "deposit_address": DEPOSIT_ADDRESS,
+        "deposit_address": (
+            deposit_address
+            if deposit_address is not None
+            else DEPOSIT_ADDRESSES.get(crypto_currency, DEPOSIT_ADDRESS)
+        ),
         "exchange_rate": exchange_rate,
         "commission_amount": "2.00",
         "hosted_invoice_url": hosted_invoice_url,
@@ -1438,6 +1461,117 @@ def test_a_purchase_can_be_paid_in_another_currency_at_the_same_tao_price():
                 assert order["amount_rao"] is None
                 assert order["amount_tao"] is None
                 assert order["btcli_command"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("currency", "network", "amount", "address"),
+    [
+        ("USDC", "ethereum", "200.00", ETH_DEPOSIT_ADDRESS),
+        ("BTC", "bitcoin", "0.00200000", BTC_DEPOSIT_ADDRESS),
+        ("XMR", "monero", "1.250000000000", XMR_DEPOSIT_ADDRESS),
+    ],
+)
+def test_a_deposit_address_from_any_chain_is_stored_and_returned(
+    currency: str, network: str, amount: str, address: str
+):
+    """The address TMC PAY minted, whatever chain it is on, survives the round trip.
+
+    The regression this pins: `tmc_pay_orders.deposit_address` carried the `ss58` domain — 48
+    base58 characters, a Bittensor address and nothing else — until V027. Every pair except TAO
+    therefore failed on the write that stores the address, as a CheckViolation that reached the
+    buyer as a 500. Parametrised over three formats rather than one because the point is that the
+    column no longer has an opinion about the shape: 42 hex characters with an `0x`, 42 lowercase
+    bech32, and 95 base58 all have to land.
+    """
+
+    async def scenario():
+        invoice = invoice_body(
+            invoice_id=f"chain-{currency.lower()}",
+            crypto_currency=currency,
+            crypto_network=network,
+            crypto_amount=amount,
+            fiat_amount="200.00",
+            exchange_rate="1.0",
+        )
+        assert invoice["deposit_address"] == address
+        gateway = FakeGateway([invoice])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit, f"{currency.lower()}-buyer@example.com") as (http, _):
+                created = await http.post(
+                    ORDERS,
+                    json={
+                        "credits": 1,
+                        "crypto_currency": currency,
+                        "crypto_network": network,
+                    },
+                    headers=same_origin(),
+                )
+                assert created.status_code == 201, created.text
+                order = created.json()["order"]
+                assert order["deposit_address"] == address
+                assert order["crypto_currency"] == currency
+                assert order["crypto_amount"] == amount
+                # Not TAO, so there is no rao figure and no `btcli` command to offer.
+                assert order["amount_rao"] is None
+                assert order["btcli_command"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unexpected_failure_leaves_no_live_order_behind(monkeypatch):
+    """A 500 must not also close the till.
+
+    The order row is committed as NEW before the outbound call so a lost create-response stays
+    recoverable, and NEW counts against `TMC_PAY_MAX_OPEN_ORDERS`. A row that never reached
+    `attach_invoice` has no `invoice_expires_at`, so `expire_lapsed` cannot reclaim it either --
+    which is how three 500s used to leave an account unable to buy credits in any currency, TAO
+    included. The row is closed on the way out instead.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [invoice_body(invoice_id="strand-1"), invoice_body(invoice_id="strand-2")]
+        )
+        kit = await kit_with(gateway).setup()
+
+        async def explode(*_args, **_kwargs):
+            raise RuntimeError("the write nobody anticipated")
+
+        monkeypatch.setattr(order_store, "attach_invoice", explode)
+        try:
+            async with buyer(kit, "strand@example.com") as (http, account):
+                with pytest.raises(RuntimeError, match="nobody anticipated"):
+                    await http.post(
+                        ORDERS, json={"credits": 1}, headers=same_origin()
+                    )
+
+                account_id = uuid.UUID(account["id"])
+                async with kit.session() as session:
+                    live = await order_store.count_live_orders(
+                        session, account_id, now=dt.datetime.now(dt.UTC)
+                    )
+                    orders = await order_store.orders_for(
+                        session, account_id, limit=10
+                    )
+                # Closed, so it counts against nothing.
+                assert live == 0
+                assert [str(o.status) for o in orders] == ["FAILED"]
+                assert orders[0].failure_reason is not None
+                assert "RuntimeError" in orders[0].failure_reason
+
+                # And the account can still buy: the allowance was never spent.
+                monkeypatch.undo()
+                retried = await http.post(
+                    ORDERS, json={"credits": 1}, headers=same_origin()
+                )
+                assert retried.status_code == 201, retried.text
         finally:
             await kit.teardown()
 

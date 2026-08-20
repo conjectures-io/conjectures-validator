@@ -68,6 +68,7 @@ from submission_api.dependencies import (
     SessionDep,
 )
 from submission_api.errors import (
+    ApiError,
     BadRequest,
     Conflict,
     NotFound,
@@ -539,39 +540,51 @@ async def create_order(
     # reason it is written first.
     await session.commit()
 
-    quote = await _quote_invoice(
-        services,
-        settings,
-        order=order,
-        required_rao=required_rao,
-        seed=seed,
-        session=session,
-        pair=pair,
-    )
-    invoice = quote.invoice
+    # Everything from here to the commit runs with a NEW row already committed, and NEW counts
+    # against the account's open-invoice allowance with no TTL to lapse. So an unexpected failure
+    # in this span closes that row on the way out — see `_fail_after_unexpected_error`. The
+    # refusals `_quote_invoice` raises deliberately are re-raised untouched: it has already marked
+    # the order and said why.
+    order_id = order.id
+    try:
+        quote = await _quote_invoice(
+            services,
+            settings,
+            order=order,
+            required_rao=required_rao,
+            seed=seed,
+            session=session,
+            pair=pair,
+        )
+        invoice = quote.invoice
 
-    await order_store.attach_invoice(
-        session,
-        order,
-        invoice_id=invoice.invoice_id,
-        merchant_id=invoice.merchant_id,
-        status=_state(invoice.status),
-        fiat_amount=invoice.fiat_amount,
-        fiat_currency=invoice.fiat_currency,
-        exchange_rate=invoice.exchange_rate,
-        commission_amount=invoice.commission_amount,
-        crypto_amount_rao=invoice.crypto_amount_rao,
-        crypto_amount=invoice.crypto_amount,
-        crypto_currency=invoice.crypto_currency,
-        crypto_network=invoice.crypto_network,
-        deposit_address=invoice.deposit_address,
-        invoice_expires_at=invoice.expires_at,
-        hosted_invoice_url=invoice.hosted_invoice_url,
-    )
-    balance = await credit_store.credit_balance(
-        session, principal.account.id, credit_price_rao=credit_price_rao, now=now
-    )
-    await session.commit()
+        await order_store.attach_invoice(
+            session,
+            order,
+            invoice_id=invoice.invoice_id,
+            merchant_id=invoice.merchant_id,
+            status=_state(invoice.status),
+            fiat_amount=invoice.fiat_amount,
+            fiat_currency=invoice.fiat_currency,
+            exchange_rate=invoice.exchange_rate,
+            commission_amount=invoice.commission_amount,
+            crypto_amount_rao=invoice.crypto_amount_rao,
+            crypto_amount=invoice.crypto_amount,
+            crypto_currency=invoice.crypto_currency,
+            crypto_network=invoice.crypto_network,
+            deposit_address=invoice.deposit_address,
+            invoice_expires_at=invoice.expires_at,
+            hosted_invoice_url=invoice.hosted_invoice_url,
+        )
+        balance = await credit_store.credit_balance(
+            session, principal.account.id, credit_price_rao=credit_price_rao, now=now
+        )
+        await session.commit()
+    except ApiError:
+        raise
+    except Exception as exc:
+        await _fail_after_unexpected_error(session, order_id, exc)
+        raise
 
     get_axiom().info(
         source="api",
@@ -930,6 +943,43 @@ async def _fail(session: AsyncSession, order: TmcPayOrder, *, reason: str) -> No
     """Mark the order unusable and commit, so the refusal survives the response."""
     await order_store.fail_order(session, order, reason=reason[:500])
     await session.commit()
+
+
+async def _fail_after_unexpected_error(
+    session: AsyncSession, order_id: uuid.UUID, exc: BaseException
+) -> None:
+    """Close a NEW order after something nobody anticipated raised, then let the error through.
+
+    Why this exists rather than leaving the row alone: the order is committed as NEW *before* the
+    outbound call, so a lost create-response stays recoverable. NEW is in
+    `db.tmc_pay.LIVE_ORDER_STATES`, and a row that never reached `attach_invoice` has no
+    `invoice_expires_at` — so `expire_lapsed` cannot reclaim it either, because it only touches
+    rows whose TTL has passed. The row therefore counts against `TMC_PAY_MAX_OPEN_ORDERS` forever,
+    and `TMC_PAY_MAX_OPEN_ORDERS` failures in a row stop that account buying credits at all,
+    including in TAO. A 500 on one purchase is a bug; a 500 that permanently closes the till is a
+    worse one.
+
+    Rolled back first because the failure may itself have been a refused write, which leaves the
+    transaction aborted and every later statement on it refused too. Best effort by construction:
+    the original exception is what the caller must see, so a failure to record this one is logged
+    and swallowed rather than replacing it.
+    """
+    try:
+        await session.rollback()
+        closed = await order_store.fail_order_by_id(
+            session, order_id, reason=f"{type(exc).__name__}: {exc}"[:500]
+        )
+        await session.commit()
+        if not closed:
+            logger.warning(
+                "TMC PAY order %s was not NEW when an unexpected error closed it", order_id
+            )
+    except Exception:
+        logger.exception(
+            "could not close TMC PAY order %s after an unexpected error; it will count "
+            "against the account's open-invoice allowance until an operator clears it",
+            order_id,
+        )
 
 
 def _balance(balance: credit_store.CreditBalance) -> schemas.CreditBalance:

@@ -1714,7 +1714,10 @@ class TmcPayOrder(Base):
     crypto_amount: Mapped[str | None] = mapped_column(Text)
     crypto_currency: Mapped[str | None] = mapped_column(Text)
     crypto_network: Mapped[str | None] = mapped_column(Text)
-    deposit_address: Mapped[str | None] = mapped_column(SS58)
+    # Plain text, not `SS58`: this is an address the processor minted on whatever chain the buyer
+    # chose, so its shape belongs to that chain rather than to Bittensor. See V027 — typing it as
+    # a Substrate address is what made every non-TAO invoice fail on this write.
+    deposit_address: Mapped[str | None] = mapped_column(Text)
 
     # TMC PAY's hosted payment page for this invoice, verbatim. Stored rather than derived: their
     # public route is keyed by an opaque token, so this URL cannot be rebuilt from the invoice id.
@@ -1829,6 +1832,13 @@ class TmcPayOrder(Base):
         CheckConstraint(
             "crypto_network IS NULL OR length(crypto_network) BETWEEN 1 AND 32",
             name="tmc_pay_crypto_network_length",
+        ),
+        # Bounded rather than shaped. `submission_api.tmc_pay.MAX_DEPOSIT_ADDRESS_LENGTH` is the
+        # same 128 applied when the field is read off an invoice; a pattern would be this codebase
+        # asserting what a Monero or Ethereum address looks like, which is not its to assert.
+        CheckConstraint(
+            "deposit_address IS NULL OR length(deposit_address) BETWEEN 1 AND 128",
+            name="tmc_pay_deposit_address_length",
         ),
         CheckConstraint(
             "credited_ledger_id IS NULL "
