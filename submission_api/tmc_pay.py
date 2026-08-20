@@ -185,6 +185,11 @@ MAX_REDIRECT_URL_LENGTH = 2048
 # a chain name a short word; 36 decimals is past every token in circulation.
 MAX_CURRENCY_CODE_LENGTH = 16
 MAX_NETWORK_NAME_LENGTH = 32
+# A deposit address is minted by TMC PAY on the buyer's chosen chain, so it is bounded rather than
+# shaped: 42 characters for Ethereum, 42 for a bech32 Bitcoin address, 95 for Monero. The same
+# number is the `tmc_pay_deposit_address_length` check on the column — see V027, which exists
+# because that column used to insist on a 48-character Substrate address.
+MAX_DEPOSIT_ADDRESS_LENGTH = 128
 MAX_DECIMAL_PLACES = 36
 
 # The only schemes a hosted payment URL may use. This value is handed to a browser as a
@@ -731,7 +736,9 @@ def parse_invoice(payload: object) -> Invoice:
         ),
         crypto_currency=crypto_currency,
         crypto_network=_text(payload, "crypto_network", limit=MAX_NETWORK_NAME_LENGTH).lower(),
-        deposit_address=_text(payload, "deposit_address", limit=128),
+        deposit_address=_text(
+            payload, "deposit_address", limit=MAX_DEPOSIT_ADDRESS_LENGTH
+        ),
         exchange_rate=_text(payload, "exchange_rate", limit=64),
         commission_amount=_optional_text(payload, "commission_amount", limit=64),
         hosted_invoice_url=_hosted_url(payload, "hosted_invoice_url"),

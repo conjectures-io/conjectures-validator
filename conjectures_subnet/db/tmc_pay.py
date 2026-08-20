@@ -308,6 +308,31 @@ async def fail_order(
     return order
 
 
+async def fail_order_by_id(
+    session: AsyncSession, order_id: uuid.UUID, *, reason: str
+) -> bool:
+    """Mark one order FAILED by id, for the caller that no longer holds a usable ORM object.
+
+    `fail_order` mutates an instance, which needs a session whose transaction is still alive. The
+    caller here is the opposite case: something between creating the order row and attaching its
+    invoice raised, and if that something was a failed write then the transaction is already
+    aborted and the instance expired with it. So this issues the UPDATE by primary key after a
+    rollback, touching only a row that is still NEW — an order that reached any later state is
+    not this call's to close.
+
+    Returns whether a row was closed, so a caller can tell "left it as it was" from "did nothing".
+    """
+    result = await session.execute(
+        update(TmcPayOrder)
+        .where(
+            TmcPayOrder.id == order_id,
+            TmcPayOrder.status == TmcPayOrderState.NEW,
+        )
+        .values(status=TmcPayOrderState.FAILED, failure_reason=reason)
+    )
+    return bool(result.rowcount)
+
+
 async def get_order(
     session: AsyncSession,
     order_id: uuid.UUID,
@@ -702,6 +727,7 @@ __all__ = [
     "deliveries_for",
     "expire_lapsed",
     "fail_order",
+    "fail_order_by_id",
     "find_by_external_id",
     "find_by_invoice",
     "get_order",
