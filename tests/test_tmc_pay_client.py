@@ -217,6 +217,87 @@ def test_a_body_with_neither_id_is_refused() -> None:
         run(create(gateway(Upstream(body=body))))
 
 
+# One webhook delivery, verbatim from a dev deployment's logs on 2026-08-20. Kept as the bytes
+# that arrived rather than a dict literal, because the whole value of this fixture is that nobody
+# quietly tidies it into the shape the code already expected.
+LIVE_WEBHOOK_BODY = (
+    b'{"status":"created","metadata":{"credits":1,"order_id":"eeaa7d5c-541c-41e5-91d9-29df45b3f8'
+    b'ab","account_id":"bd6d32c9-c038-493f-855c-5d0fc464bc77","credit_price_rao":52000},"created'
+    b'_at":"2026-08-20T10:02:13.935618+00:00","expires_at":"2026-08-20T10:32:14.035769+00:00","i'
+    b'nvoice_id":"cd074df8-02a3-47a7-9a39-d52b91366555","description":"1 verification credit(s) '
+    b'for conjectures.io","external_id":"credits-36681a2f-67ea-4b1d-89ab-6974f55c8467","merchant'
+    b'_id":"e2ccca0b-5392-4569-8ab9-c6b9976e9eeb","confirmed_at":null,"exchange_rate":"208.30619'
+    b'96132112","fiat_currency":"USD","crypto_network":"bittensor","crypto_currency":"TAO","depos'
+    b'it_address":"5GrvE99YScjy3U6TThBHPyqNYPUwNhk85W1fRQC4ULP6rxnw","excess_fiat_amount":"0.00",'
+    b'"hosted_invoice_url":"https://pay.taomarketcap.com/invoice/qWNPRtc-C5tvUIp9YgLWR-CQ3UOlkZLQ'
+    b'tR4OymxXEx0","excess_crypto_amount":"0","expected_fiat_amount":"0.02","received_fiat_amount'
+    b'":"0.00","remaining_fiat_amount":"0.02","expected_crypto_amount":"0.0001","received_crypto_'
+    b'amount":"0","remaining_crypto_amount":"0.0001"}'
+)
+
+
+def test_a_real_webhook_delivery_parses() -> None:
+    """The shape TMC PAY posts, which is not the shape their REST API returns.
+
+    Four of its fields are spelled differently from `INVOICE_BODY`, and every one of them has cost
+    a production incident: `invoice_id` for `id`, `metadata` for `metadata_json`, and both amounts
+    split into `expected_`/`received_`/`remaining_`/`excess_` with no plain `crypto_amount` or
+    `fiat_amount` anywhere in the body.
+    """
+    invoice = tmc_pay.parse_invoice(json.loads(LIVE_WEBHOOK_BODY))
+
+    assert invoice.invoice_id == "cd074df8-02a3-47a7-9a39-d52b91366555"
+    assert invoice.merchant_id == "e2ccca0b-5392-4569-8ab9-c6b9976e9eeb"
+    assert invoice.status == tmc_pay.STATUS_CREATED
+    assert invoice.external_id == "credits-36681a2f-67ea-4b1d-89ab-6974f55c8467"
+    # The expected amounts. Nothing had arrived on a `created` delivery, so the received figures
+    # sitting right beside them in the same body are zero.
+    assert invoice.crypto_amount == "0.0001"
+    assert invoice.crypto_amount_rao == 100_000
+    assert invoice.fiat_amount == "0.02"
+    assert invoice.crypto_currency == "TAO"
+    assert invoice.crypto_network == "bittensor"
+    assert invoice.metadata == {
+        "credits": 1,
+        "order_id": "eeaa7d5c-541c-41e5-91d9-29df45b3f8ab",
+        "account_id": "bd6d32c9-c038-493f-855c-5d0fc464bc77",
+        "credit_price_rao": 52000,
+    }
+    assert invoice.hosted_invoice_url is not None
+
+
+def test_the_received_amount_is_never_credited() -> None:
+    """`received_` must not be read as a fallback for `crypto_amount`.
+
+    It sits in the same body, one key away, and looks like an equally good candidate. It is not:
+    on this delivery it is `"0"`, so a parser reaching for it would either refuse the invoice for
+    a non-positive amount or credit nothing at all.
+    """
+    body = json.loads(LIVE_WEBHOOK_BODY)
+    assert len(LIVE_WEBHOOK_BODY) == 1042, "fixture is no longer the delivery that was captured"
+    assert body["received_crypto_amount"] == "0", "fixture no longer exercises the hazard"
+
+    invoice = tmc_pay.parse_invoice(body)
+    assert tmc_pay.credited_rao(invoice, required_rao=52_000) == 100_000
+
+
+def test_the_rest_amount_names_win_when_a_body_carries_both() -> None:
+    body = dict(
+        INVOICE_BODY, expected_crypto_amount="9.9", expected_fiat_amount="99.99"
+    )
+    invoice = run(create(gateway(Upstream(body=body))))
+    assert invoice.crypto_amount == INVOICE_BODY["crypto_amount"]
+    assert invoice.fiat_amount == INVOICE_BODY["fiat_amount"]
+
+
+def test_a_body_with_neither_amount_spelling_is_refused() -> None:
+    """Absent under both names is a refusal, not a zero — this is the credited figure."""
+    for field in ("crypto_amount", "fiat_amount"):
+        body = {k: v for k, v in INVOICE_BODY.items() if k != field}
+        with pytest.raises(tmc_pay.TmcPayRejected, match=field):
+            run(create(gateway(Upstream(body=body))))
+
+
 def test_metadata_is_read_under_either_name() -> None:
     """Live responses use `metadata_json`; the older documentation used `metadata`."""
     live = run(create(gateway(Upstream(body=dict(INVOICE_BODY, metadata_json={"a": "1"})))))

@@ -675,11 +675,28 @@ def parse_invoice(payload: object) -> Invoice:
     so an invoice that has been through a webhook is validated exactly as strictly as one read
     back from the API, and neither is trusted to be well formed.
 
-    Two fields are read under either of two names. TMC PAY's live `InvoiceResponse` calls them
-    `id` and `metadata_json`, while earlier documentation — and possibly the webhook body, which
-    the published schema leaves untyped — calls them `invoice_id` and `metadata`. Accepting both
-    costs one lookup and removes a whole class of silent breakage; the live name is preferred
-    where a body carries both.
+    Four fields are read under either of two names, because TMC PAY's REST API and its webhook
+    are two different serialisations of the same invoice:
+
+        REST `InvoiceResponse`   webhook body
+        ----------------------   --------------------------
+        id                       invoice_id
+        metadata_json            metadata
+        crypto_amount            expected_crypto_amount
+        fiat_amount              expected_fiat_amount
+
+    That is established rather than assumed: their OpenAPI document defines `InvoiceResponse` with
+    the left-hand names and defines no webhook payload schema at all — the delivery record types it
+    `additionalProperties: true` — so the right-hand shape is undocumented and knowable only from
+    real deliveries. Accepting both spellings costs one lookup and removes a whole class of silent
+    breakage; the REST name is preferred where a body carries both.
+
+    The webhook splits each amount four ways: `expected_`, `received_`, `remaining_`, `excess_`.
+    `expected_` is the counterpart of the REST field — the amount the invoice asks for, locked at
+    `exchange_rate`, and the figure the quote band already checked against the credit price. It is
+    deliberately not `received_`, which reads `"0"` on every `created` and `pending` delivery:
+    whether the money arrived is what `status` reports, and crediting a received figure straight
+    from the wire would credit nothing on exactly the deliveries that arrive first.
     """
     if not isinstance(payload, Mapping):
         raise TmcPayRejected("TMC PAY returned something that is not a JSON object")
@@ -690,14 +707,18 @@ def parse_invoice(payload: object) -> Invoice:
     if status not in INVOICE_STATUSES:
         raise TmcPayRejected(f"unknown invoice status {status!r}")
 
-    crypto_amount = _text(payload, "crypto_amount", limit=64)
+    crypto_amount = _either_text(
+        payload, "crypto_amount", "expected_crypto_amount", limit=64
+    )
     crypto_currency = _text(payload, "crypto_currency", limit=MAX_CURRENCY_CODE_LENGTH).upper()
     return Invoice(
         invoice_id=invoice_id,
         merchant_id=merchant_id,
         status=status,
         external_id=_optional_text(payload, "external_id", limit=128),
-        fiat_amount=_text(payload, "fiat_amount", limit=64),
+        fiat_amount=_either_text(
+            payload, "fiat_amount", "expected_fiat_amount", limit=64
+        ),
         fiat_currency=_text(payload, "fiat_currency", limit=8).upper(),
         crypto_amount=crypto_amount,
         # Rao only when the invoice is actually denominated in TAO. Every other currency has its
