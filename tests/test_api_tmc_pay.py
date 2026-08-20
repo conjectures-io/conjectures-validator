@@ -146,15 +146,19 @@ def signed(body: dict, *, secret: str = SECRET, webhook_id: str | None = None) -
     """The exact bytes and headers TMC PAY would send for `body`.
 
     Signed over the serialised bytes and posted as those same bytes — not re-serialised by the
-    client — because that is the property the verifier depends on.
+    client — because that is the property the verifier depends on. The timestamp is an ISO-8601
+    string and part of the signed message, both as TMC PAY sends them.
     """
     raw = json.dumps(body).encode("utf-8")
-    signature = hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    stamp = "2026-08-20T10:02:14.126755+00:00"
+    signature = hmac.new(
+        secret.encode("utf-8"), tmc_pay.signed_message(raw, stamp), hashlib.sha256
+    ).hexdigest()
     headers = {
         "Content-Type": "application/json",
         tmc_pay.WEBHOOK_ID_HEADER: webhook_id or str(uuid.uuid4()),
-        tmc_pay.WEBHOOK_TIMESTAMP_HEADER: "1786000000",
-        tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"sha256={signature}",
+        tmc_pay.WEBHOOK_TIMESTAMP_HEADER: stamp,
+        tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"v1={signature}",
         tmc_pay.WEBHOOK_EVENT_HEADER: f"invoice.{body['status']}",
     }
     return raw, headers
@@ -360,23 +364,38 @@ def test_lateness_decides_a_paid_status_either_way():
     assert tmc_pay.credits_are_earned("confirmed", late=False, credit_late_payments=False)
 
 
-def test_the_signature_check_is_over_the_raw_bytes():
+STAMP = "2026-08-20T10:02:14.126755+00:00"
+
+
+def test_the_signature_check_is_over_the_timestamp_and_the_raw_bytes():
     body = invoice_body(invoice_id="inv-1")
     raw = json.dumps(body).encode("utf-8")
-    digest = hmac.new(SECRET.encode("utf-8"), raw, hashlib.sha256).hexdigest()
 
-    assert tmc_pay.signature_matches(raw, f"sha256={digest}", SECRET)
+    def mac(message: bytes) -> str:
+        return hmac.new(SECRET.encode("utf-8"), message, hashlib.sha256).hexdigest()
+
+    digest = mac(tmc_pay.signed_message(raw, STAMP))
+    assert tmc_pay.signature_matches(raw, f"v1={digest}", SECRET, timestamp=STAMP)
     # Upper-case hex is still the same MAC.
-    assert tmc_pay.signature_matches(raw, f"sha256={digest.upper()}", SECRET)
+    assert tmc_pay.signature_matches(raw, f"v1={digest.upper()}", SECRET, timestamp=STAMP)
+
+    # The timestamp is signed, so a delivery cannot be replayed under a different one, and a
+    # signature over the body alone — the scheme TMC PAY documents — is not accepted.
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", SECRET, timestamp="2026-01-01T00:00:00+00:00")
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", SECRET, timestamp=None)
+    assert not tmc_pay.signature_matches(raw, f"v1={mac(raw)}", SECRET, timestamp=STAMP)
+
     # Re-serialising the parse changes the bytes, so the signature no longer matches — the exact
     # mistake the TMC PAY documentation warns about.
     reserialised = json.dumps(json.loads(raw), indent=2).encode("utf-8")
-    assert not tmc_pay.signature_matches(reserialised, f"sha256={digest}", SECRET)
-    # Everything malformed is simply "no match", never an exception.
-    for header in (None, "", digest, "sha512=" + digest, "sha256=zz", "sha256="):
-        assert not tmc_pay.signature_matches(raw, header, SECRET)
-    assert not tmc_pay.signature_matches(raw, f"sha256={digest}", "another-secret")
-    assert not tmc_pay.signature_matches(raw, f"sha256={digest}", "")
+    assert not tmc_pay.signature_matches(reserialised, f"v1={digest}", SECRET, timestamp=STAMP)
+
+    # Everything malformed is simply "no match", never an exception — including a non-ASCII
+    # header, which the constant-time comparison would otherwise raise on.
+    for header in (None, "", digest, "sha256=" + digest, "v2=" + digest, "v1=zz", "v1=", "v1=é"):
+        assert not tmc_pay.signature_matches(raw, header, SECRET, timestamp=STAMP)
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", "another-secret", timestamp=STAMP)
+    assert not tmc_pay.signature_matches(raw, f"v1={digest}", "", timestamp=STAMP)
 
 
 # --- Buying ------------------------------------------------------------------------------
@@ -847,7 +866,7 @@ def test_the_credited_amount_comes_from_the_invoice_and_not_from_the_webhook():
 
 
 async def _post_badly_signed(
-    kit, *, signed_over: bytes, body: bytes, timestamp: str = "1755635632"
+    kit, *, signed_over: bytes, body: bytes, timestamp: str = STAMP
 ) -> str:
     """POST a webhook whose signature is over `signed_over`, and return the offered hex."""
     http = await client(kit)
@@ -857,7 +876,7 @@ async def _post_badly_signed(
             WEBHOOK,
             content=body,
             headers={
-                tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"sha256={sig}",
+                tmc_pay.WEBHOOK_SIGNATURE_HEADER: f"v1={sig}",
                 tmc_pay.WEBHOOK_TIMESTAMP_HEADER: timestamp,
                 tmc_pay.WEBHOOK_ID_HEADER: "11111111-2222-3333-4444-555555555555",
                 "Authorization": "Bearer must-not-be-logged",
@@ -886,18 +905,15 @@ def test_the_request_is_not_logged_unless_an_operator_asks(caplog):
 def test_the_diagnostic_names_the_scheme_that_would_have_matched(caplog):
     """The one bit that separates "wrong secret" from "wrong signed message"."""
     body = b'{"invoice_id":"ecd53a85","status":"pending"}'
-    timestamp = "1755635632"
 
     async def scenario():
         kit = await kit_with(FakeGateway([]), TMC_PAY_WEBHOOK_DEBUG="true").setup()
         try:
             with caplog.at_level(logging.WARNING):
-                # Signed over `timestamp.body`, which this service does not implement.
+                # Signed over `body.timestamp`: a scheme a processor might plausibly use and this
+                # service does not, which is the situation the diagnostic exists to identify.
                 offered = await _post_badly_signed(
-                    kit,
-                    signed_over=timestamp.encode() + b"." + body,
-                    body=body,
-                    timestamp=timestamp,
+                    kit, signed_over=body + b"." + STAMP.encode(), body=body
                 )
             text = caplog.text
             assert "TMC PAY webhook diagnostics" in text
@@ -905,7 +921,13 @@ def test_the_diagnostic_names_the_scheme_that_would_have_matched(caplog):
             assert body.decode() in text
             assert f"body: {len(body)} bytes" in text
             # And the matching scheme is named, with the offered prefix beside it.
-            assert f"timestamp.body           {offered[:12]}" in text
+            assert f"{'body.timestamp':24} {offered[:12]}" in text
+            # The scheme actually in force is offered for comparison and did *not* match.
+            ours = hmac.new(
+                SECRET.encode(), tmc_pay.signed_message(body, STAMP), hashlib.sha256
+            ).hexdigest()
+            assert f"{'timestamp.body (ours)':24} {ours[:12]}" in text
+            assert ours[:12] != offered[:12]
 
             # The offered signature is echoed whole, which is safe: the caller sent it. What must
             # never be whole is a MAC *this service* computed over caller-chosen bytes — that is a

@@ -149,7 +149,13 @@ WEBHOOK_TIMESTAMP_HEADER = "X-Webhook-Timestamp"
 WEBHOOK_SIGNATURE_HEADER = "X-Webhook-Signature"
 WEBHOOK_EVENT_HEADER = "X-Webhook-Event"
 
-SIGNATURE_PREFIX = "sha256="
+# What TMC PAY prefixes the digest with. Not `sha256=`: the label names a signing *version*,
+# which is theirs to change if the scheme changes, so an unrecognised one is a refusal and not a
+# guess at what they meant.
+SIGNATURE_PREFIX = "v1="
+
+# Separates the delivery timestamp from the body inside the signed message.
+SIGNED_MESSAGE_SEPARATOR = b"."
 
 # How much of a candidate MAC the troubleshooting log prints. Long enough that a match is
 # unambiguous, far too short to forge a signature with.
@@ -473,29 +479,56 @@ def credits_are_earned(status: str, *, late: bool, credit_late_payments: bool) -
 # --- Webhook signatures ----------------------------------------------------------------------
 
 
-def signature_matches(raw_body: bytes, header: str | None, secret: str) -> bool:
-    """Whether `header` is TMC PAY's HMAC-SHA256 over exactly these bytes.
+def signed_message(raw_body: bytes, timestamp: str | None) -> bytes:
+    """The octets TMC PAY signs: the delivery timestamp, a dot, then the body verbatim.
 
-    Three things this gets right on purpose, because each has a well-known way of going wrong:
+    Their documentation says the body on its own. It is wrong, and this is measured rather than
+    assumed: `signature_diagnosis` computed both schemes against real deliveries and this one
+    matched every time while the documented one matched none. The timestamp is used exactly as it
+    arrived — an ISO-8601 string, not an epoch — because it is signed as text and reformatting it
+    would change the message.
+
+    Binding the timestamp is the better design anyway, and it is why no freshness window is
+    checked here. Re-signing a captured body under a newer timestamp needs the secret, so it is
+    already out of reach; replaying the delivery verbatim is caught by the `X-Webhook-ID`
+    deduplication the handler does next. A clock-skew rejection would only cost a paying customer
+    their credits for a delivery that is provably genuine.
+    """
+    return (timestamp or "").encode("utf-8") + SIGNED_MESSAGE_SEPARATOR + raw_body
+
+
+def signature_matches(
+    raw_body: bytes, header: str | None, secret: str, *, timestamp: str | None
+) -> bool:
+    """Whether `header` is TMC PAY's HMAC-SHA256 over this delivery.
+
+    Four things this gets right on purpose, because each has a well-known way of going wrong:
 
     * **The raw body, verbatim.** Not the re-serialised parse. A JSON round trip changes key
       order and whitespace, and the signature is over the octets that arrived.
+    * **The timestamp too**, per `signed_message`. A `timestamp` of `None` therefore cannot
+      verify, which is the wanted answer: without it there is nothing to check the signature of.
     * **Constant-time comparison.** `compare_digest`, not `==`: a byte-at-a-time comparison of a
       MAC leaks how much of a guess was right.
-    * **No exception on malformed input.** A missing header, a wrong prefix or non-hex digits are
-      all just "does not match". Distinguishing them would answer questions for an attacker and
-      helps a legitimate sender not at all.
+    * **No exception on malformed input.** A missing header, an unknown prefix, non-hex digits and
+      non-ASCII bytes are all just "does not match". Distinguishing them would answer questions
+      for an attacker and helps a legitimate sender not at all.
     """
     if not header or not secret:
         return False
     candidate = header.strip()
     if not candidate.startswith(SIGNATURE_PREFIX):
         return False
-    offered = candidate[len(SIGNATURE_PREFIX) :].lower()
+    try:
+        offered = candidate[len(SIGNATURE_PREFIX) :].lower().encode("ascii")
+    except UnicodeEncodeError:
+        # `compare_digest` raises on non-ASCII text, and this function promises never to raise.
+        # A byte outside ASCII cannot be part of a hex digest regardless.
+        return False
     expected = hmac.new(
-        secret.encode("utf-8"), raw_body, hashlib.sha256
+        secret.encode("utf-8"), signed_message(raw_body, timestamp), hashlib.sha256
     ).hexdigest()
-    return hmac.compare_digest(offered, expected)
+    return hmac.compare_digest(offered, expected.encode("ascii"))
 
 
 def signature_diagnosis(
@@ -513,9 +546,11 @@ def signature_diagnosis(
     runs on a body an unauthenticated caller supplied: logging a full valid MAC for
     attacker-chosen bytes would hand out exactly the signature they could not compute themselves.
 
-    The candidates are the schemes payment processors actually use. TMC PAY documents the first;
-    the rest are here because their published payload schema turned out not to match what they
-    send, so their signature documentation is not proof either.
+    The candidates are the schemes payment processors actually use. The first is the one
+    `signature_matches` implements; the second is the one TMC PAY documents. They are not the
+    same, which is what this helper was built to discover, and is why it stays: a processor whose
+    published payload schema does not match what it sends may change its signing without saying
+    so either.
     """
     if not secret:
         return ()
@@ -523,8 +558,8 @@ def signature_diagnosis(
     ts = (timestamp or "").encode("utf-8")
     wid = (webhook_id or "").encode("utf-8")
     candidates: tuple[tuple[str, bytes], ...] = (
+        ("timestamp.body (ours)", signed_message(raw_body, timestamp)),
         ("raw body (documented)", raw_body),
-        ("timestamp.body", ts + b"." + raw_body),
         ("timestamp + body", ts + raw_body),
         ("id.timestamp.body", wid + b"." + ts + b"." + raw_body),
         ("body.timestamp", raw_body + b"." + ts),
@@ -1063,5 +1098,6 @@ __all__ = [
     "rao_from_tao",
     "signature_diagnosis",
     "signature_matches",
+    "signed_message",
     "tao_from_rao",
 ]

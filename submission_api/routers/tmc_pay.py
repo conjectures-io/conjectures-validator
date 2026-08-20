@@ -218,7 +218,7 @@ def _log_rejected_request(request: Request, raw: bytes, settings: Settings) -> N
         "  body verbatim:\n%s\n"
         "  offered signature: %s\n"
         "  a scheme below whose prefix matches the offered one means the secret is right and the\n"
-        "  signed message is not the raw body; none matching means the secret does not match:\n%s",
+        "  signed message is not the one we verify; none matching means the secret differs:\n%s",
         request.method,
         request.url.path,
         headers,
@@ -1217,6 +1217,7 @@ async def receive_webhook(
         raw,
         request.headers.get(tmc_pay.WEBHOOK_SIGNATURE_HEADER),
         settings.tmc_pay_webhook_secret,
+        timestamp=request.headers.get(tmc_pay.WEBHOOK_TIMESTAMP_HEADER),
     ):
         # 401 and nothing else: no hint about which part failed, and no lookup performed. The
         # event is logged because a signature failure in production is either a rotation somebody
