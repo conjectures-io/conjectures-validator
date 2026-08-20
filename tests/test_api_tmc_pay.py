@@ -142,14 +142,51 @@ def invoice_body(
     }
 
 
+def webhook_shaped(body: dict) -> dict:
+    """`body` re-spelled the way TMC PAY's webhook actually serialises an invoice.
+
+    Their REST API and their webhook are two different serialisations of the same object, and the
+    webhook's is undocumented — their OpenAPI defines no payload schema for it at all, only an
+    `additionalProperties: true` blob on the delivery record. So a webhook test that posts the REST
+    shape proves nothing about the deliveries production actually receives, and three defects
+    reached production through exactly that gap: the id spelling, the amount spellings, and a
+    commission silently nulled on every order.
+
+    The captured original this mirrors is `test_tmc_pay_client.LIVE_WEBHOOK_BODY`, kept there as
+    the verbatim bytes of one real delivery.
+    """
+    shaped = dict(body)
+    for rest, wire in (
+        ("crypto_amount", "expected_crypto_amount"),
+        ("fiat_amount", "expected_fiat_amount"),
+    ):
+        if rest in shaped:
+            shaped[wire] = shaped.pop(rest)
+    # A delivery carries no commission field, under any spelling.
+    shaped.pop("commission_amount", None)
+    # Each amount arrives as a quadruple. Nothing reads the other three; they are here so a test
+    # body has the keys a real one has, and so anything that starts reading them meets a plausible
+    # value rather than a hole.
+    paid = shaped.get("status") in {"confirmed", "overpaid"}
+    for unit in ("crypto", "fiat"):
+        expected = shaped.get(f"expected_{unit}_amount", "0")
+        shaped[f"received_{unit}_amount"] = expected if paid else "0"
+        shaped[f"remaining_{unit}_amount"] = "0" if paid else expected
+        shaped[f"excess_{unit}_amount"] = "0"
+    return shaped
+
+
 def signed(body: dict, *, secret: str = SECRET, webhook_id: str | None = None) -> tuple:
     """The exact bytes and headers TMC PAY would send for `body`.
+
+    `body` is given in the REST shape the rest of this suite uses and posted in the webhook shape,
+    via `webhook_shaped` — because that is what a delivery looks like.
 
     Signed over the serialised bytes and posted as those same bytes — not re-serialised by the
     client — because that is the property the verifier depends on. The timestamp is an ISO-8601
     string and part of the signed message, both as TMC PAY sends them.
     """
-    raw = json.dumps(body).encode("utf-8")
+    raw = json.dumps(webhook_shaped(body)).encode("utf-8")
     stamp = "2026-08-20T10:02:14.126755+00:00"
     signature = hmac.new(
         secret.encode("utf-8"), tmc_pay.signed_message(raw, stamp), hashlib.sha256
@@ -719,6 +756,41 @@ def test_a_confirmed_webhook_credits_the_locked_amount_once():
                 assert entry.kind is CreditEntryKind.DEPOSIT
                 assert entry.tmc_pay_order_id == stored.id
                 assert entry.deposit_id is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_webhook_does_not_erase_the_commission_the_invoice_recorded():
+    """TMC PAY's REST invoice carries a commission; their webhook body carries none at all.
+
+    So the fee recorded at purchase has to survive every delivery that lands on top of it. It does,
+    and this pins the outcome rather than the mechanism: today because the webhook re-attaches an
+    invoice only when the create response was lost, and additionally because `attach_invoice` now
+    reads an absent commission as silence instead of as a retraction.
+    """
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _account):
+                order = await _order_for(http)
+                # Recorded from the create response, which is the REST shape and carries the fee.
+                stored = await http.get(f"{ORDERS}/{order['id']}")
+                assert stored.json()["commission_amount"] == "2.00"
+
+                raw, headers = signed(
+                    invoice_body(invoice_id="inv-1", crypto_amount="0.5"),
+                    webhook_id="delivery-1",
+                )
+                # The delivery genuinely has no commission field — this is the hazard, not a mock.
+                assert "commission_amount" not in json.loads(raw)
+                assert (await http.post(WEBHOOK, content=raw, headers=headers)).status_code == 200
+
+                kept = await http.get(f"{ORDERS}/{order['id']}")
+                assert kept.json()["commission_amount"] == "2.00"
         finally:
             await kit.teardown()
 
