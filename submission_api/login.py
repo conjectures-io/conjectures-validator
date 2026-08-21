@@ -6,15 +6,16 @@ message being *domain-separated*. A signature is only meaningful relative to wha
 signed, so every distinct thing this validator ever asks a key to sign gets a distinct,
 unambiguous prefix.
 
-There are now seven:
+There are now eight:
 
-    conjectures-login-v1         sign in to an account with a coldkey
-    conjectures-coldkey-link-v1  attach another coldkey to an account
-    conjectures-hotkey-link-v1   attach a hotkey to an account
-    conjectures-cli-session-v1   open a CLI session with an already-linked hotkey
-    conjectures-deposit-claim-v1 claim a transfer this coldkey made
-    conjectures-read-v1          read a submission's status (submission_api/routers)
-    <the request digest>         authorise one paid submission (32 raw bytes)
+    conjectures-login-v1          sign in to an account with a coldkey
+    conjectures-coldkey-link-v1   attach another coldkey to an account
+    conjectures-hotkey-link-v1    attach a hotkey to an account
+    conjectures-cli-session-v1    open a CLI session with an already-linked hotkey
+    conjectures-deposit-claim-v1  claim a transfer this coldkey made
+    conjectures-web-submission-v1 authorise one credit-funded submission from a browser
+    conjectures-read-v1           read a submission's status (submission_api/routers)
+    <the request digest>          authorise one paid submission (32 raw bytes)
 
 ``conjectures-cli-session-v1`` deserves a note, because it is the one prefix a *hotkey* signs
 for a durable credential, and a hotkey is a key miners sign with routinely. Three things keep
@@ -58,6 +59,7 @@ COLDKEY_LINK_PREFIX = "conjectures-coldkey-link-v1"
 HOTKEY_LINK_PREFIX = "conjectures-hotkey-link-v1"
 CLI_SESSION_PREFIX = "conjectures-cli-session-v1"
 DEPOSIT_CLAIM_PREFIX = "conjectures-deposit-claim-v1"
+WEB_SUBMISSION_PREFIX = "conjectures-web-submission-v1"
 
 REASON_SIGNATURE_INVALID = "SIGNATURE_INVALID"
 REASON_CHALLENGE_INVALID = "CHALLENGE_INVALID"
@@ -136,6 +138,50 @@ def deposit_claim_message(*, domain: str, address: str, extrinsic_reference: str
     )
 
 
+def web_submission_message(
+    *,
+    domain: str,
+    address: str,
+    hotkey: str,
+    task_id: str,
+    task_bundle_sha256: str,
+    bundle_sha256: str,
+    idempotency_key: str,
+    expires_at: dt.datetime,
+) -> str:
+    """The exact text a coldkey signs to authorise one credit-funded submission.
+
+    Not built from ``_message``, because this one has no server-minted nonce to pin and four
+    more fields that it must pin instead. `bundle_sha256` is the nonce that matters: it is the
+    digest of the archive being uploaded, so the signature is bound to those exact bytes and
+    cannot be moved to a different proof. `idempotency_key` distinguishes two attempts at the
+    same archive, and `expires` bounds how long the whole thing stays usable.
+
+    **The server rebuilds this from what it actually received and holds**, never from what the
+    request claimed: the digest of the body it read, and the task digest from its own allowlist.
+    A caller who understated either signs one message and is checked against another, which is
+    the property that makes a one-call flow safe without the server minting a challenge first.
+
+    Readable, `key: value` per line, because a person approves this in a wallet popup. A browser
+    extension shows the text it is asked to sign; an opaque 32-byte digest — what the hotkey
+    paths sign — is something people click through, and it is also not something a wallet
+    designed for messages will render at all.
+    """
+    return "\n".join(
+        (
+            WEB_SUBMISSION_PREFIX,
+            f"domain: {domain}",
+            f"address: {address}",
+            f"hotkey: {hotkey}",
+            f"task: {task_id}",
+            f"task_bundle_sha256: {task_bundle_sha256}",
+            f"bundle_sha256: {bundle_sha256}",
+            f"idempotency: {idempotency_key}",
+            f"expires: {_stamp(expires_at)}",
+        )
+    )
+
+
 def _message(
     prefix: str, *, domain: str, address: str, nonce: str, expires_at: dt.datetime
 ) -> str:
@@ -145,9 +191,19 @@ def _message(
             f"domain: {domain}",
             f"address: {address}",
             f"nonce: {nonce}",
-            f"expires: {expires_at.astimezone(dt.UTC).isoformat().replace('+00:00', 'Z')}",
+            f"expires: {_stamp(expires_at)}",
         )
     )
+
+
+def _stamp(value: dt.datetime) -> str:
+    """One spelling of an instant, shared by every message a key is asked to sign.
+
+    A message is verified by rebuilding it, so the formatting is part of the protocol: two
+    call sites rendering the same instant two ways would produce two different messages and
+    one failed signature.
+    """
+    return value.astimezone(dt.UTC).isoformat().replace("+00:00", "Z")
 
 
 def verify_signature(*, address: str, message: str, signature: bytes) -> None:
@@ -188,10 +244,12 @@ __all__ = [
     "REASON_CHALLENGE_INVALID",
     "REASON_HOTKEY_NOT_LINKED",
     "REASON_SIGNATURE_INVALID",
+    "WEB_SUBMISSION_PREFIX",
     "cli_session_message",
     "coldkey_link_message",
     "deposit_claim_message",
     "hotkey_link_message",
     "login_message",
     "verify_signature",
+    "web_submission_message",
 ]
