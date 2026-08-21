@@ -352,6 +352,22 @@ async def wallets_for(
     return list((await session.execute(statement)).scalars())
 
 
+async def owns_wallet(
+    session: AsyncSession, account_id: uuid.UUID, coldkey: str
+) -> bool:
+    """Whether this coldkey is linked to this account.
+
+    The coldkey counterpart of ``owns_hotkey``, and it exists for the same reason: a signature
+    proves control of a key, not that the key belongs here. The website submission path checks
+    both — the coldkey that signed, and the hotkey the work is attributed to — because a linked
+    key is the only thing that ties either of them to the account whose credit is being spent.
+    """
+    statement = select(AccountWallet.coldkey).where(
+        AccountWallet.account_id == account_id, AccountWallet.coldkey == coldkey
+    )
+    return (await session.execute(statement)).first() is not None
+
+
 # --- Sessions ----------------------------------------------------------------------
 
 
@@ -867,6 +883,7 @@ __all__ = [
     "normalise_email",
     "oldest_live_session",
     "owns_hotkey",
+    "owns_wallet",
     "recent_challenge_count",
     "revoke_all_sessions",
     "revoke_session",

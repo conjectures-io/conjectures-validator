@@ -23,6 +23,11 @@ hotkey signature; the public surface authenticates nothing and is read by a brow
 reviewer surfaces authenticate with a session cookie, and the reviewer surface additionally requires
 a role.
 
+Intake itself has three doors and two funding sources: one finalized transfer with a hotkey
+signature, or one credit with either a hotkey signature (the three-call intent flow) or a linked
+coldkey's signature (`POST /v1/submissions/web`, for a browser wallet that holds no hotkey). See
+[ACCOUNT_API.md](ACCOUNT_API.md#two-ways-to-fund-a-submission-three-ways-in).
+
 ### Miner-facing
 
 | Method | Path | Auth | Purpose |
@@ -77,6 +82,7 @@ and it writes nothing.
 | `GET` | `/v1/me/rewards` | Payouts with explorer links |
 | `POST` | `/v1/submissions/preflight` | Free static check; no credit, no auth |
 | `POST`/`PUT` | `/v1/submissions/intents[/{id}/bundle|/confirm]` | Spend a credit and submit |
+| `POST` | `/v1/submissions/web` | Spend a credit and submit in one call, authorised by a linked **coldkey**. Browser sessions only — a browser wallet has no hotkey to sign with |
 
 ### Reviewer
 

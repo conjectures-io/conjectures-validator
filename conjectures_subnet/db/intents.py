@@ -45,8 +45,10 @@ from conjectures_subnet.db import credits, digests
 from conjectures_subnet.db import submissions as submission_store
 from conjectures_subnet.db.errors import (
     DuplicateProof,
+    IdempotencyConflict,
     RecordConflict,
     RecordNotFound,
+    violated_constraint,
 )
 from conjectures_subnet.db.models import (
     CreditEntryKind,
@@ -58,6 +60,9 @@ from conjectures_subnet.db.models import (
 )
 
 PROOF_CONSTRAINT = "submissions_proof_digest_key"
+# Only reachable from a caller that supplies its own `idempotency_key` — see `confirm`. With the
+# intent id as the key the insert cannot collide, because the id was minted by this transaction.
+IDEMPOTENCY_CONSTRAINT = "submissions_idempotency_unique"
 
 # Named rather than inline, because two callers have to agree on it: `open_intent` refuses with
 # it, and the session envelope reports it as the reason `submit` is unavailable. A greyed-out
@@ -89,6 +94,7 @@ async def open_intent(
     now: dt.datetime,
     credits_held: int = 1,
     public_credit: PublicCredit | None = None,
+    signer_coldkey: str | None = None,
 ) -> tuple[SubmissionIntent, credits.CreditBalance]:
     """Hold a credit and open an intent, or refuse for insufficient credit.
 
@@ -96,6 +102,11 @@ async def open_intent(
     both see the last credit and both succeed. The balance returned is the one *after*
     the hold, which is what the caller should show: it is what the account can still
     spend.
+
+    ``signer_coldkey`` is set only by the website path, where the confirming signature is
+    made by a linked coldkey rather than by ``hotkey`` — see ``routers/web_submissions.py``.
+    The caller has already checked that the key is linked to this account; recording it here
+    is what lets ``confirm`` put it on the submission.
     """
     await credits.lock_account(session, account_id)
     balance = await credits.credit_balance(
@@ -112,6 +123,7 @@ async def open_intent(
     intent = SubmissionIntent(
         account_id=account_id,
         hotkey=hotkey,
+        signer_coldkey=signer_coldkey,
         public_credit_name=None if public_credit is None else public_credit.name,
         public_credit_url=None if public_credit is None else public_credit.url,
         public_credit_orcid=None if public_credit is None else public_credit.orcid,
@@ -220,6 +232,7 @@ async def confirm(
     bounty_policy_version: str,
     bounty_inputs: dict | None,
     now: dt.datetime,
+    idempotency_key: uuid.UUID | None = None,
 ) -> ConfirmedIntent:
     """Debit the credit and write the submission, atomically.
 
@@ -237,6 +250,13 @@ async def confirm(
     INTENT_ALREADY_CONFIRMED carrying the original submission id, rather than charging
     again — the partial unique index on ``credit_ledger.intent_id`` would refuse the
     second SPEND anyway, but a clear conflict beats a constraint violation.
+
+    ``idempotency_key`` defaults to the intent's own id, which is the right answer whenever
+    the intent is the unit the client retries: the three-call flow opens one intent per
+    attempt, so one intent *is* one attempt. The one-call website path has no such handle —
+    a retried request would open a second intent — so it passes the key its caller chose,
+    and ``submissions_idempotency_unique`` over ``(hotkey, idempotency_key)`` is what stops
+    the retry becoming a second charge.
     """
     # Lock the account first, then re-read the intent under that lock. Checking the
     # status before taking the lock would be checking a value that can change before
@@ -273,12 +293,13 @@ async def confirm(
 
     submission = Submission(
         hotkey=intent.hotkey,
+        signer_coldkey=intent.signer_coldkey,
         public_credit_name=intent.public_credit_name,
         public_credit_url=intent.public_credit_url,
         public_credit_orcid=intent.public_credit_orcid,
-        # The intent id is the idempotency key: one intent is one attempt, so an
-        # accidental double confirm has nothing new to create.
-        idempotency_key=intent.id,
+        # The intent id is the idempotency key unless the caller named one: one intent is one
+        # attempt, so an accidental double confirm has nothing new to create.
+        idempotency_key=intent.id if idempotency_key is None else idempotency_key,
         request_digest=bytes(intent.request_digest),
         task_id=intent.task_id,
         task_bundle_sha256=bytes(intent.task_bundle_sha256),
@@ -306,6 +327,14 @@ async def confirm(
             raise DuplicateProof(
                 "these exact proof bytes have already been submitted",
                 proof_sha256=proof_sha256,
+            ) from exc
+        # Two identical requests raced past the caller's replay check. The first one won and is
+        # a real submission; this one must read as a duplicate rather than as an unexplained
+        # conflict, because the client's next move is to re-read that submission, not to retry.
+        if violated_constraint(exc) == IDEMPOTENCY_CONSTRAINT:
+            raise IdempotencyConflict(
+                "that idempotency key has already been used for a submission",
+                idempotency_key=str(idempotency_key),
             ) from exc
         raise RecordConflict(
             "the submission could not be recorded", reason_code="CONFLICT"
@@ -453,6 +482,7 @@ async def events_for(
 __all__ = [
     "EVENT_ACCEPTED",
     "EVENT_QUEUED",
+    "IDEMPOTENCY_CONSTRAINT",
     "ConfirmedIntent",
     "assert_usable",
     "attach_bundle",

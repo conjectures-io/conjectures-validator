@@ -32,3 +32,8 @@ vendor/
 !deploy/migrate/sql/*.sql
 !scripts/*.sql
 deploy/axiom
+
+.claude/*
+AGENTS.md
+CLAUDE.md
+

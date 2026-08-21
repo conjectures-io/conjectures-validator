@@ -92,6 +92,7 @@ from submission_api.routers import (
     submissions,
     system,
     tasks,
+    web_submissions,
 )
 from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
@@ -383,6 +384,10 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # The one-call website path. Shares the /v1/submissions prefix with both of the above, and
+    # /web is a fixed segment like /preflight and /intents, so it cannot collide with the
+    # UUID-typed /{submission_id} either.
+    application.include_router(web_submissions.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
     # advisory record behind it). Both are role-gated at every route, and gated again on the

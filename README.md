@@ -34,6 +34,7 @@ verification core.
 | Miner-facing paid submission and status API | Implemented |
 | Website accounts, browser sessions, and hotkey linking | Implemented |
 | CLI sessions: a linked hotkey mints a scoped bearer token | Implemented |
+| Website submissions: a linked coldkey signs, one credit pays | Implemented |
 | Roles and the operator surface (`MINER`/`REVIEWER`/`ADMIN`) | Implemented |
 | Shared durable schema and migrations | Implemented |
 | Finalized transfer reader, wired into both funding paths | Implemented |
