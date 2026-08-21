@@ -11,12 +11,20 @@ existing paths can be driven from a web page:
   signature, over 32 raw bytes — which is both the wrong key and a thing a message-signing
   wallet will not render.
 
-What changes here, and only this: **the authorising signature is made by a coldkey linked to the
-account, over a readable message, and the whole attempt is one request.** Everything else is the
-credit path unchanged — the credit is held, the bundle is admitted by the same exact-shape
-scanner, the bounty is locked by the same serialized quote, and the debit and the submission are
-written by the same `intents.confirm` transaction. Reusing that is deliberate: it is the money
-path, and a second implementation of it is a second chance to get atomicity wrong.
+What changes here: **the authorising signature is made by a coldkey linked to the account, over a
+readable message, the whole attempt is one request, and no hotkey has to be linked.** Everything
+else is the credit path unchanged — the credit is held, the bundle is admitted by the same
+exact-shape scanner, the bounty is locked by the same serialized quote, and the debit and the
+submission are written by the same `intents.confirm` transaction. Reusing that is deliberate: it
+is the money path, and a second implementation of it is a second chance to get atomicity wrong.
+
+**The hotkey is declared, not proved, and that is the point of the whole endpoint.** An account
+opened with a browser wallet has a coldkey and nothing else; requiring proof of a hotkey would
+make this path unusable for exactly the person it exists for. It is safe to leave unproved
+because Alpha is held as **stake owned by the coldkey** — nominating a hotkey chooses which
+neuron the reward is staked to, not who owns it, and the coldkey it is staked for is the one that
+signed. So the declaration cannot misdirect money; the only thing it could misdirect is *credit*,
+which is why a hotkey another account has proved control of is refused. See the handler.
 
 Why one call rather than three. The three-call flow exists so the server can compute the digest
 the client signs *after* seeing the bundle. Here the client signs first, so the ordering is
@@ -92,8 +100,11 @@ router = APIRouter(prefix="/v1/submissions", tags=["submission"])
 WEB_PATH = "/v1/submissions/web"
 
 REASON_TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED"
-REASON_HOTKEY_NOT_LINKED = "HOTKEY_NOT_LINKED"
 REASON_WALLET_NOT_LINKED = "WALLET_NOT_LINKED"
+# Not `HOTKEY_NOT_LINKED`, which is the intent path's refusal and means the opposite thing:
+# there, a hotkey has to be linked to *this* account. Here it only has to not be linked to
+# another one, so the two codes must not be confused for each other by a client.
+REASON_HOTKEY_CLAIMED = "HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT"
 REASON_BUNDLE_DIGEST_MISMATCH = "BUNDLE_DIGEST_MISMATCH"
 REASON_AUTHORISATION_EXPIRED = "AUTHORISATION_EXPIRED"
 REASON_AUTHORISATION_WINDOW = "AUTHORISATION_WINDOW_TOO_LONG"
@@ -210,12 +221,20 @@ async def create_web_submission(
     one intake path authorised by a coldkey cannot be driven by a credential read off a mining
     box — the same rule that keeps hotkey linking and the payout destination browser-only.
 
-    **Both keys must be linked to this account**, and the two checks answer different questions.
-    The coldkey is *who authorised* the spend: an unlinked one would let anyone who captured a
-    signature spend their own credits under someone else's authorisation. The hotkey is *who the
-    work belongs to*: an unlinked one would leave the reward with a disputed owner. Neither is
-    established by the signature alone — a signature proves control of a key, not that the key
-    belongs here.
+    **The coldkey must be linked; the hotkey must not be somebody else's.** The two checks are
+    deliberately asymmetric because the two keys do different jobs.
+
+    The coldkey is *who authorised the spend and who owns the reward*. It must be linked, because
+    a signature proves control of a key and not that the key belongs to this account — without
+    the check, anyone who captured a signature could spend their own credits under somebody
+    else's authorisation and have the payout follow that key.
+
+    The hotkey is only a *delegation target*: the reward is staked for the coldkey, and the
+    hotkey names the neuron it is staked to. It is therefore declared and never proved — a
+    browser wallet has no hotkey to sign with, and demanding one would defeat the endpoint. The
+    only harm an unproved declaration can do is to credit — `ResultRow.hotkey` is published — so
+    the single check is that no *other* account has proved control of it. An unclaimed hotkey is
+    free to nominate, and this submission's reward will be staked to it.
 
     A replay of an already-accepted `idempotency_key` answers `200` with the original
     submission, before the body is read. Two identical requests racing past that check leave one
@@ -247,18 +266,28 @@ async def create_web_submission(
     except ValueError as exc:
         raise BadRequest(str(exc)) from exc
 
-    # The credential's claims, before any work is done on their behalf. Absent rather than
-    # forbidden is not an option here: both keys are the caller's own, so naming which one is
-    # not linked is the whole value of the refusal.
+    # The one key that must be proved: the coldkey is what authorises the spend, and it is where
+    # the reward lands. Absent rather than forbidden is not an option — it is the caller's own
+    # key, so naming the problem is the whole value of the refusal.
     if not await account_store.owns_wallet(session, principal.account.id, coldkey):
         raise Conflict(
             "link that coldkey to your account before submitting with it",
             reason_code=REASON_WALLET_NOT_LINKED,
         )
-    if not await account_store.owns_hotkey(session, principal.account.id, hotkey):
+    # The hotkey is *not* proved, and deliberately. It is a delegation target: Alpha is held as
+    # stake owned by the coldkey, so nominating a hotkey chooses which neuron the reward is
+    # staked to, not who owns it. Requiring proof of it would make the whole path unusable for
+    # exactly the person it exists for — a browser wallet holds no hotkey to sign with.
+    #
+    # One thing it must not be is somebody else's *claimed* identity. `ResultRow.hotkey` is
+    # published and a result is credited to its solver, so an unchecked declaration would let
+    # anyone credit a solved conjecture to a hotkey another account has proved control of.
+    # A hotkey nobody has claimed stays free to nominate.
+    owner = await account_store.find_by_hotkey(session, hotkey)
+    if owner is not None and owner.id != principal.account.id:
         raise Conflict(
-            "link that hotkey to your account before submitting under it",
-            reason_code=REASON_HOTKEY_NOT_LINKED,
+            "that hotkey is linked to another account; nominate one of your own",
+            reason_code=REASON_HOTKEY_CLAIMED,
         )
 
     # Answered from durable state, and before the body: a client retrying after a lost response

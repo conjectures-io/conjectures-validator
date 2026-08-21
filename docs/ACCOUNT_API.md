@@ -876,7 +876,7 @@ Content-Length: 606
 | --- | --- |
 | `task_id` | An allowlisted task id |
 | `task_bundle_sha256` | That task's published digest |
-| `hotkey` | The hotkey the submission is attributed to. Must be **linked to this account** and must equal the bundle manifest's `miner_hotkey` |
+| `hotkey` | Where the reward is staked and who the result is credited to. **Declared, never proved** — see below. Must equal the bundle manifest's `miner_hotkey` |
 | `coldkey` | The coldkey that signed. Must be **linked to this account** |
 | `bundle_sha256` | Digest of the whole `.zip`, recomputed server-side and compared |
 | `idempotency_key` | A UUID the client chooses. A replay answers `200` with the original submission |
@@ -956,19 +956,49 @@ retry — so the key the client chose is stored as `submissions.idempotency_key`
 rather than a second charge. Two identical requests racing leave one `201` and one `409
 IDEMPOTENCY_CONFLICT`; the loser's hold rolls back with its transaction.
 
-### Browser only, and both keys linked
+### The coldkey is proved; the hotkey is declared
 
-`CookieWriterDep`, so a CLI bearer token is refused with `BROWSER_SESSION_REQUIRED`. That costs the
-CLI nothing — it is minted by a hotkey, scoped to one, and already has the three-call flow — and it
-buys the rule that the one intake path a coldkey authorises cannot be driven by a credential read
-off a mining box. The same reason hotkey linking and the payout destination are browser-only.
+This asymmetry is the endpoint. An account opened with a browser wallet has **a coldkey and
+nothing else** — there is no hotkey in the browser to sign with, so `POST /v1/me/hotkeys` is
+unreachable for it, and any check that demanded a linked hotkey would lock out exactly the person
+this path exists for.
 
-Both keys must be linked to the account, and the two checks answer different questions. The
-coldkey is *who authorised the spend*: `WALLET_NOT_LINKED` otherwise, because a signature proves
-control of a key, not that the key belongs here. The hotkey is *who the work belongs to*:
-`HOTKEY_NOT_LINKED` otherwise, because a reward has to have one owner. A submission from this path
-therefore still needs one linked hotkey — the bundle manifest names it and the reward pipeline is
-keyed on it — and linking one needs a hotkey signature, which is a CLI step.
+**The coldkey must be linked** (`WALLET_NOT_LINKED` otherwise). It is what authorised the spend and
+it is where the reward lands, and a signature proves control of a key rather than that the key
+belongs to this account. Without the check, anyone who captured a signature could spend their own
+credits under somebody else's authorisation and have the payout follow that key.
+
+**The hotkey is never proved**, and it is safe not to prove it, because it is a *delegation
+target* rather than an owner. Alpha is held as stake owned by the coldkey; nominating a hotkey
+chooses which neuron the reward is staked to, and the coldkey it is staked for is the one that
+signed. So a wrong or hostile declaration cannot misdirect money — the only thing it could
+misdirect is **credit**, since `ResultRow.hotkey` is published and a result is credited to its
+solver. Hence the single check: a hotkey another account has proved control of is refused with
+`HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT`. An unclaimed hotkey is free to nominate.
+
+The code is deliberately not `HOTKEY_NOT_LINKED`. That is the intent path's refusal and it means
+the opposite thing — there a hotkey must be linked to *this* account — so a client must not treat
+the two as the same condition.
+
+**Browser only.** `CookieWriterDep`, so a CLI bearer token is refused with
+`BROWSER_SESSION_REQUIRED`. That costs the CLI nothing — it is minted by a hotkey, scoped to one,
+and already has the three-call flow — and it buys the rule that the one intake path a coldkey
+authorises cannot be driven by a credential read off a mining box.
+
+### Where the reward goes
+
+`payout_notifier` resolves a destination from the first of three the row can answer for, in order
+of evidence:
+
+1. the account's configured **payout pair** (`PUT /v1/me/payout`), set deliberately by its owner;
+2. **`signer_coldkey`** paired with `submissions.hotkey` — a website submission, where a coldkey
+   signed for this exact attempt. Stronger evidence than either the pair or the fallback below,
+   because it is a signature over this proof rather than a stored preference;
+3. `payment_sender` paired with `submissions.hotkey` — a legacy extrinsic submission.
+
+So a browser-wallet account needs no payout configuration at all: the coldkey that signed and paid
+is the coldkey that gets paid, staked to the hotkey that same signature nominated. Configuring a
+payout pair still overrides it, and that endpoint keeps its own linked-hotkey requirement.
 
 ### What the row records
 
@@ -987,7 +1017,7 @@ the signature later needs the exact bytes rather than a formatter's promise to h
 | `BROWSER_SESSION_REQUIRED` | 403 | A CLI bearer token; sign in at the website |
 | `CROSS_SITE_WRITE_REFUSED` | 403 | The write named an initiator that may not write here |
 | `WALLET_NOT_LINKED` | 409 | Link that coldkey first |
-| `HOTKEY_NOT_LINKED` | 409 | Link that hotkey first |
+| `HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT` | 409 | Another account has proved control of that hotkey; nominate one of your own |
 | `IDEMPOTENCY_CONFLICT` | 409 | The key already names a submission made another way, or two identical requests raced |
 | `TASK_NOT_ALLOWED` | 404 | Not an allowlisted `(task_id, digest)` pair |
 | `INSUFFICIENT_CREDITS` | 409 | Carries `credits_available` and `credits_required` |
@@ -1041,6 +1071,7 @@ in V003 is *what names the money*; the website path added in V028 changes only w
 | Endpoint | `POST /v1/submissions` | the four-call intent flow | `POST /v1/submissions/web` |
 | Auth | hotkey signature | session cookie + write guard | session **cookie only** + write guard |
 | Authorised by | the hotkey, over the request digest | the hotkey, over the request digest | a **linked coldkey**, over a readable message |
+| Hotkey is | proved by signature | proved by linking | **declared, unproved** — a delegation target |
 | Funded by | one finalized transfer | one `SPEND` ledger entry | one `SPEND` ledger entry |
 | Row names | `payment_reference`, `payment_sender`, `payment_amount_rao`, `payment_block` | `credit_ledger_id`, `intent_id`, `account_id` | the same three, plus `signer_coldkey` |
 | Idempotency key | client-supplied UUID | the intent id | client-supplied UUID |
@@ -1179,7 +1210,8 @@ account can neither read nor poll somebody else's order. It also drives the reco
 own `_pass`, so what cron runs is what is tested.
 
 `test_api_web_submissions.py` is negative in the same spirit, and the negatives are the reason the
-endpoint is safe with no server-minted challenge in it: a coldkey nobody linked authorises nothing,
+endpoint is safe with no server-minted challenge in it and no proof of the hotkey: a coldkey nobody
+linked authorises nothing, a hotkey another account proved control of cannot be nominated,
 a signature from a second wallet over the same message is refused, swapping the archive after
 signing is refused twice over (once as a digest mismatch and once as a bad signature), an expiry in
 the past or beyond `INTENT_MINUTES` is refused, a CLI bearer token is refused outright, a cross-site
