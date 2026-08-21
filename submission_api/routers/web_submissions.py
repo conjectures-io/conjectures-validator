@@ -105,6 +105,9 @@ REASON_WALLET_NOT_LINKED = "WALLET_NOT_LINKED"
 # there, a hotkey has to be linked to *this* account. Here it only has to not be linked to
 # another one, so the two codes must not be confused for each other by a client.
 REASON_HOTKEY_CLAIMED = "HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT"
+# The chain has no owner for it, so nothing can be staked to it. A third distinct code, because
+# the fix is a third distinct thing: register the hotkey, or nominate one that exists.
+REASON_HOTKEY_NOT_REGISTERED = "HOTKEY_NOT_REGISTERED"
 REASON_BUNDLE_DIGEST_MISMATCH = "BUNDLE_DIGEST_MISMATCH"
 REASON_AUTHORISATION_EXPIRED = "AUTHORISATION_EXPIRED"
 REASON_AUTHORISATION_WINDOW = "AUTHORISATION_WINDOW_TOO_LONG"
@@ -231,10 +234,16 @@ async def create_web_submission(
 
     The hotkey is only a *delegation target*: the reward is staked for the coldkey, and the
     hotkey names the neuron it is staked to. It is therefore declared and never proved — a
-    browser wallet has no hotkey to sign with, and demanding one would defeat the endpoint. The
-    only harm an unproved declaration can do is to credit — `ResultRow.hotkey` is published — so
-    the single check is that no *other* account has proved control of it. An unclaimed hotkey is
-    free to nominate, and this submission's reward will be staked to it.
+    browser wallet has no hotkey to sign with, and demanding one would defeat the endpoint. Two
+    checks bound the declaration, and neither is a proof of control:
+
+    * no **other account here** has proved control of it, because `ResultRow.hotkey` is published
+      and a result is credited to its solver, so an unchecked declaration could steal credit;
+    * the **chain knows it**, because the payout extrinsic cannot stake to a hotkey with no owner
+      and a submission we cannot pay is worse than one we refuse.
+
+    An unclaimed, registered hotkey is free to nominate, and this submission's reward will be
+    staked to it for the coldkey that signed.
 
     A replay of an already-accepted `idempotency_key` answers `200` with the original
     submission, before the body is read. Two identical requests racing past that check leave one
@@ -329,6 +338,22 @@ async def create_web_submission(
             "not enough credits for another verification attempt",
             reason_code=intent_store.REASON_INSUFFICIENT_CREDITS,
             extra={"credits_available": balance.credits_available, "credits_required": 1},
+        )
+
+    # The one chain read on this path, and it is deliberately last among the free checks: it costs
+    # a round trip, so everything answerable from local state — the credential, the two hotkey
+    # rules, the replay, the task, the balance — is answered first.
+    #
+    # A declared hotkey is a payout instruction, and `transfer_stake_and_hotkey` cannot stake to a
+    # hotkey the chain has never heard of. Refusing here means a mistyped address is caught while
+    # the submitter is still looking at it, instead of weeks later as a payout command a human
+    # signs and watches fail. Unreachable chain raises `ServiceUnavailable` rather than returning
+    # False — see `hotkeys.py` on why those must not collapse into one answer.
+    if not await services.hotkeys.is_registered(hotkey):
+        raise Conflict(
+            "the chain knows no such hotkey; register it before nominating it for payout",
+            reason_code=REASON_HOTKEY_NOT_REGISTERED,
+            extra={"hotkey": hotkey},
         )
 
     bundle = await uploaded_bundle(

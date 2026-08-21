@@ -47,6 +47,7 @@ from test_api_accounts import (
 )
 
 from conjectures_subnet.db.models import IntentState, Submission, SubmissionIntent
+from submission_api.hotkeys import UnavailableHotkeyDirectory
 from submission_api.login import web_submission_message
 
 pytestmark = pytest.mark.skipif(
@@ -774,6 +775,114 @@ def test_signing_in_is_required():
                 )
                 assert refused.status_code == 401
                 assert refused.json()["reason_code"] == "NOT_AUTHENTICATED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_hotkey_the_chain_does_not_know_is_refused():
+    """A declared hotkey is a payout instruction, and `transfer_stake_and_hotkey` cannot stake to
+    a hotkey with no owner. Refusing at intake catches a mistyped address while the submitter is
+    still looking at it, rather than weeks later as a payout command a human signs and watches
+    fail."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await ready_account(kit, http)
+                # A well-formed SS58 that no development hotkey list contains, so the fixture
+                # chain knows no owner for it.
+                unknown = OTHER_COLDKEY
+                bundle, _ = distinct_bundle("web-unknown-hotkey", hotkey=unknown)
+
+                refused = await http.post(
+                    WEB,
+                    params=authorisation(bundle_sha256=_digest(bundle), hotkey=unknown),
+                    content=bundle,
+                    headers=zip_headers(http),
+                )
+                assert refused.status_code == 409
+                assert refused.json()["reason_code"] == "HOTKEY_NOT_REGISTERED"
+                assert refused.json()["hotkey"] == unknown
+                assert (await http.get("/v1/me/credits")).json()[
+                    "credits_available"
+                ] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_unreachable_chain_refuses_rather_than_calling_the_hotkey_unknown():
+    """The two answers must not collapse. "We cannot check" is our outage and the submitter should
+    retry; "no such hotkey" is their address and they should fix it. A 409 for the first would
+    send someone hunting a registration they already have."""
+
+    async def scenario():
+        kit = await harness(hotkeys=UnavailableHotkeyDirectory()).setup()
+        try:
+            async with await client(kit) as http:
+                await ready_account(kit, http)
+                bundle, _ = distinct_bundle("web-chain-down")
+
+                refused = await http.post(
+                    WEB,
+                    params=authorisation(bundle_sha256=_digest(bundle)),
+                    content=bundle,
+                    headers=zip_headers(http),
+                )
+                assert refused.status_code == 503
+                assert refused.json()["reason_code"] == "HOTKEY_DIRECTORY_UNAVAILABLE"
+                assert (await http.get("/v1/me/credits")).json()[
+                    "credits_available"
+                ] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_coldkey_only_account_is_told_it_can_submit():
+    """The session envelope drives the website's buttons, and it used to report
+    `HOTKEY_NOT_LINKED` for exactly the account this endpoint exists for — a browser wallet that
+    cannot link a hotkey because it has none to sign with. Advisory, but a client that trusts it
+    would grey out a submit button the API would have accepted."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await ready_account(kit, http)
+                envelope = (await http.get("/v1/auth/session")).json()
+                assert envelope["account"]["hotkeys"] == []
+                assert envelope["capabilities"]["submit"] == {
+                    "allowed": True,
+                    "missing": [],
+                }
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_account_with_no_key_at_all_still_cannot_submit():
+    """The other direction: a mailbox alone drives neither path, and the advisory has to keep
+    saying so or it stops being worth reading."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                account = await sign_in_by_email(kit, http, email="keyless@example.com")
+                await grant_credits(kit, uuid.UUID(account["id"]), 1)
+                envelope = (await http.get("/v1/auth/session")).json()
+                assert envelope["capabilities"]["submit"]["allowed"] is False
+                assert (
+                    "HOTKEY_NOT_LINKED"
+                    in envelope["capabilities"]["submit"]["missing"]
+                )
         finally:
             await kit.teardown()
 
