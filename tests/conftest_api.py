@@ -41,6 +41,7 @@ from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.google_identity import build_google_credential_verifier
+from submission_api.hotkeys import build_hotkey_directory
 from submission_api.mail import ConsoleSender
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet
@@ -306,6 +307,7 @@ def harness(
     retired=None,
     tmc_pay=None,
     tao_usd=None,
+    hotkeys=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -322,8 +324,14 @@ def harness(
     reason as `payments`: the real ones talk to a payment processor and to TaoStats. Both default
     to the unavailable implementations, so every test that does not name them proves the purchase
     endpoints refuse rather than reach a network.
+
+    `hotkeys` injects the directory that answers "does the chain know this hotkey". It defaults to
+    the real factory, which in development resolves to the `DEVELOPMENT_HOTKEYS` allowlist — so a
+    test nominating one of the two fixture addresses is nominating a hotkey the chain knows, and a
+    test nominating anything else is not. Pass it to stand in for an unreachable chain.
     """
     settings = build_settings(**overrides)
+    verifier = payments or build_payment_verifier(settings)
     engine = create_async_db_engine(settings.database_url)
     catalog = catalog_from_entries(
         repository_commit=REPOSITORY_COMMIT,
@@ -335,7 +343,12 @@ def harness(
         sessions=async_session_factory(engine),
         catalog=catalog,
         authenticator=build_authenticator(settings),
-        payments=payments or build_payment_verifier(settings),
+        payments=verifier,
+        # Built from the real factory rather than hand-stubbed, so the development branch is the
+        # one under test. `DEVELOPMENT_HOTKEYS` is what it reads, which makes HOTKEY and
+        # OTHER_HOTKEY the two addresses the fixture chain "knows" — and any other address a
+        # test invents correctly reads as one nobody registered.
+        hotkeys=hotkeys or build_hotkey_directory(settings, payments=verifier),
         dispatcher=dispatcher or QueueDispatcher(),
         pricing=DynamicBountyPricer(
             balance_reader=StaticBalanceReader(settings.bounty_pool_balance_rao),

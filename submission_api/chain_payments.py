@@ -96,6 +96,17 @@ class SubtensorTransferReader:
             return False
         return owner == coldkey
 
+    async def hotkey_is_registered(self, *, hotkey: str) -> bool:
+        """Whether the chain knows any owner for `hotkey`.
+
+        The same storage item and the same zero-account handling as `coldkey_owns_hotkey` above,
+        asking the weaker question: not *who* owns it, only that somebody does. That is what
+        `POST /v1/submissions/web` needs, where the hotkey is a declared payout target rather than
+        an identity being proved — the payout extrinsic cannot stake to a hotkey the chain has
+        never heard of, so an unknown one has to be refused at intake. See `submission_api/hotkeys.py`.
+        """
+        return await self.source.coldkey_of(hotkey=hotkey) is not None
+
     async def aclose(self) -> None:
         close = getattr(self.source, "close", None)
         if close is not None:
