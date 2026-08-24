@@ -1336,8 +1336,8 @@ class AccountSession(Base):
         ACCOUNT_SESSION_KIND, nullable=False, server_default=text("'COOKIE'")
     )
     token_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
-    # There was a `csrf_sha256` here. The column still exists in a migrated database and is
-    # left behind on purpose — see V021 — but nothing writes or reads it, so it is not mapped.
+    # There was a `csrf_sha256` here. V021 stopped using it and V029 dropped it after the rolling
+    # deployment compatibility window; nothing writes or reads it, so it is not mapped.
     # A cookie session now proves where a write was initiated from the browser's own `Origin`
     # and `Sec-Fetch-Site` headers; `submission_api/origin_policy.py` says why that is the
     # stronger of the two mechanisms rather than merely the cheaper one.
