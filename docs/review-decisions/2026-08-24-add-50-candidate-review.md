@@ -1,11 +1,12 @@
 # Candidate review and task publication: 50 task targets
 
-**Review status:** Passed after revision; task release published; validator release branch prepared<br>
+**Review status:** Passed after revision; task release published; validator release published for merge<br>
 **Review date:** 2026-08-24 UTC<br>
 **Release shape:** 50 theorem targets, each in `formalized` and `counterexample` mode (100 bundles)<br>
 **Task baseline:** `conjectures-tasks@c1829b7c28bd54a59a9f1f2dcb9834b1cab53cfd`<br>
 **Published task release:** `conjectures-tasks@8dd81458db1cdcd2ec4fd3e6f866aa1907006858`<br>
 **Task release PR:** [conjectures-tasks#11](https://github.com/conjectures-io/conjectures-tasks/pull/11), merged as `4bd1d01dd6193eec6b48eb6176ebdae9aa76a384`<br>
+**Validator release PR:** [conjectures-validator#65](https://github.com/conjectures-io/conjectures-validator/pull/65)<br>
 **Validator used for staging:** `conjectures-validator@a8d559db1d4d6ccdd2f7cc07e7d7dd5d45a8afb2`<br>
 **Pinned Formal Conjectures source:** `379fc0298dc146df549e7061c3ede0353a5bb51f`<br>
 **Formal Conjectures main checked:** `1bd0e70d325bcae22edb8d77e946da79c4d0d378`<br>
@@ -295,5 +296,6 @@ PR-touch metadata for every retained row.
 
 The existing rebuild script has a Green-directory naming regression, so the release used the
 incremental load/generate/rebuild path. The task commit is published and fetchable from the
-configured upstream. Validator publication, queue draining, atomic activation, and production
-deployment are tracked as the subsequent release stages.
+configured upstream, and validator publication is tracked by pull request #65. Queue draining,
+immutable-image preflight, atomic activation, and production deployment remain separate release
+stages.
