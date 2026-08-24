@@ -161,6 +161,21 @@ def test_the_dockerfile_carries_no_second_copy_of_the_recipe():
         assert inlined not in dockerfile
 
 
+def test_the_image_normalizes_checkout_modes_before_dropping_privileges():
+    """A release checkout's umask must not decide whether UID 10001 can import the verifier."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    copied = dockerfile.index("COPY . .")
+    normalized = dockerfile.index("-exec chmod a+rX {} +")
+    root_build = dockerfile.index("build_trusted_cache.sh --stage root")
+    non_root = dockerfile.index("USER verifier")
+
+    assert copied < normalized < root_build < non_root
+    normalization = dockerfile[copied:root_build]
+    for trusted_cache in ("vendor", ".elan", ".lake"):
+        assert f"-path './{trusted_cache}'" in normalization
+
+
 def test_the_elan_download_comes_from_the_pin_file(tmp_path):
     """The URL, the digest and the default toolchain, none of them written down twice.
 
