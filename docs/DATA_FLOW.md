@@ -48,12 +48,12 @@ flowchart TD
         CAT["data/catalog.json<br/>3267 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>159 active asserted picks"]
+        PICK["task target policy<br/>209 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>318 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>418 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -174,10 +174,10 @@ the pipeline.
 | 2 | `classification == DIRECT_PROP` | **988** |
 | 3 | remaining exact-proposition safety rules | **988** |
 | 4 | module under `ErdosProblems/` | **506** over 320 files |
-| 5 | audited candidate selection | **176** targets from 154 files (151 Erdős over 132 files, 25 Green over 22) |
-| 6 | active after dependency and semantic-fidelity retirements | **168** targets from 147 files (145 Erdős over 127 files, 23 Green over 20) |
-| 7 | active after retiring settled or literature-solved targets | **162** targets from 141 files (142 Erdős over 124 files, 20 Green over 17) |
-| 8 | active after maintainer-request withdrawals | **159** targets from 139 files (139 Erdős over 122 files, 20 Green over 17) |
+| 5 | audited candidate selection | **226** targets from 197 files (201 Erdős over 175 files, 25 Green over 22) |
+| 6 | active after dependency and semantic-fidelity retirements | **218** targets from 190 files (195 Erdős over 170 files, 23 Green over 20) |
+| 7 | active after retiring settled or literature-solved targets | **212** targets from 184 files (192 Erdős over 167 files, 20 Green over 17) |
+| 8 | active after maintainer-request withdrawals | **209** targets from 182 files (189 Erdős over 165 files, 20 Green over 17) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -195,7 +195,7 @@ selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 159 active targets are **not computed** from the 506. They are the admitted subset of 176
+The 209 active targets are **not computed** from the 506. They are the admitted subset of 226
 audited candidates and are asserted by hand in one target file. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
@@ -207,7 +207,7 @@ refuses to accept any pick that is not simultaneously:
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: at least 139 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: at least 189 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
 Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
@@ -302,7 +302,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-159 `allowed_source_theorems` and 318 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+209 `allowed_source_theorems` and 418 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
@@ -324,7 +324,7 @@ combined with a tampered audit file:
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 139 active Erdős targets and 20 Green targets.
+all 189 active Erdős targets and 20 Green targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
