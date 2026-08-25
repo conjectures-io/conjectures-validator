@@ -41,6 +41,7 @@ from conjectures_subnet.db.errors import (
     DuplicatePayment,
     DuplicateProof,
     IdempotencyConflict,
+    RecordConflict,
     RecordNotFound,
 )
 from conjectures_subnet.db.models import (
@@ -469,6 +470,121 @@ async def approve_automatically(
 
     await session.flush()
     return decision
+
+
+# The three ways a human decision is refused by durable state rather than by policy. All are
+# conflicts rather than bad requests: the body was well formed and would have been accepted a
+# moment earlier, which is exactly what a reviewer needs told apart from a rejected reason code.
+REVIEW_ALREADY_DECIDED = "REVIEW_ALREADY_DECIDED"
+REWARD_ALREADY_IN_FLIGHT = "REWARD_ALREADY_IN_FLIGHT"
+REWARD_TARGET_ALREADY_HELD = "REWARD_TARGET_ALREADY_HELD"
+
+
+async def record_human_decision(
+    session: AsyncSession,
+    submission_id: uuid.UUID,
+    *,
+    decision: ReviewOutcome,
+    reason_code: str,
+    reviewer: str,
+    notes: str | None = None,
+    notes_public: str | None = None,
+) -> ReviewDecision:
+    """Record the binding HUMAN review decision and move the reward with it.
+
+    The counterpart of `approve_automatically` for the case manual review exists for, and the one
+    write in this module that turns a Lean-valid proof into money. Four properties, each of which
+    is the reason a line below is there rather than an obvious simplification:
+
+    * **The submission row is locked before anything is read off it.** Two reviewers with the panel
+      open on the same submission is the ordinary case, not the exotic one, and without the lock
+      the "still `UNREVIEWED`" check below would be a guess that both callers pass. `FOR UPDATE`
+      makes the check a decision: the second transaction waits, then sees the first one's outcome
+      and is refused. This is the concurrency answer the read-only router asked for.
+    * **A second decision is refused, not superseded.** `review_decisions` is append-only and its
+      `supersedes_id` chain exists precisely so a correction can be recorded — but a correction is
+      a different act from a decision. It re-prices a payout that may already be in flight, and it
+      needs its own reason for overriding a colleague. So this raises on an already-decided
+      submission and leaves the chain to whatever records corrections.
+    * **`reward_status` must still be `INELIGIBLE`.** Only an approval moves it off that value, so
+      an `UNREVIEWED` submission that is `ELIGIBLE` or beyond means money is already moving on a
+      submission nobody has decided. That is an anomaly, and a decision written over it would
+      either double-pay or silently un-pay. It is refused rather than corrected here.
+    * **A contradicted problem is not refused.** `approve_automatically` leaves a problem verified
+      in both modes `UNREVIEWED` with an ADVISORY note *so that a human sees it*. Refusing the
+      human decision on the same ground would make that submission undecidable by the only party
+      able to resolve it.
+
+    `reason_code` is checked against the published policy allowlists at the API boundary, not here:
+    the allowlist is the API's published vocabulary (`submission_api.credits`), and the workers that
+    also write this table have their own codes — `PROBLEM_ALREADY_AWARDED` is not a code any human
+    may pick, and it is written by the function above.
+    """
+    submission = await session.get(Submission, submission_id, with_for_update=True)
+    if submission is None:
+        raise RecordNotFound("no such submission")
+    # Same answer as `GET /v1/admin/reviews/{id}`, which serves Lean-verified submissions only:
+    # there is nothing to decide about work the kernel has not accepted, and review can never make
+    # a Lean-invalid proof valid.
+    if submission.verification_status != VerificationState.VERIFIED:
+        raise RecordNotFound("no such submission")
+
+    if submission.manual_review_status != ManualReviewState.UNREVIEWED:
+        raise RecordConflict(
+            "this submission has already been decided",
+            reason_code=REVIEW_ALREADY_DECIDED,
+            manual_review_status=str(submission.manual_review_status),
+        )
+    if submission.reward_status != RewardState.INELIGIBLE:
+        raise RecordConflict(
+            "this submission's reward is already in flight; it cannot be decided now",
+            reason_code=REWARD_ALREADY_IN_FLIGHT,
+            reward_status=str(submission.reward_status),
+        )
+
+    if decision == ReviewOutcome.APPROVED:
+        # Mirrors `submissions_reward_target_reward_unique`, which is the authority: setting
+        # `reward_status` below would raise an IntegrityError naming the index. Checked first so
+        # the reviewer is told which submission holds it and which code applies, rather than
+        # reading a constraint name out of a 409.
+        holder = await reward_target_holder(session, submission)
+        if holder is not None:
+            raise RecordConflict(
+                "another submission already holds this reward target's reward; reject this one "
+                "as DUPLICATE_OF_EARLIER_SUBMISSION instead",
+                reason_code=REWARD_TARGET_ALREADY_HELD,
+                reward_target_id=submission.reward_target_id,
+                held_by=str(holder),
+            )
+
+    recorded = ReviewDecision(
+        submission_id=submission.id,
+        decision=decision,
+        kind=ReviewerKind.HUMAN,
+        reviewer=reviewer,
+        # The submission's own policy version, matching `approve_automatically`: a decision is
+        # taken under the policy the submission was accepted under, not under whichever version
+        # happens to be current when the reviewer gets to it.
+        policy_version=submission.review_policy_version,
+        reason_code=reason_code,
+        notes=notes,
+        notes_public=notes_public,
+    )
+    session.add(recorded)
+    await session.flush()
+
+    if decision == ReviewOutcome.APPROVED:
+        submission.manual_review_status = ManualReviewState.APPROVED
+        # The money. `reward_events` is written by the payout path, which reads this column; the
+        # trigger on that table re-checks the amount against the submission's bounty lock or the
+        # decision recorded above, so an approval cannot price its own payout from here.
+        submission.reward_status = RewardState.ELIGIBLE
+    else:
+        submission.manual_review_status = ManualReviewState.REJECTED
+        # `reward_status` stays INELIGIBLE, which is where the guard above proved it already is.
+
+    await session.flush()
+    return recorded
 
 
 async def log_rejection(
