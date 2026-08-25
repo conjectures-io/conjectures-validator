@@ -388,7 +388,24 @@ async def create_web_submission(
         idempotency_key=str(key),
         expires_at=signed_until,
     )
-    verify_signature(address=coldkey, message=message, signature=signature_bytes)
+    try:
+        verify_signature(address=coldkey, message=message, signature=signature_bytes)
+    except Unauthorized as exc:
+        # Echo the exact bytes the server rebuilt. `SIGNATURE_INVALID` on its own is
+        # undiagnosable on this path in a way it is not on the others: everywhere else the server
+        # minted the message and the client signed what it was given, so a failure means a bad
+        # key. Here the client *built* the message, so a failure usually means the two strings
+        # differ by a character — most often the `domain:` line — and a diff answers it in
+        # seconds where a bare reason code sends someone re-reading their wallet integration.
+        #
+        # Nothing here is a secret or an oracle. Every line is a value this caller just sent, or
+        # `signing_domain`, which `GET /v1/catalog/submission-terms` serves unauthenticated. The
+        # signature is not echoed, and knowing the message does not help forge one.
+        raise Unauthorized(
+            exc.detail,
+            reason_code=exc.reason_code,
+            extra={**exc.extra, "expected_message": message},
+        ) from exc
 
     # Money from here down, and nothing before this point has touched it.
     intent, _ = await intent_store.open_intent(

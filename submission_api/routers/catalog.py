@@ -929,6 +929,12 @@ async def read_submission_terms(
             account_schemas.DisqualificationReason(code=code, description=description)
             for code, description in terms.disqualification_reasons
         ),
+        # Served here rather than on the account surface because the client that needs it is the
+        # submit page, which already fetches this document for the terms themselves — so the one
+        # field a web submitter cannot guess costs no extra round trip. Unauthenticated and
+        # cached like the rest of it: it is deployment configuration, and it is already the first
+        # line of every challenge message this server mints.
+        signing_domain=services.settings.login_domain,
     )
 
 
