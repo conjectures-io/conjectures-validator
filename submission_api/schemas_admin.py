@@ -196,8 +196,34 @@ class AdminReview(Model):
     attempts: tuple[AdminStageAttempt, ...] = ()
 
 
+class AdminDecision(Model):
+    """The binding decision as it was recorded, and the two statuses it moved.
+
+    Answered by `POST /v1/admin/reviews/{submission_id}/decision`, and deliberately not a copy of
+    the row: `review_decisions.notes` is the internal audit trail and never crosses an API
+    boundary — the module docstring's rule applies to a reviewer's own words as much as to a
+    model's — and the reviewer is named by account id in the Axiom event, not here.
+
+    `manual_review_status` and `reward_status` are echoed because they are what the panel is
+    really asking about: whether the decision took, and whether it made the submission payable.
+    Reading them off the response saves the panel a second request to learn the outcome of its
+    own write, and they are the submission's state after the commit rather than a prediction of
+    it.
+    """
+
+    submission_id: uuid.UUID
+    decision: str = Field(description="APPROVED | REJECTED")
+    reason_code: str
+    notes_public: str | None = None
+    policy_version: str
+    decided_at: datetime
+    manual_review_status: str
+    reward_status: str
+
+
 __all__ = [
     "AdminCitation",
+    "AdminDecision",
     "AdminFinding",
     "AdminPriorSource",
     "AdminReview",

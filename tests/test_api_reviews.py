@@ -10,6 +10,12 @@ anything else noticing:
   written into the fixture rows on purpose, and neither may come back;
 * that money and digests keep their precision across the boundary.
 
+The decision route at the end is the one that writes, so it is tested for the things a reviewer
+could otherwise lose money over: that it is refused without the role *and* without the browser's
+own proof of where the write came from, that an approval is what makes a submission payable, that a
+second decision cannot land on top of the first, that a code outside the published allowlist is
+refused, and that the reviewer's internal note never comes back out.
+
 The advisory rows are inserted through the ORM mirror rather than by calling
 `conjectures-autoreview`, which is a separate repository with a provider key. The database
 constraints do the checking either way: a row whose promoted columns disagreed with its verdict, or
@@ -57,6 +63,8 @@ from conjectures_subnet.db.models import (
     REVIEWER_ROLE,
     Account,
     LoginChallengeKind,
+    ReviewDecision,
+    ReviewerKind,
     Submission,
 )
 from submission_api import sessions
@@ -665,6 +673,361 @@ def test_attempts_come_back_newest_first_with_never_run_stages_last():
                 assert keys[:2] == ["faithfulness-02020202", "faithfulness-01010101"]
                 assert keys[2].startswith("originality-row")
                 assert len(keys) == 3
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- Recording a decision -------------------------------------------------------------------
+
+# What a browser sends when the page making the call is served from this origin. A page cannot set
+# it — the Fetch spec forbids it — so a test that sends it stands in for the browser. The write
+# guard fails closed, so a request without it is refused whatever the session says.
+WRITE = {"Sec-Fetch-Site": "same-origin"}
+
+APPROVAL = {
+    "decision": "APPROVED",
+    "reason_code": "REVIEW_APPROVED",
+    "notes_public": "Proved as published; the axiom closure is clean.",
+}
+REJECTION = {
+    "decision": "REJECTED",
+    "reason_code": "DUPLICATE_OF_EARLIER_SUBMISSION",
+    "notes_public": "An earlier eligible submission already holds this reward target.",
+}
+
+
+def _decision_path(submission_id: str) -> str:
+    return f"/v1/admin/reviews/{submission_id}/decision"
+
+
+async def _statuses(kit, submission_id: str) -> tuple[str, str]:
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        assert submission is not None
+        return str(submission.manual_review_status), str(submission.reward_status)
+
+
+async def _decisions(kit, submission_id: str) -> list[ReviewDecision]:
+    from sqlalchemy import select
+
+    async with kit.session() as session:
+        rows = await session.execute(
+            select(ReviewDecision)
+            .where(ReviewDecision.submission_id == uuid.UUID(submission_id))
+            .order_by(ReviewDecision.id)
+        )
+        return list(rows.scalars())
+
+
+def test_recording_a_decision_needs_the_role_and_the_browser_that_meant_it():
+    """Four refusals before the one that lands, and the fourth is the interesting one.
+
+    A reviewer's cookie is ambient: the browser attaches it to whatever asks. So the role alone is
+    not enough for a write that moves money — `require_role_writer` also wants the browser's own
+    statement of where the request was initiated, which no page can forge. The read routes accept
+    the same session without it, which is exactly why this is worth its own assertion.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "decide-gate")
+            path = _decision_path(submission_id)
+            async with await _client(kit) as http:
+                anonymous = await http.post(path, json=APPROVAL, headers=WRITE)
+                assert anonymous.status_code == 401
+                assert anonymous.json()["reason_code"] == "NOT_AUTHENTICATED"
+
+                account = await _sign_in(kit, http)
+                miner = await http.post(path, json=APPROVAL, headers=WRITE)
+                assert miner.status_code == 403
+                assert miner.json()["reason_code"] == "ROLE_REQUIRED"
+
+                await _grant_reviewer(kit, account["id"])
+                unproven = await http.post(path, json=APPROVAL)
+                assert unproven.status_code == 403
+                assert unproven.json()["reason_code"] == "CROSS_SITE_WRITE_REFUSED"
+
+                cross_site = await http.post(
+                    path, json=APPROVAL, headers={"Sec-Fetch-Site": "cross-site"}
+                )
+                assert cross_site.status_code == 403
+
+                # And the queue itself is still readable by the same session with none of that,
+                # which is the asymmetry this endpoint introduces.
+                assert (await http.get("/v1/admin/reviews")).status_code == 200
+
+                recorded = await http.post(path, json=APPROVAL, headers=WRITE)
+                assert recorded.status_code == 201, recorded.text
+            assert len(await _decisions(kit, submission_id)) == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_approval_records_a_human_decision_and_makes_the_submission_payable():
+    """The write in full: one appended row, and the two columns the reward path reads.
+
+    `reward_status` is the money. Nothing else on this API moves it, and the row is what the
+    payout trigger checks the amount against, so both are asserted here rather than trusted to
+    the response body.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "approve")
+            async with await _client(kit) as http:
+                account = await _reviewer(kit, http)
+                response = await http.post(
+                    _decision_path(submission_id),
+                    json={**APPROVAL, "notes": "Second pair of eyes: agreed on the closure."},
+                    headers=WRITE,
+                )
+                assert response.status_code == 201, response.text
+                body = response.json()
+
+            assert body["decision"] == "APPROVED"
+            assert body["reason_code"] == "REVIEW_APPROVED"
+            assert body["notes_public"] == APPROVAL["notes_public"]
+            assert body["manual_review_status"] == "APPROVED"
+            assert body["reward_status"] == "ELIGIBLE"
+            # The database's clock, not this process's: a decision time nobody can reconcile
+            # against the row is worse than no field.
+            assert body["decided_at"]
+            assert body["policy_version"]
+            # The internal note is not in the response, and there is no field for it to be in.
+            assert "notes" not in body
+
+            assert await _statuses(kit, submission_id) == ("APPROVED", "ELIGIBLE")
+
+            (decision,) = await _decisions(kit, submission_id)
+            assert decision.kind is ReviewerKind.HUMAN
+            # The account id, never the email address.
+            assert decision.reviewer == account["id"]
+            assert decision.notes == "Second pair of eyes: agreed on the closure."
+            assert decision.notes_public == APPROVAL["notes_public"]
+            assert decision.supersedes_id is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_rejection_publishes_its_explanation_and_leaves_the_reward_ineligible():
+    """The miner is told why, and is not paid.
+
+    `notes_public` is the one part of a decision that crosses back out to the public record, so
+    this follows it all the way to `GET /v1/results/{id}` — the place a miner actually reads it —
+    rather than stopping at the row.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "reject")
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                response = await http.post(
+                    _decision_path(submission_id),
+                    json={**REJECTION, "notes": "Cross-checked against 244ff2d0."},
+                    headers=WRITE,
+                )
+                assert response.status_code == 201, response.text
+                assert response.json()["manual_review_status"] == "REJECTED"
+                assert response.json()["reward_status"] == "INELIGIBLE"
+
+                public = await http.get(f"/v1/results/{submission_id}")
+                assert public.status_code == 200, public.text
+                review = public.json()["review"]
+
+            assert review["decision"] == "REJECTED"
+            assert review["reason_code"] == "DUPLICATE_OF_EARLIER_SUBMISSION"
+            assert review["notes_public"] == REJECTION["notes_public"]
+            # The internal note stays internal on the public surface too.
+            assert "notes" not in review
+            assert await _statuses(kit, submission_id) == ("REJECTED", "INELIGIBLE")
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_second_decision_is_refused_rather_than_recorded():
+    """Two reviewers with the panel open is the ordinary case, and a double-click is the common one.
+
+    The row lock in `record_human_decision` is what makes this answer authoritative instead of a
+    race, and refusing rather than superseding is what keeps a payout from being repriced by a
+    second click. The body says which state the submission is in, so the panel can show the
+    decision that did land.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "twice")
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                path = _decision_path(submission_id)
+                first = await http.post(path, json=APPROVAL, headers=WRITE)
+                assert first.status_code == 201, first.text
+
+                again = await http.post(path, json=REJECTION, headers=WRITE)
+                assert again.status_code == 409
+                assert again.json()["reason_code"] == "REVIEW_ALREADY_DECIDED"
+                assert again.json()["manual_review_status"] == "APPROVED"
+
+            assert len(await _decisions(kit, submission_id)) == 1
+            assert await _statuses(kit, submission_id) == ("APPROVED", "ELIGIBLE")
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_reason_code_outside_the_published_allowlist_is_refused():
+    """A rejection code on an approval, and an invented one, are both refused with the set served.
+
+    The allowlist is `submission_api.credits`, which is the same list a miner is shown before they
+    spend a credit. Serving the permitted codes back is what lets the panel stop keeping its own
+    copy of them.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "codes")
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                path = _decision_path(submission_id)
+
+                crossed = await http.post(
+                    path,
+                    json={**APPROVAL, "reason_code": "ABUSE"},
+                    headers=WRITE,
+                )
+                assert crossed.status_code == 400
+                assert crossed.json()["reason_code"] == "REVIEW_REASON_NOT_ALLOWED"
+                assert crossed.json()["allowed_reason_codes"] == [
+                    "FORMALIZATION_DEFECT_AWARD",
+                    "REVIEW_APPROVED",
+                ]
+
+                invented = await http.post(
+                    path,
+                    json={**REJECTION, "reason_code": "BECAUSE_I_SAID_SO"},
+                    headers=WRITE,
+                )
+                assert invented.status_code == 400
+                assert invented.json()["reason_code"] == "REVIEW_REASON_NOT_ALLOWED"
+
+                # An empty explanation is refused too: the policy requires one on every binding
+                # decision, and the column would refuse the empty string anyway.
+                silent = await http.post(
+                    path, json={**APPROVAL, "notes_public": "   "}, headers=WRITE
+                )
+                assert silent.status_code == 400
+
+            assert await _decisions(kit, submission_id) == []
+            assert await _statuses(kit, submission_id) == ("UNREVIEWED", "INELIGIBLE")
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_an_approval_is_refused_when_another_submission_holds_the_reward():
+    """One reward target carries one reward, and the index is the authority.
+
+    Without the check the second approval would surface as an integrity error naming a unique
+    index. With it the reviewer is told which submission holds the target and which code to reject
+    under, which is the decision they actually have to take.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            first_id = await _verified(kit, "holder")
+            second_id = await _verified(kit, "contender")
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                held = await http.post(
+                    _decision_path(first_id), json=APPROVAL, headers=WRITE
+                )
+                assert held.status_code == 201, held.text
+
+                refused = await http.post(
+                    _decision_path(second_id), json=APPROVAL, headers=WRITE
+                )
+                assert refused.status_code == 409
+                assert refused.json()["reason_code"] == "REWARD_TARGET_ALREADY_HELD"
+                assert refused.json()["held_by"] == first_id
+
+                # And the rejection the reviewer is pointed at does land.
+                rejected = await http.post(
+                    _decision_path(second_id), json=REJECTION, headers=WRITE
+                )
+                assert rejected.status_code == 201, rejected.text
+
+            assert await _statuses(kit, second_id) == ("REJECTED", "INELIGIBLE")
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_submission_lean_has_not_verified_cannot_be_decided():
+    """404, the same answer the read route gives, and for the same reason.
+
+    Review can reject a Lean-valid proof but can never make an invalid one valid, so there is
+    nothing here to decide. Answering `409` would confirm the id exists to a caller who may not
+    read it, and answering `201` would write a decision the reward path must never act on.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            unverified = await _submit(kit, "unverified")
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                response = await http.post(
+                    _decision_path(unverified), json=APPROVAL, headers=WRITE
+                )
+                assert response.status_code == 404
+                assert response.json()["reason_code"] == "NOT_FOUND"
+
+                missing = await http.post(
+                    _decision_path(str(uuid.uuid4())), json=APPROVAL, headers=WRITE
+                )
+                assert missing.status_code == 404
+
+            assert await _decisions(kit, unverified) == []
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_decision_response_is_never_cached():
+    """`no-store`, like every other body on this surface. A decision is per-caller and it is the
+    one response here that reports a state change, so a shared cache keeping it would answer the
+    next reviewer with somebody else's write."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "no-store")
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                response = await http.post(
+                    _decision_path(submission_id), json=APPROVAL, headers=WRITE
+                )
+                assert response.status_code == 201, response.text
+                assert response.headers["cache-control"] == "no-store"
+                assert response.headers["vary"] == "Authorization, Cookie"
         finally:
             await kit.teardown()
 
