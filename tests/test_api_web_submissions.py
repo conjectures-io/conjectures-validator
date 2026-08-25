@@ -81,6 +81,7 @@ def authorisation(
     idempotency_key: str | None = None,
     expires_at: str | None = None,
     signing_coldkey: str | None = None,
+    domain: str = DOMAIN,
 ) -> dict[str, str]:
     """The query a browser would send, with a real signature over the message it implies.
 
@@ -90,7 +91,7 @@ def authorisation(
     key = idempotency_key or str(uuid.uuid4())
     until = expires_at or stamp()
     message = web_submission_message(
-        domain=DOMAIN,
+        domain=domain,
         address=coldkey,
         hotkey=hotkey,
         task_id=task_id,
@@ -883,6 +884,72 @@ def test_an_account_with_no_key_at_all_still_cannot_submit():
                     "HOTKEY_NOT_LINKED"
                     in envelope["capabilities"]["submit"]["missing"]
                 )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_signing_domain_is_discoverable_and_is_the_one_the_server_rebuilds():
+    """The client builds the message on this path, so the one field it cannot guess has to be
+    served. Guessing between `LOGIN_DOMAIN` and its own hostname is a coin flip that surfaces as
+    an unexplainable SIGNATURE_INVALID."""
+
+    async def scenario():
+        kit = await harness(LOGIN_DOMAIN="devs.example.test").setup()
+        try:
+            async with await client(kit) as http:
+                terms = await http.get("/v1/catalog/submission-terms")
+                assert terms.status_code == 200
+                assert terms.json()["signing_domain"] == "devs.example.test"
+
+                # And signing with exactly that value is accepted, so the served field is the
+                # one the server rebuilds rather than a second copy that can drift.
+                await ready_account(kit, http)
+                bundle, _ = distinct_bundle("web-served-domain")
+                created = await http.post(
+                    WEB,
+                    params=authorisation(
+                        bundle_sha256=_digest(bundle), domain="devs.example.test"
+                    ),
+                    content=bundle,
+                    headers=zip_headers(http),
+                )
+                assert created.status_code == 201, created.text
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_signature_over_the_wrong_domain_says_what_was_expected():
+    """The failure a frontend hits first, and the one a bare reason code cannot explain."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await ready_account(kit, http)
+                bundle, _ = distinct_bundle("web-wrong-domain")
+
+                refused = await http.post(
+                    WEB,
+                    params=authorisation(
+                        bundle_sha256=_digest(bundle), domain="not-this-deployment.test"
+                    ),
+                    content=bundle,
+                    headers=zip_headers(http),
+                )
+                assert refused.status_code == 401
+                assert refused.json()["reason_code"] == "SIGNATURE_INVALID"
+                # The diff is in the response: the caller signed one domain, the server rebuilt
+                # another, and the body names the one it rebuilt.
+                expected = refused.json()["expected_message"]
+                assert expected.startswith("conjectures-web-submission-v1\n")
+                assert "domain: conjectures.io" in expected
+                assert "not-this-deployment.test" not in expected
+                # Never the signature itself.
+                assert "signature" not in refused.json()
         finally:
             await kit.teardown()
 

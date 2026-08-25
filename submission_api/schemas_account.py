@@ -557,6 +557,22 @@ class SubmissionTerms(Model):
     effective_from: dt.date
     approval_reasons: tuple[ApprovalReason, ...]
     disqualification_reasons: tuple[DisqualificationReason, ...]
+    # The `domain:` line of every message this deployment asks a key to sign, and the one field a
+    # client cannot otherwise know.
+    #
+    # It exists because `POST /v1/submissions/web` is the only signing flow where the *client*
+    # builds the message. Every other one — wallet sign-in, coldkey and hotkey linking, the CLI
+    # session — has the server mint the message and hand it back, so the domain travels with it.
+    # The one-call web path has nowhere to put that round trip, and a client left guessing between
+    # `LOGIN_DOMAIN` and its own hostname signs a message the server does not rebuild, which
+    # surfaces as an unexplainable `SIGNATURE_INVALID`.
+    #
+    # No new disclosure: it is already on the first line of every challenge message the server
+    # mints, so anything that can call `POST /v1/auth/wallet/challenge` can already read it. It is
+    # deployment configuration, not a secret — what it protects against is a signature made for
+    # one deployment being replayed at another, and that property comes from the signer and the
+    # verifier agreeing on the value, not from keeping it quiet.
+    signing_domain: str
 
 
 # --- Submission intents ------------------------------------------------------------------

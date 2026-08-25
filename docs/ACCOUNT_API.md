@@ -895,6 +895,34 @@ Content-Length: 606
 `201` returns `{ submission, credits }` — the same body `confirm` returns. An exact replay returns
 `200` with the same submission.
 
+### Getting the domain right
+
+`domain` is the one field a client cannot work out for itself, and it is the first thing to check
+when a signature is refused. Every *other* signing flow here has the server mint the message and
+hand it back — `POST /v1/auth/wallet/challenge` and the three link flows all return `message` — so
+the domain travels with it. This path has no round trip to carry it, so the value is served
+instead:
+
+```
+GET /v1/catalog/submission-terms   ->   { "signing_domain": "conjectures.io", ... }
+```
+
+Unauthenticated, cached, and already fetched by a submit page for the terms themselves, so it
+costs nothing extra. **Read it; do not use `window.location.hostname` and do not hardcode it.** It
+is `LOGIN_DOMAIN`, a per-deployment setting, and a staging host that signs `conjectures.io` — or a
+production client that signs its own hostname — produces a message the server does not rebuild and
+a `SIGNATURE_INVALID` with no obvious cause.
+
+Serving it discloses nothing. It is already the first line of every challenge message this server
+mints, so any caller can read it from `POST /v1/auth/wallet/challenge` today. What the field
+protects against is a signature made for one deployment being replayed at another, and that comes
+from signer and verifier agreeing on the value, not from keeping it quiet.
+
+**A refused signature echoes the message the server rebuilt.** `401 SIGNATURE_INVALID` carries
+`expected_message` — the exact bytes it verified against — so a mismatch is a one-line diff rather
+than an investigation. Every line of it is a value the caller just sent, plus the served domain;
+the signature itself is never echoed.
+
 ### What the coldkey signs
 
 ```
@@ -1050,7 +1078,7 @@ the signature later needs the exact bytes rather than a formatter's promise to h
 | `AUTHORISATION_EXPIRED` | 401 | `expires_at` is in the past; sign a new one |
 | `AUTHORISATION_WINDOW_TOO_LONG` | 400 | Carries `max_minutes` |
 | `BUNDLE_DIGEST_MISMATCH` | 400 | The upload is not the archive that was signed; carries the real `bundle_sha256` |
-| `SIGNATURE_INVALID` | 401 | The signature does not verify against the rebuilt message |
+| `SIGNATURE_INVALID` | 401 | The signature does not verify against the rebuilt message. Carries `expected_message` — diff it against what you signed; the `domain:` line is the usual culprit |
 | `DUPLICATE_PROOF` | 409 | These exact proof bytes are already submitted |
 | `BOUNTY_CLOSED` / `BOUNTY_UNFUNDED` | 409 | Same two refusals `confirm` makes, with the same codes |
 
