@@ -2,7 +2,7 @@
 
 How data moves through the validator, what each stage consumes, what it produces, and which values
 are load-bearing for trust. Every number here was computed from the pinned repository state at
-`379fc0298dc146df549e7061c3ede0353a5bb51f`; the commands are reproducible from `data/catalog.json`
+`8432eac998110a563e03df65a28c117e97c8c142`; the commands are reproducible from `data/catalog.json`
 and `../conjectures-tasks/{allowlist.json,tiers/**/*.json}`.
 
 Companion documents: [`SUBNET.md`](SUBNET.md) for the service contract,
@@ -118,7 +118,7 @@ flowchart TD
 
 | | |
 | --- | --- |
-| **Primary source** | `vendor/formal-conjectures` at commit `379fc029…`, a Lean 4 project |
+| **Primary source** | `vendor/formal-conjectures` at commit `8432eac9…`, a Lean 4 project |
 | **Needs** | The pinned toolchain `leanprover/lean4:v4.27.0`, Mathlib `a3a10db0…`, a full compile |
 | **Produces** | 3,267 declaration records over 836 source files, plus `schema_version`, `repository_commit`, `lean_toolchain`, `mathlib_commit`, `extraction_duration_ms` |
 | **Cost** | `extraction_duration_ms: 889692` — 14.8 minutes, once per pin |

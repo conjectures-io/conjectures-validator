@@ -13,21 +13,21 @@
   },
   "formal_conjectures": {
     "repository": "https://github.com/google-deepmind/formal-conjectures.git",
-    "base_commit": "f7349f32ba6df6e7b7baf77467a3c6c7777a634d",
-    "commit": "379fc0298dc146df549e7061c3ede0353a5bb51f",
-    "patch_sha256": "44107cbf90b7cfcf7c942078919ebb04af4d1ee3d9358f4c688118baf303239a"
+    "base_commit": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
+    "commit": "8432eac998110a563e03df65a28c117e97c8c142",
+    "patch_sha256": "853372293b16a79ea495a28909e6077d41e2c6402165c3c6233ea0747c919814"
   },
   "tasks": {
     "repository": "https://github.com/conjectures-io/conjectures-tasks.git",
     "commit": "c1829b7c28bd54a59a9f1f2dcb9834b1cab53cfd"
   },
   "lean": {
-    "toolchain": "leanprover/lean4:v4.27.0",
-    "commit": "db93fe1608548721853390a10cd40580fe7d22ae"
+    "toolchain": "leanprover/lean4:v4.33.1",
+    "commit": "819816b2e0a3bf405af45ae5c7af2491d8f5bee6"
   },
   "mathlib": {
     "repository": "https://github.com/leanprover-community/mathlib4.git",
-    "commit": "a3a10db0e9d66acbebf76c5e6a135066525ac900"
+    "commit": "0df444a360eaa60ab8c11dca51a86af692955474"
   },
   "comparator": {
     "repository": "https://github.com/leanprover/comparator.git",
@@ -35,7 +35,7 @@
   },
   "lean4export": {
     "repository": "https://github.com/leanprover/lean4export.git",
-    "commit": "590dec59d93ab6becdf16fdd8aee5abbb99cb856"
+    "commit": "15f6055e299ad5b89345e533cc2192f4cc00f659"
   },
   "landrun": {
     "repository": "https://github.com/Zouuup/landrun.git",
