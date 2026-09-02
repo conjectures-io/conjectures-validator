@@ -38,6 +38,23 @@ def _stub_tree(tmp_path: Path) -> Path:
         (root / "vendor" / checkout).mkdir(parents=True)
     (root / "security").mkdir()
     (root / "security" / "seccomp-launcher.c").write_text("int main(void){return 0;}\n", encoding="utf-8")
+    # A real checkout always has this, and the Dockerfile copies it in before running the script:
+    # the recipe reads the pinned toolchain and Lean commit out of it.
+    pins = (ROOT / "pins.lock.json").read_text(encoding="utf-8")
+    (root / "pins.lock.json").write_text(pins, encoding="utf-8")
+    # The vendor stage asserts that the exporter it just built links the pinned Lean, because
+    # upstream publishes no lean4export release for every Lean patch version and it is built under
+    # a toolchain it does not declare. Stub one that answers truthfully, so the check is exercised
+    # here rather than quietly skipped by a tree that has no binary to ask.
+    pinned_lean = json.loads(pins)["lean"]["commit"]
+    exporter = root / "vendor/lean4export/.lake/build/bin"
+    exporter.mkdir(parents=True)
+    binary = exporter / "lean4export"
+    binary.write_text(
+        f'#!/bin/sh\necho \'{{"meta":{{"lean":{{"githash":"{pinned_lean}"}}}}}}\'\n',
+        encoding="utf-8",
+    )
+    binary.chmod(0o755)
 
     binaries = root / "stub-bin"
     binaries.mkdir()

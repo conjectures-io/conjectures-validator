@@ -1,16 +1,16 @@
 flowchart TD
     subgraph GEN["GENERATION DOMAIN — offline, trusted, once per pin"]
-        FC["Formal Conjectures @ 379fc029<br/>836 files · 3267 declarations"]
+        FC["Formal Conjectures @ 8432eac9<br/>1188 files · 5190 declarations"]
         EX["CatalogExtractor.lean<br/>Lean environment introspection"]
-        CAT["data/catalog.json<br/>3267 declaration records"]
+        CAT["data/catalog.json<br/>5190 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>159 active asserted picks"]
+        PICK["task target policy<br/>158 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>318 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>316 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]

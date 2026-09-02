@@ -43,17 +43,17 @@ a read-only task directory, bounded proof bytes, and an expected digest, and ret
 ```mermaid
 flowchart TD
     subgraph GEN["GENERATION DOMAIN — offline, trusted, once per pin"]
-        FC["Formal Conjectures @ 379fc029<br/>836 files · 3267 declarations"]
+        FC["Formal Conjectures @ 8432eac9<br/>1188 files · 5190 declarations"]
         EX["CatalogExtractor.lean<br/>Lean environment introspection"]
-        CAT["data/catalog.json<br/>3267 declaration records"]
+        CAT["data/catalog.json<br/>5190 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>159 active asserted picks"]
+        PICK["task target policy<br/>158 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>318 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>316 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -169,15 +169,16 @@ the pipeline.
 
 | Step | Rule | Remaining |
 | --- | --- | --- |
-| 0 | All declarations at the pinned commit | **3,267** |
-| 1 | `category == "research open"` | **1,167** |
-| 2 | `classification == DIRECT_PROP` | **988** |
-| 3 | remaining exact-proposition safety rules | **988** |
-| 4 | module under `ErdosProblems/` | **506** over 320 files |
+| 0 | All declarations at the pinned commit | **5,190** |
+| 1 | `category == "research open"` | **1,426** |
+| 2 | `classification == DIRECT_PROP` | **1,274** |
+| 3 | remaining exact-proposition safety rules | **1,274** |
+| 4 | module under `ErdosProblems/` | **540** over 346 files |
 | 5 | audited candidate selection | **176** targets from 154 files (151 Erdős over 132 files, 25 Green over 22) |
 | 6 | active after dependency and semantic-fidelity retirements | **168** targets from 147 files (145 Erdős over 127 files, 23 Green over 20) |
 | 7 | active after retiring settled or literature-solved targets | **162** targets from 141 files (142 Erdős over 124 files, 20 Green over 17) |
 | 8 | active after maintainer-request withdrawals | **159** targets from 139 files (139 Erdős over 122 files, 20 Green over 17) |
+| 9 | active after retiring a target under an active upstream correction | **158** targets from 138 files (139 Erdős over 122 files, 19 Green over 16) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -187,7 +188,7 @@ one of them starts firing is the day upstream changed something that matters.
 
 ### Retired theorems
 
-`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 182 source theorems and 194
+`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 183 source theorems and 322
 canonical types that must not be offered again, committed by both `theorem` name **and**
 `source_type_sha256` — so retiring survives a rename. An audited target may explicitly supersede a
 prior theorem-name retirement; all remaining retirement entries are checked by name *or* type hash at
@@ -195,7 +196,7 @@ selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 159 active targets are **not computed** from the 506. They are the admitted subset of 176
+The 158 active targets are **not computed** from the 540. They are the admitted subset of 176
 audited candidates and are asserted by hand in one target file. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
@@ -302,7 +303,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-159 `allowed_source_theorems` and 318 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+158 `allowed_source_theorems` and 316 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
