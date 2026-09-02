@@ -139,7 +139,7 @@ targets.
 The pinned data flow is:
 
 ```text
-Formal Conjectures 379fc029…
+Formal Conjectures 8432eac9…
   -> Lean environment catalog extraction
   -> open-source eligibility + versioned adapter
   -> deterministic task payload + externally published SHA-256
@@ -420,15 +420,15 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 209
-active audited targets (189 Erdős targets and 20 Green's Open Problems targets), including complete
-statements and independently formalized parts or variants. Seventeen additional audited targets are
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 208
+active audited targets (189 Erdős targets and 19 Green's Open Problems targets), including complete
+statements and independently formalized parts or variants. Eighteen additional audited targets are
 retired from admission — eight for dependency or semantic-fidelity defects, four after verified
-submissions settled them, two after literature solutions, and three by maintainer request — and are
-absent from the deny-by-default allowlist. The source
-snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
-derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
-correction patch. The tier contains 418 active immutable bundles for 209 theorem targets. Every
+submissions settled them, two after literature solutions, and four by maintainer request or an
+active upstream correction — and are absent from the deny-by-default allowlist. The source
+snapshot is Formal Conjectures commit `8432eac998110a563e03df65a28c117e97c8c142`, deterministically
+derived from upstream `7d1a8c9912747679d0093f6d1216420c33ee5ffa` plus the checked-in semantic
+correction patch. The tier contains 416 active immutable bundles for 208 theorem targets. Every
 target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
 
 Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
@@ -466,7 +466,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 209 active audited direct propositions, generates committed `formalized` and
+the 208 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
