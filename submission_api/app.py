@@ -75,6 +75,7 @@ from submission_api.observability import (
     AxiomRequestMiddleware,
     request_event_mode,
 )
+from submission_api.hotkeys import build_hotkey_directory
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
@@ -92,6 +93,7 @@ from submission_api.routers import (
     submissions,
     system,
     tasks,
+    web_submissions,
 )
 from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
@@ -164,6 +166,9 @@ def build_services(
     reward_targets = tuple(
         sorted({entry.reward_target_id for entry in resolved_catalog.entries.values()})
     )
+    # Built before `Services` because the hotkey directory borrows its chain reader: one
+    # websocket answers both "was this transfer finalized" and "does this hotkey exist".
+    verifier = build_payment_verifier(settings)
     return Services(
         settings=settings,
         engine=engine,
@@ -171,7 +176,8 @@ def build_services(
         catalog=resolved_catalog,
         retired=resolved_retired,
         authenticator=build_authenticator(settings),
-        payments=build_payment_verifier(settings),
+        payments=verifier,
+        hotkeys=build_hotkey_directory(settings, payments=verifier),
         dispatcher=build_dispatcher(settings),
         pricing=DynamicBountyPricer(
             balance_reader=CachedBalanceReader(
@@ -383,6 +389,10 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # The one-call website path. Shares the /v1/submissions prefix with both of the above, and
+    # /web is a fixed segment like /preflight and /intents, so it cannot collide with the
+    # UUID-typed /{submission_id} either.
+    application.include_router(web_submissions.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
     # advisory record behind it). Both are role-gated at every route, and gated again on the

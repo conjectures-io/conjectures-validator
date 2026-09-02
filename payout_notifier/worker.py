@@ -83,10 +83,21 @@ class PayoutNotifier:
 
         Full bounties copy the submission-time lock byte-for-byte. A binding
         ``FORMALIZATION_DEFECT_AWARD`` instead creates the policy's fixed $750 payout using one
-        current authoritative quote shared by every defect award in this pass. An
-        account-configured payout pair takes precedence; legacy direct submissions fall back to
-        the coldkey that funded the attempt and the submitting hotkey. Credit submissions with no
-        configured payout coldkey are deliberately skipped rather than guessed.
+        current authoritative quote shared by every defect award in this pass.
+
+        The destination is the first of three that the row can answer for, and the order is by
+        strength of evidence:
+
+        1. the **account-configured payout pair**, which the owner set deliberately;
+        2. ``signer_coldkey`` — a website submission, where a coldkey *signed* for this exact
+           attempt. Stronger evidence than either fallback below, and paired with the hotkey the
+           same signature nominated;
+        3. ``payment_sender`` — a legacy direct submission, paid by a finalized transfer, paired
+           with the submitting hotkey.
+
+        A credit submission with none of the three is deliberately skipped rather than guessed:
+        the schema leaves ``payment_sender`` NULL on that path, so before the website path existed
+        an account that never configured a payout had no address anybody could stand behind.
         """
         with self.sessions() as session:
             latest_decision_id = (
@@ -112,8 +123,13 @@ class PayoutNotifier:
                 .scalar_subquery()
             )
             destination_coldkey = func.coalesce(
-                Account.payout_coldkey, Submission.payment_sender
+                Account.payout_coldkey,
+                Submission.signer_coldkey,
+                Submission.payment_sender,
             )
+            # No `signer_coldkey` counterpart, because `Submission.hotkey` already *is* the
+            # hotkey that signature nominated. The account pair stays both-or-neither — a CHECK
+            # enforces it — so these two coalesces cannot resolve to a mismatched pair.
             destination_hotkey = func.coalesce(
                 Account.payout_hotkey, Submission.hotkey
             )

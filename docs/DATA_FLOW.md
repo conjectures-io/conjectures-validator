@@ -209,7 +209,7 @@ refuses to accept any pick that is not simultaneously:
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: at least 139 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: at least 189 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
 Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
@@ -326,7 +326,7 @@ combined with a tampered audit file:
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 139 active Erdős targets and 20 Green targets.
+all 189 active Erdős targets and 20 Green targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it

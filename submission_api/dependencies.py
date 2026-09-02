@@ -32,6 +32,7 @@ from submission_api.google_identity import (
     DisabledGoogleCredentialVerifier,
     GoogleCredentialVerifier,
 )
+from submission_api.hotkeys import HotkeyDirectory, UnavailableHotkeyDirectory
 from submission_api.mail import MailSender
 from submission_api.sessions import Principal
 from submission_api.payments import PaymentVerifier
@@ -72,6 +73,11 @@ class Services:
         default_factory=DisabledGoogleCredentialVerifier
     )
     bounty_usd: AlphaUsdPriceReader = field(default_factory=UnavailableAlphaUsdPriceReader)
+    # Whether the chain knows a declared hotkey. Only `POST /v1/submissions/web` asks, because it
+    # is the only path where the hotkey is declared rather than proved. Fail-closed by default:
+    # a graph assembled without it refuses that endpoint instead of accepting an address the
+    # payout extrinsic cannot stake to. See `submission_api/hotkeys.py`.
+    hotkeys: HotkeyDirectory = field(default_factory=UnavailableHotkeyDirectory)
     # The TMC PAY funding path. Both default to the unavailable implementation, so a deployment
     # that has not configured the processor — and every test that does not care about it — refuses
     # the purchase endpoints instead of reaching a network. See `submission_api/tmc_pay.py`.

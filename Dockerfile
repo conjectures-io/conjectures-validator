@@ -34,7 +34,14 @@ RUN FC_AUDIT_PATCH=/opt/fc-verifier/.build/formal-conjectures-audit-fixes.patch 
     && rm -rf /root/.cache/mathlib /opt/fc-verifier/.build
 
 COPY . .
-RUN ./scripts/build_trusted_cache.sh --stage root \
+# `COPY` preserves the checkout's permission bits. A root-owned release cloned with umask 077
+# therefore arrives as 0700 directories and 0600 files, which the non-root user below cannot read.
+# Normalize only the application tree copied by the preceding instruction; the
+# three pruned paths are trusted-cache layers from the vendor build and already have usable modes.
+RUN find . \
+      \( -path './vendor' -o -path './.elan' -o -path './.lake' \) -prune \
+      -o -exec chmod a+rX {} + \
+    && ./scripts/build_trusted_cache.sh --stage root \
     && rm -rf /root/.cache/mathlib \
     && for directory in formal-conjectures comparator lean4export landrun nanoda; do \
          git config --system --add safe.directory "/opt/fc-verifier/vendor/$directory"; \

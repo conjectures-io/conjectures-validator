@@ -181,7 +181,7 @@ def _resolve_task(services, task_id: str, task_bundle_sha256: str):
         raise NotFound(str(exc), reason_code=REASON_TASK_NOT_ALLOWED) from exc
 
 
-async def _uploaded_bundle(
+async def uploaded_bundle(
     request: Request,
     services,
     entry,
@@ -249,7 +249,7 @@ async def preflight(
     """
     entry = _resolve_task(services, task_id, task_sha256)
     try:
-        bundle = await _uploaded_bundle(
+        bundle = await uploaded_bundle(
             request,
             services,
             entry,
@@ -258,7 +258,7 @@ async def preflight(
             content_length=content_length,
         )
     except ApiError as exc:
-        # Every failure `_uploaded_bundle` raises is an ApiError — a malformed request, or a
+        # Every failure `uploaded_bundle` raises is an ApiError — a malformed request, or a
         # bundle the verifier refused, already translated to a reason code. Caught as one type
         # rather than three, and reported in the body: the caller asked "would this be
         # accepted", and "no, because X" is a successful answer to that question.
@@ -415,7 +415,7 @@ async def upload_bundle(
     entry = _resolve_task(
         services, intent.task_id, digests.to_prefixed(intent.task_bundle_sha256)
     )
-    bundle = await _uploaded_bundle(
+    bundle = await uploaded_bundle(
         request,
         services,
         entry,
@@ -632,4 +632,4 @@ async def read_intent(
     )
 
 
-__all__ = ["intent_request_digest", "router"]
+__all__ = ["intent_request_digest", "router", "uploaded_bundle"]

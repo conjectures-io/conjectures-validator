@@ -231,7 +231,18 @@ class Submission(Base):
     payment_sender: Mapped[str | None] = mapped_column(SS58)
     payment_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
     payment_block: Mapped[int | None] = mapped_column(BigInteger)
+    # The 64 bytes that authorised this exact request. Signed by the row's own `hotkey` on both
+    # key-signed intake paths — unless `signer_coldkey` is set, which is the one case where the
+    # signature verifies against a different key. See `signer_coldkey` below.
     hotkey_signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # V028. The coldkey that authorised a website submission, and NULL everywhere else.
+    #
+    # A browser wallet holds coldkeys only — a hotkey lives on a mining box and never reaches
+    # the browser — so `POST /v1/submissions/web` verifies a coldkey signature over a readable
+    # message instead of a hotkey signature over the request digest. Recording which coldkey
+    # made it is what keeps `hotkey_signature` checkable after the fact: without this column
+    # those bytes verify against nothing on the row.
+    signer_coldkey: Mapped[str | None] = mapped_column(SS58)
 
     # V003. The account that owns this submission, and the two rows behind the credit path.
     # All three are NULL on the extrinsic-funded path, which authenticates a hotkey and need
@@ -455,6 +466,14 @@ class Submission(Base):
             "OR (account_id IS NOT NULL AND intent_id IS NOT NULL)",
             name="submission_credit_path_is_complete",
         ),
+        # V028. A coldkey-authorised submission is always credit-funded and always
+        # account-owned: there is no browser path to the extrinsic endpoint, and the signature
+        # is only meaningful against a wallet linked to the account that spent the credit.
+        CheckConstraint(
+            "signer_coldkey IS NULL "
+            "OR (account_id IS NOT NULL AND credit_ledger_id IS NOT NULL)",
+            name="submission_signer_coldkey_is_account_owned",
+        ),
         Index(
             "submissions_account_idx",
             "account_id",
@@ -528,6 +547,31 @@ event.listen(
     Submission.__table__,
     "before_drop",
     DDL("DROP FUNCTION IF EXISTS submissions_protect_public_credit() CASCADE;"),
+)
+event.listen(
+    Submission.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION submissions_protect_signer_coldkey() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.signer_coldkey IS DISTINCT FROM OLD.signer_coldkey THEN\n"
+        "        RAISE EXCEPTION 'submission signer is immutable'\n"
+        "            USING ERRCODE = '23514', "
+        "CONSTRAINT = 'submission_signer_coldkey_immutable';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submissions_protect_signer_coldkey\n"
+        "    BEFORE UPDATE OF signer_coldkey ON submissions\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submissions_protect_signer_coldkey();"
+    ),
+)
+event.listen(
+    Submission.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submissions_protect_signer_coldkey() CASCADE;"),
 )
 
 
@@ -1292,8 +1336,8 @@ class AccountSession(Base):
         ACCOUNT_SESSION_KIND, nullable=False, server_default=text("'COOKIE'")
     )
     token_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
-    # There was a `csrf_sha256` here. The column still exists in a migrated database and is
-    # left behind on purpose — see V021 — but nothing writes or reads it, so it is not mapped.
+    # There was a `csrf_sha256` here. V021 stopped using it and V029 dropped it after the rolling
+    # deployment compatibility window; nothing writes or reads it, so it is not mapped.
     # A cookie session now proves where a write was initiated from the browser's own `Origin`
     # and `Sec-Fetch-Site` headers; `submission_api/origin_policy.py` says why that is the
     # stronger of the two mechanisms rather than merely the cheaper one.
@@ -1991,6 +2035,11 @@ class SubmissionIntent(Base):
     # Checked against linked_hotkeys at creation, and what the confirming
     # signature must come from.
     hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # V028. Set when the attempt came from the website, where the signature is made by a linked
+    # coldkey instead — a browser wallet has no hotkey to sign with. Carried here from the moment
+    # the credit is held until ``confirm`` copies it to the submission, for the same reason the
+    # public credit is: the submission row is written in one statement at the end.
+    signer_coldkey: Mapped[str | None] = mapped_column(SS58)
     # Chosen while the intent is opened, then included in the server-generated request digest
     # and copied byte-for-byte onto the confirmed submission.
     public_credit_name: Mapped[str | None] = mapped_column(Text)

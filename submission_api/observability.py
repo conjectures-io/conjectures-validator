@@ -64,6 +64,10 @@ REQUEST_EVENT_MODES: Final = (
 _AREAS: Final[tuple[tuple[str, Source], ...]] = (
     ("/v1/submissions/intents", "api-intents"),
     ("/v1/submissions/preflight", "api-intents"),
+    # The one-call website path is the credit surface too — same audience, same money, same
+    # `intent_*` events underneath — so it reports as one area with the three-call flow rather
+    # than as part of the hotkey-signed extrinsic path it shares a prefix with.
+    ("/v1/submissions/web", "api-intents"),
     ("/v1/submissions", "api-submissions"),
     ("/v1/auth", "api-auth"),
     ("/v1/me", "api-me"),
