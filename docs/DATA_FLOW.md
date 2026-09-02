@@ -48,12 +48,12 @@ flowchart TD
         CAT["data/catalog.json<br/>5190 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>158 active asserted picks"]
+        PICK["task target policy<br/>208 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>316 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>416 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -178,7 +178,8 @@ the pipeline.
 | 6 | active after dependency and semantic-fidelity retirements | **168** targets from 147 files (145 Erdős over 127 files, 23 Green over 20) |
 | 7 | active after retiring settled or literature-solved targets | **162** targets from 141 files (142 Erdős over 124 files, 20 Green over 17) |
 | 8 | active after maintainer-request withdrawals | **159** targets from 139 files (139 Erdős over 122 files, 20 Green over 17) |
-| 9 | active after retiring a target under an active upstream correction | **158** targets from 138 files (139 Erdős over 122 files, 19 Green over 16) |
+| 9 | plus 50 reviewed Erdős targets admitted separately | **209** targets from 182 files (189 Erdős over 166 files, 20 Green over 17) |
+| 10 | active after retiring a target under an active upstream correction | **208** targets from 181 files (189 Erdős over 165 files, 19 Green over 16) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -196,7 +197,7 @@ selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 158 active targets are **not computed** from the 540. They are the admitted subset of 176
+The 208 active targets are **not computed** from the 540. They are the admitted subset of 226
 audited candidates and are asserted by hand in one target file. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
@@ -303,7 +304,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-158 `allowed_source_theorems` and 316 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+208 `allowed_source_theorems` and 416 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
