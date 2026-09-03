@@ -31,9 +31,12 @@ services:
       - -c
       - config_file=/etc/postgresql/postgresql.conf
     ports:
-      # Loopback only. The database is reachable from other compose services by
-      # hostname; exposing it on 0.0.0.0 would put payment data on the network.
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      # Loopback by default. The database is reachable from other compose services
+      # by hostname, so nothing in the stack needs this published at all; it is here
+      # for psql from the host. POSTGRES_BIND_HOST widens it for a development host
+      # on a private network. Never set it in production: it would put payment data
+      # on the network.
+      - "${POSTGRES_BIND_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Mounted as a single file so the path resolves to a real file rather than

@@ -326,6 +326,13 @@ MAX_TMC_PAY_TTL_MINUTES = 1_440
 # a payment processor, so the ceiling is what stops one account filling somebody else's dashboard.
 DEFAULT_TMC_PAY_MAX_OPEN_ORDERS = 3
 
+# The ceiling on TMC_PAY_MAX_OPEN_ORDERS itself. The per-account allowance is already an
+# operator's call, so the bound on it is one too: a development or load-testing deployment
+# legitimately wants hundreds of open invoices at once, and hard-coding 100 meant editing the
+# source to get them. It stays bounded above so a mistyped value cannot remove the guard.
+DEFAULT_TMC_PAY_OPEN_ORDERS_CEILING = 100
+MAX_TMC_PAY_OPEN_ORDERS_CEILING = 10_000
+
 # The largest single purchase. Not a policy about wealth: an invoice is quoted in fiat from an
 # estimated rate, and a mistyped credit count should fail here rather than become a five-figure
 # invoice somebody has to explain.
@@ -1415,7 +1422,12 @@ class Settings:
                 env,
                 "TMC_PAY_MAX_OPEN_ORDERS",
                 DEFAULT_TMC_PAY_MAX_OPEN_ORDERS,
-                maximum=100,
+                maximum=_positive_int(
+                    env,
+                    "TMC_PAY_MAX_OPEN_ORDERS_CEILING",
+                    DEFAULT_TMC_PAY_OPEN_ORDERS_CEILING,
+                    maximum=MAX_TMC_PAY_OPEN_ORDERS_CEILING,
+                ),
             ),
             tmc_pay_max_credits=_positive_int(
                 env,
