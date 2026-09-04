@@ -57,6 +57,10 @@ Source: TypeAlias = Literal[
     "api-submissions",
     "api-system",
     "api-tasks",
+    # The public mirror of the contribution corpus. Its own source because it is the one part of
+    # the API whose health depends on a third party being reachable: "the contribution listing is
+    # stale" is an incident about github.com, not about this service.
+    "api-contributions",
     # The cross-cutting ASGI layers — rate limiting, CORS, the write guard, security headers.
     "api-middleware",
     # Outbound side effects the API owns, worth separating because they fail for reasons that
@@ -162,6 +166,17 @@ EventType: TypeAlias = Literal[
     "tmc_pay_webhook_unmatched",
     # One reconciliation pass that found something: orders read, credited, unreadable.
     "tmc_pay_reconciled",
+    # --- contribution mirror ------------------------------------------------------------------
+    # One successful poll that changed the served snapshot. Carries the head commit and the row
+    # counts, so "when did the corpus last move, and to what" is one query.
+    "contributions_refreshed",
+    # A poll that failed. Warning rather than error: the previous snapshot keeps serving, so a
+    # single failure is not an outage — a *run* of them is, which is what a rate over this type
+    # answers.
+    "contributions_refresh_failed",
+    # GitHub refused on budget. Separate from the type above because the remedy is different: this
+    # one means the interval or the egress address needs attention, not that anything is broken.
+    "contributions_rate_limited",
     # --- emissions worker -------------------------------------------------------------------
     "epoch_observed",
     "weights_set",

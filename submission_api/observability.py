@@ -72,6 +72,7 @@ _AREAS: Final[tuple[tuple[str, Source], ...]] = (
     ("/v1/auth", "api-auth"),
     ("/v1/me", "api-me"),
     ("/v1/catalog", "api-catalog"),
+    ("/v1/contributions", "api-contributions"),
     ("/v1/results", "api-results"),
     ("/v1/tasks", "api-tasks"),
     ("/v1/system", "api-system"),

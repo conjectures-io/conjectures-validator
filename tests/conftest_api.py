@@ -40,6 +40,7 @@ from submission_api.app import create_app
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.github import UnavailableContributionMirror
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.hotkeys import build_hotkey_directory
 from submission_api.mail import ConsoleSender
@@ -218,6 +219,11 @@ def build_settings(**overrides: str) -> Settings:
         "DEVELOPMENT_HOTKEYS": f"{HOTKEY},{OTHER_HOTKEY}",
         "DEVELOPMENT_COLDKEY": COLDKEY,
         "MANUAL_REWARD_REVIEW_ENABLED": "true",
+        # Off by default for the whole suite, so no test can reach github.com. A test that wants
+        # the contribution surface injects a `StaticContributionMirror` through `harness`, which
+        # is also what makes every other test prove the endpoints answer 503 rather than
+        # publishing an empty corpus.
+        "CONTRIBUTIONS_ENABLED": "false",
     }
     environ.update(overrides)
     return Settings.from_env(environ)
@@ -308,6 +314,7 @@ def harness(
     tmc_pay=None,
     tao_usd=None,
     hotkeys=None,
+    contributions=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -329,6 +336,11 @@ def harness(
     the real factory, which in development resolves to the `DEVELOPMENT_HOTKEYS` allowlist — so a
     test nominating one of the two fixture addresses is nominating a hotkey the chain knows, and a
     test nominating anything else is not. Pass it to stand in for an unreachable chain.
+
+    `contributions` injects the mirrored contribution corpus. It defaults to the unavailable
+    mirror, which is what keeps the suite off the network — the real one polls github.com — and
+    what makes every test that does not name it prove `/v1/contributions` refuses rather than
+    serving an empty corpus as if it had read one.
     """
     settings = build_settings(**overrides)
     verifier = payments or build_payment_verifier(settings)
@@ -383,6 +395,11 @@ def harness(
         retired=retired if retired is not None else RetiredIndex.empty(),
         tmc_pay=tmc_pay if tmc_pay is not None else UnavailableGateway(),
         tao_usd=tao_usd if tao_usd is not None else UnavailableTaoUsdPriceReader(),
+        contributions=(
+            contributions
+            if contributions is not None
+            else UnavailableContributionMirror()
+        ),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings

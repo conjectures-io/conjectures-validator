@@ -91,6 +91,7 @@ start with a path filter.
 | `api-auth` `api-me` | Sign-in, sessions, wallet linking; the signed-in account surface |
 | `api-submissions` `api-intents` | Paid intake: the extrinsic path and the credit-intent path |
 | `api-catalog` `api-results` `api-tasks` `api-system` | The unauthenticated public read surface |
+| `api-contributions` | The mirrored contribution corpus, and the GitHub poll that fills it |
 | `api-health` | `/healthz`, `/readyz` |
 | `api-middleware` | Rate limiting, CORS, the cross-site write guard, security headers |
 | `api-mail` `api-payments` | Outbound side effects the API owns |
@@ -116,6 +117,8 @@ Grouped by the area that raises them. `labels.py` is the source of truth.
   `transfer_ignored`, `transfer_conflict`
 - **Payouts** — `payout_confirmed`, `payout_reorged`, `payout_unmatched`
 - **Emissions** — `epoch_observed`, `weights_set`, `weights_failed`
+- **Contributions** — `contributions_refreshed`, `contributions_refresh_failed`,
+  `contributions_rate_limited`
 - **Catch-alls** — `log_record`, `unexpected_error`
 
 ### Severity is a judgement about who has to act
@@ -136,6 +139,10 @@ Not a restatement of the log level. The choices worth knowing:
   an error is a streak, which is a rate over these events rather than a severity on one of them.
   `weights_failed` at `error` means something different: the *epoch watch* failed, and an epoch's
   emissions cannot be set retroactively.
+- **`contributions_refresh_failed` is a `warning`, and a run of them is the incident.** One
+  failed poll changes nothing a caller can see: the previous snapshot keeps serving and
+  `/v1/contributions/meta` reports its age. What matters is the gap between
+  `contributions_refreshed` events, which is why the successful one carries the head commit.
 - **A `4xx` is a `warning`, a `5xx` is an `error`.** Most `4xx`s are the API working correctly — a
   malformed bundle gets a `422` and that is the job. What makes them worth a non-`info` severity is
   that a *rate* of them is a signal.
