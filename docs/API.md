@@ -57,6 +57,13 @@ Task discovery is unauthenticated because the task pool and its digests are publ
 | `GET` | `/v1/results/{id}/report` | The published subset of the verifier report |
 | `GET` | `/v1/results/{id}/solution` | The verified `Main.lean`, for an approved result only |
 | `GET` | `/v1/system/status` | Submissions open/paused, queue depths, pin rotation |
+| `GET` | `/v1/contributions` | Partial work contributed to the pool, with filters. Mirrored from [`conjectures-contribution`](https://github.com/conjectures-io/conjectures-contribution); refreshed on an interval from the public GitHub API |
+| `GET` | `/v1/contributions/{id}` | One contribution, by full id or unambiguous prefix |
+| `GET` | `/v1/contributions/targets` | One row per target, empty ones included |
+| `GET` | `/v1/contributions/targets/{target}` | Everything on one target. Addressable by the corpus's target slug, this API's conjecture slug, the reward target, or the problem id |
+| `GET` | `/v1/contributions/authors` | One row per author key |
+| `GET` | `/v1/contributions/pending` | Open contribution pull requests — offered, not accepted |
+| `GET` | `/v1/contributions/meta` | Which commit is served, and how fresh it is |
 
 Public result objects expose `bounty_amount_rao` together with `bounty_amount_usd`. The USD field
 is a current TaoStats display conversion, returned as a decimal string rounded to cents, and is

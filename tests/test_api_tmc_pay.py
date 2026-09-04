@@ -2530,6 +2530,43 @@ def test_slippage_below_the_quote_margin_is_refused_at_startup():
     assert shipped.tmc_pay_max_slippage_bps == 100
 
 
+def test_the_open_order_ceiling_is_configurable_but_stays_bounded():
+    """A development host that wants hundreds of open invoices should not have to edit the source.
+
+    The per-account allowance was already an operator setting; only the bound on it was
+    hard-coded. So the bound moves to the environment, and the bound *on the bound* stays in the
+    source, which is what keeps a mistyped value from removing the guard entirely.
+    """
+    from submission_api.settings import Settings, SettingsError
+
+    environ = {
+        "APP_MODE": "DEV",
+        "PAYMENT_RECIPIENT_SS58": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
+        "DEVELOPMENT_HOTKEYS": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+        **tmc_pay_settings(),
+    }
+
+    # The shipped ceiling is unchanged, so a deployment that sets nothing behaves as before.
+    assert Settings.from_env(environ).tmc_pay_max_open_orders == 3
+    with pytest.raises(SettingsError, match="TMC_PAY_MAX_OPEN_ORDERS"):
+        Settings.from_env({**environ, "TMC_PAY_MAX_OPEN_ORDERS": "150"})
+
+    # Raising the ceiling is what makes the same value legal.
+    raised = Settings.from_env(
+        {
+            **environ,
+            "TMC_PAY_MAX_OPEN_ORDERS": "150",
+            "TMC_PAY_MAX_OPEN_ORDERS_CEILING": "1000",
+        }
+    )
+    assert raised.tmc_pay_max_open_orders == 150
+
+    # The ceiling itself is bounded, and the failure names the setting that is wrong rather than
+    # the one it bounds.
+    with pytest.raises(SettingsError, match="TMC_PAY_MAX_OPEN_ORDERS_CEILING"):
+        Settings.from_env({**environ, "TMC_PAY_MAX_OPEN_ORDERS_CEILING": "20000"})
+
+
 def test_configured_slippage_decides_whether_an_overshoot_is_requoted():
     """The same invoice is accepted or thrown away depending only on the configured tolerance.
 

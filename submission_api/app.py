@@ -61,6 +61,10 @@ from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.dependencies import Services
+from submission_api.github import (
+    ContributionRefresher,
+    build_contribution_mirror,
+)
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
@@ -85,6 +89,7 @@ from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
     auth,
+    contributions,
     health,
     intents,
     me,
@@ -242,6 +247,11 @@ def build_services(
             taostats_api_key=settings.taostats_api_key,
             taostats_ttl_seconds=settings.taostats_price_cache_seconds,
         ),
+        # Constructed empty. The refresh task started during lifespan is what fills it, so
+        # startup never waits on github.com and a GitHub outage cannot stop this process booting
+        # — `/v1/contributions` answers `503` until the first poll lands, which is the honest
+        # report of a corpus that has not been read yet.
+        contributions=build_contribution_mirror(settings),
     )
 
 
@@ -277,9 +287,20 @@ def create_app(
             submissions_paused=resolved_settings.submissions_paused,
             tmc_pay_enabled=resolved_settings.tmc_pay_enabled,
         )
+        # Started after the service graph exists and before the first request is served. Not
+        # awaited: its first poll is a network round trip, and blocking readiness on a third
+        # party would make a GitHub outage look like a failed deploy.
+        refresher = ContributionRefresher(
+            mirror=application.state.services.contributions,
+            interval_seconds=resolved_settings.contributions_refresh_seconds,
+        )
+        if resolved_settings.contributions_enabled:
+            refresher.start()
         try:
             yield
         finally:
+            # First, so a poll in flight is cancelled before the client it is using is closed.
+            await refresher.stop()
             get_axiom().info(
                 source="api", event_type="service_stopped", version=__version__
             )
@@ -297,6 +318,8 @@ def create_app(
                 # Both hold an httpx client open across requests, for the same reason.
                 await built.tao_usd.aclose()
                 await built.tmc_pay.aclose()
+                # Holds an httpx client open between polls, for the same reason.
+                await built.contributions.aclose()
             # Last, so the shutdown event above and anything logged during teardown are flushed
             # before the process exits. `atexit` would do it too; doing it here means it happens
             # while the loop is still running rather than during interpreter shutdown.
@@ -383,6 +406,9 @@ def create_app(
     application.include_router(catalog_router.router)
     application.include_router(results.router)
     application.include_router(system.router)
+    # The public contribution mirror. Its own prefix, shared with nothing, and unauthenticated
+    # like the catalog it sits alongside.
+    application.include_router(contributions.router)
     # Stage 2. The intent router shares the /v1/submissions prefix with the extrinsic path, so
     # it is included after it: the fixed segments (/preflight, /intents) cannot collide with
     # /{submission_id}, which is typed as a UUID.

@@ -21,10 +21,20 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/results/{id}/report` | `PublicVerificationReport` | The published subset of the verifier report |
 | `GET` | `/v1/results/{id}/solution` | `PublicSolution` | The proof itself — only once review has approved it |
 | `GET` | `/v1/system/status` | `SystemStatus` | Submissions open/paused, queue depths, pin rotation window |
+| `GET` | `/v1/contributions` | `OffsetPage<ContributionItem>` | Partial work contributed to the pool, newest first, with filters |
+| `GET` | `/v1/contributions/{id}` | `ContributionItem` | One contribution, by full id or unambiguous prefix |
+| `GET` | `/v1/contributions/targets` | `OffsetPage<ContributionTargetSummary>` | One row per target, including the ones nobody has contributed to |
+| `GET` | `/v1/contributions/targets/{target}` | `ContributionTargetDetail` | Everything on one target, by any of its four names |
+| `GET` | `/v1/contributions/authors` | `OffsetPage<ContributionAuthorSummary>` | One row per author key, across every target |
+| `GET` | `/v1/contributions/pending` | `OffsetPage<PendingContributionItem>` | Open contribution pull requests: offered, not yet accepted |
+| `GET` | `/v1/contributions/meta` | `ContributionsMeta` | What corpus is served, at which commit, and how fresh |
 
 Response models are in [`../submission_api/schemas_public.py`](../submission_api/schemas_public.py),
 kept separate from the miner-facing `schemas.py` so that the rules below are enforced by which
-module a field lives in rather than by remembering to leave it out.
+module a field lives in rather than by remembering to leave it out. The contribution models are
+in [`../submission_api/schemas_contributions.py`](../submission_api/schemas_contributions.py),
+separate again because they project a mirrored external repository rather than this validator's
+own database.
 
 ## What is published, and what is not
 
@@ -580,6 +590,81 @@ see the disagreement rather than have it smoothed over), and `ok` otherwise.
 
 Never cached: this is the endpoint a client polls to learn whether what it was told is still true.
 
+## Contributions
+
+A *contribution* is partial Lean that helps someone else finish a target — a lemma, a definition,
+an API, a special case. Contributions are not solutions: a solution is a paid submission to this
+validator, and appears in the result feeds above. Contributions live in a separate public
+repository, [`conjectures-io/conjectures-contribution`](https://github.com/conjectures-io/conjectures-contribution),
+which this API mirrors.
+
+### It is a mirror, and it says so
+
+`/v1/contributions/meta` publishes the commit the served snapshot was read at, when it was
+fetched, its age, and whether that age has passed `CONTRIBUTIONS_STALE_SECONDS`. Read it before
+trusting a listing. Two failure modes are reported rather than hidden:
+
+* **`503 CONTRIBUTIONS_UNAVAILABLE`** — the corpus has never been read. Every endpoint refuses,
+  rather than serving `items: []`. "Nothing has been contributed" is a claim about the repository;
+  "we have not read the repository" is a claim about this process, and publishing the second as the
+  first is the one mistake worth a status code.
+* **`meta.unreadable_targets`** — target indexes that failed to parse and are therefore missing from
+  every listing. A non-zero value means the answer is incomplete, and an empty result for a target
+  is not evidence that nothing is on it.
+
+A GitHub outage makes the listing *stale*, never slow and never empty: requests are answered from
+the last good snapshot, and a failed refresh leaves it in place.
+
+### Two naming schemes, one join
+
+The contribution repository names targets with its own pool slug, `erdos-535`. This API names
+conjectures with a slug derived from the durable reward target, `erdos535-erdos-535`. **They are
+different strings for the same theorem and neither is derived from the other.** What joins them is
+`reward_target_id`, which every target index carries and which is the identity this validator
+prices, pays and retires against.
+
+So every contribution row carries both, plus the per-revision `problem_id`, and a target is
+reachable under all four:
+
+```
+GET /v1/contributions/targets/erdos-535                        # the corpus's slug
+GET /v1/contributions/targets/erdos535-erdos-535               # this API's conjecture slug
+GET /v1/contributions/targets/fc-target:Erdos535.erdos_535     # the durable reward target
+GET /v1/contributions/targets/fc-379fc029-erdos535-…-problem   # the per-revision problem id
+```
+
+`conjecture_slug` is `null` when the corpus names no reward target for a row — reported as absent
+rather than guessed from the target name.
+
+`in_pool` is answered by this validator's live catalog, never by the mirror. The contribution
+repository pins its own revision of the pool, so a rotation here moves `in_pool` days before that
+repository notices; `open` is the corpus's separate flag for whether a target accepts
+contributions, and the two are not substitutes.
+
+### Merged work and open pull requests are different listings
+
+`/v1/contributions` lists work that was reviewed, merged and indexed. `/v1/contributions/pending`
+lists open pull requests — somebody's intent, carrying whatever labels CI has applied so far, which
+may be closed without ever becoming a contribution. They are kept apart deliberately: one list with
+a `state` field is how intent starts being counted as achievement. Nothing in either is a payout:
+`reviews/` and `payouts/` in that repository are empty, so no weight, share or payment is reported
+anywhere on this surface.
+
+`/v1/contributions/targets` covers targets with nothing on them as well, so `?empty=true` answers
+"which conjectures need somebody" — the question the corpus's own local tooling is built around.
+
+### The poll fits inside GitHub's unauthenticated budget
+
+`CONTRIBUTIONS_REFRESH_SECONDS` defaults to 60 against a limit of 60 requests an hour, which works
+because a poll that finds nothing new costs nothing: every request is conditional, and a `304` does
+not count against the budget. When the head commit does move, the whole corpus is read from one
+`tarball` response rather than from one request per target directory. `CONTRIBUTIONS_GITHUB_TOKEN`
+raises the ceiling to 5000/hour and is never required. A rate-limit refusal backs off until the
+reset GitHub itself supplies rather than retrying into it.
+
+The refresh runs on its own task started during lifespan, so startup never waits on github.com and
+a GitHub outage cannot stop this process booting.
+
 ## Caching
 
 | Endpoint | `Cache-Control` | `ETag` |
@@ -589,6 +674,7 @@ Never cached: this is the endpoint a client polls to learn whether what it was t
 | Other catalog reads | `public, max-age=PUBLIC_CACHE_SECONDS` | no |
 | Results | `public, max-age=PUBLIC_CACHE_SECONDS / 2` | no |
 | `/v1/system/status` | `no-store` | no |
+| Every `/v1/contributions` read | `public, max-age=PUBLIC_CACHE_SECONDS` | yes |
 
 `public` is deliberate: none of these endpoints varies by caller and none carries a credential, so
 a shared cache in front of the API may serve one copy to everyone. It is also the cheapest
@@ -606,10 +692,15 @@ on every request until a rotation replaces the pool. A table of contents is also
 re-fetches most, and without a validator a client re-downloads the whole index each time `max-age`
 lapses only to be handed the same bytes.
 
-Both share one helper, `_conditional`, so the tag and the `304` cannot disagree between them. It
-hashes the serialised payload, attaches the `ETag`, and returns a bodiless `304` — repeating the
-validator and the caching headers, per RFC 9110 — when `If-None-Match` names that body. Weak
-comparison prefixes are stripped and `*` matches anything.
+Every contribution read carries one as well, on the strongest version of the argument: those
+bodies are cut from an immutable snapshot and change only when a refresh lands, so between polls
+a revalidation is always a `304`.
+
+They all share one implementation,
+[`../submission_api/conditional.py`](../submission_api/conditional.py), so no two of them can
+disagree about what a tag means. It hashes the serialised payload, attaches the `ETag`, and
+returns a bodiless `304` — repeating the validator and the caching headers, per RFC 9110 — when
+`If-None-Match` names that body. Weak comparison prefixes are stripped and `*` matches anything.
 
 The list, detail and result endpoints carry no `ETag` on purpose: their payloads include live
 attempt counters, so any honest validator would have to be recomputed from the database on every
@@ -735,6 +826,15 @@ See [`../.env.example`](../.env.example) for the annotated set.
 | `PIN_ROTATION_WEEKDAY` | `1` | Monday is 0, Sunday is 6 |
 | `PIN_ROTATION_START_UTC` | `02:00` | UTC `HH:MM` |
 | `PIN_ROTATION_DURATION_MINUTES` | `240` | |
+| `CONTRIBUTIONS_ENABLED` | `true` | `false` makes `/v1/contributions` answer `503` and starts no poll |
+| `CONTRIBUTIONS_REPOSITORY` | `conjectures-io/conjectures-contribution` | `owner/name` |
+| `CONTRIBUTIONS_BRANCH` | `main` | |
+| `CONTRIBUTIONS_REFRESH_SECONDS` | `60` | Minimum 15; see the rate-limit note below |
+| `CONTRIBUTIONS_STALE_SECONDS` | `300` | When `meta.stale` flips; must not be below the refresh interval |
+| `CONTRIBUTIONS_GITHUB_TOKEN` | — | Optional. Raises GitHub's ceiling from 60/hour to 5000/hour |
+| `CONTRIBUTIONS_GITHUB_API_URL` | `https://api.github.com` | https required in `PROD` |
+| `CONTRIBUTIONS_TIMEOUT_SECONDS` | `20` | |
+| `CONTRIBUTIONS_MAX_ARCHIVE_BYTES` | `67108864` | The archive is abandoned mid-stream past this |
 
 The pin lock and the audited allowlist are cross-checked at startup: a lock naming a different
 source revision than the allowlist would publish statements from one revision under the pins of

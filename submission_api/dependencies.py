@@ -28,6 +28,10 @@ from submission_api.auth import Authenticator
 from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
 from submission_api.errors import Forbidden, Unauthorized
+from submission_api.github import (
+    ContributionMirror,
+    UnavailableContributionMirror,
+)
 from submission_api.google_identity import (
     DisabledGoogleCredentialVerifier,
     GoogleCredentialVerifier,
@@ -92,6 +96,13 @@ class Services:
     # against, and nothing in this field can ever reach that path. Empty by default, so a test
     # that cares about admission does not have to know this exists.
     retired: RetiredIndex = field(default_factory=RetiredIndex.empty)
+    # The mirrored contribution corpus behind `/v1/contributions`. Unavailable by default, like
+    # every other external source here, so a service graph assembled without it — including every
+    # test that does not name it — answers `503` rather than reaching github.com or, worse,
+    # publishing an empty corpus as though it had read one. See `submission_api/github.py`.
+    contributions: ContributionMirror = field(
+        default_factory=UnavailableContributionMirror
+    )
     # The public view of `catalog`: tasks grouped into slug-addressable conjectures. Derived
     # rather than passed so that building a `Services` at all runs the slug collision check —
     # including in tests, which construct this directly. A pool that cannot be addressed by

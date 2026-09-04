@@ -145,6 +145,32 @@ MAX_ACTIVITY_ITEMS = 200
 
 DEFAULT_PUBLIC_CACHE_SECONDS = 60
 
+# --- Contribution mirror -------------------------------------------------------------------
+# `/v1/contributions` republishes a public GitHub repository of partial Lean work. It needs no
+# credential and holds no secret, so unlike TMC PAY and TaoStats it is on by default: an
+# unconfigured deployment that silently served nothing would look like a corpus with no
+# contributions in it. `CONTRIBUTIONS_ENABLED=false` turns the surface off, and it then answers
+# `503` rather than an empty list.
+DEFAULT_CONTRIBUTIONS_REPOSITORY = "conjectures-io/conjectures-contribution"
+DEFAULT_CONTRIBUTIONS_BRANCH = "main"
+DEFAULT_CONTRIBUTIONS_API_URL = "https://api.github.com"
+DEFAULT_CONTRIBUTIONS_REFRESH_SECONDS = 60
+# The floor exists because the poll costs GitHub rate-limit budget whenever the corpus *has*
+# moved, and 60 unauthenticated requests an hour is the whole budget. Below this an operator is
+# not tuning freshness, they are arranging to be throttled.
+MIN_CONTRIBUTIONS_REFRESH_SECONDS = 15
+# When a snapshot stops being reported as current. Five missed polls at the default interval:
+# long enough that one failed refresh is not an alarm, short enough that a website reading
+# `meta.stale` learns about a sustained GitHub outage within minutes.
+DEFAULT_CONTRIBUTIONS_STALE_SECONDS = 300
+DEFAULT_CONTRIBUTIONS_TIMEOUT_SECONDS = 20.0
+DEFAULT_CONTRIBUTIONS_MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
+# `owner/name`. Interpolated into every request path and into the links published on every row.
+CONTRIBUTIONS_REPOSITORY = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+)
+CONTRIBUTIONS_BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$")
+
 # HTTP/3 is advertised, not implemented here: an ASGI app never sees the transport. The value
 # names the authority a client should retry over QUIC, which only the deployment knows.
 DEFAULT_ALT_SVC = 'h3=":443"; ma=86400'
@@ -325,6 +351,13 @@ MAX_TMC_PAY_TTL_MINUTES = 1_440
 # How many invoices one account may have outstanding. The endpoint's side effect is an invoice at
 # a payment processor, so the ceiling is what stops one account filling somebody else's dashboard.
 DEFAULT_TMC_PAY_MAX_OPEN_ORDERS = 3
+
+# The ceiling on TMC_PAY_MAX_OPEN_ORDERS itself. The per-account allowance is already an
+# operator's call, so the bound on it is one too: a development or load-testing deployment
+# legitimately wants hundreds of open invoices at once, and hard-coding 100 meant editing the
+# source to get them. It stays bounded above so a mistyped value cannot remove the guard.
+DEFAULT_TMC_PAY_OPEN_ORDERS_CEILING = 100
+MAX_TMC_PAY_OPEN_ORDERS_CEILING = 10_000
 
 # The largest single purchase. Not a policy about wealth: an invoice is quoted in fiat from an
 # estimated rate, and a mistyped credit count should fail here rather than become a five-figure
@@ -668,6 +701,22 @@ class Settings:
     pin_rotation_start_minute: int
     pin_rotation_minutes: int
 
+    # --- Contribution mirror ---------------------------------------------------------------
+    # Read by `submission_api/github.py`, which polls the repository, and by
+    # `routers/contributions.py`, which publishes the freshness these two values define.
+    contributions_enabled: bool
+    contributions_repository: str
+    contributions_branch: str
+    contributions_api_base_url: str
+    contributions_refresh_seconds: int
+    contributions_stale_seconds: int
+    contributions_timeout_seconds: float
+    contributions_max_archive_bytes: int
+    # Optional, and never required: the mirror is designed to stay inside the unauthenticated
+    # 60-requests-an-hour ceiling. A token raises it to 5000, which matters only for a deployment
+    # whose egress address is shared with other GitHub traffic.
+    contributions_token: str = field(repr=False)
+
     # --- Accounts and sessions (Stage 2) ---------------------------------------------------
     mail_sender: str
     smtp_host: str
@@ -878,6 +927,66 @@ class Settings:
         ):
             raise SettingsError(
                 "TAOSTATS_API_KEY must not exceed 512 characters or contain control characters"
+            )
+
+        contributions_repository = env.get(
+            "CONTRIBUTIONS_REPOSITORY", DEFAULT_CONTRIBUTIONS_REPOSITORY
+        ).strip()
+        if CONTRIBUTIONS_REPOSITORY.fullmatch(contributions_repository) is None:
+            raise SettingsError("CONTRIBUTIONS_REPOSITORY must be 'owner/name'")
+        contributions_branch = env.get(
+            "CONTRIBUTIONS_BRANCH", DEFAULT_CONTRIBUTIONS_BRANCH
+        ).strip()
+        if CONTRIBUTIONS_BRANCH.fullmatch(contributions_branch) is None:
+            raise SettingsError("CONTRIBUTIONS_BRANCH is not a valid ref name")
+        # Overridable so a test or an air-gapped deployment can point the mirror at a stand-in.
+        # Production still requires https: the ETag-conditional poll carries no credential, but a
+        # plaintext one would let anyone on the path decide what this API publishes as the corpus.
+        contributions_api_base_url = (
+            env.get("CONTRIBUTIONS_GITHUB_API_URL", "").strip()
+            or DEFAULT_CONTRIBUTIONS_API_URL
+        )
+        if not contributions_api_base_url.startswith(("http://", "https://")):
+            raise SettingsError(
+                "CONTRIBUTIONS_GITHUB_API_URL must be an absolute http(s) URL"
+            )
+        if production and not contributions_api_base_url.startswith("https://"):
+            raise SettingsError("CONTRIBUTIONS_GITHUB_API_URL must use https in production")
+        contributions_token = env.get("CONTRIBUTIONS_GITHUB_TOKEN", "").strip()
+        if len(contributions_token) > 512 or any(
+            ord(char) < 32 for char in contributions_token
+        ):
+            raise SettingsError(
+                "CONTRIBUTIONS_GITHUB_TOKEN must not exceed 512 characters or contain "
+                "control characters"
+            )
+        contributions_refresh_seconds = _positive_int(
+            env,
+            "CONTRIBUTIONS_REFRESH_SECONDS",
+            DEFAULT_CONTRIBUTIONS_REFRESH_SECONDS,
+            maximum=86_400,
+        )
+        # The floor is a rate-limit guardrail rather than a taste preference, so it refuses rather
+        # than clamping: an operator who asked for a five-second poll has a reason, and silently
+        # tripling it would leave them debugging a freshness figure nothing in the configuration
+        # explains.
+        if contributions_refresh_seconds < MIN_CONTRIBUTIONS_REFRESH_SECONDS:
+            raise SettingsError(
+                "CONTRIBUTIONS_REFRESH_SECONDS must be at least "
+                f"{MIN_CONTRIBUTIONS_REFRESH_SECONDS}; GitHub allows 60 unauthenticated "
+                "requests an hour"
+            )
+        contributions_stale_seconds = _positive_int(
+            env,
+            "CONTRIBUTIONS_STALE_SECONDS",
+            DEFAULT_CONTRIBUTIONS_STALE_SECONDS,
+            maximum=86_400,
+        )
+        if contributions_stale_seconds < contributions_refresh_seconds:
+            raise SettingsError(
+                "CONTRIBUTIONS_STALE_SECONDS must not be shorter than "
+                "CONTRIBUTIONS_REFRESH_SECONDS; a snapshot cannot be stale before the next "
+                "poll is even due"
             )
 
         development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
@@ -1321,6 +1430,25 @@ class Settings:
                 DEFAULT_PIN_ROTATION_MINUTES,
                 maximum=10_080,
             ),
+            contributions_enabled=_flag(env, "CONTRIBUTIONS_ENABLED", True),
+            contributions_repository=contributions_repository,
+            contributions_branch=contributions_branch,
+            contributions_api_base_url=contributions_api_base_url,
+            contributions_refresh_seconds=contributions_refresh_seconds,
+            contributions_stale_seconds=contributions_stale_seconds,
+            contributions_timeout_seconds=_positive_float(
+                env,
+                "CONTRIBUTIONS_TIMEOUT_SECONDS",
+                DEFAULT_CONTRIBUTIONS_TIMEOUT_SECONDS,
+                maximum=120.0,
+            ),
+            contributions_max_archive_bytes=_positive_int(
+                env,
+                "CONTRIBUTIONS_MAX_ARCHIVE_BYTES",
+                DEFAULT_CONTRIBUTIONS_MAX_ARCHIVE_BYTES,
+                maximum=1024 * 1024 * 1024,
+            ),
+            contributions_token=contributions_token,
             mail_sender=mail_sender,
             smtp_host=smtp_host,
             smtp_port=smtp_port,
@@ -1415,7 +1543,12 @@ class Settings:
                 env,
                 "TMC_PAY_MAX_OPEN_ORDERS",
                 DEFAULT_TMC_PAY_MAX_OPEN_ORDERS,
-                maximum=100,
+                maximum=_positive_int(
+                    env,
+                    "TMC_PAY_MAX_OPEN_ORDERS_CEILING",
+                    DEFAULT_TMC_PAY_OPEN_ORDERS_CEILING,
+                    maximum=MAX_TMC_PAY_OPEN_ORDERS_CEILING,
+                ),
             ),
             tmc_pay_max_credits=_positive_int(
                 env,

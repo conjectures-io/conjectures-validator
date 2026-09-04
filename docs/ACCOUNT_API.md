@@ -1232,7 +1232,9 @@ page appears and a confirmation never does:
 
 The rest have defaults chosen so that setting only the required values behaves correctly:
 `TMC_PAY_QUOTE_MARGIN_BPS` (25), `TMC_PAY_QUOTE_ATTEMPTS` (2), `TMC_PAY_TTL_MINUTES` (30),
-`TMC_PAY_MAX_OPEN_ORDERS` (3), `TMC_PAY_MAX_CREDITS` (1000), `TMC_PAY_POLL_SECONDS` (5),
+`TMC_PAY_MAX_OPEN_ORDERS` (3), `TMC_PAY_MAX_OPEN_ORDERS_CEILING` (100, at most 10000 — the
+bound on the setting before it, raised only on development or load-testing deployments),
+`TMC_PAY_MAX_CREDITS` (1000), `TMC_PAY_POLL_SECONDS` (5),
 `TMC_PAY_RATE_TTL_SECONDS` (300), `TMC_PAY_TIMEOUT_SECONDS` (10),
 `TMC_PAY_CREDIT_LATE_PAYMENTS` (false), `TMC_PAY_FIAT_CURRENCY` (USD), `TMC_PAY_FIAT_DECIMALS` (2),
 `TMC_PAY_HOSTED_BASE_URL` (unset).

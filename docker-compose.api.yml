@@ -125,10 +125,14 @@ services:
       AXIOM_REQUEST_EVENTS: ${AXIOM_REQUEST_EVENTS:-all}
 
     ports:
-      # Loopback only. TLS, HTTP/2 and HTTP/3 terminate at the edge — this
+      # Loopback by default. TLS, HTTP/2 and HTTP/3 terminate at the edge — this
       # process speaks HTTP/1.1 and must not be the thing facing the internet.
       # See docs/PUBLIC_API.md on Alt-Svc.
-      - "127.0.0.1:${API_PORT:-8000}:8000"
+      #
+      # API_BIND_HOST exists for a development host reached over a private network,
+      # where the edge proxy the loopback default assumes is not there. Leave it
+      # unset in production: publishing this port is publishing HTTP/1.1.
+      - "${API_BIND_HOST:-127.0.0.1}:${API_PORT:-8000}:8000"
 
     volumes:
       # Read-only, all of it. The API needs to read the audited pool and the pin

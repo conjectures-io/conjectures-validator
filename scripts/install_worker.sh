@@ -165,12 +165,20 @@ PY
   echo "    installed $ENV_FILE from the template"
 fi
 
-# VERIFIER_VERSION and the image digest are derived, not chosen, and a stale digest is the
-# likeliest operational error after a rebuild. Refreshed in place; secrets are never touched.
-python3 - "$ENV_FILE" "$IMAGE_ID" "validator-$RELEASE_COMMIT" <<'PY'
+# VERIFIER_VERSION, the image tag and the image digest are derived, not chosen, and a stale
+# digest is the likeliest operational error after a rebuild. The tag is derived for the same
+# reason the digest is: it describes the same image, and leaving it at the template's default
+# while VERIFIER_IMAGE_TAG resolved a different one puts the file at odds with itself — the
+# image check passes and the preflight then fails on a tag nobody asked for. Refreshed in
+# place; secrets are never touched.
+python3 - "$ENV_FILE" "$IMAGE_ID" "validator-$RELEASE_COMMIT" "$IMAGE_TAG" <<'PY'
 import pathlib, sys
-path, image_id, version = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-derived = {"VERIFIER_CONTAINER_DIGEST": image_id, "VERIFIER_VERSION": version}
+path, image_id, version, image_tag = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+derived = {
+    "VERIFIER_CONTAINER_DIGEST": image_id,
+    "VERIFIER_VERSION": version,
+    "VERIFIER_IMAGE": image_tag,
+}
 lines, changed = [], []
 for line in path.read_text().splitlines():
     key = line.split("=", 1)[0]
