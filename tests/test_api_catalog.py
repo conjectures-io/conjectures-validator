@@ -451,7 +451,7 @@ def test_the_detail_serves_the_audited_challenge_and_the_machine_contract():
             assert contract["bundle_format"] == "conjectures-submission/v1"
             assert contract["target_theorem"]
             assert contract["permitted_axioms"]
-            assert contract["max_bundle_bytes"] == 2 * 1024 * 1024
+            assert contract["max_bundle_bytes"] == 12 * 1024 * 1024
 
             # The pin set a reader needs to reproduce the statement.
             components = {pin["component"] for pin in body["pins"]}

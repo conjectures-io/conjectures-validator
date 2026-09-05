@@ -112,6 +112,10 @@ def lean_tokens(text: str) -> tuple[Token, ...]:
     block_depth = 0
     length = len(text)
     while index < length:
+        # Keep one overflow token so callers can reject without allocating the
+        # rest of a hostile file's tokens. Never validate this truncated prefix.
+        if len(tokens) > MAX_TOKENS:
+            break
         char = text[index]
         pair = text[index : index + 2]
         if block_depth:
@@ -275,7 +279,9 @@ def check_submission(text: str, manifest: TaskManifest) -> StaticCheckResult:
     tokens = lean_tokens(text)
     violations: list[str] = []
     if len(tokens) > MAX_TOKENS:
-        violations.append(f"submission exceeds the {MAX_TOKENS}-token policy limit")
+        return StaticCheckResult(
+            False, (f"submission exceeds the {MAX_TOKENS}-token policy limit",), None
+        )
     if tokens and max(token.depth for token in tokens) > MAX_DELIMITER_DEPTH:
         violations.append(f"submission exceeds the {MAX_DELIMITER_DEPTH}-delimiter nesting limit")
     if any(len(line) > MAX_LINE_LENGTH for line in text.splitlines()):

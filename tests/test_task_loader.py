@@ -96,7 +96,7 @@ def test_task_bundle_rejects_extra_files_and_excessive_limits(tmp_path):
     (task / "hidden.lean").unlink()
     path = task / "manifest.json"
     value = json.loads(path.read_text(encoding="utf-8"))
-    value["max_submission_bytes"] = 1_000_001
+    value["max_submission_bytes"] = 10 * 1024 * 1024 + 1
     path.write_text(json.dumps(value), encoding="utf-8")
     with pytest.raises(VerifierError) as error:
         load_task_bundle(task)

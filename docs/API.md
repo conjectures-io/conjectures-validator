@@ -407,7 +407,7 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `DEVELOPMENT_COLDKEY` | payment recipient | Sender the development payment verifier reports |
 | `DEVELOPMENT_PAYMENT_REFERENCES` | — | If set, the only references the development verifier accepts |
 | `NONCE_WINDOW_SECONDS` | `120` | |
-| `MAX_BUNDLE_BYTES` | `2097152` | Cannot exceed the verifier policy |
+| `MAX_BUNDLE_BYTES` | `12582912` | 12 MiB; cannot exceed the verifier policy |
 | `MANUAL_REWARD_REVIEW_ENABLED` | `true` | Captured per submission at creation |
 | `REVIEW_POLICY_VERSION` | `v2` | Captured at acceptance; v2 expands `NOT_NOVEL` for exact prior public solutions substantially implemented by the submission |
 | `BOUNTY_WALLET_COLDKEY_SS58` | payment recipient | Coldkey owning the bounty stake |

@@ -202,6 +202,40 @@ def rejection(raw: bytes) -> ReasonCode:
 # --- the accepted shape -------------------------------------------------------------
 
 
+def test_maximum_stored_proof_fits_bundle_and_honors_task_limit():
+    limit = 10 * 1024 * 1024
+    padding_size = limit - len(VALID_PROOF)
+    line = b"--" + b"a" * 997 + b"\n"
+    proof = VALID_PROOF + line * (padding_size // len(line)) + b" " * (padding_size % len(line))
+    candidate = archive(
+        proof=proof,
+        manifest=manifest_json(proof_bytes=len(proof), proof_sha256=sha256_bytes(proof)),
+    )
+    candidate.entries[1].method = STORED
+    raw = candidate.build()
+    assert limit < len(raw) <= bundle_module.MAX_BUNDLE_BYTES
+    assert load_proof_bundle(raw).proof.raw == proof
+    assert admit_proof_bundle(
+        raw,
+        task_manifest=replace(task_manifest(), max_submission_bytes=limit),
+        expected_task_sha256=TASK_DIGEST,
+        expected_hotkey=HOTKEY,
+    ).proof.raw == proof
+    with pytest.raises(VerifierError) as caught:
+        load_proof_bundle(raw, max_proof_bytes=1_000_000)
+    assert caught.value.reason == ReasonCode.BUNDLE_TOO_LARGE
+
+
+def test_proof_one_byte_over_global_limit_is_rejected():
+    proof = b" " * (10 * 1024 * 1024 + 1)
+    candidate = archive(
+        proof=proof,
+        manifest=manifest_json(proof_bytes=len(proof), proof_sha256=sha256_bytes(proof)),
+    )
+    candidate.entries[1].method = STORED
+    assert rejection(candidate.build()) == ReasonCode.BUNDLE_TOO_LARGE
+
+
 def test_valid_bundle_is_admitted():
     raw = valid_bundle()
     result = load_proof_bundle(raw)
@@ -543,7 +577,7 @@ def test_oversized_bundle_is_rejected():
 
 def test_compression_bomb_is_rejected():
     entries = archive().entries
-    entries[1] = replace(entries[1], data=b"\x00" * 4_000_000)
+    entries[1] = replace(entries[1], data=b"\x00" * (bundle_module.MAX_SUBMISSION_BYTES + 1))
     assert rejection(Archive(entries=entries).build()) is ReasonCode.BUNDLE_TOO_LARGE
 
 
@@ -592,7 +626,7 @@ def test_stored_entry_size_mismatch_is_rejected():
 
 
 def test_oversized_proof_is_rejected():
-    proof = b"-- " + b"a" * 1_100_000 + b"\n"
+    proof = b"-- " + b"a" * bundle_module.MAX_SUBMISSION_BYTES + b"\n"
     assert rejection(valid_bundle(proof=proof)) is ReasonCode.BUNDLE_TOO_LARGE
 
 
@@ -658,7 +692,7 @@ def test_manifest_missing_field_is_rejected(missing):
         {"proof_bytes": 0},
         {"proof_bytes": -1},
         {"proof_bytes": 1.0},
-        {"proof_bytes": 2_000_000},
+        {"proof_bytes": bundle_module.MAX_SUBMISSION_BYTES + 1},
         {"miner_hotkey": "not-an-address"},
         {"miner_hotkey": "0OIl" * 12},
         {"solver": {"name": "x"}},
