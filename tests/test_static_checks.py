@@ -5,6 +5,25 @@ from dataclasses import replace
 from conftest import manifest
 
 
+def test_token_overflow_stops_scanning_and_rejects(monkeypatch):
+    from verifier import static_checks
+
+    monkeypatch.setattr(static_checks, "MAX_TOKENS", 20)
+    text = "x " * 100_000
+    assert len(lean_tokens(text)) == 21
+    result = check_submission(text, manifest())
+    assert not result.valid
+    assert result.violations == ("submission exceeds the 20-token policy limit",)
+
+
+def test_exact_token_limit_is_not_truncated(monkeypatch):
+    from verifier import static_checks
+
+    monkeypatch.setattr(static_checks, "MAX_TOKENS", 20)
+    assert len(lean_tokens("x " * 20)) == 20
+    assert check_submission("x " * 20, manifest()).valid
+
+
 def test_comments_and_strings_do_not_trigger_commands():
     text = '-- import Evil\ndef note : String := "sorry import"\ntheorem target : True := by trivial\n'
     assert check_submission(text, manifest()).valid

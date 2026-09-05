@@ -275,16 +275,16 @@ The statement the miner must prove — never stored as text anywhere in the bund
 | `production_eligible` | `true` | Gates the strict path |
 | `task_mode` | `formalized` | The only mode |
 | `timeout_seconds` | `3600` | Wall-clock cap |
-| `max_submission_bytes` | `1000000` | Size cap |
+| `max_submission_bytes` | `10485760` | Default size cap for newly generated tasks; existing tasks retain their published limit |
 | `trusted_file_hashes` | 5 entries | Must equal `trusted-hashes.json` |
 
 Generation writes to a temp directory, validates, then publishes with `os.replace`; it refuses to
 overwrite an existing bundle.
 
 Note: `TaskManifest.max_submission_bytes` falls back to `5_000_000` when the key is absent
-(`models.py:207`), while the generator's own default is `1_000_000`. Every pool manifest sets the
-value explicitly, so nothing is currently affected — but a hand-written manifest that omits the key
-gets a 5× larger cap than the generator would ever produce.
+(`models.py:207`), while the generator's default is now `10 * 1024 * 1024`.
+Production task loading requires this field explicitly. Existing pool manifests keep their
+committed values until republished; see `docs/SUBMISSION_BUNDLE.md` for rollout requirements.
 
 ## 5. Generation-time audit — **BUILT**
 
