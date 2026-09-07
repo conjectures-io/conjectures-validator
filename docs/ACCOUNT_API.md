@@ -407,6 +407,12 @@ account-enumeration oracle, and the address is the one input an attacker varies 
 The rate limit is **per address**, not per caller: mailing a link is an action taken against
 someone else's mailbox, and the IP limiter cannot see who is being mailed.
 
+The mailed URL is `WEBSITE_BASE_URL` + `EMAIL_VERIFY_PATH` + `?token=…`, defaulting to
+`/login/verify`. **That page is served by the website, not by this API**, which is why the path is
+a setting: this repository cannot fail a test over a route it does not serve, so when the website
+moved that page the only symptom was a 404 for whoever clicked the link. A deployment whose
+website serves it elsewhere sets `EMAIL_VERIFY_PATH` and needs no API release.
+
 `POST /v1/auth/email/verify` consumes the token in one conditional `UPDATE`, so a forwarded email
 or a double-clicked link signs in once. It is signup and sign-in at once — verifying a token
 proves receipt at that address, which is the whole of what an email account proves.
@@ -1200,6 +1206,7 @@ the other four values below are ones production refuses to start without or with
 | Variable | Rule |
 | --- | --- |
 | `WEBSITE_BASE_URL` | Required, https. Where the sign-in link points — a link to a guessed origin is a credential sent somewhere nobody chose |
+| `EMAIL_VERIFY_PATH` | The route under `WEBSITE_BASE_URL` that renders the sign-in page. Defaults to `/login/verify`. Rooted path only: no origin, no query string, no fragment. Configurable because the page lives in the website repository — when it moves, a mailed link 404s and nothing in this API fails |
 | `MAIL_SENDER` | Must be `smtp`. `console` writes sign-in links to the process log |
 | `SMTP_HOST`, `SMTP_FROM_ADDRESS` | Required with SMTP. The provider host and verified sender address |
 | `SMTP_PORT`, `SMTP_SECURITY` | Defaults to port 587 with `starttls`; `implicit-tls` supports port 465. Production refuses plaintext |

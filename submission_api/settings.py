@@ -287,6 +287,12 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 DEFAULT_TERMS_VERSION = "v4"
 DEFAULT_TERMS_DATE = "2026-08-10"
 
+# The website route that renders the sign-in page the magic link opens. That page reads the
+# token from the query string and POSTs it to `/v1/auth/email/verify`; the API itself never
+# serves this path. It lives in the website repository, which is why this is a default rather
+# than a constant -- see EMAIL_VERIFY_PATH.
+DEFAULT_EMAIL_VERIFY_PATH = "/login/verify"
+
 # The domain that goes into a signed login message, binding the signature to this
 # deployment so one produced for another instance is not valid here.
 DEFAULT_LOGIN_DOMAIN = "conjectures.io"
@@ -729,6 +735,11 @@ class Settings:
     # Where the magic link points. The website's origin, not this API's: the link is
     # clicked by a person in a browser and lands on a page, which then calls the API.
     website_base_url: str
+    # The path under `website_base_url` that renders the sign-in page. Configurable because
+    # it belongs to a separate repository on its own release cadence: when the website moves
+    # that route, a mailed link starts 404ing and nothing here would notice. A setting lets
+    # the deployment follow the move without waiting on an API release.
+    email_verify_path: str
     login_domain: str
     google_client_id: str
     session_days: int
@@ -1119,6 +1130,23 @@ class Settings:
         if not website_base_url:
             website_base_url = "http://localhost:3000"
 
+        # Rooted, and no origin of its own: this is joined onto `website_base_url`, so an
+        # absolute URL here would silently send the sign-in link to a host nobody configured
+        # — the same failure WEBSITE_BASE_URL is validated to prevent.
+        email_verify_path = env.get(
+            "EMAIL_VERIFY_PATH", DEFAULT_EMAIL_VERIFY_PATH
+        ).strip()
+        if not email_verify_path.startswith("/") or email_verify_path.startswith("//"):
+            raise SettingsError(
+                "EMAIL_VERIFY_PATH must be a rooted path such as /login/verify"
+            )
+        if "?" in email_verify_path or "#" in email_verify_path:
+            raise SettingsError(
+                "EMAIL_VERIFY_PATH must not carry a query string or fragment; the token "
+                "is appended as the only query parameter"
+            )
+        email_verify_path = email_verify_path.rstrip("/") or "/"
+
         terms_date = env.get(
             "SUBMISSION_TERMS_EFFECTIVE_FROM", DEFAULT_TERMS_DATE
         ).strip()
@@ -1458,6 +1486,7 @@ class Settings:
             smtp_security=smtp_security,
             smtp_timeout_seconds=smtp_timeout_seconds,
             website_base_url=website_base_url,
+            email_verify_path=email_verify_path,
             login_domain=login_domain,
             google_client_id=google_client_id,
             session_days=_positive_int(

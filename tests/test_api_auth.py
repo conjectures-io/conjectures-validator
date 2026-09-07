@@ -25,6 +25,7 @@ from submission_api.auth import (
     normalise_signature,
 )
 from submission_api.errors import Unauthorized
+from submission_api.mail import magic_link
 from submission_api.payments import (
     ChainPaymentVerifier,
     DevelopmentPaymentVerifier,
@@ -222,6 +223,54 @@ def test_smtp_configuration_is_complete_and_tls_is_mandatory_in_production():
     assert settings.smtp_port == 465
     assert settings.smtp_security == "implicit-tls"
     assert "smtp-password" not in repr(settings)
+
+
+def test_the_magic_link_points_at_the_configured_website_route():
+    """The path is joined onto the website origin, and it is configurable.
+
+    The route belongs to the website repository, so the value that matters is whatever that
+    deployment serves. A literal here is how the link came to point at `/auth/verify` while
+    the page moved to `/login/verify`: nothing in this repository serves the path, so nothing
+    in this repository failed when it drifted.
+    """
+    settings = Settings.from_env(base_env())
+    assert settings.email_verify_path == "/login/verify"
+    assert magic_link(
+        base_url=settings.website_base_url, token="tok", path=settings.email_verify_path
+    ).endswith("/login/verify?token=tok")
+
+    moved = Settings.from_env({**base_env(), "EMAIL_VERIFY_PATH": "/auth/verify"})
+    assert (
+        magic_link(base_url="https://conjectures.io/", token="tok", path=moved.email_verify_path)
+        == "https://conjectures.io/auth/verify?token=tok"
+    )
+
+    # The token is the only query parameter, and it is escaped: it reaches the page through a
+    # URL, so a raw `+` or `&` in a token would arrive as a different token than was stored.
+    assert magic_link(
+        base_url="https://conjectures.io", token="a+b&c/d", path="/login/verify"
+    ) == "https://conjectures.io/login/verify?token=a%2Bb%26c%2Fd"
+
+
+def test_the_verify_path_may_not_carry_its_own_origin_or_query():
+    """Rooted, and nothing else.
+
+    An absolute URL here would send a live sign-in credential to a host nobody configured,
+    which is the same failure `WEBSITE_BASE_URL` is validated to prevent — and a
+    protocol-relative `//host` is an absolute URL that merely looks like a path.
+    """
+    for bad in ("login/verify", "https://elsewhere.test/verify", "//elsewhere.test/verify"):
+        with pytest.raises(SettingsError, match="rooted path"):
+            Settings.from_env({**base_env(), "EMAIL_VERIFY_PATH": bad})
+
+    for bad in ("/login/verify?next=/", "/login/verify#token"):
+        with pytest.raises(SettingsError, match="query string or fragment"):
+            Settings.from_env({**base_env(), "EMAIL_VERIFY_PATH": bad})
+
+    # A trailing slash is normalised rather than refused: it changes nothing about where the
+    # link lands, and refusing it would fail a deployment over a typo that does not matter.
+    trailing = Settings.from_env({**base_env(), "EMAIL_VERIFY_PATH": "/login/verify/"})
+    assert trailing.email_verify_path == "/login/verify"
 
 
 def test_google_client_id_is_optional_and_shape_checked():

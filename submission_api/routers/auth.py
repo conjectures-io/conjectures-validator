@@ -423,7 +423,9 @@ async def request_email_link(
             await services.mail.send_login_link(
                 email=payload.email,
                 link=mail.magic_link(
-                    base_url=settings.website_base_url, token=token
+                    base_url=settings.website_base_url,
+                    token=token,
+                    path=settings.email_verify_path,
                 ),
                 expires_in_minutes=settings.email_link_minutes,
             )
