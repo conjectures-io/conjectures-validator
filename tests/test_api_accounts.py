@@ -1004,11 +1004,13 @@ def test_the_session_envelope_carries_identities_holdings_and_capabilities():
                     "review_queue": None,
                 }
 
-                # Nothing linked and nothing bought, so both reasons are reported — in the
-                # order the endpoint would hit them.
+                # Nothing linked and nothing bought — but a browser needs no key to submit
+                # since `POST /v1/submissions/session`, so credits are the only thing missing.
+                # `set_payout` below still reports HOTKEY_NOT_LINKED, and the contrast is the
+                # useful part: you can now attempt a proof without a key but not be paid for one.
                 assert body["capabilities"]["submit"] == {
                     "allowed": False,
-                    "missing": ["HOTKEY_NOT_LINKED", "INSUFFICIENT_CREDITS"],
+                    "missing": ["INSUFFICIENT_CREDITS"],
                 }
                 assert body["capabilities"]["set_payout"] == {
                     "allowed": False,

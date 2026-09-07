@@ -35,6 +35,7 @@ verification core.
 | Website accounts, browser sessions, and hotkey linking | Implemented |
 | CLI sessions: a linked hotkey mints a scoped bearer token | Implemented |
 | Website submissions: a coldkey signs, one credit pays, no hotkey needed | Implemented |
+| Session submissions: one credit pays and no Bittensor key is needed at all | Implemented |
 | Roles and the operator surface (`MINER`/`REVIEWER`/`ADMIN`) | Implemented |
 | Shared durable schema and migrations | Implemented |
 | Finalized transfer reader, wired into both funding paths | Implemented |

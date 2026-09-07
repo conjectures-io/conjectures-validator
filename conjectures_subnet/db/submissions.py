@@ -167,12 +167,65 @@ def _violates(exc: IntegrityError, constraint: str) -> bool:
 
 
 
+def session_request_digest(
+    *,
+    account_id: str,
+    task_id: str,
+    task_bundle_sha256: str,
+    proof_sha256: str,
+    idempotency_key: str,
+    public_credit: PublicCredit | None = None,
+) -> str:
+    """The identity of a session-authorised request.
+
+    `submissions.request_digest` means "the canonical request", not "the bytes someone signed" —
+    the key-signed paths sign it as well, which is a second job for the same value. This path has
+    no signature, so the digest keeps only the first job, and it is the one that matters for the
+    column's stated purpose: telling a replay from a conflict. Reusing an idempotency key with
+    any of these values changed is a conflict.
+
+    Keyed by account rather than hotkey, because the account is the identity that authorised it.
+    `payment_reference` is absent for the same reason it is on every credit-funded path: there
+    is no transfer.
+    """
+    payload = {
+        "account_id": account_id,
+        "idempotency_key": idempotency_key,
+        "proof_sha256": proof_sha256,
+        "task_bundle_sha256": task_bundle_sha256,
+        "task_id": task_id,
+    }
+    if public_credit is not None:
+        payload["public_credit"] = public_credit.to_dict()
+    return sha256_bytes(canonical_json_bytes(payload))
+
+
 async def find_by_idempotency_key(
     session: AsyncSession, hotkey: str, idempotency_key: uuid.UUID
 ) -> Submission | None:
     result = await session.execute(
         select(Submission).where(
             Submission.hotkey == hotkey,
+            Submission.idempotency_key == idempotency_key,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def find_session_submission_by_idempotency_key(
+    session: AsyncSession, account_id: uuid.UUID, idempotency_key: uuid.UUID
+) -> Submission | None:
+    """The replay lookup for a submission that names no hotkey.
+
+    Scoped by account and restricted to rows with a null hotkey, mirroring
+    `submissions_session_idempotency_unique`. Both halves matter: without the account it would
+    answer another caller's submission, and without the null-hotkey predicate a key-signed row
+    that happens to share the key would be reported as this caller's earlier attempt.
+    """
+    result = await session.execute(
+        select(Submission).where(
+            Submission.account_id == account_id,
+            Submission.hotkey.is_(None),
             Submission.idempotency_key == idempotency_key,
         )
     )

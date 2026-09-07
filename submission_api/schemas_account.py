@@ -615,7 +615,7 @@ class SubmissionIntent(Model):
     status: str = Field(
         description="OPEN | BUNDLE_ATTACHED | CONFIRMED | EXPIRED | CANCELLED"
     )
-    hotkey: str
+    hotkey: str | None = None
     public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
@@ -680,7 +680,7 @@ class SubmissionSummary(Model):
     """One of the account's own submissions, as it appears in a list."""
 
     id: uuid.UUID
-    hotkey: str
+    hotkey: str | None = None
     public_credit: PublicCredit | None = None
     task_id: str
     proof_sha256: str
@@ -728,7 +728,7 @@ class SubmissionDetail(Model):
     """One of the account's own submissions, in full."""
 
     id: uuid.UUID
-    hotkey: str
+    hotkey: str | None = None
     public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str

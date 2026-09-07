@@ -217,26 +217,31 @@ def _capabilities(
     This is advisory. Nothing here authorises anything; the endpoint checks again.
     """
     has_hotkey = bool(account.hotkeys)
-    has_wallet = bool(account.wallets)
     roles = set(account.roles)
 
     submit: list[str] = []
     if settings.submissions_paused:
         submit.append(REASON_SUBMISSIONS_PAUSED)
-    # Two intake paths, so two ways to satisfy this, and an account needs only one of them:
+    # Three intake paths, and a browser needs none of them to hold a key:
     #
     #   a linked **hotkey** drives the three-call intent flow, from either credential;
-    #   a linked **coldkey** drives `POST /v1/submissions/web`, from a browser session only.
+    #   a linked **coldkey** drives `POST /v1/submissions/web`, from a browser session only;
+    #   **nothing at all** drives `POST /v1/submissions/session`, also browser-only, where the
+    #   session itself is the authorisation.
     #
-    # Reporting `HOTKEY_NOT_LINKED` for a coldkey-only account used to be the shape of a website
-    # greying out its own submit button: that account is exactly who the web path exists for —
-    # opened with a browser wallet, holding no hotkey to sign with, and so unable to link one.
+    # So the only account this can still refuse is a **CLI session with no linked hotkey**. A
+    # bearer token is minted by a hotkey and scoped to it, and neither browser path is reachable
+    # with one, so a hotkey really is the only answer for that credential — which is why
+    # `is_bearer` is the condition rather than an absence of keys.
     #
-    # `not is_bearer` is not redundant with the redaction in `account_response`, which already
-    # empties `wallets` for a CLI session. It says the load-bearing thing outright: a bearer token
-    # cannot reach the coldkey path at all, so for that credential a linked hotkey is the only
-    # answer — and this stays true if the redaction rules ever change.
-    if not (has_hotkey or (has_wallet and not is_bearer)):
+    # Reporting `HOTKEY_NOT_LINKED` to a signed-in browser with no keys was the shape of a
+    # website greying out its own submit button against the very person the session path exists
+    # for: a mathematician who signed in with an email address and holds no Bittensor key.
+    #
+    # Wallets no longer appear here at all. That is not an oversight — a coldkey is one way to
+    # submit from a browser and no longer a requirement, so naming it would make this stricter
+    # than `POST /v1/submissions/session` actually is.
+    if is_bearer and not has_hotkey:
         submit.append(REASON_HOTKEY_NOT_LINKED)
     if credits_available < 1:
         submit.append(REASON_INSUFFICIENT_CREDITS)

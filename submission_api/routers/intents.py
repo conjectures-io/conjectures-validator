@@ -186,7 +186,7 @@ async def uploaded_bundle(
     services,
     entry,
     *,
-    hotkey: str,
+    hotkey: str | None,
     content_type: str | None,
     content_length: int | None,
 ) -> ProofBundle:
@@ -195,6 +195,11 @@ async def uploaded_bundle(
     The same ordering the extrinsic path uses, and for the same reason: headers and the
     declared length first, so a hostile body is refused at the door rather than buffered and
     then measured.
+
+    `hotkey=None` is the session-authorised path, and only that path may pass it: the caller has
+    authenticated an account rather than a key, so there is no address to bind the manifest to
+    and `admit_proof_bundle` refuses a bundle that names one anyway. Every caller that verified a
+    signature passes the key it verified, and the binding there is unchanged.
     """
     settings = services.settings
     if content_type is None or content_type.split(";")[0].strip().lower() != BUNDLE_MEDIA_TYPE:

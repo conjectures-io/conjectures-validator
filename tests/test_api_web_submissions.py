@@ -31,6 +31,7 @@ from conftest_api import (
     OTHER_HOTKEY,
     TASK_DIGEST,
     TASK_ID,
+    build_settings,
     distinct_bundle,
     harness,
     postgres_dsn,
@@ -868,9 +869,14 @@ def test_a_coldkey_only_account_is_told_it_can_submit():
     run(scenario())
 
 
-def test_an_account_with_no_key_at_all_still_cannot_submit():
-    """The other direction: a mailbox alone drives neither path, and the advisory has to keep
-    saying so or it stops being worth reading."""
+def test_an_account_with_no_key_at_all_may_now_submit_from_a_browser():
+    """This test used to assert the opposite, and inverting it is the point of the change.
+
+    A mailbox alone drove neither key-signed path, so the advisory correctly said
+    `HOTKEY_NOT_LINKED`. `POST /v1/submissions/session` is the third browser path and needs no
+    key, so continuing to say it would be the website greying out its own submit button against
+    exactly the person that endpoint exists for.
+    """
 
     async def scenario():
         kit = await harness().setup()
@@ -879,15 +885,36 @@ def test_an_account_with_no_key_at_all_still_cannot_submit():
                 account = await sign_in_by_email(kit, http, email="keyless@example.com")
                 await grant_credits(kit, uuid.UUID(account["id"]), 1)
                 envelope = (await http.get("/v1/auth/session")).json()
-                assert envelope["capabilities"]["submit"]["allowed"] is False
-                assert (
-                    "HOTKEY_NOT_LINKED"
-                    in envelope["capabilities"]["submit"]["missing"]
-                )
+                assert envelope["capabilities"]["submit"]["allowed"] is True
+                assert envelope["capabilities"]["submit"]["missing"] == []
         finally:
             await kit.teardown()
 
     run(scenario())
+
+
+def test_a_cli_session_with_no_hotkey_still_cannot_submit():
+    """The refusal that survives, and the advisory has to keep saying so.
+
+    Neither browser path is reachable with a bearer token — both are `CookieWriterDep` — so for
+    that credential a linked hotkey really is the only way in. This is now the *only* shape that
+    reports `HOTKEY_NOT_LINKED`.
+    """
+    from submission_api.routers._account import _capabilities
+
+    class _Account:
+        hotkeys = ()
+        wallets = ()
+        roles = ("MINER",)
+
+    capabilities = _capabilities(
+        _Account(),
+        settings=build_settings(),
+        credits_available=5,
+        is_bearer=True,
+    )
+    assert capabilities.submit.allowed is False
+    assert "HOTKEY_NOT_LINKED" in capabilities.submit.missing
 
 
 def test_the_signing_domain_is_discoverable_and_is_the_one_the_server_rebuilds():

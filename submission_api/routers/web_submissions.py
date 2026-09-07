@@ -507,6 +507,201 @@ async def create_web_submission(
     )
 
 
+@router.post(
+    "/session",
+    response_model=schemas.ConfirmedSubmission,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit a bundle authorised by the browser session alone, with no Bittensor key",
+)
+async def create_session_submission(
+    request: Request,
+    response: Response,
+    principal: CookieWriterDep,
+    services: ServicesDep,
+    session: SessionDep,
+    task_id: Annotated[str, Query(min_length=1, max_length=255)],
+    task_bundle_sha256: Annotated[str, Query(min_length=71, max_length=71)],
+    bundle_sha256: Annotated[str, Query(min_length=71, max_length=71)],
+    idempotency_key: Annotated[str, Query(min_length=36, max_length=36)],
+    public_credit: Annotated[str | None, Query(max_length=4096)] = None,
+    content_length: Annotated[int | None, Header(alias="Content-Length")] = None,
+    content_type: Annotated[str | None, Header(alias="Content-Type")] = None,
+) -> schemas.ConfirmedSubmission:
+    """The fourth way in: a credit, a bundle, and a signed-in browser. No key of any kind.
+
+    **What authorises this is the session**, which is why it is `CookieWriterDep` and not
+    `WriterDep`: a bearer token is minted by a hotkey, and an account holding a hotkey has the
+    three-call flow already. The account that spent the credit is the account that submitted, and
+    the schema says so — `submission_authorised_exactly_once` requires an account and a credit on
+    exactly the rows that name no key.
+
+    **It claims no identity, and cannot borrow one.** `hotkey` is null on the row, and
+    `admit_proof_bundle` is called with `expected_hotkey=None`, which *refuses* a manifest naming
+    a miner rather than ignoring it. Without that, anyone could publish a solved conjecture under
+    somebody else's address, because `ResultRow.hotkey` is what credits a result to its solver.
+
+    **A reward it wins waits rather than misfires.** `payout_notifier` resolves its destination
+    through `coalesce(Account.payout_hotkey, Submission.hotkey)` and skips a row where that is
+    null, so this submission is simply not paid until its account links a payout pair — at which
+    point the next poll picks it up. Nothing here needs to know that; it is worth stating because
+    the alternative people assume is that the payout crashes.
+
+    Two steps the coldkey path has are absent, and both for the same reason: there is no key.
+    Nothing verifies a signature, and nothing asks the chain whether an address is registered —
+    which also makes this the only intake path that touches no external service at all.
+    """
+    settings = services.settings
+    now = _now()
+
+    if settings.submissions_paused:
+        raise ServiceUnavailable(
+            "submissions are paused; see GET /v1/system/status",
+            reason_code=REASON_SUBMISSIONS_PAUSED,
+        )
+
+    key = _require_uuid(idempotency_key, "idempotency_key")
+    task_bundle_sha256 = _require_digest(task_bundle_sha256, "task_bundle_sha256")
+    declared_bundle = _require_digest(bundle_sha256, "bundle_sha256")
+    if TASK_ID.fullmatch(task_id) is None:
+        raise BadRequest("task_id is malformed")
+    try:
+        credit = decode_public_credit_header(public_credit)
+    except ValueError as exc:
+        raise BadRequest(str(exc)) from exc
+
+    # Scoped to the account and to rows with no hotkey, mirroring the partial unique index that
+    # enforces it. The `(hotkey, idempotency_key)` constraint the other paths use does not
+    # constrain these rows at all — PostgreSQL treats NULLs as distinct — so the lookup and the
+    # index have to agree on the same narrower key or a retry would buy a second attempt.
+    existing = await submission_store.find_session_submission_by_idempotency_key(
+        session, principal.account.id, key
+    )
+    if existing is not None:
+        response.status_code = status.HTTP_200_OK
+        return await _confirmed(session, existing, settings=settings, now=now)
+
+    entry = _resolve_task(services, task_id, task_bundle_sha256)
+
+    _assert_payable(
+        await services.pricing.quote(session, reward_target_id=entry.reward_target_id),
+        entry.reward_target_id,
+    )
+    balance = await credit_store.credit_balance(
+        session,
+        principal.account.id,
+        credit_price_rao=settings.payment_amount_rao,
+        now=now,
+    )
+    if balance.credits_available < 1:
+        raise Conflict(
+            "not enough credits for another verification attempt",
+            reason_code=intent_store.REASON_INSUFFICIENT_CREDITS,
+            extra={"credits_available": balance.credits_available, "credits_required": 1},
+        )
+
+    bundle = await uploaded_bundle(
+        request,
+        services,
+        entry,
+        hotkey=None,
+        content_type=content_type,
+        content_length=content_length,
+    )
+    if bundle.sha256 != declared_bundle:
+        raise BadRequest(
+            "the uploaded archive does not match bundle_sha256",
+            reason_code=REASON_BUNDLE_DIGEST_MISMATCH,
+            extra={"bundle_sha256": bundle.sha256},
+        )
+
+    # Money from here down, and nothing before this point has touched it.
+    intent, _ = await intent_store.open_intent(
+        session,
+        account_id=principal.account.id,
+        hotkey=None,
+        task_id=entry.task_id,
+        task_bundle_sha256=entry.task_bundle_sha256,
+        credit_price_rao=settings.payment_amount_rao,
+        expires_at=now + dt.timedelta(minutes=settings.intent_minutes),
+        now=now,
+        public_credit=credit,
+    )
+    await intent_store.attach_bundle(
+        session,
+        intent,
+        proof_content=bundle.proof.raw,
+        proof_sha256=bundle.proof.sha256,
+        # The canonical request, which is what this column has always meant. On the key-signed
+        # paths the same value doubles as the bytes that were signed; here it keeps only its
+        # first job, telling a replay from a conflict.
+        request_digest=submission_store.session_request_digest(
+            account_id=str(principal.account.id),
+            task_id=entry.task_id,
+            task_bundle_sha256=entry.task_bundle_sha256,
+            proof_sha256=bundle.proof.sha256,
+            idempotency_key=str(key),
+            public_credit=credit,
+        ),
+        now=now,
+    )
+
+    quote = await services.pricing.lock_quote(
+        session, reward_target_id=entry.reward_target_id
+    )
+    _assert_payable(quote, entry.reward_target_id)
+
+    confirmed = await intent_store.confirm(
+        session,
+        intent.id,
+        principal.account.id,
+        problem_id=entry.problem_id,
+        reward_target_id=entry.reward_target_id,
+        task_mode=TaskMode(entry.mode),
+        hotkey_signature=None,
+        manual_review_required=settings.manual_review_enabled,
+        review_policy_version=settings.review_policy_version,
+        bounty_amount_rao=quote.amount_rao,
+        bounty_policy_version=quote.policy_version,
+        bounty_inputs=dict(quote.inputs) if quote.inputs else None,
+        now=now,
+        idempotency_key=key,
+    )
+    await intent_store.record_event(
+        session,
+        confirmed.submission.id,
+        kind="AUTHORISED_BY_SESSION",
+        detail="Submitted from the website and authorised by the account session.",
+        context={"account_id": str(principal.account.id)},
+    )
+
+    await services.dispatcher.dispatch(session, confirmed.submission, entry.task_dir)
+    await session.commit()
+
+    get_axiom().info(
+        source="api-intents",
+        event_type="submission_accepted",
+        submission_id=str(confirmed.submission.id),
+        account_id=str(principal.account.id),
+        hotkey=None,
+        task_id=entry.task_id,
+        problem_id=entry.problem_id,
+        reward_target_id=entry.reward_target_id,
+        task_mode=entry.mode,
+        funding="credit-session",
+        proof_sha256=bundle.proof.sha256,
+        proof_bytes=len(bundle.proof.raw),
+        bounty_amount_rao=quote.amount_rao,
+        bounty_policy_version=quote.policy_version,
+        manual_review_required=settings.manual_review_enabled,
+    )
+
+    view = await submission_store.load_view(session, confirmed.submission)
+    return schemas.ConfirmedSubmission(
+        submission=await submission_detail(session, view),
+        credits=_balance(confirmed.balance),
+    )
+
+
 async def _confirmed(
     session, submission, *, settings, now: dt.datetime
 ) -> schemas.ConfirmedSubmission:

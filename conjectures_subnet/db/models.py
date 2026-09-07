@@ -202,7 +202,9 @@ class Submission(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Nullable since V032: a session-authorised submission names no key. Never a placeholder —
+    # this column is published as `ResultRow.hotkey` and credits a result to its solver.
+    hotkey: Mapped[str | None] = mapped_column(SS58)
     # Opt-in public authorship, snapshotted on this submission rather than joined from the
     # account's mutable display name. The hotkey signature covers all three fields.
     public_credit_name: Mapped[str | None] = mapped_column(Text)
@@ -234,7 +236,10 @@ class Submission(Base):
     # The 64 bytes that authorised this exact request. Signed by the row's own `hotkey` on both
     # key-signed intake paths — unless `signer_coldkey` is set, which is the one case where the
     # signature verifies against a different key. See `signer_coldkey` below.
-    hotkey_signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # Nullable since V032, and only together with `hotkey`: a submission either names a key
+    # and carries the signature that proved it, or names neither. See
+    # `submission_authorised_exactly_once`.
+    hotkey_signature: Mapped[bytes | None] = mapped_column(LargeBinary)
     # V028. The coldkey that authorised a website submission, and NULL everywhere else.
     #
     # A browser wallet holds coldkeys only — a hotkey lives on a mining box and never reaches
@@ -473,6 +478,27 @@ class Submission(Base):
             "signer_coldkey IS NULL "
             "OR (account_id IS NOT NULL AND credit_ledger_id IS NOT NULL)",
             name="submission_signer_coldkey_is_account_owned",
+        ),
+        # V032. Either a key and the signature that proved it, or neither and an account that
+        # spent a credit. The second branch is the session-authorised path; requiring the account
+        # and the credit there is what keeps the nullability away from the extrinsic path, which
+        # has no account at all.
+        CheckConstraint(
+            "(hotkey IS NOT NULL AND hotkey_signature IS NOT NULL) "
+            "OR (hotkey IS NULL AND hotkey_signature IS NULL "
+            "AND account_id IS NOT NULL AND credit_ledger_id IS NOT NULL)",
+            name="submission_authorised_exactly_once",
+        ),
+        # `submissions_idempotency_unique` is UNIQUE (hotkey, idempotency_key), and PostgreSQL
+        # treats NULLs as distinct — so it stops constraining rows once `hotkey` can be null.
+        # This closes that hole for exactly those rows, scoped to the account because an
+        # idempotency key is client-generated and only meaningful within the caller that chose it.
+        Index(
+            "submissions_session_idempotency_unique",
+            "account_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("hotkey IS NULL"),
         ),
         Index(
             "submissions_account_idx",
@@ -2188,7 +2214,7 @@ class SubmissionIntent(Base):
     )
     # Checked against linked_hotkeys at creation, and what the confirming
     # signature must come from.
-    hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    hotkey: Mapped[str | None] = mapped_column(SS58)
     # V028. Set when the attempt came from the website, where the signature is made by a linked
     # coldkey instead — a browser wallet has no hotkey to sign with. Carried here from the moment
     # the credit is held until ``confirm`` copies it to the submission, for the same reason the
