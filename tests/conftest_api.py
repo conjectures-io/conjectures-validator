@@ -26,7 +26,11 @@ from datetime import date
 from functools import cache
 from pathlib import Path
 
-from conftest import PYTEST_DSN, declaration, postgres_dsn
+# `PYTEST_DSN` and `postgres_dsn` are deliberately not imported from `conftest`: this module
+# defines its own copies below and re-exports those, so importing them here only shadowed
+# them. The duplication itself is worth collapsing, but that is a change to how the harness
+# finds its database and does not belong in a lint pass.
+from conftest import declaration
 from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle

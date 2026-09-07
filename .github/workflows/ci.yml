@@ -1,0 +1,187 @@
+# The first CI this repository has had. Three gates, in increasing cost: lint, the
+# self-contained test suite, and the schema-drift proof.
+#
+# The drift job is the one that is easy to undervalue. `deploy/migrate/sql/` is the source of
+# truth for the schema and `conjectures_subnet/db/models.py` is a hand-maintained mirror of it,
+# with no tool diffing plain SQL against ORM metadata. Every migration is therefore two edits
+# that a reviewer has to keep in step by eye. `scripts/check_schema_drift.py` is the only thing
+# that proves they are, so it runs on every pull request rather than on request.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A force-push should not leave the previous run burning CI minutes on a commit nobody will
+# merge. `main` is excluded from cancellation: its runs are the record of what was released.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  # Single-sourced so the three jobs cannot drift onto different interpreters. The package
+  # supports >=3.11,<3.14; this is the version the development environments run.
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Pinned. Ruff's default rule set has widened between releases, so an unpinned install
+      # turns an upstream release into a red build on rules nobody selected. The selected
+      # rules themselves live in pyproject.toml.
+      - name: Install ruff
+        run: python -m pip install --disable-pip-version-check ruff==0.16.4
+
+      - name: Lint
+        run: ruff check .
+
+      # Reports formatting differences without failing: the repository has never been
+      # ruff-formatted, so gating on it would mean reformatting every file in one commit and
+      # losing the blame. Left visible so the decision to adopt it can be taken on evidence.
+      - name: Formatting (advisory)
+        continue-on-error: true
+        run: ruff format --check --diff .
+
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Plain image on purpose. The tuned config and the `monitor` role in deploy/db/ are
+        # production concerns; no migration and no test needs an extension or a role, so the
+        # stock image is the smallest thing that runs the suite honestly.
+        image: postgres:17
+        env:
+          POSTGRES_USER: conjectures-pytest
+          POSTGRES_PASSWORD: conjectures-pytest-pw
+          POSTGRES_DB: conjectures-pytest
+        ports:
+          - 5440:5432
+        options: >-
+          --health-cmd "pg_isready -U conjectures-pytest -d conjectures-pytest"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The suite skips its database tests when it cannot reach a server, which is right on a
+      # laptop and dangerous here: unset, this job would pass having exercised almost nothing.
+      # The next step turns that skip into a failure.
+      FC_POSTGRES_DSN: postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw@127.0.0.1:5440/conjectures-pytest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-service.lock
+
+      # The same command scripts/bootstrap.sh uses, minus the Lean half of that script: these
+      # tests need the Python packages, not the toolchain. `pip check` is kept because the
+      # constraint file is maintained by hand and a conflicting pin should fail here.
+      - name: Install
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install \
+            --constraint requirements-service.lock \
+            -e '.[dev,service,subnet,db]'
+          python -m pip check
+
+      - name: Prove the harness can see the database
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "tests")
+          from conftest_api import postgres_dsn
+          if postgres_dsn() is None:
+              sys.exit(
+                  "the test harness found no reachable database, so every database test "
+                  "would have skipped and this job would have passed on nothing"
+              )
+          print("database reachable:", postgres_dsn().rsplit("@", 1)[-1])
+          PY
+
+      # Two exclusions, for two different missing inputs, neither of which this job provisions:
+      #
+      #   * the `integration` and `subnet_integration` markers cover the pinned Lean toolchain,
+      #     the trusted cache, and a local Subtensor chain;
+      #   * the ignored files reach for the task-bundle checkout (a separate repository pinned
+      #     in pins.lock.json, cloned by `just pin-tasks`) or the vendored Lake packages under
+      #     .lake/packages. They are not marked, so they cannot be deselected by marker — which
+      #     is itself worth fixing, and is why the list is spelled out here rather than hidden.
+      #
+      # Adding the task pool to CI is the follow-up that shrinks this list. Until then, an
+      # entry removed from it should be removed because the test became self-contained.
+      - name: Test
+        run: |
+          pytest -q \
+            -m "not integration and not subnet_integration" \
+            --ignore=tests/test_api_taskpool.py \
+            --ignore=tests/test_axiom.py \
+            --ignore=tests/test_security.py \
+            --ignore=tests/test_task_pool.py \
+            --ignore=tests/test_verification_worker.py \
+            --ignore=tests/test_workspace.py
+
+  schema-drift:
+    name: schema drift
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: drift
+          POSTGRES_PASSWORD: drift-pw
+          POSTGRES_DB: postgres
+        ports:
+          - 5441:5432
+        options: >-
+          --health-cmd "pg_isready -U drift -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-service.lock
+
+      # Only the database extra: this script applies the migrations and calls create_all, and
+      # imports no part of the API.
+      - name: Install
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --constraint requirements-service.lock -e '.[db]'
+
+      # Creates two scratch databases on this server, applies deploy/migrate/sql to one and
+      # Base.metadata.create_all to the other, compares the catalogs, and drops both. It needs
+      # CREATE DATABASE, which is why it connects as the superuser to `postgres`.
+      - name: Compare the migrations against the ORM mirror
+        run: |
+          python scripts/check_schema_drift.py \
+            --dsn postgresql://drift:drift-pw@127.0.0.1:5441/postgres

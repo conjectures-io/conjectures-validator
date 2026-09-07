@@ -43,7 +43,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, and_, exists, func, or_, select, tuple_
+from sqlalchemy import Select, exists, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.models import (
