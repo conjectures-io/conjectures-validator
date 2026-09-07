@@ -40,6 +40,7 @@ verification core.
 | Finalized transfer reader, wired into both funding paths | Implemented |
 | Deposit watcher: TAO at the treasury becomes credits | Implemented |
 | TMC PAY: credits bought at 0.5 TAO each through the payment processor | Implemented |
+| Invitation links: free verification attempts granted without a wallet | Implemented |
 | Asynchronous verification worker | Implemented |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |

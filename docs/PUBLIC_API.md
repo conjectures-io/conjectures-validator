@@ -20,6 +20,7 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/results/{id}` | `PublicResult` | One published result |
 | `GET` | `/v1/results/{id}/report` | `PublicVerificationReport` | The published subset of the verifier report |
 | `GET` | `/v1/results/{id}/solution` | `PublicSolution` | The proof itself — only once review has approved it |
+| `GET` | `/v1/invitations/{code}` | `InvitationOffer` | What an invitation link offers, without redeeming it |
 | `GET` | `/v1/system/status` | `SystemStatus` | Submissions open/paused, queue depths, pin rotation window |
 | `GET` | `/v1/contributions` | `OffsetPage<ContributionItem>` | Partial work contributed to the pool, newest first, with filters |
 | `GET` | `/v1/contributions/{id}` | `ContributionItem` | One contribution, by full id or unambiguous prefix |
