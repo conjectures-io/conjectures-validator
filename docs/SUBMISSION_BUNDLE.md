@@ -22,11 +22,11 @@ Exactly two entries, in exactly this order:
 
 ```
 submission.json     the manifest, at most 16 KiB
-Main.lean           the candidate proof, at most 1,000,000 bytes
+Main.lean           the candidate proof, at most 10 MiB (10,485,760 bytes)
 ```
 
 No directories, no third file, no nested archive, and no other names. The whole archive must
-be at most 2 MiB.
+be at most 12 MiB (12,582,912 bytes), allowing an uncompressed maximum-sized proof.
 
 ## `submission.json`
 
@@ -64,11 +64,36 @@ truncation into a specific error.
 ## `Main.lean`
 
 The proof is the only untrusted content that reaches Lean. It must be a single valid UTF-8
-document with no NUL bytes, within the task's `max_submission_bytes` (1,000,000 for
-production tasks), and it must pass the static Lean policy scanner described in
+document with no NUL bytes, within the task's `max_submission_bytes` (10,485,760 by
+default for newly generated tasks; older tasks retain their published limit), and it must pass the static Lean policy scanner described in
 [`../README.md`](../README.md#submission-policy-and-verification-stages). Admission runs
 that scanner immediately so a policy violation is reported at submission time rather than
 after verification.
+
+The separate 200,000-token, line-length, nesting, and compression-ratio limits still
+apply. A file within the byte limit is not necessarily admissible or verifiable
+within the task's time and memory budgets.
+
+### Deploying the larger limit
+
+Upgrade the API, verifier image, and miner tooling before publishing tasks with
+the larger limit. `MAX_BUNDLE_BYTES` may lower the API limit but cannot exceed
+12,582,912. Check any external proxy's request-size and upload-timeout settings.
+
+Existing manifests remain authoritative: increasing the generator default does
+not change them. To enable larger proofs for existing tasks, pause submissions,
+drain verification work and handle outstanding submission intents, regenerate
+the affected tasks with the new limit, and publish their new bundle digests,
+allowlist, and task-repository pin together. Miners must refresh the task
+commitments before building and signing submissions. Do not replace task bytes
+under an old digest. This validator change alone does not rotate production pins.
+
+Before rollout, load-test concurrent uploads against the API memory budget and
+benchmark representative large proofs. Admission buffers bytes and runs the
+static scanner in the API process; tokenization stops at the policy cap, but
+larger files still cost CPU and memory. Stored proofs and pending intents also
+increase database, backup, and replication traffic. Keep existing compilation
+resource limits unless separate measurements justify a change.
 
 ## Archive requirements
 

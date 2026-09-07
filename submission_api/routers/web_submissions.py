@@ -49,7 +49,7 @@ Ordering here is a security and cost property, the same as on the extrinsic path
    hotkey learns that before the server does catalog work for them;
 3. idempotency replay — a retry is answered from durable state without re-uploading;
 4. the balance and a first bounty quote, so an account with nothing to spend is refused before
-   it uploads 2 MiB;
+   it uploads up to 12 MiB;
 5. the declared type and length, then the body streamed under a running cap, and the bundle
    admitted by the exact-shape scanner — all of it inside `intents.uploaded_bundle`, so a
    hostile 500 MB body is refused on its declaration rather than buffered and then measured;
@@ -319,7 +319,7 @@ async def create_web_submission(
 
     entry = _resolve_task(services, task_id, task_bundle_sha256)
 
-    # Two cheap refusals before a 2 MiB upload is accepted. Neither is authoritative — the quote
+    # Two cheap refusals before an upload is accepted. Neither is authoritative — the quote
     # that counts is taken under a lock below, and the balance is re-read under the account lock
     # by `open_intent` — but an account with nothing to spend, or a target that is no longer a
     # bounty, should not be asked to send its bundle first.
