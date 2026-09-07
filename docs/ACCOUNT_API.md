@@ -561,10 +561,39 @@ exists to prevent.
 with 3.5 credits' worth of rao sees "3 credits" and concludes the rest vanished.
 
 **The ledger is append-only**, and the balance is its sum. Make that true in deployment too:
-`REVOKE UPDATE, DELETE` on `credit_ledger` from the service role. Five kinds — `DEPOSIT`,
-`SPEND`, `REFUND`, `ADJUSTMENT`, `BONUS` — with the sign fixed per kind by a CHECK, so a debit
-cannot be recorded as a credit by passing the wrong one. `ADJUSTMENT` is the only either-way kind
-and it must carry a reason.
+`REVOKE UPDATE, DELETE` on `credit_ledger` from the service role. Six kinds — `DEPOSIT`,
+`SPEND`, `REFUND`, `ADJUSTMENT`, `BONUS`, `GRANT` — with the sign fixed per kind by a CHECK, so a
+debit cannot be recorded as a credit by passing the wrong one. `ADJUSTMENT` is the only either-way
+kind and it must carry a reason.
+
+`GRANT` is credits from a redeemed invitation, and it is a separate kind rather than a reuse of
+`BONUS` on purpose: `BONUS` means extras attached to a *purchase*, so folding grants into it would
+make "how much have we given away" stop being one query — which is the question an invitation
+campaign exists to answer. A `GRANT` must name the `invitation_redemptions` row that caused it and
+the price in force at redemption, both by CHECK, so a granted credit is never reachable without the
+record that explains it. Downstream nothing distinguishes it: `credits_available` is one sum over
+one table, so an attempt bought and an attempt granted spend identically.
+
+## Redeeming an invitation
+
+| Method | Path | Success | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/v1/invitations/{code}/redeem` | `201` | Grant this invitation's credits to the signed-in account |
+
+`CookieWriterDep`, not `WriterDep`: this moves money onto an account, so it obeys the rule the rest
+of the credit path obeys and refuses a CLI token with `BROWSER_SESSION_REQUIRED`. A bearer token is
+minted by a hotkey, and a hotkey sits unencrypted on a mining box.
+
+An invitation stores a number of **attempts**, not an amount of rao. The conversion happens at
+redemption against the price in force, so a reprice between issuing a link and clicking it cannot
+change what the recipient was promised.
+
+Refusals, all carrying the reason code the operator surface and the public page use:
+`INVITATION_NOT_FOUND` (404 — and only an unknown code gets this), `INVITATION_REVOKED`,
+`INVITATION_EXPIRED`, `INVITATION_EXHAUSTED` (410 each, because someone holding a dead link is
+entitled to know which reason applies — "expired" sends them to ask for a new one while "not found"
+sends them to check their typing), `INVITATION_ALREADY_REDEEMED` (409), and
+`INVITATION_EMAIL_DOMAIN_REQUIRED` (409, not 410: the link is alive and someone else can use it).
 
 **Holds are not ledger entries.** An open intent claims part of the balance, but a claim is not a
 movement: it either becomes a `SPEND` or evaporates. Writing it to an append-only ledger would put

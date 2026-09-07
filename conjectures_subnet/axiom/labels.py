@@ -61,6 +61,10 @@ Source: TypeAlias = Literal[
     # the API whose health depends on a third party being reachable: "the contribution listing is
     # stale" is an incident about github.com, not about this service.
     "api-contributions",
+    # Invitation links: the public page and redemption. Its own source rather than folded into
+    # `api-me`, because "how many invitations were redeemed this week" is an operator question
+    # about a campaign, not about one account's traffic.
+    "api-invitations",
     # The cross-cutting ASGI layers — rate limiting, CORS, the write guard, security headers.
     "api-middleware",
     # Outbound side effects the API owns, worth separating because they fail for reasons that
@@ -182,6 +186,15 @@ EventType: TypeAlias = Literal[
     # GitHub refused on budget. Separate from the type above because the remedy is different: this
     # one means the interval or the egress address needs attention, not that anything is broken.
     "contributions_rate_limited",
+    # --- invitations ------------------------------------------------------------------------
+    # The three moments an invitation moves money, and the only record that any of them
+    # happened: the code is stored as a digest, so there is nothing else to reconstruct a
+    # campaign from. `invitation_issued` and `invitation_revoked` name the operator;
+    # `invitation_redeemed` names the account and the ledger entry. None of them carries the
+    # code -- it is a live credential, and a log is exactly where one must not be.
+    "invitation_issued",
+    "invitation_revoked",
+    "invitation_redeemed",
     # --- emissions worker -------------------------------------------------------------------
     "epoch_observed",
     "weights_set",

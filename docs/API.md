@@ -104,6 +104,17 @@ per caller and carry review material that is not published anywhere else.
 | --- | --- | --- |
 | `GET` | `/v1/admin/reviews` | Submissions awaiting a reward decision, each with every advisory assessment recorded against it |
 | `GET` | `/v1/admin/reviews/{submission_id}` | One submission's full advisory record, decided or not |
+| `POST` | `/v1/admin/invitations` | Issue an invitation link. **The only response that carries the code** |
+| `GET` | `/v1/admin/invitations` | Issued invitations with their counts, filterable by `active`/`expired`/`revoked`/`exhausted` |
+| `GET` | `/v1/admin/invitations/{id}` | One invitation, with who redeemed it and which ledger entry each use produced |
+| `DELETE` | `/v1/admin/invitations/{id}` | Withdraw an invitation. Soft and idempotent |
+
+The invitation routes require `ADMIN`, gated on the router so a route added there later is closed
+by default. The code is returned by `POST` and **by nothing else, ever**: the database stores only
+its SHA-256, so an operator session that is taken over yields the inventory of live invitations
+rather than the ability to redeem them, and a lost link is replaced by issuing another. Revocation
+is soft for the same reason a ledger is append-only — entries reach the invitation through their
+redemptions, so deleting the row would orphan the explanation for credits already granted.
 
 The queue lists `UNREVIEWED` submissions and embeds their `attempts`, because the review panel
 renders a verdict per stage on the queue itself — a submissions-only list would be followed

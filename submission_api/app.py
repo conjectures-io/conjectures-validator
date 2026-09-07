@@ -92,6 +92,7 @@ from submission_api.routers import (
     contributions,
     health,
     intents,
+    invitations,
     me,
     results,
     reviews,
@@ -429,6 +430,10 @@ def create_app(
     application.include_router(tmc_pay_router.router)
     # Stage 3. Role-gated, and gated again on the session being a browser one — see
     # `routers/admin.py` for why an admin credential must not be reachable from a CLI token.
+    # The public half sits with the other unauthenticated reads; the operator half is gated on
+    # its own router, so both are registered here rather than one of them under `admin`.
+    application.include_router(invitations.public_router)
+    application.include_router(invitations.admin_router)
     application.include_router(admin.router)
     application.include_router(reviews.router)
     return application

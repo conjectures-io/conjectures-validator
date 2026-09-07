@@ -1067,6 +1067,9 @@ class CreditEntryKind(enum.StrEnum):
     REFUND = "REFUND"
     ADJUSTMENT = "ADJUSTMENT"
     BONUS = "BONUS"
+    # Credits from a redeemed invitation. Last, not beside BONUS, because V030 appends it with
+    # ADD VALUE and `check_schema_drift.py` compares enum ordering -- see the note there.
+    GRANT = "GRANT"
 
 
 class DepositState(enum.StrEnum):
@@ -1518,6 +1521,22 @@ class CreditLedgerEntry(Base):
             "tmc_pay_orders.id", name="credit_ledger_tmc_pay_order_fkey", use_alter=True
         ),
     )
+    # The redemption that granted these credits. Points AT the redemption rather than the
+    # redemption pointing here, for the same reason a SPEND names its intent: the reverse
+    # direction would make the two rows reference each other with neither insertable first,
+    # and this table is append-only. See V031.
+    # No `use_alter` here, unlike the deposit and intent keys above: those break real cycles
+    # (`deposits` and `submission_intents` are created after this table and point back at it),
+    # while `invitation_redemptions` points only at `invitations` and `accounts`. Asking for an
+    # ALTER that nothing needs makes `create_all`/`drop_all` emit a separate constraint drop,
+    # which then fails against a schema built before the column existed.
+    invitation_redemption_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "invitation_redemptions.id",
+            name="credit_ledger_invitation_redemption_fkey",
+        ),
+    )
     reason: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -1535,7 +1554,7 @@ class CreditLedgerEntry(Base):
         # passing the wrong sign. ADJUSTMENT is the only either-way kind, and it
         # must say why.
         CheckConstraint(
-            "kind NOT IN ('DEPOSIT', 'REFUND', 'BONUS') OR amount_rao > 0",
+            "kind NOT IN ('DEPOSIT', 'REFUND', 'BONUS', 'GRANT') OR amount_rao > 0",
             name="ledger_credits_are_positive",
         ),
         CheckConstraint(
@@ -1549,6 +1568,17 @@ class CreditLedgerEntry(Base):
             "kind <> 'SPEND' "
             "OR (intent_id IS NOT NULL AND credit_price_rao IS NOT NULL)",
             name="ledger_spend_names_its_intent",
+        ),
+        # The same shape for a granted credit: the redemption is its auditable source, and the
+        # price is what stops a later reprice restating what was given.
+        CheckConstraint(
+            "kind <> 'GRANT' "
+            "OR (invitation_redemption_id IS NOT NULL AND credit_price_rao IS NOT NULL)",
+            name="ledger_grant_names_its_redemption",
+        ),
+        CheckConstraint(
+            "invitation_redemption_id IS NULL OR kind = 'GRANT'",
+            name="ledger_redemption_only_on_grant",
         ),
         # A DEPOSIT names one source and says which: a chain-confirmed transfer, or a
         # TMC PAY order. Exclusive-or rather than "at least one", so processor-confirmed
@@ -1568,6 +1598,15 @@ class CreditLedgerEntry(Base):
             unique=True,
             postgresql_where=text("kind = 'SPEND'"),
         ),
+        # One entry per redemption. The redemption row is already unique per
+        # (invitation, account); this is what stops a retry that slipped past that check from
+        # crediting the same redemption twice.
+        Index(
+            "credit_ledger_grant_idx",
+            "invitation_redemption_id",
+            unique=True,
+            postgresql_where=text("invitation_redemption_id IS NOT NULL"),
+        ),
         # One credit entry per TMC PAY order, mirroring the SPEND index above. Belt and
         # braces with `tmc_pay_orders.credited_ledger_id UNIQUE`: that stops one order
         # pointing at two entries, this stops two entries pointing at one order — which
@@ -1578,6 +1617,121 @@ class CreditLedgerEntry(Base):
             unique=True,
             postgresql_where=text("tmc_pay_order_id IS NOT NULL"),
         ),
+    )
+
+
+class Invitation(Base):
+    """A link that carries free verification attempts. See ``V031__invitations.sql``.
+
+    The code is **not** stored. `code_sha256` is all there is, so an invitation can be listed,
+    counted and revoked but never re-read — the same rule the CLI bearer token follows, and for
+    the same reason: the code is a credential worth `credits` attempts, so an admin session that
+    is taken over should yield the inventory and not the ability to spend it.
+
+    `credits` is a number of attempts rather than an amount of rao. The conversion happens at
+    redemption against the price in force, so repricing between issuing a link and clicking it
+    cannot change what the recipient was promised.
+    """
+
+    __tablename__ = "invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    code_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False, unique=True)
+
+    credits: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_redemptions: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
+    )
+    redeemed_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+
+    # Null means "any address". Checked at redemption against the account's verified email.
+    email_domain: Mapped[str | None] = mapped_column(Text)
+
+    expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    # Soft, always: ledger entries reach this row through their redemption, so deleting it
+    # would orphan the explanation for money already granted.
+    revoked_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    note: Mapped[str] = mapped_column(Text, nullable=False)
+
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "credits BETWEEN 1 AND 100", name="invitation_credits_in_range"
+        ),
+        CheckConstraint(
+            "max_redemptions >= 1", name="invitation_max_redemptions_positive"
+        ),
+        CheckConstraint(
+            "redeemed_count >= 0", name="invitation_redeemed_count_nonnegative"
+        ),
+        CheckConstraint(
+            "email_domain IS NULL OR email_domain ~ "
+            "'^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'",
+            name="invitation_email_domain_shape",
+        ),
+        CheckConstraint(
+            "length(btrim(note)) BETWEEN 1 AND 200", name="invitation_note_present"
+        ),
+        CheckConstraint(
+            "redeemed_count <= max_redemptions",
+            name="invitation_redemptions_within_max",
+        ),
+        CheckConstraint(
+            "revoked_at IS NULL OR revoked_at >= created_at",
+            name="invitation_revoked_after_created",
+        ),
+        Index("invitations_created_idx", text("created_at DESC"), text("id DESC")),
+    )
+
+
+class InvitationRedemption(Base):
+    """One account used one invitation. The auditable source of a GRANT ledger entry.
+
+    Inserted before the ledger entry that names it, which is what keeps the two out of a
+    reference cycle — see the note on ``CreditLedgerEntry.invitation_redemption_id``.
+    """
+
+    __tablename__ = "invitation_redemptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    invitation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("invitations.id"), nullable=False
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        # The narrow policy: one account cannot use the same link twice, but a second and
+        # different invitation is still allowed.
+        Index(
+            "invitation_redemption_once_per_account",
+            "invitation_id",
+            "account_id",
+            unique=True,
+        ),
+        Index(
+            "invitation_redemptions_invitation_idx",
+            "invitation_id",
+            text("created_at DESC"),
+        ),
+        Index("invitation_redemptions_account_idx", "account_id"),
     )
 
 
