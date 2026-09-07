@@ -632,8 +632,11 @@ class PublicResult(Model):
     """
 
     id: uuid.UUID
-    hotkey: str = Field(
-        description="The hotkey that submitted this proof, as an SS58 address"
+    hotkey: str | None = Field(
+        default=None,
+        description=(
+            "The hotkey that submitted this proof, as an SS58 address. Null for a submission authorised by a browser session, whose submitter holds no Bittensor key -- such a result has no on-chain identity to credit, and an address is never invented to fill the gap."
+        ),
     )
     public_credit: PublicCredit | None = Field(
         default=None,
@@ -734,8 +737,11 @@ class InReviewResult(Model):
     """
 
     id: uuid.UUID
-    hotkey: str = Field(
-        description="The hotkey that submitted this proof, as an SS58 address"
+    hotkey: str | None = Field(
+        default=None,
+        description=(
+            "The hotkey that submitted this proof, as an SS58 address. Null for a submission authorised by a browser session, whose submitter holds no Bittensor key -- such a result has no on-chain identity to credit, and an address is never invented to fill the gap."
+        ),
     )
     public_credit: PublicCredit | None = Field(
         default=None,
@@ -769,8 +775,11 @@ class PublicSolution(Model):
     """
 
     id: uuid.UUID
-    hotkey: str = Field(
-        description="The hotkey that submitted this proof, as an SS58 address"
+    hotkey: str | None = Field(
+        default=None,
+        description=(
+            "The hotkey that submitted this proof, as an SS58 address. Null for a submission authorised by a browser session, whose submitter holds no Bittensor key -- such a result has no on-chain identity to credit, and an address is never invented to fill the gap."
+        ),
     )
     public_credit: PublicCredit | None = Field(
         default=None,

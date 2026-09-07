@@ -53,8 +53,16 @@ be at most 2 MiB.
 | `proof_path` | Exactly `Main.lean` |
 | `proof_sha256` | Digest of the archived `Main.lean`, recomputed and compared server-side |
 | `proof_bytes` | Length of the archived `Main.lean`, also recomputed and compared |
-| `miner_hotkey` | The submitting hotkey's SS58 address; must equal the authenticated hotkey |
+| `miner_hotkey` | Optional. The submitting hotkey's SS58 address. **Required by every path that authenticates a key**, where it must equal that key exactly; **must be absent** on `POST /v1/submissions/session`, where nothing has proved control of any address |
 | `solver` | Optional. Both `name` and `version` must match `[A-Za-z0-9._-]{1,64}`. Recorded for audit only |
+
+`miner_hotkey` became optional when the session-authorised intake path was added, and the
+asymmetry is deliberate. A submitter who signed in with an email address holds no Bittensor key,
+so there is no address they could honestly write; and a manifest that names one on that path is
+**refused rather than ignored**, because `hotkey` is published on the result and credits it to a
+solver. Admitting an unauthenticated claim would let anyone attribute a solved conjecture to
+someone else's address. On every key-signed path the field is still mandatory and still compared
+byte for byte, so nothing about those routes is relaxed.
 
 Unknown fields, missing fields, duplicate JSON keys, and the JSON constants `NaN`,
 `Infinity`, and `-Infinity` are all rejected. Declaring a `proof_sha256` or `proof_bytes`

@@ -184,7 +184,7 @@ class AdminReview(Model):
     slug: str = Field(description="The conjecture this submission is against, as a stable slug")
     display_title: str
     task_id: str
-    hotkey: str
+    hotkey: str | None = None
     statement: str = Field(description="The elaborated Lean statement, from the catalog")
     task_bundle_sha256: str
     verified_at: datetime | None = None

@@ -42,6 +42,16 @@ bytes. Everything downstream of admission is unchanged: the verifier still recei
 bounded UTF-8 `.lean` file, one read-only task, an expected task digest, and a fresh disposable
 workspace.
 
+**Who a bundle claims to be from is authenticated, never taken on trust.** The manifest's
+`miner_hotkey` is optional as of the session-authorised intake path, because an account opened with
+an email address holds no Bittensor key and has no address it could honestly write. The field is
+bound rather than believed: `admit_proof_bundle` takes the address the *route* authenticated, and
+compares. On a key-signed path the manifest must name exactly that key, unchanged. On the session
+path the caller authenticated no address, so a manifest naming one is **refused rather than
+ignored** — `submissions.hotkey` is published on the result page and credits it to a solver, so
+admitting an unverified claim would let anyone attribute a solved conjecture to someone else's
+hotkey. Nothing in the bundle can select the weaker check; only the route decides.
+
 The archive is never extracted. Entry names are compared against a two-name allowlist and are
 never used as filesystem paths; entry bytes are decompressed into bounded memory, and the proof
 is written by the validator under a name it chooses, through the same `O_EXCL` no-follow path

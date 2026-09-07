@@ -86,7 +86,9 @@ async def open_intent(
     session: AsyncSession,
     *,
     account_id: uuid.UUID,
-    hotkey: str,
+    # None on the session-authorised path, where the account itself is the authorisation and
+    # there is no key to name. See V032.
+    hotkey: str | None,
     task_id: str,
     task_bundle_sha256: str,
     credit_price_rao: int,
@@ -107,6 +109,11 @@ async def open_intent(
     made by a linked coldkey rather than by ``hotkey`` — see ``routers/web_submissions.py``.
     The caller has already checked that the key is linked to this account; recording it here
     is what lets ``confirm`` put it on the submission.
+
+    ``hotkey`` is None on the session-authorised path, and then ``signer_coldkey`` is None too:
+    that submission names no key at all and is authorised by the account that spent the credit.
+    The schema's ``submission_authorised_exactly_once`` is what makes that a shape rather than a
+    convention.
     """
     await credits.lock_account(session, account_id)
     balance = await credits.credit_balance(
@@ -225,7 +232,9 @@ async def confirm(
     problem_id: str,
     reward_target_id: str,
     task_mode: TaskMode,
-    hotkey_signature: bytes,
+    # None together with the intent's hotkey, and only then: a submission either names a key
+    # and carries the signature that proved it, or names neither.
+    hotkey_signature: bytes | None,
     manual_review_required: bool,
     review_policy_version: str,
     bounty_amount_rao: int,

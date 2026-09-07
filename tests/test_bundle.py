@@ -634,13 +634,35 @@ def test_manifest_unknown_field_is_rejected():
 
 @pytest.mark.parametrize(
     "missing",
-    ["schema_version", "format", "task_id", "task_bundle_sha256", "proof_path", "proof_sha256", "proof_bytes", "miner_hotkey"],
+    ["schema_version", "format", "task_id", "task_bundle_sha256", "proof_path", "proof_sha256", "proof_bytes"],
 )
 def test_manifest_missing_field_is_rejected(missing):
     overrides = {missing: None}
     assert rejection(valid_bundle(manifest=manifest_json(**overrides))) is (
         ReasonCode.BUNDLE_MANIFEST_INVALID
     )
+
+
+def test_a_manifest_without_a_miner_hotkey_parses():
+    """Optional since the session-authorised path: an email account holds no Bittensor key.
+
+    `miner_hotkey` is deliberately not in this list any more. Parsing it is where the field
+    became optional; *binding* it is `admit_proof_bundle`'s job, and that is where the two
+    key-signed paths still require it — see the admission tests below.
+    """
+    bundle = load_proof_bundle(valid_bundle(manifest=manifest_json(miner_hotkey=None)))
+    assert bundle.manifest.miner_hotkey is None
+    # And it is omitted on the way back out rather than serialised as null, so a round trip
+    # does not invent a field the submitter never wrote.
+    assert "miner_hotkey" not in bundle.manifest.to_dict()
+
+
+def test_a_present_miner_hotkey_is_still_shape_checked():
+    """Absent is allowed; present and malformed is not, and null is not the same as absent."""
+    for bad in ("not-an-ss58", "", "1" * 47):
+        assert rejection(valid_bundle(manifest=manifest_json(miner_hotkey=bad))) is (
+            ReasonCode.BUNDLE_MANIFEST_INVALID
+        )
 
 
 @pytest.mark.parametrize(
@@ -732,6 +754,52 @@ def test_admit_rejects_a_mismatched_task_digest():
             expected_hotkey=HOTKEY,
         )
     assert caught.value.reason is ReasonCode.TASK_COMMITMENT_MISMATCH
+
+
+def test_admit_without_an_expected_hotkey_refuses_a_manifest_that_names_one():
+    """The session path admits no claim of authorship, it does not merely ignore one.
+
+    Nothing authenticated an address on this path, so a manifest naming a miner would put an
+    unverified claim onto `ResultRow.hotkey`, which is published and credits a result to its
+    solver. Refusing is what keeps "no key" from becoming "any key you like".
+    """
+    with pytest.raises(VerifierError) as caught:
+        admit_proof_bundle(
+            valid_bundle(),
+            task_manifest=task_manifest(),
+            expected_task_sha256=TASK_DIGEST,
+            expected_hotkey=None,
+        )
+    assert caught.value.reason is ReasonCode.BUNDLE_MANIFEST_INVALID
+
+
+def test_admit_without_an_expected_hotkey_accepts_a_manifest_without_one():
+    fixture = task_manifest()
+    result = admit_proof_bundle(
+        valid_bundle(manifest=manifest_json(miner_hotkey=None)),
+        task_manifest=fixture,
+        expected_task_sha256=TASK_DIGEST,
+        expected_hotkey=None,
+    )
+    assert result.manifest.miner_hotkey is None
+    assert result.manifest.task_id == fixture.task_id
+
+
+def test_a_key_signed_path_still_requires_the_manifest_to_name_its_miner():
+    """Making the field optional must not have made it optional where a key was proved.
+
+    This is the regression that would matter: if `expected_hotkey` were compared against a
+    missing value with `!=`, a bundle naming nobody would sail through the CLI and web paths and
+    the binding between an authenticated miner and their proof would be gone.
+    """
+    with pytest.raises(VerifierError) as caught:
+        admit_proof_bundle(
+            valid_bundle(manifest=manifest_json(miner_hotkey=None)),
+            task_manifest=task_manifest(),
+            expected_task_sha256=TASK_DIGEST,
+            expected_hotkey=HOTKEY,
+        )
+    assert caught.value.reason is ReasonCode.BUNDLE_MANIFEST_INVALID
 
 
 def test_admit_rejects_a_mismatched_hotkey():

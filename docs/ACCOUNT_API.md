@@ -42,6 +42,7 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/submissions/intents/{id}/confirm` | `{ submission, credits }` | Debit and submit, atomically |
 | `GET` | `/v1/submissions/intents/{id}` | `SubmissionIntent` | Intent state |
 | `POST` | `/v1/submissions/web` | `{ submission, credits }` | Submit in one call, authorised by a linked coldkey — browser only |
+| `POST` | `/v1/submissions/session` | `{ submission, credits }` | Submit in one call with no key at all, authorised by the session — browser only |
 | `GET` | `/v1/admin/accounts/{id}` | `Account` | One account — `ADMIN`, browser only |
 | `PUT` | `/v1/admin/accounts/{id}/roles` | `Account` | Replace an account's roles — `ADMIN`, browser only |
 | `GET` | `/v1/admin/accounts/{id}/sessions` | `SessionView[]` | An account's live sessions — `ADMIN`, browser only |
@@ -157,12 +158,22 @@ server the first time one changes.
 | `review` | `ROLE_REQUIRED` (`REVIEWER`), `ROLE_REQUIRES_BROWSER_SESSION` |
 | `manage_roles` | `ROLE_REQUIRED` (`ADMIN`), `ROLE_REQUIRES_BROWSER_SESSION` |
 
-**`submit` has two ways to be satisfied, and an account needs only one.** A linked *hotkey* drives
-the three-call intent flow from either credential; a linked *coldkey* drives
-`POST /v1/submissions/web` from a browser session. So `HOTKEY_NOT_LINKED` appears only when the
-account has neither — for a cookie session — and when it has no linked hotkey, for a bearer token,
-which cannot reach the coldkey path at all. Reporting it for a coldkey-only account was the shape
-of a website greying out its own submit button against exactly the account the web path exists for.
+**`submit` has three ways to be satisfied, and a browser needs none of them to hold a key.** A
+linked *hotkey* drives the three-call intent flow from either credential; a linked *coldkey*
+drives `POST /v1/submissions/web`; and `POST /v1/submissions/session` needs nothing but the
+session itself. Both browser paths are cookie-only.
+
+So `HOTKEY_NOT_LINKED` now appears in exactly one case: **a CLI bearer session with no linked
+hotkey.** Neither browser path is reachable with a bearer token, so for that credential a hotkey
+really is the only way in. Reporting it to a signed-in browser holding no keys was the shape of a
+website greying out its own submit button against exactly the person the session path exists for —
+a mathematician who signed in with an email address.
+
+Note the contrast with `set_payout` in the table above, which still reports `HOTKEY_NOT_LINKED`.
+That is not an inconsistency: **you can now attempt a proof without a key, but not be paid for
+one.** Alpha is held as stake owned by a coldkey, so a reward has nowhere to go without the pair,
+and a submission that wins is held by the payout queue until its account links one — see
+"What happens if a keyless submission wins" below.
 
 
 Both role codes can appear at once, and that is the useful case rather than an edge one: an admin
@@ -1115,23 +1126,46 @@ and is not a disclosure to anyone else. Contrast the public subset in
 evidence. Keeping the two note fields separate lets the team write an audit trail without making
 those internal bytes part of the API contract.
 
-## Two ways to fund a submission, three ways in
+## Two ways to fund a submission, four ways in
 
 Every path still requires money to have been confirmed before a submission row exists. What changed
-in V003 is *what names the money*; the website path added in V028 changes only who signs.
+in V003 is *what names the money*; the website path added in V028 changes only who signs, and the
+session path added in V032 removes the signature entirely.
 
-| | Extrinsic path | Credit path, three calls | Credit path, from the website |
-| --- | --- | --- | --- |
-| Endpoint | `POST /v1/submissions` | the four-call intent flow | `POST /v1/submissions/web` |
-| Auth | hotkey signature | session cookie + write guard | session **cookie only** + write guard |
-| Authorised by | the hotkey, over the request digest | the hotkey, over the request digest | a **linked coldkey**, over a readable message |
-| Hotkey is | proved by signature | proved by linking | **declared, unproved** — a delegation target |
-| Funded by | one finalized transfer | one `SPEND` ledger entry | one `SPEND` ledger entry |
-| Row names | `payment_reference`, `payment_sender`, `payment_amount_rao`, `payment_block` | `credit_ledger_id`, `intent_id`, `account_id` | the same three, plus `signer_coldkey` |
-| Idempotency key | client-supplied UUID | the intent id | client-supplied UUID |
+| | Extrinsic path | Credit path, three calls | Credit path, from the website | Credit path, session only |
+| --- | --- | --- | --- | --- |
+| Endpoint | `POST /v1/submissions` | the four-call intent flow | `POST /v1/submissions/web` | `POST /v1/submissions/session` |
+| Auth | hotkey signature | session cookie + write guard | session **cookie only** + write guard | session **cookie only** + write guard |
+| Authorised by | the hotkey, over the request digest | the hotkey, over the request digest | a **linked coldkey**, over a readable message | **the session itself** — no signature |
+| Hotkey is | proved by signature | proved by linking | **declared, unproved** — a delegation target | **absent**, and a bundle naming one is refused |
+| Funded by | one finalized transfer | one `SPEND` ledger entry | one `SPEND` ledger entry | one `SPEND` ledger entry |
+| Row names | `payment_reference`, `payment_sender`, `payment_amount_rao`, `payment_block` | `credit_ledger_id`, `intent_id`, `account_id` | the same three, plus `signer_coldkey` | the same three, and `hotkey` is null |
+| Idempotency key | client-supplied UUID | the intent id | client-supplied UUID | client-supplied UUID, unique **per account** |
 
-There are two funding sources and three ways in, because the website path is the credit path with a
-different signature on it — same hold, same ledger entry, same `confirm` transaction.
+There are two funding sources and four ways in, because the last two are the credit path with a
+different authorisation on it — same hold, same ledger entry, same `confirm` transaction.
+
+`submission_authorised_exactly_once` is what keeps that from becoming vague: a row either names a
+hotkey **and** carries the signature that proved it, or names neither and has an account and a
+credit. There is no third shape, so "who authorised this" is always answerable from the row.
+
+The idempotency footnote on the last column is not a detail. `submissions_idempotency_unique` is
+`UNIQUE (hotkey, idempotency_key)`, and PostgreSQL treats NULLs as **distinct** — so it stops
+constraining rows the moment `hotkey` can be null, and a retry would quietly buy a second attempt.
+V032 adds a partial unique index on `(account_id, idempotency_key) WHERE hotkey IS NULL`, scoped to
+the account because a client-generated key is only meaningful within the caller that chose it.
+
+### What happens if a keyless submission wins
+
+Nothing special, and that is the point. `payout_notifier` resolves its destination through
+`coalesce(Account.payout_hotkey, Submission.hotkey)` and filters on the result being non-null, so a
+submission with no key and an account with no payout pair resolves to nothing and is **skipped** —
+not paid to a stand-in, and not a crash in the queue. It stays `ELIGIBLE` with no reward event.
+
+The moment that account links a payout pair, the coalesce resolves and the next poll picks it up.
+"Awarded, waiting for somewhere to send it" therefore needed no new state and no migration: it is
+what the existing query already does. What a client should show is that a reward is owed and a
+payout target is required to collect it — `capabilities.set_payout` names the missing piece.
 
 `submissions` carries a CHECK that **exactly one** of the two holds per row
 (`submission_funded_exactly_once`), so `FundingSummary.source` on the detail response is a read of
