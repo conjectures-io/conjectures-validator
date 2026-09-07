@@ -47,15 +47,20 @@ you can ignore this message — nothing has changed on your account.
 """
 
 
-def magic_link(*, base_url: str, token: str) -> str:
+def magic_link(*, base_url: str, token: str, path: str) -> str:
     """The URL in the email.
+
+    `path` is the website's sign-in route, not one this API serves, so it is passed in from
+    `settings.email_verify_path` rather than written here. It was a literal until it drifted:
+    the website moved the page and every mailed link 404'd, with nothing in this repository
+    to notice because nothing in this repository serves it.
 
     The token goes in the query string, which means it can end up in browser history and
     in a referrer. That is why it is single-use and short-lived, and why the endpoint
     that consumes it exchanges it for a session cookie immediately: the token in the URL
     is worthless within seconds of being used.
     """
-    return f"{base_url.rstrip('/')}/auth/verify?token={quote(token, safe='')}"
+    return f"{base_url.rstrip('/')}{path}?token={quote(token, safe='')}"
 
 
 class MailSender(Protocol):
