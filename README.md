@@ -741,7 +741,10 @@ Mathlib revision, Lean, Comparator, a Lean-4.27 `lean4export` backport, Landrun,
 checks every available checkout for the exact commit and a clean tree, validates the actual Elan and
 Lean binary identities, including Comparator's Lake dependency tree, and reports whether the
 production sandbox is available. Production readiness also requires a live behavioral sandbox
-probe, not only binary presence. Comparator's own
+probe, not only binary presence, and that the user `doctor` runs as can actually open the trusted
+Lean build outputs it reports on — Mathlib's cache arrives from `leantar` at mode 0600, so a
+readable pin set is no evidence that the verification user can read the cache behind it. Comparator's
+own
 implementation toolchain can differ from the target project's Lean version; the exporter is the
 component that must match the target
 environment. Normal verification never fetches or updates a branch. Network access is needed only

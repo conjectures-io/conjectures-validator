@@ -34,10 +34,16 @@ RUN FC_AUDIT_PATCH=/opt/fc-verifier/.build/formal-conjectures-audit-fixes.patch 
     && rm -rf /root/.cache/mathlib /opt/fc-verifier/.build
 
 COPY . .
-# `COPY` preserves the checkout's permission bits. A root-owned release cloned with umask 077
-# therefore arrives as 0700 directories and 0600 files, which the non-root user below cannot read.
-# Normalize only the application tree copied by the preceding instruction; the
-# three pruned paths are trusted-cache layers from the vendor build and already have usable modes.
+# Two permission passes, because the two trees go wrong for different reasons and are finished at
+# different points. First the application tree: `COPY` preserves the checkout's permission bits, so
+# a root-owned release cloned with umask 077 arrives as 0700 directories and 0600 files, which the
+# non-root user below cannot read. The trusted caches are pruned from that pass and normalized in
+# the second one, which has to wait for the root stage below to finish writing into them. They need
+# it because Mathlib fetches its cache through the `leantar` bundled with the toolchain, and since
+# 0.1.20 leantar persists every extracted file from a `NamedTempFile`: the ~130k files it writes
+# come out 0600 root whatever the umask, so UID 10001 could not read the cache the workspace
+# symlinks in and every challenge build died on the first `.trace`. Before Lean 4.30 the toolchain
+# shipped no leantar and these paths really did arrive usable.
 RUN find . \
       \( -path './vendor' -o -path './.elan' -o -path './.lake' \) -prune \
       -o -exec chmod a+rX {} + \
@@ -55,6 +61,8 @@ RUN find . \
            git config --system --add safe.directory "/opt/fc-verifier/$package"; \
          done; \
        done \
+    && find ./vendor ./.elan ./.lake -type d ! -perm -o=rx -exec chmod a+rX {} + \
+    && find ./vendor ./.elan ./.lake -type f ! -perm -o=r -exec chmod a+r {} + \
     && /usr/sbin/useradd --create-home --shell /usr/sbin/nologin --uid 10001 verifier \
     && mkdir -p .work \
     && chown verifier:verifier .work
