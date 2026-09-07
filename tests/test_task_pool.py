@@ -46,6 +46,7 @@ TASKS_ROOT = tasks_repository_root(ROOT)
 TIER_METADATA = TASKS_ROOT / "tiers/tier-1"
 
 
+@pytest.mark.needs_checkouts
 def test_task_selection_is_new_and_audited_across_source_families():
     catalog = load_catalog(ROOT / "data/catalog.json")
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
@@ -93,6 +94,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert all(len(group) == 1 for group in groups)
 
 
+@pytest.mark.needs_checkouts
 def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     allowlist = TASKS_ROOT / "allowlist.json"
     policy = json.loads(allowlist.read_text(encoding="utf-8"))
@@ -198,6 +200,7 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     ) == len(PRODUCTION_TASK_MODES)
 
 
+@pytest.mark.needs_checkouts
 def test_newly_retired_targets_are_recorded_but_not_admitted():
     newly_retired = {
         # 2026-08-05: defective or exploitable formalizations found by audit.
@@ -242,6 +245,7 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
     assert all(f"`{theorem}`" in retirement_log for theorem in newly_retired)
 
 
+@pytest.mark.needs_checkouts
 def test_retired_conjectures_are_readable_but_never_admissible():
     """The display payload must cover every retired target and admit none of them.
 

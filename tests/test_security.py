@@ -32,6 +32,7 @@ def test_submission_fifo_is_rejected_without_blocking(tmp_path):
     assert error.value.reason == ReasonCode.SUBMISSION_POLICY_VIOLATION
 
 
+@pytest.mark.needs_checkouts
 def test_insecure_development_sandbox_fails_closed_by_default():
     report = verify(
         task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
@@ -43,6 +44,7 @@ def test_insecure_development_sandbox_fails_closed_by_default():
     assert report.reason_code == ReasonCode.INSECURE_SANDBOX
 
 
+@pytest.mark.needs_checkouts
 def test_external_task_commitment_mismatch_fails_before_lean():
     report = verify(
         task_dir=TASKS_ROOT / "fixtures/formalized/task-formalized",
@@ -55,6 +57,7 @@ def test_external_task_commitment_mismatch_fails_before_lean():
     assert report.reason_code == ReasonCode.TASK_COMMITMENT_MISMATCH
 
 
+@pytest.mark.needs_checkouts
 def test_verification_environment_does_not_inherit_injection_variables(monkeypatch, tmp_path):
     monkeypatch.setenv("PATH", f"{tmp_path}:/usr/bin")
     monkeypatch.setenv("LEAN_PATH", str(tmp_path))

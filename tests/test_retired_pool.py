@@ -200,6 +200,7 @@ def test_two_retired_targets_at_one_slug_are_refused(tmp_path):
 # --- the boundary -----------------------------------------------------------------------------
 
 
+@pytest.mark.needs_checkouts
 def test_the_checked_in_retired_set_loads_against_its_own_allowlist():
     """The real file in the pinned task repository, verified against the real tier policy.
 
@@ -215,6 +216,7 @@ def test_the_checked_in_retired_set_loads_against_its_own_allowlist():
         assert item.retired_on, f"{item.slug} has no retirement date"
 
 
+@pytest.mark.needs_checkouts
 def test_no_retired_target_is_on_the_allowlist():
     """The property the whole design rests on, checked against the real repository.
 

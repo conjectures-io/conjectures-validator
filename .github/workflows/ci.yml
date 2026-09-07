@@ -119,27 +119,24 @@ jobs:
           print("database reachable:", postgres_dsn().rsplit("@", 1)[-1])
           PY
 
-      # Two exclusions, for two different missing inputs, neither of which this job provisions:
+      # Three markers, for three inputs this job does not provision: the pinned Lean toolchain
+      # and trusted cache, a local Subtensor chain, and the task-bundle plus vendored checkouts.
       #
-      #   * the `integration` and `subnet_integration` markers cover the pinned Lean toolchain,
-      #     the trusted cache, and a local Subtensor chain;
-      #   * the ignored files reach for the task-bundle checkout (a separate repository pinned
-      #     in pins.lock.json, cloned by `just pin-tasks`) or the vendored Lake packages under
-      #     .lake/packages. They are not marked, so they cannot be deselected by marker — which
-      #     is itself worth fixing, and is why the list is spelled out here rather than hidden.
+      # Deselected by marker rather than by ignoring whole files, because the dependency is
+      # per-test: 26 tests need a checkout, and the files holding them contain 62 that do not.
+      # `test_verification_worker.py` alone is 41 self-contained tests behind 2 that are not.
+      # Ignoring files would have dropped all 62.
       #
-      # Adding the task pool to CI is the follow-up that shrinks this list. Until then, an
-      # entry removed from it should be removed because the test became self-contained.
+      # To regenerate the marked set, reproduce this environment locally -- a bare clone has no
+      # vendor/, no .lake/ and no sibling conjectures-tasks, which is exactly what CI sees:
+      #
+      #   git clone --shared . /tmp/bare/conjectures-validator && cd /tmp/bare/conjectures-validator
+      #   PYTHONPATH=$PWD pytest -m "not integration and not subnet_integration"
+      #
+      # Anything that fails there needs `needs_checkouts` and does not have it.
       - name: Test
         run: |
-          pytest -q \
-            -m "not integration and not subnet_integration" \
-            --ignore=tests/test_api_taskpool.py \
-            --ignore=tests/test_axiom.py \
-            --ignore=tests/test_security.py \
-            --ignore=tests/test_task_pool.py \
-            --ignore=tests/test_verification_worker.py \
-            --ignore=tests/test_workspace.py
+          pytest -q -m "not integration and not subnet_integration and not needs_checkouts"
 
   schema-drift:
     name: schema drift

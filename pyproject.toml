@@ -83,6 +83,11 @@ testpaths = ["tests"]
 markers = [
     "integration: requires the pinned Lean toolchain and trusted cache",
     "subnet_integration: requires the pinned local Subtensor chain",
+    # Reads the task-bundle checkout (a separate repository, pinned in pins.lock.json and cloned
+    # by `just pin-tasks`) or the vendored dependencies under vendor/ and .lake/ that
+    # scripts/pin_dependencies.sh creates. These are not integration tests -- they are ordinary
+    # and fast -- they just cannot run in a bare checkout, which is what CI has.
+    "needs_checkouts: requires the pinned task-pool or vendored dependency checkouts",
 ]
 
 [tool.hatch.build.targets.wheel]
