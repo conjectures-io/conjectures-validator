@@ -193,6 +193,33 @@ def test_the_image_normalizes_checkout_modes_before_dropping_privileges():
         assert f"-path './{trusted_cache}'" in normalization
 
 
+def test_the_image_normalizes_the_trusted_caches_after_the_last_cache_get():
+    """The pass above prunes them, so they need one of their own, and it has to come last.
+
+    Mathlib's cache tool unpacks through the toolchain's `leantar`, which persists every extracted
+    file from a temporary file and so writes it 0600 whatever the umask. Left alone, ~130k
+    root-owned files under `vendor` are unreadable to UID 10001, `doctor` still reports `ready`
+    because it compiles nothing, and every proof fails at CHALLENGE_BUILD_FAILED — which the worker
+    charges to itself, so submissions get no verdict and trip the refund alarm instead.
+    """
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    root_build = dockerfile.index("build_trusted_cache.sh --stage root")
+    non_root = dockerfile.index("USER verifier")
+    # Both `lake exe cache get` runs must have finished before the modes are fixed, and the root
+    # stage is the later of them.
+    trailing = dockerfile[root_build:non_root]
+
+    directories = trailing.index("-type d ! -perm -o=rx -exec chmod a+rX {} +")
+    files = trailing.index("-type f ! -perm -o=r -exec chmod a+r {} +")
+    created_user = trailing.index("useradd")
+
+    assert directories < created_user
+    assert files < created_user
+    for trusted_cache in ("./vendor", "./.elan", "./.lake"):
+        assert trusted_cache in trailing[: min(directories, files)]
+
+
 def test_the_elan_download_comes_from_the_pin_file(tmp_path):
     """The URL, the digest and the default toolchain, none of them written down twice.
 

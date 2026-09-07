@@ -17,6 +17,7 @@ from verifier.comparator import (
     sandbox_self_test,
 )
 from verifier.environment import tool_path
+from verifier.errors import VerifierError
 from verifier.repository import (
     dependency_pin_status,
     formal_conjectures_pin,
@@ -24,6 +25,12 @@ from verifier.repository import (
     load_pins,
     repository_commit,
 )
+from verifier.workspace import trusted_build_roots
+
+# One file per directory until this many, rather than a full walk: the trusted cache is around
+# 145k files and a single unreadable one anywhere in it fails the build, so a spread sample of a
+# uniform permission fault finds it for the cost of a few dozen `open` calls.
+TRUSTED_CACHE_SAMPLE = 32
 
 
 def _version_output(path: Path) -> str:
@@ -38,6 +45,65 @@ def _version_output(path: Path) -> str:
         ).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return ""
+
+
+def _sample_trusted_files(root: Path, limit: int) -> tuple[tuple[Path, ...], tuple[str, ...]]:
+    walk_errors: list[OSError] = []
+    sampled: list[Path] = []
+    for directory, subdirectories, files in os.walk(root, onerror=walk_errors.append):
+        subdirectories.sort()
+        for name in sorted(files):
+            sampled.append(Path(directory) / name)
+            break
+        if len(sampled) >= limit:
+            break
+    return tuple(sampled), tuple(
+        f"{error.filename}: {error.strerror or error}" for error in walk_errors
+    )
+
+
+def trusted_cache_status(
+    project_root: Path, *, sample: int = TRUSTED_CACHE_SAMPLE
+) -> dict[str, Any]:
+    """Whether the user this process runs as can actually read the trusted Lean build outputs.
+
+    Every other check here reads a pin, a version string or a tool, all of which a root-owned
+    0600 cache answers perfectly well — so an image whose Mathlib cache UID 10001 cannot open
+    reported `ready: true` and then failed every proof at CHALLENGE_BUILD_FAILED, which the worker
+    charges to itself: no verdict, three retries, and the refund alarm. Nothing short of opening
+    the files as the running user catches that, because mode bits are not the only way a read is
+    refused and `doctor` never compiles anything.
+    """
+    try:
+        roots = trusted_build_roots(project_root)
+    except VerifierError as exc:
+        return {
+            "build_roots": [],
+            "files_probed": 0,
+            "unreadable": [str(exc)],
+            "readable": False,
+        }
+    unreadable: list[str] = []
+    probed = 0
+    per_root = max(1, sample // max(len(roots), 1))
+    for root in roots:
+        files, walk_errors = _sample_trusted_files(root, per_root)
+        unreadable.extend(walk_errors)
+        for file in files:
+            probed += 1
+            try:
+                with file.open("rb") as handle:
+                    handle.read(1)
+            except OSError as exc:
+                unreadable.append(f"{file}: {exc.strerror or exc}")
+    return {
+        "build_roots": [str(root) for root in roots],
+        "files_probed": probed,
+        # Truncated: the fault is uniform across the cache, so the first few name it and the
+        # report still has to fit in a log line the worker prints on a failed preflight.
+        "unreadable": unreadable[:8],
+        "readable": not unreadable,
+    }
 
 
 def image_pins_satisfied(dependency_pins: Mapping[str, Mapping[str, Any]]) -> bool:
@@ -74,6 +140,7 @@ def doctor_report(project_root: Path, *, insecure_development: bool = False) -> 
     lean_identity_valid = str(pins["lean"]["commit"]) in lean_version
     elan_identity_valid = f"elan {pins['elan']['version']} " in elan_version
     unprivileged = not hasattr(os, "geteuid") or os.geteuid() != 0
+    trusted_cache = trusted_cache_status(project_root)
     return {
         "schema_version": 1,
         "python": {
@@ -95,6 +162,7 @@ def doctor_report(project_root: Path, *, insecure_development: bool = False) -> 
             "pinned": actual == expected,
         },
         "dependency_pins": dependency_pins,
+        "trusted_cache": trusted_cache,
         "comparator": {
             "path": str(tools.comparator),
             "lean4export": str(tools.lean4export),
@@ -127,5 +195,6 @@ def doctor_report(project_root: Path, *, insecure_development: bool = False) -> 
             and not absent
             and lean_identity_valid
             and elan_identity_valid
+            and trusted_cache["readable"]
         ),
     }

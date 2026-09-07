@@ -154,6 +154,21 @@ def _local_package_sources(project_root: Path) -> tuple[PackageSource, ...]:
     return sources
 
 
+def trusted_build_roots(project_root: Path) -> tuple[Path, ...]:
+    """The `.lake/build` trees `create_workspace` symlinks into every proof workspace.
+
+    Public for the doctor, which has to probe the directories verification actually reads. A
+    hand-written list there would drift from the package graph, and the drift is invisible until a
+    proof fails: these paths are resolved through `.lake/packages`, whose entries are symlinks into
+    `vendor/formal-conjectures` in the image and real directories in a miner's checkout.
+    """
+    return tuple(
+        build
+        for _name, source, _config, _manifest, _scope in _local_package_sources(project_root)
+        if (build := source / ".lake" / "build").is_dir()
+    )
+
+
 def _workspace_manifest(root_entry: dict[str, object]) -> str:
     return json.dumps(
         {
