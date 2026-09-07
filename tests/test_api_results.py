@@ -43,7 +43,6 @@ from conftest_api import (
 )
 
 from conjectures_subnet.attribution import public_credit
-from conjectures_subnet.db import public as public_store
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.models import (
     ManualReviewState,

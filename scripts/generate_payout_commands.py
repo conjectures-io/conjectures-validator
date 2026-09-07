@@ -32,7 +32,11 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from payout_notifier.discord import (
+# Four of these are re-exports rather than local uses, so pyflakes cannot see them: this file
+# is executed by `tests/test_generate_payout_commands.py` through `importlib` and the test
+# reaches them off the module object. Deleting one as "unused" breaks that suite, which is what
+# the noqa is recording -- the names are this script's surface, not leftovers.
+from payout_notifier.discord import (  # noqa: F401
     DEFAULT_DISCORD_MENTIONS,
     DEFAULT_MULTISIG,
     DEFAULT_NETUID,

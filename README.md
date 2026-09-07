@@ -779,7 +779,23 @@ definition holes merely because Comparator can type-check them.
 
 Unit tests cover schemas, hashes, catalog statistics, adapters, deterministic skips, tokenizer
 behavior, answer literals, workspaces, and reports. The opt-in integration suite uses the real pinned
-catalog. `data/performance.json` records this checkout's measured catalog extraction, direct task
+catalog.
+
+Database tests **skip** when they cannot reach a server, so a green run on a laptop with no
+database has not exercised them. Bring the throwaway stack up first, or point the suite elsewhere
+with `FC_POSTGRES_DSN`:
+
+```bash
+docker compose -f docker-compose.pytest-db.yml up -d
+```
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs three gates on every pull request:
+`ruff check`, the self-contained suite against a Postgres service, and
+`scripts/check_schema_drift.py`. It deliberately does *not* provision the pinned task-bundle
+checkout or the vendored Lake packages, so the handful of test files needing those are listed as
+`--ignore` entries in the workflow with the reason beside them; the `integration` and
+`subnet_integration` markers cover the rest. Adding the task pool to CI is what shortens that
+list. `data/performance.json` records this checkout's measured catalog extraction, direct task
 generation, and warm/cold verification runs; hardware and cache state are included alongside the
 numbers rather than presenting them as universal benchmarks.
 

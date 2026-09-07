@@ -128,6 +128,11 @@ EventType: TypeAlias = Literal[
     # An account's roles were replaced. `accounts.roles` is overwritten in place, so this event
     # is the only record that the change happened — see `routers/admin.py`.
     "roles_changed",
+    # A reviewer's binding decision on a submission. The other privileged operator write, and
+    # named here for the same reason as `roles_changed`: it moves `reward_status`, so it is the
+    # act someone asks about when a payout is questioned. `routers/reviews.py` explains why the
+    # published explanation is deliberately not carried on the event.
+    "review_decision_recorded",
     # --- verification worker ----------------------------------------------------------------
     "submission_claimed",
     "verdict_recorded",

@@ -58,6 +58,7 @@ def test_verification_and_readiness_agree_on_which_pins_matter():
 
 
 @pytest.mark.skipif(platform.system() != "Linux", reason="production mode is Linux-only")
+@pytest.mark.needs_checkouts
 def test_the_development_sandbox_needs_no_seccomp_launcher():
     """A host that will never run production isolation must not be judged against its tooling.
 

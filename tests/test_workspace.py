@@ -16,6 +16,7 @@ from verifier.workspace import (
 )
 
 
+@pytest.mark.needs_checkouts
 def test_workspace_is_fresh_and_packages_only_one_submission(tmp_path):
     task = tmp_path / "task"
     task.mkdir()

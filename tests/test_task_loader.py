@@ -15,6 +15,11 @@ from verifier.task_loader import load_task, load_task_bundle, verify_trusted_has
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_ROOT = tasks_repository_root(ROOT)
 
+# Every test here copies a fixture out of the task repository, so all of them need that
+# checkout. Marked at module scope rather than test by test: a test added to this file
+# will need it too.
+pytestmark = pytest.mark.needs_checkouts
+
 
 def copied_task(tmp_path: Path) -> Path:
     destination = tmp_path / "task"

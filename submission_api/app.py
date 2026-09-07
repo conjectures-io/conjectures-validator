@@ -100,7 +100,6 @@ from submission_api.routers import (
     tasks,
     web_submissions,
 )
-from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
 from submission_api.rates import build_tao_usd_reader
@@ -108,7 +107,6 @@ from submission_api.taostats import (
     TaoStatsAlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
-from submission_api.taskpool import TaskCatalog
 from submission_api.tmc_pay import TmcPayClient, UnavailableGateway
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
