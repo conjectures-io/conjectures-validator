@@ -30,7 +30,8 @@ index built at startup from `TaskCatalog.load`.
 
 from __future__ import annotations
 
-from typing import Literal
+from verifier.models import TaskTrack
+
 
 import hmac
 import re
@@ -892,7 +893,7 @@ async def read_payment_currencies(
 )
 async def read_submission_terms(
     response: Response, services: ServicesDep,
-    track: Literal["open_conjecture", "formalization"] = "open_conjecture",
+    track: TaskTrack = "open_conjecture",
 ) -> account_schemas.SubmissionTerms:
     """The terms a miner accepts by submitting, and the complete lists of reasons a review may
     approve or refuse a reward.

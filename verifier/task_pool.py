@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
 import json
 import re
 from dataclasses import dataclass, field
@@ -162,7 +164,7 @@ class SelectionAudit:
     entries: tuple[AuditedSelectionEntry, ...]
     sha256: str
 
-    track: str = OPEN_CONJECTURE
+    track: TaskTrack = OPEN_CONJECTURE
     policy_version: int = TASK_POLICY_VERSION
 
     @property

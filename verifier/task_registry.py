@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
 import json
 import os
 import re
@@ -204,7 +206,7 @@ class AllowedTask:
     source_theorems: tuple[str, ...]
     task_bundle_sha256: str
     target_type_sha256s: tuple[str, ...]
-    track: str = OPEN_CONJECTURE
+    track: TaskTrack = OPEN_CONJECTURE
     policy_version: int = TASK_POLICY_VERSION
 
 

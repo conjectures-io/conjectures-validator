@@ -2,9 +2,20 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
-from typing import Any, Mapping, Literal
+from typing import Any, Mapping, Literal, TypeAlias
 
 from verifier.errors import ReasonCode, VerifierError
+
+
+TaskTrack: TypeAlias = Literal["open_conjecture", "formalization"]
+
+
+def parse_task_track(value: object) -> TaskTrack:
+    if value == "open_conjecture":
+        return "open_conjecture"
+    if value == "formalization":
+        return "formalization"
+    raise ValueError("unsupported task track")
 
 
 class Classification(StrEnum):
@@ -180,7 +191,7 @@ class TaskManifest:
     production_eligible: bool = False
     known_proof_collisions: tuple[str, ...] = ()
     answer_policy: Mapping[str, Any] = field(default_factory=dict)
-    track: Literal["open_conjecture", "formalization"] = "open_conjecture"
+    track: TaskTrack = "open_conjecture"
     policy_version: int = 1
     resolution_reference: Mapping[str, str] = field(default_factory=dict)
 
@@ -213,7 +224,7 @@ class TaskManifest:
                 production_eligible=bool(value.get("production_eligible", False)),
                 known_proof_collisions=tuple(str(x) for x in value.get("known_proof_collisions", ())),
                 answer_policy=dict(value.get("answer_policy", {})),
-                track=value.get("track", "open_conjecture"),
+                track=parse_task_track(value.get("track", "open_conjecture")),
                 policy_version=value.get("policy_version", 1),
                 resolution_reference=dict(value.get("resolution_reference", {})),
             )

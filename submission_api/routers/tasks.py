@@ -7,7 +7,9 @@ commit to in a bundle.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from verifier.models import TaskTrack
+
+from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 
@@ -38,7 +40,7 @@ def _summary(entry: TaskEntry, open_review_policy: str) -> schemas.TaskSummary:
 @router.get("", response_model=schemas.TaskList, summary="List submittable tasks")
 async def list_tasks(
     services: ServicesDep, session: SessionDep,
-    track: Annotated[Literal["open_conjecture", "formalization"] | None, Query()] = None,
+    track: Annotated[TaskTrack | None, Query()] = None,
 ) -> schemas.TaskList:
     catalog = services.catalog
     settings = services.settings

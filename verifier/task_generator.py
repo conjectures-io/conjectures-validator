@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
 import os
 import re
 import shutil
@@ -59,7 +61,7 @@ def task_id(
     adapter_version: int,
     *,
     max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
-    track: str = OPEN_CONJECTURE,
+    track: TaskTrack = OPEN_CONJECTURE,
     policy_version: int = TASK_POLICY_VERSION,
 ) -> str:
     seed = f"{repository_commit}\0{theorem}\0{mode}\0{adapter_version}"
@@ -254,7 +256,7 @@ def generate_task(
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
     allow_non_open: bool = False,
-    track: str = OPEN_CONJECTURE,
+    track: TaskTrack = OPEN_CONJECTURE,
     policy_version: int = TASK_POLICY_VERSION,
     resolution_reference: dict[str, str] | None = None,
     validate_target: Callable[[Path, CatalogDeclaration, GeneratedLean, str], str],

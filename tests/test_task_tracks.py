@@ -443,3 +443,16 @@ def test_public_catalog_exposes_formalization_contract():
     assert result.track == FORMALIZATION
     assert result.resolution_reference == REFERENCE
     assert result.submission_terms_url.endswith("track=formalization")
+
+
+@pytest.mark.parametrize("value", [None, True, 1, "unknown", [], {}])
+def test_track_parser_rejects_invalid_runtime_values(value):
+    from verifier.models import parse_task_track
+    with pytest.raises(ValueError, match="unsupported task track"):
+        parse_task_track(value)
+
+
+@pytest.mark.parametrize("value", [OPEN_CONJECTURE, FORMALIZATION])
+def test_track_parser_preserves_supported_tracks(value):
+    from verifier.models import parse_task_track
+    assert parse_task_track(value) == value

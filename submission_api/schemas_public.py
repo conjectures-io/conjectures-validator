@@ -27,7 +27,8 @@ uses, so a typo in a field name fails at construction rather than silently seria
 
 from __future__ import annotations
 
-from typing import Literal
+from verifier.models import TaskTrack
+
 
 import uuid
 from datetime import datetime
@@ -223,7 +224,7 @@ class TitleParts(Model):
 
 
 class ConjectureTask(Model):
-    track: Literal["open_conjecture", "formalization"] = "open_conjecture"
+    track: TaskTrack = "open_conjecture"
     policy_version: int = 1
     resolution_reference: dict[str, str] = Field(default_factory=dict)
     submission_terms_url: str = "/v1/catalog/submission-terms?track=open_conjecture"

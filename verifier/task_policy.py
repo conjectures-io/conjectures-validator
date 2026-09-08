@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
@@ -14,8 +16,8 @@ PRODUCTION_TASK_MODES = (EXACT_TASK_MODE, COUNTEREXAMPLE_TASK_MODE)
 
 
 # Missing track metadata means the released open policy.
-OPEN_CONJECTURE = "open_conjecture"
-FORMALIZATION = "formalization"
+OPEN_CONJECTURE: TaskTrack = "open_conjecture"
+FORMALIZATION: TaskTrack = "formalization"
 TASK_POLICY_VERSION = 1
 FORMALIZATION_REVIEW_POLICY = "formalization-v1"
 
@@ -132,7 +134,7 @@ def production_policy_violations(
     collisions: tuple[str, ...],
     mode: str = EXACT_TASK_MODE,
     *,
-    track: str = OPEN_CONJECTURE,
+    track: TaskTrack = OPEN_CONJECTURE,
     policy_version: int = TASK_POLICY_VERSION,
     resolution_reference: dict[str, str] | None = None,
 ) -> tuple[str, ...]:
@@ -187,7 +189,7 @@ def production_eligibility(
     declaration: CatalogDeclaration,
     mode: str = EXACT_TASK_MODE,
     *,
-    track: str = OPEN_CONJECTURE,
+    track: TaskTrack = OPEN_CONJECTURE,
     policy_version: int = TASK_POLICY_VERSION,
     resolution_reference: dict[str, str] | None = None,
 ) -> tuple[bool, tuple[str, ...], tuple[str, ...]]:

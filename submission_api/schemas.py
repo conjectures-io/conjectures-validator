@@ -8,9 +8,11 @@ manual approval and reward issuance are the same event, which docs/SUBNET.md for
 
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -102,7 +104,7 @@ class SubmissionStatus(Model):
 
 class TaskSummary(Model):
     submission_terms_url: str = "/v1/catalog/submission-terms?track=open_conjecture"
-    track: Literal["open_conjecture", "formalization"] = "open_conjecture"
+    track: TaskTrack = "open_conjecture"
     policy_version: int = 1
     review_policy_version: str | None = None
     resolution_reference: dict[str, str] = Field(default_factory=dict)
