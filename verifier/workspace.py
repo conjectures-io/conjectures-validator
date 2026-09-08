@@ -446,7 +446,7 @@ def target_validator(
             if not inspection["matches"]:
                 raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "generated challenge is not the intended target")
             if is_production_task_mode(mode) and not allow_non_open and (
-                inspection["source_category"] != "research open"
+                inspection["source_category"] not in ("research open", "research solved")
                 or inspection["source_declaration_kind"] != "theorem"
                 or not inspection["source_depends_on_sorry"]
                 or inspection["source_has_formal_proof"]
