@@ -126,6 +126,47 @@ def test_a_paid_submission_is_recorded_and_queued():
     run(scenario())
 
 
+@pytest.mark.parametrize("extra_byte", [0, 1])
+def test_ten_mib_proof_intake_boundary_with_postgres(extra_byte):
+    from dataclasses import replace
+    from test_bundle import STORED, archive
+    from verifier.task_generator import MAX_SUBMISSION_BYTES
+
+    async def scenario():
+        entry = task_entry()
+        entry = replace(entry, manifest=replace(
+            entry.manifest, max_submission_bytes=MAX_SUBMISSION_BYTES,
+        ))
+        kit = await harness(entries=(entry,)).setup()
+        try:
+            padding_size = MAX_SUBMISSION_BYTES + extra_byte - len(VALID_PROOF)
+            line = b"--" + b"x" * 997 + b"\n"
+            proof = VALID_PROOF + line * (padding_size // len(line)) + b" " * (padding_size % len(line))
+            digest = sha256_bytes(proof)
+            candidate = archive(proof=proof, manifest=manifest_json(
+                proof_bytes=len(proof), proof_sha256=digest,
+            ))
+            for member in candidate.entries:
+                member.method = STORED
+            bundle = candidate.build()
+            assert len(bundle) > MAX_SUBMISSION_BYTES  # uncompressed packaging also fits
+            response = await _post(kit, bundle, proof_digest=digest)
+            if extra_byte:
+                assert response.status_code == 413, response.text
+                assert await _count(kit, Submission) == 0
+                assert await _count(kit, Proof) == 0
+            else:
+                assert response.status_code == 201, response.text
+                async with kit.session() as session:
+                    stored = await session.get(Proof, digests.to_bytes(digest))
+                    assert stored.byte_length == MAX_SUBMISSION_BYTES
+                    assert bytes(stored.content) == proof
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_paid_submission_snapshots_opt_in_public_credit():
     async def scenario():
         kit = await harness().setup()

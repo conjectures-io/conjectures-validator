@@ -1,0 +1,62 @@
+[
+  {
+    "reason": "Exact public proof claim dated August 19, 2026; withheld pending adjudication.",
+    "source": "https://zenodo.org/records/22019344",
+    "target": "Erdos64.erdos_64"
+  },
+  {
+    "reason": "Public Ulam/Specker-graph argument claims the exact n^(1-epsilon) upper bound; the discussion suggests an overlooked classical consequence.",
+    "source": "https://www.erdosproblems.com/forum/thread/75#post-5344",
+    "target": "Erdos75.erdos_75"
+  },
+  {
+    "reason": "Exact complete formal solution claim on the authors' public project; withheld independently of tracker status.",
+    "source": "https://www.starfleetmath.com/",
+    "target": "Erdos254.erdos_254"
+  },
+  {
+    "reason": "Public corrected complete proof manuscript and accompanying formalization work.",
+    "source": "https://arxiv.org/abs/2606.24972",
+    "target": "Erdos260.erdos_260"
+  },
+  {
+    "reason": "Current upstream marks this solved and the authors' project claims an exact formal proof, although the tracker snapshot remains open.",
+    "source": "https://github.com/google-deepmind/formal-conjectures/blob/2c817e975be7a95478b72a8429155ca568e1a3de/FormalConjectures/ErdosProblems/267.lean",
+    "target": "Erdos267.erdos_267"
+  },
+  {
+    "reason": "Equivalent to the retired balanced-primes question; excluded from new reward admission.",
+    "source": "https://www.erdosproblems.com/141",
+    "target": "Erdos141, infinite three-term arithmetic progressions of consecutive primes"
+  },
+  {
+    "reason": "The proposed density-zero target would settle an existing Erdos323 upper-bound reward.",
+    "source": "https://www.erdosproblems.com/940",
+    "target": "Erdos940, density of r-powerful numbers"
+  },
+  {
+    "reason": "The updated problem document records a Hamming-ball counterexample attributed to Hosseini and Alweiss.",
+    "source": "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+    "target": "Green52, logarithmic lower-bound variant"
+  },
+  {
+    "reason": "Nested eventual quantifiers permit a bound depending on the first variable, which does not encode the intended uniform sufficiently-large pair assertion.",
+    "source": "https://www.erdosproblems.com/855",
+    "target": "Erdos855, density-one pair variant"
+  },
+  {
+    "reason": "The pinned sum uses the wrong coefficient index and its norm does not encode the stated approximation error.",
+    "source": "https://www.erdosproblems.com/996",
+    "target": "Erdos996, Fourier approximation target"
+  },
+  {
+    "reason": "Strict versus weak smoothness boundary discrepancy is under correction in PRs 4975 and 4986.",
+    "source": "https://github.com/google-deepmind/formal-conjectures/pull/4975",
+    "target": "Erdos1093, smooth consecutive composite target"
+  },
+  {
+    "reason": "The chosen Sidon predicate includes diagonal collisions in characteristic two, making the target unsuitable.",
+    "source": "https://github.com/google-deepmind/formal-conjectures/blob/2c817e975be7a95478b72a8429155ca568e1a3de/FormalConjectures/GreensOpenProblems/31.lean",
+    "target": "Green31, finite-field Sidon formulation"
+  }
+]

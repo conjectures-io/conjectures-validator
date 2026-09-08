@@ -1,0 +1,79 @@
+[
+  {
+    "decision": "quarantine_unverified_claim",
+    "evidence_urls": [
+      "https://www.erdosproblems.com/forum/thread/1059/proof-claims#proof-claim-264",
+      "https://github.com/beetree/math_erdos_1059"
+    ],
+    "reason": "A September 5 manuscript claims the full factorial-avoiding-prime theorem. Its repository displays a matching endpoint and a standard-axiom build report, but also notes that its recorded build was from a dirty/untracked snapshot and lacks independent replication. This is a substantive prior claim, not a confirmed solution in this audit.",
+    "theorem": "Erdos1059.erdos_1059"
+  },
+  {
+    "decision": "quarantine_incomplete_claim",
+    "evidence_urls": [
+      "https://www.erdosproblems.com/forum/thread/12/proof-claims#proof-claim-172",
+      "https://www.erdosproblems.com/forum/proof-claims/172/comments",
+      "https://github.com/libertas-technology-group/Libertas-Erdos-Solutions"
+    ],
+    "reason": "A public claim advertises reciprocal-sum convergence, exactly part iii, but its discussion identifies an assumed growth_ineq axiom and requests the missing block-growth argument. It does not constitute an unconditional proof. Conservatively withhold the target while the underlying claim is unresolved; do not describe it as solved.",
+    "theorem": "Erdos12.erdos_12.parts.iii"
+  },
+  {
+    "decision": "retire_settled",
+    "evidence_urls": [
+      "https://www.erdosproblems.com/126",
+      "https://www.erdosproblems.com/forum/thread/126/proof-claims",
+      "https://github.com/tadamcz/erdos126",
+      "https://www.erdosproblems.com/static/126-proof.pdf"
+    ],
+    "reason": "The September 2026 proof gives f(n) ≫ sqrt(n), which implies f(n)/log(n) tends to infinity. The tracker records PROVED (LEAN). This settles the main target only; the separate isLittleO upper bound remains.",
+    "theorem": "Erdos126.erdos_126"
+  },
+  {
+    "decision": "quarantine_disputed_claim",
+    "evidence_urls": [
+      "https://arxiv.org/abs/2602.11774",
+      "https://www.erdosproblems.com/forum/thread/242",
+      "https://github.com/google-deepmind/formal-conjectures/issues/3952"
+    ],
+    "reason": "Bradford arXiv:2602.11774 claims an Erdos-Straus solution; source discussion disputes its credibility. Other advertised Lean solutions only supply finite checks or unsupported periodicity. The pinned target additionally requires distinct ordered denominators, so the exact implication would need checking even if the paper were accepted. No verified solution is asserted here. The all-numerators Schinzel generalization is a separate retained target.",
+    "theorem": "Erdos242.erdos_242"
+  },
+  {
+    "decision": "retire_settled",
+    "evidence_urls": [
+      "https://www.erdosproblems.com/forum/thread/700/proof-claims#proof-claim-157",
+      "https://www.erdosproblems.com/forum/proof-claims/157/comments",
+      "https://www.overleaf.com/read/pmnwkfnhhxhn#82956e"
+    ],
+    "reason": "Proof claim 157 is explicitly accepted by the source site. Stijn Cambie reports checking the paper in detail. Fixed-gap prime triples give infinitely many composite n with f(n)^2 > n. The whole numbered problem remains open because other parts remain. This supersedes the erroneous admission in the preceding September 8 addition review.",
+    "theorem": "Erdos700.erdos_700.parts.ii"
+  },
+  {
+    "decision": "quarantine_unverified_claim",
+    "evidence_urls": [
+      "https://www.erdosproblems.com/forum/thread/727/proof-claims",
+      "https://github.com/beetree/math_erdos_727"
+    ],
+    "reason": "Johan Land publishes an unconditional k=3 construction and a Lean endpoint for k=2, exactly the active target. The general all-k problem being open does not clear this variant. The claimed Lean build has not been independently reproduced in this audit.",
+    "theorem": "Erdos727.erdos_727.variants.k_2"
+  },
+  {
+    "decision": "quarantine_disputed_claim",
+    "evidence_urls": [
+      "https://arxiv.org/abs/1605.08066v2",
+      "https://www.erdosproblems.com/forum/thread/96"
+    ],
+    "reason": "Khopkar arXiv:1605.08066v2 claims the exact O(n) convex unit-distance bound. The source discussion treats it as unconfirmed and identifies a missing decomposition argument. No accepted proof was established here; withhold pending adjudication of the published claim.",
+    "theorem": "Erdos96.erdos_96"
+  },
+  {
+    "decision": "quarantine_source_mismatch",
+    "evidence_urls": [
+      "https://github.com/google-deepmind/formal-conjectures/pull/4941",
+      "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf"
+    ],
+    "reason": "The pinned target asserts a 2N no-three-in-line configuration for every N >= 3. Green asks whether such configurations are eventually impossible. These are not logical negations: negating an eventual assertion only gives infinitely often. Open correction PR 4941 documents the mismatch. Withhold for a separate statement review; no solution is claimed.",
+    "theorem": "Green72.green_72"
+  }
+]

@@ -1,0 +1,282 @@
+{
+  "aggregate": {
+    "attacks_per_task": 42,
+    "compiled_hits_before_axiom_confirmation": 200,
+    "elapsed_seconds": 398.31300000000005,
+    "failed_elaborations": 4000,
+    "shards": 10,
+    "status": "sweep_complete",
+    "tasks": 100,
+    "theorems": 50,
+    "total_attempts": 4200
+  },
+  "compiled_hits_with_sorryAx": 200,
+  "compiled_hits_without_sorryAx": 0,
+  "finished_at_utc": "2026-09-08T03:34:34+00:00",
+  "per_target": [
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos1056.erdos_1056"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos1062.erdos_1062.parts.ii"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos1082.erdos_1082.parts.i"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos1101.erdos_1101.parts.i"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos1175.erdos_1175"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos124.erdos124.ne_zero"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos138.erdos_138"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos14.erdos_14.parts.i"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos168.erdos_168.parts.ii"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos234.erdos_234"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos25.erdos_25"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos287.erdos_287"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos30.erdos_30"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos304.upper_bound"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos307.erdos_307"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos317.erdos_317.variants.claim2"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos323.erdos_323.parts.i"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos323.erdos_323.parts.ii"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos400.erdos_400.parts.i"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos410.erdos_410"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos413.erdos_413.parts.i"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos495.erdos_495"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos52.erdos_52"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos61.erdos_61"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos647.erdos_647"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos681.erdos_681"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos686.erdos_686.variants.twenty_five"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos700.erdos_700.parts.ii"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos749.erdos_749"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos770.erdos_770.parts.i"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos886.erdos_886"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos890.erdos_890.parts.b"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos91.erdos_91"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos930.erdos_930"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos933.erdos_933"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos936.erdos_936.variants.factorial_add_one"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos936.erdos_936.variants.factorial_sub_one"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos944.erdos_944"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos949.erdos_949"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos950.erdos_950.parts.iii"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos962.erdos_962"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos979.erdos_979"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Erdos98.erdos_98"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Green36.green_36.variants.cks05"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Green39.green_39"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Green44.green_44"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Green47.green_47"
+    },
+    {
+      "attempts": 84,
+      "compiled_hits_with_sorryAx": 4,
+      "theorem": "Green66.green_66"
+    }
+  ],
+  "provenance": {
+    "excluded_from_original": [
+      "Green94.green_94"
+    ],
+    "final_slate_attempts": 4200,
+    "included_from_replacement": [
+      "Erdos700.erdos_700.parts.ii"
+    ],
+    "note": "Raw runs are unmodified; this view filters to the admitted slate. Elapsed time includes the discarded target. Shard diagnostics below retain the original run provenance.",
+    "original_run": "attack-audit/sweep-summary.json",
+    "replacement_run": "attack-audit-overlap/sweep-summary.json",
+    "total_raw_attempts": 4284
+  },
+  "unmapped_errors": 0
+}

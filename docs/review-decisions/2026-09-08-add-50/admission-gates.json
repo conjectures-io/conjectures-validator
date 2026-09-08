@@ -1,0 +1,244 @@
+{
+  "active_or_retired_identity_collisions": 0,
+  "added_source_paths": 48,
+  "added_targets": 50,
+  "compiled_hits_without_sorryAx": 0,
+  "compiled_search_hits_with_sorryAx": 200,
+  "current_upstream_open_checks": 50,
+  "known_proof_type_collisions": 0,
+  "new_source_paths": 40,
+  "solution_review_limitations": "Dated source, forum, PR and selected literature review; no known exact solution found, not a guarantee that no solution exists or has appeared elsewhere.",
+  "status": "passed",
+  "tactic_attempts": 4200,
+  "tactic_limitations": "Bounded 20,000-heartbeat probes. Declaration search reused earlier failed probe declarations containing sorryAx; these are rejected, not solutions. This is not an exhaustive proof search.",
+  "target_compile_checks": 100,
+  "tracker_statuses": {
+    "Erdos1056.erdos_1056": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos1062.erdos_1062.parts.ii": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos1082.erdos_1082.parts.i": {
+      "formal_status": "unformalized",
+      "informal_status": "falsifiable",
+      "status": "falsifiable"
+    },
+    "Erdos1101.erdos_1101.parts.i": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos1113.erdos_1113.variants.filaseta_finch_kozek": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos1175.erdos_1175": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos124.erdos124.ne_zero": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos138.erdos_138": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos14.erdos_14.parts.i": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos168.erdos_168.parts.ii": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos234.erdos_234": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos25.erdos_25": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos287.erdos_287": {
+      "formal_status": "unformalized",
+      "informal_status": "falsifiable",
+      "status": "falsifiable"
+    },
+    "Erdos291.erdos_291.variants.shiu_heuristic_density_zero": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos30.erdos_30": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos304.upper_bound": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos307.erdos_307": {
+      "formal_status": "unformalized",
+      "informal_status": "verifiable",
+      "status": "verifiable"
+    },
+    "Erdos317.erdos_317.variants.claim2": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos323.erdos_323.parts.i": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos323.erdos_323.parts.ii": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos400.erdos_400.parts.i": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos410.erdos_410": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos413.erdos_413.parts.i": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos495.erdos_495": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos52.erdos_52": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos61.erdos_61": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos647.erdos_647": {
+      "formal_status": "unformalized",
+      "informal_status": "verifiable",
+      "status": "verifiable"
+    },
+    "Erdos681.erdos_681": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos686.erdos_686.variants.twenty_five": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos700.erdos_700.parts.ii": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos749.erdos_749": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos770.erdos_770.parts.i": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos886.erdos_886": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos890.erdos_890.parts.b": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos91.erdos_91": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos930.erdos_930": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos933.erdos_933": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos936.erdos_936.variants.factorial_add_one": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos936.erdos_936.variants.factorial_sub_one": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos944.erdos_944": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos949.erdos_949": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos950.erdos_950.parts.iii": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos962.erdos_962": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos979.erdos_979": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    },
+    "Erdos98.erdos_98": {
+      "formal_status": "unformalized",
+      "informal_status": "open",
+      "status": "open"
+    }
+  },
+  "type_dependency_checks": 50,
+  "unmapped_diagnostics": 0
+}

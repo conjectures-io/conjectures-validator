@@ -1,0 +1,11 @@
+migrations applied: V001__initial_schema.sql, V002__public_feeds.sql, V003__accounts_credits_intents.sql, V004__stable_reward_targets.sql, V005__chain_transfer_watch.sql, V006__conjecture_attempt_index.sql, V007__dynamic_bounty_tasks.sql, V008__public_review_rationale.sql, V009__expand_public_review_rationale.sql, V010__dashboard_feed_index.sql, V011__payout_discord_deliveries.sql, V012__lock_bounties_at_submission.sql, V013__formalization_defect_award_guard.sql, V014__hotkey_session_challenge_kind.sql, V015__cli_bearer_sessions.sql, V016__tmc_pay_orders.sql, V017__autoreview_results.sql, V018__payout_chain_cursor.sql, V019__submission_public_credit.sql, V020__google_account_identities.sql, V021__retire_session_csrf_token.sql, V022__coldkey_link_challenge_kind.sql, V023__coldkey_link_challenge_constraints.sql, V024__tmc_pay_cancelled_state.sql, V025__tmc_pay_hosted_invoice_url.sql, V026__tmc_pay_payment_currency.sql, V027__tmc_pay_deposit_address_any_chain.sql, V028__web_coldkey_submissions.sql, V029__drop_retired_session_csrf_token.sql, V030__grant_credit_entry_kind.sql, V031__invitations.sql, V032__session_authorised_submissions.sql
+schemas compared:   public, autoreview
+  columns       343 objects agree
+  constraints   258 objects agree
+  indexes       117 objects agree
+  domains         2 objects agree
+  enums          73 objects agree
+  triggers        9 objects agree
+  functions       9 objects agree
+
+no drift: the mirror matches the migrations on all 811 objects

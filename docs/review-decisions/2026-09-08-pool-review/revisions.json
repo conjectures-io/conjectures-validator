@@ -1,0 +1,47 @@
+{
+  "bundle_prerequisite": "c1829b7c28bd54a59a9f1f2dcb9834b1cab53cfd",
+  "catalog_sha256": "cc73949c5500d9c12738daee2088c8935dab75c19556974f699cd907c0c69d80",
+  "coverage": {
+    "erdos_source_numbers": 200,
+    "forum_posts": 965,
+    "forum_signal_posts": 326,
+    "green_source_numbers": 22,
+    "open_issue_records": 1121,
+    "open_pr_file_lists": 359,
+    "proof_claim_comment_endpoints": 24,
+    "recently_closed_issue_records": 584,
+    "source_numbers_with_proof_claim_tabs": 15,
+    "targets": 259
+  },
+  "current_allowlist_sha256": "d2bed9b84941f8e319a47eeb8624f1deae939342610e0bc441f6bb7d12976e83",
+  "current_task_metadata_sha256": {
+    "retired-conjectures.json": "a777f237eb8e0d96b15c335b6f5e6bc0469035c5a3faf95e50d00ab85434317d",
+    "retired-source-theorems.json": "d853c0c7ee925de0f336e3ba63474166d4403cf083e8a0926fe04aef3591c5d3",
+    "selection-audit.json": "2a35fd0a51d8e2cf9b872457b9bc64c6c910291bb690af684622dc84934093eb",
+    "task-groups.json": "9dc69f266ef1d3628dd08d6071763650941570be48c4f504e53794ddb8c584b6",
+    "task-targets.json": "ad00486855d2701b597cfb554b0e832a39a3353b753fe585d8e475d586c69dd1"
+  },
+  "erdos_tracker": "5308c57c700559416b9f205df274b136784203e7",
+  "external_lean_builds_reproduced": false,
+  "external_proof_repository_heads": {
+    "1059": "fc55de6105bbfc6108e8e40aa784950d54c7c079",
+    "727": "2c0f2bbbbba46f82011a232233bd0c852c197439"
+  },
+  "formal_conjectures_pinned": "379fc0298dc146df549e7061c3ede0353a5bb51f",
+  "formal_conjectures_reviewed_main": "2c817e975be7a95478b72a8429155ca568e1a3de",
+  "fresh_pool_lean_compilation": false,
+  "github_snapshots_reused_from_same_day_addition_review": {
+    "closed-issues.json": "074e39f53bfb1863d8494c43333e5c3d443dad4395f28493165251462ca2ff3b",
+    "open-issues.json": "3f5cf25d369b92eef20bb998fc0a8c11782995bf539477e43a01fa916b68843f",
+    "open-prs.json": "f0ec483d7ca36ef269fd471fb814f8136264b5588f78cf8095467c237e7f8887"
+  },
+  "green_document_sha256": "e06971245914947f152550dee59bbb29fe0e798f0c51b2bc2557f824c2f9a44a",
+  "no_push_or_deployment": true,
+  "prepared_utc": "2026-09-08T04:08:16.574695+00:00",
+  "previous_tasks_commit": "a0282e5029b6102a64b113aefdfe6f4767136f40",
+  "review_date_utc": "2026-09-08",
+  "tasks_branch": "codex/review-pool-10mb-20260908",
+  "tasks_checkout": "/tmp/pool-review-20260908/tasks",
+  "tasks_release": "3763d4ea01f097f9b5685b5dffa47ea089a39905",
+  "validator_workspace_head": "87cb2a55beefb318f6ff747293ed18ce6ea4f9e0"
+}

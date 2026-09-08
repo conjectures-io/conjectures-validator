@@ -1,0 +1,17 @@
+[
+  {
+    "theorem": "Erdos1082.erdos_1082.parts.i",
+    "old": "True \u2194\n  \u2200 (A : Finset (EuclideanSpace \u211d (Fin 2))),\n    EuclideanGeometry.NonTrilinear \u2191A \u2192 A.card / 2 \u2264 EuclideanGeometry.distinctDistances A",
+    "new": "True \u2194 \u2200 (A : Finset (EuclideanSpace \u211d (Fin 2))), EuclideanGeometry.NonTrilinear \u2191A \u2192 A.card / 2 \u2264 distinctDistances A"
+  },
+  {
+    "theorem": "Erdos479.erdos_479",
+    "old": "True \u2194 \u2200 k > 1, {n | 2 ^ n \u2261 k [MOD n]}.Infinite",
+    "new": "True \u2194 \u2200 (k k : \u2124), k \u2260 1 \u2192 {n | 2 ^ n \u2261 k [ZMOD \u2191n]}.Infinite"
+  },
+  {
+    "theorem": "Erdos952.erdos_952",
+    "old": "\u2203 x C, Function.Injective x \u2227 \u2200 (n : \u2115), Prime (x n) \u2227 Zsqrtd.norm (x (n + 1) - x n) < C",
+    "new": "True \u2194 \u2203 x C, Function.Injective x \u2227 \u2200 (n : \u2115), Prime (x n) \u2227 Zsqrtd.norm (x (n + 1) - x n) < C"
+  }
+]

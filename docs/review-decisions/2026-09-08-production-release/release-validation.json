@@ -1,0 +1,17 @@
+{
+  "active_targets": 259,
+  "compiled_new_bundles": 114,
+  "erdos_targets": 235,
+  "green_targets": 24,
+  "lean_toolchain": "leanprover/lean4:v4.33.1",
+  "live_targets_retired": 6,
+  "max_proof_bytes": 10485760,
+  "new_bundles": 518,
+  "new_targets": 57,
+  "previous_bundles": 416,
+  "previous_ids_denied": 416,
+  "previous_tasks_commit": "68bb8ea0968994e0f36a2db015dbdbcc13902416",
+  "retained_bundles_with_unchanged_trusted_payloads": 404,
+  "source_commit": "8432eac998110a563e03df65a28c117e97c8c142",
+  "source_paths": 223
+}

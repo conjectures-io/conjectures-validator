@@ -33,7 +33,7 @@ BUNDLE_FORMAT = "conjectures-submission/v1"
 SCHEMA_VERSION = 1
 MANIFEST_NAME = "submission.json"
 PROOF_NAME = "Main.lean"
-MAX_PROOF_BYTES = 1_000_000
+MAX_PROOF_BYTES = 10 * 1024 * 1024
 
 
 def digest(data: bytes) -> str:

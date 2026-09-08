@@ -1,0 +1,2414 @@
+[
+  {
+    "path": "forums/3.html",
+    "url": "https://www.erdosproblems.com/forum/thread/3",
+    "retrieved_at": "2026-09-08T03:46:57.033621+00:00",
+    "sha256": "f905b2940b006e5d46481e69e49410cbce89f0b3fcfd3942b3e4710dfc8fc0db"
+  },
+  {
+    "path": "pages/11.html",
+    "url": "https://www.erdosproblems.com/11",
+    "retrieved_at": "2026-09-08T03:46:57.107570+00:00",
+    "sha256": "870fb12f3dd703dec2c582d86d90b52f7bc996a597f2913b9ba78d567606367a"
+  },
+  {
+    "path": "pages/3.html",
+    "url": "https://www.erdosproblems.com/3",
+    "retrieved_at": "2026-09-08T03:46:57.107846+00:00",
+    "sha256": "6499f271095b7dbd140bf51ebe1df1dde16bca4e29a4ac9b8faa936995e3a1e2"
+  },
+  {
+    "path": "pages/9.html",
+    "url": "https://www.erdosproblems.com/9",
+    "retrieved_at": "2026-09-08T03:46:57.122673+00:00",
+    "sha256": "a632caeb5ee1c1ad9f1cc1d0b7417f5174ccec8557bd48b6d97545d2d24cd99d"
+  },
+  {
+    "path": "forums/9.html",
+    "url": "https://www.erdosproblems.com/forum/thread/9",
+    "retrieved_at": "2026-09-08T03:46:57.185086+00:00",
+    "sha256": "2728225895afa975160875fae04524a4d633c8ac34f0877bfd94e56ea31c69d4"
+  },
+  {
+    "path": "pages/12.html",
+    "url": "https://www.erdosproblems.com/12",
+    "retrieved_at": "2026-09-08T03:46:57.219738+00:00",
+    "sha256": "ac16aa7dba40f39cd251f3903728d064528c1b366b6f03779e04c9f18d252c71"
+  },
+  {
+    "path": "forums/11.html",
+    "url": "https://www.erdosproblems.com/forum/thread/11",
+    "retrieved_at": "2026-09-08T03:46:57.266374+00:00",
+    "sha256": "3d8edca506e7a9fad2329d69ec0fc2c5e9a39839e64883a1702c011834d904eb"
+  },
+  {
+    "path": "forums/14.html",
+    "url": "https://www.erdosproblems.com/forum/thread/14",
+    "retrieved_at": "2026-09-08T03:46:57.460355+00:00",
+    "sha256": "d4b33dcd80d1eef22bf85800dee57c5e329a8d2a587861b12ff73f43eaa96a21"
+  },
+  {
+    "path": "pages/14.html",
+    "url": "https://www.erdosproblems.com/14",
+    "retrieved_at": "2026-09-08T03:46:57.571485+00:00",
+    "sha256": "73b4ce6a9d753b361d0714fa9ea4cafb8cfe563d224de50f67d4e7192792b6e3"
+  },
+  {
+    "path": "pages/17.html",
+    "url": "https://www.erdosproblems.com/17",
+    "retrieved_at": "2026-09-08T03:46:57.575105+00:00",
+    "sha256": "3f32501bb289b0a1851547dd2996dbd43da250f6b3f360a1570b33cd6d6eafb1"
+  },
+  {
+    "path": "forums/12.html",
+    "url": "https://www.erdosproblems.com/forum/thread/12",
+    "retrieved_at": "2026-09-08T03:46:57.580426+00:00",
+    "sha256": "66061d87299d0cf8bc8d1c946c0849ab83d5c1f291dab2bd7856c8b66c357ae8"
+  },
+  {
+    "path": "pages/23.html",
+    "url": "https://www.erdosproblems.com/23",
+    "retrieved_at": "2026-09-08T03:46:57.635489+00:00",
+    "sha256": "da70f62fa68cf4b1f88d79fc3e24d1d4b8ffc4fbb014fb56efa98e3e6adc68f3"
+  },
+  {
+    "path": "forums/17.html",
+    "url": "https://www.erdosproblems.com/forum/thread/17",
+    "retrieved_at": "2026-09-08T03:46:57.690746+00:00",
+    "sha256": "1d9fba5bda8df7c5a407f8235b4ba9f33f153864ea921b32f9cbee790444c0e0"
+  },
+  {
+    "path": "forums/23.html",
+    "url": "https://www.erdosproblems.com/forum/thread/23",
+    "retrieved_at": "2026-09-08T03:46:57.933646+00:00",
+    "sha256": "008bfcf94503138af4e6312a6bbf633737bfa18043d07eabebd384a3c4c42056"
+  },
+  {
+    "path": "pages/28.html",
+    "url": "https://www.erdosproblems.com/28",
+    "retrieved_at": "2026-09-08T03:46:57.960265+00:00",
+    "sha256": "2b63b1730178bf72e01e065780cb40c65b4b7f5bf30f9c11ee7ee091ab64181b"
+  },
+  {
+    "path": "pages/25.html",
+    "url": "https://www.erdosproblems.com/25",
+    "retrieved_at": "2026-09-08T03:46:57.991935+00:00",
+    "sha256": "4c2478da369c99004603e1f31b2e6b37e2727419b032ed2549621c5bb62e4855"
+  },
+  {
+    "path": "pages/30.html",
+    "url": "https://www.erdosproblems.com/30",
+    "retrieved_at": "2026-09-08T03:46:58.038039+00:00",
+    "sha256": "15d1c81189ab3acb8d2e608000b2cd1b732487c4652a7b6787682d4be8bd4a35"
+  },
+  {
+    "path": "forums/28.html",
+    "url": "https://www.erdosproblems.com/forum/thread/28",
+    "retrieved_at": "2026-09-08T03:46:58.131653+00:00",
+    "sha256": "d59c6e614be75d134af7ebf1dcf36473c0013c0284e661323a352ec9a4c94b60"
+  },
+  {
+    "path": "forums/25.html",
+    "url": "https://www.erdosproblems.com/forum/thread/25",
+    "retrieved_at": "2026-09-08T03:46:58.135058+00:00",
+    "sha256": "7cbde0e334cda5ab032d76b769f534644f245f5d815f5ee0da2e33e0a95e4f1d"
+  },
+  {
+    "path": "pages/32.html",
+    "url": "https://www.erdosproblems.com/32",
+    "retrieved_at": "2026-09-08T03:46:58.205205+00:00",
+    "sha256": "91c7a9207e567c2a3b55ef7f085a335846abc2a88aa7ac7305ed8a72346fa6e6"
+  },
+  {
+    "path": "forums/30.html",
+    "url": "https://www.erdosproblems.com/forum/thread/30",
+    "retrieved_at": "2026-09-08T03:46:58.224818+00:00",
+    "sha256": "e79c895a2a3e40bc8968621155f3d8ed4e8938b4df7d08f55565c67dea5b0a73"
+  },
+  {
+    "path": "pages/39.html",
+    "url": "https://www.erdosproblems.com/39",
+    "retrieved_at": "2026-09-08T03:46:58.249873+00:00",
+    "sha256": "f7db301d945cfe206c45139cffbf96d4f79d8bfa0f86161cbf4fb33caaef6017"
+  },
+  {
+    "path": "forums/32.html",
+    "url": "https://www.erdosproblems.com/forum/thread/32",
+    "retrieved_at": "2026-09-08T03:46:58.249953+00:00",
+    "sha256": "b969be25411faa290b2180391a5bcc62e94b5787dc2bb0c2847524bf9a7d6fd9"
+  },
+  {
+    "path": "pages/41.html",
+    "url": "https://www.erdosproblems.com/41",
+    "retrieved_at": "2026-09-08T03:46:58.346670+00:00",
+    "sha256": "296d7cd09bea14cd74ff08dc149d6106dc2a6973006b99fc65e392a09dbcbd7f"
+  },
+  {
+    "path": "pages/44.html",
+    "url": "https://www.erdosproblems.com/44",
+    "retrieved_at": "2026-09-08T03:46:58.373681+00:00",
+    "sha256": "539bb51aa2fc2230e1c4c2edda71afb57e9538652b1e8dff7687201f50e1b466"
+  },
+  {
+    "path": "forums/39.html",
+    "url": "https://www.erdosproblems.com/forum/thread/39",
+    "retrieved_at": "2026-09-08T03:46:58.378902+00:00",
+    "sha256": "391fbebcf7344582d0099822d3810416d86ea9d448f732918aa01a673a39d3a6"
+  },
+  {
+    "path": "pages/50.html",
+    "url": "https://www.erdosproblems.com/50",
+    "retrieved_at": "2026-09-08T03:46:58.387067+00:00",
+    "sha256": "2c89bebd0d32479d2163927a193da89b150aadda6985368354dcf1e12346665b"
+  },
+  {
+    "path": "forums/41.html",
+    "url": "https://www.erdosproblems.com/forum/thread/41",
+    "retrieved_at": "2026-09-08T03:46:58.421322+00:00",
+    "sha256": "a86c6f32a9832044c543ee32822ff10f680e5ff994ebd590e3cb37334b523275"
+  },
+  {
+    "path": "forums/44.html",
+    "url": "https://www.erdosproblems.com/forum/thread/44",
+    "retrieved_at": "2026-09-08T03:46:58.440650+00:00",
+    "sha256": "c2948c620a57cf42cd914b545f96879021ebd49b925fcd3fc5e4d9cda783847c"
+  },
+  {
+    "path": "forums/50.html",
+    "url": "https://www.erdosproblems.com/forum/thread/50",
+    "retrieved_at": "2026-09-08T03:46:58.489814+00:00",
+    "sha256": "7fcbcfd2a493359591fc1414704d1a43f5b375fd1215f998ad296b7beb3a278e"
+  },
+  {
+    "path": "pages/51.html",
+    "url": "https://www.erdosproblems.com/51",
+    "retrieved_at": "2026-09-08T03:46:58.512171+00:00",
+    "sha256": "7071f4a001db239775ada1ef70e76075a0c302a428a560cddd8ddd5c48462126"
+  },
+  {
+    "path": "pages/61.html",
+    "url": "https://www.erdosproblems.com/61",
+    "retrieved_at": "2026-09-08T03:46:58.686798+00:00",
+    "sha256": "c96d051006fd51f069cc871f8f3e7f77a3d6c0164e9fe3ffad05770b83ba1e88"
+  },
+  {
+    "path": "forums/51.html",
+    "url": "https://www.erdosproblems.com/forum/thread/51",
+    "retrieved_at": "2026-09-08T03:46:58.738914+00:00",
+    "sha256": "acd5bc4b399b4a6485b807c1582414be80110cd872cbc5cebaf4ed1739d8c8c4"
+  },
+  {
+    "path": "pages/52.html",
+    "url": "https://www.erdosproblems.com/52",
+    "retrieved_at": "2026-09-08T03:46:58.755070+00:00",
+    "sha256": "e0bbd32d86ff225ea8799c3e901bd8d6b58c6c549f125601ecc45b074e580b1b"
+  },
+  {
+    "path": "forums/52.html",
+    "url": "https://www.erdosproblems.com/forum/thread/52",
+    "retrieved_at": "2026-09-08T03:46:58.807635+00:00",
+    "sha256": "8e36c043dada464be7fe1a03b7285ef7a57608b4c0468ada290392ea116fe6a2"
+  },
+  {
+    "path": "forums/61.html",
+    "url": "https://www.erdosproblems.com/forum/thread/61",
+    "retrieved_at": "2026-09-08T03:46:58.866479+00:00",
+    "sha256": "4474cf4cc0fdd5057dbe41e5202a3fef23abd64803138fd24bf040428817cf67"
+  },
+  {
+    "path": "pages/66.html",
+    "url": "https://www.erdosproblems.com/66",
+    "retrieved_at": "2026-09-08T03:46:58.898200+00:00",
+    "sha256": "0390e7760e61a15e3fb8cd290095c1ccbe00e14641581c8ed00cf997481d4b64"
+  },
+  {
+    "path": "pages/68.html",
+    "url": "https://www.erdosproblems.com/68",
+    "retrieved_at": "2026-09-08T03:46:59.168374+00:00",
+    "sha256": "a6882eeeccf756165cb84e79e9eec0020bc0f25178e4fc99f67696edcc63940f"
+  },
+  {
+    "path": "pages/70.html",
+    "url": "https://www.erdosproblems.com/70",
+    "retrieved_at": "2026-09-08T03:46:59.243306+00:00",
+    "sha256": "64a5d4e791a128ecfed599bd96657cecd4e789603d66840ece5f5c7f44c3f778"
+  },
+  {
+    "path": "forums/66.html",
+    "url": "https://www.erdosproblems.com/forum/thread/66",
+    "retrieved_at": "2026-09-08T03:46:59.294049+00:00",
+    "sha256": "74d63528e374b8781142459ab5c5a48715a32f59db8ccf53d38f7f0c72da9697"
+  },
+  {
+    "path": "forums/68.html",
+    "url": "https://www.erdosproblems.com/forum/thread/68",
+    "retrieved_at": "2026-09-08T03:46:59.370834+00:00",
+    "sha256": "e3bd12a5378d5fddb67a2272145e840ee8d7925c351dcd83e8c14bc90f6eb6d0"
+  },
+  {
+    "path": "pages/82.html",
+    "url": "https://www.erdosproblems.com/82",
+    "retrieved_at": "2026-09-08T03:46:59.372842+00:00",
+    "sha256": "0cbad7f91ca9f25cda4146346174a2dc583671a89a3732a29eb7b3795924050b"
+  },
+  {
+    "path": "forums/70.html",
+    "url": "https://www.erdosproblems.com/forum/thread/70",
+    "retrieved_at": "2026-09-08T03:46:59.384504+00:00",
+    "sha256": "c0fe75005a72435be4575a72d4468de73f909504d2b8ba34840444887d544b82"
+  },
+  {
+    "path": "pages/85.html",
+    "url": "https://www.erdosproblems.com/85",
+    "retrieved_at": "2026-09-08T03:46:59.420184+00:00",
+    "sha256": "9c12a95f0b944528d11ced7e761bfd2fc425a3f8725b61888a5f3fffa3c0fa91"
+  },
+  {
+    "path": "pages/89.html",
+    "url": "https://www.erdosproblems.com/89",
+    "retrieved_at": "2026-09-08T03:46:59.545570+00:00",
+    "sha256": "7f48ee3781da734e21cb74d86954524e555951547136d6a516bdbe1b6fdd8dc4"
+  },
+  {
+    "path": "pages/91.html",
+    "url": "https://www.erdosproblems.com/91",
+    "retrieved_at": "2026-09-08T03:46:59.551840+00:00",
+    "sha256": "f162ae14dcaee711537a2d701ec5a1f61c0398feb96c009557f83e1a47cf8e6a"
+  },
+  {
+    "path": "forums/82.html",
+    "url": "https://www.erdosproblems.com/forum/thread/82",
+    "retrieved_at": "2026-09-08T03:46:59.572569+00:00",
+    "sha256": "43b5017b3a01f56bfb88e0b66d9b065f3d5ac6da6644535c26d42d7925f80df4"
+  },
+  {
+    "path": "forums/89.html",
+    "url": "https://www.erdosproblems.com/forum/thread/89",
+    "retrieved_at": "2026-09-08T03:46:59.587599+00:00",
+    "sha256": "767f47cb2bc113b6010e874fa1457b15438e6514929896621ba583ef9526517a"
+  },
+  {
+    "path": "forums/85.html",
+    "url": "https://www.erdosproblems.com/forum/thread/85",
+    "retrieved_at": "2026-09-08T03:46:59.619251+00:00",
+    "sha256": "04789a50aa309e8f109b9c4df5164a5304a1bd0b203f93c3c5d576c683bd95ec"
+  },
+  {
+    "path": "forums/91.html",
+    "url": "https://www.erdosproblems.com/forum/thread/91",
+    "retrieved_at": "2026-09-08T03:46:59.787154+00:00",
+    "sha256": "24c21180af1d2150774acef3c977b2b572bf5317708b54d73152094320005cb0"
+  },
+  {
+    "path": "pages/96.html",
+    "url": "https://www.erdosproblems.com/96",
+    "retrieved_at": "2026-09-08T03:46:59.985753+00:00",
+    "sha256": "d77f4551bac64488793688916e0ec430ed6a14db0b60b59c4220c1d151f65347"
+  },
+  {
+    "path": "pages/98.html",
+    "url": "https://www.erdosproblems.com/98",
+    "retrieved_at": "2026-09-08T03:47:00.004620+00:00",
+    "sha256": "374f48fa6e6c2299817c60e86e3e353bdf12fe7a1e1e56416754591dfef172d2"
+  },
+  {
+    "path": "pages/99.html",
+    "url": "https://www.erdosproblems.com/99",
+    "retrieved_at": "2026-09-08T03:47:00.050657+00:00",
+    "sha256": "5e6c024e7fa339c366a9bcd7514f09c0c3ce1e62ba2df3d2ec0f43248dc5c103"
+  },
+  {
+    "path": "forums/96.html",
+    "url": "https://www.erdosproblems.com/forum/thread/96",
+    "retrieved_at": "2026-09-08T03:47:00.053201+00:00",
+    "sha256": "10cfd6bac4a81429e1972a94c9b9c92e3c2cfa40d014f921959cbeb20a66a5a0"
+  },
+  {
+    "path": "forums/99.html",
+    "url": "https://www.erdosproblems.com/forum/thread/99",
+    "retrieved_at": "2026-09-08T03:47:00.193140+00:00",
+    "sha256": "77d6c5119df6c5d8ae7c1e6b72f2054ae823a238b67440ddcbb5f82791c5c02e"
+  },
+  {
+    "path": "pages/100.html",
+    "url": "https://www.erdosproblems.com/100",
+    "retrieved_at": "2026-09-08T03:47:00.200577+00:00",
+    "sha256": "a15d295177ed449c102971a7057d760a40efbd4892a4dc41b04410b193036182"
+  },
+  {
+    "path": "pages/108.html",
+    "url": "https://www.erdosproblems.com/108",
+    "retrieved_at": "2026-09-08T03:47:00.218466+00:00",
+    "sha256": "bfb32d4dba6c017588d3e15fbe2b5c4ac21a276ff30b9268be9cf0ef69b609ff"
+  },
+  {
+    "path": "forums/98.html",
+    "url": "https://www.erdosproblems.com/forum/thread/98",
+    "retrieved_at": "2026-09-08T03:47:00.251630+00:00",
+    "sha256": "f99bc9f362876e7810e5c59cf6e9e0f75ffff557182a6feedfc5eb9f78c316ee"
+  },
+  {
+    "path": "forums/100.html",
+    "url": "https://www.erdosproblems.com/forum/thread/100",
+    "retrieved_at": "2026-09-08T03:47:00.260214+00:00",
+    "sha256": "09f9e4baf235ea0355621ba1dcba35674f3ca3df1936632e1e38ef6cfc8030f7"
+  },
+  {
+    "path": "forums/108.html",
+    "url": "https://www.erdosproblems.com/forum/thread/108",
+    "retrieved_at": "2026-09-08T03:47:00.264646+00:00",
+    "sha256": "f0938c64dbbeb27e16114cce1b92dd116cd9bacf9fd776bf1c82549b077de550"
+  },
+  {
+    "path": "pages/120.html",
+    "url": "https://www.erdosproblems.com/120",
+    "retrieved_at": "2026-09-08T03:47:00.452719+00:00",
+    "sha256": "1833c664fafee90bf8f824bc6067b9a5a6539661cb627f3a05a13c98e6a24e25"
+  },
+  {
+    "path": "pages/126.html",
+    "url": "https://www.erdosproblems.com/126",
+    "retrieved_at": "2026-09-08T03:47:00.514756+00:00",
+    "sha256": "b060bfbd4f057cdb1c4ad80922a5d8c3b37d63d9fc015e79e67d1fb037adcf70"
+  },
+  {
+    "path": "pages/124.html",
+    "url": "https://www.erdosproblems.com/124",
+    "retrieved_at": "2026-09-08T03:47:00.516325+00:00",
+    "sha256": "ebd70ebf09a6d7b8a8f3834d91e5012af547095bb31d236ecb4d608c9069fb93"
+  },
+  {
+    "path": "forums/126.html",
+    "url": "https://www.erdosproblems.com/forum/thread/126",
+    "retrieved_at": "2026-09-08T03:47:00.655014+00:00",
+    "sha256": "f8f233b2e0826fe623515bc78ad7d75471a847a4b8bf7a5bcd6cf78d8a18244c"
+  },
+  {
+    "path": "forums/120.html",
+    "url": "https://www.erdosproblems.com/forum/thread/120",
+    "retrieved_at": "2026-09-08T03:47:00.692332+00:00",
+    "sha256": "9c0bed3bbdb768dc427972973aef87cc0c94384794aa509d52de88932d587ec6"
+  },
+  {
+    "path": "forums/124.html",
+    "url": "https://www.erdosproblems.com/forum/thread/124",
+    "retrieved_at": "2026-09-08T03:47:00.729008+00:00",
+    "sha256": "c2e3f7cc399cf13d5c744e185483d1b250b389d2fc46b5871987e858db099bc2"
+  },
+  {
+    "path": "pages/137.html",
+    "url": "https://www.erdosproblems.com/137",
+    "retrieved_at": "2026-09-08T03:47:00.747861+00:00",
+    "sha256": "bd1a35efdc0da9d40aec0d67dfbf72c5b5ed2d66392a7a47d44d379b9450a459"
+  },
+  {
+    "path": "pages/138.html",
+    "url": "https://www.erdosproblems.com/138",
+    "retrieved_at": "2026-09-08T03:47:00.802146+00:00",
+    "sha256": "9dece0ad285599920d0963302cc26c80cedf81a5d3d7f1d81cfa515c026870b4"
+  },
+  {
+    "path": "pages/141.html",
+    "url": "https://www.erdosproblems.com/141",
+    "retrieved_at": "2026-09-08T03:47:00.840517+00:00",
+    "sha256": "cc0f31dfff4fa7830725efdd68fcf61b309295e071c782f4c2c57eb37a240bb1"
+  },
+  {
+    "path": "forums/137.html",
+    "url": "https://www.erdosproblems.com/forum/thread/137",
+    "retrieved_at": "2026-09-08T03:47:00.860943+00:00",
+    "sha256": "102a00dbc57413e351abd19c63cfab70b17c3c71d793e413d84152b98cfc185d"
+  },
+  {
+    "path": "forums/138.html",
+    "url": "https://www.erdosproblems.com/forum/thread/138",
+    "retrieved_at": "2026-09-08T03:47:00.934163+00:00",
+    "sha256": "ea0fc5afb233e516cd438a1db38b4e8e3fe7b9da78787c8ea4e0d7ac72343be5"
+  },
+  {
+    "path": "pages/142.html",
+    "url": "https://www.erdosproblems.com/142",
+    "retrieved_at": "2026-09-08T03:47:00.967531+00:00",
+    "sha256": "95429823170b2d3eb759a670f11e9edbbd1a2e135c0677d28e0ec146f46a957f"
+  },
+  {
+    "path": "forums/141.html",
+    "url": "https://www.erdosproblems.com/forum/thread/141",
+    "retrieved_at": "2026-09-08T03:47:01.071233+00:00",
+    "sha256": "2d80dfa65997f05061980c9bf226738671b9be7cfef3af2a3e2376f663ac2867"
+  },
+  {
+    "path": "forums/142.html",
+    "url": "https://www.erdosproblems.com/forum/thread/142",
+    "retrieved_at": "2026-09-08T03:47:01.147368+00:00",
+    "sha256": "d83a4809a6e83714761b2977f340da435b88bbc2205d0bf3356f7558bde6cb1f"
+  },
+  {
+    "path": "pages/143.html",
+    "url": "https://www.erdosproblems.com/143",
+    "retrieved_at": "2026-09-08T03:47:01.152546+00:00",
+    "sha256": "3eb42f95b7a5ecd4ad8634b1c50434bc141d4dd10bb1f75e37123d9e184c51e8"
+  },
+  {
+    "path": "pages/145.html",
+    "url": "https://www.erdosproblems.com/145",
+    "retrieved_at": "2026-09-08T03:47:01.185378+00:00",
+    "sha256": "de2bcf60993f18057814396ca88b7848dae3c28ab4f707b9e30f4df318b2fd82"
+  },
+  {
+    "path": "forums/143.html",
+    "url": "https://www.erdosproblems.com/forum/thread/143",
+    "retrieved_at": "2026-09-08T03:47:01.200205+00:00",
+    "sha256": "b5c0fcfb1d353a6f2d9370ada39d31d0e67c797036144646c7c3d6f265b81398"
+  },
+  {
+    "path": "pages/153.html",
+    "url": "https://www.erdosproblems.com/153",
+    "retrieved_at": "2026-09-08T03:47:01.234940+00:00",
+    "sha256": "d86a3f577507315dc8654cef1473e480e2bbb474330e0f5faabf01f740850a9e"
+  },
+  {
+    "path": "forums/145.html",
+    "url": "https://www.erdosproblems.com/forum/thread/145",
+    "retrieved_at": "2026-09-08T03:47:01.259994+00:00",
+    "sha256": "6fe851ba56fca870c1c3476f3af3238de05f55fdaafd9e8d77de2c33d873f512"
+  },
+  {
+    "path": "pages/156.html",
+    "url": "https://www.erdosproblems.com/156",
+    "retrieved_at": "2026-09-08T03:47:01.384773+00:00",
+    "sha256": "b378246f5d83cd6e2c5cf1e7b4033f0782e9b34f23636d6c67e3e4d24e9bc578"
+  },
+  {
+    "path": "pages/155.html",
+    "url": "https://www.erdosproblems.com/155",
+    "retrieved_at": "2026-09-08T03:47:01.444269+00:00",
+    "sha256": "3d3d42f4a3afacae6b720daa6447b4fb9772c894d47a85c19d5576dbf6cf3e7d"
+  },
+  {
+    "path": "forums/153.html",
+    "url": "https://www.erdosproblems.com/forum/thread/153",
+    "retrieved_at": "2026-09-08T03:47:01.445413+00:00",
+    "sha256": "80fafe94de383c5019d86ef5ba9fdf4982a098a0d3732154a9995cf8d9277228"
+  },
+  {
+    "path": "forums/155.html",
+    "url": "https://www.erdosproblems.com/forum/thread/155",
+    "retrieved_at": "2026-09-08T03:47:01.516274+00:00",
+    "sha256": "9e7e95cb6e47483855ae2a493d27beb33a6b3c2c31f99c64c032fb31195cb262"
+  },
+  {
+    "path": "pages/158.html",
+    "url": "https://www.erdosproblems.com/158",
+    "retrieved_at": "2026-09-08T03:47:01.518510+00:00",
+    "sha256": "4c80e443fc0a7639b39c757a17812f5b26860a0bf6b0cd791972d80690e5ba72"
+  },
+  {
+    "path": "forums/156.html",
+    "url": "https://www.erdosproblems.com/forum/thread/156",
+    "retrieved_at": "2026-09-08T03:47:01.532601+00:00",
+    "sha256": "060cb7f8ad240e53c3410c18bec2e0b43764b4368d08d01ce6067ff70383df41"
+  },
+  {
+    "path": "pages/168.html",
+    "url": "https://www.erdosproblems.com/168",
+    "retrieved_at": "2026-09-08T03:47:01.781958+00:00",
+    "sha256": "ef223f50294a2a3b9c9957975cac85e51e8ef86e36a1e4cdfcc43887ec6b3f06"
+  },
+  {
+    "path": "forums/158.html",
+    "url": "https://www.erdosproblems.com/forum/thread/158",
+    "retrieved_at": "2026-09-08T03:47:01.912983+00:00",
+    "sha256": "78eb3aefcfe3b90f720018b624dbd5c762ffd518e63b6603ae8cfb11a3a5989f"
+  },
+  {
+    "path": "forums/168.html",
+    "url": "https://www.erdosproblems.com/forum/thread/168",
+    "retrieved_at": "2026-09-08T03:47:01.950744+00:00",
+    "sha256": "1f56cd9e53c26c2f242d047ba605f56991c446ab68865eb18f5456dc00ef0810"
+  },
+  {
+    "path": "pages/172.html",
+    "url": "https://www.erdosproblems.com/172",
+    "retrieved_at": "2026-09-08T03:47:01.994034+00:00",
+    "sha256": "398a44a9c19c4751ac5471a13d5d11f029db3215ffe017f8ee961d35bf8d4f9f"
+  },
+  {
+    "path": "pages/184.html",
+    "url": "https://www.erdosproblems.com/184",
+    "retrieved_at": "2026-09-08T03:47:02.001536+00:00",
+    "sha256": "f150bc2d557691726ea11cbce201d803fa5ea626cd0428affae9cd9c5b9de60d"
+  },
+  {
+    "path": "forums/172.html",
+    "url": "https://www.erdosproblems.com/forum/thread/172",
+    "retrieved_at": "2026-09-08T03:47:02.107181+00:00",
+    "sha256": "f2d8c22d36496b87fbaf3cde4e5fefae424b540aed7c39ccc92ebda93735c603"
+  },
+  {
+    "path": "pages/196.html",
+    "url": "https://www.erdosproblems.com/196",
+    "retrieved_at": "2026-09-08T03:47:02.133927+00:00",
+    "sha256": "5fb1cc93c4e3e6c9cfea0352e868082c46c5953fbb47714d2540f7c35a6ac5a1"
+  },
+  {
+    "path": "pages/200.html",
+    "url": "https://www.erdosproblems.com/200",
+    "retrieved_at": "2026-09-08T03:47:02.187046+00:00",
+    "sha256": "bc734f757995380d5475171f78efd5e65b422e0989c201f7475e2dc42e7f8355"
+  },
+  {
+    "path": "forums/184.html",
+    "url": "https://www.erdosproblems.com/forum/thread/184",
+    "retrieved_at": "2026-09-08T03:47:02.217998+00:00",
+    "sha256": "6498941e349fe92ae9672c40b449a8b6360590cd95a32c26198119cb09b45c97"
+  },
+  {
+    "path": "forums/196.html",
+    "url": "https://www.erdosproblems.com/forum/thread/196",
+    "retrieved_at": "2026-09-08T03:47:02.281368+00:00",
+    "sha256": "37cfaf10430c46705f8156a72105dd01119f5ad533c2a628b5ded284d70e01cf"
+  },
+  {
+    "path": "forums/200.html",
+    "url": "https://www.erdosproblems.com/forum/thread/200",
+    "retrieved_at": "2026-09-08T03:47:02.294444+00:00",
+    "sha256": "186e1904cd37ca8fb3f47fa15b348d48f8acf073b2c78daf9b3f356565da1eb9"
+  },
+  {
+    "path": "pages/212.html",
+    "url": "https://www.erdosproblems.com/212",
+    "retrieved_at": "2026-09-08T03:47:02.487178+00:00",
+    "sha256": "4c3d51eaf0df47e254505b866f5323b55ebad90133fee157f5ba4158fb19fd17"
+  },
+  {
+    "path": "pages/208.html",
+    "url": "https://www.erdosproblems.com/208",
+    "retrieved_at": "2026-09-08T03:47:02.489622+00:00",
+    "sha256": "05cbab511dbe1693c0a466616cf8a74215ed46124aaaaefa7e5337b2e4abc3b1"
+  },
+  {
+    "path": "pages/213.html",
+    "url": "https://www.erdosproblems.com/213",
+    "retrieved_at": "2026-09-08T03:47:02.615175+00:00",
+    "sha256": "2de4a26602114626a2bff16c3f4e7c47b70629f2c6fea029771e98ac24e50bdc"
+  },
+  {
+    "path": "forums/208.html",
+    "url": "https://www.erdosproblems.com/forum/thread/208",
+    "retrieved_at": "2026-09-08T03:47:02.774696+00:00",
+    "sha256": "e8110cadd52dec84b9f256dd2c07752f6ed118111c47aacfd2922b3b7f87bd44"
+  },
+  {
+    "path": "forums/213.html",
+    "url": "https://www.erdosproblems.com/forum/thread/213",
+    "retrieved_at": "2026-09-08T03:47:02.777492+00:00",
+    "sha256": "21cb889b6fa57892428c18792c0b8c1aa6904582ec805e832c55be80be2d85e0"
+  },
+  {
+    "path": "forums/212.html",
+    "url": "https://www.erdosproblems.com/forum/thread/212",
+    "retrieved_at": "2026-09-08T03:47:02.783820+00:00",
+    "sha256": "2d7e5290fde217eb8028814ed4422c7cd1f9ab561b236a226d0957a1098574b5"
+  },
+  {
+    "path": "pages/218.html",
+    "url": "https://www.erdosproblems.com/218",
+    "retrieved_at": "2026-09-08T03:47:02.801005+00:00",
+    "sha256": "7b3a5233a889f0a77e83dc4d11e345a839673ef04827f06147545d22c8be456d"
+  },
+  {
+    "path": "forums/218.html",
+    "url": "https://www.erdosproblems.com/forum/thread/218",
+    "retrieved_at": "2026-09-08T03:47:02.896178+00:00",
+    "sha256": "d9625421d47a9d8c9cf1d48017513325652adee9e62d8820077fb22146dce3c4"
+  },
+  {
+    "path": "pages/233.html",
+    "url": "https://www.erdosproblems.com/233",
+    "retrieved_at": "2026-09-08T03:47:02.964276+00:00",
+    "sha256": "2fc4113980f3bcce04f7fe33d7fb206d2bb0e0e84b6ed7ccff5c765715cc8aa5"
+  },
+  {
+    "path": "pages/234.html",
+    "url": "https://www.erdosproblems.com/234",
+    "retrieved_at": "2026-09-08T03:47:03.081153+00:00",
+    "sha256": "0b05a708edac9364b154a020998b79fe735811260fbaa6f9cdcf7347aaec9f14"
+  },
+  {
+    "path": "pages/236.html",
+    "url": "https://www.erdosproblems.com/236",
+    "retrieved_at": "2026-09-08T03:47:03.092542+00:00",
+    "sha256": "1b52af4c00ce69b0514d5c9233d5c38e32e82720e939d1d2942659ba73e2722d"
+  },
+  {
+    "path": "forums/234.html",
+    "url": "https://www.erdosproblems.com/forum/thread/234",
+    "retrieved_at": "2026-09-08T03:47:03.257809+00:00",
+    "sha256": "7d6beac8d2e780e34b7dba59d5bcd398b143e1838497a1f7549251e95057b8fe"
+  },
+  {
+    "path": "pages/238.html",
+    "url": "https://www.erdosproblems.com/238",
+    "retrieved_at": "2026-09-08T03:47:03.262285+00:00",
+    "sha256": "da7381d23acbd4a1ed9e23540f5cf3bb3f4230215c66c8ffff903830942ca828"
+  },
+  {
+    "path": "pages/241.html",
+    "url": "https://www.erdosproblems.com/241",
+    "retrieved_at": "2026-09-08T03:47:03.335370+00:00",
+    "sha256": "dbb7487581a9ee43afab69c68cebb5c11d9e2be2dfa22cb2a8d2a60a616bc7c1"
+  },
+  {
+    "path": "forums/233.html",
+    "url": "https://www.erdosproblems.com/forum/thread/233",
+    "retrieved_at": "2026-09-08T03:47:03.416217+00:00",
+    "sha256": "09682c67881fbd3d2f80efde55bca1fcbf69003ee3bb876bebc33c28179906b6"
+  },
+  {
+    "path": "forums/236.html",
+    "url": "https://www.erdosproblems.com/forum/thread/236",
+    "retrieved_at": "2026-09-08T03:47:03.440608+00:00",
+    "sha256": "d95ecb50d299228d83ab951f556f441afe102614e7f91afeb102f6606154d90e"
+  },
+  {
+    "path": "forums/238.html",
+    "url": "https://www.erdosproblems.com/forum/thread/238",
+    "retrieved_at": "2026-09-08T03:47:03.524142+00:00",
+    "sha256": "270e21f7eb3b2a79f4e83d4e59110753dd4dbe5d4504e05e87d89fba97a6668a"
+  },
+  {
+    "path": "forums/241.html",
+    "url": "https://www.erdosproblems.com/forum/thread/241",
+    "retrieved_at": "2026-09-08T03:47:03.642164+00:00",
+    "sha256": "442739698f1b77004b7e362072dbc94048bd167338cfe66749dc86254b4abc24"
+  },
+  {
+    "path": "pages/242.html",
+    "url": "https://www.erdosproblems.com/242",
+    "retrieved_at": "2026-09-08T03:47:03.655853+00:00",
+    "sha256": "f0a019f3ba1c3184fedc4f11ec0801e0bf9f4244b38114a42a6b41415b364063"
+  },
+  {
+    "path": "pages/243.html",
+    "url": "https://www.erdosproblems.com/243",
+    "retrieved_at": "2026-09-08T03:47:03.754155+00:00",
+    "sha256": "a5659cfb1b1f55de4d73f7b524dc98aa04fa3007eff0c0dbcefc0bc8556b7098"
+  },
+  {
+    "path": "pages/244.html",
+    "url": "https://www.erdosproblems.com/244",
+    "retrieved_at": "2026-09-08T03:47:03.853171+00:00",
+    "sha256": "3d09b5bd76317969bd41eaa45fa5d3abb3480c66cf3cf1bf6cdc399210807d90"
+  },
+  {
+    "path": "forums/242.html",
+    "url": "https://www.erdosproblems.com/forum/thread/242",
+    "retrieved_at": "2026-09-08T03:47:03.867660+00:00",
+    "sha256": "12a891f02224a7d03206c2509874186633fc3615af2b557f35bb4d9a5d264f28"
+  },
+  {
+    "path": "pages/247.html",
+    "url": "https://www.erdosproblems.com/247",
+    "retrieved_at": "2026-09-08T03:47:03.924603+00:00",
+    "sha256": "5023fcdafa14d942cccbdc47d11ad919c1cb0c6e30cc441bc17067476e0cb1f0"
+  },
+  {
+    "path": "forums/243.html",
+    "url": "https://www.erdosproblems.com/forum/thread/243",
+    "retrieved_at": "2026-09-08T03:47:03.929082+00:00",
+    "sha256": "9f4bcac7e5979206163d05111512979d6d184e8220c42245e8ef8538dc37ac7b"
+  },
+  {
+    "path": "forums/251.html",
+    "url": "https://www.erdosproblems.com/forum/thread/251",
+    "retrieved_at": "2026-09-08T03:47:04.077583+00:00",
+    "sha256": "8237af9f8256d70f249c64eea61638837f49de6fe68dcc1939a63fc33f7abc41"
+  },
+  {
+    "path": "forums/247.html",
+    "url": "https://www.erdosproblems.com/forum/thread/247",
+    "retrieved_at": "2026-09-08T03:47:04.141784+00:00",
+    "sha256": "3b77a722f1fcd6f98c3bcab58036affeee502bdbae027979a3298912e09f28d8"
+  },
+  {
+    "path": "pages/249.html",
+    "url": "https://www.erdosproblems.com/249",
+    "retrieved_at": "2026-09-08T03:47:04.209390+00:00",
+    "sha256": "aae286b0fc9a43fc6b3d33ef364cab8207406b933435580307b8b9e3388d8529"
+  },
+  {
+    "path": "forums/244.html",
+    "url": "https://www.erdosproblems.com/forum/thread/244",
+    "retrieved_at": "2026-09-08T03:47:04.309302+00:00",
+    "sha256": "d4daa6fbce06602c436bd1c96d14ae79ed086b1476ecddb7aed1c4e6f537cadb"
+  },
+  {
+    "path": "pages/251.html",
+    "url": "https://www.erdosproblems.com/251",
+    "retrieved_at": "2026-09-08T03:47:04.327922+00:00",
+    "sha256": "7dd0eaa8881b44d3d76f2b6275a7a6294873dbcaadf231ff6be86669132c6a50"
+  },
+  {
+    "path": "pages/257.html",
+    "url": "https://www.erdosproblems.com/257",
+    "retrieved_at": "2026-09-08T03:47:04.563475+00:00",
+    "sha256": "267b4b995d7d823534040f96eb1e3b2391ed09d9ebf8e5641b104d2d0be0e559"
+  },
+  {
+    "path": "pages/252.html",
+    "url": "https://www.erdosproblems.com/252",
+    "retrieved_at": "2026-09-08T03:47:04.568593+00:00",
+    "sha256": "2662d0ef9a3a89446d48514961bd18a165ba533b68f7a39276c9d4c933032d62"
+  },
+  {
+    "path": "forums/249.html",
+    "url": "https://www.erdosproblems.com/forum/thread/249",
+    "retrieved_at": "2026-09-08T03:47:04.657666+00:00",
+    "sha256": "2e3783732e26e4c3fc63a160d298003325f9cbd8f65172f76557c1151d5fd0c7"
+  },
+  {
+    "path": "pages/264.html",
+    "url": "https://www.erdosproblems.com/264",
+    "retrieved_at": "2026-09-08T03:47:04.733694+00:00",
+    "sha256": "b59d17118b509c2bd9d72805a635e7095cf14c895a1dac87e610feb6cedfa50c"
+  },
+  {
+    "path": "forums/252.html",
+    "url": "https://www.erdosproblems.com/forum/thread/252",
+    "retrieved_at": "2026-09-08T03:47:04.825553+00:00",
+    "sha256": "59925ffab516fe5e1dd0c159bdb20bc6f04e0c3c830bc49b1b939cdc12829cc8"
+  },
+  {
+    "path": "pages/269.html",
+    "url": "https://www.erdosproblems.com/269",
+    "retrieved_at": "2026-09-08T03:47:04.840624+00:00",
+    "sha256": "47d43ebc10d8d55e775b039e8f2df922481cf72f9cdac3a8fe1827c85c99be24"
+  },
+  {
+    "path": "forums/257.html",
+    "url": "https://www.erdosproblems.com/forum/thread/257",
+    "retrieved_at": "2026-09-08T03:47:04.946118+00:00",
+    "sha256": "c95b5e1d73b7906322b3e62bc5ff0dc63c730b958d2470cdadaab10cc779040d"
+  },
+  {
+    "path": "forums/274.html",
+    "url": "https://www.erdosproblems.com/forum/thread/274",
+    "retrieved_at": "2026-09-08T03:47:05.051238+00:00",
+    "sha256": "df0eb0315b9074b68811bbb59b0e426b86d9ad120b78e59e368cb826cbad8992"
+  },
+  {
+    "path": "forums/264.html",
+    "url": "https://www.erdosproblems.com/forum/thread/264",
+    "retrieved_at": "2026-09-08T03:47:05.064969+00:00",
+    "sha256": "b828806f276b99d354848a5d7340ac4b2b0a401a81bc416739dbc99b9a49976c"
+  },
+  {
+    "path": "pages/272.html",
+    "url": "https://www.erdosproblems.com/272",
+    "retrieved_at": "2026-09-08T03:47:05.077990+00:00",
+    "sha256": "07f0be90477e49298967c048b500e22cfcd1235ab09bb7197be62814f308f5e4"
+  },
+  {
+    "path": "forums/269.html",
+    "url": "https://www.erdosproblems.com/forum/thread/269",
+    "retrieved_at": "2026-09-08T03:47:05.106800+00:00",
+    "sha256": "c52760556bde5717f9a8dd072107e50eeb5b5cc3adae647481cb51bfa9decc24"
+  },
+  {
+    "path": "pages/274.html",
+    "url": "https://www.erdosproblems.com/274",
+    "retrieved_at": "2026-09-08T03:47:05.122909+00:00",
+    "sha256": "0665600ffe8a0cb63bb233f2f2ed840f75d73850926ddf5525906a76bb20b94b"
+  },
+  {
+    "path": "forums/272.html",
+    "url": "https://www.erdosproblems.com/forum/thread/272",
+    "retrieved_at": "2026-09-08T03:47:05.190042+00:00",
+    "sha256": "70ba61dab18c51ef9a63c95ec587242dac6e9d5dbdab328d8c0a5ede85fd701d"
+  },
+  {
+    "path": "pages/282.html",
+    "url": "https://www.erdosproblems.com/282",
+    "retrieved_at": "2026-09-08T03:47:05.260592+00:00",
+    "sha256": "8519375786180eeb58563317df805bfa0db30b0642d94d9db9adcb10bc437638"
+  },
+  {
+    "path": "pages/287.html",
+    "url": "https://www.erdosproblems.com/287",
+    "retrieved_at": "2026-09-08T03:47:05.264691+00:00",
+    "sha256": "ffae5d6267f6dfab98272bda2671b506693b8498c742e02bcd3c7edc934905d7"
+  },
+  {
+    "path": "forums/282.html",
+    "url": "https://www.erdosproblems.com/forum/thread/282",
+    "retrieved_at": "2026-09-08T03:47:05.404608+00:00",
+    "sha256": "5d66efbcc160ca7865f2f16354ae1bacca5380cff1977e02b23e278be637bc57"
+  },
+  {
+    "path": "forums/287.html",
+    "url": "https://www.erdosproblems.com/forum/thread/287",
+    "retrieved_at": "2026-09-08T03:47:05.529770+00:00",
+    "sha256": "49705df4c3809e45b9d00324bbc94eff33a7060775fe60ea9e6b172637e54bc4"
+  },
+  {
+    "path": "pages/291.html",
+    "url": "https://www.erdosproblems.com/291",
+    "retrieved_at": "2026-09-08T03:47:05.569416+00:00",
+    "sha256": "c57d89074ed5e25357ff033be727e3ec510579bb9c1860bf5b8542f2736c3121"
+  },
+  {
+    "path": "forums/291.html",
+    "url": "https://www.erdosproblems.com/forum/thread/291",
+    "retrieved_at": "2026-09-08T03:47:05.634524+00:00",
+    "sha256": "3f1142f71a2a4bdcb9c8e4e47f5774609e06f9564dda073bc518f9471b253783"
+  },
+  {
+    "path": "pages/304.html",
+    "url": "https://www.erdosproblems.com/304",
+    "retrieved_at": "2026-09-08T03:47:05.679410+00:00",
+    "sha256": "96f1f4f8b08dbd4383d5219a947030fcad47d756ca00850803f65ab6252ab86b"
+  },
+  {
+    "path": "forums/304.html",
+    "url": "https://www.erdosproblems.com/forum/thread/304",
+    "retrieved_at": "2026-09-08T03:47:05.743252+00:00",
+    "sha256": "c326fafbd092d34fd7728523f179823cad934cf46bdbbfa9ce377dfe4e3a8dd9"
+  },
+  {
+    "path": "pages/307.html",
+    "url": "https://www.erdosproblems.com/307",
+    "retrieved_at": "2026-09-08T03:47:05.747219+00:00",
+    "sha256": "5aa8b03fc3cecad43270fcf46f65ffb3676435ec0ebf606da17306398ce5fe67"
+  },
+  {
+    "path": "pages/313.html",
+    "url": "https://www.erdosproblems.com/313",
+    "retrieved_at": "2026-09-08T03:47:05.806193+00:00",
+    "sha256": "061715ca8dd9ce09860fa82a5afd5d390ff91fea11a0ce69e1681a56439734b1"
+  },
+  {
+    "path": "pages/317.html",
+    "url": "https://www.erdosproblems.com/317",
+    "retrieved_at": "2026-09-08T03:47:05.877403+00:00",
+    "sha256": "65c510bab5ecce797af3fa77ebd585cbb14eb11c2efe64fb25ee3a2560d2b214"
+  },
+  {
+    "path": "forums/307.html",
+    "url": "https://www.erdosproblems.com/forum/thread/307",
+    "retrieved_at": "2026-09-08T03:47:05.882912+00:00",
+    "sha256": "be2cfb485b69773421d36fb009878e56196118d6597508d0fb0e100f14c7ebef"
+  },
+  {
+    "path": "forums/313.html",
+    "url": "https://www.erdosproblems.com/forum/thread/313",
+    "retrieved_at": "2026-09-08T03:47:05.916319+00:00",
+    "sha256": "a1a9330610d285afd4ec091b7091e4670b1a84016651470c876ff14c8ec29e1a"
+  },
+  {
+    "path": "pages/323.html",
+    "url": "https://www.erdosproblems.com/323",
+    "retrieved_at": "2026-09-08T03:47:05.927551+00:00",
+    "sha256": "7bc11402a651d143ad727db90745f76f54af4441860a1bef27f1b497d1eaaf98"
+  },
+  {
+    "path": "forums/317.html",
+    "url": "https://www.erdosproblems.com/forum/thread/317",
+    "retrieved_at": "2026-09-08T03:47:05.987791+00:00",
+    "sha256": "93b17938882d223a06dd91ceff3c16a6bacd35841e4a0a316ec8d8b92050ec84"
+  },
+  {
+    "path": "forums/323.html",
+    "url": "https://www.erdosproblems.com/forum/thread/323",
+    "retrieved_at": "2026-09-08T03:47:06.059515+00:00",
+    "sha256": "65ca0527fb457ad4caf7d5dca9a052626ac4313cbaedb220d95e520c4b943d51"
+  },
+  {
+    "path": "pages/324.html",
+    "url": "https://www.erdosproblems.com/324",
+    "retrieved_at": "2026-09-08T03:47:06.114197+00:00",
+    "sha256": "baab1993f8a54e36caefb7ffe8187add7cbce1375050f3caf81804d823c76257"
+  },
+  {
+    "path": "pages/325.html",
+    "url": "https://www.erdosproblems.com/325",
+    "retrieved_at": "2026-09-08T03:47:06.164647+00:00",
+    "sha256": "d18cc7aaf17254bb09233af353d7a1eaf3fe24945a0ba212bf92b32f0b827d7b"
+  },
+  {
+    "path": "forums/324.html",
+    "url": "https://www.erdosproblems.com/forum/thread/324",
+    "retrieved_at": "2026-09-08T03:47:06.189217+00:00",
+    "sha256": "7d6f9d755c4732e6dac98868f449028f48b9ea1c1fde67b44f4898339a21c4b5"
+  },
+  {
+    "path": "pages/340.html",
+    "url": "https://www.erdosproblems.com/340",
+    "retrieved_at": "2026-09-08T03:47:06.194956+00:00",
+    "sha256": "3fbe16698cbc91c5bbd164d9c65da17f575a5858dbd0c50a624bffacef00421f"
+  },
+  {
+    "path": "pages/354.html",
+    "url": "https://www.erdosproblems.com/354",
+    "retrieved_at": "2026-09-08T03:47:06.312524+00:00",
+    "sha256": "7b1f58fd7db1a33e460429a3a38fe507da36875fbb3aa20248760ce6d2f8041e"
+  },
+  {
+    "path": "forums/325.html",
+    "url": "https://www.erdosproblems.com/forum/thread/325",
+    "retrieved_at": "2026-09-08T03:47:06.326489+00:00",
+    "sha256": "be294522ccb513c4acce0970f08aa04c022941f9df3a1bdaee117ce1f873bab9"
+  },
+  {
+    "path": "forums/354.html",
+    "url": "https://www.erdosproblems.com/forum/thread/354",
+    "retrieved_at": "2026-09-08T03:47:06.456647+00:00",
+    "sha256": "0e7ce8ded2c90a3e68621619022adefdc58443a0fb1c4a042385cfdb1dce21c7"
+  },
+  {
+    "path": "pages/357.html",
+    "url": "https://www.erdosproblems.com/357",
+    "retrieved_at": "2026-09-08T03:47:06.483130+00:00",
+    "sha256": "373347080e6183af36225b51d0419f045211181993711ab8b0cdc37da3d835c2"
+  },
+  {
+    "path": "forums/340.html",
+    "url": "https://www.erdosproblems.com/forum/thread/340",
+    "retrieved_at": "2026-09-08T03:47:06.588679+00:00",
+    "sha256": "211172665842154dd9a9b43600523c0b0c6cc947aab9b82407bee28ffab179e7"
+  },
+  {
+    "path": "forums/357.html",
+    "url": "https://www.erdosproblems.com/forum/thread/357",
+    "retrieved_at": "2026-09-08T03:47:06.620339+00:00",
+    "sha256": "97c05d8b0b7894de054908e0bea03d59831eef289b58f52820b94d7d5ea81d85"
+  },
+  {
+    "path": "pages/359.html",
+    "url": "https://www.erdosproblems.com/359",
+    "retrieved_at": "2026-09-08T03:47:06.649621+00:00",
+    "sha256": "d1fbb34ebece4cfc1f7c88b0027d73da1f3fe7588badcf9380fbaca20bc203f5"
+  },
+  {
+    "path": "forums/359.html",
+    "url": "https://www.erdosproblems.com/forum/thread/359",
+    "retrieved_at": "2026-09-08T03:47:06.712261+00:00",
+    "sha256": "9198b427886302a14b7482067c0ff7d3cfd4ab7fca50d3ce1d6336d2ba8a47b4"
+  },
+  {
+    "path": "pages/364.html",
+    "url": "https://www.erdosproblems.com/364",
+    "retrieved_at": "2026-09-08T03:47:06.792782+00:00",
+    "sha256": "5c58302667ca7b7064f0ea8a03840d912bf28e8d7d10a9d4b666bc6d44f0fafa"
+  },
+  {
+    "path": "forums/364.html",
+    "url": "https://www.erdosproblems.com/forum/thread/364",
+    "retrieved_at": "2026-09-08T03:47:06.925761+00:00",
+    "sha256": "711df5f2d59d5bd87cefce9d19d7998e2a34adde64c1a18bf87b75638c3f62d1"
+  },
+  {
+    "path": "pages/373.html",
+    "url": "https://www.erdosproblems.com/373",
+    "retrieved_at": "2026-09-08T03:47:06.983406+00:00",
+    "sha256": "35bd80eec9d171962fda6b894088c72f9b31581183288f4cff261e11750cc670"
+  },
+  {
+    "path": "pages/371.html",
+    "url": "https://www.erdosproblems.com/371",
+    "retrieved_at": "2026-09-08T03:47:07.017961+00:00",
+    "sha256": "87e77bb0491b4326950ccd0309ae0e148d564c23ec4eca5666e4349c523cb603"
+  },
+  {
+    "path": "pages/375.html",
+    "url": "https://www.erdosproblems.com/375",
+    "retrieved_at": "2026-09-08T03:47:07.027793+00:00",
+    "sha256": "18270fd8507b4b058bd9d1d709288559224e221a77b772bb6dcef6600e5ae81c"
+  },
+  {
+    "path": "forums/371.html",
+    "url": "https://www.erdosproblems.com/forum/thread/371",
+    "retrieved_at": "2026-09-08T03:47:07.075113+00:00",
+    "sha256": "4ca54ab8896eee29f10e6742ba8d6ab1d4518c29206533cf02ba8a820cb974fe"
+  },
+  {
+    "path": "pages/376.html",
+    "url": "https://www.erdosproblems.com/376",
+    "retrieved_at": "2026-09-08T03:47:07.299195+00:00",
+    "sha256": "6c3981de42e9ccb75152aae0a3c373b5fcd7e7cdcda6f25b2bb733acfbeb4f48"
+  },
+  {
+    "path": "pages/383.html",
+    "url": "https://www.erdosproblems.com/383",
+    "retrieved_at": "2026-09-08T03:47:07.376140+00:00",
+    "sha256": "754093dae5a8fcdb79a25329d7ea87e5254bd3900f06985e51cd75657986e936"
+  },
+  {
+    "path": "forums/373.html",
+    "url": "https://www.erdosproblems.com/forum/thread/373",
+    "retrieved_at": "2026-09-08T03:47:07.423027+00:00",
+    "sha256": "053b6d17961dcd9c6cadb9dd27268710a00fa11da583927442d7e64b4bfde60f"
+  },
+  {
+    "path": "forums/375.html",
+    "url": "https://www.erdosproblems.com/forum/thread/375",
+    "retrieved_at": "2026-09-08T03:47:07.441034+00:00",
+    "sha256": "fa17c2605dec85d0035c5e5c51425c4acb9643e1bd84c7bfcdee7a0ff7011bf3"
+  },
+  {
+    "path": "forums/376.html",
+    "url": "https://www.erdosproblems.com/forum/thread/376",
+    "retrieved_at": "2026-09-08T03:47:07.446301+00:00",
+    "sha256": "a905703f00b0dde911a26cf6309cb25b9086d2a3885fc1b1e9f66bc82ad09a1b"
+  },
+  {
+    "path": "forums/383.html",
+    "url": "https://www.erdosproblems.com/forum/thread/383",
+    "retrieved_at": "2026-09-08T03:47:07.463831+00:00",
+    "sha256": "220ee8daeeabe17b60243253674ae9821e88fa065f57ea624237b6e6fdb7d1b9"
+  },
+  {
+    "path": "pages/385.html",
+    "url": "https://www.erdosproblems.com/385",
+    "retrieved_at": "2026-09-08T03:47:07.531136+00:00",
+    "sha256": "5b8651978e8700c0d7b0c12976c35a141d0c1dd834cb8dc81430cb3dd7b5dc34"
+  },
+  {
+    "path": "pages/400.html",
+    "url": "https://www.erdosproblems.com/400",
+    "retrieved_at": "2026-09-08T03:47:07.655967+00:00",
+    "sha256": "0d5b0caae65a624d480b015cd92d5b1ab8a64ee81fec07f917c22bd1b8631f26"
+  },
+  {
+    "path": "forums/385.html",
+    "url": "https://www.erdosproblems.com/forum/thread/385",
+    "retrieved_at": "2026-09-08T03:47:07.709597+00:00",
+    "sha256": "acd1d3812293eb7630073f59a1fb082d3281adc48f13c9c9abe881c740ee4b66"
+  },
+  {
+    "path": "pages/406.html",
+    "url": "https://www.erdosproblems.com/406",
+    "retrieved_at": "2026-09-08T03:47:07.777944+00:00",
+    "sha256": "f74398d441f18bbcd9290b80f9295f6e2860e0b61b613565a6b754765328b3d1"
+  },
+  {
+    "path": "pages/396.html",
+    "url": "https://www.erdosproblems.com/396",
+    "retrieved_at": "2026-09-08T03:47:07.810830+00:00",
+    "sha256": "a27501660ca0f63bab1c7a599565ba65e36a47377d619547bafc11758294390a"
+  },
+  {
+    "path": "forums/400.html",
+    "url": "https://www.erdosproblems.com/forum/thread/400",
+    "retrieved_at": "2026-09-08T03:47:07.894062+00:00",
+    "sha256": "8f1e8e6a700c930a9b1f8bfddfb24fd9d69be307daa613e9bab98882516dbc07"
+  },
+  {
+    "path": "forums/406.html",
+    "url": "https://www.erdosproblems.com/forum/thread/406",
+    "retrieved_at": "2026-09-08T03:47:08.122527+00:00",
+    "sha256": "2ffc1684e8ac1b44644085c6a87e9c81a4d9acb0cf842fd8b7b93a123cf60951"
+  },
+  {
+    "path": "forums/396.html",
+    "url": "https://www.erdosproblems.com/forum/thread/396",
+    "retrieved_at": "2026-09-08T03:47:08.130984+00:00",
+    "sha256": "384fcf16a3a1fe9f094c2646655a9f00689aa2bdc93343358420aabb7ff9549f"
+  },
+  {
+    "path": "pages/410.html",
+    "url": "https://www.erdosproblems.com/410",
+    "retrieved_at": "2026-09-08T03:47:08.252780+00:00",
+    "sha256": "9a5ee973e24e8ffdee575926858777be4e2cd5d28044a0410aec1bbd602336e4"
+  },
+  {
+    "path": "pages/409.html",
+    "url": "https://www.erdosproblems.com/409",
+    "retrieved_at": "2026-09-08T03:47:08.314072+00:00",
+    "sha256": "df5ca31d8abfb47579715db38d208a02dcbf069b25144f1a5f3ca1392808cd92"
+  },
+  {
+    "path": "forums/410.html",
+    "url": "https://www.erdosproblems.com/forum/thread/410",
+    "retrieved_at": "2026-09-08T03:47:08.376182+00:00",
+    "sha256": "0ac5bce552961524112d6e5d835e96299d18be0e7376496ead0208a89857c7f6"
+  },
+  {
+    "path": "forums/409.html",
+    "url": "https://www.erdosproblems.com/forum/thread/409",
+    "retrieved_at": "2026-09-08T03:47:08.446131+00:00",
+    "sha256": "e88e39e43b60f15bae10f09c3dc9e8b0e0d112046513b922204941349a1cd73e"
+  },
+  {
+    "path": "pages/412.html",
+    "url": "https://www.erdosproblems.com/412",
+    "retrieved_at": "2026-09-08T03:47:08.469559+00:00",
+    "sha256": "5eb29372b95738942664147636201e53c98a8bde01a3b6566182694a653fbae9"
+  },
+  {
+    "path": "forums/412.html",
+    "url": "https://www.erdosproblems.com/forum/thread/412",
+    "retrieved_at": "2026-09-08T03:47:08.552091+00:00",
+    "sha256": "395f9ca1c823001fea9490eece7274bf99a31cb780135e2d2d25193f3a4e0e18"
+  },
+  {
+    "path": "pages/413.html",
+    "url": "https://www.erdosproblems.com/413",
+    "retrieved_at": "2026-09-08T03:47:08.554618+00:00",
+    "sha256": "ea1a3658a2256e3394356f327fae68e82875c2fb9f254e8d0cedc0eba11bf138"
+  },
+  {
+    "path": "pages/414.html",
+    "url": "https://www.erdosproblems.com/414",
+    "retrieved_at": "2026-09-08T03:47:08.586446+00:00",
+    "sha256": "a0dac48e8097292ccd321ddd47c683fbb0921032a52e80d17c365a14ab251c63"
+  },
+  {
+    "path": "forums/413.html",
+    "url": "https://www.erdosproblems.com/forum/thread/413",
+    "retrieved_at": "2026-09-08T03:47:08.673522+00:00",
+    "sha256": "9d7be0214cf0c084b17972b1c7c8149a50f9af32dad1ccdfd6cacc18b906d9c0"
+  },
+  {
+    "path": "pages/416.html",
+    "url": "https://www.erdosproblems.com/416",
+    "retrieved_at": "2026-09-08T03:47:08.695062+00:00",
+    "sha256": "c4e7f912f6acc8877e49d87159881fa1671703f503a45d304e137a02d4025cfb"
+  },
+  {
+    "path": "pages/428.html",
+    "url": "https://www.erdosproblems.com/428",
+    "retrieved_at": "2026-09-08T03:47:08.745213+00:00",
+    "sha256": "660f34439b0fd26f6b488fe9c7e6fbe9761c8cadb1b844a7af2ffd82e8caf14f"
+  },
+  {
+    "path": "forums/414.html",
+    "url": "https://www.erdosproblems.com/forum/thread/414",
+    "retrieved_at": "2026-09-08T03:47:08.862505+00:00",
+    "sha256": "7053190f60457b91da3a710b7d688eecad4dda749f423b76b37be25d3c87a05d"
+  },
+  {
+    "path": "pages/445.html",
+    "url": "https://www.erdosproblems.com/445",
+    "retrieved_at": "2026-09-08T03:47:08.878790+00:00",
+    "sha256": "d15479014fe1c9e17d2357903b688bd9c94b3863e925847d3fd7e064b6c4ed5a"
+  },
+  {
+    "path": "forums/416.html",
+    "url": "https://www.erdosproblems.com/forum/thread/416",
+    "retrieved_at": "2026-09-08T03:47:08.905795+00:00",
+    "sha256": "61148cd0e4dde8e0ce20c702fb96125c1a2b3328f6b1ae68a585b83b48245411"
+  },
+  {
+    "path": "pages/454.html",
+    "url": "https://www.erdosproblems.com/454",
+    "retrieved_at": "2026-09-08T03:47:08.912249+00:00",
+    "sha256": "6ceb677c37968b34f1b3fbc5d22df0d0bcf779cffde9b431ab2d8c366037ff52"
+  },
+  {
+    "path": "forums/428.html",
+    "url": "https://www.erdosproblems.com/forum/thread/428",
+    "retrieved_at": "2026-09-08T03:47:08.943268+00:00",
+    "sha256": "098e80026b9850aa27f99c9ce4235e490b8bfd05a698f23443b28d8a7bdf41bc"
+  },
+  {
+    "path": "forums/445.html",
+    "url": "https://www.erdosproblems.com/forum/thread/445",
+    "retrieved_at": "2026-09-08T03:47:08.972793+00:00",
+    "sha256": "4cf09edcb79df29598e0744855ad397460fc668bbed4cb7ab761b7ff84cfeef8"
+  },
+  {
+    "path": "pages/455.html",
+    "url": "https://www.erdosproblems.com/455",
+    "retrieved_at": "2026-09-08T03:47:09.007535+00:00",
+    "sha256": "c0f958c31d31df90afbfc032882eaac1a89692976cf1b648eac3329e04a6229d"
+  },
+  {
+    "path": "pages/456.html",
+    "url": "https://www.erdosproblems.com/456",
+    "retrieved_at": "2026-09-08T03:47:09.044529+00:00",
+    "sha256": "cdebc2834580ebac4ce05e546c8e7fec83bfec5ded319258f6277568391c9473"
+  },
+  {
+    "path": "forums/454.html",
+    "url": "https://www.erdosproblems.com/forum/thread/454",
+    "retrieved_at": "2026-09-08T03:47:09.061373+00:00",
+    "sha256": "4df315fa85dc925e971b540bcfeed4317799f2335a43373710ef75f338067563"
+  },
+  {
+    "path": "forums/455.html",
+    "url": "https://www.erdosproblems.com/forum/thread/455",
+    "retrieved_at": "2026-09-08T03:47:09.097946+00:00",
+    "sha256": "9e57bcb8336338252fb57bc0402315844c451749e367f83f5e7bb0506785fe9b"
+  },
+  {
+    "path": "pages/458.html",
+    "url": "https://www.erdosproblems.com/458",
+    "retrieved_at": "2026-09-08T03:47:09.106998+00:00",
+    "sha256": "dec7ec8a2e423b6c18d4b3d3dde17888973671bb7fc1c7e510328fcf058b5cfc"
+  },
+  {
+    "path": "forums/456.html",
+    "url": "https://www.erdosproblems.com/forum/thread/456",
+    "retrieved_at": "2026-09-08T03:47:09.179277+00:00",
+    "sha256": "d06efd7328cb4e8016b2915897a3127b989f687b07fb6279cca8e32af9239257"
+  },
+  {
+    "path": "forums/458.html",
+    "url": "https://www.erdosproblems.com/forum/thread/458",
+    "retrieved_at": "2026-09-08T03:47:09.237675+00:00",
+    "sha256": "6588c94b8a88a7bc2e0971004f2d2772b74eb3fe330620e1d07def91c545867a"
+  },
+  {
+    "path": "pages/463.html",
+    "url": "https://www.erdosproblems.com/463",
+    "retrieved_at": "2026-09-08T03:47:09.248376+00:00",
+    "sha256": "3500b68d6e28f8869b64d4913b8649bc385dd2378c59c48c25dd77b67be21320"
+  },
+  {
+    "path": "pages/479.html",
+    "url": "https://www.erdosproblems.com/479",
+    "retrieved_at": "2026-09-08T03:47:09.261179+00:00",
+    "sha256": "65db86d1821a720780b3cea162a54d2236859c08605467d323006578a8bc5412"
+  },
+  {
+    "path": "pages/495.html",
+    "url": "https://www.erdosproblems.com/495",
+    "retrieved_at": "2026-09-08T03:47:09.362984+00:00",
+    "sha256": "4f89e59c81bfdc51a4b9c77dbf8794b8d0fd01264bea42c1681be4c1bb1c79d8"
+  },
+  {
+    "path": "forums/463.html",
+    "url": "https://www.erdosproblems.com/forum/thread/463",
+    "retrieved_at": "2026-09-08T03:47:09.370798+00:00",
+    "sha256": "7e3c307fb8676af6c88dbd0cfee83145ed77a675bb201dcd5d6ce4201c1a8b85"
+  },
+  {
+    "path": "forums/479.html",
+    "url": "https://www.erdosproblems.com/forum/thread/479",
+    "retrieved_at": "2026-09-08T03:47:09.406482+00:00",
+    "sha256": "d3e58999d17b98782b28c3220e2d81c1afb93b145fb94bd6a8ebd39c621720c4"
+  },
+  {
+    "path": "pages/517.html",
+    "url": "https://www.erdosproblems.com/517",
+    "retrieved_at": "2026-09-08T03:47:09.616595+00:00",
+    "sha256": "fed917149adce8cdd53b972497cacf030c0d5857a8e75f5674dced12b07597c2"
+  },
+  {
+    "path": "pages/535.html",
+    "url": "https://www.erdosproblems.com/535",
+    "retrieved_at": "2026-09-08T03:47:09.656682+00:00",
+    "sha256": "d283538f1b9d2e8629b4001fd2eb85b7be3401fac902b85f3616cd6502d44836"
+  },
+  {
+    "path": "forums/495.html",
+    "url": "https://www.erdosproblems.com/forum/thread/495",
+    "retrieved_at": "2026-09-08T03:47:09.732263+00:00",
+    "sha256": "c074edff0f6c356dcf8d52dbbe3ef8819d8e8a04c02b81ed75c7da069d56701a"
+  },
+  {
+    "path": "pages/564.html",
+    "url": "https://www.erdosproblems.com/564",
+    "retrieved_at": "2026-09-08T03:47:09.755021+00:00",
+    "sha256": "fa9a32dbb6d9c373d38792c5090ad1227b1eb0743af3bd465d69d150813a6c1c"
+  },
+  {
+    "path": "forums/517.html",
+    "url": "https://www.erdosproblems.com/forum/thread/517",
+    "retrieved_at": "2026-09-08T03:47:09.757977+00:00",
+    "sha256": "553973a3a15ae8693b9c45320bcd3065673a22aa66c241b0a65ecf2d328c274c"
+  },
+  {
+    "path": "forums/535.html",
+    "url": "https://www.erdosproblems.com/forum/thread/535",
+    "retrieved_at": "2026-09-08T03:47:09.804300+00:00",
+    "sha256": "145af44d34571622dc8683514c885859c69bed28fbc020b203dfbac850d17e0c"
+  },
+  {
+    "path": "pages/579.html",
+    "url": "https://www.erdosproblems.com/579",
+    "retrieved_at": "2026-09-08T03:47:09.965334+00:00",
+    "sha256": "50366c069c61df995c602a8743614ca5a81c02b04a1aa1c411d8518bd23062d2"
+  },
+  {
+    "path": "forums/564.html",
+    "url": "https://www.erdosproblems.com/forum/thread/564",
+    "retrieved_at": "2026-09-08T03:47:09.976808+00:00",
+    "sha256": "6cd8ef30a87e944c104c7da94286ae094f7de71e95f11a401bfd4ae6ba22a36e"
+  },
+  {
+    "path": "pages/600.html",
+    "url": "https://www.erdosproblems.com/600",
+    "retrieved_at": "2026-09-08T03:47:10.010270+00:00",
+    "sha256": "fb83f33a84a89dbfadf36cced6c9c996915db8f875a3ef50e4f3639c9c2cea25"
+  },
+  {
+    "path": "pages/617.html",
+    "url": "https://www.erdosproblems.com/617",
+    "retrieved_at": "2026-09-08T03:47:10.029570+00:00",
+    "sha256": "87ce4dcc312a3656f2f8e187f8a2fd5c6d4f8c0f5f99408ab98be4f12a2e50a6"
+  },
+  {
+    "path": "forums/579.html",
+    "url": "https://www.erdosproblems.com/forum/thread/579",
+    "retrieved_at": "2026-09-08T03:47:10.055641+00:00",
+    "sha256": "80fdba170fb062d89cb8233929f8a90008de9b5789167a707e79632e4da1230d"
+  },
+  {
+    "path": "pages/647.html",
+    "url": "https://www.erdosproblems.com/647",
+    "retrieved_at": "2026-09-08T03:47:23.981730+00:00",
+    "sha256": "4cd2bf96c1c5677f68c329b6913041286adc5746ff20bcb81d1938dcedaca4da"
+  },
+  {
+    "path": "pages/672.html",
+    "url": "https://www.erdosproblems.com/672",
+    "retrieved_at": "2026-09-08T03:47:24.321175+00:00",
+    "sha256": "f766d11b9465b41761fb72067a9d8f585be740b5f1ab63ef4d45c41dda088a39"
+  },
+  {
+    "path": "forums/600.html",
+    "url": "https://www.erdosproblems.com/forum/thread/600",
+    "retrieved_at": "2026-09-08T03:47:24.672238+00:00",
+    "sha256": "146ecec721ce9f7cdcafae5dc91130ad76bffd6052b7c6a8ba985e101f44139f"
+  },
+  {
+    "path": "forums/672.html",
+    "url": "https://www.erdosproblems.com/forum/thread/672",
+    "retrieved_at": "2026-09-08T03:47:24.835950+00:00",
+    "sha256": "eea5dc44d1efffa87e939d9eaf9945345da6ea356e2f926cacb4c573dc5fc4a6"
+  },
+  {
+    "path": "pages/677.html",
+    "url": "https://www.erdosproblems.com/677",
+    "retrieved_at": "2026-09-08T03:47:25.194905+00:00",
+    "sha256": "b17b366e863a2b94f8f88f27044ff873cd08b0b86230f0cf6643ff52b90a139c"
+  },
+  {
+    "path": "pages/624.html",
+    "url": "https://www.erdosproblems.com/624",
+    "retrieved_at": "2026-09-08T03:47:25.429968+00:00",
+    "sha256": "1bfe370b4305acff61bef685731eabe79a9aef1fe336bcb7925235fd12e16a83"
+  },
+  {
+    "path": "forums/677.html",
+    "url": "https://www.erdosproblems.com/forum/thread/677",
+    "retrieved_at": "2026-09-08T03:47:25.476402+00:00",
+    "sha256": "773f30f013af86ff61806cf4fe9db01119a0c7d208dd3e8b11b863630adca257"
+  },
+  {
+    "path": "forums/617.html",
+    "url": "https://www.erdosproblems.com/forum/thread/617",
+    "retrieved_at": "2026-09-08T03:47:25.642846+00:00",
+    "sha256": "a13e7c1fb3398adc121ba55e2b392bd00bbef0cef3df667cd4082cbdf337fb87"
+  },
+  {
+    "path": "pages/680.html",
+    "url": "https://www.erdosproblems.com/680",
+    "retrieved_at": "2026-09-08T03:47:25.661679+00:00",
+    "sha256": "dfe8faf3cfe8a56b83ca3760785adc126d27f7c0f2c9c7e6bbaae47916f643d3"
+  },
+  {
+    "path": "pages/681.html",
+    "url": "https://www.erdosproblems.com/681",
+    "retrieved_at": "2026-09-08T03:47:25.748677+00:00",
+    "sha256": "5b384d514498e66110fc8b081e69b35dec5364879b8cb3cab9ba2c7437ca38db"
+  },
+  {
+    "path": "pages/686.html",
+    "url": "https://www.erdosproblems.com/686",
+    "retrieved_at": "2026-09-08T03:47:25.989646+00:00",
+    "sha256": "b47cb450086d8567055a377b903b46b3cce24844525adf7f9ea2131e8625d1c5"
+  },
+  {
+    "path": "forums/624.html",
+    "url": "https://www.erdosproblems.com/forum/thread/624",
+    "retrieved_at": "2026-09-08T03:47:26.011156+00:00",
+    "sha256": "6021bfe6bb84dc35b98a20ff3de4dde8d721956703536d325b6d7d978e77a3a6"
+  },
+  {
+    "path": "forums/680.html",
+    "url": "https://www.erdosproblems.com/forum/thread/680",
+    "retrieved_at": "2026-09-08T03:47:26.014611+00:00",
+    "sha256": "d5cd60db1d8bb965599a38289be9637fb0ceabfd96d1c79200623e5b4184a67d"
+  },
+  {
+    "path": "forums/647.html",
+    "url": "https://www.erdosproblems.com/forum/thread/647",
+    "retrieved_at": "2026-09-08T03:47:26.064595+00:00",
+    "sha256": "3029b4d4a2aebe0527ab7605fec1676e7bf2daf7da697115bd8f81cbdce8251b"
+  },
+  {
+    "path": "forums/681.html",
+    "url": "https://www.erdosproblems.com/forum/thread/681",
+    "retrieved_at": "2026-09-08T03:47:26.076280+00:00",
+    "sha256": "36f86ca607c50912f96cd810afd32988af0ac2c6db782f5aff1e4e5b294ea4d0"
+  },
+  {
+    "path": "pages/688.html",
+    "url": "https://www.erdosproblems.com/688",
+    "retrieved_at": "2026-09-08T03:47:26.240930+00:00",
+    "sha256": "f9e13f69338477c75c201e6ebdb7c42a29ba3cb2491b0ab9de51a39a927e4d09"
+  },
+  {
+    "path": "pages/695.html",
+    "url": "https://www.erdosproblems.com/695",
+    "retrieved_at": "2026-09-08T03:47:26.282191+00:00",
+    "sha256": "a4c57430f6600a32815434830bb7a8b07d7a48787952f5fe7747aafe757793cc"
+  },
+  {
+    "path": "forums/686.html",
+    "url": "https://www.erdosproblems.com/forum/thread/686",
+    "retrieved_at": "2026-09-08T03:47:26.287235+00:00",
+    "sha256": "8098ac0bd5e479d08400b83168c71050f1e9b03c950e46db83b6a6ae5890afa4"
+  },
+  {
+    "path": "forums/688.html",
+    "url": "https://www.erdosproblems.com/forum/thread/688",
+    "retrieved_at": "2026-09-08T03:47:26.309425+00:00",
+    "sha256": "603d65d7e18938e755e85f0b9cc5d4316d4d632e00256ce421cfe40e0d15529a"
+  },
+  {
+    "path": "pages/699.html",
+    "url": "https://www.erdosproblems.com/699",
+    "retrieved_at": "2026-09-08T03:47:26.479167+00:00",
+    "sha256": "c1a9d21cb3c099825e8f2416849ee5b0ad5e2e1215304a3ca10a2a099f829a42"
+  },
+  {
+    "path": "forums/695.html",
+    "url": "https://www.erdosproblems.com/forum/thread/695",
+    "retrieved_at": "2026-09-08T03:47:26.555349+00:00",
+    "sha256": "bf2aaa4d5eb4f0035325a51c4940c3e1c8b25aff87a4eb08686f4dcfed951d33"
+  },
+  {
+    "path": "pages/700.html",
+    "url": "https://www.erdosproblems.com/700",
+    "retrieved_at": "2026-09-08T03:47:26.558594+00:00",
+    "sha256": "a33bbb48349fc621ea9a10272af04f3b6047ae573481bbbd7d30dba235d2fb7e"
+  },
+  {
+    "path": "forums/699.html",
+    "url": "https://www.erdosproblems.com/forum/thread/699",
+    "retrieved_at": "2026-09-08T03:47:26.664475+00:00",
+    "sha256": "4b9f2cade221f1aecc1d2856c7ab62becebfa7bc435a4865eedee54cbdfcfd9b"
+  },
+  {
+    "path": "pages/701.html",
+    "url": "https://www.erdosproblems.com/701",
+    "retrieved_at": "2026-09-08T03:47:26.667203+00:00",
+    "sha256": "bbffa5a194758a7d547c593fba1aab7e85e73bcfa1cbb337acb05c3b8fdecec8"
+  },
+  {
+    "path": "forums/700.html",
+    "url": "https://www.erdosproblems.com/forum/thread/700",
+    "retrieved_at": "2026-09-08T03:47:26.756058+00:00",
+    "sha256": "209c3e2169a02789aa7164bc275c42a4417b428855054bc05d06a78eb845b248"
+  },
+  {
+    "path": "pages/723.html",
+    "url": "https://www.erdosproblems.com/723",
+    "retrieved_at": "2026-09-08T03:47:26.908698+00:00",
+    "sha256": "6c7f99cf9984316ecb0b062fde28fc266bdd607f404f6313dc8c525020bc658b"
+  },
+  {
+    "path": "forums/723.html",
+    "url": "https://www.erdosproblems.com/forum/thread/723",
+    "retrieved_at": "2026-09-08T03:47:26.950451+00:00",
+    "sha256": "d51fe5e4bab8750fd5decb261b9b79c5062f65460f057bb1bc6d98b1a8ab13d4"
+  },
+  {
+    "path": "forums/701.html",
+    "url": "https://www.erdosproblems.com/forum/thread/701",
+    "retrieved_at": "2026-09-08T03:47:27.005866+00:00",
+    "sha256": "a415f5459ebbcb2b2dffdd4e8af21bf1ee57499c97154bd22bcf597ed528af59"
+  },
+  {
+    "path": "pages/726.html",
+    "url": "https://www.erdosproblems.com/726",
+    "retrieved_at": "2026-09-08T03:47:27.011794+00:00",
+    "sha256": "8fb1112ad1b0441519f07a2e7a586e1f455bc0f18a299afd7183dbf99adb32ee"
+  },
+  {
+    "path": "pages/727.html",
+    "url": "https://www.erdosproblems.com/727",
+    "retrieved_at": "2026-09-08T03:47:27.082580+00:00",
+    "sha256": "012bd407807a4478e366d6313e0e8651e3e0abd3fe81aeb711916a0e425b02a9"
+  },
+  {
+    "path": "forums/726.html",
+    "url": "https://www.erdosproblems.com/forum/thread/726",
+    "retrieved_at": "2026-09-08T03:47:27.093788+00:00",
+    "sha256": "2728779c29306dddb122dba3a63760c357cc7d62aaaa9a452dcf2184d1d6449c"
+  },
+  {
+    "path": "pages/749.html",
+    "url": "https://www.erdosproblems.com/749",
+    "retrieved_at": "2026-09-08T03:47:27.229309+00:00",
+    "sha256": "7b2c7908a12c56118115d79ed730a8601a23c8e039f2c58ef0dbfdcd39f6c582"
+  },
+  {
+    "path": "pages/770.html",
+    "url": "https://www.erdosproblems.com/770",
+    "retrieved_at": "2026-09-08T03:47:27.258256+00:00",
+    "sha256": "1f244a926f19d7b6fae27ec65d7bb1279ca523f192a32ff6375ce64893aa68d7"
+  },
+  {
+    "path": "forums/727.html",
+    "url": "https://www.erdosproblems.com/forum/thread/727",
+    "retrieved_at": "2026-09-08T03:47:27.279170+00:00",
+    "sha256": "d97fbf6714200d0175effea4ea9244aee1e7fdd736c0f9132107503c58f9f04b"
+  },
+  {
+    "path": "pages/774.html",
+    "url": "https://www.erdosproblems.com/774",
+    "retrieved_at": "2026-09-08T03:47:27.371099+00:00",
+    "sha256": "55be35355da4efefd48d8f3ab506d0d9824b9f13fd3362f2fbf5d1a4baeeeb39"
+  },
+  {
+    "path": "forums/749.html",
+    "url": "https://www.erdosproblems.com/forum/thread/749",
+    "retrieved_at": "2026-09-08T03:47:27.395569+00:00",
+    "sha256": "0d17e674b5c8add464cba89ff56f2bd015523911246484a1087ac0400c1e4203"
+  },
+  {
+    "path": "pages/779.html",
+    "url": "https://www.erdosproblems.com/779",
+    "retrieved_at": "2026-09-08T03:47:27.398660+00:00",
+    "sha256": "6382eee15092d72f1b74ecbb904a9e147a7ee00b5467f638bf01e3eee3cc4b7d"
+  },
+  {
+    "path": "forums/770.html",
+    "url": "https://www.erdosproblems.com/forum/thread/770",
+    "retrieved_at": "2026-09-08T03:47:27.426946+00:00",
+    "sha256": "04bae3262cf6ea4bf7b42f4aca2c559846907ff5b595a5611b4cd24f2a643a77"
+  },
+  {
+    "path": "forums/774.html",
+    "url": "https://www.erdosproblems.com/forum/thread/774",
+    "retrieved_at": "2026-09-08T03:47:27.527155+00:00",
+    "sha256": "ce367919d18ab59ff954285c69191fab424b87857167ff43ff1d5cc6d0de00f6"
+  },
+  {
+    "path": "forums/779.html",
+    "url": "https://www.erdosproblems.com/forum/thread/779",
+    "retrieved_at": "2026-09-08T03:47:27.571978+00:00",
+    "sha256": "aa0c19d1e58614538fa8009401717212999593c6367b700b5cf861207aa4a8c0"
+  },
+  {
+    "path": "pages/789.html",
+    "url": "https://www.erdosproblems.com/789",
+    "retrieved_at": "2026-09-08T03:47:27.654537+00:00",
+    "sha256": "6b5efea84a1a72f05b906c8b5c17de3d05f355c0f8668cea637e1d4d8eff9520"
+  },
+  {
+    "path": "pages/812.html",
+    "url": "https://www.erdosproblems.com/812",
+    "retrieved_at": "2026-09-08T03:47:27.684897+00:00",
+    "sha256": "a5feca42eecd40075c71c1699b2ab2c14d6c79302cbeaf7db124317c3cd1f122"
+  },
+  {
+    "path": "forums/812.html",
+    "url": "https://www.erdosproblems.com/forum/thread/812",
+    "retrieved_at": "2026-09-08T03:47:27.762222+00:00",
+    "sha256": "09b21241df53454355f80df430830a7fe5472e81aed24db1fce94b7bff201d85"
+  },
+  {
+    "path": "pages/821.html",
+    "url": "https://www.erdosproblems.com/821",
+    "retrieved_at": "2026-09-08T03:47:27.791992+00:00",
+    "sha256": "2a5f1890d518f39cd8b2de840b7321a780a44a682310bf3200347a29b00bce49"
+  },
+  {
+    "path": "forums/789.html",
+    "url": "https://www.erdosproblems.com/forum/thread/789",
+    "retrieved_at": "2026-09-08T03:47:27.831636+00:00",
+    "sha256": "70f38c582939e7b412565be586b1b3b749c95b9aa0bbfe50eb1aed54c7e93593"
+  },
+  {
+    "path": "pages/828.html",
+    "url": "https://www.erdosproblems.com/828",
+    "retrieved_at": "2026-09-08T03:47:27.933904+00:00",
+    "sha256": "0aa86b0df2a9493abb1c6ec27753ed8f9c14468b96dc72e908d12851386de162"
+  },
+  {
+    "path": "forums/821.html",
+    "url": "https://www.erdosproblems.com/forum/thread/821",
+    "retrieved_at": "2026-09-08T03:47:28.005705+00:00",
+    "sha256": "16fcc877117b98b41536b07171a11417a957de5cd8faa5dfe4ee5bec7209a956"
+  },
+  {
+    "path": "forums/828.html",
+    "url": "https://www.erdosproblems.com/forum/thread/828",
+    "retrieved_at": "2026-09-08T03:47:28.027730+00:00",
+    "sha256": "62d8900157a07ea0cb4d7d0d87e9d2857c3e8c865f6256e924f42e6ac20d6417"
+  },
+  {
+    "path": "pages/829.html",
+    "url": "https://www.erdosproblems.com/829",
+    "retrieved_at": "2026-09-08T03:47:28.047081+00:00",
+    "sha256": "a8c45aa839702f40c95e7bed41d89f7e6df04ff56b8b28ddd9e46aa3ce5086f8"
+  },
+  {
+    "path": "pages/835.html",
+    "url": "https://www.erdosproblems.com/835",
+    "retrieved_at": "2026-09-08T03:47:28.105861+00:00",
+    "sha256": "ece50172291348e0e7f3f6db329df6d34ba6a588ab1d73cefbc4a391395479a0"
+  },
+  {
+    "path": "forums/829.html",
+    "url": "https://www.erdosproblems.com/forum/thread/829",
+    "retrieved_at": "2026-09-08T03:47:28.156870+00:00",
+    "sha256": "0597cdf8bce26b5dfb452718cd2308544a64182d5e36cfd6ddc3ca7d4658e81b"
+  },
+  {
+    "path": "pages/849.html",
+    "url": "https://www.erdosproblems.com/849",
+    "retrieved_at": "2026-09-08T03:47:28.226868+00:00",
+    "sha256": "333a3481da9d2f462666a0c2c466216e89a4d1fd52755e2743b8bc9d5fd0a880"
+  },
+  {
+    "path": "pages/853.html",
+    "url": "https://www.erdosproblems.com/853",
+    "retrieved_at": "2026-09-08T03:47:28.248778+00:00",
+    "sha256": "3f41244a45f37a08e827fd01ce726a1999651b9a190f2dcf984737b27ff5264f"
+  },
+  {
+    "path": "forums/835.html",
+    "url": "https://www.erdosproblems.com/forum/thread/835",
+    "retrieved_at": "2026-09-08T03:47:28.266751+00:00",
+    "sha256": "ec887464cc846d737fcbd92c705b8656ad7b0d7eeb3500d276b0c9f9b1fe3ca2"
+  },
+  {
+    "path": "forums/849.html",
+    "url": "https://www.erdosproblems.com/forum/thread/849",
+    "retrieved_at": "2026-09-08T03:47:28.281841+00:00",
+    "sha256": "fba3548020e73a16ebde5c67852022a94d2fdfbc01d7834086d71bae2fe652b9"
+  },
+  {
+    "path": "pages/859.html",
+    "url": "https://www.erdosproblems.com/859",
+    "retrieved_at": "2026-09-08T03:47:28.326964+00:00",
+    "sha256": "fc53dfdf2770a665e7f3663522244be96092ee403cd21780c00177a8934da0a4"
+  },
+  {
+    "path": "forums/853.html",
+    "url": "https://www.erdosproblems.com/forum/thread/853",
+    "retrieved_at": "2026-09-08T03:47:28.435200+00:00",
+    "sha256": "e97e3752c7dfcc8533ded38cb954e03fc9ecd5fa51e2d0e0180d83f7c70b89b4"
+  },
+  {
+    "path": "pages/873.html",
+    "url": "https://www.erdosproblems.com/873",
+    "retrieved_at": "2026-09-08T03:47:28.441828+00:00",
+    "sha256": "8221376ccd1b558f8a31269f0d55d7daa0389a03ecd24cd7a487bc35a6b791bd"
+  },
+  {
+    "path": "forums/859.html",
+    "url": "https://www.erdosproblems.com/forum/thread/859",
+    "retrieved_at": "2026-09-08T03:47:28.467330+00:00",
+    "sha256": "11afc78fa498cc06297db01124b587fdef39f8d0897b8c6d0c2c62332e3575ca"
+  },
+  {
+    "path": "pages/885.html",
+    "url": "https://www.erdosproblems.com/885",
+    "retrieved_at": "2026-09-08T03:47:28.470792+00:00",
+    "sha256": "b4ed366fe1f19cf849a14a5aee3218f30abe659509b0bffc326df5b8c8e46b4e"
+  },
+  {
+    "path": "forums/885.html",
+    "url": "https://www.erdosproblems.com/forum/thread/885",
+    "retrieved_at": "2026-09-08T03:47:28.614721+00:00",
+    "sha256": "848a722965ad8f8343be4d6dcfba024376f1a7746e0824f7bd4076dee8f2bffc"
+  },
+  {
+    "path": "forums/873.html",
+    "url": "https://www.erdosproblems.com/forum/thread/873",
+    "retrieved_at": "2026-09-08T03:47:28.641006+00:00",
+    "sha256": "510357564ea16fdc68bcfd1deb89a18196fe21fd4592f1562e599618c7eccc3a"
+  },
+  {
+    "path": "pages/886.html",
+    "url": "https://www.erdosproblems.com/886",
+    "retrieved_at": "2026-09-08T03:47:28.672372+00:00",
+    "sha256": "f58b34384233dda47e8bf9ae07063bbd003efda5c6683d121db25f86232a4170"
+  },
+  {
+    "path": "pages/887.html",
+    "url": "https://www.erdosproblems.com/887",
+    "retrieved_at": "2026-09-08T03:47:28.693144+00:00",
+    "sha256": "e75be3dc2b99a498f3b83443d27ffb4989325cc83b6904f2a553af78893e0719"
+  },
+  {
+    "path": "pages/889.html",
+    "url": "https://www.erdosproblems.com/889",
+    "retrieved_at": "2026-09-08T03:47:28.811955+00:00",
+    "sha256": "0bfa00706764a4cc166313a32275f6aa8b68f9a0729f1e59fc4cdaa7646b4412"
+  },
+  {
+    "path": "forums/886.html",
+    "url": "https://www.erdosproblems.com/forum/thread/886",
+    "retrieved_at": "2026-09-08T03:47:28.815189+00:00",
+    "sha256": "df41a499bdd282b0121d25b0f0ad52898bb078d5ce1c0af7b633c0de1dd7ca74"
+  },
+  {
+    "path": "forums/887.html",
+    "url": "https://www.erdosproblems.com/forum/thread/887",
+    "retrieved_at": "2026-09-08T03:47:28.819129+00:00",
+    "sha256": "e663df813a378a9ce28506904dd08aa86f67552d0c3b3997db931e8004964605"
+  },
+  {
+    "path": "pages/890.html",
+    "url": "https://www.erdosproblems.com/890",
+    "retrieved_at": "2026-09-08T03:47:28.977490+00:00",
+    "sha256": "e60be86a3e1222167577d0134ef1c1aad1fc650f8a04d1b4d90d2d9f1e55ea6d"
+  },
+  {
+    "path": "forums/889.html",
+    "url": "https://www.erdosproblems.com/forum/thread/889",
+    "retrieved_at": "2026-09-08T03:47:29.025367+00:00",
+    "sha256": "dfb67a420567e0b5fd7dda5ced83e0daaa715af7f8f0210394e5892765940258"
+  },
+  {
+    "path": "forums/890.html",
+    "url": "https://www.erdosproblems.com/forum/thread/890",
+    "retrieved_at": "2026-09-08T03:47:29.140024+00:00",
+    "sha256": "1ece4dbf9875bb8455bf13b9546242eda6f41beb405b086b079e4a495994d34f"
+  },
+  {
+    "path": "pages/891.html",
+    "url": "https://www.erdosproblems.com/891",
+    "retrieved_at": "2026-09-08T03:47:29.316052+00:00",
+    "sha256": "0ffc12d9a3e66ead379984780aa5cae3254c66e06824e72d497d9bafee324b03"
+  },
+  {
+    "path": "pages/893.html",
+    "url": "https://www.erdosproblems.com/893",
+    "retrieved_at": "2026-09-08T03:47:29.349909+00:00",
+    "sha256": "b55238c247cd68fa25d383926360da4146c6ef196e5182466c49dd1b20f5012f"
+  },
+  {
+    "path": "forums/891.html",
+    "url": "https://www.erdosproblems.com/forum/thread/891",
+    "retrieved_at": "2026-09-08T03:47:29.470775+00:00",
+    "sha256": "2c92465d2be82e5bfee4f34fa3eddaf64d2d3ce61e88e1af1d7b12d0948015c1"
+  },
+  {
+    "path": "pages/912.html",
+    "url": "https://www.erdosproblems.com/912",
+    "retrieved_at": "2026-09-08T03:47:29.512643+00:00",
+    "sha256": "4daed9638be4cb8bf3131f2d0a6022d9d24e36ac53e3f42bd6e87d01f59a0433"
+  },
+  {
+    "path": "forums/893.html",
+    "url": "https://www.erdosproblems.com/forum/thread/893",
+    "retrieved_at": "2026-09-08T03:47:29.635328+00:00",
+    "sha256": "4087d1d033b5557a41dcb9e5eafe2875f77f4cf7cbd2a55df13fe350d46c8cd8"
+  },
+  {
+    "path": "pages/913.html",
+    "url": "https://www.erdosproblems.com/913",
+    "retrieved_at": "2026-09-08T03:47:29.774171+00:00",
+    "sha256": "ecde486bfb64e1f5a95d9e9638d1f4c44dc05fd34f0ee547ba31184f3685889f"
+  },
+  {
+    "path": "forums/912.html",
+    "url": "https://www.erdosproblems.com/forum/thread/912",
+    "retrieved_at": "2026-09-08T03:47:29.782973+00:00",
+    "sha256": "2f0954751ffcb64d121c64e7a5fce84ad42b350484d2eee7ec0313e882fbedb3"
+  },
+  {
+    "path": "pages/930.html",
+    "url": "https://www.erdosproblems.com/930",
+    "retrieved_at": "2026-09-08T03:47:29.940165+00:00",
+    "sha256": "00af16a112ad6038c48ab1fc0ea33df9c72c56d630330b67ed77a8a13ec54b3e"
+  },
+  {
+    "path": "forums/913.html",
+    "url": "https://www.erdosproblems.com/forum/thread/913",
+    "retrieved_at": "2026-09-08T03:47:29.962136+00:00",
+    "sha256": "1c1e8c78f16bba59a615c1f5b6ba6f0944cc6223efbb9501c3b686e3de68bbd5"
+  },
+  {
+    "path": "pages/931.html",
+    "url": "https://www.erdosproblems.com/931",
+    "retrieved_at": "2026-09-08T03:47:30.020778+00:00",
+    "sha256": "a4060b0d923bd96e1c898e145eddf6f75113dd95d17118fe59ca89a9d55cb5ce"
+  },
+  {
+    "path": "forums/930.html",
+    "url": "https://www.erdosproblems.com/forum/thread/930",
+    "retrieved_at": "2026-09-08T03:47:30.122377+00:00",
+    "sha256": "af301adaf27fbfe1c3c202b394b4bff01747a9b446b94bb6031c81f8307e2a52"
+  },
+  {
+    "path": "pages/932.html",
+    "url": "https://www.erdosproblems.com/932",
+    "retrieved_at": "2026-09-08T03:47:30.125976+00:00",
+    "sha256": "57422fd9866efe7b91e19611a6249ba3a84859dc80f491ea59eff883e92b4859"
+  },
+  {
+    "path": "forums/931.html",
+    "url": "https://www.erdosproblems.com/forum/thread/931",
+    "retrieved_at": "2026-09-08T03:47:30.306246+00:00",
+    "sha256": "0307b308549fdcd388305f320b023002bbb60b18ed59e669cbfb99d0dbaaf83e"
+  },
+  {
+    "path": "pages/933.html",
+    "url": "https://www.erdosproblems.com/933",
+    "retrieved_at": "2026-09-08T03:47:30.394813+00:00",
+    "sha256": "2e364f663ccc2dfe444b2ac77395508a173dd432045e2ca2a3f26cd39bd9779e"
+  },
+  {
+    "path": "forums/932.html",
+    "url": "https://www.erdosproblems.com/forum/thread/932",
+    "retrieved_at": "2026-09-08T03:47:30.476248+00:00",
+    "sha256": "972c0a750b4a3b9094c676511c7486d904492fa4340c8abed6fa8456ea99cbe7"
+  },
+  {
+    "path": "pages/936.html",
+    "url": "https://www.erdosproblems.com/936",
+    "retrieved_at": "2026-09-08T03:47:30.586941+00:00",
+    "sha256": "d37b0610960fafa3681ea17f43e0f3e59a3a1d453ba7025603542f239246d45b"
+  },
+  {
+    "path": "forums/933.html",
+    "url": "https://www.erdosproblems.com/forum/thread/933",
+    "retrieved_at": "2026-09-08T03:47:30.684236+00:00",
+    "sha256": "306de9e534593bed7579fb8d452f36c1a2feaa685e041364359df26bb19584bc"
+  },
+  {
+    "path": "forums/936.html",
+    "url": "https://www.erdosproblems.com/forum/thread/936",
+    "retrieved_at": "2026-09-08T03:47:30.747737+00:00",
+    "sha256": "cb657fbb88dff6ebf3e3b15c05d8e5be87da00b0444b35e88af5e5237da2617b"
+  },
+  {
+    "path": "pages/942.html",
+    "url": "https://www.erdosproblems.com/942",
+    "retrieved_at": "2026-09-08T03:47:30.750548+00:00",
+    "sha256": "1fc0649190e89c469e178a3e97e9b630dda699da57247fda47d505b342de03c2"
+  },
+  {
+    "path": "pages/943.html",
+    "url": "https://www.erdosproblems.com/943",
+    "retrieved_at": "2026-09-08T03:47:30.821854+00:00",
+    "sha256": "25844a0668799eed09b81caec1ae9af5c90af18ae836feb7cad3220a4877fd25"
+  },
+  {
+    "path": "forums/942.html",
+    "url": "https://www.erdosproblems.com/forum/thread/942",
+    "retrieved_at": "2026-09-08T03:47:30.836071+00:00",
+    "sha256": "7a9dfd6c5d99071076c6d80d5b309317545ca77c2c9ad1f3f9d9737946fd227b"
+  },
+  {
+    "path": "pages/944.html",
+    "url": "https://www.erdosproblems.com/944",
+    "retrieved_at": "2026-09-08T03:47:30.887448+00:00",
+    "sha256": "8a7b7567d2ca8f1f0f203b93aadf708ee16006b8121406c4ac9a7ef64f2cc83a"
+  },
+  {
+    "path": "pages/945.html",
+    "url": "https://www.erdosproblems.com/945",
+    "retrieved_at": "2026-09-08T03:47:30.912340+00:00",
+    "sha256": "a40a0998338fe32cd5794248c6e0eba70206df94abf77a69ee8406dadd72d5c2"
+  },
+  {
+    "path": "forums/943.html",
+    "url": "https://www.erdosproblems.com/forum/thread/943",
+    "retrieved_at": "2026-09-08T03:47:30.982102+00:00",
+    "sha256": "aac6422846d647595dc6fdbe9796f28a681cb242414e69cac9dd992363bd0375"
+  },
+  {
+    "path": "forums/944.html",
+    "url": "https://www.erdosproblems.com/forum/thread/944",
+    "retrieved_at": "2026-09-08T03:47:31.003182+00:00",
+    "sha256": "dd7e801f081e51bb98927cbe763b881511f80c1a1f298a819fc310ed9433d174"
+  },
+  {
+    "path": "forums/945.html",
+    "url": "https://www.erdosproblems.com/forum/thread/945",
+    "retrieved_at": "2026-09-08T03:47:31.036666+00:00",
+    "sha256": "330d0c957f16487b67f54f36ff543b733116faee4a3a3fedf05fd85eb0c69835"
+  },
+  {
+    "path": "pages/950.html",
+    "url": "https://www.erdosproblems.com/950",
+    "retrieved_at": "2026-09-08T03:47:31.138548+00:00",
+    "sha256": "5d5d41e2655671033bb4170695bfa434e0456a47fe58790146892bc4552fe3f0"
+  },
+  {
+    "path": "forums/949.html",
+    "url": "https://www.erdosproblems.com/forum/thread/949",
+    "retrieved_at": "2026-09-08T03:47:31.153647+00:00",
+    "sha256": "ec1261dc8f7eaaeca99d3f409f355131418d758fb869ac0a1f84899d14c385c7"
+  },
+  {
+    "path": "pages/949.html",
+    "url": "https://www.erdosproblems.com/949",
+    "retrieved_at": "2026-09-08T03:47:31.156485+00:00",
+    "sha256": "334b0ea4e978df4d6414c46d2a0967f34cf1a95773cfba53a79bc407e0d384e4"
+  },
+  {
+    "path": "pages/951.html",
+    "url": "https://www.erdosproblems.com/951",
+    "retrieved_at": "2026-09-08T03:47:31.323858+00:00",
+    "sha256": "1a2ba8a9ce7086f21c31a71b125582f8fb9e495ef75fc5bb811604191063d3c9"
+  },
+  {
+    "path": "forums/950.html",
+    "url": "https://www.erdosproblems.com/forum/thread/950",
+    "retrieved_at": "2026-09-08T03:47:31.478131+00:00",
+    "sha256": "af2abeead47ccd4cb08c94eb11077e6222b4702f4a2e008b8811ddc2c56eaa2f"
+  },
+  {
+    "path": "pages/962.html",
+    "url": "https://www.erdosproblems.com/962",
+    "retrieved_at": "2026-09-08T03:47:31.552193+00:00",
+    "sha256": "229c7cec23bf582103f3bafcabd27ac885fc1d63b7bc5fe3cfd1fbae293c730e"
+  },
+  {
+    "path": "pages/952.html",
+    "url": "https://www.erdosproblems.com/952",
+    "retrieved_at": "2026-09-08T03:47:31.565996+00:00",
+    "sha256": "d7e0bb78f886a89bdf346429883225bd62ea64b21bdac8088f6336cd733e56b4"
+  },
+  {
+    "path": "forums/951.html",
+    "url": "https://www.erdosproblems.com/forum/thread/951",
+    "retrieved_at": "2026-09-08T03:47:31.594953+00:00",
+    "sha256": "342ee13b35c3849633d52dc0f71612f23d9b924e6f88f88f8d9cd5755df8dc9f"
+  },
+  {
+    "path": "forums/952.html",
+    "url": "https://www.erdosproblems.com/forum/thread/952",
+    "retrieved_at": "2026-09-08T03:47:31.695226+00:00",
+    "sha256": "8ba6cc3d1fc4ab6f82897ceb4a6f3c1173a2331bf401f092916e66cc9055bf6e"
+  },
+  {
+    "path": "pages/972.html",
+    "url": "https://www.erdosproblems.com/972",
+    "retrieved_at": "2026-09-08T03:47:31.809997+00:00",
+    "sha256": "912860756524371182abed64f1148e6df8f9dce2e5c27f12c13658a349f73002"
+  },
+  {
+    "path": "forums/962.html",
+    "url": "https://www.erdosproblems.com/forum/thread/962",
+    "retrieved_at": "2026-09-08T03:47:31.861060+00:00",
+    "sha256": "c2cdcf3c444fbb345ab355cd14dccfe989b961d54971afe3e991b6a5ba3901cf"
+  },
+  {
+    "path": "pages/975.html",
+    "url": "https://www.erdosproblems.com/975",
+    "retrieved_at": "2026-09-08T03:47:31.955797+00:00",
+    "sha256": "a27653992829c848794fcd1892a0466c1da7bc0ba1675312336578857b6ab0d1"
+  },
+  {
+    "path": "forums/972.html",
+    "url": "https://www.erdosproblems.com/forum/thread/972",
+    "retrieved_at": "2026-09-08T03:47:32.045683+00:00",
+    "sha256": "2247f586e290c4523c0547b7a541cad02a056ff361a8952d2207fdc8b22a3676"
+  },
+  {
+    "path": "pages/978.html",
+    "url": "https://www.erdosproblems.com/978",
+    "retrieved_at": "2026-09-08T03:47:32.070963+00:00",
+    "sha256": "d31204dd1d2ca76eb0305aef0a4465eae45226c7f55daf6343e746e5266b2aa2"
+  },
+  {
+    "path": "forums/975.html",
+    "url": "https://www.erdosproblems.com/forum/thread/975",
+    "retrieved_at": "2026-09-08T03:47:32.123086+00:00",
+    "sha256": "5c43217211be95256b1803b9327132d65aac6a50a4c2f5e09f046c6c21c3f516"
+  },
+  {
+    "path": "pages/979.html",
+    "url": "https://www.erdosproblems.com/979",
+    "retrieved_at": "2026-09-08T03:47:32.154547+00:00",
+    "sha256": "bbfa7bb3c8010121803416ec8445f99ec2a095bc69aa609db8e2fa48e880345d"
+  },
+  {
+    "path": "forums/978.html",
+    "url": "https://www.erdosproblems.com/forum/thread/978",
+    "retrieved_at": "2026-09-08T03:47:32.290772+00:00",
+    "sha256": "6becd1061f560b05e34e3ffbd619b91c2555043e917e26be059e6c3afd2d9b2c"
+  },
+  {
+    "path": "pages/982.html",
+    "url": "https://www.erdosproblems.com/982",
+    "retrieved_at": "2026-09-08T03:47:32.322834+00:00",
+    "sha256": "dd32f2e95900c02212039101a89011b92ddef107a500cb110b05206246765dc1"
+  },
+  {
+    "path": "forums/979.html",
+    "url": "https://www.erdosproblems.com/forum/thread/979",
+    "retrieved_at": "2026-09-08T03:47:32.342594+00:00",
+    "sha256": "0791e51c73d54b669d2807110b154b10904a4226ced95c9e256de28a371fa7ea"
+  },
+  {
+    "path": "pages/985.html",
+    "url": "https://www.erdosproblems.com/985",
+    "retrieved_at": "2026-09-08T03:47:32.442169+00:00",
+    "sha256": "0ad8add6605a03b494e4b6b5ce674681db97e7c1a0d843006fbbfb8a07e5803e"
+  },
+  {
+    "path": "forums/982.html",
+    "url": "https://www.erdosproblems.com/forum/thread/982",
+    "retrieved_at": "2026-09-08T03:47:32.472304+00:00",
+    "sha256": "cdb5bd0d2fe630dcda1b24111c7427056d1737e3c9a51b9f120d27f092adfce3"
+  },
+  {
+    "path": "pages/1003.html",
+    "url": "https://www.erdosproblems.com/1003",
+    "retrieved_at": "2026-09-08T03:47:32.558082+00:00",
+    "sha256": "1377eb53827c677de8f74b7bafc19c04f969e0b3dff5e0ea4dcfd9d58821fbae"
+  },
+  {
+    "path": "forums/985.html",
+    "url": "https://www.erdosproblems.com/forum/thread/985",
+    "retrieved_at": "2026-09-08T03:47:32.564755+00:00",
+    "sha256": "d8a138fad2b0e018b22933cfddd32c8d6052bd229bb2b66c7585fce3fda55b3f"
+  },
+  {
+    "path": "pages/1004.html",
+    "url": "https://www.erdosproblems.com/1004",
+    "retrieved_at": "2026-09-08T03:47:32.598715+00:00",
+    "sha256": "21a7b82d70ef5a96c87ae2063b044231532d6eec888226e2e05db87062cacc4f"
+  },
+  {
+    "path": "pages/1049.html",
+    "url": "https://www.erdosproblems.com/1049",
+    "retrieved_at": "2026-09-08T03:47:32.705386+00:00",
+    "sha256": "fd977b87d1577a6ede0cfde473c89f3ae9d386a3d120cfda7a01b00835269aa8"
+  },
+  {
+    "path": "forums/1003.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1003",
+    "retrieved_at": "2026-09-08T03:47:32.709402+00:00",
+    "sha256": "097e4b3794da61eb9551ca0745402b1764d6652ffabcca3a30c9bbfe2f35aa1c"
+  },
+  {
+    "path": "forums/1004.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1004",
+    "retrieved_at": "2026-09-08T03:47:32.796495+00:00",
+    "sha256": "66ccf3de043e72d1d832c4202e34d339f65c97329929f187c318594faa067363"
+  },
+  {
+    "path": "pages/1056.html",
+    "url": "https://www.erdosproblems.com/1056",
+    "retrieved_at": "2026-09-08T03:47:32.800244+00:00",
+    "sha256": "6992c673d711f99694c55a8591cecb93cc0e54142ce990d586c1998591d2878f"
+  },
+  {
+    "path": "forums/1049.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1049",
+    "retrieved_at": "2026-09-08T03:47:33.006266+00:00",
+    "sha256": "55d78f2105652fd1b3b46fab9b83aa57969974a1ca40a0dd6e31d84e654872b7"
+  },
+  {
+    "path": "forums/1056.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1056",
+    "retrieved_at": "2026-09-08T03:47:33.036983+00:00",
+    "sha256": "2affb8f2675bb8e717cb0c4cfbd413a5d9c0580bb6c3d72d4fe528cff6041434"
+  },
+  {
+    "path": "pages/1057.html",
+    "url": "https://www.erdosproblems.com/1057",
+    "retrieved_at": "2026-09-08T03:47:33.093818+00:00",
+    "sha256": "699cbf80d4a3bec7bcf46b072fa84320920f66b3b340f5ca0ca47847a7408d1b"
+  },
+  {
+    "path": "pages/1059.html",
+    "url": "https://www.erdosproblems.com/1059",
+    "retrieved_at": "2026-09-08T03:47:33.274428+00:00",
+    "sha256": "a9e90e2840baee323321cb920848f410b2666855079d8d19883500ad2bee68d4"
+  },
+  {
+    "path": "forums/1057.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1057",
+    "retrieved_at": "2026-09-08T03:47:33.291198+00:00",
+    "sha256": "fbb6660cbc93f6f36fcf9432cd35b13fedb929cf41ec964f77d66b3e22bfeaa2"
+  },
+  {
+    "path": "forums/1059.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1059",
+    "retrieved_at": "2026-09-08T03:47:33.388768+00:00",
+    "sha256": "ef78eb736498ca3e27f684f84788f61a574e12ea84068415eb85b0a11481f68b"
+  },
+  {
+    "path": "pages/1060.html",
+    "url": "https://www.erdosproblems.com/1060",
+    "retrieved_at": "2026-09-08T03:47:33.451007+00:00",
+    "sha256": "ed90f6ab18a72252da10667b9f83fa9f5a5394d55fec83e00458d2e8cc3d5fd8"
+  },
+  {
+    "path": "pages/1062.html",
+    "url": "https://www.erdosproblems.com/1062",
+    "retrieved_at": "2026-09-08T03:47:33.507481+00:00",
+    "sha256": "307f3ccbcf325c62cad3d97aa94ab8650ea4009d9d33452af3c686a01f717807"
+  },
+  {
+    "path": "forums/1060.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1060",
+    "retrieved_at": "2026-09-08T03:47:33.624949+00:00",
+    "sha256": "01b386f46a3d03e2681eda3f2c3c726ce8019ec070ab7444711da2228d071093"
+  },
+  {
+    "path": "pages/1068.html",
+    "url": "https://www.erdosproblems.com/1068",
+    "retrieved_at": "2026-09-08T03:47:33.652331+00:00",
+    "sha256": "9c9c7fdeb115ad646eac599f556cc0c0165433430f877e300c7b8ab460ff8f68"
+  },
+  {
+    "path": "forums/1062.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1062",
+    "retrieved_at": "2026-09-08T03:47:33.790600+00:00",
+    "sha256": "e835be5ffa4c39e63421947edafed17f0b40709ac832a34d958de856a0196fb1"
+  },
+  {
+    "path": "pages/1072.html",
+    "url": "https://www.erdosproblems.com/1072",
+    "retrieved_at": "2026-09-08T03:47:33.794514+00:00",
+    "sha256": "d08e3e3dbd812c8d79f41130d3a02458ed9bb8e4d650454d8146ac82bd005bab"
+  },
+  {
+    "path": "pages/1073.html",
+    "url": "https://www.erdosproblems.com/1073",
+    "retrieved_at": "2026-09-08T03:47:33.820610+00:00",
+    "sha256": "3abd36eceb960783b3b8286337637207fc71bc90b30dc9b8d02eddd454a771b7"
+  },
+  {
+    "path": "forums/1072.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1072",
+    "retrieved_at": "2026-09-08T03:47:33.902736+00:00",
+    "sha256": "6ed3b3a5fa22fe2f4661d8d8536e1f0ee60d68aefe03f3995b5740d39130b24f"
+  },
+  {
+    "path": "forums/1073.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1073",
+    "retrieved_at": "2026-09-08T03:47:33.922928+00:00",
+    "sha256": "3e82ffb1c0c974158ede684dcd58a7eb6e2a195cb15edb1afbf3c8921c805ef1"
+  },
+  {
+    "path": "forums/1068.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1068",
+    "retrieved_at": "2026-09-08T03:47:33.944057+00:00",
+    "sha256": "8dfe77cb899146d1b6955ce89d14f9835356517a4527320d536a1e2118db109f"
+  },
+  {
+    "path": "pages/1082.html",
+    "url": "https://www.erdosproblems.com/1082",
+    "retrieved_at": "2026-09-08T03:47:33.993246+00:00",
+    "sha256": "ca6838129a8a751e78d84ec27278c117650172a49fd02f14f36e99ee5b66e3e8"
+  },
+  {
+    "path": "pages/1074.html",
+    "url": "https://www.erdosproblems.com/1074",
+    "retrieved_at": "2026-09-08T03:47:33.997192+00:00",
+    "sha256": "aa2a82ed27b3965c23fd6b2a8012a525f302dd6b030c708e83952955652acee5"
+  },
+  {
+    "path": "forums/1074.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1074",
+    "retrieved_at": "2026-09-08T03:47:34.082103+00:00",
+    "sha256": "8e63bab8a15a9cefa3d1d7fa92b0962a7acf646ba7ac7b22da0f26e767f22bc8"
+  },
+  {
+    "path": "pages/1085.html",
+    "url": "https://www.erdosproblems.com/1085",
+    "retrieved_at": "2026-09-08T03:47:34.099036+00:00",
+    "sha256": "ea1351beaa1e702de2256098d105c1f4aedcc3c082359a94f4e44462f53b8b32"
+  },
+  {
+    "path": "forums/1082.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1082",
+    "retrieved_at": "2026-09-08T03:47:34.233296+00:00",
+    "sha256": "253d83c700f8279e96c0a10f05c496ad363fbc33c4a2074bd1c39965b5849919"
+  },
+  {
+    "path": "forums/1085.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1085",
+    "retrieved_at": "2026-09-08T03:47:34.248960+00:00",
+    "sha256": "46599370408f663ed1aa4e23c833f073da7e9963732f539685dc130e21ed0a2e"
+  },
+  {
+    "path": "pages/1094.html",
+    "url": "https://www.erdosproblems.com/1094",
+    "retrieved_at": "2026-09-08T03:47:34.267416+00:00",
+    "sha256": "884b29e019cd2f2551d466d97bbab9331642eb64b6aaff8e0ba16f4eb850cc35"
+  },
+  {
+    "path": "pages/1095.html",
+    "url": "https://www.erdosproblems.com/1095",
+    "retrieved_at": "2026-09-08T03:47:34.347619+00:00",
+    "sha256": "934e3f2f2eb1c15158ee360bf3894631709bc743194c0c1aa0ff1140aac0e42b"
+  },
+  {
+    "path": "forums/1094.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1094",
+    "retrieved_at": "2026-09-08T03:47:34.360101+00:00",
+    "sha256": "9a33fce8d94f4d04cc18576a8732ce396cd7fa34d1ee7e7c4646594c53466ad5"
+  },
+  {
+    "path": "pages/1101.html",
+    "url": "https://www.erdosproblems.com/1101",
+    "retrieved_at": "2026-09-08T03:47:34.429451+00:00",
+    "sha256": "5a67b6228fd413143ed0efe08fd4b6c8fe06d6df76dea87b54b12c699d36e828"
+  },
+  {
+    "path": "pages/1106.html",
+    "url": "https://www.erdosproblems.com/1106",
+    "retrieved_at": "2026-09-08T03:47:34.433961+00:00",
+    "sha256": "d88dbeeb6c7c9e4b9c5caa00d0502e23f4665a98bb2ffaaccb00788fe3502a68"
+  },
+  {
+    "path": "forums/1095.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1095",
+    "retrieved_at": "2026-09-08T03:47:34.452699+00:00",
+    "sha256": "04ff832ec41717dde73b3969659fc7fb2ee27231d8a28995dc099fac9498b130"
+  },
+  {
+    "path": "forums/1101.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1101",
+    "retrieved_at": "2026-09-08T03:47:34.487352+00:00",
+    "sha256": "1da3df6fbc3bdc40d3518b52765696d7c04ded347761a1bee2ed24a492ec8577"
+  },
+  {
+    "path": "pages/1107.html",
+    "url": "https://www.erdosproblems.com/1107",
+    "retrieved_at": "2026-09-08T03:47:34.492634+00:00",
+    "sha256": "e8a42ee66684f0359b997529f73aae4dfadb88c68937bd5ffa0d2b5820880a65"
+  },
+  {
+    "path": "forums/1106.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1106",
+    "retrieved_at": "2026-09-08T03:47:34.586828+00:00",
+    "sha256": "7e047826c23094794d1a4160047121700317f50a75962c984d75a4fa1e641b46"
+  },
+  {
+    "path": "forums/1107.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1107",
+    "retrieved_at": "2026-09-08T03:47:34.642199+00:00",
+    "sha256": "c88f20f269e83c5e82ae225b12908c0f370a14ce0c4934bd63b718dd333597f0"
+  },
+  {
+    "path": "pages/1108.html",
+    "url": "https://www.erdosproblems.com/1108",
+    "retrieved_at": "2026-09-08T03:47:34.654135+00:00",
+    "sha256": "cb52418d6d62720d36c015a22a67646d305c9dcedd02de7de6fc7d75a9d1657f"
+  },
+  {
+    "path": "pages/1113.html",
+    "url": "https://www.erdosproblems.com/1113",
+    "retrieved_at": "2026-09-08T03:47:34.671776+00:00",
+    "sha256": "fa12c4315febf5d026881a491689cefbaec89476ac7cd92f1e633df7dfc7b82d"
+  },
+  {
+    "path": "forums/1108.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1108",
+    "retrieved_at": "2026-09-08T03:47:34.695282+00:00",
+    "sha256": "9489a70b27072404ef05e5c22c2b178bf60baf021c039a844cbce195ffe9847d"
+  },
+  {
+    "path": "pages/1135.html",
+    "url": "https://www.erdosproblems.com/1135",
+    "retrieved_at": "2026-09-08T03:47:34.759191+00:00",
+    "sha256": "78f683a610e6d702740fe1e3525ee810920522898d644bf4b97b20de201a2fd4"
+  },
+  {
+    "path": "forums/1113.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1113",
+    "retrieved_at": "2026-09-08T03:47:34.763251+00:00",
+    "sha256": "fd5705e26e1eaa234ef144aa096471345f635401cca959c80969066c1ff23467"
+  },
+  {
+    "path": "pages/1137.html",
+    "url": "https://www.erdosproblems.com/1137",
+    "retrieved_at": "2026-09-08T03:47:34.850203+00:00",
+    "sha256": "01d097dee8993a2a6a49b0821cbee82aced135de5ae83a5c8c534843fea6966c"
+  },
+  {
+    "path": "pages/1142.html",
+    "url": "https://www.erdosproblems.com/1142",
+    "retrieved_at": "2026-09-08T03:47:34.918971+00:00",
+    "sha256": "32f1c817aa362c312b51b7cdd4b65a0288a06363f11e5e4de801a4c609741e93"
+  },
+  {
+    "path": "forums/1135.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1135",
+    "retrieved_at": "2026-09-08T03:47:34.923183+00:00",
+    "sha256": "e3fa2b559ea4ad5f079552d3faaaed746a0a8c419ceccc19bc6e3123d884d91a"
+  },
+  {
+    "path": "pages/1175.html",
+    "url": "https://www.erdosproblems.com/1175",
+    "retrieved_at": "2026-09-08T03:47:34.930154+00:00",
+    "sha256": "ac5c397273c81fa32872153efe8f4debfd8e7c849b916f8268cf6a2f5bb9e557"
+  },
+  {
+    "path": "forums/1137.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1137",
+    "retrieved_at": "2026-09-08T03:47:35.032358+00:00",
+    "sha256": "48fb4d6217b4ef20162979eb46ea02fa01f34d105c4ba64035f181e9abfb99e0"
+  },
+  {
+    "path": "forums/1175.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1175",
+    "retrieved_at": "2026-09-08T03:47:35.039769+00:00",
+    "sha256": "77e11384f84f9c8eb69936301971dbdbf0a9b1170b0c44fae2eef62d403b1410"
+  },
+  {
+    "path": "forums/1142.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1142",
+    "retrieved_at": "2026-09-08T03:47:35.061215+00:00",
+    "sha256": "3198f956d3ebd1a08412cbfb453284f21ba9cc744cb0b151fcb941bcbc52dbe6"
+  },
+  {
+    "path": "pages/1192.html",
+    "url": "https://www.erdosproblems.com/1192",
+    "retrieved_at": "2026-09-08T03:47:35.198770+00:00",
+    "sha256": "7203c467937b98626f17a119fc7e5f4a212e8fd1962c022a9fa8ca10f42b7bcc"
+  },
+  {
+    "path": "pages/1203.html",
+    "url": "https://www.erdosproblems.com/1203",
+    "retrieved_at": "2026-09-08T03:47:35.233985+00:00",
+    "sha256": "aefe65133ee30c3ba36a3e82d330100041cc6723e184e58ad62ecca351631b23"
+  },
+  {
+    "path": "forums/1192.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1192",
+    "retrieved_at": "2026-09-08T03:47:35.243580+00:00",
+    "sha256": "ffb3ab8479c1b67c6ba52411eab759c0325a1a1fab6c5583ade2e779e0ce3143"
+  },
+  {
+    "path": "pages/1209.html",
+    "url": "https://www.erdosproblems.com/1209",
+    "retrieved_at": "2026-09-08T03:47:35.259273+00:00",
+    "sha256": "d7e21ec42dfefe09d816ef7fa895ea9b1ccfbc6b09caf4fcf4a07f01003403aa"
+  },
+  {
+    "path": "forums/1203.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1203",
+    "retrieved_at": "2026-09-08T03:47:35.302774+00:00",
+    "sha256": "82f37dcdc4252305e77f56c6e3284b9fbeca99217b47a4da585411bcb911e5c0"
+  },
+  {
+    "path": "forums/1209.html",
+    "url": "https://www.erdosproblems.com/forum/thread/1209",
+    "retrieved_at": "2026-09-08T03:47:35.327924+00:00",
+    "sha256": "41f5bc9ba680f90e2ac7bf6510ace9dd01afb96dc8225bd0ec88efc8530eca3b"
+  },
+  {
+    "path": "starfleetmath.html",
+    "url": "https://www.starfleetmath.com/",
+    "retrieved_at": "2026-09-08T03:47:35.392999+00:00",
+    "sha256": "a0fd62579258f29d18792c4f114f3d90a45077c6d4e5ab532cda045750b20c8e"
+  },
+  {
+    "path": "green-problems.pdf",
+    "url": "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+    "retrieved_at": "2026-09-08T03:47:36.406902+00:00",
+    "sha256": "e06971245914947f152550dee59bbb29fe0e798f0c51b2bc2557f824c2f9a44a"
+  }
+]

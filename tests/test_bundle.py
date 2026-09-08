@@ -343,6 +343,39 @@ def test_the_reference_builder_produces_an_admitted_bundle(tmp_path):
     assert result.sha256 == sha256_bytes(output.read_bytes())
 
 
+@pytest.mark.parametrize("extra_byte", [0, 1])
+def test_reference_builder_ten_mib_boundary(tmp_path, extra_byte):
+    import importlib.util
+    import random
+
+    root = Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location(
+        "build_submission_bundle", root / "scripts" / "build_submission_bundle.py"
+    )
+    assert spec and spec.loader
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+
+    # Vary the comments so this tests size, without tripping the compression-ratio policy.
+    size = 10 * 1024 * 1024 + extra_byte
+    text = random.Random(0).randbytes(size // 2 + 1).hex().encode()
+    padding = b"".join(b"--" + text[i:i + 997] + b"\n" for i in range(0, len(text), 997))
+    content = VALID_PROOF + padding[:size - len(VALID_PROOF)]
+    proof, output = tmp_path / "Main.lean", tmp_path / "submission.zip"
+    proof.write_bytes(content)
+    arguments = [
+        "--proof", str(proof), "--task-id", "fixture", "--task-sha256", TASK_DIGEST,
+        "--hotkey", HOTKEY, "--output", str(output),
+    ]
+    if extra_byte:
+        with pytest.raises(SystemExit, match="the maximum is 10485760"):
+            builder.main(arguments)
+        assert not output.exists()
+    else:
+        assert builder.main(arguments) == 0
+        assert load_proof_bundle(output.read_bytes()).proof.raw == content
+
+
 def test_the_reference_builder_refuses_to_overwrite(tmp_path):
     import importlib.util
 

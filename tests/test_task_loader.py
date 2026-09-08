@@ -8,7 +8,7 @@ import pytest
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import sha256_file
 from verifier.repository import tasks_repository_root
-from verifier.task_generator import task_id
+from verifier.task_generator import MAX_SUBMISSION_BYTES, task_id
 from verifier.task_loader import load_task, load_task_bundle, verify_trusted_hashes
 
 
@@ -35,6 +35,16 @@ def test_load_task_rejects_non_deterministic_id(tmp_path):
     with pytest.raises(VerifierError) as error:
         load_task(task)
     assert error.value.reason == ReasonCode.INVALID_MANIFEST
+
+
+def test_enlarging_a_released_task_requires_a_new_identity(tmp_path):
+    task = copied_task(tmp_path)
+    path = task / "manifest.json"
+    value = json.loads(path.read_text())
+    value["max_submission_bytes"] = MAX_SUBMISSION_BYTES
+    path.write_text(json.dumps(value))
+    with pytest.raises(VerifierError, match="identity is inconsistent"):
+        load_task_bundle(task)
 
 
 def test_load_task_rejects_legacy_polarity_mode(tmp_path):

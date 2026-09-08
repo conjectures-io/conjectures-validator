@@ -1,0 +1,20 @@
+{
+  "audited_retirement_log_entries": 25,
+  "denied_previous_task_ids": 518,
+  "erdos_targets": 227,
+  "fresh_lean_compilation": false,
+  "green_targets": 24,
+  "max_proof_bytes": 10000000,
+  "max_zip_bytes": 10485760,
+  "new_bundles_loaded_and_allowlisted": 502,
+  "old_bundles_loaded": 518,
+  "previous_tasks_commit": "a0282e5029b6102a64b113aefdfe6f4767136f40",
+  "removed_targets": 8,
+  "retained_targets": 251,
+  "retired_display_entries": 23,
+  "retired_names": 190,
+  "retired_type_hashes": 202,
+  "source_paths": 216,
+  "source_target_hashes_unchanged": true,
+  "trusted_payloads_byte_identical": true
+}

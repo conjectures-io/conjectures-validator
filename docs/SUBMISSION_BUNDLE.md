@@ -210,3 +210,7 @@ checked without streaming the entire payload, and tar entries carry owners, devi
 hardlinks, PAX attributes, and GNU sparse records — far more metadata to defend against. A
 ZIP's complete structure can be enumerated from its central directory before any entry data
 is decompressed, which is what the admission checks above rely on.
+
+The reverse proxy must allow at least the API ZIP ceiling (12 MiB, for example
+`client_max_body_size 12m;` in Nginx). A smaller proxy limit rejects a valid proof before
+it reaches API validation. The proof itself remains limited by the selected task manifest.
