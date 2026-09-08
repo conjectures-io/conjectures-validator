@@ -244,6 +244,7 @@ def _validate_manifest(manifest: TaskManifest) -> None:
             manifest.source_theorem,
             manifest.task_mode,
             manifest.adapter_version,
+            max_submission_bytes=manifest.max_submission_bytes,
         )
         if (
             manifest.task_id != expected_id
@@ -399,6 +400,7 @@ def _load_group_sources(
             tuple(item.theorem for item in result),
             manifest.task_mode,
             manifest.adapter_version,
+            max_submission_bytes=manifest.max_submission_bytes,
         )
         != manifest.task_id
     ):

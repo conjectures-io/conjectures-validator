@@ -1,0 +1,76 @@
+[
+  {
+    "theorem": "Erdos7.erdos_7",
+    "decision": "quarantine",
+    "reason": "Unresolved public solution work and axiom-dependent claims make this unsuitable for fresh admission without a separate adjudication.",
+    "source": "https://www.erdosproblems.com/forum/thread/7"
+  },
+  {
+    "theorem": "Erdos306.erdos_306",
+    "decision": "quarantine",
+    "reason": "An exact public mathematical/Lean solution claim exists, including assumptions asserted to follow from published estimates. A claim is enough to withhold freshness admission while its status is unresolved.",
+    "source": "https://www.erdosproblems.com/forum/thread/306#post-7086",
+    "additional_source": "https://doi.org/10.5281/zenodo.20767390"
+  },
+  {
+    "theorem": "Erdos456.erdos_456.parts.ii",
+    "decision": "exclude",
+    "reason": "A public writeup claims unconditional solutions to the first two questions, and a later post requests formalization of them. Lack of a Lean proof does not make this fresh.",
+    "source": "https://www.erdosproblems.com/forum/thread/456#post-6261"
+  },
+  {
+    "theorem": "Erdos598.erdos_598",
+    "decision": "exclude",
+    "reason": "The discussion identifies a prior mathematical independence resolution, with large-cardinal qualifications. This needs set-theoretic adjudication, not admission based on an open tag.",
+    "source": "https://www.erdosproblems.com/forum/thread/598#post-6877",
+    "additional_source": "https://mathoverflow.net/questions/511508"
+  },
+  {
+    "theorem": "Erdos1101.erdos_1101.parts.ii",
+    "decision": "quarantine",
+    "reason": "An exact subexponential-growth solution was posted and its standard review found no issue. It is excluded even though the polynomial-growth part i remains open.",
+    "source": "https://www.erdosproblems.com/forum/thread/1101#post-5956"
+  },
+  {
+    "theorem": "Erdos1133.erdos_1133",
+    "decision": "quarantine",
+    "reason": "An exact obstruction argument was posted, with a follow-up standard check reporting no issue; prior mathematical solution work prevents fresh admission.",
+    "source": "https://www.erdosproblems.com/forum/thread/1133#post-6030"
+  },
+  {
+    "theorem": "Erdos1201.erdos_1201",
+    "decision": "exclude",
+    "reason": "The original lower-density question was answered using Matomaki-Radziwill. Later errors discussed for a different natural-density follow-up do not undo that resolution.",
+    "source": "https://www.erdosproblems.com/forum/thread/1201#post-6087"
+  },
+  {
+    "theorem": "Erdos1150.erdos_1150",
+    "decision": "quarantine",
+    "reason": "A public ultraflat-polynomial solution claim remains disputed; the unresolved claim requires separate review before admission.",
+    "source": "https://www.erdosproblems.com/forum/thread/1150#post-4141"
+  },
+  {
+    "theorem": "Erdos881.erdos_881",
+    "decision": "quarantine",
+    "reason": "An exact negative solution claim for all k>=2 has unresolved gaps. It is withheld rather than treated as a clean open target.",
+    "source": "https://www.erdosproblems.com/forum/thread/881#post-6205"
+  },
+  {
+    "theorem": "Erdos596.erdos_596.variants.K4_K3_exceptional_iff",
+    "decision": "exclude",
+    "reason": "With the known finite Ramsey property, this asks the opposite polarity of retired problem 595. Admitting it would revive the same mathematical question under another name.",
+    "source": "https://www.erdosproblems.com/595"
+  },
+  {
+    "theorem": "Erdos968.erdos_968.variants.infinite_increasingTriples",
+    "decision": "exclude",
+    "reason": "It follows from published chains of large prime gaps and the prime number theorem. For u_n=p_n/n, u_(n+1)>u_n iff p_(n+1)-p_n>p_n/n. Infinitely many pairs of consecutive gaps much larger than log(p_n) therefore give the required triples. This is a reviewer's deduction from the cited theorem, not a claim that the paper names problem 968.",
+    "source": "https://arxiv.org/abs/1511.04468"
+  },
+  {
+    "theorem": "Green94.green_94",
+    "decision": "exclude",
+    "reason": "A positive answer for the geometric sequence refutes the active Erdos120.erdos_120 universal similarity conjecture. This creates a direct reward overlap even though the exact geometric question is open.",
+    "source": "https://www.erdosproblems.com/120"
+  }
+]

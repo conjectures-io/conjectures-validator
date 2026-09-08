@@ -82,7 +82,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 181
+    assert len({item.source_path for item in selected}) == 223
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -270,10 +270,18 @@ def test_retired_conjectures_are_readable_but_never_admissible():
         theorems.isdisjoint(row["theorems"]) for row in policy["allowed_task_bundles"]
     )
 
+    assert retired.repository_commit == policy["repository_commit"]
+    assert {entry["source"]["repository_commit"] for entry in retired.entries.values()} == {
+        "379fc0298dc146df549e7061c3ede0353a5bb51f",
+        "8432eac998110a563e03df65a28c117e97c8c142",
+    }
     # Each entry carries what a problem page renders, for both attack directions.
     for entry in retired.entries.values():
         assert entry["source"]["theorem"] == entry["theorem"]
-        assert entry["source"]["repository_commit"] == retired.repository_commit
+        # Historical statements retain their actual source pin across later repins.
+        source_commit = entry["source"]["repository_commit"]
+        assert len(source_commit) == 40
+        assert all(character in "0123456789abcdef" for character in source_commit)
         assert {task["task_mode"] for task in entry["tasks"]} == set(PRODUCTION_TASK_MODES)
         assert all(task["challenge_lean"].strip() for task in entry["tasks"])
 

@@ -1,0 +1,48 @@
+{
+  "files": [
+    {
+      "path": "pins.lock.json",
+      "sha256": "954b0fdac5767f7a2507643392d568035130145da08637790d259d5040dbcdf6"
+    },
+    {
+      "path": "verifier/task_generator.py",
+      "sha256": "5a2cabef8b88c9f24ab963b525c06820237805ce220b2c344c189029e4507c6a"
+    },
+    {
+      "path": "verifier/task_loader.py",
+      "sha256": "25103cce4548acfe72c2150f7f35e60e3c7e971a978e7e0960bcc855a57e8926"
+    },
+    {
+      "path": "verifier/task_pool.py",
+      "sha256": "8df6aca931639870030bf645c5c6591cf47586c9ae81b775850808e0ad76ac5e"
+    },
+    {
+      "path": "verifier/bundle.py",
+      "sha256": "42aca63c0612194b842ad81289cc39e2947cdde409031f232633f1b7e5d0df79"
+    },
+    {
+      "path": "scripts/build_submission_bundle.py",
+      "sha256": "d0b7736fc5072eaeaf97182354c18c8ab2b83c438e7d59fa916bc5a0cf724b95"
+    },
+    {
+      "path": "tests/test_task_generator.py",
+      "sha256": "f2acc27b1013256d7c636b120f03d3db8b2d26ecdaf753c0442b916d539a466b"
+    },
+    {
+      "path": "tests/test_task_loader.py",
+      "sha256": "474b828817c1105879f03e7f974f58bbe7e741f96be742c3703768fd6219ca66"
+    },
+    {
+      "path": "tests/test_task_pool.py",
+      "sha256": "560a15317d1f364308c5b54f195c3d2be71a4996356ca4989fad239e9321b8d3"
+    },
+    {
+      "path": "tests/test_bundle.py",
+      "sha256": "90f67999e87a520f5e076ee966e3197241c441032f750c7b5e94b91833f225e5"
+    },
+    {
+      "path": "tests/test_api_catalog.py",
+      "sha256": "68e45a1620c9fcfbf37fa2906af86e6813f65e77c0cf82d2afa1f261d16aa972"
+    }
+  ]
+}

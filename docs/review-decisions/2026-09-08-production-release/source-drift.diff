@@ -1,0 +1,1443 @@
+--- FormalConjectures/ErdosProblems/1049.lean
++++ FormalConjectures/ErdosProblems/1049.lean
+@@ -126,7 +126,7 @@
+     have h1 := h c hc
+     rw [Filter.eventually_cofinite] at h1
+     refine hinf (h1.subset fun n hn => ?_)
+-    simp only [Set.mem_setOf_eq, Real.dist_eq, sub_zero, not_lt]
++    simp only [Set.mem_ofPred_eq, Real.dist_eq, sub_zero, not_lt]
+     exact hn
+   -- Number of divisors of `n ∈ ℕ+` is at least 1 (since `1 ∈ n.divisors`).
+   have hcard_pos : ∀ (n : ℕ+), (1 : ℝ) ≤ ((n : ℕ).divisors.card : ℝ) := by
+@@ -145,7 +145,7 @@
+     apply key _ 1 (by norm_num)
+     convert Set.infinite_univ (α := ℕ+)
+     ext n
+-    simp only [one_pow, div_one, Set.mem_setOf_eq, Set.mem_univ, iff_true]
++    simp only [one_pow, div_one, Set.mem_ofPred_eq, Set.mem_univ, iff_true]
+     rw [abs_of_nonneg (by positivity)]; exact hcard_pos n
+   -- Case t = 0: RHS terms are τ(n)/0 = 0 by Lean's convention, so RHS sum = 0.
+   -- LHS terms are 1/(0 - 1) = -1, so LHS is non-summable.
+@@ -158,7 +158,7 @@
+     apply key _ 1 (by norm_num)
+     convert Set.infinite_univ (α := ℕ+)
+     ext n
+-    simp only [zero_pow n.pos.ne', zero_sub, Set.mem_setOf_eq, Set.mem_univ, iff_true]
++    simp only [zero_pow n.pos.ne', zero_sub, Set.mem_ofPred_eq, Set.mem_univ, iff_true]
+     norm_num
+   -- Case t = -1: alternating signs make `1/(t^n - 1)` vanish at even n but
+   -- equal -1/2 at odd n. The set of odd `n ∈ ℕ+` is infinite, which is enough
+@@ -183,7 +183,7 @@
+       apply key _ 1 (by norm_num)
+       convert Set.infinite_univ (α := ℕ+)
+       ext n
+-      simp only [Set.mem_setOf_eq, Set.mem_univ, iff_true]
++      simp only [Set.mem_ofPred_eq, Set.mem_univ, iff_true]
+       -- |(-1)^n| = 1, so |τ(n) / (-1)^n| = τ(n) ≥ 1.
+       rw [abs_div, abs_pow, abs_neg, abs_one, one_pow, div_one]
+       rw [abs_of_nonneg (by positivity)]
+@@ -216,7 +216,7 @@
+       apply key _ (1/2) (by norm_num)
+       convert Set.infinite_univ (α := ℕ+)
+       ext n
+-      simp only [Set.mem_setOf_eq, Set.mem_univ, iff_true]
++      simp only [Set.mem_ofPred_eq, Set.mem_univ, iff_true]
+       have hden_bound : |t ^ (n : ℕ) - 1| ≤ 2 := by
+         calc |t ^ (n : ℕ) - 1| ≤ |t ^ (n : ℕ)| + |(1 : ℝ)| := abs_sub _ _
+           _ ≤ 1 + 1 := by have := hbound n; rw [abs_one]; linarith
+@@ -229,7 +229,7 @@
+       apply key _ 1 (by norm_num)
+       convert Set.infinite_univ (α := ℕ+)
+       ext n
+-      simp only [Set.mem_setOf_eq, Set.mem_univ, iff_true]
++      simp only [Set.mem_ofPred_eq, Set.mem_univ, iff_true]
+       rw [abs_div, le_div_iff₀ (abs_pos.mpr (htn_ne_zero n))]
+       rw [abs_of_nonneg (by positivity : (0:ℝ) ≤ ((n : ℕ).divisors.card : ℝ))]
+       have := hbound n
+@@ -246,9 +246,8 @@
+      ∑' n : ℕ+, 1 / ((t : ℝ) ^ (n : ℕ) - 1) =
+      ∑' n : ℕ+, (n : ℕ).divisors.card / ((t : ℝ) ^ (n : ℕ)) := by
+   intro t
+-  by_cases ht : 1 < |(t : ℝ)|
++  obtain ht | ht := lt_or_ge 1 |(t : ℝ)|
+   · exact lambert_convergent (t : ℝ) ht
+-  · push_neg at ht
+-    exact lambert_divergent (t : ℝ) ht
++  · exact lambert_divergent (t : ℝ) ht
+ 
+ end Erdos1049
+
+--- FormalConjectures/ErdosProblems/1062.lean
++++ FormalConjectures/ErdosProblems/1062.lean
+@@ -15,7 +15,6 @@
+ -/
+ 
+ import FormalConjecturesUtil
+-import Mathlib.Topology.Basic
+ 
+ /-!
+ # Erdős Problem 1062
+@@ -33,10 +32,10 @@
+ def ForkFree (A : Set ℕ) : Prop :=
+   ∀ a ∈ A, ({b | b ∈ A \ {a} ∧ a ∣ b} : Set ℕ).Subsingleton
+ 
+-open scoped Classical in
+ /-- The extremal function from Erdős problem 1062: the largest size of a fork-free subset of
+ `{1,...,n}`. -/
+ noncomputable def f (n : ℕ) : ℕ :=
++  open scoped Classical in
+   Nat.findGreatest (fun k => ∃ A ⊆ Set.Icc 1 n, ForkFree A ∧ A.ncard = k) n
+ 
+ -- TODO: Add erdos_1062.parts.i: How large can $f(n)$ be?
+@@ -64,11 +63,11 @@
+     _ ≤ f n := Nat.le_findGreatest (by omega)
+       ⟨A, by simp only [Finset.coe_Icc, A]; gcongr; omega, ?_, by
+         simp [A, -Finset.coe_Icc]⟩
+-  simp only [ForkFree, Finset.coe_Icc, Set.mem_Icc, Set.mem_diff, Set.mem_singleton_iff, and_assoc,
++  simp only [ForkFree, Finset.coe_Icc, Set.mem_Icc, Set.mem_sdiff, Set.mem_singleton_iff, and_assoc,
+     and_imp, A]
+   rintro a ha -
+   refine Set.subsingleton_of_forall_eq (a * 2) ?_
+-  simp only [Set.mem_setOf_eq, and_imp]
++  simp only [Set.mem_ofPred_eq, and_imp]
+   rintro _ _ hk _ ⟨k, rfl⟩
+   match k with
+   | 0 | 1 | 2 => simp_all
+
+--- FormalConjectures/ErdosProblems/1113.lean
++++ FormalConjectures/ErdosProblems/1113.lean
+@@ -60,7 +60,8 @@
+ Sierpiński [Si60] proved that there are infinitely many Sierpiński numbers, using covering
+ systems to construct suitable covering sets for any $k$ satisfying a certain congruence.
+ -/
+-@[category research solved, AMS 11]
++@[category research solved, AMS 11,
++  formal_proof using lean4 at "https://github.com/HowieHwong/lean-erdos-proofs/blob/b8b641ba2d00dc4d1fe205a078a4159372672459/Erdos/P1113.lean#L22"]
+ theorem erdos_1113.variants.infinitely_many_sierpinski :
+     Set.Infinite {k : ℕ | k.IsSierpinskiNumber} := by
+   sorry
+
+--- FormalConjectures/ErdosProblems/1135.lean
++++ FormalConjectures/ErdosProblems/1135.lean
+@@ -14,6 +14,7 @@
+ limitations under the License.
+ -/
+ 
++import FormalConjecturesUtil
+ import FormalConjectures.Wikipedia.CollatzConjecture
+ 
+ /-!
+
+--- FormalConjectures/ErdosProblems/1142.lean
++++ FormalConjectures/ErdosProblems/1142.lean
+@@ -66,7 +66,7 @@
+   `(tactic| (
+     refine ⟨by omega, fun k hk hlt => ?_⟩
+     have : k ≤ $bound := by
+-      by_contra h; push_neg at h
++      by_contra! h
+       exact absurd (Nat.pow_le_pow_right (by omega : 1 ≤ 2) h) (by omega)
+     interval_cases k <;> simp_all (config := { decide := true })))
+ 
+
+--- FormalConjectures/ErdosProblems/1192.lean
++++ FormalConjectures/ErdosProblems/1192.lean
+@@ -27,7 +27,7 @@
+ -/
+ 
+ open Nat Filter Finset Set
+-open scoped Asymptotics Classical BigOperators
++open scoped Asymptotics BigOperators
+ 
+ namespace Erdos1192
+ 
+@@ -62,7 +62,7 @@
+   dsimp [f_r]
+   have h : { v : Fin 1 → ℕ | (∀ i, v i ∈ ({n} : Set ℕ)) ∧ ∑ i, v i = n } = { fun _ ↦ n } := by
+     ext v
+-    simp only [Set.mem_setOf_eq, Set.mem_singleton_iff]
++    simp only [Set.mem_ofPred_eq, Set.mem_singleton_iff]
+     constructor
+     · rintro ⟨h1, _⟩
+       ext i
+@@ -78,7 +78,7 @@
+   dsimp [f_r]
+   have h : { v : Fin 1 → ℕ | (∀ i, v i ∈ ({0} : Set ℕ)) ∧ ∑ i, v i = 1 } = ∅ := by
+     ext v
+-    simp only [Set.mem_setOf_eq, Set.mem_singleton_iff, Set.mem_empty_iff_false, iff_false]
++    simp only [Set.mem_ofPred_eq, Set.mem_singleton_iff, Set.mem_empty_iff_false, iff_false]
+     rintro ⟨h1, h2⟩
+     have h3 : v = fun _ ↦ 0 := by ext i; exact h1 i
+     rw [h3] at h2
+@@ -99,6 +99,7 @@
+           (fun (x : ℕ) ↦ (x : ℝ)) := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Erdős and Rényi proved by the probabilistic method that there exists a set $A$ such that
+ $$\sum_{n\leq x}f_r(n)^2 \ll x$$ and $$\lvert A\cap [1,x]\rvert\gg x^{1/r}$$ for all $x$.
+@@ -109,7 +110,7 @@
+       ((fun (x : ℕ) ↦ ∑ n ∈ range (x + 1), (f_r A r n : ℝ) ^ 2) =O[atTop]
+         (fun (x : ℕ) ↦ (x : ℝ))) ∧
+       ((fun (x : ℕ) ↦ (x : ℝ) ^ (1 / (r : ℝ))) =O[atTop]
+-        (fun (x : ℕ) ↦ (count A x : ℝ))) := by
++        (fun (x : ℕ) ↦ (count (· ∈ A) x : ℝ))) := by
+   sorry
+ 
+ /--
+
+--- FormalConjectures/ErdosProblems/124.lean
++++ FormalConjectures/ErdosProblems/124.lean
+@@ -61,15 +61,16 @@
+   sorry
+ 
+ /--
+-All sufficiently large integers can be written as $a + b + c$ where $a$ has only the digits $0, 1$
+-in base $3$, $b$ only the digits $0, 1$ in base $4$, $c$ only the digits $0, 1$ in base $7$.
++All sufficiently large integers can be written as $a + b + c$, where $a$, $b$, and $c$ are
++divisible by $3$, $4$, and $7$ respectively, and after division by that base have only the
++digits $0, 1$ in that base.
+ 
+-Provee by Burr, Erdős, Graham, and Li [BEGL96]
++Proved by Burr, Erdős, Graham, and Li [BEGL96]
+ -/
+ @[category research solved, AMS 11]
+-lemma erdos124.ne_zero_three_four_seven {k : ℕ} (hk : k ≠ 0) :
++lemma erdos124.ne_zero_three_four_seven :
+     ∀ᶠ n in atTop,
+-      n ∈ sumsOfDistinctPowers 3 k + sumsOfDistinctPowers 4 k + sumsOfDistinctPowers 7 k :=
++      n ∈ sumsOfDistinctPowers 3 1 + sumsOfDistinctPowers 4 1 + sumsOfDistinctPowers 7 1 :=
+   sorry
+ 
+ /--
+@@ -80,7 +81,8 @@
+ 
+ Reported by Burr, Erdős, Graham, and Li [BEGL96] as an observation of Pomerance
+ -/
+-@[category research solved, AMS 11]
++@[category research solved, AMS 11,
++  formal_proof using lean4 at "https://github.com/arex1337/formal-conjectures-proofs/blob/3b7d581c75fd00e482deabfb20675cf3ccfaf49f/Erdos124/Converse.lean"]
+ lemma erdos124.converse {D : Finset ℕ} (hD₃ : ∀ d ∈ D, 3 ≤ d)
+     (h : ∀ᶠ n in atTop, n ∈ ∑ d ∈ D, sumsOfDistinctPowers d 0) : 1 ≤ ∑ d ∈ D, (d - 1 : ℚ)⁻¹ :=
+   sorry
+
+--- FormalConjectures/ErdosProblems/14.lean
++++ FormalConjectures/ErdosProblems/14.lean
+@@ -15,7 +15,7 @@
+ -/
+ 
+ import FormalConjecturesUtil
+-import FormalConjecturesForMathlib.Combinatorics.Basic
++
+ 
+ /-!
+ # Erdős Problem 14
+
+--- FormalConjectures/ErdosProblems/141.lean
++++ FormalConjectures/ErdosProblems/141.lean
+@@ -43,9 +43,8 @@
+   use 1
+   constructor
+   · aesop
+-  · norm_num [exists_lt_succ_right, or_assoc, eq_comm, Set.insert_def,
+-    show (2).nth Nat.Prime = 5 from nth_count prime_five,
+-    show (3).nth Nat.Prime = 7 from Nat.nth_count (by decide : (7).Prime)]
++  · norm_num [exists_lt_succ_right, Nat.le_one_iff_eq_zero_or_eq_one]
++    grind
+ 
+ /--
+ The predicate that a set `s` is both an arithmetic progression of length `l` and a progression
+@@ -65,7 +64,8 @@
+     unfold Set.IsAPOfLengthWith
+     constructor
+     · aesop
+-    · norm_num [exists_lt_succ_right, or_assoc, eq_comm, Set.insert_def]
++    · norm_num [exists_lt_succ_right, Nat.le_one_iff_eq_zero_or_eq_one]
++      grind
+   · exact first_three_odd_primes
+ 
+ /--
+
+--- FormalConjectures/ErdosProblems/156.lean
++++ FormalConjectures/ErdosProblems/156.lean
+@@ -27,13 +27,14 @@
+ -/
+ 
+ open Finset Filter
+-open scoped Classical
+ 
+ namespace Erdos156
++
+ /--
+ The size of the smallest maximal Sidon set in $\{1, \dots, N\}$.
+ -/
+ noncomputable def minMaximalSidonSet (N : ℕ) : ℕ :=
++  open scoped Classical in
+   sInf (((Icc 1 N).powerset.filter fun (A : Finset ℕ) ↦
+     Set.IsMaximalSidonSetIn (A : Set ℕ) N).image card : Set ℕ)
+ 
+
+--- FormalConjectures/ErdosProblems/158.lean
++++ FormalConjectures/ErdosProblems/158.lean
+@@ -86,7 +86,7 @@
+   · filter_upwards [hc] with n hn
+     grw [hn]
+   · refine .const_mul_atTop hc_pos ?_
+-    simpa using (tendsto_rpow_atTop (by linarith : 0 < 1 / (2 : ℝ))).comp
++    simpa [Function.comp_def] using (tendsto_rpow_atTop (by linarith : 0 < 1 / (2 : ℝ))).comp
+       (Real.tendsto_log_atTop.comp tendsto_natCast_atTop_atTop)
+ 
+ end Erdos158
+
+--- FormalConjectures/ErdosProblems/168.lean
++++ FormalConjectures/ErdosProblems/168.lean
+@@ -79,8 +79,7 @@
+     refine Finset.sup_le ?_
+     intro T hT
+     rw [mem_IntervalNonTernarySets_iff] at hT
+-    by_contra h_lt
+-    push_neg at h_lt
++    by_contra! h_lt
+     have h_eq := hS'' T hT.2 hT.1 (by omega)
+     omega
+   omega
+
+--- FormalConjectures/ErdosProblems/17.lean
++++ FormalConjectures/ErdosProblems/17.lean
+@@ -106,12 +106,22 @@
+     -- difference of two primes `≤ 97`.
+     refine ⟨by norm_num, ?_⟩
+     rw [cluster_iff 97 (by norm_num)]
+-    set_option maxRecDepth 8000 in decide
++    simp only [Nat.reduceSub, Finset.mem_range, Nat.reduceAdd, not_forall, not_exists, not_and,
++      not_le]
++    refine ⟨88, by norm_num, by norm_num, ?_⟩
++    intro x xl hx xl
++    suffices 9 < x by
++      lia
++    contrapose! xl
++    interval_cases x <;> norm_num
++    · contrapose hx
++      exact Nat.not_prime_one
++    · contrapose hx
++      norm_num
+   · -- `97` is a lower bound: every prime `< 97` is a cluster prime, so cannot lie
+     -- in the set of non-cluster primes.
+     rintro b ⟨hbp, hbnc⟩
+-    by_contra hlt
+-    push_neg at hlt
++    by_contra! hlt
+     interval_cases b <;>
+       first
+         | exact absurd hbp (by decide)
+
+--- FormalConjectures/ErdosProblems/184.lean
++++ FormalConjectures/ErdosProblems/184.lean
+@@ -31,7 +31,7 @@
+   Mathematics and its Applications (Proc. Conf., Oxford, 1969) (1971), 97-109.
+ -/
+ 
+-open Filter SimpleGraph Classical
++open Filter SimpleGraph
+ 
+ namespace Erdos184
+ 
+@@ -39,6 +39,7 @@
+ A graph $H$ is a cycle or an edge if it is connected and 2-regular, or if it has exactly one edge.
+ -/
+ def IsCycleOrEdge {U : Type*} [Fintype U] (H : SimpleGraph U) : Prop :=
++  open scoped Classical in
+   (H.Connected ∧ H.IsRegularOfDegree 2) ∨ H.edgeFinset.card = 1
+ 
+ /-- D is a decomposition of G into subgraphs. -/
+@@ -46,6 +47,7 @@
+   Set.PairwiseDisjoint (D : Set G.Subgraph) (fun H ↦ H.edgeSet) ∧
+   (⋃ H ∈ D, H.edgeSet) = G.edgeSet
+ 
++open scoped Classical in
+ /--
+ Any graph on $n$ vertices can be decomposed into $O(n)$ many edge-disjoint cycles and edges.
+ -/
+@@ -60,6 +62,7 @@
+         (D.card : ℝ) ≤ f (Fintype.card V) := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Erdős and Gallai [EGP66] proved that $O(n \log n)$ many cycles and edges suffices.
+ -/
+@@ -74,6 +77,7 @@
+         (D.card : ℝ) ≤ f (Fintype.card V) := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ The graph $K_{3,n-3}$ shows that at least $(1+c)n$ many cycles and edges are required, for some
+ constant $c>0$.
+@@ -88,6 +92,7 @@
+         (1 + c) * (n : ℝ) ≤ (D.card : ℝ) := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ In [Er71] Erdős suggests that only $n-1$ many cycles and edges are required if we do not
+ require them to be edge-disjoint.
+@@ -102,6 +107,7 @@
+         (D.card : ℝ) ≤ (Fintype.card V : ℝ) - 1 := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ The best bound available is due to Bucić and Montgomery [BM22], who prove that $O(n\log^* n)$ many
+ cycles and edges suffice, where $\log^*$ is the iterated logarithm function.
+@@ -117,6 +123,7 @@
+         (D.card : ℝ) ≤ f (Fintype.card V) := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Conlon, Fox, and Sudakov [CFS14] proved that $O_\epsilon(n)$ cycles and edges suffice if $G$ has
+ minimum degree at least $\epsilon n$, for any $\epsilon>0$.
+
+--- FormalConjectures/ErdosProblems/218.lean
++++ FormalConjectures/ErdosProblems/218.lean
+@@ -33,7 +33,7 @@
+   sorry
+ 
+ /--
+-The set of indices $n$ for which a prime gap is preceeded by a larger or equal prime gap has a
++The set of indices $n$ for which a prime gap is preceded by a larger or equal prime gap has a
+ natural density of $\frac 1 2$.
+ -/
+ @[category research open, AMS 11]
+@@ -41,7 +41,7 @@
+   sorry
+ 
+ /--
+-There are infintely many indices $n$ such that the prime gap at $n$ is equal to the prime gap
++There are infinitely many indices $n$ such that the prime gap at $n$ is equal to the prime gap
+ at $n+1$. This is equivalent to the existence of infinitely many arithmetic progressions of
+ length $3$, see `erdos_141.variants.infinite_three`.
+ -/
+
+--- FormalConjectures/ErdosProblems/23.lean
++++ FormalConjectures/ErdosProblems/23.lean
+@@ -26,10 +26,11 @@
+ * [McKay, Extremal graphs for bipartization of triangle-free graphs](https://users.cecs.anu.edu.au/~bdm/data/graphs.html)
+ -/
+ 
+-open SimpleGraph BigOperators Classical
++open SimpleGraph BigOperators
+ 
+ namespace Erdos23
+ 
++open scoped Classical in
+ /--
+ Every triangle-free graph on $5$ vertices can be made bipartite by removing at most $1$ edge.
+ This is the $n = 1$ case of Erdős Problem 23.
+@@ -40,6 +41,7 @@
+         H ≤ G ∧ H.IsBipartite ∧ (G.edgeFinset \ H.edgeFinset).card ≤ 1 := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ There exists a triangle-free graph on $5$ vertices such that at least $1$ edge must be removed
+ to make it bipartite. This shows the bound in `erdos_23_n1` is tight.
+@@ -50,6 +52,7 @@
+         H ≤ G → H.IsBipartite → 1 ≤ (G.edgeFinset \ H.edgeFinset).card := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Every triangle-free graph on $25$ vertices can be made bipartite by removing at most $25$
+ edges.
+@@ -64,6 +67,7 @@
+         H ≤ G ∧ H.IsBipartite ∧ (G.edgeFinset \ H.edgeFinset).card ≤ 25 := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ There exists a triangle-free graph on $25$ vertices such that at least $25$ edges must be
+ removed to make it bipartite.  The balanced blow-up of $C_5$ with five parts of size $5$
+@@ -84,6 +88,7 @@
+ def blowupC5 (n : ℕ) : SimpleGraph (ZMod 5 × Fin n) :=
+   SimpleGraph.fromRel fun (i, _) (j, _) => i + 1 = j ∨ j + 1 = i
+ 
++open scoped Classical in
+ /--
+ The blow-up of $C_5$ shows that the bound $n^2$ in Erdős Problem 23 is tight:
+ any bipartite subgraph must omit at least $n^2$ edges.
+@@ -94,6 +99,7 @@
+     n ^ 2 ≤ ((blowupC5 n).edgeFinset \ H.edgeFinset).card := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Can every triangle-free graph on $5n$ vertices be made bipartite by deleting at most $n^2$ edges?
+ -/
+
+--- FormalConjectures/ErdosProblems/241.lean
++++ FormalConjectures/ErdosProblems/241.lean
+@@ -29,7 +29,7 @@
+ -/
+ 
+ open Filter Finset
+-open scoped Asymptotics Classical
++open scoped Asymptotics
+ 
+ namespace Erdos241
+ 
+@@ -40,6 +40,7 @@
+ Formalization note: this is generalized to allow for different $r$.
+ -/
+ noncomputable def f (N r : ℕ) : ℕ :=
++  open scoped Classical in
+   letI candidates := (Icc 1 N).powerset.filter (fun A ↦
+     ∀ m₁ m₂ : Multiset ℕ,
+       m₁.card = r → m₂.card = r →
+
+--- FormalConjectures/ErdosProblems/25.lean
++++ FormalConjectures/ErdosProblems/25.lean
+@@ -23,7 +23,6 @@
+ 
+ open Filter Finset Real Nat Set
+ open scoped Topology
+-open Classical
+ 
+ namespace Erdos25
+ 
+
+--- FormalConjectures/ErdosProblems/274.lean
++++ FormalConjectures/ErdosProblems/274.lean
+@@ -40,7 +40,7 @@
+ 
+ Note that this differs from `Partition (α := Subgroup G)` because the covering condition there
+ invokes `Subgroup.sup` which is subgroup generation and thus stronger than union. This definition
+-is easier to use in this contect than the alternative `Partition (α := Set G)`, which lacks
++is easier to use in this context than the alternative `Partition (α := Set G)`, which lacks
+ subgroup definitions such as `Subgroup.index`. -/
+ structure Group.ExactCovering (G : Type*) [Group G] (ι : Type*) [Fintype ι] where
+   parts : ι → Subgroup G
+
+--- FormalConjectures/ErdosProblems/282.lean
++++ FormalConjectures/ErdosProblems/282.lean
+@@ -45,13 +45,7 @@
+ 
+ @[category test, AMS 5]
+ theorem greedyUnitFractionRem_zero (n : ℕ) : greedyUnitFractionRem .univ (1 / n) 0 = 0 := by
+-  have : sInf { m | n ≤ m } = n := by
+-    rw [Nat.sInf_def, @Nat.find_eq_iff]
+-    · aesop
+-    · rw [Set.nonempty_def]
+-      use n
+-      aesop
+-  simp [greedyUnitFractionRem, this]
++  simp [greedyUnitFractionRem, Set.Ici_def]
+ 
+ @[category test, AMS 5]
+ theorem greedyUnitFractionRem_one (n : ℕ) : greedyUnitFractionRem .univ (1 / n) 1 = 0 := by
+@@ -98,12 +92,7 @@
+ 
+ @[category test, AMS 5]
+ theorem greedyUnitFractionRem_sq_one : greedyUnitFractionRem { n | IsSquare n } 1 0 = 0 := by
+-  have : sInf {n : ℕ | IsSquare n ∧ 1 ≤ n} = 1 := by
+-    rw [Nat.sInf_def, @Nat.find_eq_iff]
+-    · aesop
+-    · rw [Set.nonempty_def]
+-      use 4
+-      norm_num
++  have : sInf {n : ℕ | IsSquare n ∧ 1 ≤ n} = 1 := IsLeast.csInf_eq <| by decide
+   aesop (add simp [greedyUnitFractionRem])
+ 
+ /--
+
+--- FormalConjectures/ErdosProblems/3.lean
++++ FormalConjectures/ErdosProblems/3.lean
+@@ -25,7 +25,7 @@
+ namespace Erdos3
+ 
+ /--
+-If $A \subset \mathbb{N} has $\sum_{n \in A}\frac 1 n = \infty$, then must $A$ contain arbitrarily
++If $A \subset \mathbb{N}$ has $\sum_{n \in A}\frac 1 n = \infty$, then must $A$ contain arbitrarily
+ long arithmetic progressions?
+ -/
+ @[category research open, AMS 11]
+
+--- FormalConjectures/ErdosProblems/30.lean
++++ FormalConjectures/ErdosProblems/30.lean
+@@ -33,7 +33,7 @@
+ open Filter
+ 
+ /--
+-Is it true that, for every $\varepsilon > 0$, $h(N) = \sqrt N + O_{\varespilon}(N^\varespilon)
++Is it true that, for every $\varepsilon > 0$, $h(N) = \sqrt N + O_{\varepsilon}(N^\varepsilon)$
+ -/
+ @[category research open, AMS 11]
+ theorem erdos_30 : answer(sorry) ↔
+
+--- FormalConjectures/ErdosProblems/304.lean
++++ FormalConjectures/ErdosProblems/304.lean
+@@ -41,7 +41,7 @@
+     unitFractionExpressible a b = {0} := by
+   simp only [Set.eq_singleton_iff_unique_mem, zero_mem_unitFractionExpressible_iff, *]
+   have : (a / b : ℚ) = 0 := by simpa
+-  simp only [unitFractionExpressible, gt_iff_lt, Set.mem_setOf_eq, forall_exists_index, and_imp,
++  simp only [unitFractionExpressible, gt_iff_lt, Set.mem_ofPred_eq, forall_exists_index, and_imp,
+     true_and, this]
+   rintro _ s rfl hs h
+   rw [eq_comm, Finset.sum_eq_zero_iff_of_nonneg (fun i hi ↦ by positivity)] at h
+@@ -66,7 +66,7 @@
+ @[category API, AMS 11]
+ lemma eq_inv_of_one_mem_unitFractionExpressible {a b : ℕ}
+     (h : 1 ∈ unitFractionExpressible a b) : ∃ m : ℕ, 1 < m ∧ (a / b : ℚ) = (m : ℚ)⁻¹ := by
+-  simp only [unitFractionExpressible, gt_iff_lt, Set.mem_setOf_eq, Finset.card_eq_one] at h
++  simp only [unitFractionExpressible, gt_iff_lt, Set.mem_ofPred_eq, Finset.card_eq_one] at h
+   obtain ⟨_, ⟨m, rfl⟩, h₁, h₂⟩ := h
+   simp only [Finset.mem_singleton, forall_eq, Finset.sum_singleton] at h₁ h₂
+   use m
+
+--- FormalConjectures/ErdosProblems/307.lean
++++ FormalConjectures/ErdosProblems/307.lean
+@@ -77,12 +77,13 @@
+ A machine-checked **barrier** for Erdős 307 (Bonfioli, 2026): any solution with `Q` nonempty uses at
+ least 59 primes in total, and `(∏_{p ∈ P} p)² ≥ 4·10¹¹²` — i.e. `∏_{p ∈ P} p ≥ 2·10⁵⁶` (and, by
+ symmetry, the same for `∏ Q`); so no solution lies below a prime-product of `2.09·10⁵⁶`. The full
+-`sorry`-free proof is in the linked repository (`Closed.lean` at tag `v1.0.0`): the left conjunct is
+-`card_ge_59`, the right is `erdos307_barrier_closed`. The only non-logical input is a `native_decide`
+-evaluation of the first 59 primes; the axioms are `propext, Classical.choice, Quot.sound` together
+-with that `native_decide`.
++`sorry`-free proof is in the linked repository (`Closed.lean`): the left conjunct is `card_ge_59`,
++the right is `erdos307_barrier_closed`. Both depend on `propext, Classical.choice, Quot.sound` and
++nothing further: the evaluation of the first 59 primes is kernel-checked by `decide`, so no
++`native_decide` enters this statement.
+ -/
+-@[category research solved, AMS 11, formal_proof using lean4 at "https://github.com/ElVec1o/erdos307/blob/v1.0.0/lean/Erdos307/Closed.lean"]
++@[category research solved, AMS 11, formal_proof using lean4 at
++"https://github.com/ElVec1o/erdos307/blob/76d242b024102f32d8411c714be4ad140a8b7c4b/lean/Erdos307/Closed.lean#L121"]
+ theorem erdos_307.barrier {P Q : Finset ℕ}
+     (hP : ∀ p ∈ P, p.Prime) (hQ : ∀ q ∈ Q, q.Prime) (hQne : Q.Nonempty)
+     (heq : 1 = (∑ p ∈ P, (p : ℚ)⁻¹) * (∑ q ∈ Q, (q : ℚ)⁻¹)) :
+
+--- FormalConjectures/ErdosProblems/317.lean
++++ FormalConjectures/ErdosProblems/317.lean
+@@ -68,7 +68,7 @@
+ theorem erdos_317.variants.counterexample : ¬ (∀  δ : (Fin 4) → ℚ, δ '' Set.univ ⊆ {-1,0,1} →
+     letI lhs := |∑ k, ((δ k : ℚ) / (k + 1))|
+     lhs ≠ 0 → lhs > (1 : ℚ) / ((Icc 1 4).lcm id : ℕ)) := by
+-  push_neg
++  push Not
+   use ![0, 1, -1, -1]
+   norm_num [Finset.sum]
+   exact ⟨by grind, by simp; rfl⟩
+
+--- FormalConjectures/ErdosProblems/32.lean
++++ FormalConjectures/ErdosProblems/32.lean
+@@ -27,7 +27,6 @@
+ * [Ru98c] Ruzsa, Imre Z., On the additive completion of primes. Acta Arith. (1998), 269-275.
+ -/
+ 
+-open Classical
+ 
+ namespace Erdos32
+ 
+@@ -39,6 +38,7 @@
+ def IsAdditiveComplementToPrimes (A : Set ℕ) : Prop :=
+   ∀ᶠ n in atTop, ∃ p, p.Prime ∧ ∃ a ∈ A, n = p + a
+ 
++open scoped Classical in
+ /--
+ Erdős proved in [Erd54] that there exists an additive complement $A$ to the primes with
+ $|A \cap \{1, \ldots, N\}| = O((\log N)^2)$.
+@@ -50,6 +50,7 @@
+       fun N => (Real.log N) ^ 2 := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Must every additive complement $A$ to the primes satisfy
+ $\liminf_{N \to \infty} \frac{|A \cap \{1, \ldots, N\}|}{\log N} > 1$?
+@@ -61,6 +62,7 @@
+       atTop := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Does there exist a set $A \subseteq \mathbb{N}$ such that $|A \cap \{1, \ldots, N\}| = o((\log N)^2)$
+ and every sufficiently large integer can be written as $p + a$ for some prime $p$ and $a \in A$?
+@@ -72,6 +74,7 @@
+       fun N => (Real.log N) ^ 2 := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Can the bound $O(\log N)$ be achieved for an additive complement to the primes? [Guy04] writes
+ that Erdős offered \$50 for the solution.
+@@ -83,6 +86,7 @@
+       fun N => Real.log N := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Ruzsa proved that any additive complement $A$ to the primes must satisfy
+ $\liminf_{N \to \infty} \frac{|A \cap \{1, \ldots, N\}|}{\log N} \geq e^\gamma$,
+
+--- FormalConjectures/ErdosProblems/354.lean
++++ FormalConjectures/ErdosProblems/354.lean
+@@ -33,9 +33,9 @@
+   else
+     FloorMultiples b γ (n / 2)
+ 
+-/-- Let $\alpha,\beta\in \mathbb{R}_{>0}$ such that $\alpha/\beta$ is irrational. Is
+-$$\{ \lfloor \alpha\rfloor,\lfloor \gamma\alpha\rfloor,\lfloor \gamma^2\alpha\rfloor,\ldots\}\cup
+-\{ \lfloor \beta\rfloor,\lfloor \gamma\beta\rfloor,\lfloor \gamma^2\beta\rfloor,\ldots\}$$ complete?-/
++/-- Let $\alpha,\beta\in \mathbb{R}_{>0}$ such that $\alpha/\beta$ is irrational. Is the multiset
++$$\{ \lfloor \alpha\rfloor,\lfloor 2\alpha\rfloor,\lfloor 4\alpha\rfloor,\ldots\}\cup
++\{ \lfloor \beta\rfloor,\lfloor 2\beta\rfloor,\lfloor 4\beta\rfloor,\ldots\}$$ complete? -/
+ @[category research open, AMS 11]
+ theorem erdos_354.parts.i : answer(sorry) ↔ ∀ᵉ (α > 0) (β > 0), Irrational (α / β) →
+     IsAddCompleteNatSeq' (FloorMultiples.interleave α β 2) := by
+@@ -46,7 +46,7 @@
+ \{ \lfloor \beta\rfloor,\lfloor \gamma\beta\rfloor,\lfloor \gamma^2\beta\rfloor,\ldots\}$$ complete? -/
+ @[category research open, AMS 11]
+ theorem erdos_354.parts.ii : answer(sorry) ↔ ∃ γ ∈ Set.Ioo (1 : ℝ) 2, ∀ᵉ (α > 0) (β > 0), Irrational (α / β) →
+-    IsAddCompleteNatSeq' (FloorMultiples.interleave α β 2) := by
++    IsAddCompleteNatSeq' (FloorMultiples.interleave α β γ) := by
+   sorry
+ 
+ end Erdos354
+
+--- FormalConjectures/ErdosProblems/375.lean
++++ FormalConjectures/ErdosProblems/375.lean
+@@ -73,7 +73,7 @@
+     by_contra! hr
+     wlog hq : x < y
+     · exact this n hn k hk h p hp y x hxy.symm hr.symm (by grind)
+-    · have hy : y = x + 1 := by grind
++    · have hy : y = x + 1 := by fin_cases x <;> fin_cases y <;> simp_all
+       have := hy ▸ Nat.dvd_sub (hp y).2 (hxy ▸ (hp x).2)
+       have := (hp 1).1
+       simp_all [Nat.not_prime_one]
+
+--- FormalConjectures/ErdosProblems/41.lean
++++ FormalConjectures/ErdosProblems/41.lean
+@@ -28,17 +28,25 @@
+ variable {α : Type} [AddCommMonoid α]
+ 
+ /--
+-For a given set `A`, the n-tuple sums `a₁ + ... + aₙ` are all distinct for `a₁, ..., aₙ` in `A`
+-(aside from the trivial coincidences).
++`NtupleCondition A n` says that the sum of `n` elements of `A` determines the summands,
++counted with multiplicity and up to permutation.
++
++Multisets allow a summand to occur more than once, while multiset equality identifies precisely the
++trivial coincidences obtained by reordering the summands.
+ -/
+-def NtupleCondition (A : Set α) (n : ℕ) : Prop := ∀ (I : Finset α) (J : Finset α),
+-  ↑I ⊆ A ∧ ↑J ⊆ A ∧ I.card = n ∧ J.card = n ∧
+-  (∑ i ∈ I, i = ∑ j ∈ J, j) → I = J
++def NtupleCondition (A : Set α) (n : ℕ) : Prop :=
++  ∀ I J : Multiset α,
++    (∀ i ∈ I, i ∈ A) →
++    (∀ j ∈ J, j ∈ A) →
++    I.card = n →
++    J.card = n →
++    I.sum = J.sum →
++    I = J
+ 
+ /--
+-Let `A ⊆ ℕ` be an infinite set such that the triple sums `a + b + c` are all distinct for
+-`a, b, c` in `A` (aside from the trivial coincidences). Is it true that
+-`liminf n → ∞ |A ∩ {1, …, N}| / N^(1/3) = 0`?
++Let $A \subset \mathbb{N}$ be an infinite set such that the triple sums $a+b+c$ are all distinct
++for $a,b,c \in A$ (aside from the trivial coincidences). Is it true that
++$$\liminf_{N \to \infty} \frac{\lvert A \cap \{1,\ldots,N\}\rvert}{N^{1/3}}=0?$$
+ -/
+ @[category research open, AMS 11]
+ theorem erdos_41 (A : Set ℕ) (h_triple : NtupleCondition A 3) (h_infinite : A.Infinite) :
+@@ -46,10 +54,9 @@
+   sorry
+ 
+ /--
+-Erdős proved the following pairwise version.
+-Let `A ⊆ ℕ` be an infinite set such that the pairwise sums `a + b` are all distinct for `a, b`
+-in `A` (aside from the trivial coincidences).
+-Is it true that `liminf n → ∞ |A ∩ {1, …, N}| / N^(1/2) = 0`?
++Erdős proved that if the pairwise sums $a+b$ are all distinct aside from the trivial
++coincidences, then
++$$\liminf_{N \to \infty} \frac{\lvert A \cap \{1,\ldots,N\}\rvert}{N^{1/2}}=0.$$
+ -/
+ @[category research solved, AMS 11]
+ theorem erdos_41.variants.pairwise (A : Set ℕ) (hA₂ : NtupleCondition A 2) (hA : A.Infinite) :
+
+--- FormalConjectures/ErdosProblems/413.lean
++++ FormalConjectures/ErdosProblems/413.lean
+@@ -49,7 +49,17 @@
+ def expProd (n : ℕ) : ℕ :=
+   n.factorization.prod fun _ e => e
+ 
+-/-- Erdős proved that the barrier set for `expProd` is infinite and even has positive density. -/
++/-- Erdős proved that the barrier set for `expProd` is infinite and even has positive density.
++
++`HasPosDensity` is the right reading rather than positive lower density. In [Er79d] this is
++Theorem 1, "the density of integers satisfying (2) is positive", where `d₀(n) = ∏ αᵢ` is
++`expProd`. The averaging argument there bounds the density below, but Erdős states the existence
++separately on the last page: "With a little more trouble, I can prove that the density of
++integers `n` for which `n` is a barrier for `d₀(n)` exists." He goes further, that if `αᵢ` is the
++density of `n` with `max_{m<n} (m + d₀(m)) = n + i`, then every `αᵢ` exists and they sum to `1`.
++
++[Er79d] Erdős, P., *Some unconventional problems in number theory*.
++Acta Math. Acad. Sci. Hungar. (1979), 71-80. -/
+ @[category research solved, AMS 11]
+ theorem erdos_413.variants.hasPosDensity_barrier_expProd :
+     { n | IsBarrier (fun m => expProd m) n }.HasPosDensity := by
+
+--- FormalConjectures/ErdosProblems/416.lean
++++ FormalConjectures/ErdosProblems/416.lean
+@@ -22,13 +22,14 @@
+ *Reference:* [erdosproblems.com/416](https://www.erdosproblems.com/416)
+ -/
+ 
+-open Classical Filter
++open Filter
+ open scoped Topology Real
+ 
+ namespace Erdos416
+ 
+ /-- Let `V(x)` count the number of `n≤x` such that `ϕ(m)=n` is solvable. -/
+ noncomputable abbrev V (x : ℝ) : ℝ :=
++  open scoped Classical in
+   (Finset.Icc 1 ⌊x⌋₊ |>.filter (fun n => ∃ (m : ℕ), m.totient = n)).card
+ 
+ /--
+
+--- FormalConjectures/ErdosProblems/44.lean
++++ FormalConjectures/ErdosProblems/44.lean
+@@ -31,7 +31,48 @@
+ @[category textbook, AMS 5 11]
+ theorem maxSidonSubsetCard_icc_bound (N : ℕ) (hN : 1 ≤ N) :
+     maxSidonSubsetCard (Icc 1 N) ≤ 2 * Real.sqrt N := by
+-  sorry
++  have key : maxSidonSubsetCard (Finset.Icc 1 N) ^ 2 ≤ 4 * N := by
++    -- Pick a Sidon subset of `{1, ..., N}` of maximal size.
++    obtain ⟨B, hB, hBeq⟩ := Finset.exists_mem_eq_sup
++      ((Finset.Icc 1 N).powerset.filter fun B : Finset ℕ ↦ IsSidon (B : Set ℕ))
++      ⟨∅, by simp [IsSidon]⟩ Finset.card
++    rw [maxSidonSubsetCard, hBeq]
++    simp only [Finset.mem_filter, Finset.mem_powerset] at hB
++    obtain ⟨hsub, hsid⟩ := hB
++    -- Distinct ordered pairs of elements of `B` have distinct differences, and each difference
++    -- lies in `{-N, ..., N}`.
++    have hcard : B.offDiag.card ≤ (Finset.Icc (-(N : ℤ)) N).card := by
++      refine Finset.card_le_card_of_injOn (fun p ↦ (p.1 : ℤ) - p.2) ?_ ?_
++      · rintro ⟨a, b⟩ hab
++        rw [Finset.mem_coe, Finset.mem_offDiag] at hab
++        have ha' := Finset.mem_Icc.mp (hsub hab.1)
++        have hb' := Finset.mem_Icc.mp (hsub hab.2.1)
++        simp only [Finset.mem_coe, Finset.mem_Icc]
++        omega
++      · rintro ⟨a, b⟩ ha ⟨c, d⟩ hc hac
++        rw [Finset.mem_coe, Finset.mem_offDiag] at ha hc
++        simp only at hac
++        have hsum : a + d = c + b := by omega
++        rcases hsid a ha.1 c hc.1 d hc.2.1 b ha.2.1 hsum with ⟨h1, h2⟩ | ⟨h1, h2⟩
++        · simp [h1, h2]
++        · exact absurd h1 ha.2.2
++    have hIcc : (Finset.Icc (-(N : ℤ)) N).card = 2 * N + 1 := by
++      rw [Int.card_Icc]
++      omega
++    rw [Finset.offDiag_card, hIcc] at hcard
++    have hle : B.card ≤ N := by simpa using Finset.card_le_card hsub
++    rcases Nat.eq_zero_or_pos B.card with h0 | hpos
++    · simp [h0]
++    have hkk : B.card ≤ B.card * B.card := Nat.le_mul_of_pos_left _ hpos
++    calc B.card ^ 2 = B.card * B.card := sq B.card
++      _ ≤ 2 * N + 1 + B.card := by omega
++      _ ≤ 4 * N := by omega
++  have h1 : ((maxSidonSubsetCard (Finset.Icc 1 N) : ℝ)) ^ 2 ≤ 4 * N := by exact_mod_cast key
++  have h2 : (2 : ℝ) * Real.sqrt N = Real.sqrt (4 * N) := by
++    rw [show (4 : ℝ) * N = 2 ^ 2 * N by ring, Real.sqrt_mul (by positivity),
++      Real.sqrt_sq (by norm_num)]
++  rw [h2, ← Real.sqrt_sq (by positivity : (0 : ℝ) ≤ (maxSidonSubsetCard (Finset.Icc 1 N) : ℝ))]
++  exact Real.sqrt_le_sqrt h1
+ 
+ /--
+ **Erdős Problem 44:** Let N ≥ 1 and `A ⊆ {1,…,N}` be a Sidon set. Is it true that, for any ε > 0,
+
+--- FormalConjectures/ErdosProblems/456.lean
++++ FormalConjectures/ErdosProblems/456.lean
+@@ -25,7 +25,7 @@
+ -/
+ 
+ open Nat Filter
+-open scoped Topology Classical Asymptotics
++open scoped Topology Asymptotics
+ 
+ namespace Erdos456
+ 
+@@ -41,22 +41,24 @@
+ noncomputable def m (n : ℕ) : ℕ :=
+   sInf { k | 0 < k ∧ n ∣ totient k }
+ 
++open scoped Classical in
+ /--
+ Is it true that $m_n<p_n$ for almost all $n$?
+ -/
+ @[category research open, AMS 11]
+ theorem erdos_456.parts.i :
+     answer(sorry) ↔
+-      Tendsto (fun N ↦ (count { n | m n < p n } N : ℝ) / (N : ℝ)) atTop (𝓝 1) := by
++      Tendsto (fun N ↦ (count (fun n ↦ m n < p n) N : ℝ) / (N : ℝ)) atTop (𝓝 1) := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ Does $p_n/m_n \to \infty$ for almost all $n$?
+ -/
+ @[category research open, AMS 11]
+ theorem erdos_456.parts.ii :
+     answer(sorry) ↔
+-      ∃ A : Set ℕ, Tendsto (fun N ↦ (count A N : ℝ) / (N : ℝ)) atTop (𝓝 1) ∧
++      ∃ A : Set ℕ, Tendsto (fun N ↦ (count (· ∈ A) N : ℝ) / (N : ℝ)) atTop (𝓝 1) ∧
+         Tendsto (fun n ↦ (p n : ℝ) / (m n : ℝ)) (atTop ⊓ 𝓟 A) atTop := by
+   sorry
+ 
+@@ -88,7 +90,7 @@
+   · subst hn
+     have hempty : {k | 0 < k ∧ (0 : ℕ) ∣ totient k} = (∅ : Set ℕ) := by
+       ext k
+-      simp only [Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false, not_and]
++      simp only [Set.mem_ofPred_eq, Set.mem_empty_iff_false, iff_false, not_and]
+       intro hk
+       rw [zero_dvd_iff]
+       have := Nat.totient_pos.mpr hk
+@@ -151,12 +153,13 @@
+       omega
+     omega
+ 
++open scoped Classical in
+ /--
+ Erdős [Er79e] writes it is 'easy to show' that $m_n/n \to \infty$ for almost all $n$.
+ -/
+ @[category research solved, AMS 11]
+ theorem erdos_456.variants.m_div_n :
+-    ∃ A : Set ℕ, Tendsto (fun N ↦ (count A N : ℝ) / N) atTop (𝓝 1) ∧
++    ∃ A : Set ℕ, Tendsto (fun N ↦ (count (· ∈ A) N : ℝ) / N) atTop (𝓝 1) ∧
+       Tendsto (fun n ↦ (m n : ℝ) / (n : ℝ)) (atTop ⊓ 𝓟 A) atTop := by
+   sorry
+ 
+
+--- FormalConjectures/ErdosProblems/479.lean
++++ FormalConjectures/ErdosProblems/479.lean
+@@ -25,11 +25,12 @@
+ namespace Erdos479
+ 
+ /--
+-Is it true that, for all $k\neq 1$, there are infinitely many $n$ such that
++Is it true that, for every integer $k\neq 1$, there are infinitely many $n$ such that
+ $2^n\equiv k\pmod{n}$?
+ -/
+ @[category research open, AMS 11]
+-theorem erdos_479 : answer(sorry) ↔ ∀ᵉ (k > 1), { n | 2 ^ n ≡ k [MOD n]}.Infinite := by
++theorem erdos_479 : answer(sorry) ↔ ∀ᵉ (k : ℤ) (k ≠ 1),
++    { n : ℕ | (2 : ℤ) ^ n ≡ k [ZMOD (n : ℤ)] }.Infinite := by
+   sorry
+ 
+ end Erdos479
+
+--- FormalConjectures/ErdosProblems/52.lean
++++ FormalConjectures/ErdosProblems/52.lean
+@@ -35,6 +35,6 @@
+     (max (A + A).card (A * A).card : ℝ) ≥ C * (A.card : ℝ) ^ (2 - ε) := by
+   sorry
+ 
+--- TODO(firsching): Add addtional material.
++-- TODO(firsching): Add additional material.
+ 
+ end Erdos52
+
+--- FormalConjectures/ErdosProblems/579.lean
++++ FormalConjectures/ErdosProblems/579.lean
+@@ -25,7 +25,7 @@
+   type problems*, Combinatorica **3** (1983), 69–81.
+ -/
+ 
+-open Classical Filter SimpleGraph
++open Filter SimpleGraph
+ 
+ namespace Erdos579
+ 
+@@ -34,6 +34,7 @@
+ abbrev octahedron : SimpleGraph (Σ _ : Fin 3, Fin 2) :=
+   completeMultipartiteGraph (fun _ : Fin 3 => Fin 2)
+ 
++open scoped Classical in
+ /--
+ Let $\delta > 0$. If $n$ is sufficiently large and $G$ is a graph on $n$ vertices with no
+ $K_{2,2,2}$ (the octahedron) and at least $\delta n^2$ edges, must $G$ contain an independent
+@@ -55,6 +56,7 @@
+           c * n ≤ (G.indepNum : ℝ) := by
+   sorry
+ 
++open scoped Classical in
+ /--
+ The partial result of Erdős, Hajnal, Sós, and Szemerédi [EHSS83]: the statement of
+ `erdos_579` holds whenever the edge-density coefficient exceeds $1/8$. That is, for every
+
+--- FormalConjectures/ErdosProblems/600.lean
++++ FormalConjectures/ErdosProblems/600.lean
+@@ -25,28 +25,21 @@
+ - [RuSz78] Ruzsa, I. Z. and Szemerédi, E., _Triple systems with no six points carrying three triangles_. Combinatorics (Proc. Fifth Hungarian Colloq., Keszthely, 1976), Vol. II (1978), 939-945.
+ -/
+ 
+-open Classical Filter
++open Filter
+ open scoped Topology
+ 
+ namespace Erdos600
+ 
++open scoped Classical in
+ /--
+ Let $e(n,r)$ be minimal such that every graph on $n$ vertices with at least $e(n,r)$ edges,
+ each edge contained in at least one triangle, must have an edge contained in at least
+ $r$ triangles.
+ -/
+-private noncomputable def trianglesContaining
+-  {α : Type*}
+-  (G : SimpleGraph α)
+-  (uv : Sym2 α)
+-  [Fintype α] :
+-  Finset (Finset α) :=
+-  (G.cliqueFinset 3).filter (fun t ↦ uv.toFinset ⊆ t)
+-
+ def Erdos600Prop (n : ℕ) (e : ℕ) (r : ℕ) : Prop :=
+   ∀ G : SimpleGraph (Fin n), G.edgeFinset.card ≥ e →
+-  (∀ uv ∈ G.edgeFinset, (trianglesContaining G uv).Nonempty) →
+-  ∃ uv ∈ G.edgeFinset, r ≤ (trianglesContaining G uv).card
++  (∀ uv ∈ G.edgeFinset, (G.trianglesContaining uv).Nonempty) →
++  ∃ uv ∈ G.edgeFinset, r ≤ (G.trianglesContaining uv).card
+ 
+ noncomputable def eFunction (n : ℕ) (r : ℕ) : ℕ := sInf {e : ℕ | Erdos600Prop n e r}
+ 
+
+--- FormalConjectures/ErdosProblems/61.lean
++++ FormalConjectures/ErdosProblems/61.lean
+@@ -50,7 +50,7 @@
+ 
+ /--
+ Erdős and Hajnal [ErHa89] proved that we can take $f(n) = \exp(c_H \sqrt{\log n})$
+-for some constant $c_H > 0$ dependending on $H$.
++for some constant $c_H > 0$ depending on $H$.
+ 
+ [ErHa89] Erdős, P. and Hajnal, A., Ramsey-type theorems. Discrete Appl. Math. (1989), 37-52.
+ -/
+@@ -62,7 +62,7 @@
+ 
+ /--
+ Bucić, Nguyen, Scott, and Seymour [BNSS23] improved this to
+-$f(n) = \exp(c_H \sqrt{\log n \log \log n})$ for some constant $c_H > 0$ dependending on $H$.
++$f(n) = \exp(c_H \sqrt{\log n \log \log n})$ for some constant $c_H > 0$ depending on $H$.
+ 
+ [BNSS23] Bucić, M. and Nguyen, T. and Scott, A. and Seymour, P., A loglog step towards Erdos-Hajnal
+ -/
+
+--- FormalConjectures/ErdosProblems/686.lean
++++ FormalConjectures/ErdosProblems/686.lean
+@@ -71,7 +71,7 @@
+       (4 : ℚ) = (∏ i ∈ Finset.Icc 1 2, (m + i)) / (∏ i ∈ Finset.Icc 1 2, (n + i)) := by
+   simp only [Finset.prod_Icc_succ_top (by decide : 1 ≤ 2), Finset.Icc_self,
+     Finset.prod_singleton]
+-  push_neg
++  push Not
+   intro n m hm
+   rw [ne_eq, eq_div_iff (by positivity : (↑((n + 1) * (n + (1 + 1))) : ℚ) ≠ 0)]
+   push_cast
+
+--- FormalConjectures/ErdosProblems/688.lean
++++ FormalConjectures/ErdosProblems/688.lean
+@@ -23,7 +23,7 @@
+ - [Er80] Erdős, Paul, _A survey of problems in combinatorial number theory_. Ann. Discrete Math. (1980), 89-115.
+ -/
+ 
+-open Classical Real Filter
++open Real Filter
+ 
+ namespace Erdos688
+ 
+
+--- FormalConjectures/ErdosProblems/82.lean
++++ FormalConjectures/ErdosProblems/82.lean
+@@ -22,7 +22,7 @@
+ *Reference:* [erdosproblems.com/82](https://www.erdosproblems.com/82)
+ -/
+ 
+-open Classical SimpleGraph Filter
++open SimpleGraph Filter
+ 
+ namespace Erdos82
+ 
+@@ -32,6 +32,7 @@
+ A predicate that holds if $S$ is a regular induced subgraph of $G$
+ -/
+ def IsRegularInduced {G : SimpleGraph V} (S : Subgraph G) : Prop :=
++  open scoped Classical in
+   S.IsInduced ∧ ∃ k, (S.coe).IsRegularOfDegree k
+ 
+ /--
+
+--- FormalConjectures/ErdosProblems/85.lean
++++ FormalConjectures/ErdosProblems/85.lean
+@@ -22,7 +22,7 @@
+ *Reference:* [erdosproblems.com/85](https://www.erdosproblems.com/85)
+ -/
+ 
+-open Classical SimpleGraph Finset Filter
++open SimpleGraph Finset Filter
+ 
+ namespace Erdos85
+ 
+@@ -31,6 +31,7 @@
+ f(n)$ contains a $C_4$.
+ -/
+ noncomputable def f (n : ℕ) : ℕ :=
++  open scoped Classical in
+   sInf {k : ℕ | ∀ (G : SimpleGraph (Fin n)), G.minDegree ≥ k → (cycleGraph 4) ⊑ G}
+ 
+ /--
+
+--- FormalConjectures/ErdosProblems/859.lean
++++ FormalConjectures/ErdosProblems/859.lean
+@@ -45,7 +45,7 @@
+ 
+ /-
+ **Erdős Problem 859**
+-The density `dₜ` of `DivisorSumSet (t : ℕ)` is assymptotically equivalent to ` c₁ / log (t) ^ c₂`
++The density `dₜ` of `DivisorSumSet (t : ℕ)` is asymptotically equivalent to ` c₁ / log (t) ^ c₂`
+ for some positive constants `c₁` and `c₂`.
+ -/
+ /-- The density of the divisor sum set is asymptotically equivalent to $c_1 / \log(t)^{c_2}$. -/
+
+--- FormalConjectures/ErdosProblems/89.lean
++++ FormalConjectures/ErdosProblems/89.lean
+@@ -81,10 +81,9 @@
+   have := (Asymptotics.isLittleO_one_left_iff ℝ).mpr <| tendsto_norm_atTop_atTop.comp <|
+     (tendsto_rpow_atTop (show 0 < 1/2 by norm_num)).comp
+     (Real.tendsto_log_atTop.comp tendsto_natCast_atTop_atTop)
+-  convert (Asymptotics.isBigO_refl (fun n : ℕ ↦ n/(n : ℝ).log) _).mul this.isBigO using 1
++  convert! (Asymptotics.isBigO_refl (fun n : ℕ ↦ n/(n : ℝ).log) _).mul this.isBigO using 1
+   · simp
+   · simp_rw [Function.comp, div_mul, ← Real.sqrt_eq_rpow, Real.div_sqrt]
+-
+ 
+ -- TODO(firsching): formalize any remaining remarks from the erdosproblems.com page.
+ 
+
+--- FormalConjectures/ErdosProblems/9.lean
++++ FormalConjectures/ErdosProblems/9.lean
+@@ -34,7 +34,7 @@
+ theorem erdos9A_contains_one : 1 ∈ Erdos9A := by
+   constructor
+   · decide
+-  · push_neg
++  · push Not
+     intro p k l hp
+     linarith [Nat.Prime.two_le hp, @Nat.one_le_two_pow k, @Nat.one_le_two_pow l]
+ 
+@@ -42,14 +42,14 @@
+ theorem erdos9A_contains_three : 3 ∈ Erdos9A := by
+   constructor
+   · decide
+-  · push_neg
++  · push Not
+     intro p k l hp
+     linarith [Nat.Prime.two_le hp, @Nat.one_le_two_pow k, @Nat.one_le_two_pow l]
+ 
+ @[category test, AMS 5 11]
+ theorem erdos9A_not_contains_five : 5 ∉ Erdos9A := by
+   unfold Erdos9A
+-  simp only [exists_and_left, not_exists, not_and, Set.mem_setOf_eq, not_forall, Decidable.not_not]
++  simp only [exists_and_left, not_exists, not_and, Set.mem_ofPred_eq, not_forall, Decidable.not_not]
+   intro
+   use 3, Nat.prime_three, 0, 0
+   simp only [pow_zero, Nat.reduceAdd]
+
+--- FormalConjectures/ErdosProblems/91.lean
++++ FormalConjectures/ErdosProblems/91.lean
+@@ -68,7 +68,7 @@
+   have hcard : equiTriangle.card = 3 := by
+     simp [equiTriangle, Finset.mem_insert, Finset.mem_singleton]
+   have hdist : distinctDistances equiTriangle = 1 := by
+-    unfold distinctDistances equiTriangle
++    unfold distinctDistances distanceSet equiTriangle
+     have eucl_dist_one_of_sq : ∀ {x y : ℝ²}, dist x y ^ 2 = 1 → dist x y = 1 := by
+       intro x y h; nlinarith [dist_nonneg (x := x) (y := y), sq_nonneg (dist x y)]
+     have hd01 : dist (!₂[(0 : ℝ), 0]) (!₂[(1 : ℝ), 0]) = 1 := eucl_dist_one_of_sq <| by
+
+--- FormalConjectures/ErdosProblems/913.lean
++++ FormalConjectures/ErdosProblems/913.lean
+@@ -60,8 +60,8 @@
+     rintro a ha b hb h
+     rw [tsub_left_inj (hS a ha.1).le (hS b hb.1).le] at h
+     simpa using h
+-  refine ((h.diff (Set.finite_singleton 2)).image (this.mono Set.diff_subset)).mono ?_
+-  simp only [Set.image_subset_iff, Set.preimage_setOf_eq, S]
++  refine ((h.sdiff (Set.finite_singleton 2)).image (this.mono Set.sdiff_subset)).mono ?_
++  simp only [Set.image_subset_iff, Set.preimage_ofPred_eq, S]
+   rintro p ⟨⟨hp, hp'⟩, hp''⟩
+   simp only [Set.mem_singleton_iff] at hp''
+   have fac : (f p * (f p + 1)).factorization =
+@@ -72,9 +72,9 @@
+       Nat.factorization_mul (by positivity) (by positivity), hp'.factorization,
+       hp.factorization_pow, (show 8 = 2 ^ 3 from rfl), Nat.prime_two.factorization_pow,
+       add_comm (Finsupp.single 2 3)]
+-  have aux₂ : (fun₀ | 2 => 3).support = {2} := by simp [Finsupp.support_eq_singleton]
++  have aux₂ : (fun₀ | 2 => 3).support = {2} := by simp
+   have aux₁ : ((fun₀ | p => 2) + fun₀ | 2 => 3).support = {p, 2} := by
+-    rw [Finsupp.support_single_add (by simp [aux₂, hp'']) (by simp), Finset.cons_eq_insert, aux₂]
++    rw [Finsupp.support_single_add (by simp [hp'']) (by simp), Finset.cons_eq_insert, aux₂]
+   have aux₃ : p + 1 < 8 * p ^ 2 := by
+     replace hp := hp.two_le
+     zify at hp ⊢
+@@ -88,7 +88,7 @@
+     rw [← Nat.support_factorization, fac, Finsupp.support_single_add _ (by simp),
+       Finset.cons_eq_insert, aux₁]
+     simp [*]
+-  simp only [Set.mem_setOf_eq]
++  simp only [Set.mem_ofPred_eq]
+   rw [fac, pf]
+   simp only [Finsupp.coe_add, Finset.coe_insert, Finset.coe_singleton]
+   rw [Set.injOn_insert (by simp [*]), Set.injOn_insert (by simp [hp''])]
+
+--- FormalConjectures/ErdosProblems/933.lean
++++ FormalConjectures/ErdosProblems/933.lean
+@@ -81,17 +81,16 @@
+     rw [show 2 ^ m + 1 = 2 ^ m + 1 ^ m by simp,
+       padicValNat.pow_add_pow (p := 3) (x := 2) (y := 1) (by norm_num)
+         (by norm_num) (by norm_num) (by simpa [m] using (by norm_num : Odd 3).pow)]
+-    simp [m, padicValNat.prime_pow]
+-    omega
++    simp [m]
++    lia
+   have hlog : (m : ℝ) * Real.log 2 < (3 : ℝ) ^ (r + 2) := by
+     calc
+       _ < (m : ℝ) * 3 := mul_lt_mul_of_pos_left (by linarith [Real.log_two_lt_d9]) (by positivity)
+       _ = _ := by norm_num [m, pow_succ]
+   change 2 ^ m ∈ {n | ((2 ^ k n * 3 ^ l n : ℕ) : ℝ) > (n : ℝ) * Real.log (n : ℝ)}
+-  simp only [Set.mem_setOf_eq, hk, hl]
++  simp only [Set.mem_ofPred_eq, hk, hl]
+   push_cast
+   rw [Real.log_pow]
+   exact mul_lt_mul_of_pos_left hlog (by positivity)
+ 
+ end Erdos933
+-
+
+--- FormalConjectures/ErdosProblems/949.lean
++++ FormalConjectures/ErdosProblems/949.lean
+@@ -40,7 +40,7 @@
+ 
+ /-- Let $S\sub \mathbb{R}$ be a Sidon set. Must there be a set $A\sub \mathbb{R}∖S$ of cardinality
+ continuum such that $A + A \sub \mathbb{R}∖S$? -/
+-@[category research solved, AMS 5, formal_proof using formal_conjectures at ""]
++@[category research solved, AMS 5]
+ theorem erdos_949.variants.sidon : answer(True) ↔
+     ∀ S : Set ℝ, IsSidon S → ∃ A ⊆ Sᶜ, #A = 𝔠 ∧ A + A ⊆ Sᶜ := by
+   show True ↔ _
+@@ -52,7 +52,7 @@
+   -- such that both `A` and `A + A` are disjoint from `S`.
+   · obtain ⟨A, ⟨hAS, hAAS⟩, hAmax⟩ := by
+       refine zorn_subset {A ⊆ Sᶜ | ∀ x ∈ A,∀ y ∈ A, x + y ∉ S} ?_
+-      simp only [Set.setOf_and, Set.subset_inter_iff, Set.mem_inter_iff, Set.mem_setOf_eq, and_imp,
++      simp only [Set.ofPred_and, Set.subset_inter_iff, Set.mem_inter_iff, Set.mem_ofPred_eq, and_imp,
+         and_assoc]
+       refine fun C hCS hSC hC ↦ ⟨_, Set.iUnion₂_subset hCS, ?_, Set.subset_iUnion₂⟩
+       simp only [Set.mem_iUnion, exists_prop, forall_exists_index, and_imp]
+@@ -93,11 +93,11 @@
+   -- If `S` has cardinality the continuum, then we pick some `a ≠ 0` in `S` and set
+   -- `A := (S \ {a} - a / 2) \ S`.
+   have hSinf : S.Infinite := by simpa using aleph0_le_continuum.trans_eq hS𝔠.symm
+-  obtain ⟨a, ha, ha₀⟩ : ∃ a ∈ S, a ≠ 0 := (hSinf.diff <| Set.finite_singleton 0).nonempty
+-  refine ⟨(· - a / 2) '' (S \ {a}) \ S, Set.diff_subset_compl .., ?_, ?_⟩
++  obtain ⟨a, ha, ha₀⟩ : ∃ a ∈ S, a ≠ 0 := (hSinf.sdiff <| Set.finite_singleton 0).nonempty
++  refine ⟨(· - a / 2) '' (S \ {a}) \ S, Set.sdiff_subset_compl .., ?_, ?_⟩
+   -- Since `S` is Sidon and `a ≠ 0`, `(S - a / 2) ∩ S ⊇ (S \ {a} - a / 2) ∩ S` has at most one
+   -- element. In particular, `#A = #(S \ {a} - a / 2) = #S = 𝔠` as wanted.
+-  · rw [mk_diff_eq_left_of_finite' ((hSinf.diff <| Set.finite_singleton _).image
++  · rw [mk_sdiff_eq_left_of_finite' ((hSinf.sdiff <| Set.finite_singleton _).image
+       sub_left_injective.injOn)]
+     · simp [Cardinal.mk_image_eq sub_left_injective, *]
+     · refine Set.Subsingleton.finite ?_
+
+--- FormalConjectures/ErdosProblems/952.lean
++++ FormalConjectures/ErdosProblems/952.lean
+@@ -32,7 +32,7 @@
+ such that $\lvert x_{n+1}-x_n\rvert \ll 1$?
+ -/
+ @[category research open, AMS 11]
+-theorem erdos_952 :
++theorem erdos_952 : answer(sorry) ↔
+   ∃ (x : ℕ → GaussianInt) (C : ℤ),
+     Function.Injective x ∧
+       ∀ n, Prime (x n) ∧ (x (n + 1) - x n).norm < C := by
+
+--- FormalConjectures/ErdosProblems/962.lean
++++ FormalConjectures/ErdosProblems/962.lean
+@@ -26,7 +26,7 @@
+ - [Tao](https://www.erdosproblems.com/forum/thread/962)
+ -/
+ 
+-open Classical Filter Real
++open Filter Real
+ 
+ namespace Erdos962
+ 
+@@ -43,6 +43,7 @@
+ $m+1, \ldots, m+k$ each divisible by a prime $> k$.
+ -/
+ noncomputable def k (n : ℕ) : ℕ :=
++  open scoped Classical in
+   Nat.findGreatest (fun k => Erdos962Prop n k) n
+ 
+ /--
+
+--- FormalConjectures/ErdosProblems/979.lean
++++ FormalConjectures/ErdosProblems/979.lean
+@@ -49,7 +49,9 @@
+ /--
+ Erdős (unpublished)
+ -/
+-@[category research solved, AMS 11]
++@[category research solved, AMS 11,
++  formal_proof using lean4 at
++    "https://github.com/KitaKen1/erdos-979-k3/blob/930fcc877fa4a2b4fc7c59614cbbab04a6d834ca/lean/K3Lean/Erdos979K3Final.lean#L46-L47"]
+ theorem erdos_979.variants.k3 :
+     Filter.limsup (fun n => (solutionSet n 3).encard) Filter.atTop = ⊤ := by
+   sorry
+
+--- FormalConjectures/ErdosProblems/99.lean
++++ FormalConjectures/ErdosProblems/99.lean
+@@ -46,6 +46,6 @@
+       A.card = n → HasMinDist1 A →
+       (IsMinOn (fun B: Finset ℝ² => diam (B : Set ℝ²)) {B : Finset ℝ² | B.card = n ∧ HasMinDist1 B} A) →
+       ∃ᵉ (p ∈ A) (q ∈ A) (r ∈ A), FormsEquilateralTriangle p q r := by
+-sorry
++  sorry
+ 
+ end Erdos99
+
+--- FormalConjectures/GreensOpenProblems/24.lean
++++ FormalConjectures/GreensOpenProblems/24.lean
+@@ -47,7 +47,7 @@
+ If $A$ is a set of $n$ integers, what is the maximum number of affine translates of the set
+ $\lbrace 0,1,3 \rbrace$ that $A$ can contain?
+ 
+-Conjectured in [Aa19] p.579: $\left({1}{3} + o(1)\right) n^2$.
++Conjectured in [Aa19] p.579: $\left(\frac{1}{3} + o(1)\right) n^2$.
+ -/
+ @[category research open, AMS 5 11]
+ theorem green_24 : ∀ n, max013AffineTranslates n = answer(sorry) := by
+@@ -82,7 +82,7 @@
+ theorem lower_HL : gamma ≥ 1/12 := by
+   sorry
+ 
+-/-- Conjecture p.579 in [Aa19]: $\left({1}{3} + o(1)\right) n^2$. -/
++/-- Conjecture p.579 in [Aa19]: $\left(\frac{1}{3} + o(1)\right) n^2$. -/
+ @[category research open, AMS 5 11]
+ theorem conjecture : gamma = 1/3 := by
+   sorry
+
+--- FormalConjectures/GreensOpenProblems/36.lean
++++ FormalConjectures/GreensOpenProblems/36.lean
+@@ -25,7 +25,7 @@
+   Matrix Multiplication" (Problem 4.7)
+ -/
+ 
+-open Classical Filter
++open Filter
+ open scoped Pointwise
+ 
+ namespace Green36
+@@ -33,12 +33,14 @@
+ /-- The simultaneous double product property [CKS05, 4.1]. -/
+ def SimultaneousDoubleProduct {ι H : Type*} [AddCommGroup H]
+     (A B : ι → Finset H) : Prop :=
++  open scoped Classical in
+   (∀ i, (A i + B i).card = (A i).card * (B i).card) ∧
+   (∀ i j k, i ≠ k → Disjoint (A i + B j) (A j + B k))
+ 
+ /-- A variant of the simultaneous double product property, as stated in [Gr24, Problem 36]. -/
+ def Green36Property {ι H : Type*} [AddCommGroup H]
+     (A B : ι → Finset H) : Prop :=
++  open scoped Classical in
+   (∀ i, (A i + B i).card = (A i).card * (B i).card) ∧
+   (∀ i j k, j ≠ k → Disjoint (A i + B i) (A j + B k))
+ 
+
+--- FormalConjectures/GreensOpenProblems/40.lean
++++ FormalConjectures/GreensOpenProblems/40.lean
+@@ -15,7 +15,6 @@
+ -/
+ 
+ import FormalConjecturesUtil
+-import Mathlib.InformationTheory.Hamming
+ 
+ /-!
+ # Ben Green's Open Problem 40
+@@ -117,7 +116,29 @@
+ /-- We evidently have $\tilde{f}(r) \le f(r)$ [Gr24]. -/
+ @[category research solved, AMS 5 94]
+ theorem green_40.f_tilde_le_f (r : ℕ) : f_tilde r ≤ f r := by
+-  sorry
++  refine Filter.liminf_le_liminf (Filter.Eventually.of_forall fun n => ?_)
++  refine le_iInf₂ fun V hV => ?_
++  have hfin : (V : Set (𝔽₂ n)).Finite := Set.toFinite _
++  have hcov : IsCoveringFinset n r hfin.toFinset := by
++    unfold IsCoveringFinset
++    ext x
++    simp only [Finset.mem_univ, iff_true]
++    have hx : x ∈ (V : Set (𝔽₂ n)) + hammingBall n r := hV ▸ Set.mem_univ x
++    obtain ⟨a, ha, b, hb, hab⟩ := hx
++    exact Finset.mem_add.mpr
++      ⟨a, hfin.mem_toFinset.mpr ha, b, by simpa [hammingBallFinset, hammingBall] using hb, hab⟩
++  have hcard : (hfin.toFinset.card : ℝ≥0∞) = (Nat.card V : ℝ≥0∞) := by
++    have h : Nat.card V = hfin.toFinset.card := by
++      rw [show Nat.card V = Nat.card (V : Set (𝔽₂ n)) from rfl, Nat.card_coe_set_eq,
++        Set.ncard_eq_toFinset_card _ hfin]
++    exact_mod_cast congrArg Nat.cast h.symm
++  calc minDensityFinset n r
++      ≤ (hfin.toFinset.card : ℝ≥0∞) * (Nat.card (hammingBall n r) : ℝ≥0∞) /
++          (2 ^ n : ℝ≥0∞) :=
++        iInf₂_le hfin.toFinset hcov
++    _ = (Nat.card V : ℝ≥0∞) * (Nat.card (hammingBall n r) : ℝ≥0∞) /
++          (2 ^ n : ℝ≥0∞) := by
++        rw [hcard]
+ 
+ -- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ -- Variant for all n
+@@ -126,9 +147,13 @@
+ noncomputable def f_all (r : ℕ) : ℝ≥0∞ :=
+   limsup (fun n ↦ minDensity n r) atTop
+ 
+-/-- Does $f_{\text{all}}(r) \to \infty$? [Gr24] -/
++/-- Does $f_{\text{all}}(r) \to \infty$? [Gr24]
++
++The target filter is `𝓝 ⊤`, as in `green_40` and `green_40.variants.arbitrary_subsets`. On
++`ℝ≥0∞`, `atTop` is the principal ultrafilter at `⊤`, so `Tendsto f_all atTop atTop` would say
++that `f_all r = ⊤` for all large `r` rather than that `f_all r → ∞`. -/
+ @[category research open, AMS 5 94]
+-theorem green_40.variants.all_n : answer(sorry) ↔ Tendsto f_all atTop atTop := by
++theorem green_40.variants.all_n : answer(sorry) ↔ Tendsto f_all atTop (𝓝 ⊤) := by
+   sorry
+ 
+ end Green40
+
+--- FormalConjectures/GreensOpenProblems/7.lean
++++ FormalConjectures/GreensOpenProblems/7.lean
+@@ -14,6 +14,7 @@
+ limitations under the License.
+ -/
+ 
++import FormalConjecturesUtil
+ import FormalConjectures.ErdosProblems.«342»
+ 
+ /-!

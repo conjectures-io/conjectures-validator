@@ -1,0 +1,15 @@
+[1/4] shard 1: attempts=168 compile_hits=8 elapsed=33.146s
+[2/4] shard 2: attempts=168 compile_hits=8 elapsed=36.037s
+[3/4] shard 4: attempts=168 compile_hits=8 elapsed=45.683s
+[4/4] shard 3: attempts=168 compile_hits=8 elapsed=51.578s
+{
+  "attacks_per_task": 42,
+  "compiled_hits_before_axiom_confirmation": 32,
+  "elapsed_seconds": 51.603,
+  "failed_elaborations": 640,
+  "shards": 4,
+  "status": "sweep_complete",
+  "tasks": 16,
+  "theorems": 8,
+  "total_attempts": 672
+}

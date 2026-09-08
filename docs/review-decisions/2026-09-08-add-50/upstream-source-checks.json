@@ -1,0 +1,452 @@
+[
+  {
+    "current_category": "research open",
+    "current_declaration_line": 35,
+    "current_file_sha256": "78db215ed5360dc9391d0459f4e046b1e80b276923382bd06fa430203047de76",
+    "pinned_file_sha256": "54c09e28491c5b3e493e15f6e7736da3c875cc934c611c64aa6b2a050c3320ff",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/25.lean",
+    "theorem": "Erdos25.erdos_25"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 39,
+    "current_file_sha256": "0387749fcda34a89a6e3ebb47562c4b8d9624b11b4dd9b09af6a089952eb5695",
+    "pinned_file_sha256": "80c3a248a6de98daada9331e28e6972a36a6b48ff0d9b4b43e919b05ae030fb7",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/30.lean",
+    "theorem": "Erdos30.erdos_30"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 34,
+    "current_file_sha256": "522ee685d7bc964d45011a725c6b670da2b573fbd9326c6a8a776a09398d8cf6",
+    "pinned_file_sha256": "ab3530733d90e41c5420f38d2ca52967019299da48d50184f3fd142a6b3eb989",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/52.lean",
+    "theorem": "Erdos52.erdos_52"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 46,
+    "current_file_sha256": "c2dc1a42fc5822ed2745ca78fa34753d445b9277aa4860132ad57fc18d2a1f67",
+    "pinned_file_sha256": "6da798c04876019435b89f1f11c8bf7917cbbbe08b98943081b3218d76ed04bd",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/61.lean",
+    "theorem": "Erdos61.erdos_61"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 147,
+    "current_file_sha256": "8d9206a488ace756b92b0211e20a6235d1618b98c4b561acf5e93835878e7f6e",
+    "pinned_file_sha256": "56a117c6a7e718fc774dd0e1dcd8589b7705175980b96bf378bcec00cfec0003",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/91.lean",
+    "theorem": "Erdos91.erdos_91"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 67,
+    "current_file_sha256": "3d7551f08a44bbbeef4e84e62f0e5564654134f2e3f2b23418579d0f97db5904",
+    "pinned_file_sha256": "3d7551f08a44bbbeef4e84e62f0e5564654134f2e3f2b23418579d0f97db5904",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/98.lean",
+    "theorem": "Erdos98.erdos_98"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 58,
+    "current_file_sha256": "cc6f1e6d6668f8aaea542aac6a549f8c85b3449840177685f4c6998c8f9d9460",
+    "pinned_file_sha256": "93b646b0919759b6d5c1542773ca7c80da72c001696833ac1530207c3b228053",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/124.lean",
+    "theorem": "Erdos124.erdos124.ne_zero"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 84,
+    "current_file_sha256": "c65c7f26e09baefa0b0f640c3e37b6d173a05c4b173a3a5685c6bcb547037298",
+    "pinned_file_sha256": "c65c7f26e09baefa0b0f640c3e37b6d173a05c4b173a3a5685c6bcb547037298",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/138.lean",
+    "theorem": "Erdos138.erdos_138"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 95,
+    "current_file_sha256": "d025c4ec8e8ef4c8b96fb8379f12a59d620db954bfd23e465dec0fb94206adf6",
+    "pinned_file_sha256": "06ead6c583e5d4a4a31668a876a7dbbf5ca9e6d32b40535c4d0069eebfa73827",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/168.lean",
+    "theorem": "Erdos168.erdos_168.parts.ii"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 35,
+    "current_file_sha256": "3dc327c47a690ad44c759bcd26e67cf7e548ecf3c9c65b02925c52b79161a95d",
+    "pinned_file_sha256": "3dc327c47a690ad44c759bcd26e67cf7e548ecf3c9c65b02925c52b79161a95d",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/234.lean",
+    "theorem": "Erdos234.erdos_234"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 39,
+    "current_file_sha256": "9e90445fcbb14f334a23d1afbd7e46a69fdfd55794ecfa134e23754a21d8c402",
+    "pinned_file_sha256": "9e90445fcbb14f334a23d1afbd7e46a69fdfd55794ecfa134e23754a21d8c402",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/287.lean",
+    "theorem": "Erdos287.erdos_287"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 173,
+    "current_file_sha256": "62ca2afa631d8c1eeeafd631bb94865baf1210fe6f6019e67ca43d91c671e52c",
+    "pinned_file_sha256": "188ad520a3eac0fa647031229e2c16fabc19e4e9da791e7614c2d1280709df92",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/304.lean",
+    "theorem": "Erdos304.upper_bound"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 42,
+    "current_file_sha256": "ef19952b7e1598e1267caaeefc39e34636a8b39fe31589e96809b82ce11a5e22",
+    "pinned_file_sha256": "840a39903e713a528a624f8db66312c74c96262764d8bd51cdc6776978bce77d",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/307.lean",
+    "theorem": "Erdos307.erdos_307"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 47,
+    "current_file_sha256": "62df36362d6d4a3eaf005ebaabf1b89ef68050a46064b40668ed7d5e69a483f9",
+    "pinned_file_sha256": "0c499c3929d762eafb12b9f92df65ceba83b7ea4e4d66a59213f471fdec512b3",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/317.lean",
+    "theorem": "Erdos317.erdos_317.variants.claim2"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 42,
+    "current_file_sha256": "30f6d3e16587c0b4e1bacb4cfea5c12f7dfa692539acd257a4ae02c33d5bb179",
+    "pinned_file_sha256": "30f6d3e16587c0b4e1bacb4cfea5c12f7dfa692539acd257a4ae02c33d5bb179",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/400.lean",
+    "theorem": "Erdos400.erdos_400.parts.i"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 40,
+    "current_file_sha256": "23790ad52f70b8961c24ee7f6b47367480ca415b0814f3f3770e859443cdfeda",
+    "pinned_file_sha256": "23790ad52f70b8961c24ee7f6b47367480ca415b0814f3f3770e859443cdfeda",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/410.lean",
+    "theorem": "Erdos410.erdos_410"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 44,
+    "current_file_sha256": "e97975735999f230caa902592e050c6650fa52753ba0eb133773d4a8f039e2c5",
+    "pinned_file_sha256": "a94c2d661042392b96c069776c1801dd59d509e74ee59817e21d7f95621c3333",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/413.lean",
+    "theorem": "Erdos413.erdos_413.parts.i"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 34,
+    "current_file_sha256": "08bf0490d672afdfa78210e2d9f10af61ba72cdef5f2c430425ddbb241bc56cd",
+    "pinned_file_sha256": "08bf0490d672afdfa78210e2d9f10af61ba72cdef5f2c430425ddbb241bc56cd",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/495.lean",
+    "theorem": "Erdos495.erdos_495"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 51,
+    "current_file_sha256": "63e02a65ab619a881bcbec9319e71a61fc26bf8bdb9be069c85149bfcfc0cf4c",
+    "pinned_file_sha256": "1e3332e43ebcf6f059c1a49df26aab0f497deea1e4dea4e4e7a687b627d8703f",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/14.lean",
+    "theorem": "Erdos14.erdos_14.parts.i"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 34,
+    "current_file_sha256": "ce49e9e780bacb8acb8d0e28d0d3aa94d3243509413d90d4e94af672fa01400d",
+    "pinned_file_sha256": "ce49e9e780bacb8acb8d0e28d0d3aa94d3243509413d90d4e94af672fa01400d",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/647.lean",
+    "theorem": "Erdos647.erdos_647"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 37,
+    "current_file_sha256": "50331a3428e7d61cfa6facc19de847124a863e27097b9f56a3e8c842fd189404",
+    "pinned_file_sha256": "50331a3428e7d61cfa6facc19de847124a863e27097b9f56a3e8c842fd189404",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/681.lean",
+    "theorem": "Erdos681.erdos_681"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 34,
+    "current_file_sha256": "210b864813369dade36e67bf0591ed2234264533e724bd819bc9bd80eef82d66",
+    "pinned_file_sha256": "210b864813369dade36e67bf0591ed2234264533e724bd819bc9bd80eef82d66",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/749.lean",
+    "theorem": "Erdos749.erdos_749"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 68,
+    "current_file_sha256": "b36215954c70751f539bd4eb54da375da471cf5def645702d7ad0b60a2f5e056",
+    "pinned_file_sha256": "ea4c22d2761c56deeed33cb2ce0bfd689f09761eb3e419dbcd0543351ea67b30",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/GreensOpenProblems/36.lean",
+    "theorem": "Green36.green_36.variants.cks05"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 46,
+    "current_file_sha256": "5b09299621c531d8a871a0d8e3db9f228d2b3063d561ed49d14e6b80a05f27aa",
+    "pinned_file_sha256": "5b09299621c531d8a871a0d8e3db9f228d2b3063d561ed49d14e6b80a05f27aa",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/886.lean",
+    "theorem": "Erdos886.erdos_886"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 46,
+    "current_file_sha256": "721d62df3139bd4ca3d417fd7b0f0de367740e12090fa76fa13259847821edda",
+    "pinned_file_sha256": "721d62df3139bd4ca3d417fd7b0f0de367740e12090fa76fa13259847821edda",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/930.lean",
+    "theorem": "Erdos930.erdos_930"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 44,
+    "current_file_sha256": "63ff2b7afbe786096bd1434eebf048e90a428c7d534f27e2c20c4592c45db243",
+    "pinned_file_sha256": "0fcfaa89b79a4c11015d1d8d54d80c36a52b6ffbd2b407503219cd5dede0b64a",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/933.lean",
+    "theorem": "Erdos933.erdos_933"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 44,
+    "current_file_sha256": "73d02fcfcf60c128fa0b51264890ef786c9e8779b927dbdeb436f4b98bb9f11c",
+    "pinned_file_sha256": "73d02fcfcf60c128fa0b51264890ef786c9e8779b927dbdeb436f4b98bb9f11c",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/944.lean",
+    "theorem": "Erdos944.erdos_944"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 37,
+    "current_file_sha256": "c3b1a302e3fa108cd6fd00a70db82bebf03190d310d6c111fc9ad8009fb75e94",
+    "pinned_file_sha256": "5292eb6d1c5a73f738a47fb687166b12ba69a99cda27a34e4d60de96cbb7bc2d",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/949.lean",
+    "theorem": "Erdos949.erdos_949"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 55,
+    "current_file_sha256": "0c211e91f40147721755b1390aa61af01265174c7f423804ad7345e817542252",
+    "pinned_file_sha256": "ff98cead3420ea0ad107d9aab4f0703f2afe11d4c6cd1215e80a9f2d2c6f79b2",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/962.lean",
+    "theorem": "Erdos962.erdos_962"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 53,
+    "current_file_sha256": "7047cde979ec58045c2cda7594c43d4d679cd08dae4aba1fda05fd3acd5e6080",
+    "pinned_file_sha256": "7047cde979ec58045c2cda7594c43d4d679cd08dae4aba1fda05fd3acd5e6080",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/323.lean",
+    "theorem": "Erdos323.erdos_323.parts.ii"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 35,
+    "current_file_sha256": "6be3ca8bffc65a2e3d5f51b87a2c74c0ddb6ba910e886ac3224842ff512be099",
+    "pinned_file_sha256": "cae7d4cf555869081ba12b220126d152870a8195f2441de1a9f1a046b0fee86d",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/979.lean",
+    "theorem": "Erdos979.erdos_979"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 40,
+    "current_file_sha256": "6781ec3f97f1006058ad18b905f6b6db9ce4ce22c8bb450b5a39ff335a8500ce",
+    "pinned_file_sha256": "6781ec3f97f1006058ad18b905f6b6db9ce4ce22c8bb450b5a39ff335a8500ce",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/1056.lean",
+    "theorem": "Erdos1056.erdos_1056"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 46,
+    "current_file_sha256": "51612a3fc31fbeb7b29bb9c8d54c5c27ecaf0790bc4c64345073e690aaffe199",
+    "pinned_file_sha256": "0941512bb4d48c000248e5c8845866ef8d0385fd9692556f522aba8f452dd8c0",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/1062.lean",
+    "theorem": "Erdos1062.erdos_1062.parts.ii"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 33,
+    "current_file_sha256": "08e6327c6d261798110f46760cfea02e7ff9fef715757f168d4a218f2783f4bd",
+    "pinned_file_sha256": "b9ae49c3ec751599308ba71ea2632e7b8a9df337ce6fc13bc846c9250ceed325",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/1082.lean",
+    "theorem": "Erdos1082.erdos_1082.parts.i"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 87,
+    "current_file_sha256": "c8f4d753c4f564670bb1cf0bb4fae2faf74465580d1743b06fd48f461b01a0ee",
+    "pinned_file_sha256": "8f7c2d0fb9097d53d607a008e2cae2b146df1afa673d6d77d55f726f33a6fa97",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/1113.lean",
+    "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 49,
+    "current_file_sha256": "9658bf2b1e10719501e818f866c5077f091eafb8ca40227472577c5518b47456",
+    "pinned_file_sha256": "75a914708115c0f7ca8ff4774e2a5deae51a83c2eff3e93442a1c670ec3ba94e",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/1175.lean",
+    "theorem": "Erdos1175.erdos_1175"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 107,
+    "current_file_sha256": "f2cbf68a5592d5ba6f2e265fa9e53743b709e510cf02638142134534b004e648",
+    "pinned_file_sha256": "f2cbf68a5592d5ba6f2e265fa9e53743b709e510cf02638142134534b004e648",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/291.lean",
+    "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 115,
+    "current_file_sha256": "e4ed16033e8d9011f25ee027841e129ce39b9c4e7fea4bf8176d33174042dcbf",
+    "pinned_file_sha256": "cc5615060f31897d88f2835ed77be6edc9951a89c189c4768057ea9dd86258a4",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/686.lean",
+    "theorem": "Erdos686.erdos_686.variants.twenty_five"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 57,
+    "current_file_sha256": "5d1bcf21a91baeb57fcf94f835f6f55efc0ec8144e99b57b96c8e7f3bccde337",
+    "pinned_file_sha256": "5d1bcf21a91baeb57fcf94f835f6f55efc0ec8144e99b57b96c8e7f3bccde337",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/890.lean",
+    "theorem": "Erdos890.erdos_890.parts.b"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 47,
+    "current_file_sha256": "f82d74de4877578a61fbd508d57f4c18f3ecfeddd0fe539843b6e4e2c4d6d45a",
+    "pinned_file_sha256": "f82d74de4877578a61fbd508d57f4c18f3ecfeddd0fe539843b6e4e2c4d6d45a",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/936.lean",
+    "theorem": "Erdos936.erdos_936.variants.factorial_add_one"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 53,
+    "current_file_sha256": "f82d74de4877578a61fbd508d57f4c18f3ecfeddd0fe539843b6e4e2c4d6d45a",
+    "pinned_file_sha256": "f82d74de4877578a61fbd508d57f4c18f3ecfeddd0fe539843b6e4e2c4d6d45a",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/936.lean",
+    "theorem": "Erdos936.erdos_936.variants.factorial_sub_one"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 54,
+    "current_file_sha256": "f6fd1048e54f2367d39e57103eb927337a54268838b4a4179730919db60cdac7",
+    "pinned_file_sha256": "f6fd1048e54f2367d39e57103eb927337a54268838b4a4179730919db60cdac7",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/770.lean",
+    "theorem": "Erdos770.erdos_770.parts.i"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 83,
+    "current_file_sha256": "40ad5776a117d90b1e196fe59b40d35f6b54853eb28d9f1b17a9aea525fe5a3b",
+    "pinned_file_sha256": "40ad5776a117d90b1e196fe59b40d35f6b54853eb28d9f1b17a9aea525fe5a3b",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/GreensOpenProblems/39.lean",
+    "theorem": "Green39.green_39"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 40,
+    "current_file_sha256": "3faf240f12f26c71b0d3350bee7e4ce2740d96f7841f6a76dee3b049e6a1fb5e",
+    "pinned_file_sha256": "3faf240f12f26c71b0d3350bee7e4ce2740d96f7841f6a76dee3b049e6a1fb5e",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/GreensOpenProblems/44.lean",
+    "theorem": "Green44.green_44"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 47,
+    "current_file_sha256": "727043e4a2bd657df9f4239bb9ff21d430c75fc5b4718b960a76bf2136c8439a",
+    "pinned_file_sha256": "727043e4a2bd657df9f4239bb9ff21d430c75fc5b4718b960a76bf2136c8439a",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/GreensOpenProblems/47.lean",
+    "theorem": "Green47.green_47"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 38,
+    "current_file_sha256": "d38ab7e233260302ef58121037a02dc94866ddae820e9fc84308ce7264e07acb",
+    "pinned_file_sha256": "d38ab7e233260302ef58121037a02dc94866ddae820e9fc84308ce7264e07acb",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/GreensOpenProblems/66.lean",
+    "theorem": "Green66.green_66"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 83,
+    "current_file_sha256": "1e19f51369de967f26436dbe13b97431ec089d13afeb5966e04bf2d9cd40819c",
+    "pinned_file_sha256": "12b484d31b0c6fababdd7283d94c085e5c9b5afc60202647b1b7062ee540088c",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/700.lean",
+    "theorem": "Erdos700.erdos_700.parts.ii"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 44,
+    "current_file_sha256": "7047cde979ec58045c2cda7594c43d4d679cd08dae4aba1fda05fd3acd5e6080",
+    "pinned_file_sha256": "7047cde979ec58045c2cda7594c43d4d679cd08dae4aba1fda05fd3acd5e6080",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/323.lean",
+    "theorem": "Erdos323.erdos_323.parts.i"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 58,
+    "current_file_sha256": "e450751e3310647b6dbacc468477645e8e00cfdc722f3b396e0d90aa7cef532f",
+    "pinned_file_sha256": "9e702bc9a7c6010f96baafa57d3e697040cda5a34a1d92a318defcee6c9d7349",
+    "source_file_changed": true,
+    "source_path": "FormalConjectures/ErdosProblems/1101.lean",
+    "theorem": "Erdos1101.erdos_1101.parts.i"
+  },
+  {
+    "current_category": "research open",
+    "current_declaration_line": 61,
+    "current_file_sha256": "639fe92a185f1583e91896ea553988dff39bda620a3eec1a83f14cac0aae6ffc",
+    "pinned_file_sha256": "639fe92a185f1583e91896ea553988dff39bda620a3eec1a83f14cac0aae6ffc",
+    "source_file_changed": false,
+    "source_path": "FormalConjectures/ErdosProblems/950.lean",
+    "theorem": "Erdos950.erdos_950.parts.iii"
+  }
+]

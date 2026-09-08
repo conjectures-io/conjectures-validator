@@ -1,0 +1,50 @@
+[
+  {
+    "path": "727-readme.md",
+    "url": "https://raw.githubusercontent.com/beetree/math_erdos_727/main/README.md",
+    "sha256": "9c8f87ccc6d1fc308991b096037f22c86176a4e1537a4e68f7bff28143648ddc",
+    "retrieved_utc": "2026-09-08T04:00:37.902527+00:00"
+  },
+  {
+    "path": "1059-readme.md",
+    "url": "https://raw.githubusercontent.com/beetree/math_erdos_1059/main/README.md",
+    "sha256": "9aacc054b99a58c44747e29c8f7352eab2c823b20731e793d0367186ab2eeac3",
+    "retrieved_utc": "2026-09-08T04:00:38.001609+00:00"
+  },
+  {
+    "path": "727-head.json",
+    "url": "https://api.github.com/repos/beetree/math_erdos_727/commits/main",
+    "sha256": "6fc4894015792142f2ed516b3730b72d8be5af9dfad1c5d31ea6f6a320ad4cfb",
+    "retrieved_utc": "2026-09-08T04:00:38.301574+00:00"
+  },
+  {
+    "path": "1059-head.json",
+    "url": "https://api.github.com/repos/beetree/math_erdos_1059/commits/main",
+    "sha256": "dbc0be3afa757a40f2a6d8affb0f5e329eeda273fdfb6765b51a98834dae52ea",
+    "retrieved_utc": "2026-09-08T04:00:38.520572+00:00"
+  },
+  {
+    "path": "fc-3952.json",
+    "url": "https://api.github.com/repos/google-deepmind/formal-conjectures/issues/3952",
+    "sha256": "9d3674342926b69c706531b8884107d0502ca9b6e450ce75988696434a8591ca",
+    "retrieved_utc": "2026-09-08T04:00:38.921453+00:00"
+  },
+  {
+    "path": "fc-4941.json",
+    "url": "https://api.github.com/repos/google-deepmind/formal-conjectures/pulls/4941",
+    "sha256": "675c3ef2a28e1a19ef960891cd331752c76bd98dc215defc06db3d0b58f7b004",
+    "retrieved_utc": "2026-09-08T04:00:39.471132+00:00"
+  },
+  {
+    "path": "96-arxiv.html",
+    "url": "https://arxiv.org/abs/1605.08066",
+    "sha256": "762c4e328f1454665d0824a4bc1e4e71a937c1ab6bc0cf23fa0b3da92fa0aca5",
+    "retrieved_utc": "2026-09-08T04:00:39.586768+00:00"
+  },
+  {
+    "path": "242-arxiv.html",
+    "url": "https://arxiv.org/abs/2602.11774",
+    "sha256": "315f5efb445074b1e2abb621e8b839896dccc886d280cef38b46b23a23b5a3e3",
+    "retrieved_utc": "2026-09-08T04:00:39.594894+00:00"
+  }
+]

@@ -58,6 +58,8 @@ extend-exclude = [
     ".work",
     "lean",
     "vendor",
+    # Dated evidence includes scripts sealed by SHA-256 manifests. Preserve their exact bytes.
+    "docs/review-decisions",
 ]
 
 [tool.ruff.lint]

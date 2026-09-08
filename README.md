@@ -422,16 +422,21 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 208
-active audited targets (189 Erdős targets and 19 Green's Open Problems targets), including complete
-statements and independently formalized parts or variants. Eighteen additional audited targets are
-retired from admission — eight for dependency or semantic-fidelity defects, four after verified
-submissions settled them, two after literature solutions, and four by maintainer request or an
-active upstream correction — and are absent from the deny-by-default allowlist. The source
-snapshot is Formal Conjectures commit `8432eac998110a563e03df65a28c117e97c8c142`, deterministically
-derived from upstream `7d1a8c9912747679d0093f6d1216420c33ee5ffa` plus the checked-in semantic
-correction patch. The tier contains 416 active immutable bundles for 208 theorem targets. Every
-target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 259
+active audited targets (235 Erdős and 24 Green targets) across 223 numbered source files.
+The September 8 review retires six live targets and adds 57 reviewed targets, including replacements
+for withdrawn candidates. Twenty-four historical retirement decisions remain recorded; targets with
+unresolved full-scope proof claims are withheld from admission.
+The source remains Formal Conjectures `8432eac998110a563e03df65a28c117e97c8c142`, derived from
+upstream `7d1a8c9912747679d0093f6d1216420c33ee5ffa` plus the checked-in semantic correction patch,
+on Lean 4.33.1. The tier contains 518 immutable bundles: a `formalized` task for `P` and a
+`counterexample` task for `¬ P` for each target. Every active manifest permits a 10 MiB
+(10,485,760-byte) proof. The enlarged limit is committed through fresh task IDs and digests;
+stable reward identities are preserved.
+
+See the [production release review](docs/review-decisions/2026-09-08-production-release/REVIEW.md)
+for dated source evidence, statement comparisons, exclusions, and validation. Absence of a solution
+in this bounded search is not a certification that no prior solution exists.
 
 Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
 `reward_target_id` shared by its proof/refutation pair and later source repins. Independently
@@ -468,7 +473,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 208 active audited direct propositions, generates committed `formalized` and
+the 259 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).

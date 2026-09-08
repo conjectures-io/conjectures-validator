@@ -1,0 +1,1945 @@
+[
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $n_1 < n_2 < \\dots$ be an arbitrary sequence of integers, each with an associated residue class\n$a_i \\pmod{n_i}$. Let $A$ be the set of integers $n$ such that for every $i$ either $n < n_i$ or\n$n \\not\\equiv a_i \\pmod{n_i}$. Must the logarithmic density of $A$ exist?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«25»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/25](https://www.erdosproblems.com/25)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/25.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos25.erdos_25",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:4fc90f21de1d545b3ce9ab3a94dfc74cc07cc653e752fe85ea04b244f1b153da",
+    "type_pretty": "True ↔\n  ∀ (seq_n : ℕ → ℕ) (seq_a : ℕ → ℤ),\n    (∀ (i : ℕ), 0 < seq_n i) →\n      StrictMono seq_n → ∃ d, {x | ∀ (i : ℕ), ↑x < ↑(seq_n i) ∨ ¬↑x ≡ seq_a i [ZMOD ↑(seq_n i)]}.HasLogDensity d"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that, for every $\\varepsilon > 0$, $h(N) = \\sqrt N + O_{\\varespilon}(N^\\varespilon)\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«30»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/30](https://www.erdosproblems.com/30)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/30.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos30.erdos_30",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:296196e2e226ef75ea234e8066899427db918cce9f7631e4fdafc58fcce2684f",
+    "type_pretty": "True ↔ ∀ ε > 0, (fun N => ↑(Erdos30.h N) - √↑N) =O[Filter.atTop] fun N => ↑N ^ ε"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $A$ be a finite set of integers. Is it true that for every $\\epsilon>0$\n$\\max( \\lvert A+A\\rvert,\\lvert AA\\rvert)\\gg_\\epsilon \\lvert A\\rvert^{2-\\epsilon}?$\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«52»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/52](https://www.erdosproblems.com/52)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/52.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos52.erdos_52",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:8041b21dec4e998488bbd394153c5d601ca50730685206b0206d13a481033d9a",
+    "type_pretty": "True ↔ ∀ (ε : ℝ), 0 < ε → ε < 1 → ∃ C, 0 < C ∧ ∀ (A : Finset ℤ), max ↑(A + A).card ↑(A * A).card ≥ C * ↑A.card ^ (2 - ε)"
+  },
+  {
+    "ams_subjects": [
+      5
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "The Erdős–Hajnal Conjecture states that there is a constant $c(H) > 0$ for each\n$H$ such that we can take $f(n) = n^{c(H)}$ in the above formulation.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«61»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/61](https://www.erdosproblems.com/61)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/61.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos61.erdos_61",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:755fa0d6248d973a576bd0d6aeeb85af9d0fd90b28d99353b264577160f7700d",
+    "type_pretty": "True ↔\n  ∀ {α : Type u_1} [inst : Fintype α] [inst_1 : DecidableEq α] (H : SimpleGraph α),\n    ∃ c > 0, Erdos61.IsErdosHajnalLowerBound H fun n => ↑n ^ c"
+  },
+  {
+    "ams_subjects": [
+      52
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Suppose $A\\subset \\mathbb{R}^2$ has $\\lvert A\\rvert=n$ and minimises the number of distinct\ndistances between points in $A$. Prove that for large $n$ there are at least two\n(and probably many) such $A$ which are non-similar.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«91»",
+    "pointer_target": null,
+    "references": [
+      "[Er87b] Erdős, P., Some combinatorial and metric problems in geometry. Intuitive geometry (Siófok, 1985) (1987), 167-177.",
+      "[Ko24c] Z. Kovács, A note on Erdős's mysterious remark. arXiv:2412.05190 (2024).",
+      "[erdosproblems.com/91](https://www.erdosproblems.com/91)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/91.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos91.erdos_91",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:906e9786999d6a619208647ee42f6d3f0932ecdebe09abccb3b1b23e791b9203",
+    "type_pretty": "(∀ᶠ (n : ℕ) in Filter.atTop, ¬Erdos91.UniqueMinimizer n) ↔ True"
+  },
+  {
+    "ams_subjects": [
+      52
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $h(n)$ be such that any $n$ points in $\\mathbb{R}^2$, with no three on a line\nand no four on a circle, determine at least $h(n)$ distinct distances. Does\n$h(n)/n\\to \\infty$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«98»",
+    "pointer_target": null,
+    "references": [
+      "[[Er75f](https://mathscinet.ams.org/mathscinet/relay-station?mr=411984)] Erdős, Paul, On some problems of elementary and combinatorial geometry. Ann. Mat. Pura Appl. (4) (1975), 99-108.",
+      "[[Er83c](https://mathscinet.ams.org/mathscinet/relay-station?mr=706025)] Erdős, Paul, Combinatorial problems in geometry. Math. Chronicle (1983), 35-54.",
+      "[[Er87b](https://mathscinet.ams.org/mathscinet/relay-station?mr=910710)] Erdős, P., Some combinatorial and metric problems in geometry. Intuitive geometry (Siófok, 1985) (1987), 167-177.",
+      "[[Er90](https://mathscinet.ams.org/mathscinet/relay-station?mr=1117038)] Erdős, Paul, Some of my favourite unsolved problems. A tribute to Paul Erdős (1990), 467-478.",
+      "[[Er92b](https://mathscinet.ams.org/mathscinet/relay-station?mr=1275857)] Erdős, Paul, Some of my favourite problems in various branches of combinatorics. Matematiche (Catania) (1992), 231-240.",
+      "[[EFPR93](https://mathscinet.ams.org/mathscinet/relay-station?mr=1210096)] Erdős, Paul and Füredi, Zoltán and Pach, János and Ruzsa, Imre Z., The grid revisited. Discrete Math. (1993), 189-196.",
+      "[[Er94b](https://mathscinet.ams.org/mathscinet/relay-station?mr=1304854)] Erdős, Paul, Some problems in number theory, combinatorics and combinatorial geometry. Math. Pannon. (1994), 261-269.",
+      "[[Er97e](https://mathscinet.ams.org/mathscinet/relay-station?mr=1487304)] Erdős, Paul, Some of my favourite unsolved problems. Math. Japon. (1997), 527-537.",
+      "[erdosproblems.com/98](https://www.erdosproblems.com/98)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/98.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos98.erdos_98",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:bab0232e1cb04c281b0958d95e0222cf35ebed4589ac0e26252ab02288eee7ba",
+    "type_pretty": "True ↔ Filter.Tendsto (fun n => ↑(Erdos98.h n) / ↑n) Filter.atTop Filter.atTop"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $k \\ne 0$ and $3\\leq d_1 < d_2 < \\cdots < d_r$ be integers of gcd equal to $1$ such that\n$$\\sum_{1 \\le i \\le r}\\frac 1{d_i - 1} \\ge 1.$$\nCan all sufficiently large integers be written as a sum of the shape $\\sum_i c_ia_i$\nwhere $c_i \\in \\{0, 1\\}$ and $a_i$ is divisible by $d_i ^ k$ and has only the digits $0, 1$ when\nwritten in base $d_i$?\n\nConjectured by Burr, Erdős, Graham, and Li [BEGL96]\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«124»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/124](https://www.erdosproblems.com/124)",
+      "[BEGL96] Burr, S. A. and Erdős, P. and Graham, R. L. and Li, W. Wen-Ching, Complete sequences of sets of integer powers. Acta Arith. (1996), 133-138."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/124.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos124.erdos124.ne_zero",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:5b1054dbb59cfc7e279ac5d4772e232d77ddf358c10e670894bf841599ed4058",
+    "type_pretty": "True ↔\n  ∀ (k : ℕ),\n    k ≠ 0 →\n      ∀ (D : Finset ℕ),\n        (∀ d ∈ D, 3 ≤ d) →\n          1 ≤ ∑ d ∈ D, (↑d - 1)⁻¹ →\n            D.gcd id = 1 → ∀ᶠ (n : ℕ) in Filter.atTop, n ∈ ∑ d ∈ D, Erdos124.sumsOfDistinctPowers d k"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "In [Er80] Erdős asks whether\n$$ \\lim_{k \\to \\infty} (W(k))^{1/k} = \\infty $$\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«138»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/138](https://www.erdosproblems.com/138)",
+      "[Be68] Berlekamp, E. R., A construction for partitions which avoid long arithmetic progressions. Canad. Math. Bull. (1968), 409-414.",
+      "[Er80] Erdős, Paul, A survey of problems in combinatorial number theory. Ann. Discrete Math. (1980), 89-115.",
+      "[Er81] Erdős, P., On the combinatorial problems which I would most like to see solved. Combinatorica (1981), 25-42.",
+      "[Go01] Gowers, W. T., A new proof of Szemerédi's theorem. Geom. Funct. Anal. (2001), 465-588."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/138.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos138.erdos_138",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:371edd26df33585f57ad32c7a16f6caa582021d5c69e89a558e516130ad1a3b7",
+    "type_pretty": "True ↔ Filter.Tendsto (fun k => ↑(Erdos138.W k) ^ (1 / ↑k)) Filter.atTop Filter.atTop"
+  },
+  {
+    "ams_subjects": [
+      5,
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is the limit $F(N)/N$ as $N \\to \\infty$ irrational? ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«168»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/168](https://www.erdosproblems.com/168)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/168.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos168.erdos_168.parts.ii",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:b3331014a8e34f5d185f22f5868980c1d1765d23af7697d707d1e4fa1dab89e8",
+    "type_pretty": "True ↔ Irrational (Filter.limsup (fun N => ↑(Erdos168.F N) / ↑N) Filter.atTop)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that for all `c ≥ 0`, the density `f c` of integers for which\n`(p (n + 1) - p n) / log n < c` exists and is a continuous function of `c`?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«234»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/234](https://www.erdosproblems.com/234)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/234.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos234.erdos_234",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:5ecc1660d60b105144b609d1cf82d8f74c9082f0618c403e77392bd9f17769d8",
+    "type_pretty": "True ↔ ∃ f, Continuous f ∧ ∀ (c : NNReal), {n | ↑(primeGap n) / Real.log ↑n < ↑c}.HasDensity (f c)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $k\\geq2$. Is it true that, for any distinct integers\n$1 < n_1 < \\cdots < n_k$ such that $\\sum_{i=1}^k \\frac{1}{n_i} = 1$,\nwe must have $\\max(n_{i+1} - n_i) \\geq 3$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«287»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/287](https://www.erdosproblems.com/287)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/287.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos287.erdos_287",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:78bddbd3ad109356f4d52213a5dd3168c1116b6eff4527128f9b38495d89833f",
+    "type_pretty": "True ↔\n  ∀ (k : ℕ) (hk : 2 ≤ k) (s : Fin k → ℕ), StrictMono s → 1 < s ⟨0, ⋯⟩ → ∑ i, 1 / ↑(s i) = 1 → 3 ≤ Erdos287.max_gap k s"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that $$N(b) \\ll \\log \\log b$$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«304»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/304](https://www.erdosproblems.com/304)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/304.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos304.upper_bound",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:1f68abefc6f19036f8af8e734ce9ddf0abe19c554cb3f8d9571d9ab3d0c868fa",
+    "type_pretty": "True ↔ (fun b => ↑(Erdos304.smallestCollectionTo b)) =O[Filter.atTop] fun b => Real.log (Real.log ↑b)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Are there two finite set of primes $P$ and $Q$ such that\n\n$$\n1 = \\left( \\sum_{p \\in P} \\frac{1}{p} \\right) \\left( \\sum_{q \\in Q} \\frac{1}{q} \\right)\n$$\n?\n\nAsked by Barbeau [Ba76].\n\n[Ba76] Barbeau, E. J., _Computer challenge corner: Problem 477: A brute force program._\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«307»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/307](https://www.erdosproblems.com/307)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/307.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos307.erdos_307",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:6ddf05c11356df8d132a2e40b0ed84b364532887c27683f566275deb8cd44f84",
+    "type_pretty": "True ↔ ∃ P Q, (∀ p ∈ P, Nat.Prime p) ∧ (∀ q ∈ Q, Nat.Prime q) ∧ 1 = (∑ p ∈ P, (↑p)⁻¹) * ∑ q ∈ Q, (↑q)⁻¹"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that for sufficiently large $n$, for any $\\delta_k\\in \\{-1,0,1\\}$,\n$$\\left\\lvert \\sum_{1\\leq k\\leq n}\\frac{\\delta_k}{k}\\right\\rvert > \\frac{1}{[1,\\ldots,n]}$$\nwhenever the left-hand side is not zero?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«317»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/317](https://www.erdosproblems.com/317)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/317.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos317.erdos_317.variants.claim2",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:822ac0e643611bd2aaecc48587ca8631e2354f690a5918f60eee4361c3ce5bc8",
+    "type_pretty": "True ↔\n  ∀ᶠ (n : ℕ) in Filter.atTop,\n    ∀ (δ : Fin n → ℚ),\n      δ '' Set.univ ⊆ {-1, 0, 1} → |∑ k, δ k / (↑↑k + 1)| ≠ 0 → |∑ k, δ k / (↑↑k + 1)| > 1 / ↑((Finset.Icc 1 n).lcm id)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Can one show that $\\sum_{n\\leq x}g_k(n) \\sim c_k x\\log x$ for some constant $c_k$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«400»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/400](https://www.erdosproblems.com/400)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/400.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos400.erdos_400.parts.i",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:e4c6fb6ca753582f8289577becdfe30e226cc045915ef98ef84699ae28471d9c",
+    "type_pretty": "True ↔\n  ∀ k ≥ 2,\n    ∃ c,\n      Asymptotics.IsEquivalent Filter.atTop (fun x => ∑ n ∈ Finset.Icc 1 x, ↑(Erdos400.g k n)) fun x =>\n        c * ↑x * Real.log ↑x"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $σ_1(n) = σ(n)$, the sum of divisors function, and $σ_k(n) = σ(σ_{k-1}(n))$.\n\nIs it true that $\\lim_{k → ∞} σ_k(n)^{\\frac 1 k} = ∞$?\n\nThis is problem (iii) from\nErdos, Granville, Pomerance, Spiro\n\"On the normal behavior of the iterates of some arithmetical functions\"\n(page 169 of the book \"Analytic Number Theory\", 1990).\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«410»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/410](https://www.erdosproblems.com/410)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/410.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos410.erdos_410",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:15764dee6245ed76e160ef373046385a3130329165e526a2584b0adbb9b130ca",
+    "type_pretty": "True ↔ ∀ n > 1, Filter.Tendsto (fun k => ↑((⇑(ArithmeticFunction.sigma 1))^[k] n) ^ (1 / ↑k)) Filter.atTop Filter.atTop"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Are there infinitely many barriers for `ω`? ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«413»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/413](https://www.erdosproblems.com/413)",
+      "[A5236](https://oeis.org/A5236)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/413.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos413.erdos_413.parts.i",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:79458670026da5726e3a9366ef887be4e5eb2c89548d4ef2fcd924024ca6d9ef",
+    "type_pretty": "True ↔ {n | Erdos413.IsBarrier (fun m => ↑(ArithmeticFunction.cardDistinctFactors m)) n}.Infinite"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $\\alpha,\\beta \\in \\mathbb{R}$. Is it true that$$\\liminf_{n\\to \\infty} n \\| n\\alpha \\|\n\\| n\\beta\\| =0$$? This is also known as the Littlewood conjecture.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«495»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/495](https://www.erdosproblems.com/495)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/495.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos495.erdos_495",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:2bda9701627798e9a3ebb9440ba263fe6bb365b1682d74628be68f63663dd84c",
+    "type_pretty": "True ↔ ∀ (α β : ℝ), Filter.liminf (fun n => ↑n * distToNearestInt (↑n * α) * distToNearestInt (↑n * β)) Filter.atTop = 0"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $A ⊆ \\mathbb{N}$. Let $B ⊆ \\mathbb{N}$ be the set of integers which are representable\nin exactly one way as the sum of two elements from $A$. Is it true that for all\n$\\epsilon > 0$ and large $N$, $|\\{1,\\ldots,N\\} \\setminus B| \\gg_\\epsilon N^{1/2 - \\epsilon}$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«14»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/14](https://www.erdosproblems.com/14)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/14.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos14.erdos_14.parts.i",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:01f4b21faa141073550ace4791e41bb283bad80fb700e8965387588dc9238029",
+    "type_pretty": "True ↔ ∀ (A : Set ℕ), ∀ ε > 0, Erdos14.almostSquareRoot ε =O[Filter.atTop] Erdos14.nonUniqueSumCount A"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $\\tau(n)$ count the number of divisors of $n$. Is there some $n > 24$ such that\n$$\n  \\max_{m < n}(m + \\tau(m)) \\leq n + 2?\n$$ ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«647»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/647](https://www.erdosproblems.com/647)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/647.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos647.erdos_647",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:9db02982511c4e78da204d638ceb5816e1abc55c6743693bc1bc6e0688be23d3",
+    "type_pretty": "True ↔ ∃ n > 24, ⨆ m, ↑m + (ArithmeticFunction.sigma 0) ↑m ≤ n + 2"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "**Erdős problem 681.**\nIs it true that for all large $n$ there exists $k$\nsuch that $n + k$ is composite and $p(n+k) > k^2$,\nwhere $p(m)$ is the least prime factor of $m$ ?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«681»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/681](https://www.erdosproblems.com/681)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/681.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos681.erdos_681",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:79fffe0134315d8396ac05858b432ad13ddbce212b916138ce5dacca41486c49",
+    "type_pretty": "True ↔ ∀ᶠ (n : ℕ) in Filter.atTop, ∃ k > 0, (n + k).Composite ∧ ∀ (p : ℕ), Erdos681.IsLPF p (n + k) → p > k ^ 2"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $\\epsilon>0$. Does there exist $A\\subseteq \\mathbb{N}$\nsuch that the lower density of $A+A$ is at least $1-\\epsilon$\nand yet $1_A\\ast 1_A(n) \\ll_\\epsilon 1$ for all $n$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«749»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/749](https://www.erdosproblems.com/749)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/749.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos749.erdos_749",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:335c412504782cb965ba04bebe7a7e57c8c8eacf7adc7d95abd6e6970a6f5ef3",
+    "type_pretty": "True ↔\n  ∀ ε > 0, ∃ A, 1 - ε ≤ (A + A).lowerDensity ∧ (Nat.cast ∘ AdditiveCombinatorics.sumRep A) =O[Filter.atTop] fun n => 1"
+  },
+  {
+    "ams_subjects": [
+      5,
+      20
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Variant using the exact simultaneous double product property from [CKS05, 4.1]. ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.GreensOpenProblems.«36»",
+    "pointer_target": null,
+    "references": [
+      "[Gr24] [Green's Open Problems #36](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.36)",
+      "[CKS05] Cohn, H., Kleinberg, R., Szegedy, B., and Umans, C. \"Group-theoretic Algorithms for Matrix Multiplication\" (Problem 4.7)"
+    ],
+    "source_path": "FormalConjectures/GreensOpenProblems/36.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Green36.green_36.variants.cks05",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:d63905b0ee88b827b3b329b890ab90f0f278c3d83232637a0b74991a7b8d2e69",
+    "type_pretty": "True ↔\n  ∀ ε > 0,\n    ∃ᶠ (n : ℕ) in Filter.atTop,\n      ∃ H x,\n        ∃ (_ : Finite H),\n          ∃ A B,\n            ↑n ^ (2 - ε) ≤ ↑(Nat.card H) ∧\n              ↑(Nat.card H) ≤ ↑n ^ (2 + ε) ∧\n                (∀ (i : Fin n), ↑n ^ (2 - ε) ≤ ↑(A i).card * ↑(B i).card) ∧ Green36.SimultaneousDoubleProduct A B"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $\\epsilon>0$. Is it true that, for all large $n$, the number of divisors of $n$ in\n$(n^{1/2},n^{1/2}+n^{1/2-\\epsilon})$ is $O_\\epsilon(1)$?\n\nErdős attributes this conjecture to Ruzsa.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«886»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/886](https://www.erdosproblems.com/886)",
+      "[ErRo97] Erdős, Paul and Rosenfeld, Moshe, The factor-difference set of integers. Acta Arith. (1997), 353--359."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/886.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos886.erdos_886",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:3316d63494af26bee44f1046ee88610bfba312e24dd1349b126d48434939330a",
+    "type_pretty": "True ↔ ∀ ε > 0, ∃ K, ∀ᶠ (n : ℕ) in Filter.atTop, (Erdos886.Erdos886Divisors n ε 1).card ≤ K"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that, for every $r$, there is a $k$ such that\nif $I_1,\\ldots,I_r$ are disjoint intervals of consecutive integers,\nall of length at least $k$, then\n$$\n  \\prod_{1\\leq i\\leq r}\\prod_{m\\in I_i}m\n$$\nis not a perfect power?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«930»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/930](https://www.erdosproblems.com/930)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/930.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos930.erdos_930",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:a3172ae86bfc8ac0c80d9332595d33db458db0dc4dd107b7b45a7ffc7ce461f4",
+    "type_pretty": "True ↔\n  ∀ r > 0,\n    ∃ k,\n      ∀ (I₁ I₂ : Fin r → ℕ),\n        (∀ (i : Fin r), 0 < I₁ i ∧ I₁ i + k ≤ I₂ i + 1) →\n          (∀ (i j : Fin r), i < j → I₂ i < I₁ j) → ¬Erdos930.IsPower (∏ i, ∏ m ∈ Finset.Icc (I₁ i) (I₂ i), m)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "If $n(n+1)=2^k3^lm$, where $(m,6)=1$, then is it true that\n$\\limsup_{n\\to \\infty} \\frac{2^k3^l}{n\\log n}=\\infty$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«933»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/933](https://www.erdosproblems.com/933)",
+      "[Er76d] Erdős, P, Problems and results on number theoretic properties of consecutive integers and related questions. Proceedings of the Fifth Manitoba Conference on Numerical Mathematics (Univ. Manitoba, Winnipeg, Man., 1975) (1976), 25-44."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/933.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos933.erdos_933",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:eae6046fa84b27931fde331ef7ae80d6097e107163bbf431f9b6baa54b9b129a",
+    "type_pretty": "True ↔ Filter.limsup (fun n => ↑↑(2 ^ Erdos933.k n * 3 ^ Erdos933.l n) / (↑↑n * ↑(Real.log ↑n))) Filter.atTop = ⊤"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $k \\ge 4$ and $r\\ge 1$. Must there exist a graph $G$ with chromatic number $k$\nsuch that every vertex is critical, yet every critical set of edges has size $>r$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«944»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/944](https://www.erdosproblems.com/944)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/944.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos944.erdos_944",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:5c4c2c5a397dfd3866b4c214c7f06564edfd908ce73173d25cc5321aee639e33",
+    "type_pretty": "True ↔ ∀ k ≥ 4, ∀ r ≥ 1, ∃ V G, Erdos944.SimpleGraph.IsErdos944 G k r"
+  },
+  {
+    "ams_subjects": [
+      5
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $S \\subseteq \\mathbb{R}$ be a set containing no solutions to $a + b = c$.\nMust there be a set $A \\subseteq \\mathbb{R} \\setminus S$ of cardinality continuum such that\n$A + A \\subseteq \\mathbb{R}\\setminus S$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«949»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/949](https://www.erdosproblems.com/949)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/949.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos949.erdos_949",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:3d986884c2785c4f7007eb571e03aa4db1ac419b4874613b0c49935f7de76c52",
+    "type_pretty": "True ↔ ∀ (S : Set ℝ), (∀ a ∈ S, ∀ b ∈ S, a + b ∉ S) → ∃ A ⊆ Sᶜ, Cardinal.mk ↑A = Cardinal.continuum ∧ A + A ⊆ Sᶜ"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Main conjecture:\n\n$\\log k(n) \\le (\\log n)^{(1/2 + o(1))}$\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«962»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/962](https://www.erdosproblems.com/962)",
+      "[Er65] Erdős, P., Extremal problems in number theory. Proc. Sympos. Pure Math., Vol. VIII (1965), 181-189.",
+      "[Er76e] Erdős, P., Problems and results on consecutive integers. Publ. Math. Debrecen (1976), 271-282.",
+      "[Tang](https://github.com/QuanyuTang/erdos-problem-962/blob/main/On_Erd%C5%91s_Problem_962.pdf)",
+      "[Tao](https://www.erdosproblems.com/forum/thread/962)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/962.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos962.erdos_962",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:e1de89760714ea69d71079f402bd4bd936bb473f2221859a12b82aeef2b9331a",
+    "type_pretty": "True ↔\n  ∃ ε,\n    (∀ δ > 0, ∀ᶠ (n : ℕ) in Filter.atTop, |ε n| < δ) ∧\n      ∀ᶠ (n : ℕ) in Filter.atTop, Real.log ↑(Erdos962.k n) ≤ (Real.log ↑n).rpow (1 / 2 + ε n)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that if $m < k$ then $f_{k,m}(x) \\gg x^{m/k}$ for sufficiently large $x$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«323»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/323](https://www.erdosproblems.com/323)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/323.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos323.erdos_323.parts.ii",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:9f5249f1964808fe99db494f7e52b5f75e17c1d386af7989fae27eaf5c32024f",
+    "type_pretty": "True ↔ ∀ (k m : ℕ), 1 ≤ m → m < k → (fun x => ↑x ^ (↑m / ↑k)) =O[Filter.atTop] fun x => ↑(Erdos323.f k m x)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $k ≥ 2$, and let $f_k(n)$ count the number of solutions to $n = p_1^k + \\dots + p_k^k$,\nwhere the $p_i$ are prime numbers. Is it true that $\\limsup f_k(n) = \\infty$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«979»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/979](https://www.erdosproblems.com/979)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/979.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos979.erdos_979",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:c451f45e1f996d236b10fefcf827fd2f7828b3530747e0924ad05d90c4137dff",
+    "type_pretty": "True ↔ ∀ k ≥ 2, Filter.limsup (fun n => (Erdos979.solutionSet n k).encard) Filter.atTop = ⊤"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $k ≥ 2$. Does there exist a prime $p$ and consecutive intervals $I_0,\\dots,I_k$\nsuch that $\\prod\\limits_{n{\\in}I_i}n \\equiv 1 \\mod n$ for all $1 \\le i \\le k$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«1056»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/1056](https://www.erdosproblems.com/1056)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/1056.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos1056.erdos_1056",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:fda08b8781283f3deccd1cf466d486319555c16f17421fd07953a1013eb8a943",
+    "type_pretty": "True ↔\n  ∀ k ≥ 2,\n    ∃ p, ∃ (_ : Nat.Prime p), ∃ boundaries, ∃ (_ : StrictMono boundaries), Erdos1056.AllModProdEqualsOne p boundaries"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Erdős asked whether the limiting density `f n / n` exists and, if so, whether it is\nirrational. ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«1062»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/1062](https://www.erdosproblems.com/1062)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/1062.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos1062.erdos_1062.parts.ii",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:8594d6cf09d2f4108163c3c4cc2ce01f55d3fa19c8d8e05eb8cc86c188d944e7",
+    "type_pretty": "(∃ l, Filter.Tendsto (fun n => ↑(Erdos1062.f n) / ↑n) Filter.atTop (nhds l) ∧ Irrational l) ↔ True"
+  },
+  {
+    "ams_subjects": [
+      51
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $A\\subset \\mathbb{R}^2$ be a set of $n$ points with no three on a line.\nDoes $A$ determine at least $\\lfloor n/2\\rfloor$ distinct distances?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«1082»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/1082](https://www.erdosproblems.com/1082)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/1082.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos1082.erdos_1082.parts.i",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:17edea516a9db2595bb8bec7dc20054e465bddcb3a2b77da5fa21539b94f6bea",
+    "type_pretty": "True ↔\n  ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n    EuclideanGeometry.NonTrilinear ↑A → A.card / 2 ≤ EuclideanGeometry.distinctDistances A"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "**Filaseta–Finch–Kozek conjecture (2008).** Every Sierpiński number is either a perfect power\nor possesses a finite covering set of primes.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": true,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«1113»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/1113](https://www.erdosproblems.com/1113)",
+      "[ErGr80] Erdős, P. and Graham, R. L., Old and New Problems and Results in Combinatorial Number Theory. Monographie de l'Enseignement Mathématique, No. 28 (1980).",
+      "[Si60] Sierpiński, W., Elementary Theory of Numbers. Państwowe Wydawnictwo Naukowe, Warsaw (1960).",
+      "[FFK08] Filaseta, M., Finch, C., and Kozek, M., On powers associated with Sierpiński numbers, Riesel numbers and Polignac's conjecture. Journal of Number Theory 128 (2008), 1916–1940."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/1113.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:be47c529de84a4d1a48c3834d4522a99e658a19e737f1f79b0f1e66bcff35bea",
+    "type_pretty": "∀ (k : ℕ), k.IsSierpinskiNumber → k.IsPerfectPower ∨ Erdos1113.HasFinitePrimeCoveringSet k"
+  },
+  {
+    "ams_subjects": [
+      5
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $\\kappa$ be an uncountable cardinal. Must there exist a cardinal $\\lambda$ such that every\ngraph with chromatic number $\\lambda$ contains a triangle-free subgraph with chromatic number\n$\\kappa$?\n\nShelah proved that a negative answer is consistent when\n$\\kappa = \\lambda = \\aleph_1$ (see `erdos_1175.variants.shelah_consistency`).\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«1175»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/1175](https://www.erdosproblems.com/1175)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/1175.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos1175.erdos_1175",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:94a0b96c19d37462875b6eb2bee2c8814c7b660b5b2f9173b6a473bb6d45be0f",
+    "type_pretty": "True ↔\n  ∀ (κ : Cardinal.{u_1}),\n    Cardinal.aleph0 < κ →\n      ∃ μ,\n        ∀ (V : Type u_1) (G : SimpleGraph V),\n          G.chromaticCardinal = μ → ∃ H, H.coe.CliqueFree 3 ∧ H.coe.chromaticCardinal = κ"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "In particular, there should be infinitely many $n$, but the set of such $n$ should have\ndensity zero. Unfortunately this heuristic is difficult to turn into a proof.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«291»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/291](https://www.erdosproblems.com/291)",
+      "[ErGr80, p.34] Erdős, P. and Graham, R., Old and new problems and results in combinatorial number theory. Monographies de L'Enseignement Mathematique (1980).",
+      "[Sh16] P. Shiu, The denominators of harmonic numbers. arXiv:1607.02863 (2016).",
+      "[WuYa22] Wu, Bing-Ling and Yan, Xiao-Hui, On the denominators of harmonic numbers. {IV}. C. R. Math. Acad. Sci. Paris (2022), 53--57."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/291.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:e2829c437fcad6fe1da19ab961ad301299f96cf725e6af3bfd671ecaeefcdf20",
+    "type_pretty": "Filter.Tendsto (fun N => ↑{n ∈ Finset.Icc 1 N | (Erdos291.a n).gcd (Erdos291.L n) = 1}.card / ↑N) Filter.atTop (nhds 0)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Can $25$ be written as\n$$25=\\frac{\\prod_{1\\leq i\\leq k}(m+i)}{\\prod_{1\\leq i\\leq k}(n+i)}$$\nfor some $k≥2$ and $m≥n+k$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«686»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/686](https://www.erdosproblems.com/686)",
+      "[Er79d] Erdős, P., *Some unconventional problems in number theory*. Acta Math. Acad. Sci. Hungar. (1979), 71-80."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/686.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos686.erdos_686.variants.twenty_five",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:3ff209c8b606e11ea4bcceed78a71b302f8728b0147777dc34b81e95f3be7cab",
+    "type_pretty": "True ↔ ∃ k ≥ 2, ∃ n, ∃ m ≥ n + k, 25 = ↑(∏ i ∈ Finset.Icc 1 k, (m + i)) / ↑(∏ i ∈ Finset.Icc 1 k, (n + i))"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that\n$$\\limsup_{n\\to \\infty}\\left(\\sum_{0\\leq i < k}\\omega(n+i)\\right) \\frac{\\log\\log n}{\\log n}=1,$$\nwhere $\\omega$ counts the number of distinct prime factors without restriction?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«890»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/890](https://www.erdosproblems.com/890)",
+      "[ErSe67] Erdős, P. and Selfridge, J. L., Some problems on the prime factors of consecutive integers. Illinois J. Math. (1967), 428--430."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/890.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos890.erdos_890.parts.b",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:b6f9866a72c8568ae51d93f95cee4701f50f6816ce86b9e64cf984f66d2c9acb",
+    "type_pretty": "True ↔\n  ∀ k ≥ 1,\n    Filter.limsup\n        (fun n =>\n          (∑ i ∈ Finset.range k, ↑(ArithmeticFunction.cardDistinctFactors (n + i))) *\n            (↑(Real.log (Real.log ↑n)) / ↑(Real.log ↑n)))\n        Filter.atTop =\n      1"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is $n! + 1$ powerful for finitely many $n$? ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«936»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/936](https://www.erdosproblems.com/936)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/936.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos936.erdos_936.variants.factorial_add_one",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:63637833d5535d2330fd09114d1b2805a4b2d747f3a9fe026e9f45fe92b38c20",
+    "type_pretty": "True ↔ Erdos936.EventuallyNotPowerful fun x => x.factorial + 1"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is $n! - 1$ powerful for finitely many $n$? ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«936»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/936](https://www.erdosproblems.com/936)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/936.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos936.erdos_936.variants.factorial_sub_one",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:6fc34885088fd2deb03299374b081210dcb2e3c255fce69761ca4ecaebe52159",
+    "type_pretty": "True ↔ Erdos936.EventuallyNotPowerful fun x => x.factorial - 1"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "For every prime `p`, does the density of integers with `h n = p` exist? ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«770»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/770](https://www.erdosproblems.com/770)",
+      "[Er49d] Erdös, P. \"On the strong law of large numbers.\" Transactions of the American Mathematical Society 67.1 (1949): 51-56.",
+      "[Ma66] Matsuyama, Noboru. \"On the strong law of large numbers.\" Tohoku Mathematical Journal, Second Series 18.3 (1966): 259-269."
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/770.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos770.erdos_770.parts.i",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:a8f0660ebc5a135f015f1c1406d602b85bef75ae588faf302c9d6918d0bd8804",
+    "type_pretty": "True ↔ ∀ (p : ℕ), Nat.Prime p → ∃ a, {n | Erdos770.h n = ↑p}.HasDensity a"
+  },
+  {
+    "ams_subjects": [
+      5,
+      60
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "If $A \\subset \\mathbb{Z}/p\\mathbb{Z}$ is random, $|A| = \\sqrt{p}$, can we almost surely cover\n$\\mathbb{Z}/p\\mathbb{Z}$ with $100\\sqrt{p}$ translates of $A$? [Gr24]\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.GreensOpenProblems.«39»",
+    "pointer_target": null,
+    "references": [
+      "[Gr24] [Green, Ben. \"100 open problems.\" (2024).](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.39)",
+      "[BJR11] Bollobás, Béla, Svante Janson, and Oliver Riordan. \"On covering by translates of a set.\" Random Structures & Algorithms 38.1‐2 (2011): 33-67."
+    ],
+    "source_path": "FormalConjectures/GreensOpenProblems/39.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Green39.green_39",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:d8c0cb751eaf5d2498d0c7acc2225a74b6751efaf4828398f274e41553ce6f1b",
+    "type_pretty": "True ↔\n  Filter.Tendsto\n    (fun p =>\n      have k := (↑p).sqrt;\n      have c := 100 * k;\n      ↑(Green39.proportionCoverable (↑p) k c))\n    Filter.atTop (nhds 1)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Sieve $[N]$ by removing half the residue classes mod $p_i$, for primes\n$2 \\leqslant p_1 < p_2 < \\dots < p_{1000} < N^{9/10}$. Does the remaining set have size at most\n$\\frac{1}{10} N$?\n\nWe interpret \"half the residue classes\" as $\\lfloor p_i / 2 \\rfloor$.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.GreensOpenProblems.«44»",
+    "pointer_target": null,
+    "references": [
+      "[Gr24] [Ben Green's 100 Open Problems](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.44)",
+      "[Er80] Erdős, Paul. \"A survey of problems in combinatorial number theory.\" Annals of Discrete Mathematics 6 (1980): 89-115."
+    ],
+    "source_path": "FormalConjectures/GreensOpenProblems/44.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Green44.green_44",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:29a5b83f9b806afed059673a2274d0f2c2cdfb6a1e1c23cd5b6f84fc73a642fd",
+    "type_pretty": "True ↔\n  ∀ (N : ℕ) (p : Fin 1000 → ℕ) (A : (i : Fin 1000) → Finset (ZMod (p i))),\n    have remaining := {x ∈ Finset.Icc 1 N | ∀ (i : Fin 1000), ↑x ∉ A i};\n    (∀ (i : Fin 1000), Nat.Prime (p i)) →\n      StrictMono p → p 999 ^ 10 < N ^ 9 → (∀ (i : Fin 1000), (A i).card = p i / 2) → 10 * remaining.card ≤ N"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Suppose that a large sieve process leaves a set of quadratic size. Is that set quadratic?\n\nThe following very particular instance is probably the simplest [Gr24]:\nSuppose that $A \\subset \\mathbb{N}$ is a set with the property that\n$|A \\pmod p| \\leqslant \\frac{1}{2}(p + 1)$ for all sufficiently large $p$.\nIs it true that either $|A \\cap [X]| \\ll X^{1/2} / \\log^{100} X$, or $A$ is contained in the\nimage of $\\mathbb{Z}$ under a quadratic map $\\phi : \\mathbb{Q} \\to \\mathbb{Q}$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.GreensOpenProblems.«47»",
+    "pointer_target": null,
+    "references": [
+      "[Gr24] [Ben Green's 100 Open Problems](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.47)",
+      "[GH14] Green, Ben, and Adam J. Harper. \"Inverse questions for the large sieve.\" Geometric and Functional Analysis 24.4 (2014): 1167-1203.",
+      "[HV09] Helfgott, Harald Andrés, and Akshay Venkatesh. \"How small must ill-distributed sets be.\" Analytic number theory 2 (2009): 224-234.",
+      "[Wa12] Walsh, Miguel N. \"The inverse sieve problem in high dimensions.\" (2012): 2001-2022.",
+      "[Wa14] Walsh, Miguel N. \"The algebraicity of ill-distributed sets.\" Geometric and Functional Analysis 24.3 (2014): 959-967."
+    ],
+    "source_path": "FormalConjectures/GreensOpenProblems/47.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Green47.green_47",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:f3e045d67912177954e8166f81ee63d6e22a01832bfc2f0071102f6883638b27",
+    "type_pretty": "True ↔\n  ∀ (A : Set ℕ),\n    (∀ᶠ (p : ℕ) in Filter.atTop, Nat.Prime p → ((fun a => ↑a) '' A).ncard ≤ (p + 1) / 2) →\n      ((fun X => ↑(A ∩ Set.Iic X).ncard) =O[Filter.atTop] fun X => √↑X / Real.log ↑X ^ 100) ∨\n        ∃ P, P.degree = 2 ∧ ∀ a ∈ A, ∃ z, ↑a = Polynomial.eval (↑z) P"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is there always a sum of two squares between $X - \\frac{1}{10}X^{1/4}$ and $X$?\nWe formalize this as an eventual statement for sufficiently large real $X$.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.GreensOpenProblems.«66»",
+    "pointer_target": null,
+    "references": [
+      "[Ben Green's Open Problem 66](https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#section.8)"
+    ],
+    "source_path": "FormalConjectures/GreensOpenProblems/66.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Green66.green_66",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:651e367b0edb71dc6da78f7b1b626bf20ccb59eec554ddfd128a0aca095da2a3",
+    "type_pretty": "True ↔ ∀ᶠ (X : ℝ) in Filter.atTop, ∃ n, Green66.IsSumOfTwoSquares n ∧ ↑n ∈ Set.Icc (X - 1 / 10 * X ^ (1 / 4)) X"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Let $f(n) = \\min_{1 < k \\le n/2} \\gcd(n, \\binom{n}{k})$.\n\n**(b)** Are there infinitely many composite $n$ such that $f(n) > n^{1/2}$?\n\nErdős–Szekeres [ErSz78] could not prove this. (Since $f(n) \\ge p(n)$, the least prime factor of\n$n$, there are infinitely many $n$ — those of the form $p^2$ — with $f(n) \\ge n^{1/2}$; the\nquestion asks for the strict inequality.) Here $f(n) > n^{1/2}$ is written as `(f n) ^ 2 > n`. ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«700»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/700](https://www.erdosproblems.com/700)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/700.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos700.erdos_700.parts.ii",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:2fca6031ea9f498a015d5160c0829717ae20bb7a3927681f90f223df09a73e4d",
+    "type_pretty": "True ↔ {n | ¬Nat.Prime n ∧ 1 < n ∧ Erdos700.f n ^ 2 > n}.Infinite"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that $f_{k,k}(x) \\gg_\\epsilon x^{1-\\epsilon}$ for all $\\epsilon>0$?\n\nThis would have significant applications to Waring's problem. Erdős and Graham describe this as\n'unattackable by the methods at our disposal'.\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«323»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/323](https://www.erdosproblems.com/323)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/323.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos323.erdos_323.parts.i",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:f8b79f6c8ad7430946ad09d176bdde1eb1b07a46b2459eca80c2377467e2139a",
+    "type_pretty": "True ↔ ∀ k ≥ 1, ∀ ε > 0, (fun x => ↑x ^ (1 - ε)) =O[Filter.atTop] fun x => ↑(Erdos323.f k k x)"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "1. Is there a good sequence with polynomial growth? ",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«1101»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/1101](https://www.erdosproblems.com/1101)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/1101.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos1101.erdos_1101.parts.i",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:b5022449b96ca3fbadcc0b4c0f48ee1079ff4a23f615401f155c4c2549cfde74",
+    "type_pretty": "True ↔ ∃ u, Erdos1101.IsGood u ∧ ∃ k, (fun n => ↑(u n)) =O[Filter.atTop] fun n => ↑n ^ k"
+  },
+  {
+    "ams_subjects": [
+      11
+    ],
+    "answer_occurrences": [],
+    "category": "research open",
+    "classification": "DIRECT_PROP",
+    "contains_answer_annotation": false,
+    "contains_sorry_in_type": false,
+    "contains_sorry_in_value": true,
+    "declaration_kind": "theorem",
+    "depends_on_sorry": true,
+    "docstring": "Is it true that $f(n)=o(\\log\\log n)$ for all $n$?\n",
+    "finite_constructors": [],
+    "formal_proof_kind": null,
+    "formal_proof_link": null,
+    "has_parameters": false,
+    "is_prop": true,
+    "module": "FormalConjectures.ErdosProblems.«950»",
+    "pointer_target": null,
+    "references": [
+      "[erdosproblems.com/855](https://www.erdosproblems.com/855)",
+      "[erdosproblems.com/950](https://www.erdosproblems.com/950)",
+      "[Er77c] Erdős, Paul, Problems and results on combinatorial number theory. III. Number theory day (Proc. Conf., Rockefeller Univ., New York, 1976) (1977), 43-72.",
+      "[mathoverflow/508491](https://mathoverflow.net/questions/508491)"
+    ],
+    "source_path": "FormalConjectures/ErdosProblems/950.lean",
+    "supported_modes": [
+      "formalized",
+      "counterexample"
+    ],
+    "theorem": "Erdos950.erdos_950.parts.iii",
+    "transitive_axioms": [
+      "propext",
+      "sorryAx",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "type_hash": "sha256:a16a0cfb0200c9f052a393474c66a06a8b6ba8328f15568ca78f4e496d27fe3b",
+    "type_pretty": "True ↔ Erdos950.f =o[Filter.atTop] fun n => Real.log (Real.log ↑n)"
+  }
+]

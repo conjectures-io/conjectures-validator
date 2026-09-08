@@ -1,0 +1,802 @@
+[
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos25-erdos_25-formalized",
+    "mode": "formalized",
+    "seconds": 24.53,
+    "sha256": "sha256:e7574b1dd5d052f4092f1f3c0e81a385298824eacb572463388d89a8bed7d229",
+    "status": "passed",
+    "theorem": "Erdos25.erdos_25"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos25-erdos_25-counterexample",
+    "mode": "counterexample",
+    "seconds": 24.37,
+    "sha256": "sha256:524a2d82a56207a3205d6e3deb68ecc3c576eef1da867f797b71a34062dfdb6e",
+    "status": "passed",
+    "theorem": "Erdos25.erdos_25"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos30-erdos_30-formalized",
+    "mode": "formalized",
+    "seconds": 23.43,
+    "sha256": "sha256:9ad480339bf0c61cc005e23b2e2525e0037131a44f39ecede9dd3fb4c0f1507f",
+    "status": "passed",
+    "theorem": "Erdos30.erdos_30"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos30-erdos_30-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.79,
+    "sha256": "sha256:c7dba80268ec8bc63136144fac558f7a4610a8a154b5233f6eadcf8b5fc79760",
+    "status": "passed",
+    "theorem": "Erdos30.erdos_30"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos52-erdos_52-formalized",
+    "mode": "formalized",
+    "seconds": 23.08,
+    "sha256": "sha256:ace341a0aded53dfe72f29bd8368fbfdb5bb43fde939ad3e1589fb48eb56d9be",
+    "status": "passed",
+    "theorem": "Erdos52.erdos_52"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos52-erdos_52-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.34,
+    "sha256": "sha256:93e701fdf195a6364048d8fb78a332c6d0c140cc580904e6e0b8cef3c36d1451",
+    "status": "passed",
+    "theorem": "Erdos52.erdos_52"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos61-erdos_61-formalized",
+    "mode": "formalized",
+    "seconds": 23.43,
+    "sha256": "sha256:77c1e7faf3d0b66116a294cf92a974e773149e1b2a5afb5257cf1e55f8486e2c",
+    "status": "passed",
+    "theorem": "Erdos61.erdos_61"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos61-erdos_61-counterexample",
+    "mode": "counterexample",
+    "seconds": 23.18,
+    "sha256": "sha256:e2be54e47f85d2563c412db1559aca0197ec5713eed261b61c8717c7afa7c3aa",
+    "status": "passed",
+    "theorem": "Erdos61.erdos_61"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos91-erdos_91-formalized",
+    "mode": "formalized",
+    "seconds": 23.23,
+    "sha256": "sha256:422b646a41e52420944b705bf0e3fa0c7eeb834c4b97dde19c23466b737731b7",
+    "status": "passed",
+    "theorem": "Erdos91.erdos_91"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos91-erdos_91-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.99,
+    "sha256": "sha256:faea66198c1b7cbf3687788a97d7178047f41891e017ebf3a5ee486a78644629",
+    "status": "passed",
+    "theorem": "Erdos91.erdos_91"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos98-erdos_98-formalized",
+    "mode": "formalized",
+    "seconds": 22.72,
+    "sha256": "sha256:c25cdef675475e8ae54bd05e43d7a5f0b96f78cf44256a2410c69a4cbb258e11",
+    "status": "passed",
+    "theorem": "Erdos98.erdos_98"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos98-erdos_98-counterexample",
+    "mode": "counterexample",
+    "seconds": 23.32,
+    "sha256": "sha256:0b58b9cbf40f6c39b730e894116df373b616e12ce86b29960617ed81f62a7882",
+    "status": "passed",
+    "theorem": "Erdos98.erdos_98"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos124-erdos124-ne_zero-formalized",
+    "mode": "formalized",
+    "seconds": 22.98,
+    "sha256": "sha256:c234de14ea39f2c7cd93103809d6a4a6717ce4ca5363f7be595769468ea42076",
+    "status": "passed",
+    "theorem": "Erdos124.erdos124.ne_zero"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos124-erdos124-ne_zero-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.57,
+    "sha256": "sha256:1c33ada6ffa25a1390ce9016bd13a6f034de8fc5c57df17649d257e0c1bce0f0",
+    "status": "passed",
+    "theorem": "Erdos124.erdos124.ne_zero"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos138-erdos_138-formalized",
+    "mode": "formalized",
+    "seconds": 22.58,
+    "sha256": "sha256:de07adcc5d549c32dc4c51121b48203bed9bd16c4d920017e6c79d437a943b56",
+    "status": "passed",
+    "theorem": "Erdos138.erdos_138"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos138-erdos_138-counterexample",
+    "mode": "counterexample",
+    "seconds": 20.82,
+    "sha256": "sha256:f278c7e7ec245616ab63ab47806e290b2adf1f1944e7cf911a0241af1e69619c",
+    "status": "passed",
+    "theorem": "Erdos138.erdos_138"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos168-erdos_168-parts-ii-formalized",
+    "mode": "formalized",
+    "seconds": 22.34,
+    "sha256": "sha256:bc95e33d3ad290999091c362861cfd1bca1890742dabc4b0aff22326cf2cda99",
+    "status": "passed",
+    "theorem": "Erdos168.erdos_168.parts.ii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos168-erdos_168-parts-ii-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.92,
+    "sha256": "sha256:c3a386a4ea12e1aaff44fbd73293f845d293d5a3da020e926e5a1150b78ecdfd",
+    "status": "passed",
+    "theorem": "Erdos168.erdos_168.parts.ii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos234-erdos_234-formalized",
+    "mode": "formalized",
+    "seconds": 22.02,
+    "sha256": "sha256:829ef44ff53c2bc12de156cb22855696784976d5ab76b8ecc677a2b388964676",
+    "status": "passed",
+    "theorem": "Erdos234.erdos_234"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos234-erdos_234-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.94,
+    "sha256": "sha256:9ea3e6327f1ccd34e2320d4747258aa1cfb2a53d6df5ed9bb2b5635e11ecca2e",
+    "status": "passed",
+    "theorem": "Erdos234.erdos_234"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos287-erdos_287-formalized",
+    "mode": "formalized",
+    "seconds": 21.48,
+    "sha256": "sha256:6ff9e0e2d1284f8a3b0532950589f49cd9e3505e61ad76b45a68c7f0f76563c7",
+    "status": "passed",
+    "theorem": "Erdos287.erdos_287"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos287-erdos_287-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.48,
+    "sha256": "sha256:139531172645653059da7d809f02f2364e3bf1e79e254cea9c6a41dfddaa15ea",
+    "status": "passed",
+    "theorem": "Erdos287.erdos_287"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos304-upper_bound-formalized",
+    "mode": "formalized",
+    "seconds": 22.97,
+    "sha256": "sha256:ec81ddfa6e3dca671afb253eaef3e21c72fdfb69cc1ac24350fc8ecc5c1e9fea",
+    "status": "passed",
+    "theorem": "Erdos304.upper_bound"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos304-upper_bound-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.68,
+    "sha256": "sha256:43277aa9a126c169d102153145b36099656c4b47bf6c19b95300794544a8bf71",
+    "status": "passed",
+    "theorem": "Erdos304.upper_bound"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos307-erdos_307-formalized",
+    "mode": "formalized",
+    "seconds": 22.62,
+    "sha256": "sha256:9f1cb5e74ebdc0c03657d8b91fd14987332e2b453399f5b008cb76860713d8d9",
+    "status": "passed",
+    "theorem": "Erdos307.erdos_307"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos307-erdos_307-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.38,
+    "sha256": "sha256:af25631c5b362f04a9887facbcb7baaeb0442198814599d0f4a9b5931d2b21b5",
+    "status": "passed",
+    "theorem": "Erdos307.erdos_307"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos317-erdos_317-variants-claim2-formalized",
+    "mode": "formalized",
+    "seconds": 22.58,
+    "sha256": "sha256:c04baa469f60e5c4e106473e6d01a8a83ef1375ee2cef901707f0a63bb02b8c0",
+    "status": "passed",
+    "theorem": "Erdos317.erdos_317.variants.claim2"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos317-erdos_317-variants-claim2-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.64,
+    "sha256": "sha256:5abd06bdc0ae0b0b6f93f4fd498360e6f6cc57de4d2f0626b78e8b5df34a9276",
+    "status": "passed",
+    "theorem": "Erdos317.erdos_317.variants.claim2"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos400-erdos_400-parts-i-formalized",
+    "mode": "formalized",
+    "seconds": 22.88,
+    "sha256": "sha256:1454400796f2478531e51680531411c8c4db83ce91a0f84770ab608cc478af89",
+    "status": "passed",
+    "theorem": "Erdos400.erdos_400.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos400-erdos_400-parts-i-counterexample",
+    "mode": "counterexample",
+    "seconds": 23.18,
+    "sha256": "sha256:5aa21ea73818af3562dfdb3f6aee3e63a4834d8b11ad49dd146d84eb5150964c",
+    "status": "passed",
+    "theorem": "Erdos400.erdos_400.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos410-erdos_410-formalized",
+    "mode": "formalized",
+    "seconds": 23.08,
+    "sha256": "sha256:cec31cbef94cd7e1d40995c8ed6200dfe5d65592e0a03c492b2240f53ddbca76",
+    "status": "passed",
+    "theorem": "Erdos410.erdos_410"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos410-erdos_410-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.53,
+    "sha256": "sha256:95345455a1fabe3d13a349efd03f3ab5ebb60982d2ad2074495237ca7b5315be",
+    "status": "passed",
+    "theorem": "Erdos410.erdos_410"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos413-erdos_413-parts-i-formalized",
+    "mode": "formalized",
+    "seconds": 22.02,
+    "sha256": "sha256:50d06023442df1595890f31a8f7f20645ca84074ada2b03fe63ab447aa420ab2",
+    "status": "passed",
+    "theorem": "Erdos413.erdos_413.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos413-erdos_413-parts-i-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.03,
+    "sha256": "sha256:8aa1f63afcc693c39411701b160e33609f820f74dbe4d73d76bf288c66d18996",
+    "status": "passed",
+    "theorem": "Erdos413.erdos_413.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos495-erdos_495-formalized",
+    "mode": "formalized",
+    "seconds": 22.18,
+    "sha256": "sha256:4d3fce89db090dfcef667a844e8b51ed420fde720dd91e812c3748d65879f1c9",
+    "status": "passed",
+    "theorem": "Erdos495.erdos_495"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos495-erdos_495-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.28,
+    "sha256": "sha256:216e9cd0dcbdb3236893dc455efcb7fdb483fb490d418528ed6537149aff983f",
+    "status": "passed",
+    "theorem": "Erdos495.erdos_495"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos647-erdos_647-formalized",
+    "mode": "formalized",
+    "seconds": 21.38,
+    "sha256": "sha256:f8a25beb84cda6fc6c7996427e368262b47b8e9e7d695cbf87b9ead96798090f",
+    "status": "passed",
+    "theorem": "Erdos647.erdos_647"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos647-erdos_647-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.18,
+    "sha256": "sha256:f66ff2d742435eb1d6955a899086a51e89928ba292f15a63894b957e289c7aa2",
+    "status": "passed",
+    "theorem": "Erdos647.erdos_647"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos681-erdos_681-formalized",
+    "mode": "formalized",
+    "seconds": 22.78,
+    "sha256": "sha256:fb55b5db311e0661643575b0171bd16be574f5700a646dd8da8a12e552cbf640",
+    "status": "passed",
+    "theorem": "Erdos681.erdos_681"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos681-erdos_681-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.42,
+    "sha256": "sha256:46f34da018f84a34920da0762592b994f83e4e6163342da600b8d542034a4d79",
+    "status": "passed",
+    "theorem": "Erdos681.erdos_681"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos749-erdos_749-formalized",
+    "mode": "formalized",
+    "seconds": 22.02,
+    "sha256": "sha256:98e803db7b6ce22da1a9db034f9b659a7415f3fffa1ce9675949b065461d63bf",
+    "status": "passed",
+    "theorem": "Erdos749.erdos_749"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos749-erdos_749-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.09,
+    "sha256": "sha256:5a197fc33a24dffdc271928558c1cc17f01ebe7fe446d79b8648bafca5752301",
+    "status": "passed",
+    "theorem": "Erdos749.erdos_749"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos886-erdos_886-formalized",
+    "mode": "formalized",
+    "seconds": 22.67,
+    "sha256": "sha256:032a5c50909bc3c2d654b2982938a9597d4cea264d394874b26378c44adc741a",
+    "status": "passed",
+    "theorem": "Erdos886.erdos_886"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos886-erdos_886-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.68,
+    "sha256": "sha256:36e5eb4537ba13aae3101616d780a76e7517c42764efe19d79bad01cb128e351",
+    "status": "passed",
+    "theorem": "Erdos886.erdos_886"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos930-erdos_930-formalized",
+    "mode": "formalized",
+    "seconds": 22.14,
+    "sha256": "sha256:feb59acbfc2f469932cb73fee834b3cbb3f20bc92242d9dee0ee510789740969",
+    "status": "passed",
+    "theorem": "Erdos930.erdos_930"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos930-erdos_930-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.43,
+    "sha256": "sha256:8db8ac388fa8b0425d3d39de12a99714110e93ce959448c8f1d48dbc4f01b0ab",
+    "status": "passed",
+    "theorem": "Erdos930.erdos_930"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos933-erdos_933-formalized",
+    "mode": "formalized",
+    "seconds": 22.57,
+    "sha256": "sha256:e95180ac8f7bc0a4e5eadd8956b158ae10227af0c53a8867f5eb0635f994dbcd",
+    "status": "passed",
+    "theorem": "Erdos933.erdos_933"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos933-erdos_933-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.03,
+    "sha256": "sha256:e9789497606a98dd90353ad729f7f03c076c9afd0117a8c01ca9269ab30def63",
+    "status": "passed",
+    "theorem": "Erdos933.erdos_933"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos944-erdos_944-formalized",
+    "mode": "formalized",
+    "seconds": 21.93,
+    "sha256": "sha256:7459e06728166fe83a3820b31f92350fa55565eba1b05d1e0e894d671b016c4e",
+    "status": "passed",
+    "theorem": "Erdos944.erdos_944"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos944-erdos_944-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.23,
+    "sha256": "sha256:e0c6ae769520dad7f2228bf30dcd7292de4094e50abf7dc51043967e5c5eda69",
+    "status": "passed",
+    "theorem": "Erdos944.erdos_944"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos949-erdos_949-formalized",
+    "mode": "formalized",
+    "seconds": 22.22,
+    "sha256": "sha256:f7646cd06223004c51a677cd84fbae43afcb4d0e3c34e7be600ae45cc93e288e",
+    "status": "passed",
+    "theorem": "Erdos949.erdos_949"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos949-erdos_949-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.63,
+    "sha256": "sha256:a2663dc03fe681a6af01d7175fdc6187283a2578c1fef862b6e4715dd123b2d4",
+    "status": "passed",
+    "theorem": "Erdos949.erdos_949"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos962-erdos_962-formalized",
+    "mode": "formalized",
+    "seconds": 22.64,
+    "sha256": "sha256:2aa46e08d06235f879b1404679c0ed2d6713f152440607d39fd23d6368bcfcc3",
+    "status": "passed",
+    "theorem": "Erdos962.erdos_962"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos962-erdos_962-counterexample",
+    "mode": "counterexample",
+    "seconds": 23.18,
+    "sha256": "sha256:3c6503faec61d261aab9c575728aceb12d3b2fea53b63c5ac826a0fd0a924957",
+    "status": "passed",
+    "theorem": "Erdos962.erdos_962"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos979-erdos_979-formalized",
+    "mode": "formalized",
+    "seconds": 22.39,
+    "sha256": "sha256:7a6e8be902fbe3859c8d85325593e5d38428d3ad039c4d56eba78e7b73c938de",
+    "status": "passed",
+    "theorem": "Erdos979.erdos_979"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos979-erdos_979-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.53,
+    "sha256": "sha256:90e760718f0c2500c60d357db865d4cba4b755f61dae2f22421526272c89853c",
+    "status": "passed",
+    "theorem": "Erdos979.erdos_979"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1056-erdos_1056-formalized",
+    "mode": "formalized",
+    "seconds": 22.02,
+    "sha256": "sha256:7ca825e152ce4dd55630dee4c546d88de4288940a64df58025d127788a51d57f",
+    "status": "passed",
+    "theorem": "Erdos1056.erdos_1056"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1056-erdos_1056-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.18,
+    "sha256": "sha256:2f7f40f5d4313116d9d39f6894f24c0a49e0ee370e56188f32a37b0d575e3614",
+    "status": "passed",
+    "theorem": "Erdos1056.erdos_1056"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1062-erdos_1062-parts-ii-formalized",
+    "mode": "formalized",
+    "seconds": 22.14,
+    "sha256": "sha256:0eb341f0c29a268c5cbe5c82beb02446fe3dad1b0555edc43804db06aac16231",
+    "status": "passed",
+    "theorem": "Erdos1062.erdos_1062.parts.ii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1062-erdos_1062-parts-ii-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.24,
+    "sha256": "sha256:02c3fcd361d7d75a19029ecb91eff4e14b08b8d743807e723118e8cc73249003",
+    "status": "passed",
+    "theorem": "Erdos1062.erdos_1062.parts.ii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1082-erdos_1082-parts-i-formalized",
+    "mode": "formalized",
+    "seconds": 22.97,
+    "sha256": "sha256:1933042386160430e6c1a32b1b0c9886a37c5bb60196aceea96a39cf4b7a1f57",
+    "status": "passed",
+    "theorem": "Erdos1082.erdos_1082.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1082-erdos_1082-parts-i-counterexample",
+    "mode": "counterexample",
+    "seconds": 23.07,
+    "sha256": "sha256:5cd501a6c3219d04d021e0f399bbbad9c2ab7f8e97b6a29ebc2ca85574cfffce",
+    "status": "passed",
+    "theorem": "Erdos1082.erdos_1082.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1113-erdos_1113-variants-filaseta_finch_kozek-formalized",
+    "mode": "formalized",
+    "seconds": 22.27,
+    "sha256": "sha256:010e6ccb7efec19f1a8f818d6247f11e8cf73057ebbf06690b978ee4687da7dc",
+    "status": "passed",
+    "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1113-erdos_1113-variants-filaseta_finch_kozek-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.98,
+    "sha256": "sha256:6137500c72bd80557f2299b3f20988fbce09f1e0f8ac77940afa9d7a6d77c254",
+    "status": "passed",
+    "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1175-erdos_1175-formalized",
+    "mode": "formalized",
+    "seconds": 20.44,
+    "sha256": "sha256:d7c5f767594a7a72704133cf734146fd854f48d9354a5cae7d57415d199a11d1",
+    "status": "passed",
+    "theorem": "Erdos1175.erdos_1175"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1175-erdos_1175-counterexample",
+    "mode": "counterexample",
+    "seconds": 20.98,
+    "sha256": "sha256:6a69d1c5bba5bc5e9e4f68f8a967ad7624e725af2f77fa646cc1bb9bc14be3be",
+    "status": "passed",
+    "theorem": "Erdos1175.erdos_1175"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos291-erdos_291-variants-shiu_heuristic_density_zero-formalized",
+    "mode": "formalized",
+    "seconds": 21.37,
+    "sha256": "sha256:8d584b1cfe27accd9e0cff0cbcbbeaaed123accb082b09fe4cffe2b205fa9b9b",
+    "status": "passed",
+    "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos291-erdos_291-variants-shiu_heuristic_density_zero-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.58,
+    "sha256": "sha256:561c0027e433f42f1dba32f08ddf69aa33ba4da36c13e1d93d73402083c0401c",
+    "status": "passed",
+    "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos686-erdos_686-variants-twenty_five-formalized",
+    "mode": "formalized",
+    "seconds": 22.63,
+    "sha256": "sha256:10c8bb619d523e9c8ac339505d6dd99037ef0e556916f15a6e7aa88e02dd18a9",
+    "status": "passed",
+    "theorem": "Erdos686.erdos_686.variants.twenty_five"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos686-erdos_686-variants-twenty_five-counterexample",
+    "mode": "counterexample",
+    "seconds": 20.77,
+    "sha256": "sha256:9b8f5f469f239a8faf7df5e0dc54c120aee15f1ea4d24fd532d2bf0c4dc59e58",
+    "status": "passed",
+    "theorem": "Erdos686.erdos_686.variants.twenty_five"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos890-erdos_890-parts-b-formalized",
+    "mode": "formalized",
+    "seconds": 20.62,
+    "sha256": "sha256:b0b37ff7115415e0b99209a37da813a1a24ae02b4bd96e922c7c381d4b75d970",
+    "status": "passed",
+    "theorem": "Erdos890.erdos_890.parts.b"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos890-erdos_890-parts-b-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.42,
+    "sha256": "sha256:e3064ad5dd417da51fb2e7a3e2f9a2a2dae9686df5c3ac0aca13b0a8f3a2d046",
+    "status": "passed",
+    "theorem": "Erdos890.erdos_890.parts.b"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos936-erdos_936-variants-factorial_add_one-formalized",
+    "mode": "formalized",
+    "seconds": 21.23,
+    "sha256": "sha256:7c04e0a019bd301a8300d14bcc672140eee214142b62643c263855bda5806112",
+    "status": "passed",
+    "theorem": "Erdos936.erdos_936.variants.factorial_add_one"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos936-erdos_936-variants-factorial_add_one-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.08,
+    "sha256": "sha256:b2bc511bed3194198c8a4137a88ee8f9004083b5ebeccf3684ead45fefe399ae",
+    "status": "passed",
+    "theorem": "Erdos936.erdos_936.variants.factorial_add_one"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos936-erdos_936-variants-factorial_sub_one-formalized",
+    "mode": "formalized",
+    "seconds": 20.37,
+    "sha256": "sha256:5d3e2d7217a147e1175f7eafac0809ff87d592e74e4d2f4776abc6fc90edd0f0",
+    "status": "passed",
+    "theorem": "Erdos936.erdos_936.variants.factorial_sub_one"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos936-erdos_936-variants-factorial_sub_one-counterexample",
+    "mode": "counterexample",
+    "seconds": 20.27,
+    "sha256": "sha256:5a33e1120820bc435029b223936fb74711ef065365f876120cba0f5ed5d1d1b9",
+    "status": "passed",
+    "theorem": "Erdos936.erdos_936.variants.factorial_sub_one"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos770-erdos_770-parts-i-formalized",
+    "mode": "formalized",
+    "seconds": 20.92,
+    "sha256": "sha256:5cb3ec579e90c8e1b28cc45c4aa66757014a9c6c0fa823040976ecf3678430e8",
+    "status": "passed",
+    "theorem": "Erdos770.erdos_770.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos770-erdos_770-parts-i-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.67,
+    "sha256": "sha256:a0869dae54cb0e36be315b760653127d6db39df6b560e4254c3be8d44ed53a94",
+    "status": "passed",
+    "theorem": "Erdos770.erdos_770.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green36-green_36-variants-cks05-formalized",
+    "mode": "formalized",
+    "seconds": 21.57,
+    "sha256": "sha256:338147a653145838673f17b9a81bd42c2b3f2a6b9ece4a39222759f8cda1c10a",
+    "status": "passed",
+    "theorem": "Green36.green_36.variants.cks05"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green36-green_36-variants-cks05-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.11,
+    "sha256": "sha256:3a4d46de17eaf5a029ed3ddc5069a5604a0895d3171577c155d57e00eee62925",
+    "status": "passed",
+    "theorem": "Green36.green_36.variants.cks05"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green39-green_39-formalized",
+    "mode": "formalized",
+    "seconds": 21.06,
+    "sha256": "sha256:5ea6624adac9c97c49c3bbd52e0c2a57539d53200f0cbaeb046243a19d530396",
+    "status": "passed",
+    "theorem": "Green39.green_39"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green39-green_39-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.39,
+    "sha256": "sha256:00239bf4ed5a0c8d705fd7d39141ede42455504112e67e464a02a398b96bed13",
+    "status": "passed",
+    "theorem": "Green39.green_39"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green44-green_44-formalized",
+    "mode": "formalized",
+    "seconds": 22.35,
+    "sha256": "sha256:3202cd2b157523e6b9cc04c6313be2d9ab7eaa702474a56230b2bc152f3ae1f7",
+    "status": "passed",
+    "theorem": "Green44.green_44"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green44-green_44-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.5,
+    "sha256": "sha256:87a8501e0cc0131a09c4c772b7840dfd099d0c1dcfefc08e1a4e532eed097ada",
+    "status": "passed",
+    "theorem": "Green44.green_44"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green47-green_47-formalized",
+    "mode": "formalized",
+    "seconds": 22.18,
+    "sha256": "sha256:48ceda865b20425da32e65b1abb3c9851c835e646705ff1896c2525e04c6977a",
+    "status": "passed",
+    "theorem": "Green47.green_47"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green47-green_47-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.63,
+    "sha256": "sha256:ae7f1af635c69ba83ae7efa152715c59dcec4ab27191905370dac43c0a8dba3c",
+    "status": "passed",
+    "theorem": "Green47.green_47"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green66-green_66-formalized",
+    "mode": "formalized",
+    "seconds": 22.68,
+    "sha256": "sha256:4fc65ca3e1a8ba5bf9acb1523aaa5bfb59044fb28019af204718beaf0f847e7e",
+    "status": "passed",
+    "theorem": "Green66.green_66"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/green66-green_66-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.55,
+    "sha256": "sha256:f53646801f5893c69463413f6cac7c9f0140d75fab43b588126b3b57921702d7",
+    "status": "passed",
+    "theorem": "Green66.green_66"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos323-erdos_323-parts-i-formalized",
+    "mode": "formalized",
+    "seconds": 22.72,
+    "sha256": "sha256:4ac677cfeecd858865362a4f03cb685a5a8fbb321fea1eb4d55b36968cf77895",
+    "status": "passed",
+    "theorem": "Erdos323.erdos_323.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos323-erdos_323-parts-i-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.0,
+    "sha256": "sha256:82b6285aff83d1b0f0540f5b072b0e8f06bcfe81147343f681b2fa56de9a6124",
+    "status": "passed",
+    "theorem": "Erdos323.erdos_323.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1101-erdos_1101-parts-i-formalized",
+    "mode": "formalized",
+    "seconds": 22.4,
+    "sha256": "sha256:e89c816eb31b208994e692060a3f239386d51d7264263d0d6a8a52a7bf1a1e72",
+    "status": "passed",
+    "theorem": "Erdos1101.erdos_1101.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos1101-erdos_1101-parts-i-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.13,
+    "sha256": "sha256:d0d2b62394b8fb5fe330fe519313c548c0b206906b64400f1a29b70263a9a491",
+    "status": "passed",
+    "theorem": "Erdos1101.erdos_1101.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos950-erdos_950-parts-iii-formalized",
+    "mode": "formalized",
+    "seconds": 20.92,
+    "sha256": "sha256:60ed7cf7111ab73a45812a14a70b8e0e622d06d9b67b1aae2199e1eeec71cd67",
+    "status": "passed",
+    "theorem": "Erdos950.erdos_950.parts.iii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos950-erdos_950-parts-iii-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.53,
+    "sha256": "sha256:c46170c48e621d805d85e82a397cb8787a96c7ea7d5fb2508dac5dd4af88b4a2",
+    "status": "passed",
+    "theorem": "Erdos950.erdos_950.parts.iii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos14-erdos_14-parts-i-formalized",
+    "mode": "formalized",
+    "seconds": 22.82,
+    "sha256": "sha256:44d0c2bdbe571442f50d3f7b37b08998a957282dbe796838ca18138d087a5ddf",
+    "status": "passed",
+    "theorem": "Erdos14.erdos_14.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos14-erdos_14-parts-i-counterexample",
+    "mode": "counterexample",
+    "seconds": 23.53,
+    "sha256": "sha256:3a60916983f3a3c2912919c6dae7a373faf758107e95596572b9a8197c013c93",
+    "status": "passed",
+    "theorem": "Erdos14.erdos_14.parts.i"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos323-erdos_323-parts-ii-formalized",
+    "mode": "formalized",
+    "seconds": 23.12,
+    "sha256": "sha256:74ea16b7c440f14e980587d7aa24b0e7edc82c181dcba99d24502e4f3508a46e",
+    "status": "passed",
+    "theorem": "Erdos323.erdos_323.parts.ii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos323-erdos_323-parts-ii-counterexample",
+    "mode": "counterexample",
+    "seconds": 22.56,
+    "sha256": "sha256:a337488b59d6f0004c1f2851de8923a3a1e26955c0a081c5cd6d038576b3034e",
+    "status": "passed",
+    "theorem": "Erdos323.erdos_323.parts.ii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos700-erdos_700-parts-ii-formalized",
+    "mode": "formalized",
+    "seconds": 22.82,
+    "sha256": "sha256:d41fd2f4685ece99b8f53bb976c33fb9d8e5d6386fd7faa5121d4a68fe833e40",
+    "status": "passed",
+    "theorem": "Erdos700.erdos_700.parts.ii"
+  },
+  {
+    "bundle": "/tmp/add-50-20260908/bundles/erdos700-erdos_700-parts-ii-counterexample",
+    "mode": "counterexample",
+    "seconds": 21.67,
+    "sha256": "sha256:6fe68ef9cc423bc38fa198011515a09ad4cdc6d58805ad33a8f6ba2ba9ffa657",
+    "status": "passed",
+    "theorem": "Erdos700.erdos_700.parts.ii"
+  }
+]

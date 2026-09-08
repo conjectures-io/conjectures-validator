@@ -1,0 +1,92 @@
+[
+  {
+    "decision": "exclude_settled",
+    "number": 193,
+    "reason": "Accepted disproof announced September 3 in the source claims record.",
+    "source": "https://www.erdosproblems.com/forum/thread/193/proof-claims"
+  },
+  {
+    "decision": "exclude_variant_only",
+    "number": 18,
+    "reason": "18a has a full-scope claim. The separate factorial target 18b is retained.",
+    "source": "https://www.erdosproblems.com/forum/thread/18/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 64,
+    "reason": "Structural exhaustion proof claim with unresolved objections.",
+    "source": "https://www.erdosproblems.com/forum/thread/64/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 260,
+    "reason": "Updated manuscript and Lean formalization claim the full target.",
+    "source": "https://www.erdosproblems.com/forum/thread/260/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 279,
+    "reason": "September 5 discussion identifies an unconditional proof and Lean repository.",
+    "source": "https://www.erdosproblems.com/forum/thread/279/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 742,
+    "reason": "Claim 186 asserts a full proof; comments additionally identify alleged prior resolution.",
+    "source": "https://www.erdosproblems.com/forum/thread/742/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 971,
+    "reason": "Claim 135 includes an analytic argument still awaiting independent review; only a conditional combinatorial reduction is formalized.",
+    "source": "https://www.erdosproblems.com/forum/thread/971/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 1002,
+    "reason": "Two July claims assert the full Cauchy limit theorem.",
+    "source": "https://www.erdosproblems.com/forum/thread/1002/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 1061,
+    "reason": "Claimed superlinear lower bound would refute the selected asymptotic statement.",
+    "source": "https://www.erdosproblems.com/forum/thread/1061/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 1139,
+    "reason": "July claim asserts an affirmative full solution.",
+    "source": "https://www.erdosproblems.com/forum/thread/1139/proof-claims"
+  },
+  {
+    "decision": "withhold_full_scope_claim",
+    "number": 1212,
+    "reason": "September 7 claim asserts the strengthened path theorem and kernel-checked formalization.",
+    "source": "https://www.erdosproblems.com/forum/thread/1212/proof-claims"
+  },
+  {
+    "decision": "exclude_dependency",
+    "number": 295,
+    "reason": "Nat.find in k unfolds to an unfinished exists_k theorem; definition also counts k+1 terms.",
+    "source": "https://www.erdosproblems.com/forum/thread/295/proof-claims"
+  },
+  {
+    "decision": "exclude_statement_mismatch",
+    "number": 855,
+    "reason": "Nested eventual quantifiers permit a y threshold depending on x rather than uniform large x and y.",
+    "source": "https://www.erdosproblems.com/forum/thread/855/proof-claims"
+  },
+  {
+    "decision": "not_selected",
+    "number": 509,
+    "reason": "Only partial degree-bounded work and a proposed stronger full-scope route were located; not admitted.",
+    "source": "https://www.erdosproblems.com/forum/thread/509/proof-claims"
+  },
+  {
+    "decision": "not_selected",
+    "number": 522,
+    "reason": "Not admitted or claimed cleared; probabilistic formalization needs a separate fidelity review.",
+    "source": "https://www.erdosproblems.com/forum/thread/522/proof-claims"
+  }
+]
