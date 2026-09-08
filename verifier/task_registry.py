@@ -157,7 +157,7 @@ def _valid_tier_policy(policy: object) -> bool:
         and bool(policy["grouping"])
         and type(policy.get("minimum_erdos_tasks")) is int
         and policy["minimum_erdos_tasks"] >= 0
-        and policy.get("modes") == list(PRODUCTION_TASK_MODES)
+        and policy.get("modes") in (list(PRODUCTION_TASK_MODES), [EXACT_TASK_MODE])
         and type(policy.get("multi_target_tasks")) is int
         and policy["multi_target_tasks"] >= 0
         and policy.get("one_reward_per_problem") is True
@@ -184,7 +184,7 @@ def _valid_tier_policy(policy: object) -> bool:
             EXACT_TASK_MODE: "definitionally-equal",
         }
         and is_sha256(policy.get("task_groups_sha256"))
-        and policy.get("outcomes_per_problem") == len(PRODUCTION_TASK_MODES)
+        and policy.get("outcomes_per_problem") == len(policy.get("modes") or ())
         and is_sha256(policy.get("task_targets_sha256"))
     )
 
@@ -456,10 +456,13 @@ class TaskPoolRegistry:
         if not tasks or used_source_modes != expected_source_modes:
             raise TaskNotAllowed("task allowlist is empty or lacks a complete outcome pair")
         problem_modes: dict[str, set[str]] = {}
+        problem_tier: dict[str, str] = {}
         for task in tasks.values():
             problem_modes.setdefault(task.problem_id, set()).add(task.mode)
-        if any(modes != set(PRODUCTION_TASK_MODES) for modes in problem_modes.values()):
-            raise TaskNotAllowed("task allowlist problem lacks a complete outcome pair")
+            problem_tier[task.problem_id] = task.tier
+        for pid, modes in problem_modes.items():
+            if modes != set(tier_policies[problem_tier[pid]]["modes"]):
+                raise TaskNotAllowed("task allowlist problem modes do not match its tier policy")
         return cls(
             repository_commit=repository_commit,
             tier_order=tuple(tier_order),
