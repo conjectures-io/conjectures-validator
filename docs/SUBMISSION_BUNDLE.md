@@ -39,7 +39,7 @@ be at most 12 MiB (12,582,912 bytes), allowing an uncompressed maximum-sized pro
   "proof_path": "Main.lean",
   "proof_sha256": "sha256:8a73…",
   "proof_bytes": 1234,
-  "miner_hotkey": "5Grw…",
+  "miner_coldkey": "5Grw…",
   "solver": { "name": "my-solver", "version": "1.2.3" }
 }
 ```
@@ -53,13 +53,13 @@ be at most 12 MiB (12,582,912 bytes), allowing an uncompressed maximum-sized pro
 | `proof_path` | Exactly `Main.lean` |
 | `proof_sha256` | Digest of the archived `Main.lean`, recomputed and compared server-side |
 | `proof_bytes` | Length of the archived `Main.lean`, also recomputed and compared |
-| `miner_hotkey` | Optional. The submitting hotkey's SS58 address. **Required by every path that authenticates a key**, where it must equal that key exactly; **must be absent** on `POST /v1/submissions/session`, where nothing has proved control of any address |
+| `miner_coldkey` | Optional. The submitting coldkey's SS58 address. **Required by every path that authenticates a key**, where it must equal that key exactly; **must be absent** on `POST /v1/submissions/session`, where nothing has proved control of any address |
 | `solver` | Optional. Both `name` and `version` must match `[A-Za-z0-9._-]{1,64}`. Recorded for audit only |
 
-`miner_hotkey` became optional when the session-authorised intake path was added, and the
+`miner_coldkey` became optional when the session-authorised intake path was added, and the
 asymmetry is deliberate. A submitter who signed in with an email address holds no Bittensor key,
 so there is no address they could honestly write; and a manifest that names one on that path is
-**refused rather than ignored**, because `hotkey` is published on the result and credits it to a
+**refused rather than ignored**, because the solver identity is published on the result and credits it to a
 solver. Admitting an unauthenticated claim would let anyone attribute a solved conjecture to
 someone else's address. On every key-signed path the field is still mandatory and still compared
 byte for byte, so nothing about those routes is relaxed.
@@ -167,7 +167,7 @@ python3 scripts/build_submission_bundle.py \
   --proof Main.lean \
   --task-id fc-379fc029-erdos89-erdos-89-c956ed476a-formalized-v1 \
   --task-sha256 sha256:9f2c… \
-  --hotkey 5Grw… \
+  --coldkey 5Grw… \
   --output submission.zip
 ```
 
@@ -188,7 +188,7 @@ manifest = json.dumps({
     "proof_path": "Main.lean",
     "proof_sha256": digest(proof),
     "proof_bytes": len(proof),
-    "miner_hotkey": HOTKEY,
+    "miner_coldkey": MINER_COLDKEY,
 }, indent=2, sort_keys=True).encode()
 
 with zipfile.ZipFile("submission.zip", "w", zipfile.ZIP_DEFLATED) as archive:

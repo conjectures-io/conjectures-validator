@@ -36,9 +36,9 @@ DEVELOPMENT_MODE = "DEV"
 PRODUCTION_MODE = "PROD"
 APP_MODES = (DEVELOPMENT_MODE, PRODUCTION_MODE)
 
-HOTKEY_SIGNATURE_AUTH = "hotkey-signature"
+COLDKEY_SIGNATURE_AUTH = "coldkey-signature"
 DEVELOPMENT_AUTH = "development-static-key"
-AUTHENTICATORS = (HOTKEY_SIGNATURE_AUTH, DEVELOPMENT_AUTH)
+AUTHENTICATORS = (COLDKEY_SIGNATURE_AUTH, DEVELOPMENT_AUTH)
 
 CHAIN_PAYMENTS = "chain"
 DEVELOPMENT_PAYMENTS = "development"
@@ -85,10 +85,10 @@ CORS_WILDCARD = "*"
 #
 # `POST /v1/submissions` shares the POST verb, so the verb list can no longer be what protects
 # it. The protection moves to CORS_REQUEST_HEADERS below: that endpoint requires
-# `X-Conjectures-Hotkey`, `-Timestamp`, `-Signature`, `-Task-Id`, `-Task-Sha256`,
+# `X-Conjectures-Coldkey`, `-Timestamp`, `-Signature`, `-Task-Id`, `-Task-Sha256`,
 # `-Proof-Sha256` and `-Payment-Ref`, and none of them is on the allowlist. A browser cannot
 # send a header the preflight did not permit, so a page on an allowed origin still cannot form
-# a valid submission — and the endpoint authenticates a hotkey signature rather than a cookie,
+# a valid submission — and the endpoint authenticates a coldkey signature rather than a cookie,
 # so there is no ambient credential for it to ride on either.
 CORS_METHODS = ("GET", "HEAD", "OPTIONS", "POST", "PATCH", "PUT", "DELETE")
 # Deliberately narrow, and deliberately without any `X-Conjectures-*` signature header. Adding
@@ -224,7 +224,7 @@ DEFAULT_CLI_SESSION_MAX_DAYS = 90
 
 # How many live CLI tokens one account may hold at once. A miner legitimately has several —
 # a laptop, a couple of rigs, CI — and each `conjectures auth login` mints another. The ceiling
-# is what keeps a compromised hotkey from minting an unbounded pile of durable credentials that
+# is what keeps a compromised key from minting an unbounded pile of durable credentials that
 # each have to be revoked individually; reaching it evicts the oldest rather than refusing the
 # newest, so a stale token on a decommissioned box cannot lock a miner out of their own tooling.
 DEFAULT_CLI_SESSIONS_PER_ACCOUNT = 10
@@ -282,10 +282,17 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
 # credit frozen into the request digest. The terms version and manual-review version are separate
 # counters because terms v2 was already published.
+#
+# v5 is V035, and it is a bump rather than an edit because two things a miner agreed to changed
+# substantively: what identity is published with a result (an account display name now appears
+# ahead of the address, where before only a hotkey did), and what a payout destination is (one
+# coldkey, unproved and not required to be linked, where before it was a proved coldkey/hotkey
+# pair). Both are in the "what is published" and "getting paid" sections.
+#
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
 # leaving it behind would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v4"
-DEFAULT_TERMS_DATE = "2026-08-10"
+DEFAULT_TERMS_VERSION = "v5"
+DEFAULT_TERMS_DATE = "2026-09-08"
 
 # The website route that renders the sign-in page the magic link opens. That page reads the
 # token from the query string and POSTs it to `/v1/auth/email/verify`; the API itself never
@@ -659,8 +666,7 @@ class Settings:
     authenticator: str
     payment_verifier: str
     dispatcher: str
-    development_hotkeys: tuple[str, ...]
-    development_coldkey: str
+    development_coldkeys: tuple[str, ...]
     development_payment_references: tuple[str, ...]
     nonce_window_seconds: int
     max_bundle_bytes: int
@@ -842,7 +848,7 @@ class Settings:
             env,
             "SUBMISSION_AUTHENTICATOR",
             AUTHENTICATORS,
-            HOTKEY_SIGNATURE_AUTH if production else DEVELOPMENT_AUTH,
+            COLDKEY_SIGNATURE_AUTH if production else DEVELOPMENT_AUTH,
         )
         payment_verifier = _choice(
             env,
@@ -851,9 +857,9 @@ class Settings:
             CHAIN_PAYMENTS if production else DEVELOPMENT_PAYMENTS,
         )
         dispatcher = _choice(env, "SUBMISSION_DISPATCHER", DISPATCHERS, QUEUE_DISPATCH)
-        if production and authenticator != HOTKEY_SIGNATURE_AUTH:
+        if production and authenticator != COLDKEY_SIGNATURE_AUTH:
             raise SettingsError(
-                "production requires SUBMISSION_AUTHENTICATOR=hotkey-signature"
+                "production requires SUBMISSION_AUTHENTICATOR=coldkey-signature"
             )
         if production and payment_verifier != CHAIN_PAYMENTS:
             raise SettingsError("production requires SUBMISSION_PAYMENT_VERIFIER=chain")
@@ -1000,23 +1006,24 @@ class Settings:
                 "poll is even due"
             )
 
-        development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
+        # Renamed from DEVELOPMENT_HOTKEYS by V035, along with the keys it lists: a local run
+        # authenticates coldkey signatures because that is what the production authenticator
+        # does. DEVELOPMENT_COLDKEY went with it — the development payment verifier now echoes
+        # whichever of these signed, because production requires the payer and the signer to be
+        # the same key and a separately configured sender would fail that check locally.
+        development_coldkeys = _csv(env, "DEVELOPMENT_COLDKEYS")
         invalid = tuple(
-            item for item in development_hotkeys if SS58_ADDRESS.fullmatch(item) is None
+            item for item in development_coldkeys if SS58_ADDRESS.fullmatch(item) is None
         )
         if invalid:
             raise SettingsError(
-                "DEVELOPMENT_HOTKEYS contains invalid addresses: " + ", ".join(invalid)
+                "DEVELOPMENT_COLDKEYS contains invalid addresses: " + ", ".join(invalid)
             )
-        if authenticator == DEVELOPMENT_AUTH and not development_hotkeys:
+        if authenticator == DEVELOPMENT_AUTH and not development_coldkeys:
             raise SettingsError(
-                "DEVELOPMENT_HOTKEYS must list at least one address when using the "
+                "DEVELOPMENT_COLDKEYS must list at least one address when using the "
                 "development authenticator"
             )
-
-        development_coldkey = env.get("DEVELOPMENT_COLDKEY", "").strip() or recipient
-        if SS58_ADDRESS.fullmatch(development_coldkey) is None:
-            raise SettingsError("DEVELOPMENT_COLDKEY is not a valid SS58 address")
 
         # Turning the limiter off in production would leave an unauthenticated, database-backed
         # read surface with no ceiling on it at all.
@@ -1347,8 +1354,7 @@ class Settings:
             authenticator=authenticator,
             payment_verifier=payment_verifier,
             dispatcher=dispatcher,
-            development_hotkeys=development_hotkeys,
-            development_coldkey=development_coldkey,
+            development_coldkeys=development_coldkeys,
             development_payment_references=_csv(env, "DEVELOPMENT_PAYMENT_REFERENCES"),
             nonce_window_seconds=_positive_int(
                 env, "NONCE_WINDOW_SECONDS", 120, maximum=3600

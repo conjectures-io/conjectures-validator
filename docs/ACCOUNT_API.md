@@ -13,8 +13,8 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/auth/google/link` | `SessionEnvelope` | Attach Google to the signed-in account — browser only |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
 | `POST` | `/v1/auth/wallet/verify` | `SessionEnvelope` | Verify the signature, open a session |
-| `POST` | `/v1/auth/cli/challenge` | `{ nonce, message, expires_at }` | A nonce for a hotkey to sign |
-| `POST` | `/v1/auth/cli/verify` | `CliSession` | Verify the hotkey signature, mint a bearer token |
+| `POST` | `/v1/auth/cli/challenge` | `{ nonce, message, expires_at }` | A nonce for a linked coldkey to sign |
+| `POST` | `/v1/auth/cli/verify` | `CliSession` | Verify the coldkey signature, mint a bearer token |
 | `POST` | `/v1/auth/logout` | `204` | Revoke **this** session; clear the cookies if it is one |
 | `GET` | `/v1/me` | `Account` | Profile, roles, linked keys, payout address |
 | `PATCH` | `/v1/me` | `Account` | Edit `display_name` — browser only |
@@ -23,9 +23,9 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `DELETE` | `/v1/me/sessions?kind=` | `204` | Revoke every *other* session, optionally of one kind |
 | `POST` | `/v1/me/wallets/challenge` | `{ nonce, message }` | A nonce for linking another coldkey — browser only |
 | `POST` | `/v1/me/wallets` | `Account` | Link another coldkey by signature — browser only |
-| `POST` | `/v1/me/hotkeys/challenge` | `{ nonce, message }` | A nonce for linking a hotkey — browser only |
-| `POST` | `/v1/me/hotkeys` | `Account` | Link a hotkey by signature — browser only |
-| `PUT` | `/v1/me/payout` | `Account` | Payout destination: coldkey plus hotkey — browser only |
+| `GET` | `/v1/me/coldkeys` | `AccountColdkeys` | The designated submission coldkey and the payout destination — either credential |
+| `PUT` | `/v1/me/coldkeys/submission` | `Account` | Designate which linked coldkey this account submits under — browser only |
+| `PUT` | `/v1/me/coldkeys/payout` | `Account` | Where rewards are sent. One coldkey, no proof of control — browser only |
 | `GET` | `/v1/me/credits` | `CreditBalance` | Available credits, balance, holds, remainder |
 | `GET` | `/v1/me/credits/ledger` | `CursorPage<CreditLedgerEntry>` | The append-only ledger |
 | `POST` | `/v1/me/deposits` | `Deposit` | Declare a deposit, get the `btcli` command |
@@ -50,7 +50,7 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 
 Response models are in
 [`../submission_api/schemas_account.py`](../submission_api/schemas_account.py) — the third of
-three model modules, and the one where a hotkey, an email, a payout address or a balance is
+three model modules, and the one where a linked coldkey, an email, a payout address or a balance is
 *allowed* to appear, because everything here is served only to the authenticated owner of the
 data. The separation is the point: a field on `Account` would be a serious disclosure on
 `PublicResult`.
@@ -74,7 +74,9 @@ client that has just signed in does not have to immediately read the session bac
 ```jsonc
 {
   "account":  { "id": "…", "email": "…", "email_verified": true, "display_name": null,
-                "roles": ["MINER"], "payout": null, "hotkeys": [], "wallets": [],
+                "roles": ["MINER"], "payout": null,
+                "coldkeys": {"submission_coldkey": null, "payout_coldkey": null},
+                "wallets": [],
                 "identities": [ … ], "created_at": "2026-07-02T09:14:00Z" },
 
   "identities": [ { "provider": "email",   "label": "db@dendrite.holdings",
@@ -84,9 +86,9 @@ client that has just signed in does not have to immediately read the session bac
                   { "provider": "coldkey", "label": "5Fh3…9xQ",
                     "linked_at": "2026-08-01T11:20:00Z" } ],
 
-  "hotkeys":  [ { "hotkey": "5Gk2…7aP", "label": null,
+  "wallets":  [ { "coldkey": "5Gk2…7aP", "is_submission_coldkey": true, "label": null,
                   "linked_at": "2026-08-03T18:44:00Z" } ],
-  "payout":   { "coldkey": "5Fh3…9xQ", "hotkey": "5Gk2…7aP" },   // null until set
+  "payout":   { "coldkey": "5Fh3…9xQ" },                          // null until set
 
   "credits":  { "balance": 3, "held": 1 },                        // whole credits
   "counts":   { "submissions_total": 12, "submissions_in_review": 2,
@@ -102,7 +104,7 @@ client that has just signed in does not have to immediately read the session bac
 }
 ```
 
-`account` is the canonical record and is unchanged. **`identities`, `hotkeys` and `payout` are
+`account` is the canonical record and is unchanged. **`identities`, `wallets` and `payout` are
 derived from it in the same call**, never read separately, so the two halves of the body cannot
 disagree. They are flattened because the account page groups by "ways in" and "keys I mine with",
 which is not how the account row is shaped.
@@ -147,33 +149,40 @@ dropped its error path would still be wrong the moment a credit is spent in anot
 buys is that a greyed-out button has a reason: `missing` carries the same `reason_code` strings
 the corresponding endpoint refuses with, in the order that endpoint checks them, so "why is this
 disabled" and "why did that `403`" answer with the same word. Without it, every client
-re-implements the authorisation rules from `roles`, `hotkeys` and `credits` — and drifts from the
+re-implements the authorisation rules from `roles`, `wallets` and `credits` — and drifts from the
 server the first time one changes.
 
 | Capability | Gated on |
 | --- | --- |
-| `submit` | `SUBMISSIONS_PAUSED`, `HOTKEY_NOT_LINKED`, `INSUFFICIENT_CREDITS` |
+| `submit` | `SUBMISSIONS_PAUSED`, `COLDKEY_NOT_LINKED`, `INSUFFICIENT_CREDITS` |
 | `buy_credits` | `BROWSER_SESSION_REQUIRED` — both funding paths are cookie-only |
-| `set_payout` | `BROWSER_SESSION_REQUIRED`, `HOTKEY_NOT_LINKED` |
+| `set_payout` | `BROWSER_SESSION_REQUIRED` |
 | `review` | `ROLE_REQUIRED` (`REVIEWER`), `ROLE_REQUIRES_BROWSER_SESSION` |
 | `manage_roles` | `ROLE_REQUIRED` (`ADMIN`), `ROLE_REQUIRES_BROWSER_SESSION` |
 
-**`submit` has three ways to be satisfied, and a browser needs none of them to hold a key.** A
-linked *hotkey* drives the three-call intent flow from either credential; a linked *coldkey*
-drives `POST /v1/submissions/web`; and `POST /v1/submissions/session` needs nothing but the
-session itself. Both browser paths are cookie-only.
+**`submit` has three ways to be satisfied, and a browser needs no key at all for one of them.**
+The account's *designated submission coldkey* drives the three-call intent flow from either
+credential; any *linked coldkey* drives `POST /v1/submissions/web`; and
+`POST /v1/submissions/session` needs nothing but the session itself. Both browser paths are
+cookie-only.
 
-So `HOTKEY_NOT_LINKED` now appears in exactly one case: **a CLI bearer session with no linked
-hotkey.** Neither browser path is reachable with a bearer token, so for that credential a hotkey
-really is the only way in. Reporting it to a signed-in browser holding no keys was the shape of a
-website greying out its own submit button against exactly the person the session path exists for —
-a mathematician who signed in with an email address.
+So `COLDKEY_NOT_LINKED` appears in exactly one case: **a CLI bearer session with no designated
+submission coldkey.** Neither browser path is reachable with a bearer token, so for that
+credential the intent flow is the only way in — and that flow signs as
+`Account.submission_coldkey`, so with none designated there is nothing to verify a signature
+against. Reporting it to a signed-in browser holding no keys was the shape of a website greying
+out its own submit button against exactly the person the session path exists for — a
+mathematician who signed in with an email address.
 
-Note the contrast with `set_payout` in the table above, which still reports `HOTKEY_NOT_LINKED`.
-That is not an inconsistency: **you can now attempt a proof without a key, but not be paid for
-one.** Alpha is held as stake owned by a coldkey, so a reward has nowhere to go without the pair,
-and a submission that wins is held by the payout queue until its account links one — see
-"What happens if a keyless submission wins" below.
+**`set_payout` no longer reports a missing key at all**, and V035 is why. It used to require the
+payout hotkey to be linked to the account, on the theory that this was proof of control over the
+destination. It was not: an attacker holding a session could link their own key first. What it
+did do was make the ordinary case impossible — paying to a hardware wallet, an exchange deposit
+address, or a multisig the account does not solely control. A payout destination is now one
+unproved coldkey, and the credential needed to reach the endpoint is what defends it.
+
+A reward still has nowhere to go until a destination is set, and a submission that wins is held
+by the payout queue until then — see "What happens if a keyless submission wins" below.
 
 
 Both role codes can appear at once, and that is the useful case rather than an edge one: an admin
@@ -181,18 +190,22 @@ on the CLI is told the role is held *and* that this credential cannot exercise i
 
 The whole envelope is redacted for a CLI bearer session on the same rule as `Account`, and
 inherits it rather than re-implementing it — everything is built from the already-redacted
-account, so a bearer caller gets `identities: []`, `payout: null` and only its own hotkey without
-the builder branching on the credential. `credits` is the deliberate exception: spending them is
+account, so a bearer caller gets `identities: []`, `payout: null` and only its own linked
+coldkey without the builder branching on the credential. `coldkeys.submission_coldkey` is the
+one field deliberately *not* redacted: it is the key that token already signs as. `credits` is the deliberate exception: spending them is
 most of what the CLI does, and discovering an empty balance by being refused would be worse.
 
 `Cache-Control: no-store` on all of it. The body was already caller-dependent; it now also
 carries a balance and a set of permissions, and a shared cache serving one account's capabilities
 to another would be an authorisation bug wearing a caching bug's clothes.
 
-`hotkeys[].label` is always `null` today. The field ships now so the account page can be built
-against its final shape; populating it needs a nullable column on `linked_hotkeys` and an endpoint
-to set it. Null is honest — there is no name — and a client should fall back to a truncated
-`hotkey`.
+`wallets[].label` is always `null` today. The field ships now so the account page can be built
+against its final shape; populating it needs a nullable column on `account_wallets` and an
+endpoint to set it. Null is honest — there is no name — and a client should fall back to a
+truncated `coldkey`.
+
+`wallets[].is_submission_coldkey` marks which one is designated, so the account page can render
+the list and the designation from one response. At most one wallet has it set.
 
 ## Sessions
 
@@ -208,10 +221,10 @@ logic and then drift.
 
 | | `COOKIE` | `BEARER` |
 | --- | --- | --- |
-| Opened by | coldkey signature, or a mailbox | a **linked** hotkey's signature |
+| Opened by | coldkey signature, or a mailbox | a **linked** coldkey's signature |
 | Held in | `conjectures_session` cookie | `~/.config/conjectures/session.json`, mode `0600` |
 | Ambient (browser attaches it unasked) | yes — so writes must prove their initiator | no — nothing to prove |
-| Scoped to | the account | one hotkey (`hotkey_scope`) |
+| Scoped to | the account | one coldkey (`coldkey_scope`) |
 | Lifetime | `SESSION_DAYS` rolling, uncapped | `CLI_SESSION_DAYS` rolling, capped at `CLI_SESSION_MAX_DAYS` |
 | May take over the account | yes — it is the account holder | **no**, see below |
 
@@ -223,16 +236,16 @@ different write obligations, and a credential that can change which rules apply 
 where it is presented is much cheaper to forbid than to reason about at every call site.
 
 **A bearer token is the weaker credential, and the API treats it that way.** Bittensor stores a
-hotkey unencrypted on disk by design — that is the point of the coldkey/hotkey split — so a token
+long-lived token in a file on a mining machine, readable by anything that can read the disk — so a token
 minted by one is roughly as protected as a file on a mining box. Three consequences, all
 enforced rather than advised:
 
 * The writes that change *who the account is* or *where its money goes* require a browser
-  session: linking a hotkey, setting the payout destination, editing the profile, declaring or
+  session: linking a coldkey, designating which one submits, setting the payout destination, editing the profile, declaring or
   claiming a deposit. Left open, those compose into full account takeover from one stolen file —
-  link an attacker's hotkey, repoint the payout, collect. The refusal is `403`
+  link an attacker's coldkey, repoint the payout, collect. The refusal is `403`
   `BROWSER_SESSION_REQUIRED`.
-* Reads are **redacted**: no email address, no payout keys, no coldkey, and only the one hotkey
+* Reads are **redacted**: no email address, no payout destination, and only the one coldkey
   the token is scoped to. `GET /v1/me` and `GET /v1/auth/session` both apply it, so the full
   record is not reachable by asking a different endpoint.
 * `REVIEWER` and `ADMIN` cannot be exercised from one at all — `403`
@@ -358,7 +371,7 @@ session row. It is gone, and the reasoning is worth keeping written down.
 
 What was *not* free about the removal: the check must now **fail closed** when neither header
 arrives, and non-browser clients holding a cookie session must send one of them themselves.
-`scripts/link_hotkey.py` sends `Sec-Fetch-Site: same-origin`. That is not a bypass — outside a
+`scripts/link_coldkey.py` sends `Sec-Fetch-Site: same-origin`. That is not a bypass — outside a
 browser the header is an ordinary string anybody can type, and it does not matter, because the
 guard exists to stop a hostile *page* from riding on a cookie the browser attached by itself. A
 local process that can set arbitrary headers is already holding the cookie deliberately, and a
@@ -388,7 +401,7 @@ load-bearing:
 
 ### Path exemptions
 
-`POST /v1/submissions` and `/v1/submissions/preflight` carry no cookie and authenticate a hotkey
+`POST /v1/submissions` and `/v1/submissions/preflight` carry no cookie and authenticate a coldkey
 signature instead, so there is no ambient credential to abuse. `POST /v1/auth/google/callback` is
 exempt because it is a genuine cross-site POST from `accounts.google.com`; it performs Google's
 own `g_csrf_token` double-submit before reading the ID token, and `SameSite=Lax` means no session
@@ -454,8 +467,7 @@ from one is worthless in another:
 ```
 conjectures-login-v1          sign in with a coldkey
 conjectures-coldkey-link-v1   attach another coldkey to an account
-conjectures-hotkey-link-v1    attach a hotkey to an account
-conjectures-cli-session-v1    open a CLI session with an already-linked hotkey
+conjectures-cli-session-v1    open a CLI session with an already-linked coldkey
 conjectures-deposit-claim-v1  claim a transfer you made
 conjectures-read-v1           read a submission's status
 <the request digest>          authorise one submission (32 raw bytes, not text)
@@ -490,9 +502,9 @@ credential between accounts needs a recovery policy, not a silent ownership chan
 ### CLI
 
 The miner CLI cannot open a browser and does not hold a coldkey in normal operation, so it signs
-with a **hotkey** — and only one that has already been linked to an account in the browser. That
-prerequisite is the whole security story: a hotkey can never create an account or attach itself to
-one, so compromising a hotkey never produces a new identity, only a session on an identity that
+with a **coldkey** — and only one that has already been linked to an account in the browser. That
+prerequisite is the whole security story: a key can never create an account or attach itself to
+one, so compromising one never produces a new identity, only a session on an identity that
 already chose to include it.
 
 ```
@@ -501,27 +513,27 @@ POST /v1/auth/cli/verify     { address, nonce, signature }    -> CliSession
 ```
 
 **The prerequisite has its own command**, `conjectures auth register`, which walks the four calls a
-website would — coldkey challenge, coldkey verify, hotkey challenge, hotkey link — creating the
+website would — coldkey challenge, coldkey verify, then designate — creating the
 account on first sign-in, because proving control of an unclaimed coldkey *is* signing up. It opens
 a cookie session, makes the one write, and revokes it before returning, so the browser credential
-never reaches disk. `scripts/link_hotkey.py` does the same four calls from this repo, for testing a
+never reaches disk. `scripts/link_coldkey.py` does the same three calls from this repo, for testing a
 deployment without installing the miner CLI.
 
 ```
-conjectures auth register --wallet default --hotkey default   # the miner's route
-python3 scripts/link_hotkey.py --api http://localhost:8000    # the validator's own
+conjectures auth register --wallet default                    # the miner's route
+python3 scripts/link_coldkey.py --api http://localhost:8000   # the validator's own
 ```
 
-**The challenge endpoint does not say whether the hotkey is linked.** Hotkeys are published on
+**The challenge endpoint does not say whether the coldkey is linked.** A coldkey that has ever transacted is public on
 chain, so anyone can ask about anyone's key; a differing answer would be a free oracle mapping
-hotkeys to accounts on this deployment. The linkage is checked at verify, once a signature has
+addresses to accounts on this deployment. The linkage is checked at verify, once a signature has
 proved the caller controls the key — at which point they are entitled to know, and an unlinked
-hotkey is `403 HOTKEY_NOT_LINKED`.
+coldkey is `403 COLDKEY_NOT_LINKED`.
 
 **The nonce is echoed back at verify**, unlike the coldkey flow, and this is the one place the two
 differ in shape. The coldkey flow resolves "the latest open challenge for this address", which is
 a denial-of-service primitive whenever the address is public: request a challenge for someone
-else's hotkey once a minute and their own signature is never over the latest message, so they can
+else's address once a minute and their own signature is never over the latest message, so they can
 never log in. Addressing the challenge by its own nonce removes the race — two challenges for one
 address coexist, each redeemable by whoever holds its nonce. The nonce is not the proof; the
 signature is, checked against the message stored on that row.
@@ -532,7 +544,7 @@ The five steps of verify are ordered deliberately, and each boundary answers a s
 2. Verify the signature over the **stored** message — before anything is consumed or disclosed.
 3. On failure, count an attempt and refuse. The challenge survives one wrong signature, but not
    many.
-4. Resolve the account, and refuse an unlinked hotkey **with the nonce still unspent**. This is
+4. Resolve the account, and refuse an unlinked coldkey **with the nonce still unspent**. This is
    the common first-run error, and burning the nonce would cost a fresh challenge, a fresh
    passphrase prompt and a fresh signature for a condition the miner must fix in a browser anyway.
 5. Consume, then issue — so the nonce is spent exactly when a token comes into existence.
@@ -545,9 +557,9 @@ CI logs or a committed dotfile findable by a secret scanner.
 **A note for client authors.** The CLI must sign the server's message *bytes* verbatim, never a
 locally rebuilt copy — but it must also **check what it is about to sign** before unlocking the
 key: that the first line is exactly `conjectures-cli-session-v1`, that `address:` is its own
-hotkey, and that `domain:` is the validator it meant to talk to. Signing whatever a server sends
+key, and that `domain:` is the validator it meant to talk to. Signing whatever a server sends
 turns the CLI into a blind signing oracle for the other four prefixes, and a typo'd `--api` or a
-poisoned environment variable is then enough to collect a hotkey-link signature for someone else's
+poisoned environment variable is then enough to collect a coldkey-link signature for someone else's
 account. Validate the shape, then sign the bytes as received.
 
 ## Credits
@@ -593,7 +605,7 @@ one table, so an attempt bought and an attempt granted spend identically.
 
 `CookieWriterDep`, not `WriterDep`: this moves money onto an account, so it obeys the rule the rest
 of the credit path obeys and refuses a CLI token with `BROWSER_SESSION_REQUIRED`. A bearer token is
-minted by a hotkey, and a hotkey sits unencrypted on a mining box.
+a long-lived file on a mining box, which is the weaker of the two credentials.
 
 An invitation stores a number of **attempts**, not an amount of rao. The conversion happens at
 redemption against the price in force, so a reprice between issuing a link and clicking it cannot
@@ -861,7 +873,7 @@ The intent creation body may include the same opt-in authorship used by the dire
 {
   "task_id": "fc-…",
   "task_bundle_sha256": "sha256:…",
-  "hotkey": "5Grw…",
+  "signer_coldkey": "5Grw…",
   "public_credit": {
     "name": "Emmy Noether",
     "url": "https://example.org/emmy-noether",
@@ -871,7 +883,7 @@ The intent creation body may include the same opt-in authorship used by the dire
 ```
 
 It is optional. When present, it is frozen on the intent, included in the server-generated digest
-the hotkey signs, and copied unchanged to the submission. The account's mutable `display_name` is
+the coldkey signs, and copied unchanged to the submission. The account's mutable `display_name` is
 not used for result credit.
 
 **Why hold at step 2 rather than charge at step 4.** Without a hold, a miner with one credit could
@@ -880,7 +892,7 @@ the account row before reading the balance, so two concurrent calls cannot both 
 credit.
 
 **Why the server computes the digest at step 3.** The client must never choose what it is signing.
-`request_digest` is canonical JSON over the intent id, the submitting hotkey, the task, the task
+`request_digest` is canonical JSON over the intent id, the signing coldkey, the task, the task
 digest, the proof digest **as admitted**, and any public credit — so a captured signature cannot be
 moved to different bytes, a different task, a different author credit, or a different attempt.
 Re-uploading replaces the bundle and recomputes the digest, invalidating the old signature, so a
@@ -900,12 +912,11 @@ accepted" was answered successfully.
 
 ## Submitting from the website in one call
 
-`POST /v1/submissions/web` exists because of one fact about browser wallets: **Talisman and the
-tao.com extension hold coldkeys only.** A hotkey lives unencrypted on a mining box — that is the
-point of the coldkey/hotkey split — and never reaches the browser. So a page cannot finish either
-of the other two paths: the extrinsic one wants a hotkey signature and a transfer the page cannot
-make, and `POST /v1/submissions/intents/{id}/confirm` also ends in a hotkey signature, over 32 raw
-bytes that a message-signing wallet will not render.
+`POST /v1/submissions/web` exists because of what a browser wallet will *sign*, not which key it
+holds. Since V035 every path signs with a coldkey, so Talisman and the tao.com extension hold the
+right key for all of them. What they will not do is sign 32 raw bytes of request digest and show
+a person something meaningful while doing it — and the extrinsic path additionally wants a
+transfer the page cannot make. So this path signs a **readable message** instead, in one call.
 
 One request. The archive is the body; every scalar is a query parameter.
 
@@ -913,7 +924,6 @@ One request. The archive is the body; every scalar is a query parameter.
 POST /v1/submissions/web
     ?task_id=fc-379fc029-erdos11-…
     &task_bundle_sha256=sha256:31687f…
-    &hotkey=5Grw…
     &coldkey=5DAA…
     &bundle_sha256=sha256:4c9a…
     &idempotency_key=ab0002f6-7a99-4352-b478-9da553dcdc1a
@@ -930,8 +940,7 @@ Content-Length: 606
 | --- | --- |
 | `task_id` | An allowlisted task id |
 | `task_bundle_sha256` | That task's published digest |
-| `hotkey` | Where the reward is staked and who the result is credited to. **Declared, never proved**, but it must exist on chain and be unclaimed here — see below. Must equal the bundle manifest's `miner_hotkey` |
-| `coldkey` | The coldkey that signed. Must be **linked to this account** |
+| `coldkey` | The coldkey that signed. Must be **linked to this account**, and must equal the bundle manifest's `miner_coldkey`. Need not be the account's designated `submission_coldkey` — that designation exists to tell the *intent* flow which key to expect, and here the request names one and proves it |
 | `bundle_sha256` | Digest of the whole `.zip`, recomputed server-side and compared |
 | `idempotency_key` | A UUID the client chooses. A replay answers `200` with the original submission |
 | `expires_at` | When the authorisation stops being usable. UTC, to the second, `Z` — exactly one spelling, and at most `INTENT_MINUTES` from now |
@@ -975,7 +984,6 @@ the signature itself is never echoed.
 conjectures-web-submission-v1
 domain: conjectures.io
 address: 5DAA…
-hotkey: 5Grw…
 task: fc-379fc029-erdos11-…
 task_bundle_sha256: sha256:31687f…
 bundle_sha256: sha256:4c9a…
@@ -983,10 +991,14 @@ idempotency: ab0002f6-7a99-4352-b478-9da553dcdc1a
 expires: 2026-08-21T10:30:00Z
 ```
 
-An eighth domain-separated prefix, and the same rules as the other seven hold: no prefix is a
+One of seven domain-separated prefixes, and the same rules hold for all of them: no prefix is a
 prefix of another, so a signature harvested here is not a sign-in, and `domain` binds it to this
 deployment. It is readable because a person approves it in a wallet popup, which is the other half
-of why the raw digest the hotkey paths sign could not be reused.
+of why the raw digest the other two key-signed paths use could not be reused.
+
+There was a `hotkey:` line here until V035. It pinned the delegation target the submitter
+declared for their payout. Removing a line changes the message, so a signature made against the
+old shape no longer verifies — which is correct, and is why the flow is versioned by its prefix.
 
 **The server rebuilds this message from what it holds, never from what the request claimed** — the
 digest of the body it actually read, and the task digest from its own allowlist entry. That is what
@@ -998,7 +1010,7 @@ fixable and the other reads as a broken wallet.
 
 There is no server-minted nonce, and there is nothing for one to add. `bundle_sha256` binds the
 signature to the exact bytes, `idempotency_key` separates two attempts at the same bytes, and
-`expires_at` bounds the window — bounded on both sides, like `assert_fresh_nonce` on the hotkey
+`expires_at` bounds the window — bounded on both sides, like `assert_fresh_nonce` on the digest-signing
 paths, because an authorisation good for a week is a reusable credential for the account's credits.
 
 ### The order of checks
@@ -1007,10 +1019,11 @@ Nothing is charged before the last step, and the order is a cost property as muc
 one:
 
 1. `submissions_paused`, then the query's own shape;
-2. the credential (`CookieWriterDep`) and the two keys it claims;
+2. the credential (`CookieWriterDep`) and the key it claims;
 3. the idempotency replay, answered from durable state without re-uploading;
 4. the balance and a first bounty quote — an account with nothing to spend is refused before it
-   uploads 2 MiB — and then the one chain read, asking whether the declared hotkey exists;
+   uploads 2 MiB. There used to be a chain read here, asking whether the declared payout hotkey
+   existed; V035 removed it, so **no step on this path touches an external service**;
 5. the declared `Content-Type` and `Content-Length`, then the body under a running cap, and the
    bundle admitted by the same exact-shape scanner — so a hostile 500 MB body is refused on its
    declaration rather than buffered and then measured;
@@ -1034,75 +1047,74 @@ that is the money path, and a second implementation is a second chance to get at
 
 Because the intent is minted by the request, it is no idempotency handle for a client that has to
 retry — so the key the client chose is stored as `submissions.idempotency_key` instead, and
-`submissions_idempotency_unique` over `(hotkey, idempotency_key)` is what makes a retry a `200`
-rather than a second charge. Two identical requests racing leave one `201` and one `409
+`submissions_session_idempotency_unique` over `(account_id, idempotency_key)` is what makes a
+retry a `200` rather than a second charge. Two identical requests racing leave one `201` and one `409
 IDEMPOTENCY_CONFLICT`; the loser's hold rolls back with its transaction.
 
-### The coldkey is proved; the hotkey is declared
+### One key, and it must be linked
 
-This asymmetry is the endpoint. An account opened with a browser wallet has **a coldkey and
-nothing else** — there is no hotkey in the browser to sign with, so `POST /v1/me/hotkeys` is
-unreachable for it, and any check that demanded a linked hotkey would lock out exactly the person
-this path exists for.
+This endpoint used to turn on an asymmetry: a coldkey it proved, and a *hotkey* it merely
+accepted. The hotkey was a delegation target — alpha is held as stake owned by a coldkey, so
+nominating a hotkey chose which neuron the reward was staked to rather than who owned it — and
+two checks bounded the declaration without ever proving control of it: that no other account had
+claimed the address, and that the chain knew it (a `SubtensorModule.Owner` read, because
+`transfer_stake_and_hotkey` cannot stake to a hotkey with no owner).
 
-**The coldkey must be linked** (`WALLET_NOT_LINKED` otherwise). It is what authorised the spend and
-it is where the reward lands, and a signature proves control of a key rather than that the key
-belongs to this account. Without the check, anyone who captured a signature could spend their own
-credits under somebody else's authorisation and have the payout follow that key.
+**All of that is gone.** A payout is now a `transfer_stake` call, which changes the owner of
+alpha that never leaves the validator's own hotkey, so there is no destination hotkey for anyone
+to declare. With it went the `hotkey` query parameter, the `hotkey:` line in the signed message,
+the two reason codes that bounded the declaration
+(`HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT`, `HOTKEY_NOT_REGISTERED`), the outage code behind the chain
+read (`HOTKEY_DIRECTORY_UNAVAILABLE`), and the chain read itself.
 
-**The hotkey is never proved**, and it is safe not to prove it, because it is a *delegation
-target* rather than an owner. Alpha is held as stake owned by the coldkey; nominating a hotkey
-chooses which neuron the reward is staked to, and the coldkey it is staked for is the one that
-signed. So a wrong or hostile declaration cannot misdirect money. Two checks bound it anyway,
-because it can still be wrong in two ways that matter:
+What remains is one key with one rule. **The coldkey must be linked** (`WALLET_NOT_LINKED`
+otherwise). It is what authorised the spend, and a signature proves control of a key rather than
+that the key belongs to this account — without the check, anyone who captured a signature could
+spend their own credits under somebody else's authorisation.
 
-* **It must not be somebody else's claimed identity.** `ResultRow.hotkey` is published and a
-  result is credited to its solver, so an unchecked declaration could credit a solved conjecture
-  to a hotkey another account has proved control of. Refused with
-  `HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT` — deliberately *not* `HOTKEY_NOT_LINKED`, which is the
-  intent path's refusal for the opposite condition, so a client must not treat them as one.
-* **The chain must know it.** The payout is a `transfer_stake_and_hotkey` call, and it cannot
-  stake to a hotkey with no owner. `SubtensorModule.Owner` is the authority — the same storage
-  item the extrinsic payment path already reads to establish coldkey/hotkey ownership, where an
-  unregistered hotkey reads back as the zero account and is treated as unowned. A hotkey the
-  chain does not know is refused with `HOTKEY_NOT_REGISTERED`, at intake, while the submitter is
-  still looking at the address. Accepting it would produce a submission that verifies, wins, and
-  then strands a payout command a human signs and watches fail.
-
-  What is deliberately *not* checked is **who** owns it. Nominating a hotkey owned by somebody
-  else's coldkey delegates your own reward to their neuron; the stake still belongs to the
-  coldkey it is staked for, which is the one that signed.
-
-  If the chain cannot be reached the request is refused with `503
-  HOTKEY_DIRECTORY_UNAVAILABLE`, never with `HOTKEY_NOT_REGISTERED`. The two mean opposite
-  things — our outage versus their address — and collapsing them would send someone hunting a
-  registration they already have. Nothing is charged either way.
+It need **not** be the account's designated `submission_coldkey`. Any linked wallet may
+authorise from a browser; the designation exists so the *intent* flow knows which key to expect
+a signature from when nothing in the request names one, and here the request names one and
+proves it.
 
 **Browser only.** `CookieWriterDep`, so a CLI bearer token is refused with
-`BROWSER_SESSION_REQUIRED`. That costs the CLI nothing — it is minted by a hotkey, scoped to one,
-and already has the three-call flow — and it buys the rule that the one intake path a coldkey
-authorises cannot be driven by a credential read off a mining box.
+`BROWSER_SESSION_REQUIRED`. That costs the CLI nothing — it already has the three-call flow, and
+it holds a scoped token rather than a key it could sign this message with — and it buys the rule
+that the one-call intake path cannot be driven by a credential read off a mining box.
 
 ### Where the reward goes
 
-`payout_notifier` resolves a destination from the first of three the row can answer for, in order
-of evidence:
+`payout_notifier` resolves **one coldkey** from the first of three the row can answer for, in
+order of evidence:
 
-1. the account's configured **payout pair** (`PUT /v1/me/payout`), set deliberately by its owner;
-2. **`signer_coldkey`** paired with `submissions.hotkey` — a website submission, where a coldkey
-   signed for this exact attempt. Stronger evidence than either the pair or the fallback below,
-   because it is a signature over this proof rather than a stored preference;
-3. `payment_sender` paired with `submissions.hotkey` — a legacy extrinsic submission.
+1. the account's configured `payout_coldkey` (`PUT /v1/me/coldkeys/payout`), set deliberately by
+   its owner;
+2. **`signer_coldkey`** — a coldkey that signed for this exact attempt. Stronger evidence than
+   either the stored preference or the fallback below, because it is a signature over this
+   proof;
+3. `payment_sender` — the coldkey that paid.
 
-So a browser-wallet account needs no payout configuration at all: the coldkey that signed and paid
-is the coldkey that gets paid, staked to the hotkey that same signature nominated. Configuring a
-payout pair still overrides it, and that endpoint keeps its own linked-hotkey requirement.
+There is no destination *hotkey* to resolve, and that removed a whole class of mismatch. It used
+to be a second coalesce over a different pair of columns (`Account.payout_hotkey`,
+`Submission.hotkey`), which could only be trusted to agree with the coldkey coalesce because a
+CHECK forced the account's two payout columns to be set together — an invariant holding up an
+unrelated one.
+
+Note that 2 and 3 are usually the same address now: the extrinsic path requires the paying
+coldkey to be the signing coldkey. They stay separate because the website path has a signer and
+no payment, and pre-V035 rows have a payment whose sender was never proved to be a signer.
+
+So an account that signed with a wallet needs no payout configuration at all: the coldkey that
+signed is the coldkey that gets paid. Setting `payout_coldkey` still overrides it, and needs no
+proof of control over the address it names.
 
 ### What the row records
 
-`submissions.signer_coldkey` (V028) names the key that signed; it is NULL on both other paths,
-where the signature is the row's own `hotkey`'s. Without it the 64 bytes in `hotkey_signature`
-would verify against nothing on the row. `request_digest` is the digest of the signed message, so
+`submissions.signer_coldkey` (V028) names the key that signed, and `signer_signature` (V035)
+holds the 64 bytes it signed. Those bytes lived in `hotkey_signature` until V035, which is the
+naming lie that column's retirement removes: on this path the signature never verified against
+the row's `hotkey` at all. `signer_coldkey` is now set on every key-signed path and NULL only on
+the session-authorised one. `request_digest` is the digest of the signed message, so
 the stored signature is still over the stored digest's preimage — and the timeline carries an
 `AUTHORISED_BY_COLDKEY` event whose context holds that message verbatim, because a reader checking
 the signature later needs the exact bytes rather than a formatter's promise to have not changed.
@@ -1115,9 +1127,6 @@ the signature later needs the exact bytes rather than a formatter's promise to h
 | `BROWSER_SESSION_REQUIRED` | 403 | A CLI bearer token; sign in at the website |
 | `CROSS_SITE_WRITE_REFUSED` | 403 | The write named an initiator that may not write here |
 | `WALLET_NOT_LINKED` | 409 | Link that coldkey first |
-| `HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT` | 409 | Another account has proved control of that hotkey; nominate one of your own |
-| `HOTKEY_NOT_REGISTERED` | 409 | The chain knows no owner for that hotkey, so nothing can be staked to it |
-| `HOTKEY_DIRECTORY_UNAVAILABLE` | 503 | The validator could not reach the chain to check the hotkey. Retry; nothing was charged |
 | `IDEMPOTENCY_CONFLICT` | 409 | The key already names a submission made another way, or two identical requests raced |
 | `TASK_NOT_ALLOWED` | 404 | Not an allowlisted `(task_id, digest)` pair |
 | `INSUFFICIENT_CREDITS` | 409 | Carries `credits_available` and `credits_required` |
@@ -1170,30 +1179,32 @@ session path added in V032 removes the signature entirely.
 | | Extrinsic path | Credit path, three calls | Credit path, from the website | Credit path, session only |
 | --- | --- | --- | --- | --- |
 | Endpoint | `POST /v1/submissions` | the four-call intent flow | `POST /v1/submissions/web` | `POST /v1/submissions/session` |
-| Auth | hotkey signature | session cookie + write guard | session **cookie only** + write guard | session **cookie only** + write guard |
-| Authorised by | the hotkey, over the request digest | the hotkey, over the request digest | a **linked coldkey**, over a readable message | **the session itself** — no signature |
-| Hotkey is | proved by signature | proved by linking | **declared, unproved** — a delegation target | **absent**, and a bundle naming one is refused |
+| Auth | coldkey signature | session cookie + write guard | session **cookie only** + write guard | session **cookie only** + write guard |
+| Authorised by | the coldkey that paid, over the request digest | the account's designated `submission_coldkey`, over the request digest | any **linked coldkey**, over a readable message | **the session itself** — no signature |
+| Signing key is | proved by signature, and must equal `payment_sender` | proved by linking, then designated | proved by linking | **absent**, and a bundle naming one is refused |
 | Funded by | one finalized transfer | one `SPEND` ledger entry | one `SPEND` ledger entry | one `SPEND` ledger entry |
-| Row names | `payment_reference`, `payment_sender`, `payment_amount_rao`, `payment_block` | `credit_ledger_id`, `intent_id`, `account_id` | the same three, plus `signer_coldkey` | the same three, and `hotkey` is null |
+| Row names | `payment_reference`, `payment_sender`, `payment_amount_rao`, `payment_block`, plus `signer_coldkey` and `signer_signature` | `credit_ledger_id`, `intent_id`, `account_id`, plus `signer_coldkey` and `signer_signature` | the same as the intent path | `credit_ledger_id`, `intent_id`, `account_id`, and both signer columns null |
 | Idempotency key | client-supplied UUID | the intent id | client-supplied UUID | client-supplied UUID, unique **per account** |
 
 There are two funding sources and four ways in, because the last two are the credit path with a
 different authorisation on it — same hold, same ledger entry, same `confirm` transaction.
 
 `submission_authorised_exactly_once` is what keeps that from becoming vague: a row either names a
-hotkey **and** carries the signature that proved it, or names neither and has an account and a
+key **and** carries the signature that proved it, or names neither and has an account and a
 credit. There is no third shape, so "who authorised this" is always answerable from the row.
 
 The idempotency footnote on the last column is not a detail. `submissions_idempotency_unique` is
-`UNIQUE (hotkey, idempotency_key)`, and PostgreSQL treats NULLs as **distinct** — so it stops
-constraining rows the moment `hotkey` can be null, and a retry would quietly buy a second attempt.
-V032 adds a partial unique index on `(account_id, idempotency_key) WHERE hotkey IS NULL`, scoped to
+`UNIQUE (hotkey, idempotency_key)`, and PostgreSQL treats NULLs as **distinct** — so it stopped
+constraining anything the moment `hotkey` could be null, and a retry would quietly buy a second
+attempt. V032 adds a partial unique index on `(account_id, idempotency_key) WHERE hotkey IS
+NULL`, and V035 adds `(signer_coldkey, idempotency_key) WHERE signer_coldkey IS NOT NULL` for
+the extrinsic path, which has no account to be scoped by. The first is scoped to
 the account because a client-generated key is only meaningful within the caller that chose it.
 
 ### What happens if a keyless submission wins
 
 Nothing special, and that is the point. `payout_notifier` resolves its destination through
-`coalesce(Account.payout_hotkey, Submission.hotkey)` and filters on the result being non-null, so a
+`coalesce(Account.payout_coldkey, Submission.signer_coldkey, Submission.payment_sender)` and filters on the result being non-null, so a
 submission with no key and an account with no payout pair resolves to nothing and is **skipped** —
 not paid to a stand-in, and not a crash in the queue. It stays `ELIGIBLE` with no reward event.
 
@@ -1229,7 +1240,7 @@ Five rules on the admin surface, each a decision rather than an accident:
   replacing the value does not have. Unknown roles are `409 UNKNOWN_ROLE`.
 * **Neither `ADMIN` nor `REVIEWER` can be exercised from a CLI session** — `403
   ROLE_REQUIRES_BROWSER_SESSION`, even for an account that genuinely holds the role.
-  `dependencies.BEARER_ROLES` is `{MINER}`: a hotkey-minted token in a file must not be a route to
+  `dependencies.BEARER_ROLES` is `{MINER}`: a long-lived token in a file must not be a route to
   the surface that decides whether a proof earns money. Anything privileged needs the cookie, so a
   reviewer being tested against needs a cookie session and not just a bearer token.
 * **There is no bootstrap endpoint.** The first `ADMIN` is granted with
@@ -1244,11 +1255,11 @@ a minted one does — which is why each of them refuses to run without `-v allow
 | Script | What it does | Credentials |
 | --- | --- | --- |
 | [`grant_admin.sql`](../scripts/grant_admin.sql) | Grants `ADMIN` to an existing account | none |
-| [`seed_dev_accounts.sql`](../scripts/seed_dev_accounts.sql) | Creates a `MINER` and a `REVIEWER` account, each with a linked hotkey | bearer + cookie |
+| [`seed_dev_accounts.sql`](../scripts/seed_dev_accounts.sql) | Creates a `MINER` and a `REVIEWER` account, each with a linked and designated coldkey | bearer + cookie |
 | [`seed_dev_admin.sql`](../scripts/seed_dev_admin.sql) | Creates an `ADMIN`, or adds `ADMIN` to an account named by `-v email=` | cookie only |
 
 The admin script issues no bearer token on purpose: a bearer caller cannot exercise `ADMIN`, so
-minting one would mean linking a hotkey to an admin account to produce a credential that cannot
+minting one would mean linking a coldkey to an admin account to produce a credential that cannot
 do admin work.
 * **An admin cannot remove their own `ADMIN`.** With no other admin it is unrecoverable without
   database access, and the failure is silent until the next time someone needs it.
@@ -1336,8 +1347,8 @@ account can neither read nor poll somebody else's order. It also drives the reco
 own `_pass`, so what cron runs is what is tested.
 
 `test_api_web_submissions.py` is negative in the same spirit, and the negatives are the reason the
-endpoint is safe with no server-minted challenge in it and no proof of the hotkey: a coldkey nobody
-linked authorises nothing, a hotkey another account proved control of cannot be nominated,
+endpoint is safe with no server-minted challenge in it: a coldkey nobody linked authorises
+nothing,
 a signature from a second wallet over the same message is refused, swapping the archive after
 signing is refused twice over (once as a digest mismatch and once as a bad signature), an expiry in
 the past or beyond `INTENT_MINUTES` is refused, a CLI bearer token is refused outright, a cross-site
@@ -1348,6 +1359,6 @@ test has proved the server rebuilt the same bytes the wallet signed.
 `test_api_cli_sessions.py` covers the boundary between the two credentials, and is mostly negative
 too: a cookie token offered as a bearer and a bearer token planted in the cookie are both `401`; a
 bearer request is never answered with `Set-Cookie`; a second challenge does not invalidate the
-first; a hotkey-link signature is not a CLI login; a CLI token cannot link a hotkey, repoint the
-payout, act as another of the account's hotkeys, or exercise `ADMIN`; and signing in to the website
+first; a coldkey-link signature is not a CLI login; a CLI token cannot link a coldkey, repoint
+the payout, act as another of the account's coldkeys, or exercise `ADMIN`; and signing in to the website
 leaves live CLI tokens alone while still retiring the previous browser session.

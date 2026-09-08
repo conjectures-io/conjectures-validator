@@ -40,11 +40,30 @@ T = TypeVar("T")
 
 # The pallet and event that mean free TAO moved between two accounts.
 TRANSFER_EVENT = ("Balances", "Transfer")
-# A successful bounty payout moves Subnet Alpha from the treasury stake position to the solver's
-# coldkey/hotkey pair.  The dedicated transfer event proves who sent and received it; the adjacent
-# StakeAdded event carries the exact Alpha amount (the transfer event's `amount` is TAO-equivalent,
-# so comparing that field to `reward_events.amount_rao` would be a unit bug).
-PAYOUT_EVENT = ("SubtensorModule", "StakeAndHotkeyTransferred")
+# A successful bounty payout hands the solver's coldkey ownership of Subnet Alpha that stays
+# staked at the validator's own hotkey.  The dedicated transfer event proves who sent and
+# received it; the adjacent StakeAdded event carries the exact Alpha amount (the transfer event's
+# `amount` is TAO-equivalent, so comparing that field to `reward_events.amount_rao` would be a
+# unit bug).
+#
+# TWO EVENTS, and both are decoded, because the watcher replays a durable cursor over blocks that
+# may predate V035.
+#
+#   * `StakeTransferred` is what `SubtensorModule.transfer_stake` emits, and it is the only shape
+#     a payout takes from V035 on.  One hotkey, not two: the stake does not move position, so
+#     there is no destination hotkey.
+#   * `StakeAndHotkeyTransferred` is what the retired `transfer_stake_and_hotkey` emitted.  Kept
+#     so a historical payout can still be reconciled against the chain -- `reward_events` rows
+#     written before V035 record a destination hotkey and are matched on it.
+#
+# ATTRIBUTE NAMES AND ORDER FOR THE NEW EVENT ARE NOT VERIFIED AGAINST A LIVE RUNTIME.  The
+# fallback index in each `_attribute_one_of` call below is a best reading of the pallet, and the
+# keyword form is what will actually match on bittensor 11.  Confirm both against the node's
+# metadata before trusting a production payout: a wrong index here decodes a real payout into the
+# wrong coldkey, which `_oldest_match` would then fail to match rather than mismatch, leaving the
+# obligation unresolved and visible.  That is the safe direction, but it is still a stall.
+PAYOUT_EVENT = ("SubtensorModule", "StakeTransferred")
+LEGACY_PAYOUT_EVENT = ("SubtensorModule", "StakeAndHotkeyTransferred")
 STAKE_ADDED_EVENT = ("SubtensorModule", "StakeAdded")
 # Storage holding one block's events. Read with `query`, because bittensor 11 exposes no
 # events accessor of its own — `Client.block_info` decodes extrinsics, which is the wrong
@@ -56,10 +75,6 @@ SYSTEM_EVENTS = ("System", "Events")
 BLOCK_TIMESTAMP = ("Timestamp", "Now")
 # Which hotkey is registered at a (netuid, uid). The watcher's startup identity check.
 SUBNET_KEYS = ("SubtensorModule", "Keys")
-# The coldkey that owns a hotkey. What proves a payer is entitled to submit under the hotkey they
-# named, so a miner cannot cite somebody else's transfer.
-HOTKEY_OWNER = ("SubtensorModule", "Owner")
-
 # The canonical identity of one transfer: `block-extrinsic[-event]`.
 #
 # Positional rather than a hash, because a substrate node can resolve a position and cannot resolve
@@ -76,11 +91,6 @@ REFERENCE = re.compile(r"^(\d{1,12})-(\d{1,6})(?:-(\d{1,6}))?$")
 # Bittensor uses the generic substrate SS58 format. Pinned as a literal rather than imported:
 # the constant has moved between bittensor major versions, and its value has not.
 SS58_FORMAT = 42
-
-# The all-zero AccountId. `SubtensorModule.Owner` answers with this for a hotkey nobody has
-# registered, rather than with nothing — verified against Finney. Without treating it as "no owner",
-# an unregistered hotkey would appear to be owned, and by an address no one holds the key to.
-ZERO_ACCOUNT = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
 
 # Twelve seconds a block, so a day is about this many. The bisection's opening guess, not a
 # constant anything depends on being right — it only decides how many probes the search takes.
@@ -185,11 +195,21 @@ class ObservedPayout:
     event_index: int
     origin_coldkey: str
     destination_coldkey: str
+    # The stake position's hotkey.  On a `StakeTransferred` payout the stake never moves off it,
+    # so `origin_hotkey == destination_hotkey` and both name the validator's own key.  On a
+    # historical `StakeAndHotkeyTransferred` payout they genuinely differ, which is why the two
+    # fields are kept rather than collapsed into one: a legacy reward event is matched on the
+    # destination it was actually sent to.
     origin_hotkey: str
     destination_hotkey: str
     origin_netuid: int
     destination_netuid: int
     amount_rao: int
+
+    @property
+    def moved_hotkey(self) -> bool:
+        """Whether this payout changed the stake's hotkey, i.e. whether it is a legacy one."""
+        return self.origin_hotkey != self.destination_hotkey
 
     @property
     def reference(self) -> str:
@@ -220,8 +240,6 @@ class PaymentSource(TransferSource, Protocol):
     """
 
     async def transfers_in(self, *, block: int) -> Sequence[IncomingTransfer]: ...
-
-    async def coldkey_of(self, *, hotkey: str) -> str | None: ...
 
 
 class PayoutSource(Protocol):
@@ -340,17 +358,23 @@ def payouts_in_events(
     block: int,
     block_timestamp: dt.datetime,
 ) -> list[ObservedPayout]:
-    """Successful `transfer_stake_and_hotkey` payouts in one block.
+    """Successful stake-transfer payouts in one block, in either the current or legacy shape.
 
     Runtime events, not extrinsic intent, are the authority.  A failed call is still present in
     the extrinsic list but emits no stake-transfer event.  Proxy and multisig wrappers still emit
     the inner call's events under the outer extrinsic index, so this also observes the actual
     production payout shape.
 
-    `StakeAndHotkeyTransferred.amount` is TAO-equivalent.  The exact Alpha quantity requested by
-    the payout command appears on the preceding `StakeAdded` event, so the two are paired by outer
-    extrinsic and destination stake position.  Missing that companion is an unknown runtime shape,
-    not "no payout": raising leaves the durable cursor in place for a visible retry.
+    The transfer event's `amount` is TAO-equivalent.  The exact Alpha quantity requested by the
+    payout command appears on the preceding `StakeAdded` event, so the two are paired by outer
+    extrinsic and destination stake position.  Missing that companion is an unknown runtime
+    shape, not "no payout": raising leaves the durable cursor in place for a visible retry.
+
+    `StakeTransferred` names one hotkey, because `transfer_stake` leaves the stake where it is
+    and only changes its owner.  Its companion `StakeAdded` is therefore against that same
+    hotkey with the destination coldkey, which is exactly the pairing rule the legacy shape
+    already used -- so the two decode through one path with `destination_hotkey` filled in from
+    whichever field the event actually carries.
     """
     additions: list[_StakeAddition] = []
     transfers: list[tuple[int, int, Any]] = []
@@ -379,31 +403,48 @@ def payouts_in_events(
                     alpha_rao=alpha_rao,
                 )
             )
-        elif identity == PAYOUT_EVENT:
-            transfers.append((position, _extrinsic_index(record), body.get("attributes")))
+        elif identity in (PAYOUT_EVENT, LEGACY_PAYOUT_EVENT):
+            transfers.append(
+                (
+                    position,
+                    _extrinsic_index(record),
+                    body.get("attributes"),
+                    identity == LEGACY_PAYOUT_EVENT,
+                )
+            )
 
     found: list[ObservedPayout] = []
     used_additions: set[int] = set()
-    for position, extrinsic_index, attributes in transfers:
+    for position, extrinsic_index, attributes, legacy in transfers:
         origin_coldkey = decode_ss58(
             _attribute_one_of(attributes, ("origin_coldkey",), 0)
         )
         destination_coldkey = decode_ss58(
             _attribute_one_of(attributes, ("destination_coldkey",), 1)
         )
-        origin_hotkey = decode_ss58(
-            _attribute_one_of(attributes, ("origin_hotkey",), 2)
-        )
-        destination_hotkey = decode_ss58(
-            _attribute_one_of(attributes, ("destination_hotkey",), 3)
-        )
+        if legacy:
+            origin_hotkey = decode_ss58(
+                _attribute_one_of(attributes, ("origin_hotkey",), 2)
+            )
+            destination_hotkey = decode_ss58(
+                _attribute_one_of(attributes, ("destination_hotkey",), 3)
+            )
+            netuid_base = 4
+        else:
+            # One hotkey, and the stake stays on it.  Both fields are filled with it so that
+            # everything downstream -- the pairing rule below, the watcher's origin check, the
+            # reward matcher -- reads one shape regardless of which event produced it.
+            origin_hotkey = destination_hotkey = decode_ss58(
+                _attribute_one_of(attributes, ("hotkey",), 2)
+            )
+            netuid_base = 3
         origin_netuid = int(
-            _attribute_one_of(attributes, ("origin_netuid",), 4)
+            _attribute_one_of(attributes, ("origin_netuid",), netuid_base)
         )
         destination_netuid = int(
-            _attribute_one_of(attributes, ("destination_netuid",), 5)
+            _attribute_one_of(attributes, ("destination_netuid",), netuid_base + 1)
         )
-        tao_equivalent = int(_attribute_one_of(attributes, ("amount",), 6))
+        tao_equivalent = int(_attribute_one_of(attributes, ("amount",), netuid_base + 2))
         if tao_equivalent <= 0:
             raise ChainUnavailable("payout event reports a non-positive amount")
 
@@ -419,7 +460,8 @@ def payouts_in_events(
         ]
         if not matching:
             raise ChainUnavailable(
-                "StakeAndHotkeyTransferred has no matching preceding StakeAdded event"
+                f"{'StakeAndHotkeyTransferred' if legacy else 'StakeTransferred'} has no "
+                "matching preceding StakeAdded event"
             )
         # The transfer implementation emits its own StakeAdded immediately before the dedicated
         # payout event.  Taking the nearest match also handles a utility batch containing several
@@ -607,7 +649,7 @@ class BittensorTransferSource:
         return await self._transfers(block=block, recipient=None)
 
     async def payouts_in(self, *, block: int) -> Sequence[ObservedPayout]:
-        """Every successful stake-and-hotkey transfer in one block.
+        """Every successful stake transfer in one block, current shape or legacy.
 
         Unlike incoming free-TAO transfers, payout matching always needs the block timestamp and
         at least two related events, so there is no empty-block timestamp shortcut here.  Reads
@@ -665,26 +707,6 @@ class BittensorTransferSource:
 
         value = await self._read(self.network, read)
         return None if value is None else decode_ss58(value)
-
-    async def coldkey_of(self, *, hotkey: str) -> str | None:
-        """The coldkey that owns a hotkey, or None if the chain knows no owner for it.
-
-        `SubtensorModule.Owner` is the authority on this, and it is what lets the payment verifier
-        establish that the coldkey which paid is entitled to submit under the hotkey named — so a
-        miner cannot cite a transfer somebody else made.
-        """
-
-        async def read(client: Any) -> Any:
-            return await client.query(HOTKEY_OWNER, [hotkey])
-
-        value = await self._read(self.network, read)
-        if value is None:
-            return None
-        owner = decode_ss58(value)
-        # An unregistered hotkey reads back as the zero account rather than as absent. Treated as
-        # "no owner", because the alternative is that anyone who can produce the zero account's
-        # address inherits every unregistered hotkey.
-        return None if owner == ZERO_ACCOUNT else owner
 
     # --- connection handling ------------------------------------------------------------
 
@@ -841,24 +863,23 @@ async def first_block_at_or_after(
 
 
 __all__ = [
+    "AmbiguousReference",
     "BLOCKS_PER_DAY",
     "BLOCK_TIMESTAMP",
-    "PAYOUT_EVENT",
-    "STAKE_ADDED_EVENT",
-    "HOTKEY_OWNER",
-    "REFERENCE",
-    "SUBNET_KEYS",
-    "SYSTEM_EVENTS",
-    "TRANSFER_EVENT",
-    "ZERO_ACCOUNT",
-    "AmbiguousReference",
     "BittensorTransferSource",
     "ChainUnavailable",
     "IncomingTransfer",
-    "ObservedPayout",
+    "LEGACY_PAYOUT_EVENT",
     "ObservedBlock",
+    "ObservedPayout",
+    "PAYOUT_EVENT",
     "PaymentSource",
     "PayoutSource",
+    "REFERENCE",
+    "STAKE_ADDED_EVENT",
+    "SUBNET_KEYS",
+    "SYSTEM_EVENTS",
+    "TRANSFER_EVENT",
     "TransferReference",
     "TransferSource",
     "decode_ss58",

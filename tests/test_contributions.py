@@ -37,7 +37,7 @@ REPOSITORY = "conjectures-io/conjectures-contribution"
 AUTHOR = "7e" + "0" * 62
 OTHER_AUTHOR = "d1" + "0" * 62
 COLDKEY = "5G4LNpyehdqUU6CtP7SYSZLFK5mxzTCihXHiDxmbfHwAAW7L"
-HOTKEY = "5FqLp5QmNRiHGyj3xbLVnDHfCx25qxJX5CUhpndF9GFfZZiK"
+MINER_COLDKEY = "5FqLp5QmNRiHGyj3xbLVnDHfCx25qxJX5CUhpndF9GFfZZiK"
 COMMIT = "4c1fddbbc167fcb8366101ff4d105410d3580853"
 OTHER_COMMIT = "1c8978d174504235c16f0f6a87c56d4eb734baf0"
 
@@ -56,7 +56,7 @@ def entry(
     title: str = "Extremal witness and monotonicity API",
     declarations: tuple[str, ...] = ("Contribution.Erdos535BasicAPI.f_le",),
     coldkey: str | None = COLDKEY,
-    hotkey: str | None = HOTKEY,
+    hotkey: str | None = MINER_COLDKEY,
 ) -> dict:
     return {
         "added": added,

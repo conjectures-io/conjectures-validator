@@ -4,13 +4,25 @@ Separate from ``submissions`` because the audience is different and the rules th
 follow from that are worth enforcing in the query layer rather than trusting a
 router to remember. Two invariants hold for everything in this module:
 
-* **The signed solver identity is published; the money is not.** ``ResultRow.hotkey`` names the
-  solver, and its optional public-credit columns carry only the name/profile/ORCID that hotkey
-  signed for publication. Nothing here carries the paying coldkey, payment reference or
-  extrinsic, and that boundary is enforced structurally: the former values are public credit,
-  whereas the latter lead to the funds behind it.
-  ``activity`` still pseudonymises, but see the caveat on that function — publishing the hotkey
-  on a result makes those pseudonyms correlatable by timing, so the two are no longer
+* **The solver identity is published; the money is not.** ``ResultRow`` names the solver
+  through ``solver_display_name`` and ``solver_coldkey``, and its optional public-credit
+  columns carry the name/profile/ORCID the submitter explicitly signed for publication.
+  Nothing here carries the payment reference or the extrinsic, and that boundary is enforced
+  structurally.
+
+  NOTE, because V035 changed what is disclosed here and it is worth stating plainly: the
+  solver's *account display name* is now published on every result that has one, ahead of the
+  coldkey. It was previously visible only on the account's own surfaces. ``public_credit_name``
+  remains the separate, explicitly opt-in authorship field and is unchanged; a display name is
+  a chosen handle rather than a claim of authorship, which is the basis for publishing it, but
+  it is a wider disclosure than the hotkey it replaces.
+
+  ``solver_coldkey`` is the submission's *signing* coldkey. It is emphatically not the payout
+  destination and not necessarily the paying key either — see ``Account.payout_coldkey``, which
+  this module never reads.
+
+  ``activity`` still pseudonymises, but see the caveat on that function — publishing a solver
+  identity on a result makes those pseudonyms correlatable by timing, so the two are not
   independent.
 * **Nothing here can be made expensive.** Every feed is keyset-paginated over an
   index built for it — the two state-filtered feeds over partial indexes
@@ -43,10 +55,11 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, exists, func, select, tuple_
+from sqlalchemy import Select, Text, cast, exists, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.models import (
+    Account,
     ManualReviewState,
     PayoutState,
     Proof,
@@ -123,8 +136,16 @@ class ResultRow:
     """
 
     id: uuid.UUID
-    # The hotkey that submitted this proof. Published: a result is credited to its solver.
-    hotkey: str
+    # Who solved it, in the order V035 established: the account's chosen display name if it has
+    # one, otherwise the coldkey that signed the submission. Both are None on a
+    # session-authorised submission from an account that has set no display name, and a caller
+    # rendering this should fall back to the pseudonym rather than to an empty string.
+    #
+    # Two fields rather than one resolved string on purpose: an address and a handle are not
+    # interchangeable to a reader — one wants truncating and monospacing, the other does not —
+    # and collapsing them here would force every consumer to guess which it had been given.
+    solver_display_name: str | None
+    solver_coldkey: str | None
     public_credit_name: str | None
     public_credit_url: str | None
     public_credit_orcid: str | None
@@ -355,6 +376,7 @@ async def _decorate(
     if not submissions:
         return ()
     ids = [submission.id for submission in submissions]
+    display_names = await _display_names(session, submissions)
     runs = await _latest_runs(session, ids)
     current_payouts = await _current_payouts(session, ids)
     confirmed = await _confirmed_payouts(session, ids)
@@ -368,7 +390,11 @@ async def _decorate(
         rows.append(
             ResultRow(
                 id=submission.id,
-                hotkey=submission.hotkey,
+                solver_display_name=display_names.get(submission.account_id),
+                # Falls back to the historical `hotkey` for the rows that predate V035: those
+                # submissions were credited by it, and dropping it from the feed would
+                # un-credit work that is already published.
+                solver_coldkey=submission.signer_coldkey or submission.hotkey,
                 public_credit_name=submission.public_credit_name,
                 public_credit_url=submission.public_credit_url,
                 public_credit_orcid=submission.public_credit_orcid,
@@ -448,6 +474,32 @@ async def _latest_reviews(
         )
         for row in (await session.execute(statement)).all()
     }
+
+
+async def _display_names(
+    session: AsyncSession, submissions: Sequence[Submission]
+) -> Mapping[uuid.UUID, str]:
+    """The display name of each account behind this page, for accounts that set one.
+
+    One query for the page rather than one per row, and only for the accounts actually present:
+    a page of extrinsic-path submissions has no account at all and asks nothing.
+
+    Accounts with a NULL display name are simply absent from the mapping, so a caller's
+    ``.get`` returns None and the coldkey fallback applies. Nothing else about the account is
+    read here — not the email, not the roles, and above all not ``payout_coldkey``, which is a
+    destination for money and has no business in a public feed.
+    """
+    account_ids = {
+        submission.account_id
+        for submission in submissions
+        if submission.account_id is not None
+    }
+    if not account_ids:
+        return {}
+    statement = select(Account.id, Account.display_name).where(
+        Account.id.in_(account_ids), Account.display_name.is_not(None)
+    )
+    return {row.id: row.display_name for row in (await session.execute(statement)).all()}
 
 
 async def _latest_runs(
@@ -669,6 +721,27 @@ async def attempts_for_conjecture(session: AsyncSession, reward_target_id: str) 
     return (await session.execute(statement)).scalar_one()
 
 
+# The solver identity an activity pseudonym is derived from, and the expression the distinct
+# solver count is taken over. One definition, used by both, because a pseudonym that disagreed
+# with the count would make "solvers" mean something no reader could reconstruct.
+#
+# The order matters and mirrors `ResultRow`: the signing coldkey, then the account for a
+# session-authorised submission that has no key at all, then the historical hotkey for the rows
+# that predate V035. `submission_authorised_exactly_once` guarantees at least one of the three
+# is present on every row, so this never evaluates to NULL and `pseudonymise` is never handed
+# one — the CHECK is what makes that a fact rather than an assumption.
+#
+# The account id is a UUID and the other two are `ss58`, a domain over TEXT, so the cast is
+# required for the coalesce to have one type. It is also why a solver who submits both from a
+# session and with a key counts twice here: those are two identities and this module cannot
+# join them without reading the account behind the key, which is a disclosure it declines.
+_SOLVER_IDENTITY = func.coalesce(
+    Submission.signer_coldkey,
+    cast(Submission.account_id, Text),
+    Submission.hotkey,
+)
+
+
 async def activity(
     session: AsyncSession,
     reward_target_id: str,
@@ -678,11 +751,11 @@ async def activity(
 ) -> TaskActivity:
     """The anonymised activity stream for one conjecture.
 
-    ``pseudonymise`` is required, not optional: the hotkey is read here, mapped, and dropped — it
-    never lands on ``ActivityRow``.
+    ``pseudonymise`` is required, not optional: the solver identity is read here, mapped, and
+    dropped — it never lands on ``ActivityRow``.
 
     The pseudonyms are no longer unlinkable in practice, and this docstring should not pretend
-    otherwise. ``ResultRow.hotkey`` publishes the solver of every verified result, and a result
+    otherwise. ``ResultRow`` publishes the solver of every verified result, and a result
     carries ``verified_at``; an activity event carries the same transition at hour resolution on
     the same conjecture. Correlating the two names the solver behind a pseudonym, and once named,
     that solver's *other* events on this conjecture — including the failed attempts the pseudonym
@@ -696,7 +769,7 @@ async def activity(
     bounded = min(max(limit, 1), MAX_ACTIVITY_ROWS)
     statement = (
         select(
-            Submission.hotkey,
+            _SOLVER_IDENTITY.label("solver_identity"),
             Submission.created_at,
             Submission.verification_status,
             Submission.manual_review_status,
@@ -710,7 +783,7 @@ async def activity(
         ActivityRow(
             event=_event(row.verification_status, row.manual_review_status, row.reward_status),
             occurred_at=row.created_at,
-            solver=pseudonymise(row.hotkey),
+            solver=pseudonymise(row.solver_identity),
         )
         for row in (await session.execute(statement)).all()
     )
@@ -719,7 +792,7 @@ async def activity(
         await session.execute(
             select(
                 func.count(),
-                func.count(func.distinct(Submission.hotkey)),
+                func.count(func.distinct(_SOLVER_IDENTITY)),
                 func.count().filter(
                     Submission.verification_status == VerificationState.VERIFIED
                 ),

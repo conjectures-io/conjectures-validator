@@ -138,7 +138,7 @@ migration for the authoritative definitions; what follows is why it is shaped th
 knowing:
 
 **Payment is a precondition, not a state.** There is no `payments` table. Every payment column on
-`submissions` — reference, sender, amount in rao, finalized block, and the hotkey signature — is
+`submissions` — reference, sender, amount in rao, finalized block, and the coldkey signature — is
 NOT NULL, so a row exists only for a transfer already confirmed on finalized chain state. That
 removes the whole unpaid-submission state space rather than modelling it. A refused request
 creates no submission and is recorded in `api_rejection_log`, which is the only trace a miner who
@@ -170,7 +170,8 @@ status assertions. Read APIs require it, and deployment resets old `REWARDED` pr
 `FOR UPDATE SKIP LOCKED`. `verification_runs` rows are inserted once, on completion, because every
 column they require is only known after the verifier has finished.
 
-Uniqueness does the concurrency work: `(hotkey, idempotency_key)` for idempotency,
+Uniqueness does the concurrency work: `(signer_coldkey, idempotency_key)` and
+`(account_id, idempotency_key)` for idempotency,
 `payment_reference` so one transfer backs one submission, and a global unique on `proof_digest` so
 one proof is payable at most once. Amounts are integers in rao; floating point appears nowhere in
 payment accounting.
@@ -264,7 +265,7 @@ The repository currently includes:
 - a finalized-chain reader and pinned Subnet 66 service dependencies;
 - the `conjectures-submission/v1` bundle format and its exact-shape archive scanner
   ([`SUBMISSION_BUNDLE.md`](SUBMISSION_BUNDLE.md));
-- the miner-facing submission API with hotkey-signature authentication, replay protection,
+- the miner-facing submission API with coldkey-signature authentication, replay protection,
   idempotency, task admission, and status/report reads ([`API.md`](API.md));
 - the shared durable schema in [`../deploy/migrate/sql/`](../deploy/migrate/sql/), applied by
   Flyway, with its runtime mirror and the submission seam in
@@ -330,7 +331,7 @@ and no credentials all close it.
 
 ## Decisions taken
 
-3. **How is the miner request authenticated?** By hotkey signature over a domain-separated
+3. **How is the miner request authenticated?** By coldkey signature over a domain-separated
    payload that includes a nonce and the bundle digest, with the spent nonce recorded under a
    unique constraint. The API performs no chain query; registration and eligibility are decided
    downstream from durable state. See [`API.md`](API.md).

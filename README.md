@@ -32,9 +32,9 @@ verification core.
 | API-neutral proof handoff with exact task digest | Implemented |
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
-| Website accounts, browser sessions, and hotkey linking | Implemented |
-| CLI sessions: a linked hotkey mints a scoped bearer token | Implemented |
-| Website submissions: a coldkey signs, one credit pays, no hotkey needed | Implemented |
+| Website accounts, browser sessions, and coldkey linking | Implemented |
+| CLI sessions: a linked coldkey mints a scoped bearer token | Implemented |
+| Website submissions: a coldkey signs a readable message, one credit pays, one call | Implemented |
 | Session submissions: one credit pays and no Bittensor key is needed at all | Implemented |
 | Roles and the operator surface (`MINER`/`REVIEWER`/`ADMIN`) | Implemented |
 | Shared durable schema and migrations | Implemented |
@@ -73,7 +73,7 @@ remaining work.
    kernel result: a rejected bundle costs nothing to fix.
 2. The miner pays exactly **0.5 TAO** and submits the proof bundle through the validator API with
    its task ID and digest, the payment reference, miner identity, and an idempotency key.
-3. The API admits the bundle, authenticates the hotkey signature, and confirms the transfer
+3. The API admits the bundle, authenticates the coldkey signature, and confirms the transfer
    against finalized chain state. Intake is payment-gated: a refused request creates no
    submission and is recorded in `api_rejection_log` instead.
 4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
@@ -195,7 +195,7 @@ is the point — see
 ## Submission API
 
 The miner-facing API lives in [`submission_api/`](submission_api/). It authenticates a miner by
-hotkey signature, admits one proof bundle, records durable submission and payment state, and queues
+coldkey signature, admits one proof bundle, records durable submission and payment state, and queues
 the proof for the isolated verifier.
 
 ```bash
@@ -224,7 +224,7 @@ finalized chain state, so a refused request creates no submission and is recorde
 ```bash
 python3 scripts/build_submission_bundle.py \
   --proof Main.lean --task-id <task id> --task-sha256 <sha256:…> \
-  --hotkey <ss58> --output submission.zip
+  --coldkey <ss58> --output submission.zip
 
 python -m verifier bundle scan --bundle submission.zip
 
@@ -628,7 +628,8 @@ local wallet name. WEJH's notice also tells them to paste only the shell code bl
 the first signer's `call_hash` and `timepoint` before confirming an existing multisig operation.
 
 The paired payout watcher holds no wallet and reads successful
-`SubtensorModule.StakeAndHotkeyTransferred` plus `StakeAdded` events. A matching event on the best
+`SubtensorModule.StakeTransferred` plus `StakeAdded` events — and the retired
+`StakeAndHotkeyTransferred`, still decoded so payouts made before V035 stay reconcilable. A matching event on the best
 chain changes the owner-facing tracker to `SUBMITTED`/Paying; only the same event in a finalized
 block changes it to `CONFIRMED`/Paid and moves the submission to `REWARDED`. If an unfinalized event
 is reorganized away, the watcher returns the instruction to `PENDING`. The exact Alpha amount comes

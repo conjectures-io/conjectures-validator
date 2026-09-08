@@ -9,7 +9,7 @@ from verifier.preflight import verify_proof_bundle_bytes
 
 TASK_ID = "fc-test-formalized-v1"
 TASK_DIGEST = "sha256:" + "ab" * 32
-HOTKEY = "5" * 48
+MINER_COLDKEY = "5" * 48
 PROOF = b"theorem target : True := by trivial\n"
 
 
@@ -20,7 +20,7 @@ def test_bundle_preflight_runs_the_production_adapter_on_the_admitted_bytes(
         sha256=TASK_DIGEST,
         manifest=SimpleNamespace(task_id=TASK_ID, max_submission_bytes=1_000_000),
     )
-    claimed = SimpleNamespace(manifest=SimpleNamespace(miner_hotkey=HOTKEY))
+    claimed = SimpleNamespace(manifest=SimpleNamespace(miner_coldkey=MINER_COLDKEY))
     admitted = SimpleNamespace(proof=SimpleNamespace(raw=PROOF))
     report = SimpleNamespace(accepted=True)
     calls = []
@@ -49,7 +49,7 @@ def test_bundle_preflight_runs_the_production_adapter_on_the_admitted_bytes(
         project_root=tmp_path,
         expected_task_id=TASK_ID,
         expected_task_sha256=TASK_DIGEST,
-        expected_hotkey=HOTKEY,
+        expected_signer=MINER_COLDKEY,
     )
 
     assert result.raw == b"bundle"
@@ -62,7 +62,7 @@ def test_bundle_preflight_runs_the_production_adapter_on_the_admitted_bytes(
             {
                 "task_manifest": task.manifest,
                 "expected_task_sha256": TASK_DIGEST,
-                "expected_hotkey": HOTKEY,
+                "expected_signer": MINER_COLDKEY,
             },
         ),
         (

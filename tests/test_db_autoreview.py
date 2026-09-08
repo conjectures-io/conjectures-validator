@@ -33,7 +33,7 @@ from verifier.hashing import sha256_bytes
 
 pytestmark = pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
 
-HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+MINER_COLDKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
 TASK_ID = "fc-e923379e-fixture-formalized-v1"
 TASK_DIGEST = "sha256:" + "ab" * 32
@@ -191,7 +191,7 @@ class Kit:
             view = await store.create_submission(
                 session,
                 store.NewSubmission(
-                    hotkey=HOTKEY,
+                    signer_coldkey=MINER_COLDKEY,
                     idempotency_key=uuid.uuid4(),
                     request_digest=digest,
                     task_id=TASK_ID,
@@ -202,10 +202,13 @@ class Kit:
                     proof_content=content,
                     proof_sha256=digest,
                     payment_reference=f"ref-{uuid.uuid4()}",
-                    payment_sender=COLDKEY,
+                    # Equal to `signer_coldkey`, which the extrinsic path now requires and
+                    # `submission_signer_coldkey_is_funded` enforces: the key that paid is
+                    # the key that signs.
+                    payment_sender=MINER_COLDKEY,
                     payment_amount_rao=500_000_000,
                     payment_block=1,
-                    hotkey_signature=b"\x11" * 64,
+                    signer_signature=b"\x11" * 64,
                     manual_review_required=True,
                     review_policy_version="v1",
                     bounty_amount_rao=1_000_000_000,

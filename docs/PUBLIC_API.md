@@ -41,15 +41,16 @@ own database.
 
 Four rules, each enforced structurally rather than by convention.
 
-**Solver credit, but no money trail.** Every result names the `hotkey` that submitted it. A miner
+**Solver credit, but no money trail.** Every result names its solver through
+`solver_display_name` and `solver_coldkey`. A miner
 may also opt into `public_credit` with a name and optional HTTPS profile URL and ORCID. Those values
-are part of the hotkey-signed request digest and are snapshotted on the submission; they are never
+are part of the signed request digest and are snapshotted on the submission; they are never
 looked up from a mutable account profile. Not published: the paying coldkey, payment reference, or
 funding extrinsic. [`../conjectures_subnet/db/public.py`](../conjectures_subnet/db/public.py) is the
 only query layer these endpoints use, and its row types have no column for those three payment
 values — a router cannot leak what it was never handed.
 
-> Publishing the hotkey weakens the activity pseudonyms below, and the two are no longer
+> Publishing a solver identity weakens the activity pseudonyms below, and the two are no longer
 > independent. A verified result names its solver and carries `verified_at`; an activity event
 > carries the same transition, on the same conjecture, at hour resolution. Matching them names the
 > solver behind a pseudonym — and then that solver's failed attempts on that conjecture too. The
@@ -443,7 +444,9 @@ a client learns nothing about whether it was the shape or the signature that was
 
 `certified` means paid out — `reward_status = 'REWARDED'` with the review approved. The payout
 watcher is the only automatic path to `REWARDED`, and it writes that state atomically with a
-matching `StakeAndHotkeyTransferred` event from a finalized block. A prepared command or a best-
+matching `StakeTransferred` event from a finalized block — or the retired
+`StakeAndHotkeyTransferred` for a payout made before V035, which the watcher still decodes so
+historical rows stay reconcilable. A prepared command or a best-
 chain event is not certified. The feed also requires the confirmed reward row's chain-observation
 provenance, so a legacy or manually edited paid flag cannot certify a result. `in-review` means
 Lean-verified and awaiting the reward decision.
@@ -539,12 +542,15 @@ must not fail over one historical row, and there is no name being withheld.
 
 `GET /v1/catalog/conjectures/{slug}/activity` answers "is anyone working on this" without
 answering "who" — but only for a solver who has no verified result on that conjecture. Since the
-results feed names the submitting hotkey, the properties below hold against a reader who works only
+results feed names the solver, the properties below hold against a reader who works only
 from this endpoint, not against one who joins it to `/v1/results` on `verified_at`. Read this
 section as the construction's design, not as a guarantee the surface as a whole still makes.
 
 `solver` is
-`HMAC(PUBLIC_ACTIVITY_SALT, len(reward_target_id) || reward_target_id || len(hotkey) || hotkey)`,
+`HMAC(PUBLIC_ACTIVITY_SALT, len(reward_target_id) || reward_target_id || len(identity) || identity)`,
+where `identity` is the signing coldkey, or the account id for a session-authorised submission,
+or the historical hotkey for a row predating V035 — one definition, shared with the distinct
+solver count so the two cannot disagree,
 truncated to 12 hex characters. Two properties follow from where the conjecture's identity sits:
 
 * **Stable within a conjecture.** Repeat attempts read as the same solver, so `solvers` is a
@@ -563,9 +569,9 @@ with its sender at a known block time; a per-second timestamp would let anyone j
 undo the pseudonym. An hour bucket makes that join ambiguous whenever more than one transfer landed
 in the hour, and costs a reader nothing.
 
-`PUBLIC_ACTIVITY_SALT` is therefore load-bearing, not decorative. A hotkey is a 48-character
+`PUBLIC_ACTIVITY_SALT` is therefore load-bearing, not decorative. An SS58 address is a 48-character
 address from a known alphabet, so an unsalted digest — or one salted with the constant published in
-`settings.py` — is reversible by enumeration for anyone holding a list of subnet hotkeys.
+`settings.py` — is reversible by enumeration for anyone holding a list of subnet addresses.
 Production refuses to start with either.
 
 `event` is the furthest state the submission has reached (`attempt`, `rejected`, `verified`,
@@ -858,7 +864,7 @@ rotation can introduce a module shape no hand-written case anticipated, and the 
 silent — a heading with `maximalLength_ge_of_isSquare` in it renders perfectly well.
 
 [`../tests/test_api_results.py`](../tests/test_api_results.py) is largely about absence — that no
-hotkey, coldkey, payment reference or verifier output appears in any public payload, and that a
+payout coldkey, payment reference or verifier output appears in any public payload, and that a
 field added to the verifier report is withheld by default. The proof and its digest are the one
 deliberate exception, and only for an approved submission: the tests assert that an unverified,
 rejected, or still-in-review submission publishes neither.

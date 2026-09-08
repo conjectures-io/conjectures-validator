@@ -16,8 +16,8 @@ re-checks them:
 * the extrinsic is included in a **finalized** block;
 * the recipient is the configured payment address;
 * the amount is exactly the configured submission price, in integer rao;
-* the sender coldkey **owns the submitting hotkey**, so a miner cannot cite someone else's
-  transfer; and
+* the sender coldkey **is the coldkey that signed this submission**, so a miner cannot cite
+  someone else's transfer; and
 * the reference is the canonical extrinsic identity, so the uniqueness constraint on
   `submissions.payment_reference` actually prevents reuse.
 """
@@ -61,7 +61,7 @@ class ConfirmedPayment:
     """
 
     reference: str  # canonical, `block-extrinsic-event`
-    sender: str  # coldkey, proven to own the submitting hotkey
+    sender: str  # coldkey; equal to the signer, which is what entitles them to cite it
     amount_rao: int
     block: int  # the finalized block it was observed in
     recipient: str = ""
@@ -73,7 +73,9 @@ class ConfirmedPayment:
 
 
 class PaymentVerifier(Protocol):
-    async def confirm(self, *, reference: str, hotkey: str) -> ConfirmedPayment:
+    async def confirm(
+        self, *, reference: str, signer_coldkey: str
+    ) -> ConfirmedPayment:
         """Return the confirmed transfer, or raise PaymentRequired."""
         ...
 
@@ -107,7 +109,9 @@ class ChainPaymentVerifier:
     amount_rao: int
     reader: TransferReader | None = None
 
-    async def confirm(self, *, reference: str, hotkey: str) -> ConfirmedPayment:
+    async def confirm(
+        self, *, reference: str, signer_coldkey: str
+    ) -> ConfirmedPayment:
         if self.reader is None:
             raise PaymentRequired(
                 "payment confirmation is not available on this deployment",
@@ -157,11 +161,16 @@ class ChainPaymentVerifier:
                     "observed_amount_rao": transfer.amount_rao,
                 },
             )
-        if not await self.reader.coldkey_owns_hotkey(
-            coldkey=transfer.sender, hotkey=hotkey
-        ):
+        # Entitlement to cite this transfer, and since V035 a plain equality rather than a
+        # chain query. It used to be "does the paying coldkey own the submitting hotkey", which
+        # needed `SubtensorModule.Owner` read over the network and could therefore fail for
+        # reasons that had nothing to do with the miner. Now the key that sent the money is the
+        # key that signed the request, so the question is answered from two values already in
+        # hand — and it is strictly stronger: ownership of a hotkey was transitive evidence,
+        # this is the coldkey itself proving control by signature.
+        if transfer.sender != signer_coldkey:
             raise PaymentRequired(
-                "the paying coldkey does not own the submitting hotkey",
+                "the transfer was not sent by the coldkey that signed this submission",
                 reason_code=REASON_NOT_FINALIZED,
                 extra={"payment_reference": reference},
             )
@@ -241,13 +250,15 @@ class FinalizedTransfer:
 
 
 class TransferReader(Protocol):
-    """Read-only finalized-chain queries. Holds no keys and signs nothing."""
+    """Read-only finalized-chain queries. Holds no keys and signs nothing.
+
+    One method, down from two: V035 removed `coldkey_owns_hotkey`, because the paying coldkey
+    now signs the submission itself and entitlement is an equality rather than a chain read.
+    """
 
     async def finalized_transfer(
         self, *, reference: str
     ) -> FinalizedTransfer | None: ...
-
-    async def coldkey_owns_hotkey(self, *, coldkey: str, hotkey: str) -> bool: ...
 
 
 @dataclass(frozen=True)
@@ -258,12 +269,13 @@ class DevelopmentPaymentVerifier:
     refuses this verifier when `APP_MODE=PROD`.
     """
 
-    sender: str
     amount_rao: int
     block: int = 1
     references: tuple[str, ...] = ()
 
-    async def confirm(self, *, reference: str, hotkey: str) -> ConfirmedPayment:
+    async def confirm(
+        self, *, reference: str, signer_coldkey: str
+    ) -> ConfirmedPayment:
         if self.references and reference not in self.references:
             raise PaymentRequired(
                 "payment reference is not in the development allowlist",
@@ -272,7 +284,14 @@ class DevelopmentPaymentVerifier:
             )
         return ConfirmedPayment(
             reference=reference,
-            sender=self.sender,
+            # The signer, not a configured address, and V035 is why. Production now requires
+            # `transfer.sender == signer_coldkey` — the key that paid is the key that signs —
+            # so a development sender chosen independently would fail an invariant that holds
+            # everywhere else, and every local submission would 402 for a reason no local
+            # change could fix. There is no transfer here to have a real sender, so echoing the
+            # signer is both the only honest answer and the one that makes development exercise
+            # the production shape. It also retired the `DEVELOPMENT_COLDKEY` setting.
+            sender=signer_coldkey,
             amount_rao=self.amount_rao,
             block=self.block,
         )
@@ -315,7 +334,6 @@ def build_payment_verifier(settings: Settings) -> PaymentVerifier:
                 "the development payment verifier is not permitted in production"
             )
         return DevelopmentPaymentVerifier(
-            sender=settings.development_coldkey,
             amount_rao=settings.payment_amount_rao,
             references=settings.development_payment_references,
         )

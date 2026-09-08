@@ -86,9 +86,6 @@ async def open_intent(
     session: AsyncSession,
     *,
     account_id: uuid.UUID,
-    # None on the session-authorised path, where the account itself is the authorisation and
-    # there is no key to name. See V032.
-    hotkey: str | None,
     task_id: str,
     task_bundle_sha256: str,
     credit_price_rao: int,
@@ -96,6 +93,8 @@ async def open_intent(
     now: dt.datetime,
     credits_held: int = 1,
     public_credit: PublicCredit | None = None,
+    # None on the session-authorised path, where the browser session itself is the
+    # authorisation and there is no key to name. See V032.
     signer_coldkey: str | None = None,
 ) -> tuple[SubmissionIntent, credits.CreditBalance]:
     """Hold a credit and open an intent, or refuse for insufficient credit.
@@ -105,15 +104,14 @@ async def open_intent(
     the hold, which is what the caller should show: it is what the account can still
     spend.
 
-    ``signer_coldkey`` is set only by the website path, where the confirming signature is
-    made by a linked coldkey rather than by ``hotkey`` — see ``routers/web_submissions.py``.
-    The caller has already checked that the key is linked to this account; recording it here
-    is what lets ``confirm`` put it on the submission.
+    ``signer_coldkey`` names the key the confirming signature must come from. The caller has
+    already checked that it is linked to this account; recording it here is what lets
+    ``confirm`` put it on the submission and what binds the request digest to one identity for
+    the whole life of the intent.
 
-    ``hotkey`` is None on the session-authorised path, and then ``signer_coldkey`` is None too:
-    that submission names no key at all and is authorised by the account that spent the credit.
-    The schema's ``submission_authorised_exactly_once`` is what makes that a shape rather than a
-    convention.
+    ``signer_coldkey`` is None on the session-authorised path, and then the submission names no
+    key at all and is authorised by the account that spent the credit. The schema's
+    ``submission_authorised_exactly_once`` is what makes that a shape rather than a convention.
     """
     await credits.lock_account(session, account_id)
     balance = await credits.credit_balance(
@@ -129,7 +127,8 @@ async def open_intent(
 
     intent = SubmissionIntent(
         account_id=account_id,
-        hotkey=hotkey,
+        # `hotkey` is deliberately never set: `intent_names_no_hotkey` refuses it, and V035
+        # left the column in place only for the intents that predate it.
         signer_coldkey=signer_coldkey,
         public_credit_name=None if public_credit is None else public_credit.name,
         public_credit_url=None if public_credit is None else public_credit.url,
@@ -232,9 +231,9 @@ async def confirm(
     problem_id: str,
     reward_target_id: str,
     task_mode: TaskMode,
-    # None together with the intent's hotkey, and only then: a submission either names a key
-    # and carries the signature that proved it, or names neither.
-    hotkey_signature: bytes | None,
+    # None together with the intent's ``signer_coldkey``, and only then: a submission either
+    # names a key and carries the signature that proved it, or names neither.
+    signer_signature: bytes | None,
     manual_review_required: bool,
     review_policy_version: str,
     bounty_amount_rao: int,
@@ -264,8 +263,8 @@ async def confirm(
     the intent is the unit the client retries: the three-call flow opens one intent per
     attempt, so one intent *is* one attempt. The one-call website path has no such handle —
     a retried request would open a second intent — so it passes the key its caller chose,
-    and ``submissions_idempotency_unique`` over ``(hotkey, idempotency_key)`` is what stops
-    the retry becoming a second charge.
+    and ``submissions_session_idempotency_unique`` over ``(account_id, idempotency_key)`` is
+    what stops the retry becoming a second charge.
     """
     # Lock the account first, then re-read the intent under that lock. Checking the
     # status before taking the lock would be checking a value that can change before
@@ -301,7 +300,6 @@ async def confirm(
     )
 
     submission = Submission(
-        hotkey=intent.hotkey,
         signer_coldkey=intent.signer_coldkey,
         public_credit_name=intent.public_credit_name,
         public_credit_url=intent.public_credit_url,
@@ -317,7 +315,7 @@ async def confirm(
         reward_target_id=reward_target_id,
         task_mode=task_mode,
         proof_digest=bytes(intent.proof_sha256),
-        hotkey_signature=hotkey_signature,
+        signer_signature=signer_signature,
         manual_review_required=manual_review_required,
         review_policy_version=review_policy_version,
         bounty_amount_rao=bounty_amount_rao,
