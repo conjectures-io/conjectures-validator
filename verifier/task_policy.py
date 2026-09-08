@@ -70,7 +70,7 @@ def production_policy_violations(
             declaration.classification != Classification.DIRECT_PROP,
             "source is not a direct proposition",
         ),
-        (declaration.category != "research open", "source is not categorized as research open"),
+        (declaration.category not in ("research open", "research solved"), "source is not categorized as research open or research solved"),
         (declaration.declaration_kind != "theorem", "source is not a theorem"),
         (not declaration.is_prop, "source type is not a proposition"),
         (not declaration.depends_on_sorry, "source already has a proof without sorryAx"),

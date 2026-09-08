@@ -172,7 +172,7 @@ def _valid_tier_policy(policy: object) -> bool:
         and isinstance(policy.get("selection"), str)
         and bool(policy["selection"])
         and is_sha256(policy.get("selection_audit_sha256"))
-        and policy.get("source_category") == "research open"
+        and policy.get("source_category") in ("research open", "research solved")
         and _valid_source_families(policy.get("source_families"))
         and type(policy.get("source_theorem_count")) is int
         and policy["source_theorem_count"] > 0
