@@ -88,7 +88,7 @@ The additional pool, retired-display, and worker suite passed **73 tests**. The 
 The replacement tactic screen made **672 attempts** across 16 bundles. Its 32 compile hits all
 depended on `sorryAx`; none was an admissible proof. No target-type collision was found in the
 pinned catalog. Compilation, tactic-screen, and release-admission records are linked by the
-evidence manifest. Production activation is recorded separately after image construction. Successful compilation establishes the committed formal target and its
+evidence manifest. The standalone command-line bundle builder uses the same 10 MiB cap; its bundle suite passed **133 tests**, including exact-limit round-trip and one-byte-over refusal. Production activation is recorded separately after image construction. Successful compilation establishes the committed formal target and its
 negation; it does not itself establish fidelity to informal mathematics or absence of prior work.
 
 The literature screen is a dated, bounded search. It cannot certify absence of unpublished work,

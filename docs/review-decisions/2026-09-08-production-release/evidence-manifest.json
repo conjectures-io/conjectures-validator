@@ -1,10 +1,10 @@
 {
-  "created_at_utc": "2026-09-08T04:45:39.791997+00:00",
+  "created_at_utc": "2026-09-08T04:49:18.205720+00:00",
   "files": [
     {
-      "bytes": 9286,
+      "bytes": 9454,
       "path": "REVIEW.md",
-      "sha256": "4c10980616e910b096db013f541a57da72e300af9f7e6a616631ca90f91d81c0"
+      "sha256": "e65c951c3ecc459e661b8818685af834ccef26c1da5294c9c97a0fb0224f2d28"
     },
     {
       "bytes": 1302,
@@ -67,9 +67,9 @@
       "sha256": "02147b8f1a67cf6a8ae61af1d5472121c5d7f442d81037a48ea5df7e4947f679"
     },
     {
-      "bytes": 3795,
+      "bytes": 3964,
       "path": "audit-scripts/seal_evidence.py",
-      "sha256": "a185149dd9ad638061ee25d2758a2dd02e8780e98b081691bc2d10aff43da250"
+      "sha256": "4e54a087839704eb9ac86d09cf500e1c7e4bafddb564f7436c2caf7a01d59067"
     },
     {
       "bytes": 475,
@@ -92,9 +92,9 @@
       "sha256": "82292150920780380c5aa1b1ae6ce391ac9682a96a0f3da68703fe7ca391aac1"
     },
     {
-      "bytes": 2053,
+      "bytes": 2358,
       "path": "implementation-files.json",
-      "sha256": "67fc2bdabfe3d26350ea94575fbe68a88761ebb92625bfdeb9d28785d7576a9f"
+      "sha256": "98faa7211486152027b87fd734e40b9ddca6fd03864efb0ca6a82554a9f7cd97"
     },
     {
       "bytes": 80,
@@ -129,7 +129,7 @@
     {
       "bytes": 174384,
       "path": "replacement-tactic-evidence.tar.gz",
-      "sha256": "908fa0e96ff08512a1f077c1d95497b7df74f312fe06b56a773c14bfe07c5c90"
+      "sha256": "4f37de7f322bcc54e47784d156307c02aac248344541a0e993a675850ec7c19b"
     },
     {
       "bytes": 253,
@@ -185,6 +185,16 @@
       "bytes": 228789,
       "path": "task-id-migration.json",
       "sha256": "d14acabf0b0378c237935064e95beee0dff90956355274d151880b3f798962e9"
+    },
+    {
+      "bytes": 160,
+      "path": "tests-bundle.log",
+      "sha256": "457eab217183b11d58af123f2c744d92857c5ed075c893800113f52f81d036bd"
+    },
+    {
+      "bytes": 14628,
+      "path": "tests-bundle.xml",
+      "sha256": "253d4ed62e3e30382abd34383ed7e0438df6f94ffb4b4c4603b16226a538ddc4"
     },
     {
       "bytes": 421,

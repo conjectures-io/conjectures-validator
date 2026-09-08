@@ -35,9 +35,19 @@
     "sha256": "1fc43738eacd7241d505b778af14eb8bd3ba77bc2769c05fa06159a68aaa4d4f"
   },
   {
+    "bytes": 4465,
+    "path": "scripts/build_submission_bundle.py",
+    "sha256": "c4d7df4e6f2327d849c50b72f4f3bdba3cabfc7d66879eb3448ceaafa05034db"
+  },
+  {
     "bytes": 37766,
     "path": "tests/test_api_submissions.py",
     "sha256": "2af6ee13910ebfbb78849d6f6ffd8767cbe0f4ca30e6a32366320fa1013d26ac"
+  },
+  {
+    "bytes": 35151,
+    "path": "tests/test_bundle.py",
+    "sha256": "d5ec0144c39e41cb3396aea804ea2aedd67b5ea3de89fc1b07968e1059f2c7dc"
   },
   {
     "bytes": 14834,

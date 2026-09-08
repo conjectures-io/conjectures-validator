@@ -6,7 +6,7 @@ def read(p): return json.loads(p.read_text())
 def write(p,v): p.write_text(json.dumps(v,indent=2,sort_keys=True)+'\n')
 def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 commit=subprocess.check_output(['git','-C',str(R/'tasks'),'rev-parse','HEAD'],text=True).strip()
-pins=json.loads(subprocess.check_output(['git','-C',str(V),'show','HEAD:pins.lock.json'],text=True))
+pins=json.loads(subprocess.check_output(['git','-C',str(V),'show','b2f0c3306e63e5861d2950223d154c3000ed9cf8:pins.lock.json'],text=True))
 pins['tasks']['commit']=commit
 (V/'pins.lock.json').write_text(json.dumps(pins,indent=2)+'\n')
 generation=read(R/'generation.json')+read(R/'generation-last.json')
@@ -20,7 +20,7 @@ write(D/'replacement-tactic-summary.json',dict(attempts=672,theorems=8,bundles=1
 with tarfile.open(D/'replacement-tactic-evidence.tar.gz','w:gz') as tar:
  for path in ['sweep-summary.json','raw','sources']:
   tar.add(R/'attack-audit'/path,arcname=path)
-for name in ['generation.log','generation-last.log','tests-pool.log','tests-pool.xml','lint.log','battery.log']:
+for name in ['generation.log','generation-last.log','tests-pool.log','tests-pool.xml','tests-bundle.log','tests-bundle.xml','lint.log','battery.log']:
  shutil.copy2(R/name,D/name)
 for p in (D/'audit-scripts').iterdir():
  if (R/p.name).is_file(): shutil.copy2(R/p.name,p)
@@ -30,9 +30,10 @@ p=D/'REVIEW.md';s=p.read_text().replace('The full SQL migration set matches the 
 p.write_text(s)
 revisions=read(D/'revisions.json');revisions['released_tasks_commit']=commit;write(D/'revisions.json',revisions)
 implementation=[]
-for name in subprocess.check_output(['git','-C',str(V),'diff','--name-only'],text=True).splitlines():
+for name in subprocess.check_output(['git','-C',str(V),'diff','b2f0c3306e63e5861d2950223d154c3000ed9cf8','--name-only'],text=True).splitlines():
  p=V/name
- if p.is_file(): implementation.append(dict(path=name,sha256=digest(p),bytes=p.stat().st_size))
+ if p.is_file() and not name.startswith('docs/review-decisions/'):
+  implementation.append(dict(path=name,sha256=digest(p),bytes=p.stat().st_size))
 write(D/'implementation-files.json',implementation)
 for n in ['2026-09-08-add-50','2026-09-08-pool-review']:
  base=V/'docs/review-decisions'/n
