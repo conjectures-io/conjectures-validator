@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
-from typing import Any, Mapping
+from typing import Any, Mapping, Literal
 
 from verifier.errors import ReasonCode, VerifierError
 
@@ -180,6 +180,9 @@ class TaskManifest:
     production_eligible: bool = False
     known_proof_collisions: tuple[str, ...] = ()
     answer_policy: Mapping[str, Any] = field(default_factory=dict)
+    track: Literal["open_conjecture", "formalization"] = "open_conjecture"
+    policy_version: int = 1
+    resolution_reference: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "TaskManifest":
@@ -210,6 +213,9 @@ class TaskManifest:
                 production_eligible=bool(value.get("production_eligible", False)),
                 known_proof_collisions=tuple(str(x) for x in value.get("known_proof_collisions", ())),
                 answer_policy=dict(value.get("answer_policy", {})),
+                track=value.get("track", "open_conjecture"),
+                policy_version=value.get("policy_version", 1),
+                resolution_reference=dict(value.get("resolution_reference", {})),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise VerifierError(ReasonCode.INVALID_MANIFEST, f"invalid task manifest: {exc}") from exc
@@ -227,6 +233,9 @@ class TaskManifest:
             result[key] = list(result[key])
         result["trusted_file_hashes"] = dict(sorted(self.trusted_file_hashes.items()))
         result["answer_policy"] = dict(self.answer_policy)
+        if self.track == "open_conjecture" and self.policy_version == 1 and not self.resolution_reference:
+            for key in ("track", "policy_version", "resolution_reference"):
+                result.pop(key)
         return result
 
 

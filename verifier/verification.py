@@ -24,9 +24,9 @@ from verifier.static_checks import check_submission
 from verifier.submission import load_submission
 from verifier.task_loader import load_task_bundle
 from verifier.task_policy import (
+    compiled_source_policy_valid,
     COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
-    is_production_task_mode,
 )
 from verifier.workspace import (
     build_challenge,
@@ -268,12 +268,7 @@ def verify(
         ):
             return rejected(ReasonCode.STATEMENT_MISMATCH, "BUILD_CHALLENGE")
         if manifest.production_eligible and any(
-            inspection["source_category"] not in ("research open", "research solved")
-            or inspection["source_declaration_kind"] != "theorem"
-            or not inspection["source_depends_on_sorry"]
-            or inspection["source_has_formal_proof"]
-            or inspection["target_contains_sorry"]
-            or not is_production_task_mode(manifest.task_mode)
+            not compiled_source_policy_valid(inspection, source, manifest.task_mode)
             or (
                 manifest.task_mode == EXACT_TASK_MODE
                 and inspection["target_hash"] != inspection["source_hash"]
@@ -282,7 +277,6 @@ def verify(
                 manifest.task_mode == COUNTEREXAMPLE_TASK_MODE
                 and inspection["target_hash"] == inspection["source_hash"]
             )
-            or inspection["source_axioms"] != tuple(sorted(source.transitive_axioms))
             for source, inspection in zip(
                 bundle.sources,
                 inspections,

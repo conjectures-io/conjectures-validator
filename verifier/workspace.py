@@ -14,6 +14,7 @@ from verifier.models import CatalogDeclaration, ProcessResult
 from verifier.process import run_process
 from verifier.submission import Submission
 from verifier.task_policy import (
+    compiled_source_policy_valid,
     COUNTEREXAMPLE_TASK_MODE,
     is_production_task_mode,
 )
@@ -446,12 +447,7 @@ def target_validator(
             if not inspection["matches"]:
                 raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "generated challenge is not the intended target")
             if is_production_task_mode(mode) and not allow_non_open and (
-                inspection["source_category"] not in ("research open", "research solved")
-                or inspection["source_declaration_kind"] != "theorem"
-                or not inspection["source_depends_on_sorry"]
-                or inspection["source_has_formal_proof"]
-                or inspection["target_contains_sorry"]
-                or inspection["source_axioms"] != tuple(sorted(declaration.transitive_axioms))
+                not compiled_source_policy_valid(inspection, declaration, mode)
             ):
                 raise VerifierError(
                     ReasonCode.INELIGIBLE_TASK,

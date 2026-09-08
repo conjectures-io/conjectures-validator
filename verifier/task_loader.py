@@ -25,6 +25,8 @@ from verifier.task_generator import (
     trusted_task_payloads,
 )
 from verifier.task_policy import (
+    track_policy,
+    valid_resolution_reference,
     COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
     expected_answer_policy,
@@ -136,13 +138,25 @@ def _json_object(content: bytes, name: str) -> Mapping[str, Any]:
 
 
 def _validate_manifest_json(value: Mapping[str, Any]) -> None:
-    if frozenset(value) != MANIFEST_FIELDS:
+    extension = frozenset({"track", "policy_version", "resolution_reference"})
+    if frozenset(value) not in (MANIFEST_FIELDS, MANIFEST_FIELDS | extension):
         unexpected = sorted(frozenset(value) - MANIFEST_FIELDS)
         missing = sorted(MANIFEST_FIELDS - frozenset(value))
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
             f"manifest field set is not exact; missing={missing}, unexpected={unexpected}",
         )
+    try:
+        policy = track_policy(value.get("track", "open_conjecture"), value.get("policy_version", 1))
+    except ValueError as exc:
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, str(exc)) from exc
+    reference = value.get("resolution_reference", {})
+    if (not isinstance(reference, dict)
+        or (policy.requires_resolution_reference and not valid_resolution_reference(reference))
+        or (not policy.requires_resolution_reference and bool(reference))):
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "invalid track resolution reference")
+    if value.get("track", "open_conjecture") != "open_conjecture" and value.get("schema_version") != 1:
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "formalization tasks must have a single target")
     integer_fields = ("schema_version", "timeout_seconds", "max_submission_bytes", "adapter_version")
     boolean_fields = ("enable_nanoda", "production_eligible")
     string_fields = (
@@ -245,6 +259,7 @@ def _validate_manifest(manifest: TaskManifest) -> None:
             manifest.task_mode,
             manifest.adapter_version,
             max_submission_bytes=manifest.max_submission_bytes,
+            track=manifest.track, policy_version=manifest.policy_version,
         )
         if (
             manifest.task_id != expected_id
@@ -352,6 +367,8 @@ def _validate_source_metadata(manifest: TaskManifest, source: CatalogDeclaration
         source,
         manifest.known_proof_collisions,
         manifest.task_mode,
+        track=manifest.track, policy_version=manifest.policy_version,
+        resolution_reference=dict(manifest.resolution_reference),
     )
     if manifest.production_eligible != (not violations):
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "production eligibility disagrees with source metadata")

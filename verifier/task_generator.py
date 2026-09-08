@@ -13,9 +13,13 @@ from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import hash_named_files, pretty_json, sha256_text
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
 from verifier.task_policy import (
+    OPEN_CONJECTURE,
+    TASK_POLICY_VERSION,
     COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
     production_eligibility,
+    track_policy,
+    valid_resolution_reference,
     proved_type_collisions,
 )
 
@@ -55,11 +59,15 @@ def task_id(
     adapter_version: int,
     *,
     max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
+    track: str = OPEN_CONJECTURE,
+    policy_version: int = TASK_POLICY_VERSION,
 ) -> str:
     seed = f"{repository_commit}\0{theorem}\0{mode}\0{adapter_version}"
     # Preserve released identities, while giving the enlarged policy fresh commitments.
     if max_submission_bytes > LEGACY_MAX_SUBMISSION_BYTES:
         seed += f"\0max_submission_bytes={max_submission_bytes}"
+    if track != OPEN_CONJECTURE or policy_version != TASK_POLICY_VERSION:
+        seed += f"\0track={track}\0policy_version={policy_version}"
     digest = sha256_text(seed)[7:17]
     return f"fc-{repository_commit[:8]}-{task_slug(theorem)}-{digest}-{mode}-v{adapter_version}"
 
@@ -246,8 +254,20 @@ def generate_task(
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
     allow_non_open: bool = False,
+    track: str = OPEN_CONJECTURE,
+    policy_version: int = TASK_POLICY_VERSION,
+    resolution_reference: dict[str, str] | None = None,
     validate_target: Callable[[Path, CatalogDeclaration, GeneratedLean, str], str],
 ) -> TaskManifest:
+    try:
+        rules = track_policy(track, policy_version)
+    except ValueError as exc:
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, str(exc)) from exc
+    if (
+        rules.requires_resolution_reference and not valid_resolution_reference(resolution_reference)
+        or not rules.requires_resolution_reference and bool(resolution_reference)
+    ):
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "invalid track resolution reference")
     if declaration.classification == Classification.POINTER_DECLARATION:
         original = next(
             (item for item in catalog.declarations if item.theorem == declaration.pointer_target),
@@ -267,6 +287,7 @@ def generate_task(
             timeout_seconds=timeout_seconds,
             max_submission_bytes=max_submission_bytes,
             allow_non_open=allow_non_open,
+            track=track, policy_version=policy_version, resolution_reference=resolution_reference,
             validate_target=validate_target,
         )
     adapter = adapter_for(declaration)
@@ -281,7 +302,8 @@ def generate_task(
     eligible, policy_violations, collisions = production_eligibility(
         catalog,
         declaration,
-        mode,
+        mode, track=track, policy_version=policy_version,
+        resolution_reference=resolution_reference,
     )
     if not eligible and not allow_non_open:
         raise VerifierError(
@@ -305,6 +327,7 @@ def generate_task(
     identifier = task_id(
         catalog.repository_commit, declaration.theorem, mode, adapter.version,
         max_submission_bytes=max_submission_bytes,
+        track=track, policy_version=policy_version,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{identifier}.", dir=output.parent))
@@ -368,6 +391,8 @@ def generate_task(
             adapter_version=adapter.version,
             trusted_file_hashes=trusted_hashes,
             production_eligible=eligible,
+            track=track, policy_version=policy_version,
+            resolution_reference=resolution_reference or {},
             known_proof_collisions=collisions,
             answer_policy=generated.answer_policy,
         )

@@ -5,6 +5,10 @@
 **Applies to:** submissions accepted with `review_policy_version = "v2"` on or after
 this date
 
+Formalization-track submissions use the separate
+[`formalization-v1` policy](FORMALIZATION_REVIEW_CRITERIA.md). The `v2` rules below remain
+applicable to open-conjecture submissions; select the policy recorded at acceptance.
+
 ## Relationship to v1
 
 This is a prospective successor to the [v1 manual reward-review policy](https://github.com/conjectures-io/conjectures-validator/blob/19c4d29becb5e24bff480446fd741d891f041b4c/docs/MANUAL_REVIEW_CRITERIA.md).
