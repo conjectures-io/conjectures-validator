@@ -535,8 +535,9 @@ def admit_proof_bundle(
     Runs the existing static Lean policy scanner as an admission-time fast-fail. Comparator
     and the Lean kernel remain the authoritative correctness checks.
 
-    **`expected_signer=None` is for the session-authorised path only, and it weakens nothing for
-    the paths that pass an address.** With a signer supplied the manifest must carry that exact
+    **`expected_signer=None` checks the session-authorised format, including free preflight,
+    and it weakens nothing for the paths that pass an address.** With a signer supplied the
+    manifest must carry that exact
     address, byte for byte as before; a bundle claiming a *different* miner is refused whether or
     not the caller has a key. What None removes is the requirement that the manifest name a miner
     at all, because a submitter who signed in with an email address has no honest value to put
@@ -545,7 +546,8 @@ def admit_proof_bundle(
 
     The caller decides which it is, and the caller is the one that authenticated: a route that
     verified a coldkey signature passes that coldkey, and only the route whose authorisation
-    *is* the session passes None. Nothing about the bundle itself can select the weaker check.
+    *is* the session passes None during intake. Free preflight can check either format but
+    never authorises intake. Nothing about the bundle itself selects which check runs.
     """
     if not is_sha256(expected_task_sha256):
         raise VerifierError(

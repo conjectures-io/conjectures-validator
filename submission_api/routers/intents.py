@@ -207,10 +207,10 @@ async def uploaded_bundle(
     declared length first, so a hostile body is refused at the door rather than buffered and
     then measured.
 
-    `signer=None` is the session-authorised path, and only that path may pass it: the caller
-    has authenticated an account rather than a key, so there is no address to bind the manifest
-    to and `admit_proof_bundle` refuses a bundle that names one anyway. Every caller that
-    verified a signature passes the key it verified, and the binding there is unchanged.
+    `signer=None` checks the session-authorised bundle format, including during free preflight.
+    There is no address to bind the manifest to, and `admit_proof_bundle` refuses a bundle
+    that names one anyway. Every caller that verified a signature passes the key it verified,
+    and the binding there is unchanged.
     """
     settings = services.settings
     if content_type is None or content_type.split(";")[0].strip().lower() != BUNDLE_MEDIA_TYPE:
@@ -249,7 +249,7 @@ async def preflight(
     services: ServicesDep,
     task_id: Annotated[str, Header(alias="X-Conjectures-Task-Id")],
     task_sha256: Annotated[str, Header(alias="X-Conjectures-Task-Sha256")],
-    coldkey: Annotated[str, Header(alias="X-Conjectures-Coldkey")],
+    coldkey: Annotated[str | None, Header(alias="X-Conjectures-Coldkey")] = None,
     content_length: Annotated[int | None, Header(alias="Content-Length")] = None,
     content_type: Annotated[str | None, Header(alias="Content-Type")] = None,
 ) -> schemas.PreflightResult:
@@ -258,6 +258,10 @@ async def preflight(
     Unauthenticated on purpose: a miner should be able to check a bundle before creating an
     account. It writes nothing, holds nothing, and the work is bounded by the body cap, so
     there is nothing here worth gating.
+
+    Without a coldkey header, check the keyless bundle format used by browser-session
+    submissions. A supplied header still requires a matching key in the manifest. This check
+    never authenticates a signer or authorises a submission.
 
     A failure is returned as `ok: false` with the reason code rather than as an error status.
     The request succeeded — the answer is "this bundle would be refused", which is exactly what
