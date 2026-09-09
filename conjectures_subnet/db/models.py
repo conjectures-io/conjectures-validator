@@ -202,11 +202,13 @@ class Submission(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    # Nullable since V032: a session-authorised submission names no key. Never a placeholder —
-    # this column is published as `ResultRow.hotkey` and credits a result to its solver.
+    # HISTORY ONLY as of V035. Miners sign with a coldkey, so no new row may set this —
+    # `submission_names_no_hotkey` refuses it, and `signer_coldkey` is the live attribution.
+    # Kept because the nine rows that have it are still credited by it: `db/public.py` falls
+    # back to this address when the solver's account has no display name.
     hotkey: Mapped[str | None] = mapped_column(SS58)
     # Opt-in public authorship, snapshotted on this submission rather than joined from the
-    # account's mutable display name. The hotkey signature covers all three fields.
+    # account's mutable display name. The authorising signature covers all three fields.
     public_credit_name: Mapped[str | None] = mapped_column(Text)
     public_credit_url: Mapped[str | None] = mapped_column(Text)
     public_credit_orcid: Mapped[str | None] = mapped_column(Text)
@@ -233,25 +235,22 @@ class Submission(Base):
     payment_sender: Mapped[str | None] = mapped_column(SS58)
     payment_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
     payment_block: Mapped[int | None] = mapped_column(BigInteger)
-    # The 64 bytes that authorised this exact request. Signed by the row's own `hotkey` on both
-    # key-signed intake paths — unless `signer_coldkey` is set, which is the one case where the
-    # signature verifies against a different key. See `signer_coldkey` below.
-    # Nullable since V032, and only together with `hotkey`: a submission either names a key
-    # and carries the signature that proved it, or names neither. See
-    # `submission_authorised_exactly_once`.
+    # HISTORY ONLY as of V035, together with `hotkey`. These 64 bytes were signed by the row's
+    # own `hotkey` — or, on the V028 website rows, by `signer_coldkey`, which is the anomaly
+    # V035 removes by giving the coldkey signature a column of its own.
     hotkey_signature: Mapped[bytes | None] = mapped_column(LargeBinary)
-    # V028. The coldkey that authorised a website submission, and NULL everywhere else.
-    #
-    # A browser wallet holds coldkeys only — a hotkey lives on a mining box and never reaches
-    # the browser — so `POST /v1/submissions/web` verifies a coldkey signature over a readable
-    # message instead of a hotkey signature over the request digest. Recording which coldkey
-    # made it is what keeps `hotkey_signature` checkable after the fact: without this column
-    # those bytes verify against nothing on the row.
+    # V028, and since V035 the live attribution on every key-signed path. The coldkey that
+    # authorised this submission: it signs the request on the extrinsic and intent paths and a
+    # readable message on the website path, and it is who the payment or the credit belongs to.
+    # NULL only on the session-authorised path, which carries no key at all.
     signer_coldkey: Mapped[str | None] = mapped_column(SS58)
+    # V035. The 64 bytes `signer_coldkey` signed. Both signer columns are immutable after
+    # insert, enforced by `submissions_protect_signer_coldkey` rather than by convention.
+    signer_signature: Mapped[bytes | None] = mapped_column(LargeBinary)
 
     # V003. The account that owns this submission, and the two rows behind the credit path.
-    # All three are NULL on the extrinsic-funded path, which authenticates a hotkey and need
-    # not involve an account at all.
+    # All three are NULL on the extrinsic-funded path, which authenticates a coldkey signature
+    # against a confirmed transfer and need not involve an account at all.
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("accounts.id")
     )
@@ -364,6 +363,9 @@ class Submission(Base):
             "octet_length(hotkey_signature) = 64", name="hotkey_signature_len"
         ),
         CheckConstraint(
+            "octet_length(signer_signature) = 64", name="signer_signature_len"
+        ),
+        CheckConstraint(
             "length(review_policy_version) BETWEEN 1 AND 64",
             name="review_policy_version_nonempty",
         ),
@@ -471,21 +473,30 @@ class Submission(Base):
             "OR (account_id IS NOT NULL AND intent_id IS NOT NULL)",
             name="submission_credit_path_is_complete",
         ),
-        # V028. A coldkey-authorised submission is always credit-funded and always
-        # account-owned: there is no browser path to the extrinsic endpoint, and the signature
-        # is only meaningful against a wallet linked to the account that spent the credit.
+        # V035, replacing V028's `submission_signer_coldkey_is_account_owned`. That constraint
+        # said a coldkey-signed row is always credit-funded, which was true only while the
+        # website was the sole coldkey path. The extrinsic path signs with a coldkey too now,
+        # and it has no account and no credit — it cites a transfer. So the invariant is that a
+        # coldkey-signed row is funded one of the two legitimate ways: an account spent a
+        # credit, or that same coldkey sent the payment.
         CheckConstraint(
             "signer_coldkey IS NULL "
-            "OR (account_id IS NOT NULL AND credit_ledger_id IS NOT NULL)",
-            name="submission_signer_coldkey_is_account_owned",
+            "OR (account_id IS NOT NULL AND credit_ledger_id IS NOT NULL) "
+            "OR signer_coldkey = payment_sender",
+            name="submission_signer_coldkey_is_funded",
         ),
-        # V032. Either a key and the signature that proved it, or neither and an account that
-        # spent a credit. The second branch is the session-authorised path; requiring the account
-        # and the credit there is what keeps the nullability away from the extrinsic path, which
-        # has no account at all.
+        # V035. Three ways in, exactly one of which authorised any given row. Still VALID, so
+        # it has to keep admitting the historical hotkey-signed rows; closing that branch to
+        # NEW rows is `submission_names_no_hotkey` below, deliberately a separate constraint so
+        # that neither expression has to be read twice to see which half applies to history.
         CheckConstraint(
+            # Legacy, history only.
             "(hotkey IS NOT NULL AND hotkey_signature IS NOT NULL) "
+            # Coldkey-signed: extrinsic, intent and website paths as they now stand.
+            "OR (signer_coldkey IS NOT NULL AND signer_signature IS NOT NULL) "
+            # Session-authorised, from V032: no key at all, so necessarily a spent credit.
             "OR (hotkey IS NULL AND hotkey_signature IS NULL "
+            "AND signer_coldkey IS NULL AND signer_signature IS NULL "
             "AND account_id IS NOT NULL AND credit_ledger_id IS NOT NULL)",
             name="submission_authorised_exactly_once",
         ),
@@ -499,6 +510,21 @@ class Submission(Base):
             "idempotency_key",
             unique=True,
             postgresql_where=text("hotkey IS NULL"),
+        ),
+        # V035. The successor to `submissions_idempotency_unique`, which is UNIQUE
+        # (hotkey, idempotency_key) and therefore constrains nothing once every new row has a
+        # null hotkey — PostgreSQL treats NULLs in a unique index as distinct. The rule is
+        # unchanged; only the column that identifies the caller is, from the hotkey that used
+        # to name a miner to the coldkey that now does.
+        #
+        # The account-scoped index above already covers the website and intent paths. This one
+        # is what covers the extrinsic path, which has no account to be scoped by.
+        Index(
+            "submissions_signer_idempotency_unique",
+            "signer_coldkey",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("signer_coldkey IS NOT NULL"),
         ),
         Index(
             "submissions_account_idx",
@@ -585,12 +611,19 @@ event.listen(
         "            USING ERRCODE = '23514', "
         "CONSTRAINT = 'submission_signer_coldkey_immutable';\n"
         "    END IF;\n"
+        # V035. The signature is set once at insert alongside the coldkey it proves, so it
+        # belongs under the same guard: an audit trail no UPDATE can reach.
+        "    IF NEW.signer_signature IS DISTINCT FROM OLD.signer_signature THEN\n"
+        "        RAISE EXCEPTION 'submission signer signature is immutable'\n"
+        "            USING ERRCODE = '23514', "
+        "CONSTRAINT = 'submission_signer_signature_immutable';\n"
+        "    END IF;\n"
         "    RETURN NEW;\n"
         "END;\n"
         "$$ LANGUAGE plpgsql;\n"
         "\n"
         "CREATE TRIGGER submissions_protect_signer_coldkey\n"
-        "    BEFORE UPDATE OF signer_coldkey ON submissions\n"
+        "    BEFORE UPDATE OF signer_coldkey, signer_signature ON submissions\n"
         "    FOR EACH ROW EXECUTE FUNCTION submissions_protect_signer_coldkey();"
     ),
 )
@@ -694,10 +727,19 @@ class RewardEvent(Base):
     pricing_inputs: Mapped[dict | None] = mapped_column(JSONB)
     generation_key: Mapped[str | None] = mapped_column(Text)
 
-    # Captured, not derived from submissions: this is where the money actually
-    # went, an external fact. Alpha is held as stake, so a transfer needs both keys.
+    # Captured, not derived from submissions: this is where the money actually went, an
+    # external fact.
     destination_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
-    destination_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # HISTORY ONLY as of V035, and nullable from it. A pre-V035 payout ran
+    # `transfer_stake_and_hotkey` and moved alpha to a new (coldkey, hotkey) stake position, so
+    # the hotkey was part of where the money went. `transfer_stake` instead hands the
+    # destination coldkey ownership of alpha that stays staked at the validator's own hotkey,
+    # so there is no destination hotkey to record — storing ours would record a constant.
+    #
+    # Kept rather than dropped because `db/payouts.py` still reconciles a historical
+    # `StakeAndHotkeyTransferred` event against the pair it was sent to; without this column
+    # those past payouts could not be matched against the chain at all.
+    destination_hotkey: Mapped[str | None] = mapped_column(SS58)
 
     status: Mapped[PayoutState] = mapped_column(
         PAYOUT_STATE, nullable=False, server_default=PayoutState.PENDING.value
@@ -993,6 +1035,19 @@ class ReviewDecision(Base):
             ["review_decisions.submission_id", "review_decisions.id"],
             name="review_supersedes_same_submission",
         ),
+        # V033. A decision may be corrected at most once, so the chain stays a chain: two
+        # reviewers correcting the same decision would otherwise leave two live leaves, both
+        # claiming to be current. Partial because NULLs are distinct in a unique index, so an
+        # unpartitioned one would constrain nothing — every uncorrected decision has NULL here.
+        # `submission_id` leads redundantly so the index also answers "has this submission been
+        # corrected", which is what the panel asks when it opens a decided row.
+        Index(
+            "review_decisions_supersedes_unique",
+            "submission_id",
+            "supersedes_id",
+            unique=True,
+            postgresql_where=text("supersedes_id IS NOT NULL"),
+        ),
         Index("review_decisions_reviewer_idx", "reviewer", text("created_at DESC")),
         Index("review_decisions_reason_idx", "reason_code", text("created_at DESC")),
     )
@@ -1024,7 +1079,10 @@ class ApiRejectionLog(Base):
     http_status: Mapped[int | None] = mapped_column(SmallInteger)
 
     # Claimed, never verified. If we had verified it, this would be a submission.
-    hotkey_claimed: Mapped[str | None] = mapped_column(Text)
+    # Renamed from `hotkey_claimed` by V035. Type-neutral on purpose: a hotkey on rows written
+    # before that migration, a coldkey after it, and unvalidated client input in both cases —
+    # which is also why it is TEXT rather than the `ss58` domain.
+    claimed_ss58: Mapped[str | None] = mapped_column(Text)
     idempotency_key: Mapped[str | None] = mapped_column(Text)
     task_id: Mapped[str | None] = mapped_column(Text)
     task_bundle_sha256: Mapped[str | None] = mapped_column(Text)
@@ -1043,10 +1101,10 @@ class ApiRejectionLog(Base):
         Index("api_rejection_log_recent_idx", text("occurred_at DESC")),
         Index("api_rejection_log_reason_idx", "reason_code", text("occurred_at DESC")),
         Index(
-            "api_rejection_log_hotkey_idx",
-            "hotkey_claimed",
+            "api_rejection_log_claimed_idx",
+            "claimed_ss58",
             text("occurred_at DESC"),
-            postgresql_where=text("hotkey_claimed IS NOT NULL"),
+            postgresql_where=text("claimed_ss58 IS NOT NULL"),
         ),
         Index(
             "api_rejection_log_payment_idx",
@@ -1068,11 +1126,29 @@ ACCOUNT_ROLES = (MINER_ROLE, REVIEWER_ROLE, ADMIN_ROLE)
 
 
 class LoginChallengeKind(enum.StrEnum):
+    """The kinds a challenge may be minted as, plus two that history still holds.
+
+    `HOTKEY_LINK` and `HOTKEY_SESSION` are RETIRED as of V035 and must not be minted —
+    `challenge_kind_is_not_retired` refuses them. They stay in the enum because PostgreSQL has
+    no `DROP VALUE` and recreating the type would rewrite the column for no gain; any consumed
+    history keeps reading back correctly. `RETIRED_CHALLENGE_KINDS` below is what code should
+    test against rather than naming either member directly.
+    """
+
     EMAIL = "EMAIL"  # a magic link token
     WALLET = "WALLET"  # a coldkey sign-in nonce
-    HOTKEY_LINK = "HOTKEY_LINK"  # attaching a hotkey to an existing account
-    HOTKEY_SESSION = "HOTKEY_SESSION"  # a hotkey opening a CLI session
+    HOTKEY_LINK = "HOTKEY_LINK"  # retired V035: attaching a hotkey to an account
+    HOTKEY_SESSION = "HOTKEY_SESSION"  # retired V035: a hotkey opening a CLI session
     COLDKEY_LINK = "COLDKEY_LINK"  # attaching another coldkey to an account
+    COLDKEY_SESSION = "COLDKEY_SESSION"  # V034: a coldkey opening a CLI session
+
+
+# Minting one of these is a bug, not a policy choice, so the set is named once here rather than
+# re-spelled at each guard.
+RETIRED_CHALLENGE_KINDS = (
+    LoginChallengeKind.HOTKEY_LINK,
+    LoginChallengeKind.HOTKEY_SESSION,
+)
 
 
 class AccountSessionKind(enum.StrEnum):
@@ -1084,7 +1160,7 @@ class AccountSessionKind(enum.StrEnum):
     """
 
     COOKIE = "COOKIE"  # the browser: an HttpOnly cookie, attached ambiently
-    BEARER = "BEARER"  # the CLI: an Authorization header, scoped to one linked hotkey
+    BEARER = "BEARER"  # the CLI: an Authorization header, scoped to one account coldkey
 
 
 class CreditEntryKind(enum.StrEnum):
@@ -1172,9 +1248,19 @@ class Account(Base):
     roles: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, server_default=text("ARRAY['MINER']::TEXT[]")
     )
-    # Alpha is held as stake, so a payout needs both keys. Set together or not at all.
+    # The account's two coldkeys, at most one each, with deliberately different proof rules.
+    # V035 replaced the payout coldkey/hotkey pair with these.
+    #
+    # Where rewards go. UNPROVED on purpose: naming an address can only give this account's own
+    # money away, and requiring a signature would lock out the common legitimate destinations —
+    # a hardware wallet, an exchange deposit address, a multisig nobody solely controls.
     payout_coldkey: Mapped[str | None] = mapped_column(SS58)
-    payout_hotkey: Mapped[str | None] = mapped_column(SS58)
+    # What this account submits and spends credits under. PROVED, because this is the key that
+    # can have transferred funds: on the extrinsic path the submitter cites a payment and claims
+    # the credit for it, so without proof of control anyone could cite somebody else's transfer.
+    # Constrained by `account_submission_coldkey_is_linked` to a wallet on THIS account, which
+    # is where the proving signature already lives.
+    submission_coldkey: Mapped[str | None] = mapped_column(SS58)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -1196,11 +1282,24 @@ class Account(Base):
             name="account_roles_are_known",
         ),
         CheckConstraint(
-            "(payout_coldkey IS NULL) = (payout_hotkey IS NULL)",
-            name="payout_is_a_complete_pair",
-        ),
-        CheckConstraint(
             "updated_at >= created_at", name="accounts_updated_not_before_created"
+        ),
+        # V035. A composite FK, not a single-column one, and that is the point: a plain
+        # reference to `account_wallets.coldkey` would prove the key is linked to SOME account
+        # and let this account designate a coldkey another account had proved. Including `id`
+        # on the referencing side means the designated key must be linked to THIS account.
+        #
+        # MATCH SIMPLE — the default — is what makes the column optional: with any referencing
+        # column NULL the constraint is satisfied outright, and `submission_coldkey` is the
+        # only nullable one. ON DELETE SET NULL names its column explicitly (PostgreSQL 15+)
+        # so that unlinking a wallet clears a designation pointing at it instead of being
+        # refused; the unqualified form would try to null `id`, which is the primary key.
+        ForeignKeyConstraint(
+            ["id", "submission_coldkey"],
+            ["account_wallets.account_id", "account_wallets.coldkey"],
+            name="account_submission_coldkey_is_linked",
+            ondelete="SET NULL (submission_coldkey)",
+            use_alter=True,
         ),
         Index(
             "accounts_email_idx",
@@ -1281,10 +1380,18 @@ event.listen(
 
 
 class AccountWallet(Base):
-    """A coldkey the account signs in with.
+    """A coldkey this account has proved control of, by signing a server nonce.
 
-    Separate from LinkedHotkey because the two answer different questions: this is
-    "who is logging in", that is "which miner identity may submit".
+    Since V035 this is the ONLY key table. The old hotkey link table is gone and the questions
+    it answered are answered here, because proving a coldkey does three things at once:
+
+      * it signs in — a coldkey sign-in opens a browser session;
+      * it may be designated `Account.submission_coldkey` and submitted under;
+      * it attributes a deposit, with no ownership hop through the chain, because a transfer's
+        sender IS a coldkey.
+
+    Globally unique on `coldkey`, which is the primary key: two accounts claiming one address
+    would make submission attribution and deposit attribution ambiguous at once.
     """
 
     __tablename__ = "account_wallets"
@@ -1304,36 +1411,13 @@ class AccountWallet(Base):
         CheckConstraint(
             "octet_length(signature) = 64", name="wallet_signature_len"
         ),
-        Index("account_wallets_account_idx", "account_id"),
-    )
-
-
-class LinkedHotkey(Base):
-    """A hotkey the account may submit under, and how a deposit is attributed.
-
-    Globally unique: two accounts claiming one hotkey would make submission
-    attribution ambiguous and leave a reward with no single owner.
-    """
-
-    __tablename__ = "linked_hotkeys"
-
-    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
-    account_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("accounts.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    hotkey: Mapped[str] = mapped_column(SS58, nullable=False, unique=True)
-    signature: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    linked_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-
-    __table_args__ = (
-        CheckConstraint(
-            "octet_length(signature) = 64", name="hotkey_link_signature_len"
+        # V035. Adds no uniqueness that was not already true — `coldkey` is the primary key —
+        # and exists only because `accounts.account_submission_coldkey_is_linked` is a
+        # composite FK, and a composite FK needs a unique constraint on exactly its target.
+        UniqueConstraint(
+            "account_id", "coldkey", name="account_wallets_account_coldkey_unique"
         ),
-        Index("linked_hotkeys_account_idx", "account_id", text("linked_at DESC")),
+        Index("account_wallets_account_idx", "account_id"),
     )
 
 
@@ -1347,7 +1431,7 @@ class AccountSession(Base):
     One table for both kinds because everything that matters is shared: an opaque
     256-bit secret, a digest, an expiry, and revocation in one UPDATE. The
     biconditional CHECK below is what keeps the one remaining difference — a bearer
-    session is bounded to the hotkey that minted it, a cookie session is not — from
+    session is bounded to the coldkey that minted it, a cookie session is not — from
     being optional.
     """
 
@@ -1371,9 +1455,14 @@ class AccountSession(Base):
     # and `Sec-Fetch-Site` headers; `submission_api/origin_policy.py` says why that is the
     # stronger of the two mechanisms rather than merely the cheaper one.
     #
-    # Where a BEARER session's authority stops: the linked hotkey that minted it.
-    # NULL for a COOKIE session, which is scoped to the account rather than a key.
-    hotkey_scope: Mapped[str | None] = mapped_column(SS58)
+    # Where a BEARER session's authority stops: the account coldkey that minted it. NULL for
+    # a COOKIE session, which is scoped to the account rather than a key.
+    #
+    # Renamed from `hotkey_scope` by V035, which also revoked every live bearer session: each
+    # of those was minted by a hotkey signature, and leaving one alive would have meant a token
+    # asserting that a hotkey address is a coldkey scope, which `dependencies.py` would then
+    # look for in `account_wallets` and never find.
+    coldkey_scope: Mapped[str | None] = mapped_column(SS58)
 
     issued_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -1396,7 +1485,7 @@ class AccountSession(Base):
             "expires_at > issued_at", name="session_expires_after_issue"
         ),
         CheckConstraint(
-            "(kind = 'BEARER') = (hotkey_scope IS NOT NULL)",
+            "(kind = 'BEARER') = (coldkey_scope IS NOT NULL)",
             name="session_scope_belongs_to_bearer_sessions",
         ),
         Index(
@@ -1462,8 +1551,12 @@ class LoginChallenge(Base):
             "kind <> 'EMAIL' OR email IS NOT NULL", name="challenge_email_present"
         ),
         CheckConstraint("attempts >= 0", name="challenge_attempts_not_negative"),
+        # Every signature flow needs both the address and the verbatim message. COLDKEY_SESSION
+        # joined them in V035; it is deliberately absent from `challenge_link_has_account`
+        # below, because a session challenge is minted before the account is known.
         CheckConstraint(
-            "kind NOT IN ('WALLET', 'HOTKEY_LINK', 'HOTKEY_SESSION', 'COLDKEY_LINK') "
+            "kind NOT IN ('WALLET', 'HOTKEY_LINK', 'HOTKEY_SESSION', 'COLDKEY_LINK', "
+            "'COLDKEY_SESSION') "
             "OR (ss58 IS NOT NULL AND message IS NOT NULL)",
             name="challenge_wallet_present",
         ),
@@ -2212,13 +2305,15 @@ class SubmissionIntent(Base):
     account_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False
     )
-    # Checked against linked_hotkeys at creation, and what the confirming
-    # signature must come from.
+    # HISTORY ONLY as of V035: `intent_names_no_hotkey` refuses a new row that sets it.
     hotkey: Mapped[str | None] = mapped_column(SS58)
-    # V028. Set when the attempt came from the website, where the signature is made by a linked
-    # coldkey instead — a browser wallet has no hotkey to sign with. Carried here from the moment
-    # the credit is held until ``confirm`` copies it to the submission, for the same reason the
-    # public credit is: the submission row is written in one statement at the end.
+    # V028, and since V035 the only key an intent carries. The coldkey the confirming signature
+    # must come from, checked against ``account_wallets`` at creation. Carried here from the
+    # moment the credit is held until ``confirm`` copies it to the submission, for the same
+    # reason the public credit is: the submission row is written in one statement at the end.
+    #
+    # NULL on the session-authorised path, where the browser session is itself the
+    # authorisation and ``confirm`` needs no signature at all.
     signer_coldkey: Mapped[str | None] = mapped_column(SS58)
     # Chosen while the intent is opened, then included in the server-generated request digest
     # and copied byte-for-byte onto the confirmed submission.
@@ -2786,10 +2881,54 @@ from conjectures_subnet.db.autoreview_models import (
 _AUTOREVIEW_TABLES = (AutoreviewRun, AutoreviewStageResult)
 
 
+# --- V035: the retirement CHECKs, which have to be NOT VALID ------------------
+#
+# These three say "no new row may do this" while leaving history alone, and NOT VALID is the
+# only thing that expresses that: a plain CHECK is validated against existing rows on creation
+# and would reject the nine hotkey-signed submissions the migration deliberately keeps.
+#
+# `CheckConstraint` has no way to emit NOT VALID, so they are added as DDL after the table
+# exists — the same mechanism this module already uses for the immutability triggers. Declaring
+# them here rather than only in the migration is what keeps `check_schema_drift.py` honest: the
+# ORM mirror has to produce the identical catalog entry, NOT VALID included.
+#
+# On a metadata-created database every table is empty, so validated-or-not makes no behavioural
+# difference there. It makes all the difference to the catalog comparison.
+
+event.listen(
+    Submission.__table__,
+    "after_create",
+    DDL(
+        "ALTER TABLE submissions "
+        "ADD CONSTRAINT submission_names_no_hotkey "
+        "CHECK (hotkey IS NULL AND hotkey_signature IS NULL) NOT VALID;"
+    ),
+)
+event.listen(
+    SubmissionIntent.__table__,
+    "after_create",
+    DDL(
+        "ALTER TABLE submission_intents "
+        "ADD CONSTRAINT intent_names_no_hotkey "
+        "CHECK (hotkey IS NULL) NOT VALID;"
+    ),
+)
+event.listen(
+    LoginChallenge.__table__,
+    "after_create",
+    DDL(
+        "ALTER TABLE login_challenges "
+        "ADD CONSTRAINT challenge_kind_is_not_retired "
+        "CHECK (kind NOT IN ('HOTKEY_LINK', 'HOTKEY_SESSION')) NOT VALID;"
+    ),
+)
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",
     "MINER_ROLE",
+    "RETIRED_CHALLENGE_KINDS",
     "REVIEWER_ROLE",
     "Account",
     "AccountIdentity",
@@ -2807,7 +2946,6 @@ __all__ = [
     "Deposit",
     "DepositState",
     "IntentState",
-    "LinkedHotkey",
     "LoginChallenge",
     "LoginChallengeKind",
     "ManualReviewState",

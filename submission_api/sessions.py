@@ -114,9 +114,9 @@ class Principal:
         return self.session.kind is AccountSessionKind.COOKIE
 
     @property
-    def hotkey_scope(self) -> str | None:
-        """The hotkey a bearer session's authority is bounded to. None for a cookie."""
-        return self.session.hotkey_scope
+    def coldkey_scope(self) -> str | None:
+        """The coldkey a bearer session's authority is bounded to. None for a cookie."""
+        return self.session.coldkey_scope
 
 
 def new_token() -> str:
@@ -204,13 +204,13 @@ async def issue_bearer(
     session,
     account: Account,
     *,
-    hotkey: str,
+    coldkey: str,
     now: dt.datetime,
     lifetime: dt.timedelta,
     user_agent: str | None = None,
     source_ip: str | None = None,
 ) -> IssuedBearer:
-    """Create a CLI session scoped to one linked hotkey.
+    """Create a CLI session scoped to one linked coldkey.
 
     Same entropy and same digest-on-the-way-in as the cookie path, so the credential is
     no weaker; what differs is that the caller will put it in a header rather than a
@@ -223,7 +223,7 @@ async def issue_bearer(
         account,
         kind=AccountSessionKind.BEARER,
         token_digest=account_store.digest(token),
-        hotkey_scope=hotkey,
+        coldkey_scope=coldkey,
         expires_at=now + lifetime,
         user_agent=user_agent,
         source_ip=source_ip,

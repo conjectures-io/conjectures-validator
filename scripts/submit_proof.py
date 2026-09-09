@@ -2,21 +2,24 @@
 """Sign and submit a proof bundle, or read a submission's status.
 
 The miner-side reference client. Builds the canonical request digest exactly as the validator
-does, signs it with your hotkey, and sends the bundle as the raw request body.
+does, signs it with your **coldkey**, and sends the bundle as the raw request body.
 
     # submit
     python3 scripts/submit_proof.py --api https://host \
       --bundle submission.zip --task /path/to/task --task-id <id> --task-sha256 sha256:… \
-      --payment-ref <extrinsic> --wallet default --hotkey default
+      --payment-ref <extrinsic> --wallet default
 
     # check status, then the report
-    python3 scripts/submit_proof.py --api https://host --status <submission_id> \
-      --wallet default --hotkey default
-    python3 scripts/submit_proof.py --api https://host --report <submission_id> \
-      --wallet default --hotkey default
+    python3 scripts/submit_proof.py --api https://host --status <submission_id> --wallet default
+    python3 scripts/submit_proof.py --api https://host --report <submission_id> --wallet default
 
-Signing needs a keypair, so `--wallet/--hotkey` (a real Bittensor wallet) or `--uri` (a
-development key such as `//Alice`) is required. See docs/MINER.md for the whole flow.
+Signing needs a keypair, so `--wallet` (a real Bittensor wallet, whose coldkey is opened and
+which will prompt for the passphrase) or `--uri` (a development key such as `//Alice`) is
+required. See docs/MINER.md for the whole flow.
+
+**The coldkey that signs must be the coldkey that sent `--payment-ref`.** The validator checks
+that equality rather than asking the chain who owns a hotkey, so citing somebody else's transfer
+is refused outright. There is no `--hotkey` any more.
 """
 
 from __future__ import annotations
@@ -54,7 +57,7 @@ def digest(data: bytes) -> str:
 
 def canonical_request_digest(
     *,
-    hotkey: str,
+    signer_coldkey: str,
     task_id: str,
     task_bundle_sha256: str,
     proof_sha256: str,
@@ -62,13 +65,15 @@ def canonical_request_digest(
     idempotency_key: str,
     public_credit: PublicCredit | None = None,
 ) -> str:
-    """The message the hotkey signs.
+    """The message the coldkey signs.
 
     Kept byte-identical to `conjectures_subnet.db.submissions.canonical_request_digest`: sorted
-    keys, no spaces, one trailing newline.
+    keys, no spaces, one trailing newline. The key name is `signer_coldkey`; a client still
+    sending `hotkey` produces a different digest and its signature will not verify, which is the
+    intended outcome rather than a silent downgrade.
     """
     value = {
-        "hotkey": hotkey,
+        "signer_coldkey": signer_coldkey,
         "idempotency_key": idempotency_key,
         "payment_reference": payment_reference,
         "proof_sha256": proof_sha256,
@@ -90,12 +95,18 @@ def canonical_request_digest(
 
 
 def load_keypair(args):
+    """The coldkey that signs. Opening it prompts for the wallet passphrase.
+
+    A hotkey used to be enough here, which is why this was cheap to call. It is not any more —
+    every invocation that signs will ask for a passphrase, and that is the intended trade: the
+    key that authorises a submission is the key that paid for it.
+    """
     if args.uri:
         return Keypair.create_from_uri(args.uri)
-    if not (args.wallet and args.hotkey):
-        raise SystemExit("provide --wallet and --hotkey, or --uri for a development key")
-    wallet = Wallet(name=args.wallet, hotkey=args.hotkey, path=args.wallet_path)
-    return wallet.hotkey
+    if not args.wallet:
+        raise SystemExit("provide --wallet, or --uri for a development key")
+    wallet = Wallet(name=args.wallet, path=args.wallet_path)
+    return wallet.coldkey
 
 
 def call(url: str, *, method: str, headers: dict[str, str], data: bytes | None = None):
@@ -124,7 +135,7 @@ def read_headers(keypair, submission_id: str) -> dict[str, str]:
         f"{READ_DOMAIN}:{keypair.ss58_address}:{submission_id}".encode()
     ).digest()
     return {
-        "X-Conjectures-Hotkey": keypair.ss58_address,
+        "X-Conjectures-Coldkey": keypair.ss58_address,
         "X-Conjectures-Timestamp": timestamp_ms(),
         "X-Conjectures-Signature": keypair.sign(message).hex(),
     }
@@ -144,7 +155,7 @@ def preflight(args, keypair, raw: bytes) -> BundlePreflight | None:
             project_root=ROOT,
             expected_task_id=args.task_id,
             expected_task_sha256=args.task_sha256,
-            expected_hotkey=keypair.ss58_address,
+            expected_signer=keypair.ss58_address,
             allow_insecure_development=args.allow_insecure_local_verification,
         )
     except (OSError, ValueError, VerifierError) as exc:
@@ -187,7 +198,7 @@ def submit(args, keypair) -> int:
     proof_sha256 = parsed.proof.sha256
     key = args.idempotency_key or str(uuid.uuid4())
     request_digest = canonical_request_digest(
-        hotkey=keypair.ss58_address,
+        signer_coldkey=keypair.ss58_address,
         task_id=args.task_id,
         task_bundle_sha256=args.task_sha256,
         proof_sha256=proof_sha256,
@@ -200,7 +211,7 @@ def submit(args, keypair) -> int:
         "Content-Type": "application/zip",
         "Content-Length": str(len(bundle)),
         "Idempotency-Key": key,
-        "X-Conjectures-Hotkey": keypair.ss58_address,
+        "X-Conjectures-Coldkey": keypair.ss58_address,
         "X-Conjectures-Timestamp": timestamp_ms(),
         "X-Conjectures-Signature": signature.hex(),
         "X-Conjectures-Task-Id": args.task_id,
@@ -237,8 +248,7 @@ def read(args, keypair, submission_id: str, *, report: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api", required=True, help="validator base URL")
-    parser.add_argument("--wallet", help="Bittensor wallet name")
-    parser.add_argument("--hotkey", help="hotkey name within that wallet")
+    parser.add_argument("--wallet", help="Bittensor wallet name; its coldkey signs")
     parser.add_argument("--wallet-path", default=None, help="override the wallet directory")
     parser.add_argument("--uri", help="development key such as //Alice; not for production")
 

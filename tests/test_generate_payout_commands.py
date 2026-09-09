@@ -23,7 +23,6 @@ def test_render_command_preserves_the_integer_amount_and_call_shape():
     generator = load_generator()
     command = generator.render_command(
         destination_coldkey="coldkey",
-        destination_hotkey="destination-hotkey",
         alpha_amount=1_044_286_814_577,
         origin_hotkey="origin-hotkey",
         origin_netuid=66,
@@ -36,16 +35,21 @@ def test_render_command_preserves_the_integer_amount_and_call_shape():
 
     # A multiline command joined by shell continuations is still one ordinary argv vector.
     argv = shlex.split(command.replace("\\\n", ""))
+    # `transfer_stake`, not `transfer_stake_and_hotkey`, and asserted by name because the
+    # difference is the whole of V035 on chain: the old call moved alpha to a new
+    # (coldkey, hotkey) position and needed a destination hotkey; this one changes the owner of
+    # stake that stays on ours.
     assert argv[:3] == [
         "btcli",
         "call",
-        "SubtensorModule.transfer_stake_and_hotkey",
+        "SubtensorModule.transfer_stake",
     ]
     call_args = json.loads(argv[argv.index("--args") + 1])
+    # One `hotkey`, and it is the origin — the validator's own. No destination hotkey exists to
+    # be passed, which is what stops a miner from ever supplying one.
     assert call_args == {
         "destination_coldkey": "coldkey",
-        "origin_hotkey": "origin-hotkey",
-        "destination_hotkey": "destination-hotkey",
+        "hotkey": "origin-hotkey",
         "origin_netuid": 66,
         "destination_netuid": 66,
         "alpha_amount": 1_044_286_814_577,
@@ -59,7 +63,7 @@ def test_render_command_preserves_the_integer_amount_and_call_shape():
 def test_render_payouts_prints_one_identical_call_per_signer():
     generator = load_generator()
     output = generator.render_payouts(
-        [(7, "submission-uuid", "coldkey", "hotkey", 123)],
+        [(7, "submission-uuid", "coldkey", 123)],
         wallets=("signer-a", "signer-b"),
         origin_hotkey="origin",
         origin_netuid=66,
@@ -72,7 +76,7 @@ def test_render_payouts_prints_one_identical_call_per_signer():
     assert output.startswith(
         "# signer=signer-a\n# reward_event=7 submission=submission-uuid\n"
     )
-    assert output.count("btcli call SubtensorModule.transfer_stake_and_hotkey") == 2
+    assert output.count("btcli call SubtensorModule.transfer_stake") == 2
     assert output.count('"alpha_amount":123') == 2
     assert "  -w signer-a \\\n" in output
     assert "  -w signer-b \\\n" in output
@@ -82,8 +86,8 @@ def test_multiple_payouts_are_grouped_by_signer():
     generator = load_generator()
     output = generator.render_payouts(
         [
-            (7, "submission-7", "coldkey-7", "hotkey-7", 700),
-            (8, "submission-8", "coldkey-8", "hotkey-8", 800),
+            (7, "submission-7", "coldkey-7", 700),
+            (8, "submission-8", "coldkey-8", 800),
         ],
         wallets=("signer-a", "signer-b"),
         origin_hotkey="origin",
@@ -112,7 +116,6 @@ def test_default_output_matches_the_two_requested_wallets():
                 1,
                 "submission-uuid",
                 "5G4LNpyehdqUU6CtP7SYSZLFK5mxzTCihXHiDxmbfHwAAW7L",
-                "5FqLp5QmNRiHGyj3xbLVnDHfCx25qxJX5CUhpndF9GFfZZiK",
                 1_044_286_814_577,
             )
         ],
@@ -135,7 +138,7 @@ def test_default_output_matches_the_two_requested_wallets():
 def test_discord_messages_mention_the_signer_for_each_wallet():
     generator = load_generator()
     payloads = generator.discord_notifications(
-        [(7, "submission-uuid", "coldkey", "hotkey", 123)],
+        [(7, "submission-uuid", "coldkey", 123)],
         wallets=generator.DEFAULT_WALLETS,
         mentions=generator.DEFAULT_DISCORD_MENTIONS,
         origin_hotkey="origin",
@@ -176,7 +179,7 @@ def test_discord_wallet_path_matches_its_key_suffix():
     generator = load_generator()
     wallet = "/wallets/team/5DkFoRP1gaKrq1LRqWbG1SCHuhHgDELUuRXdGLsv2rU1spsX"
     payloads = generator.discord_notifications(
-        [(7, "submission-uuid", "coldkey", "hotkey", 123)],
+        [(7, "submission-uuid", "coldkey", 123)],
         wallets=(wallet,),
         mentions=generator.DEFAULT_DISCORD_MENTIONS,
         origin_hotkey="origin",
@@ -256,7 +259,7 @@ def test_discord_delivery_rejects_non_discord_webhooks_before_network(monkeypatc
 def test_selecting_multiple_events_refuses_a_partial_result():
     generator = load_generator()
     generator.pending_payouts = lambda _dsn, _ids, **_kwargs: [
-        (7, "submission-uuid", "coldkey", "hotkey", 123)
+        (7, "submission-uuid", "coldkey", 123)
     ]
     stdout = io.StringIO()
     stderr = io.StringIO()

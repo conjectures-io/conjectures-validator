@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
-"""Create an account with a coldkey and link a hotkey to it — what the website will do.
+"""Create an account with a coldkey and designate it for submitting — what the website will do.
 
-`conjectures auth login` refuses an unlinked hotkey with `HOTKEY_NOT_LINKED`, and it refuses it
-deliberately: a hotkey must never be able to claim an account for itself, or a stolen hotkey
-would be a way *in* rather than merely a way to work. Linking is a coldkey action, and the
-coldkey path is the browser. Until the frontend exists, this script is that browser.
+`conjectures auth login` refuses a coldkey no account has linked, with `COLDKEY_NOT_LINKED`, and
+it refuses it deliberately: a key must never be able to claim an account for itself, or a stolen
+key would be a way *in* rather than merely a way to work. Until the frontend exists, this script
+is the browser that does the claiming.
 
     # a real wallet (prompts for the coldkey passphrase, once)
-    python3 scripts/link_hotkey.py --api http://localhost:8000 \
-      --wallet default --hotkey default
+    python3 scripts/link_coldkey.py --api http://localhost:8000 --wallet default
 
-    # development keys against a local validator
-    python3 scripts/link_hotkey.py --api http://localhost:8000 \
-      --coldkey-uri //Alice --hotkey-uri //Bob
+    # a development key against a local validator
+    python3 scripts/link_coldkey.py --api http://localhost:8000 --coldkey-uri //Alice
 
-It walks the same four calls a website would:
+It walks the three calls a website would:
 
-    POST /v1/auth/wallet/challenge   a nonce, and the exact message to sign
-    POST /v1/auth/wallet/verify      the coldkey signature -> account + session cookies
-    POST /v1/me/hotkeys/challenge    a nonce for the hotkey, bound to this account
-    POST /v1/me/hotkeys              the hotkey signature -> linked
+    POST /v1/auth/wallet/challenge      a nonce, and the exact message to sign
+    POST /v1/auth/wallet/verify         the signature -> account + session cookies, and the
+                                        coldkey is linked as a wallet by this same call
+    PUT  /v1/me/coldkeys/submission     designate it as the key this account submits under
+
+Three, not four, and V035 is why. There used to be a separate hotkey to link: the signature that
+signed in proved a coldkey, and then a *second* key had to prove itself before the miner could
+submit. Miners now sign with the coldkey, so signing in and linking are the same call, and all
+that remains is choosing which linked key submits.
 
 The account is created on first sign-in, so there is no separate registration step: proving
 control of a coldkey against an address nobody has claimed *is* signing up.
@@ -49,7 +52,6 @@ FETCH_SITE_HEADER = "Sec-Fetch-Site"
 SAME_ORIGIN = "same-origin"
 
 LOGIN_PREFIX = "conjectures-login-v1"
-HOTKEY_LINK_PREFIX = "conjectures-hotkey-link-v1"
 
 
 class ApiError(RuntimeError):
@@ -136,11 +138,11 @@ def _problem(exc: urllib.error.HTTPError) -> str:
 def _assert_prefix(message: str, expected: str, *, address: str) -> None:
     """Refuse to sign anything but the message we asked for, for the key we asked about.
 
-    The same check `conjectures-miner` makes before it unlocks a hotkey, and for the same
-    reason: a client that signs whatever a server sends is a signing oracle for the other five
-    messages this validator asks these keys to sign. Here the coldkey is the one that matters —
-    a `conjectures-deposit-claim-v1` signature obtained under the guise of a login would claim
-    a transfer.
+    The same check `conjectures-miner` makes before it unlocks a key, and for the same reason:
+    a client that signs whatever a server sends is a signing oracle for every other message
+    this validator asks a coldkey to sign. That matters more now than it did — a coldkey signs
+    all seven of them — and a `conjectures-deposit-claim-v1` signature obtained under the guise
+    of a login would claim a transfer.
     """
     lines = message.splitlines()
     if not lines or lines[0] != expected:
@@ -160,44 +162,32 @@ def _sign(keypair: Keypair, message: str) -> str:
     return keypair.sign(message.encode("utf-8")).hex()
 
 
-def _keys(args: argparse.Namespace) -> tuple[Keypair, Keypair]:
-    """The coldkey that owns the account and the hotkey being attached to it.
+def _key(args: argparse.Namespace) -> Keypair:
+    """The coldkey that claims the account and will submit under it.
 
-    A development URI never touches a wallet file, so the two sources are kept apart rather
-    than blended: mixing `//Alice` with a real coldkey on one command line is a way to link a
-    production hotkey to a throwaway account by accident.
+    A development URI never touches a wallet file, and the two sources stay mutually exclusive:
+    a command line that blends `//Alice` with a real wallet name is a way to claim a throwaway
+    account with a production key by accident.
     """
-    if args.coldkey_uri or args.hotkey_uri:
-        if not (args.coldkey_uri and args.hotkey_uri):
-            raise ApiError("--coldkey-uri and --hotkey-uri go together")
-        return (
-            Keypair.create_from_uri(args.coldkey_uri),
-            Keypair.create_from_uri(args.hotkey_uri),
-        )
+    if args.coldkey_uri:
+        return Keypair.create_from_uri(args.coldkey_uri)
 
     extra = {"path": args.wallet_path} if args.wallet_path else {}
-    wallet = Wallet(name=args.wallet, hotkey=args.hotkey, **extra)
+    wallet = Wallet(name=args.wallet, **extra)
     try:
         # Prompts for the passphrase. The only place this script opens the coldkey, and the
         # only reason it has to: an account is claimed by the key that holds the funds.
-        coldkey = wallet.coldkey
+        return wallet.coldkey
     except Exception as exc:
         raise ApiError(f"could not open coldkey {args.wallet}: {exc}") from exc
-    try:
-        hotkey = wallet.hotkey
-    except Exception as exc:
-        raise ApiError(f"could not open hotkey {args.wallet}/{args.hotkey}: {exc}") from exc
-    return coldkey, hotkey
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--api", required=True, help="Validator base URL")
     parser.add_argument("--wallet", default="default", help="Bittensor wallet (coldkey) name")
-    parser.add_argument("--hotkey", default="default", help="Hotkey name within that wallet")
     parser.add_argument("--wallet-path", default=None, help="Override ~/.bittensor/wallets")
     parser.add_argument("--coldkey-uri", default=None, help="Development coldkey, e.g. //Alice")
-    parser.add_argument("--hotkey-uri", default=None, help="Development hotkey, e.g. //Bob")
     parser.add_argument(
         "--display-name", default=None, help="Set the account's display name while signed in"
     )
@@ -205,10 +195,9 @@ def main(argv: list[str] | None = None) -> int:
 
     client = Client(args.api)
     try:
-        coldkey, hotkey = _keys(args)
+        coldkey = _key(args)
 
         print(f"coldkey  {coldkey.ss58_address}")
-        print(f"hotkey   {hotkey.ss58_address}")
 
         challenge = client.post(
             "/v1/auth/wallet/challenge", {"address": coldkey.ss58_address}
@@ -231,27 +220,24 @@ def main(argv: list[str] | None = None) -> int:
                 "/v1/me", {"display_name": args.display_name}, method="PATCH"
             )
 
-        already = {linked["hotkey"] for linked in account.get("hotkeys", ())}
-        if hotkey.ss58_address in already:
-            print("hotkey is already linked to this account; nothing to do")
+        # `wallet/verify` already linked this coldkey — it is how the account was claimed — so
+        # there is no separate proving step. All that is left is the designation, and it needs
+        # no signature: the key is already proved, and this only chooses among proved keys.
+        if account.get("coldkeys", {}).get("submission_coldkey") == coldkey.ss58_address:
+            print("already the submission coldkey for this account; nothing to do")
         else:
-            link = client.post(
-                "/v1/me/hotkeys/challenge", {"hotkey": hotkey.ss58_address}
-            )
-            _assert_prefix(
-                link["message"], HOTKEY_LINK_PREFIX, address=hotkey.ss58_address
-            )
             account = client.post(
-                "/v1/me/hotkeys",
-                {
-                    "hotkey": hotkey.ss58_address,
-                    "signature": _sign(hotkey, link["message"]),
-                },
+                "/v1/me/coldkeys/submission",
+                {"coldkey": coldkey.ss58_address},
+                method="PUT",
             )
-            print("linked")
+            print("designated")
 
-        linked = ", ".join(entry["hotkey"] for entry in account.get("hotkeys", ()))
-        print(f"hotkeys  {linked or 'none'}")
+        coldkeys = account.get("coldkeys", {})
+        linked = ", ".join(entry["coldkey"] for entry in account.get("wallets", ()))
+        print(f"wallets    {linked or 'none'}")
+        print(f"submission {coldkeys.get('submission_coldkey') or 'none'}")
+        print(f"payout     {coldkeys.get('payout_coldkey') or 'none'}")
     except ApiError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

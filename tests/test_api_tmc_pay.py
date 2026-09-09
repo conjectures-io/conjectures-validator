@@ -2511,7 +2511,7 @@ def test_slippage_below_the_quote_margin_is_refused_at_startup():
     environ = {
         "APP_MODE": "DEV",
         "PAYMENT_RECIPIENT_SS58": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
-        "DEVELOPMENT_HOTKEYS": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+        "DEVELOPMENT_COLDKEYS": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
         **base,
     }
     with pytest.raises(SettingsError, match="TMC_PAY_MAX_SLIPPAGE_BPS"):
@@ -2542,7 +2542,7 @@ def test_the_open_order_ceiling_is_configurable_but_stays_bounded():
     environ = {
         "APP_MODE": "DEV",
         "PAYMENT_RECIPIENT_SS58": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
-        "DEVELOPMENT_HOTKEYS": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+        "DEVELOPMENT_COLDKEYS": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
         **tmc_pay_settings(),
     }
 

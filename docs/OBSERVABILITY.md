@@ -81,7 +81,7 @@ make.
 
 One per API router plus one per background service. The API is split rather than reported as a
 single `api` because the routers have genuinely different audiences and failure modes — the public
-catalog is read by a browser, `/v1/submissions` is written by miner tooling with a hotkey signature,
+catalog is read by a browser, `/v1/submissions` is written by miner tooling with a coldkey signature,
 `/v1/me` is a signed-in account surface — and one label for all three would make every dashboard
 start with a path filter.
 

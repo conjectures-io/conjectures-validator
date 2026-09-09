@@ -22,8 +22,8 @@ pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 from conftest import declaration
 from conftest_api import (
     CHALLENGE_LEAN,
-    HOTKEY,
-    OTHER_HOTKEY,
+    MINER_COLDKEY,
+    OTHER_MINER_COLDKEY,
     REPOSITORY_COMMIT,
     distinct_bundle,
     harness,
@@ -1420,14 +1420,14 @@ async def _submit(kit, *, hotkey: str, payment_reference: str, task_id: str = "o
     # Distinct proof bytes per call: `submissions.proof_digest` is globally unique, so two
     # submissions carrying identical bytes would make the second a duplicate rather than a
     # second attempt.
-    bundle, digest = distinct_bundle(payment_reference, hotkey=hotkey)
+    bundle, digest = distinct_bundle(payment_reference, coldkey=hotkey)
     async with await _client(kit) as client:
         return await client.post(
             "/v1/submissions",
             content=bundle,
             headers=submission_headers(
                 bundle,
-                hotkey=hotkey,
+                coldkey=hotkey,
                 task_id=task_id,
                 idempotency_key=new_key(),
                 payment_reference=payment_reference,
@@ -1440,7 +1440,7 @@ def test_activity_counts_attempts_and_never_names_a_solver():
     async def scenario():
         kit = await harness(entries=pool()).setup()
         try:
-            first = await _submit(kit, hotkey=HOTKEY, payment_reference="0xpay-0001")
+            first = await _submit(kit, hotkey=MINER_COLDKEY, payment_reference="0xpay-0001")
             assert first.status_code == 201, first.text
 
             response = await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}/activity")
@@ -1456,8 +1456,8 @@ def test_activity_counts_attempts_and_never_names_a_solver():
             assert item["event"] == "attempt"
             assert len(item["solver"]) == PSEUDONYM_LENGTH
             # The hotkey appears nowhere in the response, in any form.
-            assert HOTKEY not in response.text
-            assert item["solver"] != HOTKEY
+            assert MINER_COLDKEY not in response.text
+            assert item["solver"] != MINER_COLDKEY
             # Truncated to the hour, so the event cannot be joined to the funding transfer.
             assert item["occurred_at"].endswith(":00:00Z") or item[
                 "occurred_at"
@@ -1483,8 +1483,8 @@ def test_a_solver_pseudonym_is_stable_per_conjecture_and_unlinkable_across_them(
     async def scenario():
         kit = await harness(entries=pool()).setup()
         try:
-            await _submit(kit, hotkey=HOTKEY, payment_reference="0xpay-0001")
-            await _submit(kit, hotkey=OTHER_HOTKEY, payment_reference="0xpay-0002")
+            await _submit(kit, hotkey=MINER_COLDKEY, payment_reference="0xpay-0001")
+            await _submit(kit, hotkey=OTHER_MINER_COLDKEY, payment_reference="0xpay-0002")
 
             here = (
                 await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}/activity")
@@ -1497,8 +1497,8 @@ def test_a_solver_pseudonym_is_stable_per_conjecture_and_unlinkable_across_them(
             from submission_api.routers.catalog import _pseudonym
 
             assert _pseudonym(
-                kit.settings, "fc-target:Erdos11.erdos_11", HOTKEY
-            ) != _pseudonym(kit.settings, "fc-target:Erdos13.erdos_13", HOTKEY)
+                kit.settings, "fc-target:Erdos11.erdos_11", MINER_COLDKEY
+            ) != _pseudonym(kit.settings, "fc-target:Erdos13.erdos_13", MINER_COLDKEY)
         finally:
             await kit.teardown()
 

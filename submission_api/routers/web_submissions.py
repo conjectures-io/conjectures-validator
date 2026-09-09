@@ -1,30 +1,27 @@
 """The website submission path: one call, one coldkey signature, one credit.
 
-The third way into intake, and it exists because of one fact about browser wallets: Talisman and
-the tao.com extension hold **coldkeys only**. A hotkey lives unencrypted on a mining box — that
-is the point of the coldkey/hotkey split — and it never reaches the browser. So neither of the
-existing paths can be driven from a web page:
+The third way into intake. Every path now ends in a coldkey signature — V035 retired the miner
+hotkey entirely — so what distinguishes this one is no longer *which key* signs but **what it
+signs and how many calls it takes**:
 
-* `POST /v1/submissions` wants a hotkey signature over the request digest, and a payment
+* `POST /v1/submissions` wants a signature over 32 raw bytes of request digest, plus a payment
   reference for a transfer the page cannot make;
-* `POST /v1/submissions/intents` + `PUT .../bundle` + `POST .../confirm` also ends in a hotkey
-  signature, over 32 raw bytes — which is both the wrong key and a thing a message-signing
-  wallet will not render.
+* `POST /v1/submissions/intents` + `PUT .../bundle` + `POST .../confirm` also ends in a
+  signature over 32 raw bytes — which a message-signing wallet will not render, and which a
+  person cannot meaningfully approve.
 
-What changes here: **the authorising signature is made by a coldkey linked to the account, over a
-readable message, the whole attempt is one request, and no hotkey has to be linked.** Everything
-else is the credit path unchanged — the credit is held, the bundle is admitted by the same
-exact-shape scanner, the bounty is locked by the same serialized quote, and the debit and the
-submission are written by the same `intents.confirm` transaction. Reusing that is deliberate: it
-is the money path, and a second implementation of it is a second chance to get atomicity wrong.
+What changes here: **the authorising signature is over a readable message and the whole attempt
+is one request.** Everything else is the credit path unchanged — the credit is held, the bundle
+is admitted by the same exact-shape scanner, the bounty is locked by the same serialized quote,
+and the debit and the submission are written by the same `intents.confirm` transaction. Reusing
+that is deliberate: it is the money path, and a second implementation of it is a second chance
+to get atomicity wrong.
 
-**The hotkey is declared, not proved, and that is the point of the whole endpoint.** An account
-opened with a browser wallet has a coldkey and nothing else; requiring proof of a hotkey would
-make this path unusable for exactly the person it exists for. It is safe to leave unproved
-because Alpha is held as **stake owned by the coldkey** — nominating a hotkey chooses which
-neuron the reward is staked to, not who owns it, and the coldkey it is staked for is the one that
-signed. So the declaration cannot misdirect money; the only thing it could misdirect is *credit*,
-which is why a hotkey another account has proved control of is refused. See the handler.
+This endpoint used to take a second, *declared* key: a payout hotkey it never proved, because a
+payout ran `transfer_stake_and_hotkey` and had to name a stake position. Two checks bounded that
+declaration without proving control of it, and a chain read backed one of them. A payout now
+hands the destination coldkey ownership of alpha that never leaves the validator's own hotkey,
+so there is nothing to declare, nothing to check, and no chain read on this path at all.
 
 Why one call rather than three. The three-call flow exists so the server can compute the digest
 the client signs *after* seeing the bundle. Here the client signs first, so the ordering is
@@ -45,8 +42,8 @@ Ordering here is a security and cost property, the same as on the extrinsic path
 
 1. the pause, then the query's own shape — nothing that costs a query is done for a request
    that cannot be well-formed;
-2. the credential, and the two keys it claims: a caller who may not act as this coldkey or this
-   hotkey learns that before the server does catalog work for them;
+2. the credential and the key it claims: a caller who may not act as this coldkey learns that
+   before the server does catalog work for them;
 3. idempotency replay — a retry is answered from durable state without re-uploading;
 4. the balance and a first bounty quote, so an account with nothing to spend is refused before
    it uploads up to 12 MiB;
@@ -101,13 +98,9 @@ WEB_PATH = "/v1/submissions/web"
 
 REASON_TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED"
 REASON_WALLET_NOT_LINKED = "WALLET_NOT_LINKED"
-# Not `HOTKEY_NOT_LINKED`, which is the intent path's refusal and means the opposite thing:
-# there, a hotkey has to be linked to *this* account. Here it only has to not be linked to
-# another one, so the two codes must not be confused for each other by a client.
-REASON_HOTKEY_CLAIMED = "HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT"
-# The chain has no owner for it, so nothing can be staked to it. A third distinct code, because
-# the fix is a third distinct thing: register the hotkey, or nominate one that exists.
-REASON_HOTKEY_NOT_REGISTERED = "HOTKEY_NOT_REGISTERED"
+# HOTKEY_CLAIMED_BY_ANOTHER_ACCOUNT and HOTKEY_NOT_REGISTERED were here until V035. Both bounded
+# a declared payout hotkey that no longer exists, so both are retired rather than renamed — a
+# client still handling them will simply never see them again.
 REASON_BUNDLE_DIGEST_MISMATCH = "BUNDLE_DIGEST_MISMATCH"
 REASON_AUTHORISATION_EXPIRED = "AUTHORISATION_EXPIRED"
 REASON_AUTHORISATION_WINDOW = "AUTHORISATION_WINDOW_TOO_LONG"
@@ -140,7 +133,7 @@ def _require_digest(value: str, field: str) -> str:
 def _require_expiry(raw: str, *, now: dt.datetime, max_minutes: int) -> dt.datetime:
     """Parse the authorisation expiry and bound how long it may be good for.
 
-    Two-sided, like `assert_fresh_nonce` on the hotkey paths and for the same reason: an
+    Two-sided, like `assert_fresh_nonce` on the digest-signing paths and for the same reason: an
     expiry already past is useless, and one far in the future would let a page mint a
     long-lived reusable authorisation for the account's credits. The ceiling is
     `INTENT_MINUTES`, which is already the answer to "how long may one attempt stay live".
@@ -206,7 +199,6 @@ async def create_web_submission(
     session: SessionDep,
     task_id: Annotated[str, Query(min_length=1, max_length=255)],
     task_bundle_sha256: Annotated[str, Query(min_length=71, max_length=71)],
-    hotkey: Annotated[str, Query(min_length=48, max_length=48)],
     coldkey: Annotated[str, Query(min_length=48, max_length=48)],
     bundle_sha256: Annotated[str, Query(min_length=71, max_length=71)],
     idempotency_key: Annotated[str, Query(min_length=36, max_length=36)],
@@ -218,32 +210,29 @@ async def create_web_submission(
 ) -> schemas.ConfirmedSubmission:
     """Hold a credit, admit the bundle, verify the coldkey signature, and submit — atomically.
 
-    **A browser session, not a CLI one.** `CookieWriterDep` refuses a bearer token outright, and
-    that costs the CLI nothing: a bearer session is minted by a hotkey and scoped to it, so it
-    already has the three-call flow and no coldkey to sign with here. What it buys is that the
-    one intake path authorised by a coldkey cannot be driven by a credential read off a mining
-    box — the same rule that keeps hotkey linking and the payout destination browser-only.
+    **A browser session, not a CLI one.** `CookieWriterDep` refuses a bearer token outright,
+    and that costs the CLI nothing: it already has the three-call intent flow, and it holds a
+    scoped token rather than a key it could sign this message with. What it buys is that the
+    one-call intake path cannot be driven by a credential read off a mining box — the same rule
+    that keeps coldkey linking and the payout destination browser-only.
 
-    **The coldkey must be linked; the hotkey must not be somebody else's.** The two checks are
-    deliberately asymmetric because the two keys do different jobs.
+    **One key, and it must be linked.** V035 removed the second. This endpoint used to take a
+    declared `hotkey` as well, because a payout ran `transfer_stake_and_hotkey` and had to name
+    a stake position; that meant an address the submitter did not prove, bounded by two checks
+    that were not proofs of control — that no other account had claimed it, and that the chain
+    knew it. A payout now hands the destination coldkey ownership of alpha that stays staked at
+    the validator's own hotkey, so there is nothing to declare. Both checks, the chain read
+    behind the second, and their two reason codes are gone.
 
-    The coldkey is *who authorised the spend and who owns the reward*. It must be linked, because
-    a signature proves control of a key and not that the key belongs to this account — without
+    The coldkey that remains is *who authorised the spend*. It must be linked, because a
+    signature proves control of a key and not that the key belongs to this account — without
     the check, anyone who captured a signature could spend their own credits under somebody
-    else's authorisation and have the payout follow that key.
+    else's authorisation.
 
-    The hotkey is only a *delegation target*: the reward is staked for the coldkey, and the
-    hotkey names the neuron it is staked to. It is therefore declared and never proved — a
-    browser wallet has no hotkey to sign with, and demanding one would defeat the endpoint. Two
-    checks bound the declaration, and neither is a proof of control:
-
-    * no **other account here** has proved control of it, because `ResultRow.hotkey` is published
-      and a result is credited to its solver, so an unchecked declaration could steal credit;
-    * the **chain knows it**, because the payout extrinsic cannot stake to a hotkey with no owner
-      and a submission we cannot pay is worse than one we refuse.
-
-    An unclaimed, registered hotkey is free to nominate, and this submission's reward will be
-    staked to it for the coldkey that signed.
+    Note it need not be the account's designated `submission_coldkey`. Any linked wallet may
+    authorise from a browser: the designation exists to tell the *intent* flow which key to
+    expect a signature from when nothing in the request names one, and here the request names
+    one and proves it.
 
     A replay of an already-accepted `idempotency_key` answers `200` with the original
     submission, before the body is read. Two identical requests racing past that check leave one
@@ -275,45 +264,26 @@ async def create_web_submission(
     except ValueError as exc:
         raise BadRequest(str(exc)) from exc
 
-    # The one key that must be proved: the coldkey is what authorises the spend, and it is where
-    # the reward lands. Absent rather than forbidden is not an option — it is the caller's own
-    # key, so naming the problem is the whole value of the refusal.
+    # The one key, and it must be proved. Absent rather than forbidden is not an option — it is
+    # the caller's own key, so naming the problem is the whole value of the refusal.
     if not await account_store.owns_wallet(session, principal.account.id, coldkey):
         raise Conflict(
             "link that coldkey to your account before submitting with it",
             reason_code=REASON_WALLET_NOT_LINKED,
         )
-    # The hotkey is *not* proved, and deliberately. It is a delegation target: Alpha is held as
-    # stake owned by the coldkey, so nominating a hotkey chooses which neuron the reward is
-    # staked to, not who owns it. Requiring proof of it would make the whole path unusable for
-    # exactly the person it exists for — a browser wallet holds no hotkey to sign with.
-    #
-    # One thing it must not be is somebody else's *claimed* identity. `ResultRow.hotkey` is
-    # published and a result is credited to its solver, so an unchecked declaration would let
-    # anyone credit a solved conjecture to a hotkey another account has proved control of.
-    # A hotkey nobody has claimed stays free to nominate.
-    owner = await account_store.find_by_hotkey(session, hotkey)
-    if owner is not None and owner.id != principal.account.id:
-        raise Conflict(
-            "that hotkey is linked to another account; nominate one of your own",
-            reason_code=REASON_HOTKEY_CLAIMED,
-        )
 
     # Answered from durable state, and before the body: a client retrying after a lost response
     # should not have to upload the archive again to learn it already succeeded.
-    existing = await submission_store.find_by_idempotency_key(session, hotkey, key)
+    #
+    # Scoped by account rather than by the signing key, mirroring
+    # `submissions_session_idempotency_unique`. It was keyed by the declared hotkey before V035,
+    # which needed the cross-account guard below because the extrinsic path wrote rows under the
+    # same hotkey with no account at all. Keyed by the account there is nothing to disambiguate:
+    # the index this mirrors is per-account, and an extrinsic row can never match it.
+    existing = await submission_store.find_session_submission_by_idempotency_key(
+        session, principal.account.id, key
+    )
     if existing is not None:
-        # The lookup is keyed by `(hotkey, idempotency_key)`, which is the uniqueness the schema
-        # enforces — and the extrinsic path writes rows with the same hotkey and no account at
-        # all. A key that names one of those is a genuine collision rather than this caller's
-        # earlier attempt, and answering it as a replay would report a submission with no
-        # balance to read beside it.
-        if existing.account_id != principal.account.id:
-            raise Conflict(
-                "that idempotency key already names a submission made another way",
-                reason_code="IDEMPOTENCY_CONFLICT",
-                extra={"idempotency_key": str(key)},
-            )
         response.status_code = status.HTTP_200_OK
         return await _confirmed(session, existing, settings=settings, now=now)
 
@@ -340,27 +310,17 @@ async def create_web_submission(
             extra={"credits_available": balance.credits_available, "credits_required": 1},
         )
 
-    # The one chain read on this path, and it is deliberately last among the free checks: it costs
-    # a round trip, so everything answerable from local state — the credential, the two hotkey
-    # rules, the replay, the task, the balance — is answered first.
-    #
-    # A declared hotkey is a payout instruction, and `transfer_stake_and_hotkey` cannot stake to a
-    # hotkey the chain has never heard of. Refusing here means a mistyped address is caught while
-    # the submitter is still looking at it, instead of weeks later as a payout command a human
-    # signs and watches fail. Unreachable chain raises `ServiceUnavailable` rather than returning
-    # False — see `hotkeys.py` on why those must not collapse into one answer.
-    if not await services.hotkeys.is_registered(hotkey):
-        raise Conflict(
-            "the chain knows no such hotkey; register it before nominating it for payout",
-            reason_code=REASON_HOTKEY_NOT_REGISTERED,
-            extra={"hotkey": hotkey},
-        )
+    # There is no chain read left on this path. V035 removed the last one — a declared payout
+    # hotkey had to be checked against `SubtensorModule.Owner`, because the payout extrinsic
+    # could not stake to an address nobody owned and a submission we could not pay was worse
+    # than one we refused. With no declared hotkey, every check on this path is answerable from
+    # local state, and the endpoint no longer has an outage mode that belongs to the chain.
 
     bundle = await uploaded_bundle(
         request,
         services,
         entry,
-        hotkey=hotkey,
+        signer=coldkey,
         content_type=content_type,
         content_length=content_length,
     )
@@ -381,7 +341,6 @@ async def create_web_submission(
     message = web_submission_message(
         domain=settings.login_domain,
         address=coldkey,
-        hotkey=hotkey,
         task_id=entry.task_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         bundle_sha256=bundle.sha256,
@@ -411,7 +370,6 @@ async def create_web_submission(
     intent, _ = await intent_store.open_intent(
         session,
         account_id=principal.account.id,
-        hotkey=hotkey,
         task_id=entry.task_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         credit_price_rao=settings.payment_amount_rao,
@@ -429,9 +387,9 @@ async def create_web_submission(
         intent,
         proof_content=bundle.proof.raw,
         proof_sha256=bundle.proof.sha256,
-        # The digest of the exact bytes that were signed. On the two hotkey paths the stored
-        # signature is over the stored request digest itself; here it is over the digest's
-        # preimage, so the row still says what was authorised and by which key —
+        # The digest of the exact bytes that were signed. On the extrinsic and intent paths the
+        # stored signature is over the stored request digest itself; here it is over the
+        # digest's preimage, so the row still says what was authorised and by which key —
         # `signer_coldkey` names the key, and the accepted event records the message verbatim.
         request_digest=sha256_bytes(message.encode("utf-8")),
         now=now,
@@ -451,7 +409,7 @@ async def create_web_submission(
         problem_id=entry.problem_id,
         reward_target_id=entry.reward_target_id,
         task_mode=TaskMode(entry.mode),
-        hotkey_signature=signature_bytes,
+        signer_signature=signature_bytes,
         manual_review_required=settings.manual_review_enabled,
         review_policy_version=settings.review_policy_version,
         bounty_amount_rao=quote.amount_rao,
@@ -486,7 +444,6 @@ async def create_web_submission(
         event_type="submission_accepted",
         submission_id=str(confirmed.submission.id),
         account_id=str(principal.account.id),
-        hotkey=hotkey,
         signer_coldkey=coldkey,
         task_id=entry.task_id,
         problem_id=entry.problem_id,
@@ -530,25 +487,25 @@ async def create_session_submission(
     """The fourth way in: a credit, a bundle, and a signed-in browser. No key of any kind.
 
     **What authorises this is the session**, which is why it is `CookieWriterDep` and not
-    `WriterDep`: a bearer token is minted by a hotkey, and an account holding a hotkey has the
-    three-call flow already. The account that spent the credit is the account that submitted, and
-    the schema says so — `submission_authorised_exactly_once` requires an account and a credit on
-    exactly the rows that name no key.
+    `WriterDep`: an account whose key is on a mining box has the three-call flow already. The
+    account that spent the credit is the account that submitted, and the schema says so —
+    `submission_authorised_exactly_once` requires an account and a credit on exactly the rows
+    that name no key.
 
-    **It claims no identity, and cannot borrow one.** `hotkey` is null on the row, and
-    `admit_proof_bundle` is called with `expected_hotkey=None`, which *refuses* a manifest naming
+    **It claims no identity, and cannot borrow one.** `signer_coldkey` is null on the row, and
+    `admit_proof_bundle` is called with `expected_signer=None`, which *refuses* a manifest naming
     a miner rather than ignoring it. Without that, anyone could publish a solved conjecture under
-    somebody else's address, because `ResultRow.hotkey` is what credits a result to its solver.
+    somebody else's address, because the solver identity is what credits a result.
 
     **A reward it wins waits rather than misfires.** `payout_notifier` resolves its destination
-    through `coalesce(Account.payout_hotkey, Submission.hotkey)` and skips a row where that is
-    null, so this submission is simply not paid until its account links a payout pair — at which
-    point the next poll picks it up. Nothing here needs to know that; it is worth stating because
-    the alternative people assume is that the payout crashes.
+    from `Account.payout_coldkey` and skips a row where that is null, so this submission is
+    simply not paid until its account sets one — at which point the next poll picks it up.
+    Nothing here needs to know that; it is worth stating because the alternative people assume
+    is that the payout crashes.
 
-    Two steps the coldkey path has are absent, and both for the same reason: there is no key.
-    Nothing verifies a signature, and nothing asks the chain whether an address is registered —
-    which also makes this the only intake path that touches no external service at all.
+    One step the coldkey path has is absent, because there is no key: nothing verifies a
+    signature. Neither path touches an external service any more — V035 removed the chain read
+    that used to make the coldkey path the exception.
     """
     settings = services.settings
     now = _now()
@@ -569,10 +526,10 @@ async def create_session_submission(
     except ValueError as exc:
         raise BadRequest(str(exc)) from exc
 
-    # Scoped to the account and to rows with no hotkey, mirroring the partial unique index that
-    # enforces it. The `(hotkey, idempotency_key)` constraint the other paths use does not
-    # constrain these rows at all — PostgreSQL treats NULLs as distinct — so the lookup and the
-    # index have to agree on the same narrower key or a retry would buy a second attempt.
+    # Scoped to the account, mirroring the partial unique index that enforces it. The
+    # `(signer_coldkey, idempotency_key)` index the extrinsic path uses does not constrain these
+    # rows at all — they have no signer, and PostgreSQL treats NULLs as distinct — so the lookup
+    # and the index have to agree on the same key or a retry would buy a second attempt.
     existing = await submission_store.find_session_submission_by_idempotency_key(
         session, principal.account.id, key
     )
@@ -603,7 +560,7 @@ async def create_session_submission(
         request,
         services,
         entry,
-        hotkey=None,
+        signer=None,
         content_type=content_type,
         content_length=content_length,
     )
@@ -618,7 +575,7 @@ async def create_session_submission(
     intent, _ = await intent_store.open_intent(
         session,
         account_id=principal.account.id,
-        hotkey=None,
+        signer_coldkey=None,
         task_id=entry.task_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         credit_price_rao=settings.payment_amount_rao,
@@ -657,7 +614,7 @@ async def create_session_submission(
         problem_id=entry.problem_id,
         reward_target_id=entry.reward_target_id,
         task_mode=TaskMode(entry.mode),
-        hotkey_signature=None,
+        signer_signature=None,
         manual_review_required=settings.manual_review_enabled,
         review_policy_version=settings.review_policy_version,
         bounty_amount_rao=quote.amount_rao,
@@ -682,7 +639,7 @@ async def create_session_submission(
         event_type="submission_accepted",
         submission_id=str(confirmed.submission.id),
         account_id=str(principal.account.id),
-        hotkey=None,
+        signer_coldkey=None,
         task_id=entry.task_id,
         problem_id=entry.problem_id,
         reward_target_id=entry.reward_target_id,

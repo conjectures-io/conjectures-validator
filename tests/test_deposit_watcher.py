@@ -178,8 +178,9 @@ class Kit:
                 email=f"{uuid.uuid4().hex[:12]}@example.com", email_verified=True
             )
             if payout is not None:
+                # One column since V035: a payout destination is one coldkey, needing no
+                # paired hotkey and no proof of control.
                 account.payout_coldkey = payout
-                account.payout_hotkey = RECIPIENT
             session.add(account)
             await session.flush()
             if coldkey is not None:

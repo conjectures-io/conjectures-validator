@@ -1,7 +1,7 @@
 """Insert one paid submission straight into the database, so the worker has something to verify.
 
 Development only. This is the submission API's intake path with the two gates that cost money
-removed: no payment is confirmed on chain and no hotkey signature is checked. It refuses to run
+removed: no payment is confirmed on chain and no signature is checked. It refuses to run
 against APP_MODE=PROD, and it is not a miner client — `scripts/submit_proof.py` is that, and it goes
 through the real API.
 
@@ -42,7 +42,7 @@ from verifier.task_registry import TaskPoolRegistry
 
 # A well-formed SS58 pair. Nothing signs or pays here, so these only have to satisfy the column
 # constraints and be recognisable in a query as not belonging to a real miner.
-DEV_HOTKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+DEV_COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
 DEV_COLDKEY = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
 
 
@@ -127,7 +127,7 @@ async def insert(dsn: str, *, allowed, task_dir: Path, proof: bytes, review: boo
             view = await store.create_submission(
                 session,
                 store.NewSubmission(
-                    hotkey=DEV_HOTKEY,
+                    signer_coldkey=DEV_COLDKEY,
                     idempotency_key=uuid.uuid4(),
                     request_digest=digest,
                     task_id=allowed.task_id,
@@ -143,7 +143,7 @@ async def insert(dsn: str, *, allowed, task_dir: Path, proof: bytes, review: boo
                     payment_sender=DEV_COLDKEY,
                     payment_amount_rao=500_000_000,
                     payment_block=1,
-                    hotkey_signature=b"\x11" * 64,
+                    signer_signature=b"\x11" * 64,
                     manual_review_required=review,
                     review_policy_version="dev-v1",
                     bounty_amount_rao=1_000_000_000,

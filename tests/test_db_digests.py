@@ -75,7 +75,7 @@ def test_wrong_length_stored_digest_is_refused(length):
 
 def _digest(**overrides):
     values = {
-        "hotkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "signer_coldkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
         "task_id": "fixture",
         "task_bundle_sha256": PREFIXED,
         "proof_sha256": "sha256:" + "cd" * 32,
@@ -94,7 +94,7 @@ def test_request_digest_is_stable_and_well_formed():
 @pytest.mark.parametrize(
     "field,replacement",
     [
-        ("hotkey", "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"),
+        ("signer_coldkey", "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"),
         ("task_id", "other-task"),
         ("task_bundle_sha256", "sha256:" + "11" * 32),
         ("proof_sha256", "sha256:" + "22" * 32),
@@ -110,7 +110,7 @@ def test_every_component_changes_the_request_digest(field, replacement):
 
 def test_request_digest_does_not_depend_on_argument_order():
     forward = canonical_request_digest(
-        hotkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        signer_coldkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
         task_id="fixture",
         task_bundle_sha256=PREFIXED,
         proof_sha256="sha256:" + "cd" * 32,
@@ -123,7 +123,7 @@ def test_request_digest_does_not_depend_on_argument_order():
         proof_sha256="sha256:" + "cd" * 32,
         task_bundle_sha256=PREFIXED,
         task_id="fixture",
-        hotkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        signer_coldkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
     )
     assert forward == backward
 

@@ -32,6 +32,11 @@ vendor/
 !deploy/migrate/sql/*.sql
 !scripts/*.sql
 deploy/axiom
+# scripts/make_pr_accounts.py writes contributor mnemonics and live CLI tokens here, one
+# batch per directory. The `!scripts/*.sql` negation above reaches only direct children of
+# scripts/, so the generated SQL is already ignored -- the handouts beside it are not, and
+# they are the only copy of keys that must never be committed.
+scripts/generated/
 
 .claude/*
 AGENTS.md

@@ -4,7 +4,7 @@ The strictest disclosure surface in the API. Three rules, each enforced structur
 by remembering to omit a field:
 
 * **Solver credit, but no money trail.** `conjectures_subnet.db.public.ResultRow` carries the
-  submitting `hotkey` and optional signed public credit. It still has no coldkey, payment reference
+  solver identity and optional signed public credit. It still has no payment reference
   or extrinsic, so this module cannot publish those — it was never handed them.
 * **Proof bytes only after approval.** `Main.lean` is served by `/{id}/solution`, and only once
   review has approved the submission. An in-review result carries no artifact: the proof has
@@ -191,7 +191,8 @@ def _result(
     )
     return public.PublicResult(
         id=row.id,
-        hotkey=row.hotkey,
+        solver_display_name=row.solver_display_name,
+        solver_coldkey=row.solver_coldkey,
         public_credit=None if credit is None else credit.to_dict(),
         # Serialised as the enum's value, matching `/v1/submissions/{id}` and the account panel,
         # so a client reads one vocabulary of state names across the whole API.
@@ -239,7 +240,8 @@ def _in_review(
     )
     return public.InReviewResult(
         id=row.id,
-        hotkey=row.hotkey,
+        solver_display_name=row.solver_display_name,
+        solver_coldkey=row.solver_coldkey,
         public_credit=None if credit is None else credit.to_dict(),
         slug=slug_of(row),
         task_id=row.task_id,
@@ -489,7 +491,8 @@ async def read_solution(
     _cache(response, services.settings)
     return public.PublicSolution(
         id=row.id,
-        hotkey=row.hotkey,
+        solver_display_name=row.solver_display_name,
+        solver_coldkey=row.solver_coldkey,
         public_credit=None if credit is None else credit.to_dict(),
         slug=slug_of(row),
         # The name the bytes carry inside the verified bundle, from the module that enforces it,

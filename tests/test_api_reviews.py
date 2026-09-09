@@ -39,7 +39,7 @@ import json
 from decimal import Decimal
 
 from conftest_api import (
-    HOTKEY,
+    MINER_COLDKEY,
     TASK_ID,
     distinct_bundle,
     harness,
@@ -175,14 +175,14 @@ async def _reviewer(kit, http) -> dict:
 
 
 async def _submit(kit, marker: str) -> str:
-    bundle, digest = distinct_bundle(marker, hotkey=HOTKEY)
+    bundle, digest = distinct_bundle(marker, coldkey=MINER_COLDKEY)
     async with await _client(kit) as http:
         response = await http.post(
             "/v1/submissions",
             content=bundle,
             headers=submission_headers(
                 bundle,
-                hotkey=HOTKEY,
+                coldkey=MINER_COLDKEY,
                 idempotency_key=new_key(),
                 payment_reference=f"0xpay-{marker}",
                 proof_digest=digest,
@@ -399,7 +399,7 @@ def test_a_submission_with_no_assessment_is_still_on_the_queue():
                 # reviewer is being asked whether the proof settles *this*.
                 assert item["display_title"]
                 assert item["statement"]
-                assert item["hotkey"] == HOTKEY
+                assert item["solver_coldkey"] == MINER_COLDKEY
                 assert item["task_bundle_sha256"].startswith("sha256:")
         finally:
             await kit.teardown()

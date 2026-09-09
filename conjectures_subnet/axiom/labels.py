@@ -41,7 +41,7 @@ class Severity(StrEnum):
 # Which area of the system the event came from. The API is split per router rather than reported
 # as one "api", because the routers have genuinely different audiences and failure modes: the
 # public catalog is read by a browser, `/v1/submissions` is written by miner tooling with a
-# hotkey signature, and `/v1/me` is a signed-in account surface. One label for all three would
+# coldkey signature, and `/v1/me` is a signed-in account surface. One label for all three would
 # make every dashboard start with a path filter.
 Source: TypeAlias = Literal[
     # --- submission API ---------------------------------------------------------------------
@@ -120,6 +120,19 @@ EventType: TypeAlias = Literal[
     "login_completed",
     "logout",
     "wallet_linked",
+    # V035. Which of an account's proved coldkeys it submits and spends credits under, and
+    # where its rewards are sent. Two types rather than one because the two are guarded
+    # differently and asked about differently.
+    #
+    # `submission_coldkey_set` changes what the account's work is attributed to. It also
+    # revokes every bearer token scoped to the key being replaced, so a token dying
+    # unexpectedly is answerable from this event plus the `session_revoked` beside it.
+    "submission_coldkey_set",
+    # `payout_coldkey_set` is the field a session compromise would target — it needs no proof
+    # of control over the address it names, deliberately — so the event carries the previous
+    # address as well as the new one. Where the money used to go has to be recoverable from
+    # the audit stream and not only from the row that was overwritten.
+    "payout_coldkey_set",
     # An external sign-in provider was attached to an existing account. Separate from
     # `login_completed` because it changes *how many ways in* an account has rather than
     # exercising one, which is the shape of a takeover step and so worth its own type.
@@ -137,6 +150,12 @@ EventType: TypeAlias = Literal[
     # act someone asks about when a payout is questioned. `routers/reviews.py` explains why the
     # published explanation is deliberately not carried on the event.
     "review_decision_recorded",
+    # A reviewer overriding an earlier binding decision. Separate from the type above rather than
+    # a field on it, because the two are asked about separately: "who decided this" and "who
+    # changed somebody else's decision" are different questions, and the second is the one an
+    # audit starts from. Carries `supersedes_id`, so the event says what was overridden without
+    # replaying `review_decisions`.
+    "review_decision_corrected",
     # --- verification worker ----------------------------------------------------------------
     "submission_claimed",
     "verdict_recorded",

@@ -38,7 +38,14 @@ from verifier.task_generator import MAX_SUBMISSION_BYTES
 
 
 BUNDLE_FORMAT = "conjectures-submission/v1"
-BUNDLE_SCHEMA_VERSION = 1
+# 2 as of V035, which renamed `miner_hotkey` to `miner_coldkey`. Bumped rather than accepting
+# both spellings, and the version is compared for equality: a bundle built by older tooling
+# fails with "schema_version must be 2" instead of "miner_coldkey is missing", which names the
+# fix (rebuild with current tooling) rather than describing a symptom.
+#
+# `BUNDLE_FORMAT` deliberately stays at v1. It identifies the container -- one zip, one
+# manifest, one Main.lean -- and that has not changed; only a field inside the manifest has.
+BUNDLE_SCHEMA_VERSION = 2
 BUNDLE_MEDIA_TYPE = "application/zip"
 
 MANIFEST_NAME = "submission.json"
@@ -81,16 +88,16 @@ MANIFEST_FIELDS = frozenset(
         "proof_path",
         "proof_sha256",
         "proof_bytes",
-        "miner_hotkey",
+        "miner_coldkey",
         "solver",
     }
 )
-# `miner_hotkey` is optional as of the session-authorised intake path: an account opened with an
-# email address holds no Bittensor key at all, so there is no address it could honestly put here.
-# It stays *validated* when present and stays required by the two key-signed paths, which pass an
-# `expected_hotkey` -- see `admit_proof_bundle`. Optional in the format, mandatory in the paths
-# that have one, which is the only combination that does not weaken an existing route.
-REQUIRED_MANIFEST_FIELDS = MANIFEST_FIELDS - {"solver", "miner_hotkey"}
+# `miner_coldkey` is optional as of the session-authorised intake path: an account opened with
+# an email address holds no Bittensor key at all, so there is no address it could honestly put
+# here. It stays *validated* when present and stays required by the key-signed paths, which pass
+# an `expected_signer` -- see `admit_proof_bundle`. Optional in the format, mandatory in the
+# paths that have one, which is the only combination that does not weaken an existing route.
+REQUIRED_MANIFEST_FIELDS = MANIFEST_FIELDS - {"solver", "miner_coldkey"}
 SOLVER_FIELDS = frozenset({"name", "version"})
 
 TASK_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,254}$")
@@ -111,9 +118,8 @@ class BundleManifest:
     proof_sha256: str
     proof_bytes: int
     # None for a session-authorised submission, whose submitter holds no key. Never a
-    # placeholder: an address nobody controls would reach `ResultRow.hotkey`, which is published
-    # and credits a result to its solver.
-    miner_hotkey: str | None = None
+    # placeholder: an address nobody controls would be published as the solver of the result.
+    miner_coldkey: str | None = None
     solver_name: str | None = None
     solver_version: str | None = None
 
@@ -127,8 +133,8 @@ class BundleManifest:
             "proof_sha256": self.proof_sha256,
             "proof_bytes": self.proof_bytes,
         }
-        if self.miner_hotkey is not None:
-            result["miner_hotkey"] = self.miner_hotkey
+        if self.miner_coldkey is not None:
+            result["miner_coldkey"] = self.miner_coldkey
         if self.solver_name is not None:
             result["solver"] = {"name": self.solver_name, "version": self.solver_version}
         return result
@@ -446,13 +452,13 @@ def parse_manifest(raw: bytes) -> BundleManifest:
     proof_bytes = value["proof_bytes"]
     if type(proof_bytes) is not int or not 0 < proof_bytes <= MAX_SUBMISSION_BYTES:
         raise _manifest_invalid("proof_bytes must be a positive integer within the submission limit")
-    hotkey = value.get("miner_hotkey")
+    coldkey = value.get("miner_coldkey")
     # Absent is allowed; present and malformed is not. A null is rejected rather than treated as
     # absent, so "I have no key" and "my key serialised to nothing" cannot look the same.
-    if hotkey is not None and (
-        not isinstance(hotkey, str) or SS58_ADDRESS.fullmatch(hotkey) is None
+    if coldkey is not None and (
+        not isinstance(coldkey, str) or SS58_ADDRESS.fullmatch(coldkey) is None
     ):
-        raise _manifest_invalid("miner_hotkey is not a valid SS58 address")
+        raise _manifest_invalid("miner_coldkey is not a valid SS58 address")
     solver_name, solver_version = _solver(value.get("solver"))
     return BundleManifest(
         schema_version=value["schema_version"],
@@ -462,7 +468,7 @@ def parse_manifest(raw: bytes) -> BundleManifest:
         proof_path=value["proof_path"],
         proof_sha256=value["proof_sha256"],
         proof_bytes=proof_bytes,
-        miner_hotkey=hotkey,
+        miner_coldkey=coldkey,
         solver_name=solver_name,
         solver_version=solver_version,
     )
@@ -522,15 +528,15 @@ def admit_proof_bundle(
     *,
     task_manifest: TaskManifest,
     expected_task_sha256: str,
-    expected_hotkey: str | None,
+    expected_signer: str | None,
 ) -> ProofBundle:
     """Admit a bundle and bind it to one committed task, and to one miner where there is one.
 
     Runs the existing static Lean policy scanner as an admission-time fast-fail. Comparator
     and the Lean kernel remain the authoritative correctness checks.
 
-    **`expected_hotkey=None` is for the session-authorised path only, and it weakens nothing for
-    the paths that pass an address.** With a hotkey supplied the manifest must carry that exact
+    **`expected_signer=None` is for the session-authorised path only, and it weakens nothing for
+    the paths that pass an address.** With a signer supplied the manifest must carry that exact
     address, byte for byte as before; a bundle claiming a *different* miner is refused whether or
     not the caller has a key. What None removes is the requirement that the manifest name a miner
     at all, because a submitter who signed in with an email address has no honest value to put
@@ -538,8 +544,8 @@ def admit_proof_bundle(
     of the result.
 
     The caller decides which it is, and the caller is the one that authenticated: a route that
-    verified a hotkey signature passes that hotkey, and only the route whose authorisation *is*
-    the session passes None. Nothing about the bundle itself can select the weaker check.
+    verified a coldkey signature passes that coldkey, and only the route whose authorisation
+    *is* the session passes None. Nothing about the bundle itself can select the weaker check.
     """
     if not is_sha256(expected_task_sha256):
         raise VerifierError(
@@ -554,17 +560,19 @@ def admit_proof_bundle(
             ReasonCode.TASK_COMMITMENT_MISMATCH,
             "manifest task_bundle_sha256 does not match the committed task digest",
         )
-    if expected_hotkey is None:
+    if expected_signer is None:
         # The session-authorised path. A manifest naming a miner here is refused rather than
         # ignored: nothing authenticated that address, so admitting it would publish an
         # unverified claim of authorship on a result page.
-        if bundle.manifest.miner_hotkey is not None:
+        if bundle.manifest.miner_coldkey is not None:
             raise _manifest_invalid(
-                "manifest names a miner_hotkey, but this submission is authorised by a session "
+                "manifest names a miner_coldkey, but this submission is authorised by a session "
                 "and nothing has proved control of that address"
             )
-    elif bundle.manifest.miner_hotkey != expected_hotkey:
-        raise _manifest_invalid("manifest miner_hotkey does not match the authenticated hotkey")
+    elif bundle.manifest.miner_coldkey != expected_signer:
+        raise _manifest_invalid(
+            "manifest miner_coldkey does not match the authenticated coldkey"
+        )
     static = check_submission(bundle.proof.text, task_manifest)
     if not static.valid:
         raise VerifierError(

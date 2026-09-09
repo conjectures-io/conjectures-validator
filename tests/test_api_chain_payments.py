@@ -29,7 +29,7 @@ pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
 from conftest_api import (
     COLDKEY,
-    HOTKEY,
+    MINER_COLDKEY,
     distinct_bundle,
     harness,
     new_key,
@@ -74,7 +74,6 @@ class FakeSource:
     """The chain surface `SubtensorTransferReader` reads, with one transfer in it."""
 
     transfers: tuple = ()
-    owners: dict | None = None
     head: int = BLOCK + 100
 
     async def finalized_head(self) -> int:
@@ -82,10 +81,6 @@ class FakeSource:
 
     async def transfers_in(self, *, block: int):
         return [item for item in self.transfers if item.block == block]
-
-    async def coldkey_of(self, *, hotkey: str):
-        owners = {HOTKEY: COLDKEY} if self.owners is None else self.owners
-        return owners.get(hotkey)
 
     async def block(self, number):  # pragma: no cover - unused on this path
         raise AssertionError
@@ -97,19 +92,24 @@ class FakeSource:
         raise AssertionError
 
 
-def paid_transfer(*, amount: int = PRICE, to: str = TREASURY) -> IncomingTransfer:
+def paid_transfer(
+    *, amount: int = PRICE, to: str = TREASURY, sender: str = MINER_COLDKEY
+) -> IncomingTransfer:
     return IncomingTransfer(
         block=BLOCK,
         block_timestamp=WHEN,
         extrinsic_index=13,
         event_index=151,
-        sender=COLDKEY,
+        # The signer, because since V035 the paying coldkey must BE the signing coldkey.
+        # `submission_headers` signs as MINER_COLDKEY by default, so this is what makes the
+        # ordinary case pass rather than 402.
+        sender=sender,
         recipient=to,
         amount_rao=amount,
     )
 
 
-def chain_kit(*, transfers=None, owners=None, **overrides):
+def chain_kit(*, transfers=None, **overrides):
     """The API wired to the chain verifier over a fake reader.
 
     `payments` is injected rather than built from settings, because `build_payment_verifier`
@@ -117,7 +117,6 @@ def chain_kit(*, transfers=None, owners=None, **overrides):
     """
     source = FakeSource(
         transfers=tuple(transfers if transfers is not None else (paid_transfer(),)),
-        owners=owners,
     )
     verifier = ChainPaymentVerifier(
         recipient=TREASURY,
@@ -178,7 +177,9 @@ def test_a_chain_confirmed_payment_admits_a_submission():
             rows = await _submissions(kit)
             assert len(rows) == 1
             assert rows[0].payment_reference == REFERENCE
-            assert rows[0].payment_sender == COLDKEY
+            # Payer and signer are one key, which is what V035 made the entitlement check.
+            assert rows[0].payment_sender == MINER_COLDKEY
+            assert rows[0].signer_coldkey == MINER_COLDKEY
             assert rows[0].payment_amount_rao == PRICE
             assert rows[0].payment_block == BLOCK
         finally:
@@ -373,11 +374,17 @@ def test_an_underpayment_is_refused():
     run(scenario())
 
 
-def test_a_payer_who_does_not_own_the_submitting_hotkey_is_refused():
-    """Otherwise a miner could cite a transfer somebody else made."""
+def test_a_transfer_sent_by_another_coldkey_is_refused():
+    """Otherwise a miner could cite a transfer somebody else made.
+
+    This used to need a chain read — the hotkey signed, and `SubtensorModule.Owner` was asked
+    whether the payer owned it. V035 made it the equality `transfer.sender == signer_coldkey`,
+    so the fake source no longer has an ownership table at all: the transfer simply comes from
+    a coldkey that is not the one signing.
+    """
 
     async def scenario():
-        kit = await chain_kit(owners={}).setup()
+        kit = await chain_kit(transfers=(paid_transfer(sender=COLDKEY),)).setup()
         try:
             response = await _post(kit, valid_bundle(), payment_reference=REFERENCE)
 
@@ -422,7 +429,7 @@ def test_an_ambiguous_reference_says_which_events_to_choose_between():
                 block_timestamp=WHEN,
                 extrinsic_index=13,
                 event_index=160,
-                sender=COLDKEY,
+                sender=MINER_COLDKEY,
                 recipient=TREASURY,
                 amount_rao=PRICE,
             ),

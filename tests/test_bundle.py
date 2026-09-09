@@ -26,7 +26,7 @@ from verifier.hashing import sha256_bytes
 
 STORED = 0
 DEFLATED = 8
-HOTKEY = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+MINER_COLDKEY = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
 TASK_DIGEST = "sha256:" + "ab" * 32
 VALID_PROOF = b"theorem target : type_of% VerifierFixtures.direct := by\n  trivial\n"
 
@@ -169,7 +169,7 @@ def manifest_json(**overrides: object) -> bytes:
         "proof_path": PROOF_NAME,
         "proof_sha256": sha256_bytes(VALID_PROOF),
         "proof_bytes": len(VALID_PROOF),
-        "miner_hotkey": HOTKEY,
+        "miner_coldkey": MINER_COLDKEY,
     }
     for key, item in overrides.items():
         if item is None:
@@ -219,7 +219,7 @@ def test_maximum_stored_proof_fits_bundle_and_honors_task_limit():
         raw,
         task_manifest=replace(task_manifest(), max_submission_bytes=limit),
         expected_task_sha256=TASK_DIGEST,
-        expected_hotkey=HOTKEY,
+        expected_signer=MINER_COLDKEY,
     ).proof.raw == proof
     with pytest.raises(VerifierError) as caught:
         load_proof_bundle(raw, max_proof_bytes=1_000_000)
@@ -244,7 +244,7 @@ def test_valid_bundle_is_admitted():
     assert result.proof.raw == VALID_PROOF
     assert result.proof.sha256 == sha256_bytes(VALID_PROOF)
     assert result.manifest.task_id == "fixture"
-    assert result.manifest.miner_hotkey == HOTKEY
+    assert result.manifest.miner_coldkey == MINER_COLDKEY
     assert result.manifest.solver_name is None
 
 
@@ -325,8 +325,8 @@ def test_the_reference_builder_produces_an_admitted_bundle(tmp_path):
                 "fixture",
                 "--task-sha256",
                 TASK_DIGEST,
-                "--hotkey",
-                HOTKEY,
+                "--coldkey",
+                MINER_COLDKEY,
                 "--solver-name",
                 "reference",
                 "--solver-version",
@@ -365,7 +365,7 @@ def test_reference_builder_ten_mib_boundary(tmp_path, extra_byte):
     proof.write_bytes(content)
     arguments = [
         "--proof", str(proof), "--task-id", "fixture", "--task-sha256", TASK_DIGEST,
-        "--hotkey", HOTKEY, "--output", str(output),
+        "--coldkey", MINER_COLDKEY, "--output", str(output),
     ]
     if extra_byte:
         with pytest.raises(SystemExit, match="the maximum is 10485760"):
@@ -397,7 +397,7 @@ def test_the_reference_builder_refuses_to_overwrite(tmp_path):
                 "--proof", str(proof),
                 "--task-id", "fixture",
                 "--task-sha256", TASK_DIGEST,
-                "--hotkey", HOTKEY,
+                "--coldkey", MINER_COLDKEY,
                 "--output", str(output),
             ]
         )
@@ -710,24 +710,24 @@ def test_manifest_missing_field_is_rejected(missing):
     )
 
 
-def test_a_manifest_without_a_miner_hotkey_parses():
+def test_a_manifest_without_a_miner_coldkey_parses():
     """Optional since the session-authorised path: an email account holds no Bittensor key.
 
-    `miner_hotkey` is deliberately not in this list any more. Parsing it is where the field
+    `miner_coldkey` is deliberately not in this list any more. Parsing it is where the field
     became optional; *binding* it is `admit_proof_bundle`'s job, and that is where the two
     key-signed paths still require it — see the admission tests below.
     """
-    bundle = load_proof_bundle(valid_bundle(manifest=manifest_json(miner_hotkey=None)))
-    assert bundle.manifest.miner_hotkey is None
+    bundle = load_proof_bundle(valid_bundle(manifest=manifest_json(miner_coldkey=None)))
+    assert bundle.manifest.miner_coldkey is None
     # And it is omitted on the way back out rather than serialised as null, so a round trip
     # does not invent a field the submitter never wrote.
-    assert "miner_hotkey" not in bundle.manifest.to_dict()
+    assert "miner_coldkey" not in bundle.manifest.to_dict()
 
 
-def test_a_present_miner_hotkey_is_still_shape_checked():
+def test_a_present_miner_coldkey_is_still_shape_checked():
     """Absent is allowed; present and malformed is not, and null is not the same as absent."""
     for bad in ("not-an-ss58", "", "1" * 47):
-        assert rejection(valid_bundle(manifest=manifest_json(miner_hotkey=bad))) is (
+        assert rejection(valid_bundle(manifest=manifest_json(miner_coldkey=bad))) is (
             ReasonCode.BUNDLE_MANIFEST_INVALID
         )
 
@@ -735,7 +735,12 @@ def test_a_present_miner_hotkey_is_still_shape_checked():
 @pytest.mark.parametrize(
     "override",
     [
-        {"schema_version": 2},
+        # 1 rather than 2: V035 bumped the accepted version, so the old one is what must now
+        # be refused. Kept as a rejection case deliberately — a bundle from pre-V035 tooling
+        # names `miner_coldkey`, and the version check is what turns that into one legible
+        # refusal instead of a missing-field error.
+        {"schema_version": 1},
+        {"schema_version": 3},
         {"schema_version": True},
         {"format": "conjectures-submission/v2"},
         {"task_id": "Fixture"},
@@ -748,8 +753,8 @@ def test_a_present_miner_hotkey_is_still_shape_checked():
         {"proof_bytes": -1},
         {"proof_bytes": 1.0},
         {"proof_bytes": bundle_module.MAX_SUBMISSION_BYTES + 1},
-        {"miner_hotkey": "not-an-address"},
-        {"miner_hotkey": "0OIl" * 12},
+        {"miner_coldkey": "not-an-address"},
+        {"miner_coldkey": "0OIl" * 12},
         {"solver": {"name": "x"}},
         {"solver": {"name": "x", "version": "y", "extra": "z"}},
         {"solver": {"name": "bad name", "version": "1"}},
@@ -790,13 +795,13 @@ def test_declared_proof_length_must_match_the_archived_proof():
 # --- task and identity binding ------------------------------------------------------
 
 
-def test_admit_binds_task_and_hotkey():
+def test_admit_binds_task_and_signer():
     fixture = task_manifest()
     result = admit_proof_bundle(
         valid_bundle(),
         task_manifest=fixture,
         expected_task_sha256=TASK_DIGEST,
-        expected_hotkey=HOTKEY,
+        expected_signer=MINER_COLDKEY,
     )
     assert result.manifest.task_id == fixture.task_id
 
@@ -807,7 +812,7 @@ def test_admit_rejects_a_mismatched_task_id():
             valid_bundle(manifest=manifest_json(task_id="other-task")),
             task_manifest=task_manifest(),
             expected_task_sha256=TASK_DIGEST,
-            expected_hotkey=HOTKEY,
+            expected_signer=MINER_COLDKEY,
         )
     assert caught.value.reason is ReasonCode.BUNDLE_MANIFEST_INVALID
 
@@ -818,16 +823,16 @@ def test_admit_rejects_a_mismatched_task_digest():
             valid_bundle(),
             task_manifest=task_manifest(),
             expected_task_sha256="sha256:" + "cd" * 32,
-            expected_hotkey=HOTKEY,
+            expected_signer=MINER_COLDKEY,
         )
     assert caught.value.reason is ReasonCode.TASK_COMMITMENT_MISMATCH
 
 
-def test_admit_without_an_expected_hotkey_refuses_a_manifest_that_names_one():
+def test_admit_without_an_expected_signer_refuses_a_manifest_that_names_one():
     """The session path admits no claim of authorship, it does not merely ignore one.
 
     Nothing authenticated an address on this path, so a manifest naming a miner would put an
-    unverified claim onto `ResultRow.hotkey`, which is published and credits a result to its
+    unverified claim onto the published solver identity, which credits a result to its
     solver. Refusing is what keeps "no key" from becoming "any key you like".
     """
     with pytest.raises(VerifierError) as caught:
@@ -835,47 +840,47 @@ def test_admit_without_an_expected_hotkey_refuses_a_manifest_that_names_one():
             valid_bundle(),
             task_manifest=task_manifest(),
             expected_task_sha256=TASK_DIGEST,
-            expected_hotkey=None,
+            expected_signer=None,
         )
     assert caught.value.reason is ReasonCode.BUNDLE_MANIFEST_INVALID
 
 
-def test_admit_without_an_expected_hotkey_accepts_a_manifest_without_one():
+def test_admit_without_an_expected_signer_accepts_a_manifest_without_one():
     fixture = task_manifest()
     result = admit_proof_bundle(
-        valid_bundle(manifest=manifest_json(miner_hotkey=None)),
+        valid_bundle(manifest=manifest_json(miner_coldkey=None)),
         task_manifest=fixture,
         expected_task_sha256=TASK_DIGEST,
-        expected_hotkey=None,
+        expected_signer=None,
     )
-    assert result.manifest.miner_hotkey is None
+    assert result.manifest.miner_coldkey is None
     assert result.manifest.task_id == fixture.task_id
 
 
 def test_a_key_signed_path_still_requires_the_manifest_to_name_its_miner():
     """Making the field optional must not have made it optional where a key was proved.
 
-    This is the regression that would matter: if `expected_hotkey` were compared against a
+    This is the regression that would matter: if `expected_signer` were compared against a
     missing value with `!=`, a bundle naming nobody would sail through the CLI and web paths and
     the binding between an authenticated miner and their proof would be gone.
     """
     with pytest.raises(VerifierError) as caught:
         admit_proof_bundle(
-            valid_bundle(manifest=manifest_json(miner_hotkey=None)),
+            valid_bundle(manifest=manifest_json(miner_coldkey=None)),
             task_manifest=task_manifest(),
             expected_task_sha256=TASK_DIGEST,
-            expected_hotkey=HOTKEY,
+            expected_signer=MINER_COLDKEY,
         )
     assert caught.value.reason is ReasonCode.BUNDLE_MANIFEST_INVALID
 
 
-def test_admit_rejects_a_mismatched_hotkey():
+def test_admit_rejects_a_mismatched_signer():
     with pytest.raises(VerifierError) as caught:
         admit_proof_bundle(
             valid_bundle(),
             task_manifest=task_manifest(),
             expected_task_sha256=TASK_DIGEST,
-            expected_hotkey="5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
+            expected_signer="5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
         )
     assert caught.value.reason is ReasonCode.BUNDLE_MANIFEST_INVALID
 
@@ -886,7 +891,7 @@ def test_admit_rejects_an_uncommitted_task_digest():
             valid_bundle(),
             task_manifest=task_manifest(),
             expected_task_sha256="not-a-digest",
-            expected_hotkey=HOTKEY,
+            expected_signer=MINER_COLDKEY,
         )
     assert caught.value.reason is ReasonCode.INVALID_ARGUMENT
 
@@ -902,7 +907,7 @@ def test_admit_runs_the_static_lean_policy_scanner():
             raw,
             task_manifest=task_manifest(),
             expected_task_sha256=TASK_DIGEST,
-            expected_hotkey=HOTKEY,
+            expected_signer=MINER_COLDKEY,
         )
     assert caught.value.reason is ReasonCode.SUBMISSION_POLICY_VIOLATION
     assert "import is prohibited" in str(caught.value)
@@ -921,7 +926,7 @@ def test_admit_honours_the_task_submission_byte_limit():
             raw,
             task_manifest=fixture,
             expected_task_sha256=TASK_DIGEST,
-            expected_hotkey=HOTKEY,
+            expected_signer=MINER_COLDKEY,
         )
     assert caught.value.reason is ReasonCode.BUNDLE_TOO_LARGE
 

@@ -19,15 +19,21 @@ which is the only trace a miner who paid and was turned away would otherwise lea
 ## Endpoints
 
 One process serves several audiences on one port. The miner-facing surface authenticates with a
-hotkey signature; the public surface authenticates nothing and is read by a browser; the account and
+coldkey signature; the public surface authenticates nothing and is read by a browser; the account and
 reviewer surfaces authenticate with a session cookie, and the reviewer surface additionally requires
 a role.
 
-Intake itself has three doors and two funding sources: one finalized transfer with a hotkey
-signature, or one credit with either a hotkey signature (the three-call intent flow) or a linked
-coldkey's signature (`POST /v1/submissions/web`, for a browser wallet that holds no hotkey — there
-the hotkey is declared rather than proved, because the reward is staked for the coldkey that
-signed). See
+Intake itself has four doors and two funding sources, and **every signature is made by a
+coldkey** — V035 retired the miner hotkey entirely. One finalized transfer with a coldkey
+signature over the request digest, or one credit authorised in one of three ways: a coldkey
+signature over the request digest (the three-call intent flow), a coldkey signature over a
+readable message (`POST /v1/submissions/web`, one call, for a browser wallet), or the browser
+session itself (`POST /v1/submissions/session`, no key at all).
+
+The website path used to take a second, *declared* key as well — a payout hotkey it never
+proved. That is gone: a payout now hands the destination coldkey ownership of alpha that never
+leaves the validator's own hotkey, so there is nothing to declare and no chain read to check it
+with. See
 [ACCOUNT_API.md](ACCOUNT_API.md#two-ways-to-fund-a-submission-three-ways-in).
 
 ### Miner-facing
@@ -36,9 +42,9 @@ signed). See
 | --- | --- | --- | --- |
 | `GET` | `/v1/tasks` | none | List submittable tasks, the price, and the payment address |
 | `GET` | `/v1/tasks/{task_id}` | none | One task's published commitment |
-| `POST` | `/v1/submissions` | hotkey signature | Idempotently create one paid submission |
-| `GET` | `/v1/submissions/{id}` | hotkey signature | Verification, review, and reward state |
-| `GET` | `/v1/submissions/{id}/report` | hotkey signature | The immutable verifier report |
+| `POST` | `/v1/submissions` | coldkey signature | Idempotently create one paid submission |
+| `GET` | `/v1/submissions/{id}` | coldkey signature | Verification, review, and reward state |
+| `GET` | `/v1/submissions/{id}/report` | coldkey signature | The immutable verifier report |
 
 Task discovery is unauthenticated because the task pool and its digests are public.
 
@@ -83,15 +89,16 @@ and it writes nothing.
 | `POST` | `/v1/auth/wallet/challenge`, `/v1/auth/wallet/verify` | Coldkey sign-in |
 | `POST` | `/v1/auth/google/callback`, `/v1/auth/google/link` | Google sign-in and explicit account linking |
 | `GET`/`PATCH` | `/v1/me` | Profile, roles, linked keys, payout |
-| `POST` | `/v1/me/hotkeys`, `/v1/me/hotkeys/challenge` | Link a hotkey by signature |
-| `PUT` | `/v1/me/payout` | Payout destination: coldkey plus hotkey |
+| `GET` | `/v1/me/coldkeys` | The designated submission coldkey and the payout destination |
+| `PUT` | `/v1/me/coldkeys/submission` | Designate which linked coldkey this account submits under |
+| `PUT` | `/v1/me/coldkeys/payout` | Where rewards are sent. One coldkey, and no proof of control required |
 | `GET` | `/v1/me/credits`, `/v1/me/credits/ledger` | Balance and the append-only ledger |
 | `POST`/`GET` | `/v1/me/deposits`, `/v1/me/deposits/{id}`, `/v1/me/deposits/claim` | Buy credits |
 | `GET` | `/v1/me/submissions[/{id}[/events|/report]]` | The miner panel |
 | `GET` | `/v1/me/rewards` | Payouts with explorer links |
 | `POST` | `/v1/submissions/preflight` | Free static check; no credit, no auth |
 | `POST`/`PUT` | `/v1/submissions/intents[/{id}/bundle|/confirm]` | Spend a credit and submit |
-| `POST` | `/v1/submissions/web` | Spend a credit and submit in one call, authorised by a linked **coldkey**. Browser sessions only, and no hotkey has to be linked — the hotkey is a declared payout target |
+| `POST` | `/v1/submissions/web` | Spend a credit and submit in one call, authorised by a linked **coldkey** over a readable message. Browser sessions only |
 
 ### Reviewer
 
@@ -151,7 +158,7 @@ POST /v1/submissions HTTP/1.1
 Content-Type: application/zip
 Content-Length: 606
 Idempotency-Key: ab0002f6-7a99-4352-b478-9da553dcdc1a
-X-Conjectures-Hotkey: 5Grw…
+X-Conjectures-Coldkey: 5Grw…
 X-Conjectures-Timestamp: 1753876543210
 X-Conjectures-Signature: 0x4a3f…
 X-Conjectures-Task-Id: fc-379fc029-erdos11-erdos-11-2bde7d8572-formalized-v1
@@ -168,7 +175,7 @@ X-Conjectures-Public-Credit: eyJuYW1lIjoiRW1teSBOb2V0aGVyIiwib3JjaWQiOiIwMDAwLTA
 | `Content-Type` | `application/zip`; parameters tolerated |
 | `Content-Length` | Required. Over the limit is refused before the body is read |
 | `Idempotency-Key` | A **UUID**, matching the column type |
-| `X-Conjectures-Hotkey` | The miner's SS58 address, exactly 48 characters |
+| `X-Conjectures-Coldkey` | The miner's coldkey SS58 address, exactly 48 characters. Must be the coldkey that sent `X-Conjectures-Payment-Ref` |
 | `X-Conjectures-Timestamp` | Milliseconds since the Unix epoch, within ±120 s of server time |
 | `X-Conjectures-Signature` | 64 bytes of hex, with or without a `0x` prefix |
 | `X-Conjectures-Task-Id` | An allowlisted task id |
@@ -182,7 +189,7 @@ X-Conjectures-Public-Credit: eyJuYW1lIjoiRW1teSBOb2V0aGVyIiwib3JjaWQiOiIwMDAwLTA
 ```json
 {
   "submission_id": "7ee1de44-3708-47ff-a383-9248cdf2b412",
-  "hotkey": "5Grw…",
+  "signer_coldkey": "5Grw…",
   "public_credit": {
     "name": "Emmy Noether",
     "url": "https://example.org/emmy-noether",
@@ -249,7 +256,7 @@ canonical JSON (sorted keys, no spaces, one trailing newline) of the six base fi
 when requested, a seventh `public_credit` object.
 
 ```json
-{"hotkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"8769916-13-151","proof_sha256":"sha256:09da51…","public_credit":{"name":"Emmy Noether","orcid":"0000-0002-1825-0097"},"task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
+{"signer_coldkey":"5Grw…","idempotency_key":"ab0002f6-…","payment_reference":"8769916-13-151","proof_sha256":"sha256:09da51…","public_credit":{"name":"Emmy Noether","orcid":"0000-0002-1825-0097"},"task_bundle_sha256":"sha256:31687f…","task_id":"fc-379fc029-…"}
 ```
 
 ```python
@@ -258,7 +265,7 @@ from conjectures_subnet.db.submissions import canonical_request_digest
 
 credit = public_credit("Emmy Noether", orcid="0000-0002-1825-0097")
 digest = canonical_request_digest(
-    hotkey=keypair.ss58_address,
+    signer_coldkey=keypair.ss58_address,
     task_id=TASK_ID,
     task_bundle_sha256=TASK_SHA256,
     proof_sha256=PROOF_SHA256,
@@ -273,11 +280,12 @@ credit_header = encode_public_credit_header(credit)
 [`../scripts/submit_proof.py`](../scripts/submit_proof.py) does this end to end and
 reimplements the digest with the standard library only, so a miner can copy it.
 
-That signature is stored on the submission row (`hotkey_signature`, 64 bytes), so the record
+That signature is stored on the submission row (`signer_signature`, 64 bytes, next to the
+`signer_coldkey` it proves), so the record
 itself carries the proof that this miner authorised this exact request.
 
 Status and report reads sign a different message —
-`sha256("conjectures-read-v1:<hotkey>:<submission_id>")` — so a read signature can never be
+`sha256("conjectures-read-v1:<coldkey>:<submission_id>")` — so a read signature can never be
 replayed as a submission.
 
 Three properties worth calling out:
@@ -287,13 +295,13 @@ Three properties worth calling out:
 - **Public credit is consensual and bound.** Its exact name, URL, and ORCID are inside the signed
   digest and snapshotted on the submission. Omitting the header omits name credit; an account's
   mutable display name is never substituted later.
-- **Replay cannot create a second submission.** `payment_reference` is unique, `(hotkey,
+- **Replay cannot create a second submission.** `payment_reference` is unique, `(signer_coldkey,
   idempotency_key)` is unique, and `proof_digest` is globally unique. A captured request has
   nothing left to consume.
 - **Retries still work.** An identical retry returns the original submission, and the body does
   not need re-uploading.
 
-The API performs no chain query for authentication. The hotkey is authenticated here; coldkey
+The API performs no chain query for authentication, and since V035 none downstream either. The signer is authenticated here; coldkey
 ownership is established by the payment verifier, which reads the chain anyway.
 
 ## Payment confirmation
@@ -304,7 +312,7 @@ the payment verifier must establish that:
 - the extrinsic is in a **finalized** block;
 - the recipient is the configured payment address;
 - the amount is exactly the configured price, in integer rao;
-- the sender coldkey **owns the submitting hotkey**; and
+- the sender coldkey **is the coldkey that signed the request** — a plain equality since V035, where it used to be a `SubtensorModule.Owner` read proving the payer owned the submitting hotkey; and
 - the reference is canonical, so the uniqueness constraint actually prevents reuse.
 
 Amounts are integers in rao, TAO's base unit; 0.5 TAO is `500000000`. No floating point appears
@@ -375,7 +383,7 @@ RFC 9457 `application/problem+json`, always carrying a stable `reason_code`:
 | Status | Cause |
 | --- | --- |
 | `400` | Malformed header, wrong content type, non-UUID idempotency key |
-| `401` | Bad signature, stale timestamp, unknown hotkey (`SIGNATURE_INVALID`) |
+| `401` | Bad signature, stale timestamp, malformed coldkey (`SIGNATURE_INVALID`) |
 | `402` | Payment not confirmed (`PAYMENT_NOT_FINALIZED`) |
 | `404` | Unknown task, unknown task digest, or another miner's submission |
 | `409` | `IDEMPOTENCY_CONFLICT`, `DUPLICATE_PROOF`, `DUPLICATE_PAYMENT`, or a report requested too early |
@@ -390,7 +398,7 @@ reason code in the verifier's `CONFIGURATION_REASONS` set means the validator is
 not that the miner did anything wrong, and is reported `503`.
 
 Every refusal is written to `api_rejection_log` with its reason code, HTTP status, the claimed
-hotkey, the payment reference, the source IP and the user agent. That table has no domains or
+claimed address, the payment reference, the source IP and the user agent. That table has no domains or
 foreign keys on purpose: every field is unvalidated client input, and a constraint would refuse
 the row precisely when the input is malformed, which is the case most worth logging.
 
@@ -411,10 +419,10 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `CONJECTURES_TASKS_ROOT` | `../conjectures-tasks` | Separate pinned task-repository checkout |
 | `TASK_ALLOWLIST_PATH` | `../conjectures-tasks/allowlist.json` | From the separately pinned task checkout |
 | `TASK_POOL_ROOT` | `../conjectures-tasks/pool` | Bundles live under `<root>/<tier>/<task_id>` |
-| `SUBMISSION_AUTHENTICATOR` | `hotkey-signature` in `PROD` | `development-static-key` refused in `PROD` |
+| `SUBMISSION_AUTHENTICATOR` | `coldkey-signature` in `PROD` | `development-static-key` refused in `PROD` |
 | `SUBMISSION_PAYMENT_VERIFIER` | `chain` in `PROD` | `development` refused in `PROD` |
 | `SUBMISSION_DISPATCHER` | `queue` | `in-process` refused in `PROD` |
-| `DEVELOPMENT_HOTKEYS` | — | Required by the development authenticator |
+| `DEVELOPMENT_COLDKEYS` | — | Required by the development authenticator |
 | `DEVELOPMENT_COLDKEY` | payment recipient | Sender the development payment verifier reports |
 | `DEVELOPMENT_PAYMENT_REFERENCES` | — | If set, the only references the development verifier accepts |
 | `NONCE_WINDOW_SECONDS` | `120` | |

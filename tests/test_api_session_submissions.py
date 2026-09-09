@@ -21,7 +21,7 @@ pytest.importorskip("fastapi", reason="submission API tests need the service ext
 pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra")
 
 from conftest_api import (  # noqa: E402
-    HOTKEY,
+    MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
     distinct_bundle,
@@ -86,7 +86,7 @@ def test_an_account_with_no_key_submits_and_the_row_names_none():
         try:
             async with await client(kit) as http:
                 await keyless_account(kit, http)
-                bundle, proof_digest = distinct_bundle("session-0001", hotkey=None)
+                bundle, proof_digest = distinct_bundle("session-0001", coldkey=None)
 
                 created = await http.post(
                     SESSION,
@@ -99,7 +99,7 @@ def test_an_account_with_no_key_submits_and_the_row_names_none():
 
                 # Null, not a placeholder. An address nobody controls would be published as the
                 # solver of this result.
-                assert submission["hotkey"] is None
+                assert submission["signer_coldkey"] is None
                 assert submission["proof_sha256"] == proof_digest
                 assert submission["verification_status"] == "UNVERIFIED"
                 assert submission["funding"]["source"] == "credit"
@@ -118,7 +118,7 @@ def test_the_submission_is_visible_to_its_owner_and_to_the_public_without_a_hotk
         try:
             async with await client(kit) as http:
                 await keyless_account(kit, http)
-                bundle, _ = distinct_bundle("session-visible", hotkey=None)
+                bundle, _ = distinct_bundle("session-visible", coldkey=None)
                 created = await http.post(
                     SESSION,
                     params=params(bundle_sha256=_digest(bundle)),
@@ -130,17 +130,19 @@ def test_the_submission_is_visible_to_its_owner_and_to_the_public_without_a_hotk
 
                 mine = await http.get("/v1/me/submissions")
                 assert mine.status_code == 200, mine.text
-                assert [item["hotkey"] for item in mine.json()["items"]] == [None]
+                assert [item["signer_coldkey"] for item in mine.json()["items"]] == [None]
 
                 detail = await http.get(f"/v1/me/submissions/{submission_id}")
                 assert detail.status_code == 200, detail.text
-                assert detail.json()["hotkey"] is None
+                assert detail.json()["signer_coldkey"] is None
 
             # And the public feed renders it rather than failing to serialise a null.
             async with await client(kit) as anon:
                 feed = await anon.get("/v1/results/submissions")
                 assert feed.status_code == 200, feed.text
-                assert any(item["hotkey"] is None for item in feed.json()["items"])
+                # `solver_coldkey`, not `signer_coldkey`: the public feed names a solver
+                # and the account panel names the key that signed. Both are null here.
+                assert any(item["solver_coldkey"] is None for item in feed.json()["items"])
         finally:
             await kit.teardown()
 
@@ -153,7 +155,7 @@ def test_credits_are_still_required():
         try:
             async with await client(kit) as http:
                 await keyless_account(kit, http, credits_=0)
-                bundle, _ = distinct_bundle("session-broke", hotkey=None)
+                bundle, _ = distinct_bundle("session-broke", coldkey=None)
                 refused = await http.post(
                     SESSION,
                     params=params(bundle_sha256=_digest(bundle)),
@@ -186,7 +188,7 @@ def test_a_bundle_naming_a_miner_is_refused_rather_than_ignored():
             async with await client(kit) as http:
                 await keyless_account(kit, http)
                 # A perfectly valid bundle, naming a real hotkey nobody here proved.
-                bundle, _ = distinct_bundle("session-claim", hotkey=HOTKEY)
+                bundle, _ = distinct_bundle("session-claim", coldkey=MINER_COLDKEY)
                 refused = await http.post(
                     SESSION,
                     params=params(bundle_sha256=_digest(bundle)),
@@ -217,7 +219,7 @@ def test_a_cli_token_cannot_use_this_path():
         kit = await harness().setup()
         try:
             _, token = await linked_account_with_cli_token(kit)
-            bundle, _ = distinct_bundle("session-cli", hotkey=None)
+            bundle, _ = distinct_bundle("session-cli", coldkey=None)
             async with await client(kit) as cli:
                 refused = await cli.post(
                     SESSION,
@@ -251,7 +253,7 @@ def test_a_replayed_key_answers_the_original_submission_without_charging_again()
         try:
             async with await client(kit) as http:
                 await keyless_account(kit, http, credits_=2)
-                bundle, _ = distinct_bundle("session-replay", hotkey=None)
+                bundle, _ = distinct_bundle("session-replay", coldkey=None)
                 query = params(bundle_sha256=_digest(bundle))
 
                 first = await http.post(
@@ -287,7 +289,7 @@ def test_two_accounts_may_choose_the_same_idempotency_key():
             for index in range(2):
                 async with await client(kit) as http:
                     await keyless_account(kit, http, email=f"user{index}@example.com")
-                    bundle, _ = distinct_bundle(f"session-shared-{index}", hotkey=None)
+                    bundle, _ = distinct_bundle(f"session-shared-{index}", coldkey=None)
                     created = await http.post(
                         SESSION,
                         params=params(
@@ -310,7 +312,8 @@ def test_a_keyless_submission_is_held_by_the_payout_queue_rather_than_misdirecte
     """The property that made accepting a keyless submission safe.
 
     `payout_notifier` resolves its destination through
-    `coalesce(Account.payout_hotkey, Submission.hotkey)` and filters on the result being
+    `coalesce(Account.payout_coldkey, Submission.signer_coldkey, Submission.payment_sender)`
+    and filters on the result being
     non-null. A keyless winner therefore resolves to nothing and is **skipped** — it is not paid
     to a stand-in, and it does not crash the queue. It simply waits.
     """
@@ -321,7 +324,7 @@ def test_a_keyless_submission_is_held_by_the_payout_queue_rather_than_misdirecte
         try:
             async with await client(kit) as http:
                 await keyless_account(kit, http)
-                bundle, _ = distinct_bundle("session-award", hotkey=None)
+                bundle, _ = distinct_bundle("session-award", coldkey=None)
                 created = await http.post(
                     SESSION,
                     params=params(bundle_sha256=_digest(bundle)),
@@ -339,7 +342,7 @@ def test_a_keyless_submission_is_held_by_the_payout_queue_rather_than_misdirecte
                 ).scalar_one()
                 # Nothing to pay to, and nothing pretending otherwise.
                 assert row.hotkey is None
-                assert row.hotkey_signature is None
+                assert row.signer_signature is None
                 assert row.signer_coldkey is None
                 # But it is a real, owned, credit-funded submission.
                 assert row.account_id is not None
@@ -350,11 +353,16 @@ def test_a_keyless_submission_is_held_by_the_payout_queue_rather_than_misdirecte
     run(scenario())
 
 
-def test_linking_a_payout_pair_is_what_makes_a_keyless_submission_payable():
+def test_setting_a_payout_coldkey_is_what_makes_a_keyless_submission_payable():
     """And the transition needs no migration and no new state: the coalesce simply resolves.
 
-    This is why "awarded, awaiting a payout target" did not have to be built. The submission sits
-    in the queue's blind spot until the account has somewhere to be paid, and then it does not.
+    This is why "awarded, awaiting a payout target" did not have to be built. The submission
+    sits in the queue's blind spot until the account has somewhere to be paid, and then it
+    does not.
+
+    One coldkey since V035, where this was a coldkey/hotkey pair. The destination expression
+    below mirrors `payout_notifier`'s, and there is no second coalesce over hotkey columns to
+    keep in step with it any more.
     """
     from sqlalchemy import func, select
 
@@ -365,7 +373,7 @@ def test_linking_a_payout_pair_is_what_makes_a_keyless_submission_payable():
         try:
             async with await client(kit) as http:
                 account = await keyless_account(kit, http)
-                bundle, _ = distinct_bundle("session-payable", hotkey=None)
+                bundle, _ = distinct_bundle("session-payable", coldkey=None)
                 created = await http.post(
                     SESSION,
                     params=params(bundle_sha256=_digest(bundle)),
@@ -375,7 +383,11 @@ def test_linking_a_payout_pair_is_what_makes_a_keyless_submission_payable():
                 assert created.status_code == 201, created.text
 
             account_id = uuid.UUID(account["id"])
-            destination = func.coalesce(Account.payout_hotkey, Submission.hotkey)
+            destination = func.coalesce(
+                Account.payout_coldkey,
+                Submission.signer_coldkey,
+                Submission.payment_sender,
+            )
 
             async with kit.session() as session:
                 before = (
@@ -388,11 +400,12 @@ def test_linking_a_payout_pair_is_what_makes_a_keyless_submission_payable():
                 ).scalar_one()
                 assert before is None  # skipped by the payout queue
 
-                # An operator or the owner sets a payout target later. `PUT /v1/me/payout`
-                # requires a linked hotkey, so this stands in for that having happened.
+                # An operator or the owner sets a payout destination later. Written
+                # directly here rather than through `PUT /v1/me/coldkeys/payout` so the test
+                # is about the queue's blind spot rather than about that endpoint — which
+                # needs no linked key and would work too.
                 owner = await session.get(Account, account_id)
-                owner.payout_coldkey = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
-                owner.payout_hotkey = HOTKEY
+                owner.payout_coldkey = MINER_COLDKEY
                 await session.commit()
 
             async with kit.session() as session:
@@ -404,7 +417,7 @@ def test_linking_a_payout_pair_is_what_makes_a_keyless_submission_payable():
                         .where(Submission.account_id == account_id)
                     )
                 ).scalar_one()
-                assert after == HOTKEY  # the next poll will pick it up
+                assert after == MINER_COLDKEY  # the next poll will pick it up
         finally:
             await kit.teardown()
 

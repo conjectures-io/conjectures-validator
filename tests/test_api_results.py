@@ -32,8 +32,8 @@ from decimal import Decimal
 
 from conftest_api import (
     COLDKEY,
-    HOTKEY,
-    OTHER_HOTKEY,
+    MINER_COLDKEY,
+    OTHER_MINER_COLDKEY,
     TASK_ID,
     distinct_bundle,
     harness,
@@ -111,15 +111,15 @@ async def _get(kit, path: str, **params):
         return await client.get(path, params=params or None)
 
 
-async def _submit(kit, marker: str, *, hotkey: str = HOTKEY, credit=None) -> str:
-    bundle, digest = distinct_bundle(marker, hotkey=hotkey)
+async def _submit(kit, marker: str, *, hotkey: str = MINER_COLDKEY, credit=None) -> str:
+    bundle, digest = distinct_bundle(marker, coldkey=hotkey)
     async with await _client(kit) as client:
         response = await client.post(
             "/v1/submissions",
             content=bundle,
             headers=submission_headers(
                 bundle,
-                hotkey=hotkey,
+                coldkey=hotkey,
                 idempotency_key=new_key(),
                 payment_reference=f"0xpay-{marker}",
                 proof_digest=digest,
@@ -263,7 +263,7 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             )
 
             # Credited to the submitting hotkey.
-            assert item["hotkey"] == HOTKEY
+            assert item["solver_coldkey"] == MINER_COLDKEY
             # But nothing that reaches the miner's money: no paying coldkey, no payment
             # reference, no extrinsic. That is the boundary the row type still enforces.
             assert COLDKEY not in response.text
@@ -356,7 +356,7 @@ def test_an_in_review_result_names_its_solver_but_carries_no_proof():
             # No proof file, and no digest of one: review has not approved it yet.
             assert not {"proof", "proof_sha256", "challenge_lean"} & set(item)
             # The solver is named even in review — being listed is what publishes the hotkey.
-            assert item["hotkey"] == HOTKEY
+            assert item["solver_coldkey"] == MINER_COLDKEY
             assert COLDKEY not in response.text
         finally:
             await kit.teardown()
@@ -528,7 +528,7 @@ def test_an_approved_unpaid_result_publishes_its_record_report_and_solution():
             # used to test an unpublished candidate for prior submission.
             assert body["proof_sha256"].startswith("sha256:")
             # Credited to the solver who submitted it, with no path to their money.
-            assert body["hotkey"] == HOTKEY
+            assert body["solver_coldkey"] == MINER_COLDKEY
             assert COLDKEY not in response.text
         finally:
             await kit.teardown()
@@ -551,7 +551,7 @@ def test_signed_public_credit_follows_a_result_from_review_to_the_solution():
 
             in_review = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
             assert in_review["public_credit"] == credit.to_dict()
-            assert in_review["hotkey"] == HOTKEY
+            assert in_review["solver_coldkey"] == MINER_COLDKEY
 
             await _certify(kit, submission_id)
             result = (await _get(kit, f"/v1/results/{submission_id}")).json()
@@ -745,7 +745,7 @@ def test_the_dashboard_feed_names_no_miner_and_carries_no_proof():
             # The same disclosure rules the per-result endpoints are held to. This feed reuses
             # `PublicResult`, so it cannot drift from them by construction — the assertion is
             # here because "reuses" is a decision a later change could quietly reverse.
-            assert item["hotkey"] == HOTKEY
+            assert item["solver_coldkey"] == MINER_COLDKEY
             assert COLDKEY not in response.text
             assert "0xpay-0024" not in response.text
             assert not {"coldkey", "payment_reference", "payment", "extrinsic"} & set(item)
@@ -1191,8 +1191,8 @@ def test_two_solvers_on_one_conjecture_are_each_credited_to_their_own_hotkey():
     async def scenario():
         kit = await harness().setup()
         try:
-            mine = await _submit(kit, "0009", hotkey=HOTKEY)
-            theirs = await _submit(kit, "0010", hotkey=OTHER_HOTKEY)
+            mine = await _submit(kit, "0009", hotkey=MINER_COLDKEY)
+            theirs = await _submit(kit, "0010", hotkey=OTHER_MINER_COLDKEY)
             await _verify(kit, mine)
             await _verify(kit, theirs)
 
@@ -1202,8 +1202,8 @@ def test_two_solvers_on_one_conjecture_are_each_credited_to_their_own_hotkey():
             # Each row credited to the hotkey that actually submitted it. The pairing is what
             # matters: the rows are decorated from two separate queries keyed by id, so a join
             # that lost its ordering would attribute a proof to the wrong solver.
-            assert items[mine]["hotkey"] == HOTKEY
-            assert items[theirs]["hotkey"] == OTHER_HOTKEY
+            assert items[mine]["solver_coldkey"] == MINER_COLDKEY
+            assert items[theirs]["solver_coldkey"] == OTHER_MINER_COLDKEY
         finally:
             await kit.teardown()
 

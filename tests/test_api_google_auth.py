@@ -257,14 +257,14 @@ def test_a_cli_token_can_neither_see_nor_attach_a_google_identity():
     """
 
     async def scenario():
-        from test_api_accounts import HOTKEY
-        from test_api_cli_sessions import bearer, cli_login, link_hotkey
+        from test_api_accounts import MINER_COLDKEY
+        from test_api_cli_sessions import bearer, cli_login, link_coldkey
 
         kit = await harness(google=google()).setup()
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_email(kit, browser, "miner@example.com")
-                await link_hotkey(kit, browser, HOTKEY)
+                await link_coldkey(kit, browser, MINER_COLDKEY)
                 attached = await browser.post(
                     "/v1/auth/google/link",
                     json={"credential": CREDENTIAL},
@@ -277,7 +277,7 @@ def test_a_cli_token_can_neither_see_nor_attach_a_google_identity():
                     item["provider"] for item in attached.json()["identities"]
                 }
 
-                token = (await cli_login(kit, cli, HOTKEY))["access_token"]
+                token = (await cli_login(kit, cli, MINER_COLDKEY))["access_token"]
                 seen = await cli.get("/v1/auth/session", headers=bearer(token))
                 assert seen.status_code == 200, seen.text
                 # Withheld: the Google account is the next door an attacker would try.

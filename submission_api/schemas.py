@@ -68,7 +68,7 @@ class VerificationStatus(Model):
 
 
 class PublicCredit(Model):
-    """Opt-in authorship signed by the submitting hotkey and published with a result."""
+    """Opt-in authorship signed by the submitting coldkey and published with a result."""
 
     name: str
     url: str | None = None
@@ -77,7 +77,13 @@ class PublicCredit(Model):
 
 class SubmissionStatus(Model):
     submission_id: uuid.UUID
-    hotkey: str
+    signer_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The coldkey that signed this submission. Null for a session-authorised one, "
+            "whose submitter holds no Bittensor key."
+        ),
+    )
     public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str

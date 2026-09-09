@@ -2,7 +2,7 @@
 
 Four ways in. Three are for a browser and end in an HttpOnly cookie: a Google identity, a magic
 link to an email address, and a signature from a coldkey. The fourth is for the miner CLI and ends
-in a bearer token: a signature from a hotkey that has already been linked to an account in the
+in a bearer token: a signature from a coldkey that has already been linked to an account in the
 browser. See `submission_api/sessions.py` for the two credentials and why only one of them has to
 prove where a write was initiated, `submission_api/origin_policy.py` for how it proves it, and
 `submission_api/login.py` for the signed messages.
@@ -125,7 +125,7 @@ class GoogleCredentialRequest(Payload):
 
 class CliChallengeRequest(Payload):
     address: str = Field(
-        min_length=48, max_length=48, description="The hotkey that will sign"
+        min_length=48, max_length=48, description="The coldkey that will sign"
     )
 
 
@@ -295,7 +295,7 @@ async def read_session(
     inspect a body to learn it is anonymous.
 
     **One request, whole shell.** Beyond the account this returns the identities that reach it,
-    the linked hotkeys, the payout destination, the credit balance, the badge counts and the
+    the linked coldkeys, the payout destination, the credit balance, the badge counts and the
     five capability flags — because a client that had to assemble those from `/v1/me`,
     `/v1/me/credits` and a submissions page would make four round trips on every page load and
     render a header that disagrees with itself while they land. `account` is unchanged and
@@ -322,7 +322,7 @@ async def read_session(
         principal.account,
         settings=services.settings,
         now=_now(),
-        bearer_scope=principal.hotkey_scope,
+        bearer_scope=principal.coldkey_scope,
     )
 
 
@@ -695,11 +695,11 @@ async def link_google(
     account.
 
     **`CookieWriterDep`, not `WriterDep`.** Attaching a provider adds a way *in* to the account,
-    which is the same class of change as linking a hotkey or repointing the payout, and it is
-    refused to a CLI token for the same reason: a bearer token is minted by a hotkey that
-    Bittensor stores unencrypted on disk, so allowing this would turn one stolen file into "link
-    my Google account, then sign in as them". This read as cookie-only before CLI sessions
-    existed; it has to say so now that they do.
+    which is the same class of change as linking a coldkey or repointing the payout, and it is
+    refused to a CLI token for the same reason: a bearer token is a long-lived file on a
+    mining machine, so allowing this would turn one stolen file into "link my Google account,
+    then sign in as them". This read as cookie-only before CLI sessions existed; it has to say
+    so now that they do.
     """
 
     identity = await services.google.verify(payload.credential)
@@ -792,7 +792,7 @@ async def wallet_challenge(
 
     The message is domain-separated with the `conjectures-login-v1` prefix and pins the
     address, the nonce and the expiry, so a signature over it cannot be replayed into the
-    hotkey-link flow, into another deployment, or for another address. It is stored verbatim
+    coldkey-link flow, into another deployment, or for another address. It is stored verbatim
     and verified verbatim.
     """
     _no_store(response)
@@ -906,18 +906,23 @@ async def verify_wallet(
 
 
 # --- CLI sign-in -------------------------------------------------------------------------
-# A hotkey exchanges a signature for a bearer token. Linking the hotkey to an account happens
-# first, in a browser, and is not reachable from here — that asymmetry is the design: this
-# endpoint can only ever hand out a credential for an account that a *coldkey or a mailbox*
-# already claimed the hotkey for. A hotkey alone can never create an account or attach itself
-# to one, so compromising a hotkey never produces a new identity, only a session on an identity
-# that already chose to include it.
+# A linked coldkey exchanges a signature for a bearer token. Linking that coldkey to an account
+# happens first, in a browser, and is not reachable from here — that asymmetry is the design:
+# this endpoint can only ever hand out a credential for an account that already claimed the
+# key. A key alone can never create an account or attach itself to one, so compromising one
+# never produces a new identity, only a session on an identity that chose to include it.
+#
+# Any linked coldkey may open a session; only the one designated as
+# `Account.submission_coldkey` can then submit, because `assert_coldkey_in_scope` binds a
+# token to the key that minted it. Login is deliberately not gated on the designation — a
+# miner should be able to authenticate and then read `GET /v1/me/coldkeys` to discover that
+# they still have to designate a key, rather than be refused with nothing to act on.
 
 
 @router.post(
     "/cli/challenge",
     response_model=account_schemas.WalletChallenge,
-    summary="A nonce and the exact message a hotkey must sign",
+    summary="A nonce and the exact message a coldkey must sign",
 )
 async def cli_challenge(
     payload: CliChallengeRequest,
@@ -925,19 +930,19 @@ async def cli_challenge(
     services: ServicesDep,
     session: SessionDep,
 ) -> account_schemas.WalletChallenge:
-    """Mint a single-use nonce for a hotkey.
+    """Mint a single-use nonce for a coldkey.
 
     Domain-separated with `conjectures-cli-session-v1`, which is not a prefix of and does not
-    contain any of the other four signed messages this validator asks for. That matters more
-    here than anywhere else: a hotkey signs routinely — every submission and every status read
-    is a signature — so this flow has to be one a harvested signature from those paths cannot
-    satisfy, and vice versa.
+    contain any of the other signed messages this validator asks for. That matters more here
+    than anywhere else: this is the one message that mints a durable credential, and a miner's
+    coldkey also signs every submission and every status read — so this flow has to be one a
+    harvested signature from those paths cannot satisfy, and vice versa.
 
-    **It does not say whether the hotkey is linked to anything.** A hotkey is public on chain,
-    so anyone can ask for a challenge for anyone's key; if the answer varied, this would be a
-    free oracle mapping hotkeys to accounts on this deployment. The linkage is checked at
-    verify, once a signature has proved the caller controls the key — at which point they are
-    entitled to know.
+    **It does not say whether the coldkey is linked to anything.** A coldkey that has ever
+    transacted is public on chain, so anyone can ask for a challenge for anyone's key; if the
+    answer varied, this would be a free oracle mapping addresses to accounts on this
+    deployment. The linkage is checked at verify, once a signature has proved the caller
+    controls the key — at which point they are entitled to know.
 
     Rate-limited per address, like the other two nonce flows, because minting is an action
     taken against a key someone else holds.
@@ -948,13 +953,13 @@ async def cli_challenge(
     now = _now()
     issued = await account_store.recent_challenge_count(
         session,
-        kind=LoginChallengeKind.HOTKEY_SESSION,
+        kind=LoginChallengeKind.COLDKEY_SESSION,
         since=now - dt.timedelta(hours=1),
         ss58=address,
     )
     if issued >= settings.challenges_per_hour:
         raise TooManyRequests(
-            "too many CLI sign-in challenges for that hotkey; try again later",
+            "too many CLI sign-in challenges for that coldkey; try again later",
             reason_code=REASON_TOO_MANY_CHALLENGES,
         )
 
@@ -968,7 +973,7 @@ async def cli_challenge(
     )
     await account_store.create_challenge(
         session,
-        kind=LoginChallengeKind.HOTKEY_SESSION,
+        kind=LoginChallengeKind.COLDKEY_SESSION,
         secret_digest=account_store.digest(nonce),
         expires_at=expires_at,
         ss58=address,
@@ -983,7 +988,7 @@ async def cli_challenge(
 @router.post(
     "/cli/verify",
     response_model=account_schemas.CliSession,
-    summary="Verify the hotkey signature and mint a bearer token",
+    summary="Verify the coldkey signature and mint a bearer token",
 )
 async def cli_verify(
     payload: CliVerifyRequest,
@@ -993,22 +998,22 @@ async def cli_verify(
     session: SessionDep,
     user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
 ) -> account_schemas.CliSession:
-    """Check the signature, find the account that linked this hotkey, and issue a token.
+    """Check the signature, find the account that linked this coldkey, and issue a token.
 
     **The order of the five steps is the security of this endpoint**, and each boundary was
     chosen against a specific failure:
 
     1. **Find the challenge by its own nonce.** Not "the latest open challenge for this
-       address", which is how the coldkey flow does it — that is a denial-of-service primitive
-       when the address is public, and hotkeys are published on chain. See
-       `accounts.open_challenge_by_nonce`.
+       address", which is how the browser sign-in flow does it — that is a denial-of-service
+       primitive when the address is public, and a coldkey that has transacted is public on
+       chain. See `accounts.open_challenge_by_nonce`.
     2. **Verify the signature over the stored message.** Before anything is consumed and before
        anything is disclosed. The message comes off the row, never rebuilt.
     3. **Count a failed attempt** if it did not verify, and refuse. The challenge survives a
        wrong signature — otherwise a bad request forces the user to start over — but not
        unboundedly many, or an open challenge would be free sr25519 work for an anonymous
        caller.
-    4. **Resolve the account, and refuse an unlinked hotkey — with the nonce still unspent.**
+    4. **Resolve the account, and refuse an unlinked coldkey — with the nonce still unspent.**
        This is the common first-run error, and burning the nonce on it would mean a fresh
        challenge, a fresh passphrase prompt and a fresh signature per attempt, for a condition
        the miner has to go and fix in a browser anyway.
@@ -1024,7 +1029,7 @@ async def cli_verify(
 
     challenge = await account_store.open_challenge_by_nonce(
         session,
-        kind=LoginChallengeKind.HOTKEY_SESSION,
+        kind=LoginChallengeKind.COLDKEY_SESSION,
         ss58=address,
         secret_digest=account_store.digest(payload.nonce),
         now=now,
@@ -1035,7 +1040,7 @@ async def cli_verify(
         # never-existed. A caller learns nothing about which, and the action is the same for
         # all of them: request a new challenge.
         raise Unauthorized(
-            "no open CLI sign-in challenge for that hotkey and nonce; request a new one",
+            "no open CLI sign-in challenge for that coldkey and nonce; request a new one",
             reason_code=login.REASON_CHALLENGE_INVALID,
         )
 
@@ -1051,19 +1056,22 @@ async def cli_verify(
         await session.commit()
         raise
 
-    account = await account_store.find_by_hotkey(session, address)
+    # Any linked wallet, not only the designated submission coldkey. See the section comment
+    # above: a token for a non-designated key can read but not submit, and the capability
+    # surface says so — which is more useful than refusing the login outright.
+    account = await account_store.find_by_coldkey(session, address)
     if account is None:
         # 403, not 401: the caller proved they control the key. What is missing is a *link*, and
-        # only the website can create one — a hotkey must not be able to claim an account for
-        # itself, or a stolen hotkey would be a way in rather than merely a way to work.
+        # only the website can create one — a key must not be able to claim an account for
+        # itself, or a stolen key would be a way in rather than merely a way to work.
         raise Forbidden(
-            "that hotkey is not linked to an account; link it with a coldkey first",
-            reason_code=login.REASON_HOTKEY_NOT_LINKED,
+            "that coldkey is not linked to an account; link it at the website first",
+            reason_code=login.REASON_COLDKEY_NOT_LINKED,
         )
 
     consumed = await account_store.consume_challenge(
         session,
-        kind=LoginChallengeKind.HOTKEY_SESSION,
+        kind=LoginChallengeKind.COLDKEY_SESSION,
         secret_digest=bytes(challenge.secret_sha256),
         now=now,
     )
@@ -1079,7 +1087,7 @@ async def cli_verify(
     issued = await sessions.issue_bearer(
         session,
         account,
-        hotkey=address,
+        coldkey=address,
         now=now,
         lifetime=dt.timedelta(days=settings.cli_session_days),
         user_agent=user_agent,
@@ -1088,24 +1096,23 @@ async def cli_verify(
     await session.commit()
 
     # The token is never a field on an event. Nor is the nonce. What is worth recording is that
-    # a CLI session was minted, for which account, and under which hotkey — the hotkey is
-    # already published alongside verified results, unlike an email address, so it is safe here
-    # and it is the one field that makes "a token appeared on a machine I do not recognise"
-    # answerable.
+    # a CLI session was minted, for which account, and under which coldkey — the address is
+    # public on chain once it has transacted, unlike an email address, so it is safe here and it
+    # is the one field that makes "a token appeared on a machine I do not recognise" answerable.
     get_axiom().info(
         source="api-auth",
         event_type="login_completed",
         account_id=str(account.id),
-        method="cli-hotkey-signature",
+        method="cli-coldkey-signature",
         session_kind=str(AccountSessionKind.BEARER),
-        hotkey=address,
+        coldkey=address,
         privileged=bool(set(account.roles or ()) - {MINER_ROLE}),
     )
     return account_schemas.CliSession(
         access_token=issued.token,
         token_type=sessions.BEARER_TOKEN_TYPE,
         expires_at=issued.row.expires_at,
-        hotkey_scope=address,
+        coldkey_scope=address,
         account=await account_response(session, account, bearer_scope=address),
     )
 
@@ -1117,7 +1124,7 @@ async def _evict_surplus_cli_sessions(
 
     Every `conjectures auth login` mints a token, and nothing about the flow requires the miner
     to ever log out — a rig is reimaged, a laptop is replaced, and the row stays live until it
-    expires. Left unbounded, a hotkey that can mint can accumulate durable credentials at
+    expires. Left unbounded, a key that can mint can accumulate durable credentials at
     `challenges_per_hour` forever, each needing its own revocation.
 
     The oldest live token is evicted rather than the newest refused. Refusing would let a stale
@@ -1144,7 +1151,7 @@ async def _evict_surplus_cli_sessions(
             account_id=str(account.id),
             session_kind=str(AccountSessionKind.BEARER),
             reason="cli_session_ceiling",
-            hotkey=oldest.hotkey_scope,
+            coldkey=oldest.coldkey_scope,
         )
 
 
