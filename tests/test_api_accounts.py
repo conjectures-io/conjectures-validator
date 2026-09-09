@@ -1998,6 +1998,54 @@ def test_intake_endpoints_refuse_while_submissions_are_paused():
 # --- Preflight and the public Stage 2 catalog --------------------------------------------
 
 
+@pytest.mark.parametrize(
+    ("manifest_coldkey", "header_coldkey", "expected_ok"),
+    [
+        (None, None, True),
+        (MINER_COLDKEY, MINER_COLDKEY, True),
+        (MINER_COLDKEY, None, False),
+        (None, MINER_COLDKEY, False),
+        (MINER_COLDKEY, OTHER_MINER_COLDKEY, False),
+    ],
+)
+def test_preflight_accepts_browser_bundles_and_preserves_explicit_key_binding(
+    manifest_coldkey, header_coldkey, expected_ok
+):
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                bundle, digest = distinct_bundle("browser-preflight", coldkey=manifest_coldkey)
+                headers = {
+                    "Content-Type": "application/zip",
+                    "X-Conjectures-Task-Id": TASK_ID,
+                    "X-Conjectures-Task-Sha256": TASK_DIGEST,
+                }
+                if header_coldkey is not None:
+                    headers["X-Conjectures-Coldkey"] = header_coldkey
+                response = await http.post(
+                    "/v1/submissions/preflight", content=bundle, headers=headers
+                )
+                assert response.status_code == 200, response.text
+                result = response.json()
+                assert result["ok"] is expected_ok, result
+                if expected_ok:
+                    assert result["proof_sha256"] == digest
+                else:
+                    assert result["reason_code"] == "BUNDLE_MANIFEST_INVALID"
+
+                # A browser upload must still pass the same ZIP and static admission policy.
+                bad = await http.post(
+                    "/v1/submissions/preflight", content=b"not a zip", headers=headers
+                )
+                assert bad.status_code == 200, bad.text
+                assert bad.json()["ok"] is False
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_preflight_is_free_unauthenticated_and_costs_no_credit():
     async def scenario():
         kit = await harness().setup()

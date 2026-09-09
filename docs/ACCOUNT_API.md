@@ -401,8 +401,9 @@ load-bearing:
 
 ### Path exemptions
 
-`POST /v1/submissions` and `/v1/submissions/preflight` carry no cookie and authenticate a coldkey
-signature instead, so there is no ambient credential to abuse. `POST /v1/auth/google/callback` is
+`POST /v1/submissions` authenticates a coldkey signature. `POST /v1/submissions/preflight` is
+unauthenticated and writes no state. Neither relies on ambient session credentials.
+`POST /v1/auth/google/callback` is
 exempt because it is a genuine cross-site POST from `accounts.google.com`; it performs Google's
 own `g_csrf_token` double-submit before reading the ID token, and `SameSite=Lax` means no session
 cookie rides along with it anyway. The TMC PAY webhook is exempt because its caller is a payment
@@ -866,6 +867,12 @@ POST /v1/submissions/intents                holds one credit
 PUT  /v1/submissions/intents/{id}/bundle    admits the bundle, returns the digest to sign
 POST /v1/submissions/intents/{id}/confirm   debits the credit, writes the submission
 ```
+
+Preflight takes the task ID and commitment in `X-Conjectures-Task-Id` and
+`X-Conjectures-Task-Sha256`, with the ZIP as an `application/zip` body. Browser-session uploads
+omit `X-Conjectures-Coldkey` and omit the miner identity from the bundle. If that header is
+supplied, admission requires the bundle to name the same key. Preflight never authenticates
+that key or authorises a submission; the paid intake paths perform their own checks.
 
 The intent creation body may include the same opt-in authorship used by the direct-payment path:
 
