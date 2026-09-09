@@ -26,10 +26,20 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from fractions import Fraction
+
+from conjectures_subnet.bounty_factors import parse_tier_factors
 
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+def _bounty_tier_factors(env: Mapping[str, str]) -> dict[str, Fraction]:
+    try:
+        return parse_tier_factors(env.get("BOUNTY_TIER_FACTORS", "{}"))
+    except ValueError as exc:
+        raise SettingsError(f"BOUNTY_TIER_FACTORS: {exc}") from exc
+
+
 DEFAULT_TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
 
 DEVELOPMENT_MODE = "DEV"
@@ -57,7 +67,7 @@ DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 # default 1/4 policy constant, an average-age task is displayed at one Alpha. Production never
 # uses this value: its balance is read from the configured Subnet 66 stake position.
 DEVELOPMENT_BOUNTY_BALANCE_RAO = 4 * RAO_PER_TAO
-DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v2-locked-capped"
+DEFAULT_BOUNTY_POLICY_VERSION = "dynamic-age-v3-tier-factors"
 DEFAULT_BOUNTY_CONSTANT_NUMERATOR = 1
 DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 4
 DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
@@ -668,6 +678,7 @@ class Settings:
     review_policy_version: str
     bounty_pool_balance_rao: int
     bounty_policy_version: str
+    bounty_tier_factors: Mapping[str, Fraction]
     bounty_constant_numerator: int
     bounty_constant_denominator: int
     bounty_age_period_seconds: int
@@ -1360,6 +1371,7 @@ class Settings:
             review_policy_version=review_policy_version,
             bounty_pool_balance_rao=bounty_pool_balance_rao,
             bounty_policy_version=bounty_policy_version,
+            bounty_tier_factors=_bounty_tier_factors(env),
             bounty_constant_numerator=_positive_int(
                 env,
                 "BOUNTY_CONSTANT_NUMERATOR",

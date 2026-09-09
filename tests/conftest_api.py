@@ -374,6 +374,8 @@ def harness(
             reward_target_ids=tuple(
                 sorted({entry.reward_target_id for entry in catalog.entries.values()})
             ),
+            target_tiers={entry.reward_target_id: entry.tier for entry in catalog.entries.values()},
+            tier_factors=settings.bounty_tier_factors,
             policy_version=settings.bounty_policy_version,
             constant_numerator=settings.bounty_constant_numerator,
             constant_denominator=settings.bounty_constant_denominator,

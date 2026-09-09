@@ -21,12 +21,15 @@ from conjectures_subnet.bounty import (
 
 def test_an_average_age_task_is_not_divided_by_the_number_of_tasks():
     for tasks in (1, 4, 74, 10_000):
-        assert calculate_bounty_rao(
-            balance_rao=4_000_000_000,
-            open_targets=tasks,
-            task_age_weight=7,
-            total_age_weight=7 * tasks,
-        ) == 1_000_000_000
+        assert (
+            calculate_bounty_rao(
+                balance_rao=4_000_000_000,
+                open_targets=tasks,
+                task_age_weight=7,
+                total_age_weight=7 * tasks,
+            )
+            == 1_000_000_000
+        )
 
 
 def test_bounties_follow_the_ratio_to_average_age_weight():
@@ -45,35 +48,47 @@ def test_bounties_follow_the_ratio_to_average_age_weight():
 
 
 def test_one_bounty_is_capped_at_33_percent_of_the_treasury():
-    assert calculate_bounty_rao(
-        balance_rao=4_000_000_000,
-        open_targets=3,
-        task_age_weight=3,
-        total_age_weight=6,
-    ) == 1_320_000_000
+    assert (
+        calculate_bounty_rao(
+            balance_rao=4_000_000_000,
+            open_targets=3,
+            task_age_weight=3,
+            total_age_weight=6,
+        )
+        == 1_320_000_000
+    )
 
 
 def test_age_weight_is_capped_at_60():
     opened_at = datetime(2026, 1, 1, tzinfo=UTC)
-    assert calculate_age_weight(
-        opened_at,
-        now=opened_at + timedelta(days=58),
-        period_seconds=86_400,
-    ) == 59
-    assert calculate_age_weight(
-        opened_at,
-        now=opened_at + timedelta(days=500),
-        period_seconds=86_400,
-    ) == 60
+    assert (
+        calculate_age_weight(
+            opened_at,
+            now=opened_at + timedelta(days=58),
+            period_seconds=86_400,
+        )
+        == 59
+    )
+    assert (
+        calculate_age_weight(
+            opened_at,
+            now=opened_at + timedelta(days=500),
+            period_seconds=86_400,
+        )
+        == 60
+    )
 
 
 def test_fractional_base_units_round_down():
-    assert calculate_bounty_rao(
-        balance_rao=11,
-        open_targets=3,
-        task_age_weight=2,
-        total_age_weight=7,
-    ) == 2
+    assert (
+        calculate_bounty_rao(
+            balance_rao=11,
+            open_targets=3,
+            task_age_weight=2,
+            total_age_weight=7,
+        )
+        == 2
+    )
 
 
 @pytest.mark.parametrize(
@@ -171,3 +186,63 @@ def test_chain_balance_is_read_at_a_finalized_block(monkeypatch):
         "netuid": 66,
         "block": 42,
     }
+
+
+@pytest.mark.parametrize("weight,total", [(1, 3), (3, 3), (60, 62)])
+def test_tier_discount_applies_after_cap_and_preserves_default(weight, total):
+    args = dict(balance_rao=10003, open_targets=3, task_age_weight=weight, total_age_weight=total)
+    base = calculate_bounty_rao(**args)
+    assert (
+        calculate_bounty_rao(**args, reward_factor_numerator=1, reward_factor_denominator=1) == base
+    )
+    assert (
+        calculate_bounty_rao(**args, reward_factor_numerator=1, reward_factor_denominator=4)
+        == base // 4
+    )
+
+
+@pytest.mark.parametrize("numerator,denominator", [(0, 1), (-1, 1), (1, 0), (2, 1)])
+def test_invalid_reward_factor(numerator, denominator):
+    with pytest.raises(ValueError, match="reward factor"):
+        calculate_bounty_rao(
+            balance_rao=100,
+            open_targets=1,
+            task_age_weight=1,
+            total_age_weight=1,
+            reward_factor_numerator=numerator,
+            reward_factor_denominator=denominator,
+        )
+
+
+def test_live_quote_records_tier_factor():
+    from fractions import Fraction
+    from unittest.mock import AsyncMock
+
+    from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
+
+    now = datetime(2026, 9, 9, tzinfo=UTC)
+    session = SimpleNamespace(
+        execute=AsyncMock(
+            side_effect=[
+                None,
+                SimpleNamespace(all=lambda: [("open", now), ("formal", now)]),
+                SimpleNamespace(all=lambda: []),
+                SimpleNamespace(all=lambda: []),
+            ]
+        )
+    )
+    pricer = DynamicBountyPricer(
+        balance_reader=StaticBalanceReader(4000),
+        balance_coldkey="cold",
+        balance_hotkey="hot",
+        balance_netuid=66,
+        reward_target_ids=("open", "formal"),
+        target_tiers={"open": "tier-1", "formal": "tier-2"},
+        tier_factors={"tier-2": Fraction(1, 4)},
+        clock=lambda: now,
+    )
+    quotes = asyncio.run(pricer.quote_many(session, reward_target_ids=("open", "formal"))).quotes
+    assert quotes["open"].amount_rao == 1000
+    assert quotes["formal"].amount_rao == 250
+    assert quotes["formal"].inputs["tier"] == "tier-2"
+    assert quotes["formal"].inputs["reward_factor_denominator"] == 4
