@@ -60,6 +60,8 @@ either the SPEND entry and the submission both exist, or neither does.
 
 from __future__ import annotations
 
+from verifier.task_policy import review_policy_for_track
+
 import datetime as dt
 import re
 import uuid
@@ -411,7 +413,7 @@ async def create_web_submission(
         task_mode=TaskMode(entry.mode),
         signer_signature=signature_bytes,
         manual_review_required=settings.manual_review_enabled,
-        review_policy_version=settings.review_policy_version,
+        review_policy_version=review_policy_for_track(entry.manifest.track, settings.review_policy_version),
         bounty_amount_rao=quote.amount_rao,
         bounty_policy_version=quote.policy_version,
         bounty_inputs=dict(quote.inputs) if quote.inputs else None,
@@ -616,7 +618,7 @@ async def create_session_submission(
         task_mode=TaskMode(entry.mode),
         signer_signature=None,
         manual_review_required=settings.manual_review_enabled,
-        review_policy_version=settings.review_policy_version,
+        review_policy_version=review_policy_for_track(entry.manifest.track, settings.review_policy_version),
         bounty_amount_rao=quote.amount_rao,
         bounty_policy_version=quote.policy_version,
         bounty_inputs=dict(quote.inputs) if quote.inputs else None,

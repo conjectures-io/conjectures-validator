@@ -470,3 +470,14 @@ def test_a_garbage_signature_is_rejected():
         ColdkeySignatureAuthenticator().verify(
             signed(hotkey=key.ss58_address, signature=b"\xff" * 64)
         )
+
+
+def test_bounty_tier_factor_settings():
+    from fractions import Fraction
+
+    assert Settings.from_env(base_env()).bounty_tier_factors == {}
+    env = {**base_env(), "BOUNTY_TIER_FACTORS": '{"tier-2":"0.25"}'}
+    assert Settings.from_env(env).bounty_tier_factors == {"tier-2": Fraction(1, 4)}
+    env["BOUNTY_TIER_FACTORS"] = '{"tier-2":"0"}'
+    with pytest.raises(SettingsError, match="BOUNTY_TIER_FACTORS"):
+        Settings.from_env(env)

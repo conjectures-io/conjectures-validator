@@ -36,6 +36,9 @@ uses, so a typo in a field name fails at construction rather than silently seria
 
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
+
 import uuid
 from datetime import datetime
 from typing import Any, Generic, TypeVar
@@ -230,6 +233,11 @@ class TitleParts(Model):
 
 
 class ConjectureTask(Model):
+    track: TaskTrack = "open_conjecture"
+    policy_version: int = 1
+    resolution_reference: dict[str, str] = Field(default_factory=dict)
+    submission_terms_url: str = "/v1/catalog/submission-terms?track=open_conjecture"
+
     """One task issued against a conjecture: one attack direction, at one pinned revision.
 
     A conjecture is issued as one task per mode — `formalized` to prove it, `counterexample` to
@@ -243,9 +251,7 @@ class ConjectureTask(Model):
     )
     task_mode: str = Field(description="formalized | counterexample")
     task_bundle_sha256: str
-    attempts: int = Field(
-        description="Paid verification attempts recorded against this task alone"
-    )
+    attempts: int = Field(description="Paid verification attempts recorded against this task alone")
 
 
 class ConjectureSummary(Model):
@@ -664,9 +670,7 @@ class PublicResult(Model):
         description="Opt-in public authorship signed with this submission",
     )
     verification_status: str = Field(
-        description=(
-            "Where Lean got to: UNVERIFIED (queued or running), VERIFIED, or REJECTED"
-        )
+        description=("Where Lean got to: UNVERIFIED (queued or running), VERIFIED, or REJECTED")
     )
     manual_review_status: str = Field(
         description=(

@@ -29,9 +29,12 @@ import asyncio
 import time
 import uuid
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
+from fractions import Fraction
+
+from conjectures_subnet.bounty_factors import resolve_target_tiers
 
 import bittensor as bt
 from sqlalchemy import exists, func, select
@@ -202,7 +205,9 @@ class DynamicBountyPricer:
     balance_hotkey: str
     balance_netuid: int
     reward_target_ids: tuple[str, ...]
-    policy_version: str = "dynamic-age-v2-locked-capped"
+    target_tiers: Mapping[str, str] = field(default_factory=dict)
+    tier_factors: Mapping[str, Fraction] = field(default_factory=dict)
+    policy_version: str = "dynamic-age-v3-tier-factors"
     constant_numerator: int = 1
     constant_denominator: int = 4
     age_period_seconds: int = 86_400
@@ -213,6 +218,15 @@ class DynamicBountyPricer:
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
 
     def __post_init__(self) -> None:
+        if self.target_tiers or self.tier_factors:
+            if set(self.target_tiers) != set(self.reward_target_ids):
+                raise ValueError("pricing tiers must cover every reward target exactly")
+            resolve_target_tiers(list(self.target_tiers.items()), self.tier_factors)
+            if any(
+                not isinstance(factor, Fraction) or not 0 < factor <= 1
+                for factor in self.tier_factors.values()
+            ):
+                raise ValueError("bounty tier factors must be exact fractions in (0, 1]")
         if not self.balance_coldkey or not self.balance_hotkey:
             raise ValueError("bounty balance coldkey and hotkey must not be empty")
         if self.balance_netuid <= 0:
@@ -243,9 +257,7 @@ class DynamicBountyPricer:
         reward_target_id: str,
         claimant_id: uuid.UUID | None = None,
     ) -> LiveBounty:
-        claimants = (
-            {reward_target_id: claimant_id} if claimant_id is not None else None
-        )
+        claimants = {reward_target_id: claimant_id} if claimant_id is not None else None
         snapshot = await self.quote_many(
             session,
             reward_target_ids=(reward_target_id,),
@@ -264,9 +276,7 @@ class DynamicBountyPricer:
         The lock lasts until the API commits or rolls back. Concurrent submissions therefore see
         the earlier lock in their committed exposure rather than both spending the same remainder.
         """
-        await session.execute(
-            select(func.pg_advisory_xact_lock(BOUNTY_RESERVATION_ADVISORY_LOCK))
-        )
+        await session.execute(select(func.pg_advisory_xact_lock(BOUNTY_RESERVATION_ADVISORY_LOCK)))
         return await self.quote(session, reward_target_id=reward_target_id)
 
     async def quote_many(
@@ -386,9 +396,7 @@ class DynamicBountyPricer:
                 "max_bounty_share_denominator": self.max_bounty_share_denominator,
                 "max_bounty_share_numerator": self.max_bounty_share_numerator,
                 "max_bounty_rao": (
-                    self.max_bounty_share_numerator
-                    * balance
-                    // self.max_bounty_share_denominator
+                    self.max_bounty_share_numerator * balance // self.max_bounty_share_denominator
                 ),
                 "open_targets": len(open_targets),
                 "total_age_weight": total_weight,
@@ -416,10 +424,14 @@ class DynamicBountyPricer:
                 continue
 
             weight = weights[target]
+            tier = self.target_tiers.get(target, "")
+            factor = self.tier_factors.get(tier, Fraction(1))
             amount = calculate_bounty_rao(
                 balance_rao=balance,
                 open_targets=len(open_targets),
                 task_age_weight=weight,
+                reward_factor_numerator=factor.numerator,
+                reward_factor_denominator=factor.denominator,
                 total_age_weight=total_weight,
                 constant_numerator=self.constant_numerator,
                 constant_denominator=self.constant_denominator,
@@ -442,6 +454,9 @@ class DynamicBountyPricer:
                 inputs={
                     **base_inputs,
                     "age_weight": weight,
+                    "tier": tier,
+                    "reward_factor_numerator": factor.numerator,
+                    "reward_factor_denominator": factor.denominator,
                     "opened_at": opened_at[target].isoformat(),
                 },
             )
@@ -473,10 +488,14 @@ def calculate_bounty_rao(
     total_age_weight: int,
     constant_numerator: int = 1,
     constant_denominator: int = 4,
+    reward_factor_numerator: int = 1,
+    reward_factor_denominator: int = 1,
     max_bounty_share_numerator: int = 33,
     max_bounty_share_denominator: int = 100,
 ) -> int:
     """Evaluate the weighted quote and treasury-share cap, rounding down to base units."""
+    if not 0 < reward_factor_numerator <= reward_factor_denominator:
+        raise ValueError("reward factor must be in (0, 1]")
     values = (
         balance_rao,
         open_targets,
@@ -494,10 +513,10 @@ def calculate_bounty_rao(
     numerator = constant_numerator * balance_rao * open_targets * task_age_weight
     denominator = constant_denominator * total_age_weight
     weighted_amount = numerator // denominator
-    maximum_amount = (
-        max_bounty_share_numerator * balance_rao // max_bounty_share_denominator
+    maximum_amount = max_bounty_share_numerator * balance_rao // max_bounty_share_denominator
+    return (
+        min(weighted_amount, maximum_amount) * reward_factor_numerator // reward_factor_denominator
     )
-    return min(weighted_amount, maximum_amount)
 
 
 def calculate_age_weight(

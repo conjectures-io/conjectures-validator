@@ -47,6 +47,9 @@ def _parser() -> argparse.ArgumentParser:
     task_generate.add_argument("--output", type=Path, required=True)
     task_generate.add_argument("--enable-nanoda", action="store_true")
     task_generate.add_argument("--allow-non-open", action="store_true")
+    task_generate.add_argument("--track", choices=("open_conjecture", "formalization"), default="open_conjecture")
+    task_generate.add_argument("--resolution-url")
+    task_generate.add_argument("--resolution-location")
 
     task_all = task_commands.add_parser("generate-all")
     task_all.add_argument("--catalog", type=Path, required=True)
@@ -120,6 +123,11 @@ def _run(args: argparse.Namespace) -> int:
             output=args.output.resolve(),
             enable_nanoda=args.enable_nanoda,
             allow_non_open=args.allow_non_open,
+            track=args.track,
+            resolution_reference=(
+                {"url": args.resolution_url, "location": args.resolution_location}
+                if args.resolution_url or args.resolution_location else None
+            ),
             validate_target=target_validator(
                 PROJECT_ROOT,
                 allow_non_open=args.allow_non_open,

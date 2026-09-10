@@ -22,6 +22,8 @@ trace a miner who paid and was turned away would otherwise leave.
 
 from __future__ import annotations
 
+from verifier.task_policy import review_policy_for_track
+
 import re
 import uuid
 from datetime import UTC, datetime
@@ -465,7 +467,7 @@ async def create_submission(
                 payment_block=payment.block,
                 signer_signature=normalise_signature(signature),
                 manual_review_required=settings.manual_review_enabled,
-                review_policy_version=settings.review_policy_version,
+                review_policy_version=review_policy_for_track(entry.manifest.track, settings.review_policy_version),
                 bounty_amount_rao=quote.amount_rao,
                 bounty_policy_version=quote.policy_version,
                 bounty_inputs=quote.inputs,

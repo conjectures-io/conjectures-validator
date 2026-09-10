@@ -22,10 +22,12 @@ from __future__ import annotations
 import datetime as dt
 import re
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from types import MappingProxyType
+
+from verifier.task_policy import track_policy, FORMALIZATION_REVIEW_POLICY
 
 # `credits:bonus`, comma-separated. A compact spec rather than a JSON config file,
 # because it is three numbers per package and a file would be one more thing to mount.
@@ -224,6 +226,39 @@ class SubmissionTerms:
     effective_from: dt.date
     approval_reasons: tuple[tuple[str, str], ...]
     disqualification_reasons: tuple[tuple[str, str], ...]
+
+    def for_track(self, track: str) -> SubmissionTerms:
+        rules = track_policy(track)
+        if not rules.published_proof_allowed:
+            return self
+        addendum = (
+            "# Formalization submission terms\n\n"
+            f"**Terms version:** `{self.version}.{FORMALIZATION_REVIEW_POLICY}`  \n"
+            f"**Manual review policy:** `{FORMALIZATION_REVIEW_POLICY}`\n\n"
+            "These terms apply to formalization-track tasks only. The base terms below apply "
+            "except where this addendum overrides them. References below to review policy v2 "
+            "are replaced by formalization-v1.\n\n"
+            "The task asks for a Lean proof of a known mathematical result. Implementing "
+            "the cited paper or another published mathematical proof is allowed. Prior "
+            "mathematical publication and correspondence with its argument cannot support "
+            "NOT_NOVEL. That code applies only to an exact result already available in the "
+            "pinned environment. The existing rules about prior external formalizations, "
+            "misattribution, statement fidelity, task defects, and soundness still apply.\n\n"
+            "Each formalization target has one proof task. Its track, policy version, and "
+            "resolution reference are committed by the task bundle digest. The review policy "
+            "and bounty quote recorded at acceptance govern the submission.\n\n"
+            "---\n\n"
+        )
+        return replace(
+            self, version=f"{self.version}.{FORMALIZATION_REVIEW_POLICY}",
+            effective_from=max(self.effective_from, dt.date(2026, 9, 8)),
+            body_md=addendum + self.body_md,
+            disqualification_reasons=tuple(
+                (code, "The exact result was already available in the pinned environment.")
+                if code == "NOT_NOVEL" else (code, description)
+                for code, description in self.disqualification_reasons
+            ),
+        )
 
     @classmethod
     def load(

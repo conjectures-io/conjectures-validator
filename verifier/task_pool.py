@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -13,6 +15,10 @@ from verifier.models import Catalog, CatalogDeclaration, TaskManifest
 from verifier.task_loader import TaskBundle
 from verifier.task_generator import problem_id
 from verifier.task_policy import (
+    OPEN_CONJECTURE,
+    TASK_POLICY_VERSION,
+    track_policy,
+    valid_resolution_reference,
     COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
     PRODUCTION_TASK_MODES,
@@ -48,6 +54,26 @@ SOURCE_FAMILY_PREFIXES = {
     ERDOS_SOURCE_FAMILY: ERDOS_SOURCE_PREFIX,
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: GREENS_OPEN_PROBLEMS_SOURCE_PREFIX,
 }
+ADDITIONAL_SOURCE_FAMILIES = {
+    "wikipedia": "Wikipedia",
+    "paper": "Paper",
+    "other": "Other",
+    "books": "Books",
+    "hilbert-problems": "HilbertProblems",
+    "mathoverflow": "Mathoverflow",
+    "open-quantum-problems": "OpenQuantumProblems",
+    "optimization-constants": "OptimizationConstants",
+    "millennium": "Millenium",
+    "litt-problems": "LittProblems",
+    "arxiv": "Arxiv",
+    "oeis": "OEIS",
+}
+SOURCE_FAMILY_PREFIXES.update(
+    {
+        family: f"FormalConjectures/{directory}/"
+        for family, directory in ADDITIONAL_SOURCE_FAMILIES.items()
+    }
+)
 SOURCE_FAMILY_THEOREM_PREFIXES = {
     ERDOS_SOURCE_FAMILY: "Erdos",
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: "Green",
@@ -122,10 +148,11 @@ class AuditedSelectionEntry:
     theorem: str
     source_path: str
     source_family: str
-    source_problem_number: int
+    source_problem_number: int | None
     source_status: str
     feasibility_signals: tuple[str, ...]
     open_prs_touching_source: tuple[int, ...]
+    resolution_reference: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -136,6 +163,9 @@ class SelectionAudit:
     github_open_pr_count: int
     entries: tuple[AuditedSelectionEntry, ...]
     sha256: str
+
+    track: TaskTrack = OPEN_CONJECTURE
+    policy_version: int = TASK_POLICY_VERSION
 
     @property
     def theorems(self) -> tuple[str, ...]:
@@ -160,7 +190,7 @@ class TaskTarget:
     theorem: str
     source_path: str
     source_family: str
-    source_problem_number: int
+    source_problem_number: int | None
     reward_target_id: str
 
 
@@ -190,14 +220,20 @@ def _is_commit(value: object) -> bool:
 
 
 def source_family_from_path(source_path: object) -> str | None:
-    """Return the audited family only for a canonical numbered source path."""
+    """Recognize canonical source paths; recognition alone does not admit a task."""
     if not isinstance(source_path, str):
         return None
     for family, prefix in SOURCE_FAMILY_PREFIXES.items():
         if not source_path.startswith(prefix) or not source_path.endswith(".lean"):
             continue
         problem_number = source_path.removeprefix(prefix).removesuffix(".lean")
-        if problem_number.isdecimal() and int(problem_number) > 0:
+        if family in ADDITIONAL_SOURCE_FAMILIES:
+            if all(
+                re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_-]*", part)
+                for part in problem_number.split("/")
+            ):
+                return family
+        elif problem_number.isdecimal() and int(problem_number) > 0:
             return family
     return None
 
@@ -208,6 +244,14 @@ def _valid_source_identity(
     source_path: object,
     theorem: object,
 ) -> bool:
+    if isinstance(family, str) and family in ADDITIONAL_SOURCE_FAMILIES:
+        return (
+            problem_number is None
+            and source_family_from_path(source_path) == family
+            and isinstance(theorem, str)
+            and bool(theorem.strip())
+            and not any(character.isspace() for character in theorem)
+        )
     if (
         not isinstance(family, str)
         or family not in SOURCE_FAMILY_PREFIXES
@@ -239,8 +283,7 @@ def _valid_source_status_sources(value: object) -> bool:
             if not _is_commit(revision):
                 return False
         elif not (
-            isinstance(revision, str)
-            and re.fullmatch(r"[0-9]{4}-[0-9]{2}", revision) is not None
+            isinstance(revision, str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}", revision) is not None
         ):
             return False
     return True
@@ -250,7 +293,17 @@ def load_selection_audit(path: Path) -> SelectionAudit:
     try:
         content = path.read_bytes()
         value = json.loads(content.decode("utf-8", errors="strict"))
-        if not isinstance(value, dict) or set(value) != {
+        if not isinstance(value, dict):
+            raise ValueError("selection audit must be an object")
+        track = value.get("track", OPEN_CONJECTURE)
+        policy_version = value.get("policy_version", TASK_POLICY_VERSION)
+        rules = track_policy(track, policy_version)
+        extension = (
+            {"track", "policy_version"} if "track" in value or "policy_version" in value else set()
+        )
+        if not extension <= set(value):
+            raise ValueError("selection audit track metadata is incomplete")
+        if set(value) - extension != {
             "audit_date_utc",
             "github_open_pr_count",
             "repository_commit",
@@ -270,10 +323,14 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             or not _is_commit(value["repository_commit"])
             or not _is_commit(value["source_main_commit"])
             or value["source_repository"] != "google-deepmind/formal-conjectures"
-            or not _valid_source_status_sources(value["source_status_sources"])
+            or not (
+                _valid_source_status_sources(value["source_status_sources"])
+                if track == OPEN_CONJECTURE
+                else value["source_status_sources"] == []
+            )
             or value["screening_statement"] != SCREENING_STATEMENT
             or type(value["github_open_pr_count"]) is not int
-            or value["github_open_pr_count"] <= 0
+            or value["github_open_pr_count"] < 0
             or not isinstance(audit_date_utc, str)
             or date.fromisoformat(audit_date_utc).isoformat() != audit_date_utc
             or not isinstance(selected, list)
@@ -289,10 +346,12 @@ def load_selection_audit(path: Path) -> SelectionAudit:
                 source_status=item["source_status"],
                 feasibility_signals=tuple(item["feasibility_signals"]),
                 open_prs_touching_source=tuple(item["open_prs_touching_source"]),
+                resolution_reference=item.get("resolution_reference", {}),
             )
             for item in selected
             if isinstance(item, dict)
             and set(item)
+            - ({"resolution_reference"} if rules.requires_resolution_reference else set())
             == {
                 "active_resolution_prs",
                 "feasibility_signals",
@@ -314,23 +373,28 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             )
             and isinstance(item["source_status"], str)
             and item["source_status"]
-            in SOURCE_FAMILY_STATUSES[item["source_family"]]
+            in (
+                SOURCE_FAMILY_STATUSES.get(item["source_family"], frozenset())
+                if track == OPEN_CONJECTURE
+                else {"proved", "disproved", "solved"}
+            )
             and isinstance(item["feasibility_signals"], list)
             and item["feasibility_signals"]
             and item["feasibility_signals"] == sorted(item["feasibility_signals"])
             and len(item["feasibility_signals"]) == len(set(item["feasibility_signals"]))
             and set(item["feasibility_signals"]) <= FEASIBILITY_SIGNALS
             and isinstance(item["open_prs_touching_source"], list)
-            and item["open_prs_touching_source"]
-            == sorted(item["open_prs_touching_source"])
-            and len(item["open_prs_touching_source"])
-            == len(set(item["open_prs_touching_source"]))
+            and item["open_prs_touching_source"] == sorted(item["open_prs_touching_source"])
+            and len(item["open_prs_touching_source"]) == len(set(item["open_prs_touching_source"]))
             and all(
-                type(number) is int and number > 0
-                for number in item["open_prs_touching_source"]
+                type(number) is int and number > 0 for number in item["open_prs_touching_source"]
             )
             and item["active_resolution_prs"] == []
-            and item["upstream_status"] == "research open"
+            and item["upstream_status"] == rules.source_category
+            and (
+                not rules.requires_resolution_reference
+                or valid_resolution_reference(item.get("resolution_reference"))
+            )
         )
         if (
             len(entries) != len(selected)
@@ -350,6 +414,8 @@ def load_selection_audit(path: Path) -> SelectionAudit:
         audit_date_utc=audit_date_utc,
         github_open_pr_count=value["github_open_pr_count"],
         entries=entries,
+        track=track,
+        policy_version=policy_version,
         sha256=sha256_bytes(content),
     )
 
@@ -431,13 +497,7 @@ def load_task_targets(path: Path) -> TaskTargets:
                         f"Erdos{item['source_problem_number']}.erdos_{item['source_problem_number']}."
                     )
                 )
-                or (
-                    value.get("policy") == DIRECT_PROPOSITION_POLICY
-                    and item["theorem"].startswith(
-                        f"{SOURCE_FAMILY_THEOREM_PREFIXES[item['source_family']]}"
-                        f"{item['source_problem_number']}."
-                    )
-                )
+                or (value.get("policy") == DIRECT_PROPOSITION_POLICY)
             )
         )
         if (
@@ -450,10 +510,7 @@ def load_task_targets(path: Path) -> TaskTargets:
                 and (
                     len({target.source_path for target in parsed}) != len(parsed)
                     or len(
-                        {
-                            (target.source_family, target.source_problem_number)
-                            for target in parsed
-                        }
+                        {(target.source_family, target.source_problem_number) for target in parsed}
                     )
                     != len(parsed)
                 )
@@ -491,8 +548,7 @@ def load_task_grouping(path: Path) -> TaskGrouping:
         groups = value.get("groups") if isinstance(value, dict) else None
         if (
             not isinstance(value, dict)
-            or set(value)
-            != {"completion_policy", "groups", "schema_version"}
+            or set(value) != {"completion_policy", "groups", "schema_version"}
             or value.get("schema_version") != TASK_GROUP_SCHEMA_VERSION
             or value.get("completion_policy") != "all_of"
             or not isinstance(groups, list)
@@ -510,8 +566,7 @@ def load_task_grouping(path: Path) -> TaskGrouping:
             and isinstance(item.get("id"), str)
             and item["id"]
             and all(
-                character in "abcdefghijklmnopqrstuvwxyz0123456789-"
-                for character in item["id"]
+                character in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in item["id"]
             )
             and isinstance(item.get("source_path"), str)
             and source_family_from_path(item["source_path"]) is not None
@@ -520,11 +575,7 @@ def load_task_grouping(path: Path) -> TaskGrouping:
             and all(isinstance(theorem, str) and theorem for theorem in item["theorems"])
             and len(item["theorems"]) == len(set(item["theorems"]))
         )
-        theorem_names = tuple(
-            theorem
-            for group in parsed
-            for theorem in group.theorems
-        )
+        theorem_names = tuple(theorem for group in parsed for theorem in group.theorems)
         if (
             len(parsed) != len(groups)
             or tuple(group.identifier for group in parsed)
@@ -682,17 +733,11 @@ def select_task_declarations(
     if len(targets.targets) != pool_size:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
-            (
-                "task target policy contains "
-                f"{len(targets.targets)} tasks, expected {pool_size}"
-            ),
+            (f"task target policy contains {len(targets.targets)} tasks, expected {pool_size}"),
         )
 
     by_theorem = {declaration.theorem: declaration for declaration in catalog.declarations}
-    audited_by_theorem = {
-        entry.theorem: entry
-        for entry in selection_audit.entries
-    }
+    audited_by_theorem = {entry.theorem: entry for entry in selection_audit.entries}
     selected: list[CatalogDeclaration] = []
     used_types: set[str] = set()
     for target in targets.targets:
@@ -717,6 +762,9 @@ def select_task_declarations(
             catalog,
             declaration,
             EXACT_TASK_MODE,
+            track=selection_audit.track,
+            policy_version=selection_audit.policy_version,
+            resolution_reference=dict(entry.resolution_reference),
         )
         if (
             not eligible
@@ -734,10 +782,9 @@ def select_task_declarations(
         used_types.add(declaration.type_hash)
         selected.append(declaration)
     erdos_count = sum(
-        declaration.source_path.startswith(ERDOS_SOURCE_PREFIX)
-        for declaration in selected
+        declaration.source_path.startswith(ERDOS_SOURCE_PREFIX) for declaration in selected
     )
-    if erdos_count < MINIMUM_ERDOS_TASKS:
+    if selection_audit.track == OPEN_CONJECTURE and erdos_count < MINIMUM_ERDOS_TASKS:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
             f"task tier has {erdos_count} Erdős tasks, expected at least {MINIMUM_ERDOS_TASKS}",
@@ -751,22 +798,14 @@ def group_task_declarations(
 ) -> tuple[tuple[CatalogDeclaration, ...], ...]:
     selected = tuple(declarations)
     by_theorem = {item.theorem: item for item in selected}
-    grouped_theorems = {
-        theorem
-        for group in grouping.groups
-        for theorem in group.theorems
-    }
+    grouped_theorems = {theorem for group in grouping.groups for theorem in group.theorems}
     if not grouped_theorems <= set(by_theorem):
         missing = sorted(grouped_theorems - set(by_theorem))
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
             "task grouping contains unselected theorems: " + ", ".join(missing),
         )
-    group_by_theorem = {
-        theorem: group
-        for group in grouping.groups
-        for theorem in group.theorems
-    }
+    group_by_theorem = {theorem: group for group in grouping.groups for theorem in group.theorems}
     emitted: set[str] = set()
     result = []
     for declaration in selected:
@@ -791,12 +830,7 @@ def group_task_declarations(
     if (
         emitted != {group.identifier for group in grouping.groups}
         or sum(len(group) for group in result) != len(selected)
-        or {
-            item.theorem
-            for group in result
-            for item in group
-        }
-        != set(by_theorem)
+        or {item.theorem for group in result for item in group} != set(by_theorem)
     ):
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
@@ -823,24 +857,17 @@ def build_task_allowlist(
             ReasonCode.INVALID_ARGUMENT,
             f"unsupported task-pool tier: {tier}",
         )
+    rules = track_policy(selection_audit.track, selection_audit.policy_version)
     declaration_groups = tuple(selected)
     task_bundles = tuple(bundles)
-    if (
-        len(task_bundles) != len(declaration_groups) * len(PRODUCTION_TASK_MODES)
-        or not declaration_groups
-    ):
+    if len(task_bundles) != len(declaration_groups) * len(rules.modes) or not declaration_groups:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
             "every task group must have one generated bundle for each production mode",
         )
-    declarations = tuple(
-        declaration
-        for group in declaration_groups
-        for declaration in group
-    )
+    declarations = tuple(declaration for group in declaration_groups for declaration in group)
     if (
-        {declaration.theorem for declaration in declarations}
-        != set(task_targets.theorems)
+        {declaration.theorem for declaration in declarations} != set(task_targets.theorems)
         or not set(task_targets.theorems) <= set(selection_audit.theorems)
         or any(len(group) != 1 for group in declaration_groups)
     ):
@@ -849,8 +876,7 @@ def build_task_allowlist(
             "generated declarations are not audited single-target tasks",
         )
     catalog_indices = {
-        declaration.theorem: index
-        for index, declaration in enumerate(catalog.declarations)
+        declaration.theorem: index for index, declaration in enumerate(catalog.declarations)
     }
     sources = [
         {
@@ -872,9 +898,12 @@ def build_task_allowlist(
     expected_identities = {
         (tuple(item.theorem for item in group), mode)
         for group in declaration_groups
-        for mode in PRODUCTION_TASK_MODES
+        for mode in rules.modes
     }
-    if len(bundles_by_identity) != len(task_bundles) or set(bundles_by_identity) != expected_identities:
+    if (
+        len(bundles_by_identity) != len(task_bundles)
+        or set(bundles_by_identity) != expected_identities
+    ):
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
             "generated task bundles do not form complete proof/counterexample pairs",
@@ -887,28 +916,31 @@ def build_task_allowlist(
         theorem_names = tuple(item.theorem for item in declarations_for_task)
         source_indices = [catalog_indices[item.theorem] for item in declarations_for_task]
         source_hashes = tuple(item.type_hash for item in declarations_for_task)
-        for mode in PRODUCTION_TASK_MODES:
+        for mode in rules.modes:
             bundle = bundles_by_identity[(theorem_names, mode)]
             manifest: TaskManifest = bundle.manifest
             target_hashes = (
-                source_hashes
-                if mode == EXACT_TASK_MODE
-                else (manifest.generated_target_type_hash,)
+                source_hashes if mode == EXACT_TASK_MODE else (manifest.generated_target_type_hash,)
             )
             if (
                 manifest.source_theorem != primary.theorem
                 or manifest.task_mode != mode
                 or not manifest.production_eligible
+                or manifest.track != selection_audit.track
+                or manifest.policy_version != selection_audit.policy_version
+                or manifest.resolution_reference
+                != next(
+                    entry.resolution_reference
+                    for entry in selection_audit.entries
+                    if entry.theorem == primary.theorem
+                )
                 or manifest.source_type_hash != primary.type_hash
                 or tuple(item.theorem for item in bundle.sources) != theorem_names
                 or tuple(item.type_hash for item in bundle.sources) != source_hashes
                 or (mode == EXACT_TASK_MODE and target_hashes != source_hashes)
                 or (
                     mode == COUNTEREXAMPLE_TASK_MODE
-                    and (
-                        len(declarations_for_task) != 1
-                        or target_hashes[0] == source_hashes[0]
-                    )
+                    and (len(declarations_for_task) != 1 or target_hashes[0] == source_hashes[0])
                 )
             ):
                 raise VerifierError(
@@ -942,12 +974,12 @@ def build_task_allowlist(
                 "compiled_target_validation": True,
                 "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
                 "grouping": TASK_POOL_GROUPING,
-                "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
-                "modes": list(PRODUCTION_TASK_MODES),
-                "multi_target_tasks": sum(
-                    len(group) > 1
-                    for group in declaration_groups
-                ) * len(PRODUCTION_TASK_MODES),
+                "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS
+                if selection_audit.track == OPEN_CONJECTURE
+                else 0,
+                "modes": list(rules.modes),
+                "multi_target_tasks": sum(len(group) > 1 for group in declaration_groups)
+                * len(rules.modes),
                 "one_reward_per_problem": True,
                 "one_reward_per_reward_target": True,
                 "pool_size": len(tasks),
@@ -961,24 +993,26 @@ def build_task_allowlist(
                     DIRECT_PROPOSITION_POLICY: TASK_POOL_SELECTION,
                 }[task_targets.policy],
                 "selection_audit_sha256": selection_audit.sha256,
-                "source_category": "research open",
+                "source_category": rules.source_category,
                 "source_families": sorted(
                     {target.source_family for target in task_targets.targets}
                 ),
                 "source_theorem_count": len(declarations),
                 "task_scope": task_targets.task_scope,
-                "target_relations": {
-                    COUNTEREXAMPLE_TASK_MODE: "logical-negation",
-                    EXACT_TASK_MODE: "definitionally-equal",
-                },
+                "target_relations": rules.target_relations,
                 "task_groups_sha256": grouping.sha256,
-                "outcomes_per_problem": len(PRODUCTION_TASK_MODES),
+                "outcomes_per_problem": len(rules.modes),
                 "task_targets_sha256": task_targets.sha256,
             }
         },
         "repository_commit": catalog.repository_commit,
         "schema_version": TASK_POOL_SCHEMA_VERSION,
     }
+    if selection_audit.track != OPEN_CONJECTURE:
+        value["tier_policies"][tier].update(
+            track=selection_audit.track,
+            policy_version=selection_audit.policy_version,
+        )
     return pretty_json(value).encode("utf-8")
 
 
@@ -995,9 +1029,7 @@ def merge_task_allowlists(allowlists: Iterable[bytes]) -> bytes:
         )
     tier_order = [tier for document in documents for tier in document["tier_order"]]
     policies = {
-        tier: policy
-        for document in documents
-        for tier, policy in document["tier_policies"].items()
+        tier: policy for document in documents for tier, policy in document["tier_policies"].items()
     }
     sources = [source for document in documents for source in document["allowed_source_theorems"]]
     tasks = [task for document in documents for task in document["allowed_task_bundles"]]

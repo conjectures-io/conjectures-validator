@@ -1012,3 +1012,27 @@ def test_validation_errors_do_not_leak_internals():
             await kit.teardown()
 
     run(scenario())
+
+
+def test_formalization_acceptance_records_its_review_contract():
+    from dataclasses import replace
+
+    entry = task_entry()
+    entry = replace(entry, manifest=replace(entry.manifest, track="formalization",
+        resolution_reference={"url": "https://example.org/paper", "location": "Theorem 3"}))
+
+    async def scenario():
+        kit = await harness(entries=(entry,)).setup()
+        try:
+            response = await _post(kit, valid_bundle())
+            assert response.status_code == 201, response.text
+            body = response.json()
+            assert body["review_policy_version"] == "formalization-v1"
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(body["submission_id"]))
+                assert submission.review_policy_version == "formalization-v1"
+                assert submission.task_bundle_sha256 == digests.to_bytes(entry.task_bundle_sha256)
+        finally:
+            await kit.teardown()
+
+    run(scenario())

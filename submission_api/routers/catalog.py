@@ -30,6 +30,9 @@ index built at startup from `TaskCatalog.load`.
 
 from __future__ import annotations
 
+from verifier.models import TaskTrack
+
+
 import hmac
 import re
 from collections.abc import Mapping
@@ -219,6 +222,10 @@ def _task(entry: TaskEntry, *, attempts: int) -> public.ConjectureTask:
     return public.ConjectureTask(
         task_id=entry.task_id,
         task_mode=entry.manifest.task_mode,
+        track=entry.manifest.track,
+        policy_version=entry.manifest.policy_version,
+        resolution_reference=dict(entry.manifest.resolution_reference),
+        submission_terms_url=f"/v1/catalog/submission-terms?track={entry.manifest.track}",
         task_bundle_sha256=entry.task_bundle_sha256,
         attempts=attempts,
     )
@@ -230,6 +237,10 @@ def _task_detail(
     return public.ConjectureTaskDetail(
         task_id=entry.task_id,
         task_mode=entry.manifest.task_mode,
+        track=entry.manifest.track,
+        policy_version=entry.manifest.policy_version,
+        resolution_reference=dict(entry.manifest.resolution_reference),
+        submission_terms_url=f"/v1/catalog/submission-terms?track={entry.manifest.track}",
         task_bundle_sha256=entry.task_bundle_sha256,
         attempts=attempts,
         challenge_lean=entry.challenge_lean,
@@ -881,7 +892,8 @@ async def read_payment_currencies(
     summary="The submission terms and manual-review reason codes",
 )
 async def read_submission_terms(
-    response: Response, services: ServicesDep
+    response: Response, services: ServicesDep,
+    track: TaskTrack = "open_conjecture",
 ) -> account_schemas.SubmissionTerms:
     """The terms a miner accepts by submitting, and the complete lists of reasons a review may
     approve or refuse a reward.
@@ -889,7 +901,7 @@ async def read_submission_terms(
     The lists are shared with the Stage 3 review page deliberately: a reviewer must choose a
     published code, and one source in one place is what guarantees that.
     """
-    terms = services.terms
+    terms = services.terms.for_track(track)
     _cache(response, services.settings)
     return account_schemas.SubmissionTerms(
         version=terms.version,

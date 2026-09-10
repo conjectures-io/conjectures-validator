@@ -45,6 +45,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from conjectures_subnet.axiom import attach_axiom_handler, get_axiom
+from conjectures_subnet.bounty_factors import resolve_target_tiers
 from conjectures_subnet.bounty import (
     BittensorBalanceReader,
     CachedBalanceReader,
@@ -187,6 +188,14 @@ def build_services(
             balance_hotkey=settings.bounty_wallet_hotkey,
             balance_netuid=settings.bounty_netuid,
             reward_target_ids=reward_targets,
+            target_tiers=resolve_target_tiers(
+                [
+                    (entry.reward_target_id, entry.tier)
+                    for entry in resolved_catalog.entries.values()
+                ],
+                settings.bounty_tier_factors,
+            ),
+            tier_factors=settings.bounty_tier_factors,
             policy_version=settings.bounty_policy_version,
             constant_numerator=settings.bounty_constant_numerator,
             constant_denominator=settings.bounty_constant_denominator,
