@@ -11,6 +11,10 @@ from urllib.parse import urlsplit
 
 # Public chain identities, not secrets. The generator and watcher deliberately use the same
 # constants so the command printed to an operator is byte-for-byte the command sent to a signer.
+#
+# This is the validator's OWN hotkey, and V035 made it the only one in a payout. The alpha being
+# paid out is already staked here; `transfer_stake` changes who owns that stake without moving it
+# off this hotkey. A miner never supplies a hotkey and none is stored per reward event.
 DEFAULT_ORIGIN_HOTKEY = "5Gn2SyG6PmBstAjiPD93CTuxADqYaYqf6fKeFuezKsX7Chf9"
 DEFAULT_PROXY_FOR = "5HMqFHmvUpzuAjEnse3hzMKS5LsFL428hffCfenF2smuGNhs"
 DEFAULT_MULTISIG = "team-mainnet"
@@ -32,7 +36,9 @@ DEFAULT_NETUID = 66
 DEFAULT_NETWORK = "finney"
 DISCORD_CONTENT_LIMIT = 2_000
 
-PayoutRow = tuple[int, str, str, str, int]
+# (reward_event_id, submission_id, destination_coldkey, alpha_amount). The destination hotkey
+# that used to sit between the coldkey and the amount is gone: see DEFAULT_ORIGIN_HOTKEY.
+PayoutRow = tuple[int, str, str, int]
 
 
 def _cli_wallet(signer_wallet: str, wallet_names: Mapping[str, str]) -> str:
@@ -61,7 +67,6 @@ def _discord_instructions(signer_wallet: str, *, multisig: str) -> str:
 def render_command(
     *,
     destination_coldkey: str,
-    destination_hotkey: str,
     alpha_amount: int,
     origin_hotkey: str,
     origin_netuid: int,
@@ -71,12 +76,24 @@ def render_command(
     wallet: str,
     network: str,
 ) -> str:
-    """Render one shell-safe, multiline btcli invocation."""
+    """Render one shell-safe, multiline btcli invocation.
+
+    `SubtensorModule.transfer_stake` as of V035, not `transfer_stake_and_hotkey`. The difference
+    is what removed the miner hotkey from this system: the old call moved alpha to a *new*
+    (coldkey, hotkey) stake position and therefore needed a destination hotkey, which a miner had
+    to supply and which had to be registered on chain. This one changes the *owner* of stake that
+    stays on `origin_hotkey` — ours — so the destination is the coldkey alone.
+
+    Economically identical for the recipient, and that is the point: a stake position is owned by
+    the coldkey it is staked for, whichever hotkey it is delegated to. The destination coldkey
+    ends up owning this alpha and can restake or unstake it freely.
+    """
     call_args = json.dumps(
         {
             "destination_coldkey": destination_coldkey,
-            "origin_hotkey": origin_hotkey,
-            "destination_hotkey": destination_hotkey,
+            # Named `hotkey`, singular, because there is only one and the stake does not leave
+            # it. The old call took `origin_hotkey` and `destination_hotkey`.
+            "hotkey": origin_hotkey,
             "origin_netuid": origin_netuid,
             "destination_netuid": destination_netuid,
             "alpha_amount": alpha_amount,
@@ -85,7 +102,7 @@ def render_command(
     )
     return "\n".join(
         (
-            "btcli call SubtensorModule.transfer_stake_and_hotkey \\",
+            "btcli call SubtensorModule.transfer_stake \\",
             f"  --args {shlex.quote(call_args)} \\",
             f"  --proxy-for {shlex.quote(proxy_for)} \\",
             f"  --multisig {shlex.quote(multisig)} \\",
@@ -112,10 +129,9 @@ def render_payouts(
     signer_blocks: list[str] = []
     for signer_wallet in wallets:
         payout_blocks: list[str] = []
-        for event_id, submission_id, coldkey, hotkey, amount in rows:
+        for event_id, submission_id, coldkey, amount in rows:
             command = render_command(
                 destination_coldkey=coldkey,
-                destination_hotkey=hotkey,
                 alpha_amount=amount,
                 origin_hotkey=origin_hotkey,
                 origin_netuid=origin_netuid,
@@ -166,10 +182,9 @@ def discord_notifications(
                 f"Discord user id for wallet {signer_wallet!r} must contain only digits"
             )
 
-        for event_id, submission_id, coldkey, hotkey, amount in rows:
+        for event_id, submission_id, coldkey, amount in rows:
             command = render_command(
                 destination_coldkey=coldkey,
-                destination_hotkey=hotkey,
                 alpha_amount=amount,
                 origin_hotkey=origin_hotkey,
                 origin_netuid=origin_netuid,

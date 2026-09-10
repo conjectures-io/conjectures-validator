@@ -23,8 +23,7 @@ pytest.importorskip("sqlalchemy", reason="the db extra provides SQLAlchemy")
 pytest.importorskip("psycopg", reason="the db extra provides psycopg")
 
 from conftest_api import (
-    COLDKEY,
-    HOTKEY,
+    MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
     VALID_PROOF,
@@ -76,7 +75,7 @@ def new_submission(
 ) -> store.NewSubmission:
     """One paid submission. The proof bytes vary because `proof_digest` is globally unique."""
     return store.NewSubmission(
-        hotkey=HOTKEY,
+        signer_coldkey=MINER_COLDKEY,
         idempotency_key=uuid.uuid4(),
         request_digest=sha256_bytes(proof + problem_id.encode()),
         task_id=TASK_ID,
@@ -87,10 +86,13 @@ def new_submission(
         proof_content=proof,
         proof_sha256=sha256_bytes(proof),
         payment_reference=f"ref-{uuid.uuid4()}",
-        payment_sender=COLDKEY,
+        # Equal to `signer_coldkey`, which the extrinsic path now requires and
+        # `submission_signer_coldkey_is_funded` enforces: the key that paid is
+        # the key that signs.
+        payment_sender=MINER_COLDKEY,
         payment_amount_rao=500_000_000,
         payment_block=1,
-        hotkey_signature=b"\x01" * 64,
+        signer_signature=b"\x01" * 64,
         manual_review_required=manual_review_required,
         review_policy_version="test-v1",
         bounty_amount_rao=1,

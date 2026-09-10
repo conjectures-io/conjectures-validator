@@ -1,0 +1,1297 @@
+[
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos10.erdos_10",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos100.erdos_100",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1003.erdos_1003",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1004.erdos_1004",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1049.erdos_1049",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1056.erdos_1056",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1057.erdos_1057",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1060.erdos_1060.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1062.erdos_1062.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1068.erdos_1068",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1072.erdos_1072.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1072.erdos_1072.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1073.erdos_1073",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1074.erdos_1074.variants.EHSNumbers_one_half",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos108.erdos_108",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1082.erdos_1082.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1085.erdos_1085.variants.upper_d3",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1094.erdos_1094",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1095.erdos_1095.variants.log_isTheta",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1095.erdos_1095.variants.lower_conjecture",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos11.erdos_11",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1101.erdos_1101.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1106.erdos_1106.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1107.erdos_1107",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1108.erdos_1108.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1135.erdos_1135",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1137.erdos_1137",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1142.erdos_1142",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1175.erdos_1175",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1192.erdos_1192",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos120.erdos_120",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1203.erdos_1203",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos1209.erdos_1209.parts.iii.d",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos124.erdos124.ne_zero",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos126.erdos_126.variants.isLittleO",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos128.erdos_128",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos137.erdos_137.variants.multiple_powerful_factors",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos138.erdos_138",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos14.erdos_14.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos14.erdos_14.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos141.erdos_141.variants.eleven",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos142.erdos_142.variants.lower",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos143.erdos_143.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos145.erdos_145",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos153.erdos_153",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos155.erdos_155",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos156.erdos_156",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos158.erdos_158",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos168.erdos_168.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos17.erdos_17",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos172.erdos_172",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos18.erdos_18b",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos184.erdos_184",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos196.erdos_196",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos200.erdos_200",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos208.erdos_208.variants.log_bound",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos212.erdos_212",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos213.erdos_213",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos218.erdos_218.variants.ge",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos218.erdos_218.variants.infinite_equal_prime_gap",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos218.erdos_218.variants.le",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos23.erdos_23",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos233.erdos_233",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos234.erdos_234",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos236.erdos_236",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos238.erdos_238",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos241.erdos_241.variants.generalization",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos242.erdos_242.variants.schinzel_generalization",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos243.erdos_243",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos244.erdos_244",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos247.erdos_247",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos249.erdos_249",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos25.erdos_25",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos251.erdos_251",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos252.erdos_252",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos257.erdos_257",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos263.erdos_263.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos264.erdos_264.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos269.erdos_269.variants.irrational",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos272.erdos_272.variants.szabo_strong",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos274.herzog_schonheim",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos28.erdos_28",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos282.erdos_282",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos287.erdos_287",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos291.erdos_291.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos3.erdos_3",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos30.erdos_30",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos304.upper_bound",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos307.erdos_307",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos313.erdos_313.variants.primary_pseudoperfect_are_infinite",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos317.erdos_317.variants.claim2",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos32.erdos_32",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos323.erdos_323.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos323.erdos_323.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos323.erdos_323.variants.k_gt_2",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos324.erdos_324.variants.quintic",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos325.erdos_325",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos340.erdos_340",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos340.erdos_340.variants.sub_hasPosDensity",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos354.erdos_354.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos357.erdos_357.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos357.erdos_357.variants.infinite_set_density",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos357.erdos_357.variants.infinite_set_sum",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos357.erdos_357.variants.monotone.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos359.erdos_359.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos359.erdos_359.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos359.erdos_359.variants.isGoodFor_1_asymptotic",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos364.erdos_364",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos364.erdos_364.variants.strong",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos366.erdos_366",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos371.erdos_371",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos373.erdos_373",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos373.erdos_373.variants.maximal_solution",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos373.erdos_373.variants.suranyi",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos375.erdos_375",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos376.erdos_376",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos383.erdos_383",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos385.erdos_385.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos386.erdos_386.variants.two",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos39.erdos_39",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos396.erdos_396",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos400.erdos_400.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos406.erdos_406.variants.one_two",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos409.erdos_409.variants.sigma_termination",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos41.erdos_41",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos410.erdos_410",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos412.erdos_412",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos413.erdos_413.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos414.erdos_414",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos416.erdos_416.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos428.erdos_428",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos44.erdos_44",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos445.erdos_445",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos454.erdos_454",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos455.erdos_455",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos456.erdos_456.parts.iii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos458.erdos_458",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos463.erdos_463",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos479.erdos_479",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos495.erdos_495",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos50.erdos_50",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos51.erdos_51",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos517.erdos_517",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos52.erdos_52",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos535.erdos_535",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos535.erdos_535.variants.first_open_case",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos564.erdos_564",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos579.erdos_579",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos600.erdos_600.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos61.erdos_61",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos617.erdos_617",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos624.erdos_624",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos647.erdos_647",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos653.erdos_653",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos66.erdos_66",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos672.erdos_672",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos677.erdos_677",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos68.erdos_68",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos680.erdos_680.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos680.erdos_680.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos681.erdos_681",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos686.erdos_686.variants.four",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos686.erdos_686.variants.twenty_five",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos688.erdos_688.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos695.erdos_695",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos695.erdos_695.variants.upperBound",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos699.erdos_699",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos70.erdos_70.variants.omega_times_two_four",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos701.erdos_701",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos723.erdos_723.variants.eq_12",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos726.erdos_726",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos749.erdos_749",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos770.erdos_770.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos770.erdos_770.variants.three",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos774.erdos_774",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos779.erdos_779",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos789.erdos_789.variants.sq",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos812.erdos_812.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos82.erdos_82",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos821.erdos_821",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos828.erdos_828",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos828.erdos_828.variants.lehmer_conjecture",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos829.erdos_829",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos835.erdos_835",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos849.erdos_849",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos85.erdos_85",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos853.erdos_853.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos853.erdos_853.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos859.erdos_859",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos873.erdos_873",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos885.erdos_885",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos886.erdos_886",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos887.erdos_887.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos889.erdos_889",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos889.erdos_889.variants.general",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos89.erdos_89",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos890.erdos_890.parts.a",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos890.erdos_890.parts.b",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos891.erdos_891",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos893.erdos_893",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos9.erdos_9",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos91.erdos_91",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos912.erdos_912",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos912.erdos_912.variants.tao",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos913.erdos_913.variants.infinite_many_8p_sq_sub_one_primes",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos930.erdos_930",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos931.erdos_931",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos932.erdos_932",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos933.erdos_933",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos936.erdos_936.variants.factorial_add_one",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos936.erdos_936.variants.factorial_sub_one",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos936.erdos_936.variants.two_pow_add_one",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos936.erdos_936.variants.two_pow_sub_one",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos942.erdos_942",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos943.erdos_943",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos944.erdos_944",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos945.erdos_945",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos949.erdos_949",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos950.erdos_950.parts.i",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos950.erdos_950.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos950.erdos_950.parts.iii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos951.erdos_951",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos952.erdos_952",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos962.erdos_962",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos972.erdos_972",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos975.erdos_975",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos978.erdos_978.parts.ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos978.erdos_978.parts.iii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos979.erdos_979",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos98.erdos_98",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos982.erdos_982",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos985.erdos_985",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Erdos99.erdos_99",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green12.green_12",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green15.green_15",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green18.green_18",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green2.green_2",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green24.variants.conjecture",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green32.green_32",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green33.green_33",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green36.green_36.variants.cks05",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green39.green_39",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green40.green_40",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green40.green_40.f_two_eq_one",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green40.green_40.variants.arbitrary_subsets",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green41.green_41.variants.polynomial_bound",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green44.green_44",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green47.green_47",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green50.green_50",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green51.green_51.one_half",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green58.green_58",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green60.green_60",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green62.green_62",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green66.green_66",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green7.green_7.variants.positive_density",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green9.green_9_ii",
+    "type_has_sorry": false
+  },
+  {
+    "dependencies_with_nonstandard_axioms": [],
+    "theorem": "Green9.green_9_iii",
+    "type_has_sorry": false
+  }
+]

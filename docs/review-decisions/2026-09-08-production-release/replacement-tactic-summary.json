@@ -1,0 +1,12 @@
+{
+  "attempts": 672,
+  "axiom_clean_hits": 0,
+  "bundles": 16,
+  "compile_hits": 32,
+  "compile_hits_with_sorryAx": 32,
+  "duplicate_catalog_types": {},
+  "failed_elaborations": 640,
+  "tactics_per_bundle": 42,
+  "theorems": 8,
+  "unmapped_errors": 0
+}

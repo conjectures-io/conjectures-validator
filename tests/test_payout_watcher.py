@@ -4,6 +4,7 @@ import asyncio
 import datetime as dt
 import hashlib
 import uuid
+from dataclasses import replace
 
 import pytest
 from conftest import DATABASE_SKIP_REASON, postgres_dsn
@@ -38,6 +39,10 @@ from payout_watcher.watcher import PayoutWatcher
 from submission_api.routers._account import latest_reward
 
 DESTINATION_COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+# The delegated hotkey a PRE-V035 payout was staked to. This file deliberately keeps exercising
+# that shape: `reward_events.destination_hotkey` is retained for exactly these rows, and
+# `db/payouts.py` still matches a historical `StakeAndHotkeyTransferred` event on it. The
+# current shape is covered by `observed_stake_transfer` and the test that uses it.
 DESTINATION_HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 START = dt.datetime(2026, 8, 6, 12, 0, tzinfo=dt.UTC)
 REWARD_CREATED = START + dt.timedelta(seconds=99 * 12)
@@ -84,6 +89,21 @@ def observed_payout() -> ObservedPayout:
     )
 
 
+def observed_stake_transfer() -> ObservedPayout:
+    """The current shape: `transfer_stake`, so the stake never leaves the origin hotkey.
+
+    `payouts_in_events` fills both hotkey fields with the single one the event carries, which
+    is what lets everything downstream read one shape — so here they are equal, and
+    `moved_hotkey` is False.
+    """
+    return replace(
+        observed_payout(),
+        destination_hotkey=DEFAULT_ORIGIN_HOTKEY,
+        extrinsic_index=9,
+        event_index=21,
+    )
+
+
 def settings(dsn: str) -> PayoutWatcherSettings:
     return PayoutWatcherSettings.from_env(
         {
@@ -95,7 +115,12 @@ def settings(dsn: str) -> PayoutWatcherSettings:
     )
 
 
-def seed_pending(sessions) -> tuple[uuid.UUID, int]:
+def seed_pending(sessions, *, destination_hotkey=DESTINATION_HOTKEY) -> tuple[uuid.UUID, int]:
+    """Seed one PENDING reward event.
+
+    `destination_hotkey=None` is the current shape — `transfer_stake` records none — and the
+    default is the legacy one, so both eras of row are reconciled by this file.
+    """
     content = b"theorem payout_chain_fixture : True := trivial"
     digest = hashlib.sha256(content).digest()
     submission_id = uuid.uuid4()
@@ -105,7 +130,7 @@ def seed_pending(sessions) -> tuple[uuid.UUID, int]:
         session.add(
             Submission(
                 id=submission_id,
-                hotkey=DESTINATION_HOTKEY,
+                signer_coldkey=DESTINATION_COLDKEY,
                 idempotency_key=uuid.uuid4(),
                 request_digest=hashlib.sha256(b"request").digest(),
                 task_id="fixture-task",
@@ -118,7 +143,7 @@ def seed_pending(sessions) -> tuple[uuid.UUID, int]:
                 payment_sender=DESTINATION_COLDKEY,
                 payment_amount_rao=500_000_000,
                 payment_block=1,
-                hotkey_signature=b"x" * 64,
+                signer_signature=b"x" * 64,
                 verification_status=VerificationState.VERIFIED,
                 manual_review_status=ManualReviewState.APPROVED,
                 reward_status=RewardState.ELIGIBLE,
@@ -137,7 +162,7 @@ def seed_pending(sessions) -> tuple[uuid.UUID, int]:
             pricing_inputs={"fixture": True},
             generation_key=f"submission:{submission_id}",
             destination_coldkey=DESTINATION_COLDKEY,
-            destination_hotkey=DESTINATION_HOTKEY,
+            destination_hotkey=destination_hotkey,
             status=PayoutState.PENDING,
             initiated_by="test",
             created_at=REWARD_CREATED,
@@ -337,6 +362,59 @@ def test_legacy_paid_state_is_hidden_until_its_finalized_event_is_reobserved():
                 assert timeline.context["replaced_extrinsic_reference"] == (
                     "legacy-operator-reference"
                 )
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_a_transfer_stake_payout_reconciles_without_a_destination_hotkey():
+    """The current shape, end to end: a reward event with no destination hotkey, settled by a
+    `StakeTransferred` event whose only hotkey is the validator's own.
+
+    This is the case V035 created and the one every future payout takes. It is worth a test of
+    its own rather than a parametrisation of the legacy one, because the thing being checked is
+    that a NULL `destination_hotkey` still matches: `_oldest_match` compares that column only
+    when the stored row has a value, and getting that wrong would leave every new payout
+    permanently unmatched while the money had actually moved.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        submission_id, reward_id = seed_pending(sync_sessions, destination_hotkey=None)
+        async_sessions = async_session_factory(async_engine)
+        observed = observed_stake_transfer()
+        # The stake did not move off the origin hotkey, which is what distinguishes this event
+        # from the legacy one the rest of the file uses.
+        assert observed.moved_hotkey is False
+        source = FakePayoutSource(finalized=102, best=102, payouts={102: (observed,)})
+        watcher = PayoutWatcher(
+            settings=settings(dsn), sessions=async_sessions, source=source
+        )
+
+        async def scenario():
+            scanned = await watcher.scan_once()
+            assert scanned is not None
+            assert scanned.confirmed == 1
+            async with async_sessions() as session:
+                reward = await session.get(RewardEvent, reward_id)
+                submission = await session.get(Submission, submission_id)
+                assert reward is not None
+                assert reward.status == PayoutState.CONFIRMED
+                assert reward.chain_observed is True
+                assert reward.extrinsic_reference == "102-9-21"
+                # Still NULL after settlement: reconciling a payout must not backfill a
+                # destination hotkey that the call never had.
+                assert reward.destination_hotkey is None
+                assert submission is not None
+                assert submission.reward_status == RewardState.REWARDED
 
         asyncio.run(scenario())
     finally:

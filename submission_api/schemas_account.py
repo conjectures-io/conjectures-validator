@@ -2,11 +2,11 @@
 
 The third of three model modules, and the split is the whole point:
 
-* ``schemas.py`` — the miner-facing hotkey-signature surface.
+* ``schemas.py`` — the miner-facing coldkey-signature surface.
 * ``schemas_public.py`` — world-readable. It carries only identity explicitly signed for public
   credit, never account or payment identity.
 * ``schemas_account.py`` — this file. Served **only** to the authenticated owner of the
-  data, so it is the one place where a hotkey, a payout address, a payment reference or a
+  data, so it is the one place where a signing coldkey, a payout address, a payment reference or a
   balance is allowed to appear.
 
 That inverted rule is why these models live apart. A field on ``Account`` would be a
@@ -43,28 +43,33 @@ class CursorPage(Model, Generic[ItemT]):
 # --- Account -----------------------------------------------------------------------------
 
 
-class LinkedHotkey(Model):
-    """A hotkey this account proved control of.
+class LinkedWallet(Model):
+    """A coldkey this account proved control of, by signing a server nonce.
 
-    Also how a deposit is attributed: a transfer's sender is a coldkey, and that coldkey
-    owning one of these is what ties the money to an account.
+    Since V035 this is the only kind of linked key. Proving one lets it sign in, lets it be
+    designated as the account's submission coldkey, and attributes a deposit it sent — a
+    transfer's sender IS a coldkey, so the money ties to the account with no ownership hop
+    through the chain.
+
+    `is_submission_coldkey` says which one is designated to submit. At most one wallet on an
+    account has it set, and it is carried here as well as on `AccountColdkeys` so the account
+    page can render the list and the designation without correlating two responses.
 
     `label` is always null today. It is here because the account page wants to show "rig-01"
     rather than a 48-character address, and shipping the field now means the page can be built
-    against its final shape; populating it needs a nullable column on `linked_hotkeys` and an
+    against its final shape; populating it needs a nullable column on `account_wallets` and an
     endpoint to set it, which is a separate change. Null is honest — there is no name — and a
-    client should fall back to a truncated `hotkey`.
+    client should fall back to a truncated `coldkey`.
     """
 
-    hotkey: str
+    coldkey: str
+    is_submission_coldkey: bool = Field(
+        default=False,
+        description="Whether this is the coldkey the account submits and spends credits under",
+    )
     label: str | None = Field(
         default=None, description="A name the owner gave this key. Always null today."
     )
-    linked_at: dt.datetime
-
-
-class LinkedWallet(Model):
-    coldkey: str
     linked_at: dt.datetime
 
 
@@ -112,10 +117,58 @@ class Identity(Model):
 
 
 class PayoutDestination(Model):
-    """Where rewards go. Both keys or neither — alpha is held as stake."""
+    """Where rewards go: one coldkey, and nothing else.
+
+    There was a `hotkey` here until V035, because a payout ran
+    `transfer_stake_and_hotkey` and had to name a stake position. A payout now hands this
+    coldkey ownership of alpha that stays staked at the validator's own hotkey, so the
+    destination is the coldkey alone.
+
+    **This address is deliberately unproved.** Naming it can only give the account's own money
+    away, and requiring a signature would lock out the ordinary destinations — a hardware
+    wallet, an exchange deposit address, a multisig nobody solely controls. Contrast
+    `AccountColdkeys.submission_coldkey`, which can spend and is therefore proved.
+    """
 
     coldkey: str
-    hotkey: str
+
+
+class AccountColdkeys(Model):
+    """The account's two coldkeys, which answer different questions.
+
+    Returned by `GET /v1/me/coldkeys`. Both are optional and independent: an account may have
+    designated a submission key and no payout destination, a payout destination and no
+    submission key, both, or neither. Nothing here is derived from the other.
+
+    Read this alongside the proof asymmetry, which is the whole reason they are separate
+    fields rather than one address:
+
+      * `submission_coldkey` is PROVED. It is the key that signs submissions and spends
+        credits, and on the extrinsic path it is the key whose transfer is being cited — so
+        without proof of control anyone could claim somebody else's payment. It is always one
+        of the account's linked wallets.
+
+      * `payout_coldkey` is UNPROVED, and is not required to be linked or even to be an address
+        the account can open. It is only a destination.
+
+    Null means "not set", not "not permitted": `PUT /v1/me/coldkeys/submission` and
+    `PUT /v1/me/coldkeys/payout` set them, both from a browser session only.
+    """
+
+    submission_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The proved coldkey this account submits and spends credits under. Always one of "
+            "the account's linked wallets. Null until designated."
+        ),
+    )
+    payout_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "Where rewards are sent. Unproved and need not be linked. Null until set, and a "
+            "reward cannot be paid while it is."
+        ),
+    )
 
 
 class Account(Model):
@@ -128,7 +181,9 @@ class Account(Model):
         default=None,
         description="Null until set. A reward cannot be paid without it.",
     )
-    hotkeys: tuple[LinkedHotkey, ...]
+    coldkeys: AccountColdkeys = Field(
+        description="The designated submission coldkey and the payout destination"
+    )
     wallets: tuple[LinkedWallet, ...]
     identities: tuple[LinkedIdentity, ...]
     created_at: dt.datetime
@@ -188,7 +243,7 @@ class Capability(Model):
     """Whether this session may do one thing, and what is missing if not.
 
     `missing` is the point of the model. A bare boolean makes a client either grey out a button
-    with no explanation or re-derive the rules from `roles`, `hotkeys` and `credits` — and a
+    with no explanation or re-derive the rules from `roles`, `wallets` and `credits` — and a
     client that re-derives them is a second copy of the authorisation logic that drifts from the
     server's the first time a rule changes.
 
@@ -227,7 +282,7 @@ class SessionEnvelope(Model):
     a client that has just signed in does not have to immediately re-read the session to render
     its shell.
 
-    `account` is unchanged and stays the canonical record — `identities`, `hotkeys` and `payout`
+    `account` is unchanged and stays the canonical record — `identities`, `wallets` and `payout`
     are **derived from it in the same call**, never read separately, so the two halves of this
     body cannot disagree. They are flattened here because the account page groups by "ways in"
     and "keys I mine with", which is not how the account row is shaped.
@@ -238,7 +293,7 @@ class SessionEnvelope(Model):
 
     account: Account
     identities: tuple[Identity, ...] = ()
-    hotkeys: tuple[LinkedHotkey, ...] = ()
+    wallets: tuple[LinkedWallet, ...] = ()
     payout: PayoutDestination | None = None
     credits: SessionCredits
     counts: SessionCounts
@@ -253,16 +308,16 @@ class CliSession(Model):
     contains a live credential, and everything about how it is served follows from that: `POST`
     only, `Cache-Control: no-store`, and never a field on a telemetry event.
 
-    `account` here is the **redacted** view. A bearer session is minted by a hotkey, and a
-    hotkey sits unencrypted on a mining machine; handing it the account's email address, payout
-    keys and every other linked hotkey would make reading one file the first step of a much
-    larger compromise. See `routers/_account.account_response`.
+    `account` here is the **redacted** view. A bearer token sits in a file on a mining
+    machine; handing it the account's email address, payout destination and every other linked
+    coldkey would make reading one file the first step of a much larger compromise. See
+    `routers/_account.account_response`.
     """
 
     access_token: str
     token_type: str = Field(description="Always `bearer`")
     expires_at: dt.datetime
-    hotkey_scope: str = Field(description="The linked hotkey this token may act as")
+    coldkey_scope: str = Field(description="The linked coldkey this token may act as")
     account: Account
 
 
@@ -281,8 +336,8 @@ class SessionView(Model):
     id: uuid.UUID
     kind: str = Field(description="COOKIE (a browser) | BEARER (the CLI)")
     current: bool = Field(description="Whether this is the session making this request")
-    hotkey_scope: str | None = Field(
-        default=None, description="For a CLI session: the hotkey it may act as"
+    coldkey_scope: str | None = Field(
+        default=None, description="For a CLI session: the coldkey it may act as"
     )
     issued_at: dt.datetime
     last_seen_at: dt.datetime = Field(
@@ -557,6 +612,22 @@ class SubmissionTerms(Model):
     effective_from: dt.date
     approval_reasons: tuple[ApprovalReason, ...]
     disqualification_reasons: tuple[DisqualificationReason, ...]
+    # The `domain:` line of every message this deployment asks a key to sign, and the one field a
+    # client cannot otherwise know.
+    #
+    # It exists because `POST /v1/submissions/web` is the only signing flow where the *client*
+    # builds the message. Every other one — wallet sign-in, coldkey linking, the CLI
+    # session — has the server mint the message and hand it back, so the domain travels with it.
+    # The one-call web path has nowhere to put that round trip, and a client left guessing between
+    # `LOGIN_DOMAIN` and its own hostname signs a message the server does not rebuild, which
+    # surfaces as an unexplainable `SIGNATURE_INVALID`.
+    #
+    # No new disclosure: it is already on the first line of every challenge message the server
+    # mints, so anything that can call `POST /v1/auth/wallet/challenge` can already read it. It is
+    # deployment configuration, not a secret — what it protects against is a signature made for
+    # one deployment being replayed at another, and that property comes from the signer and the
+    # verifier agreeing on the value, not from keeping it quiet.
+    signing_domain: str
 
 
 # --- Submission intents ------------------------------------------------------------------
@@ -599,7 +670,13 @@ class SubmissionIntent(Model):
     status: str = Field(
         description="OPEN | BUNDLE_ATTACHED | CONFIRMED | EXPIRED | CANCELLED"
     )
-    hotkey: str
+    signer_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The coldkey the confirming signature must come from. Null on the "
+            "session-authorised path, where the browser session is the authorisation."
+        ),
+    )
     public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
@@ -607,7 +684,8 @@ class SubmissionIntent(Model):
     credit_price_rao: int
     proof_sha256: str | None = None
     request_digest: str | None = Field(
-        default=None, description="Sign these 32 raw bytes with the intent's hotkey"
+        default=None,
+        description="Sign these 32 raw bytes with the intent's signer_coldkey",
     )
     submission_id: uuid.UUID | None = None
     expires_at: dt.datetime
@@ -664,7 +742,10 @@ class SubmissionSummary(Model):
     """One of the account's own submissions, as it appears in a list."""
 
     id: uuid.UUID
-    hotkey: str
+    signer_coldkey: str | None = Field(
+        default=None,
+        description="The coldkey that signed this submission. Null if session-authorised.",
+    )
     public_credit: PublicCredit | None = None
     task_id: str
     proof_sha256: str
@@ -712,7 +793,10 @@ class SubmissionDetail(Model):
     """One of the account's own submissions, in full."""
 
     id: uuid.UUID
-    hotkey: str
+    signer_coldkey: str | None = Field(
+        default=None,
+        description="The coldkey that signed this submission. Null if session-authorised.",
+    )
     public_credit: PublicCredit | None = None
     task_id: str
     task_bundle_sha256: str
@@ -779,7 +863,13 @@ class RewardItem(Model):
     status: str
     amount_rao: int
     destination_coldkey: str
-    destination_hotkey: str
+    destination_hotkey: str | None = Field(
+        default=None,
+        description=(
+            "History only: the delegated hotkey a pre-V035 payout was staked to. Null for "
+            "every payout made by transfer_stake."
+        ),
+    )
     extrinsic_reference: str | None = None
     explorer_url: str | None = None
     submitted_block: int | None = None
@@ -793,10 +883,8 @@ ConfirmedSubmission.model_rebuild()
 
 
 __all__ = [
-    "PROVIDER_COLDKEY",
-    "PROVIDER_EMAIL",
-    "PROVIDER_GOOGLE",
     "Account",
+    "AccountColdkeys",
     "ApprovalReason",
     "Capabilities",
     "Capability",
@@ -811,11 +899,13 @@ __all__ = [
     "FundingSummary",
     "Identity",
     "IntentBundleResult",
-    "LinkedHotkey",
     "LinkedIdentity",
     "LinkedWallet",
     "Model",
     "OwnerVerificationReport",
+    "PROVIDER_COLDKEY",
+    "PROVIDER_EMAIL",
+    "PROVIDER_GOOGLE",
     "PayoutDestination",
     "PreflightResult",
     "PublicCredit",

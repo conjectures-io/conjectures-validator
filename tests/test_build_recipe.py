@@ -38,6 +38,23 @@ def _stub_tree(tmp_path: Path) -> Path:
         (root / "vendor" / checkout).mkdir(parents=True)
     (root / "security").mkdir()
     (root / "security" / "seccomp-launcher.c").write_text("int main(void){return 0;}\n", encoding="utf-8")
+    # A real checkout always has this, and the Dockerfile copies it in before running the script:
+    # the recipe reads the pinned toolchain and Lean commit out of it.
+    pins = (ROOT / "pins.lock.json").read_text(encoding="utf-8")
+    (root / "pins.lock.json").write_text(pins, encoding="utf-8")
+    # The vendor stage asserts that the exporter it just built links the pinned Lean, because
+    # upstream publishes no lean4export release for every Lean patch version and it is built under
+    # a toolchain it does not declare. Stub one that answers truthfully, so the check is exercised
+    # here rather than quietly skipped by a tree that has no binary to ask.
+    pinned_lean = json.loads(pins)["lean"]["commit"]
+    exporter = root / "vendor/lean4export/.lake/build/bin"
+    exporter.mkdir(parents=True)
+    binary = exporter / "lean4export"
+    binary.write_text(
+        f'#!/bin/sh\necho \'{{"meta":{{"lean":{{"githash":"{pinned_lean}"}}}}}}\'\n',
+        encoding="utf-8",
+    )
+    binary.chmod(0o755)
 
     binaries = root / "stub-bin"
     binaries.mkdir()
@@ -159,6 +176,48 @@ def test_the_dockerfile_carries_no_second_copy_of_the_recipe():
     assert "build_trusted_cache.sh --stage root" in dockerfile
     for inlined in ("lake exe cache get", "lake build", "go build", "seccomp-launcher.c"):
         assert inlined not in dockerfile
+
+
+def test_the_image_normalizes_checkout_modes_before_dropping_privileges():
+    """A release checkout's umask must not decide whether UID 10001 can import the verifier."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    copied = dockerfile.index("COPY . .")
+    normalized = dockerfile.index("-exec chmod a+rX {} +")
+    root_build = dockerfile.index("build_trusted_cache.sh --stage root")
+    non_root = dockerfile.index("USER verifier")
+
+    assert copied < normalized < root_build < non_root
+    normalization = dockerfile[copied:root_build]
+    for trusted_cache in ("vendor", ".elan", ".lake"):
+        assert f"-path './{trusted_cache}'" in normalization
+
+
+def test_the_image_normalizes_the_trusted_caches_after_the_last_cache_get():
+    """The pass above prunes them, so they need one of their own, and it has to come last.
+
+    Mathlib's cache tool unpacks through the toolchain's `leantar`, which persists every extracted
+    file from a temporary file and so writes it 0600 whatever the umask. Left alone, ~130k
+    root-owned files under `vendor` are unreadable to UID 10001, `doctor` still reports `ready`
+    because it compiles nothing, and every proof fails at CHALLENGE_BUILD_FAILED — which the worker
+    charges to itself, so submissions get no verdict and trip the refund alarm instead.
+    """
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    root_build = dockerfile.index("build_trusted_cache.sh --stage root")
+    non_root = dockerfile.index("USER verifier")
+    # Both `lake exe cache get` runs must have finished before the modes are fixed, and the root
+    # stage is the later of them.
+    trailing = dockerfile[root_build:non_root]
+
+    directories = trailing.index("-type d ! -perm -o=rx -exec chmod a+rX {} +")
+    files = trailing.index("-type f ! -perm -o=r -exec chmod a+r {} +")
+    created_user = trailing.index("useradd")
+
+    assert directories < created_user
+    assert files < created_user
+    for trusted_cache in ("./vendor", "./.elan", "./.lake"):
+        assert trusted_cache in trailing[: min(directories, files)]
 
 
 def test_the_elan_download_comes_from_the_pin_file(tmp_path):

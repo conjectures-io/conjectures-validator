@@ -588,6 +588,7 @@ def test_final_verdict_query_requires_a_live_owned_lease_and_row_lock():
     assert "FOR UPDATE" in sql
 
 
+@pytest.mark.needs_checkouts
 def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     """The other worker tests build a resolver directly, leaving `load` uncovered.
 
@@ -610,6 +611,7 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     assert all(task.timeout_seconds > 0 for task in tasks)
 
 
+@pytest.mark.needs_checkouts
 def test_the_resolver_refuses_a_pool_missing_an_allowlisted_task(tmp_path: Path):
     """A claimed submission whose task has no bytes would be released and retried forever."""
     complete = PoolTaskResolver.load(

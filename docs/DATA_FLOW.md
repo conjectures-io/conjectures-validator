@@ -2,7 +2,7 @@
 
 How data moves through the validator, what each stage consumes, what it produces, and which values
 are load-bearing for trust. Every number here was computed from the pinned repository state at
-`379fc0298dc146df549e7061c3ede0353a5bb51f`; the commands are reproducible from `data/catalog.json`
+`8432eac998110a563e03df65a28c117e97c8c142`; the commands are reproducible from `data/catalog.json`
 and `../conjectures-tasks/{allowlist.json,tiers/**/*.json}`.
 
 Companion documents: [`SUBNET.md`](SUBNET.md) for the service contract,
@@ -43,17 +43,17 @@ a read-only task directory, bounded proof bytes, and an expected digest, and ret
 ```mermaid
 flowchart TD
     subgraph GEN["GENERATION DOMAIN — offline, trusted, once per pin"]
-        FC["Formal Conjectures @ 379fc029<br/>836 files · 3267 declarations"]
+        FC["Formal Conjectures @ 8432eac9<br/>1188 files · 5190 declarations"]
         EX["CatalogExtractor.lean<br/>Lean environment introspection"]
-        CAT["data/catalog.json<br/>3267 declaration records"]
+        CAT["data/catalog.json<br/>5190 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>159 active asserted picks"]
+        PICK["task target policy<br/>259 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>318 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>518 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -118,7 +118,7 @@ flowchart TD
 
 | | |
 | --- | --- |
-| **Primary source** | `vendor/formal-conjectures` at commit `379fc029…`, a Lean 4 project |
+| **Primary source** | `vendor/formal-conjectures` at commit `8432eac9…`, a Lean 4 project |
 | **Needs** | The pinned toolchain `leanprover/lean4:v4.27.0`, Mathlib `a3a10db0…`, a full compile |
 | **Produces** | 3,267 declaration records over 836 source files, plus `schema_version`, `repository_commit`, `lean_toolchain`, `mathlib_commit`, `extraction_duration_ms` |
 | **Cost** | `extraction_duration_ms: 889692` — 14.8 minutes, once per pin |
@@ -169,15 +169,18 @@ the pipeline.
 
 | Step | Rule | Remaining |
 | --- | --- | --- |
-| 0 | All declarations at the pinned commit | **3,267** |
-| 1 | `category == "research open"` | **1,167** |
-| 2 | `classification == DIRECT_PROP` | **988** |
-| 3 | remaining exact-proposition safety rules | **988** |
-| 4 | module under `ErdosProblems/` | **506** over 320 files |
+| 0 | All declarations at the pinned commit | **5,190** |
+| 1 | `category == "research open"` | **1,426** |
+| 2 | `classification == DIRECT_PROP` | **1,274** |
+| 3 | remaining exact-proposition safety rules | **1,274** |
+| 4 | module under `ErdosProblems/` | **540** over 346 files |
 | 5 | audited candidate selection | **176** targets from 154 files (151 Erdős over 132 files, 25 Green over 22) |
 | 6 | active after dependency and semantic-fidelity retirements | **168** targets from 147 files (145 Erdős over 127 files, 23 Green over 20) |
 | 7 | active after retiring settled or literature-solved targets | **162** targets from 141 files (142 Erdős over 124 files, 20 Green over 17) |
 | 8 | active after maintainer-request withdrawals | **159** targets from 139 files (139 Erdős over 122 files, 20 Green over 17) |
+| 9 | plus 50 reviewed Erdős targets admitted separately | **209** targets from 182 files (189 Erdős over 166 files, 20 Green over 17) |
+| 10 | active after retiring a target under an active upstream correction | **208** targets from 181 files (189 Erdős over 165 files, 19 Green over 16) |
+| 11 | September 8 review: six live withdrawals and 57 additions | **259** targets from 224 files (235 Erdős, 24 Green) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -187,7 +190,7 @@ one of them starts firing is the day upstream changed something that matters.
 
 ### Retired theorems
 
-`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` names 182 source theorems and 194
+`../conjectures-tasks/tiers/tier-1/retired-source-theorems.json` records source theorems and
 canonical types that must not be offered again, committed by both `theorem` name **and**
 `source_type_sha256` — so retiring survives a rename. An audited target may explicitly supersede a
 prior theorem-name retirement; all remaining retirement entries are checked by name *or* type hash at
@@ -195,8 +198,9 @@ selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 159 active targets are **not computed** from the 506. They are the admitted subset of 176
-audited candidates and are asserted by hand in one target file. `select_task_declarations` then
+The 259 active targets are explicitly recorded in one target file after source, statement,
+prior-solution, and proof-claim review. The historical funnel below describes earlier snapshots;
+its counts are not current catalog statistics. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
 
 - present in the audited selection with matching `source_family`, `source_path`, and
@@ -207,7 +211,7 @@ refuses to accept any pick that is not simultaneously:
 - not a duplicate `type_hash` of an already-selected task;
 - not under an excluded prefix.
 
-Plus a floor: at least 139 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
+Plus a floor: at least 235 selections must be Erdős tasks or the build fails. All three audit inputs must carry the same
 `repository_commit` as the catalog, or the whole selection is rejected up front.
 
 Why human judgement is unavoidable here: a source file can hold a parent statement, variants,
@@ -273,16 +277,16 @@ The statement the miner must prove — never stored as text anywhere in the bund
 | `production_eligible` | `true` | Gates the strict path |
 | `task_mode` | `formalized` | The only mode |
 | `timeout_seconds` | `3600` | Wall-clock cap |
-| `max_submission_bytes` | `1000000` | Size cap |
+| `max_submission_bytes` | `10485760` | Default size cap for newly generated tasks; existing tasks retain their published limit |
 | `trusted_file_hashes` | 5 entries | Must equal `trusted-hashes.json` |
 
 Generation writes to a temp directory, validates, then publishes with `os.replace`; it refuses to
 overwrite an existing bundle.
 
 Note: `TaskManifest.max_submission_bytes` falls back to `5_000_000` when the key is absent
-(`models.py:207`), while the generator's own default is `1_000_000`. Every pool manifest sets the
-value explicitly, so nothing is currently affected — but a hand-written manifest that omits the key
-gets a 5× larger cap than the generator would ever produce.
+(`models.py:207`), while the generator's default is now `10 * 1024 * 1024`.
+Production task loading requires this field explicitly. Existing pool manifests keep their
+committed values until republished; see `docs/SUBMISSION_BUNDLE.md` for rollout requirements.
 
 ## 5. Generation-time audit — **BUILT**
 
@@ -302,7 +306,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-159 `allowed_source_theorems` and 318 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+259 `allowed_source_theorems` and 518 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
@@ -324,7 +328,7 @@ combined with a tampered audit file:
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 139 active Erdős targets and 20 Green targets.
+all 235 active Erdős targets and 24 Green targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
@@ -389,7 +393,7 @@ Ordered gates, each with a stable `reason_code`:
 | 2 | Task is production-eligible | `INELIGIBLE_TASK` |
 | 3 | Dependency pins intact; FC commit matches manifest and checkout | `REPOSITORY_COMMIT_MISMATCH` |
 | 4 | Per-file hashes match; payloads **regenerate byte-identically** | `TRUSTED_FILE_MODIFIED` |
-| 5 | Proof is one regular non-symlink `.lean`, ≤ 1 MB, valid UTF-8, no NUL | `SUBMISSION_TOO_LARGE`, `SUBMISSION_NOT_UTF8`, `SUBMISSION_POLICY_VIOLATION` |
+| 5 | Proof is one regular non-symlink `.lean`, ≤ 10 MiB, valid UTF-8, no NUL | `SUBMISSION_TOO_LARGE`, `SUBMISSION_NOT_UTF8`, `SUBMISSION_POLICY_VIOLATION` |
 | 6 | Static policy: no forbidden dependency, no attributes, no top-level `#` commands | `SUBMISSION_POLICY_VIOLATION` |
 | 7 | Live Landlock ≥ ABI 4 + seccomp probe passes | `INSECURE_SANDBOX` |
 | 8 | Challenge builds | `CHALLENGE_BUILD_FAILED` |
@@ -473,7 +477,7 @@ conditional amount-of-record, and later payout generation copies it without repr
 
 The Discord notifier creates `PENDING` and sends the reviewed multisig call to both human signers.
 The read-only payout watcher then derives state from runtime events: a matching
-`StakeAndHotkeyTransferred` on the best chain is `SUBMITTED`, the same event in a finalized block
+`StakeTransferred` on the best chain is `SUBMITTED`, the same event in a finalized block
 is `CONFIRMED`, and a pre-finality reorganization returns it to `PENDING`. It pairs the transfer
 event with that call's `StakeAdded` event because the former reports TAO-equivalent value while the
 latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.

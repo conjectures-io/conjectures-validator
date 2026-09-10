@@ -26,10 +26,20 @@ from datetime import date
 from functools import cache
 from pathlib import Path
 
-from conftest import PYTEST_DSN, declaration, postgres_dsn
+# `PYTEST_DSN` and `postgres_dsn` are deliberately not imported from `conftest`: this module
+# defines its own copies below and re-exports those, so importing them here only shadowed
+# them. The duplication itself is worth collapsing, but that is a change to how the harness
+# finds its database and does not belong in a lint pass.
+from conftest import declaration
 from conftest import manifest as task_manifest
 from sqlalchemy.ext.asyncio import AsyncEngine
-from test_bundle import HOTKEY, TASK_DIGEST, VALID_PROOF, manifest_json, valid_bundle
+from test_bundle import (
+    MINER_COLDKEY,
+    TASK_DIGEST,
+    VALID_PROOF,
+    manifest_json,
+    valid_bundle,
+)
 
 from conjectures_subnet.attribution import PublicCredit, encode_public_credit_header
 from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
@@ -40,6 +50,7 @@ from submission_api.app import create_app
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
+from submission_api.github import UnavailableContributionMirror
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import ConsoleSender
 from submission_api.payments import build_payment_verifier
@@ -58,7 +69,7 @@ TASK_ID = "fixture"
 TIER = "tier-1"
 PROBLEM_ID = "fixture-problem"
 RECIPIENT = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
-OTHER_HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+OTHER_MINER_COLDKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
 REPOSITORY_COMMIT = "e923379e609b9d5987011a1d1f06ec22ea25cd20"
 
@@ -95,8 +106,8 @@ PINS_JSON = (
 __all__ = [
     "CHALLENGE_LEAN",
     "COLDKEY",
-    "HOTKEY",
-    "OTHER_HOTKEY",
+    "MINER_COLDKEY",
+    "OTHER_MINER_COLDKEY",
     "PINS_JSON",
     "PYTEST_DSN",
     "RECIPIENT",
@@ -132,12 +143,12 @@ def terms() -> SubmissionTerms:
     """
     return SubmissionTerms.load(
         ROOT / "docs" / "SUBMISSION_TERMS.md",
-        version="v4",
-        effective_from=date(2026, 8, 10),
+        version="v5",
+        effective_from=date(2026, 9, 8),
     )
 
 
-def distinct_bundle(marker: str, *, hotkey: str = HOTKEY) -> tuple[bytes, str]:
+def distinct_bundle(marker: str, *, coldkey: str = MINER_COLDKEY) -> tuple[bytes, str]:
     """A bundle whose proof bytes are unique to `marker`, and that proof's digest.
 
     `submissions.proof_digest` is globally UNIQUE, so two submissions can never carry the same
@@ -151,7 +162,7 @@ def distinct_bundle(marker: str, *, hotkey: str = HOTKEY) -> tuple[bytes, str]:
     bundle = valid_bundle(
         proof=proof,
         manifest=manifest_json(
-            proof_sha256=digest, proof_bytes=len(proof), miner_hotkey=hotkey
+            proof_sha256=digest, proof_bytes=len(proof), miner_coldkey=coldkey
         ),
     )
     return bundle, digest
@@ -214,9 +225,18 @@ def build_settings(**overrides: str) -> Settings:
         "SUBMISSION_AUTHENTICATOR": "development-static-key",
         "SUBMISSION_PAYMENT_VERIFIER": "development",
         "SUBMISSION_DISPATCHER": "queue",
-        "DEVELOPMENT_HOTKEYS": f"{HOTKEY},{OTHER_HOTKEY}",
-        "DEVELOPMENT_COLDKEY": COLDKEY,
+        # Three, and each is here for a different path: MINER_COLDKEY signs the extrinsic
+        # submissions, OTHER_COLDKEY is the "somebody else's key" case, and COLDKEY is the
+        # account wallet the intent and website paths sign with. DEVELOPMENT_COLDKEY is gone —
+        # the development payment verifier echoes whichever of these signed, because production
+        # requires the payer and the signer to be one key.
+        "DEVELOPMENT_COLDKEYS": f"{MINER_COLDKEY},{OTHER_MINER_COLDKEY},{COLDKEY}",
         "MANUAL_REWARD_REVIEW_ENABLED": "true",
+        # Off by default for the whole suite, so no test can reach github.com. A test that wants
+        # the contribution surface injects a `StaticContributionMirror` through `harness`, which
+        # is also what makes every other test prove the endpoints answer 503 rather than
+        # publishing an empty corpus.
+        "CONTRIBUTIONS_ENABLED": "false",
     }
     environ.update(overrides)
     return Settings.from_env(environ)
@@ -307,6 +327,7 @@ def harness(
     retired=None,
     tmc_pay=None,
     tao_usd=None,
+    contributions=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -327,8 +348,14 @@ def harness(
     reason as `payments`: the real ones talk to a payment processor and to TaoStats. Both default
     to the unavailable implementations, so every test that does not name them proves the purchase
     endpoints refuse rather than reach a network.
+
+    `contributions` injects the mirrored contribution corpus. It defaults to the unavailable
+    mirror, which is what keeps the suite off the network — the real one polls github.com — and
+    what makes every test that does not name it prove `/v1/contributions` refuses rather than
+    serving an empty corpus as if it had read one.
     """
     settings = build_settings(**overrides)
+    verifier = payments or build_payment_verifier(settings)
     engine = create_async_db_engine(settings.database_url)
     catalog = catalog_from_entries(
         repository_commit=REPOSITORY_COMMIT,
@@ -340,7 +367,7 @@ def harness(
         sessions=async_session_factory(engine),
         catalog=catalog,
         authenticator=build_authenticator(settings),
-        payments=payments or build_payment_verifier(settings),
+        payments=verifier,
         dispatcher=dispatcher or QueueDispatcher(),
         pricing=DynamicBountyPricer(
             balance_reader=StaticBalanceReader(settings.bounty_pool_balance_rao),
@@ -375,6 +402,11 @@ def harness(
         retired=retired if retired is not None else RetiredIndex.empty(),
         tmc_pay=tmc_pay if tmc_pay is not None else UnavailableGateway(),
         tao_usd=tao_usd if tao_usd is not None else UnavailableTaoUsdPriceReader(),
+        contributions=(
+            contributions
+            if contributions is not None
+            else UnavailableContributionMirror()
+        ),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings
@@ -383,7 +415,7 @@ def harness(
 
 def request_digest(
     *,
-    hotkey: str = HOTKEY,
+    signer_coldkey: str = MINER_COLDKEY,
     task_id: str = TASK_ID,
     task_digest: str = TASK_DIGEST,
     proof_digest: str,
@@ -392,7 +424,7 @@ def request_digest(
     public_credit: PublicCredit | None = None,
 ) -> str:
     return store.canonical_request_digest(
-        hotkey=hotkey,
+        signer_coldkey=signer_coldkey,
         task_id=task_id,
         task_bundle_sha256=task_digest,
         proof_sha256=proof_digest,
@@ -405,7 +437,7 @@ def request_digest(
 def submission_headers(
     bundle: bytes,
     *,
-    hotkey: str = HOTKEY,
+    coldkey: str = MINER_COLDKEY,
     task_id: str = TASK_ID,
     task_digest: str = TASK_DIGEST,
     idempotency_key: str | None = None,
@@ -424,7 +456,7 @@ def submission_headers(
     headers = {
         "Content-Type": content_type,
         "Idempotency-Key": key,
-        "X-Conjectures-Hotkey": hotkey,
+        "X-Conjectures-Coldkey": coldkey,
         "X-Conjectures-Timestamp": str(
             int(time.time() * 1000) if timestamp_ms is None else timestamp_ms
         ),
@@ -439,9 +471,11 @@ def submission_headers(
     return headers
 
 
-def read_headers(hotkey: str = HOTKEY, *, signature: str | None = None) -> dict[str, str]:
+def read_headers(
+    coldkey: str = MINER_COLDKEY, *, signature: str | None = None
+) -> dict[str, str]:
     return {
-        "X-Conjectures-Hotkey": hotkey,
+        "X-Conjectures-Coldkey": coldkey,
         "X-Conjectures-Timestamp": str(int(time.time() * 1000)),
         "X-Conjectures-Signature": signature or development_signature(),
     }

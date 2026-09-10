@@ -34,13 +34,24 @@ through an unauthenticated channel does not make the task authentic.
 
 ## What miners control
 
-The miner submits one `conjectures-submission/v1` ZIP bundle, up to 2 MiB, described in
+The miner submits one `conjectures-submission/v1` ZIP bundle, up to 12 MiB, described in
 [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md). The bundle is admitted by the
 exact-shape scanner in [`verifier/bundle.py`](verifier/bundle.py), which permits exactly two
-entries: a bounded strict-JSON manifest and one regular UTF-8 `.lean` file of up to 1,000,000
-bytes. Everything downstream of admission is unchanged: the verifier still receives exactly one
+entries: a bounded strict-JSON manifest and one regular UTF-8 `.lean` file of up to 10 MiB
+(or the task's lower published limit). The static scanner stops tokenization after the
+200,000-token policy cap is exceeded and rejects the submission. The verifier receives exactly one
 bounded UTF-8 `.lean` file, one read-only task, an expected task digest, and a fresh disposable
 workspace.
+
+**Who a bundle claims to be from is authenticated, never taken on trust.** The manifest's
+`miner_coldkey` is optional as of the session-authorised intake path, because an account opened with
+an email address holds no Bittensor key and has no address it could honestly write. The field is
+bound rather than believed: `admit_proof_bundle` takes the address the *route* authenticated, and
+compares. On a key-signed path the manifest must name exactly that key, unchanged. On the session
+path the caller authenticated no address, so a manifest naming one is **refused rather than
+ignored** — the solver identity is published on the result page and credits the work, so
+admitting an unverified claim would let anyone attribute a solved conjecture to someone else's
+coldkey. Nothing in the bundle can select the weaker check; only the route decides.
 
 The archive is never extracted. Entry names are compared against a two-name allowlist and are
 never used as filesystem paths; entry bytes are decompressed into bounded memory, and the proof
@@ -94,7 +105,7 @@ The permitted production axioms are exactly:
 | Prepend a self-extracting stub, append a second archive, or build a polyglot file | The first local header must be at offset zero and the end-of-central-directory record must be the final 22 bytes, with no comment |
 | Encrypt an entry, defer sizes to a data descriptor, or mask header values | Only the UTF-8 name flag and deflate level hints are permitted; every other general-purpose flag is refused |
 | Use an exotic compression method or a split archive | Only `stored` and `deflate`; multi-disk and spanned archives are refused |
-| Claim a different task or another miner's identity in the manifest | The manifest's task id, task digest, and hotkey must equal the operator-supplied commitment and the authenticated hotkey |
+| Claim a different task or another miner's identity in the manifest | The manifest's task id, task digest, and `miner_coldkey` must equal the operator-supplied commitment and the authenticated coldkey |
 | Change or swap task files | No-follow bounded reads, exact file set, per-file hashes, deterministic payload regeneration, and external whole-bundle SHA-256 |
 | Supply a solved, incorrectly transformed, answer-wrapper, or test task | Allowlisted mode, independent compiled `P`/`Not P` target reconstruction, source and target hashes, compiled classification/category/declaration kind, formal-proof tag, `sorryAx` dependency, and target-hole checks |
 | Submit `sorry`, `admit`, an axiom, a module initializer, or the admitted source theorem | Token policy plus Comparator's transitive axiom closure |

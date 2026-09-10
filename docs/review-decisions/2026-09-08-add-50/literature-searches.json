@@ -1,0 +1,306 @@
+{
+  "lit1": {
+    "queries": [
+      {
+        "q": "\"Green\" \"problem 39\" covering translates random solved"
+      },
+      {
+        "q": "\"inverse sieve\" \"quadratic\" 2026 solved"
+      },
+      {
+        "q": "\"Erdős similarity\" \"geometric\" 2026"
+      },
+      {
+        "q": "\"sum of two squares\" \"1/4\" \"2026\" gaps"
+      }
+    ],
+    "result_urls": [
+      "https://arxiv.org/abs/2607.03584",
+      "https://creativecommons.org/licenses/by/4.0/",
+      "https://doi.org/10.4213/im9681e",
+      "https://doi.org/10.48550/arXiv.2607.03584",
+      "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SoCG.2026.83}",
+      "https://drops.dagstuhl.de/entities/volume/LIPIcs-volume-367",
+      "https://eccc.weizmann.ac.il/report/2011/108/revision/1/download/",
+      "https://firsching.ch/formal-conjectures/src/FormalConjectures/GreensOpenProblems/%C2%AB39%C2%BB/",
+      "https://github.com/wustep/maths/blob/main/problems/two-squares-gap/PROBLEM.md",
+      "https://link.springer.com/article/10.1007/s11139-026-01340-6",
+      "https://math.naboj.org/gb/en/archive/17/problems/",
+      "https://ocw.mit.edu/courses/18-225-graph-theory-and-additive-combinatorics-fall-2023/ydyiq1Z22gc_transcript.pdf",
+      "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+      "https://www.cambridge.org/core/journals/bulletin-of-the-australian-mathematical-society/article/gaps-between-hexagonal-and-square-lattices/9B39CC8AD23F02949B926E96337E3DC2",
+      "https://www.emergentmind.com/open-problems/erdos-similarity-conjecture-general-case",
+      "https://www.emergentmind.com/papers/2604.01493",
+      "https://www.erdosinstitute.org/project-challenges",
+      "https://www.otka-palyazat.hu/download.php?projektid=129335&type=zarobeszamolo",
+      "https://www.sciencedirect.com/science/article/abs/pii/S1071579726000237",
+      "https://www.thierrydepauw.org/wp-content/uploads/2026/02/WWS-GMT-02-SLIDES-Yavicoli.pdf",
+      "https://www2.cms.math.ca/Events/winter24/res/pdf/hag.pdf"
+    ]
+  },
+  "lit2": {
+    "queries": [
+      {
+        "q": "\"inverse sieve\" \"2026\" quadratic"
+      },
+      {
+        "q": "\"Green\" \"Problem 44\" sieve"
+      },
+      {
+        "q": "\"simultaneous double product property\" solved"
+      }
+    ],
+    "result_urls": [
+      "https://algcomp.uwaterloo.ca/seminar-materials/mamu-waterloo.pdf",
+      "https://bip.uni.wroc.pl/download/attachment/41154/rozprawa-z-kodami-p_ostropolski-nalewaja.pdf",
+      "https://brainly.com/question/62831889",
+      "https://londmathsoc.onlinelibrary.wiley.com/doi/abs/10.1112/jlms.70499",
+      "https://mathdb.com/database?tag=matrix-multiplication",
+      "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+      "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.44",
+      "https://studyres.com/doc/8845110/group-theoretic-algorithms-for-matrix-multiplication",
+      "https://sudonull.com/gpt-5-4-pro-solved-erdo-s-problem-no-1202-from-green-s-list",
+      "https://theoremdb.org/statements/fc-be91202cc6bd3c068250-green-44/",
+      "https://theory.stanford.edu/~virgi/cs367/papers/groupmatrix.pdf",
+      "https://www.cimat.mx/ciencia_para_jovenes/bachillerato/libros/algebra_gelfand.pdf",
+      "https://www.math.uwaterloo.ca/~x46wang/NTF24.html",
+      "https://www.pearson.com/channels/general-chemistry/textbook-solutions/mcmurry-8th-edition-9781292336145/ch-4-reactions-in-aqueous-solution/based-on-the-positions-in-the-periodic-table-which-of-the-following-reactions-wo",
+      "https://www.researchgate.net/publication/373753597_On_generalized_corners_and_matrix_multiplication",
+      "https://www.researchgate.net/publication/410594905_A_weighted_entropy_approach_for_the_quadratic_inverse_large_sieve_conjecture",
+      "https://www.scribd.com/document/253317289/TRIZ-The-right-solution-at-the-right-time-pdf",
+      "https://www.vaia.com/en-us/textbooks/math/intermediate-algebra-11-edition/chapter-3/problem-44-quad-a-store-sells-regular-green-tea-for-16-a-pou/"
+    ]
+  },
+  "lit3": {
+    "queries": [
+      {
+        "q": "Erdos problem 25 multiplicative basis sparse even integers solved"
+      },
+      {
+        "q": "Erdos problem 52 sum product integer conjecture 2026 solution"
+      },
+      {
+        "q": "Erdos problem 61 Erdos Hajnal conjecture 2026 solved"
+      },
+      {
+        "q": "Erdos problem 91 optimal distinct distances non similar 2026"
+      }
+    ],
+    "result_urls": [
+      "http://www.cs.umd.edu/~gasarch/TOPICS/erdos_dist/erdos_dist.html",
+      "http://www.openproblemgarden.org/op/the_erdos_hajnal_conjecture",
+      "https://arxiv.org/abs/1602.06724",
+      "https://arxiv.org/abs/2605.03825",
+      "https://arxiv.org/abs/2606.06258",
+      "https://arxiv.org/abs/2608.02522",
+      "https://combinatorica.hu/~p_erdos/1972-05.pdf",
+      "https://demath.org/problems/erdos-sum-product",
+      "https://doi.org/10.1016/j.ffa.2026.102883",
+      "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Hajnal_conjecture",
+      "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Moser_equation",
+      "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Tetali_theorem",
+      "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Tur%C3%A1n_conjecture_on_additive_bases",
+      "https://en.wikipedia.org/wiki/Erd%C5%91s_distinct_distances_problem",
+      "https://en.wikipedia.org/wiki/The_Erd%C5%91s_Distance_Problem",
+      "https://erdosproblemaday.com/report/61",
+      "https://github.com/Commencethescourge/erdos-straus-solver",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/91.lean",
+      "https://math.colgate.edu/~integers/aa42/aa42.pdf",
+      "https://math.colgate.edu/~integers/y89/y89.pdf",
+      "https://openai.com/index/model-disproves-discrete-geometry-conjecture/",
+      "https://problems.science/problems/erdos-problems",
+      "https://real.mtak.hu/85703/",
+      "https://real.mtak.hu/85703/1/Multiplicative%20bases.pdf",
+      "https://theoremdb.org/statements/erdos-problem-91/",
+      "https://theoremdb.org/statements/erdos-problem-91`[Button:",
+      "https://www.cambridge.org/core/journals/journal-of-the-australian-mathematical-society/article/on-multiplicative-representations-of-integers/0CD3F70A0456C7CAEFFC56F2B3A1BE31",
+      "https://www.cs.umd.edu/~gasarch/COURSES/752/S25/BOOKS/AddComb.pdf",
+      "https://www.erdosproblems.com/61",
+      "https://www.mathsclub.org/problems/sum-product-over-the-reals",
+      "https://www.proofatlas.ai/collaboration/erdos-hajnal-conjecture/",
+      "https://www.reddit.com/r/DeepSeek/comments/1t9wswa/a_2month_aihuman_collaboration_on_erd%C5%91s_problem/",
+      "https://www.reddit.com/r/LLMmathematics/comments/1uvtinp/two_new_methodologically_distinct_solutions_to/",
+      "https://www.reddit.com/r/OpenAI/comments/1q9bt3u/gpt52_solves_another_erd%C5%91s_problem_729/",
+      "https://www.reddit.com/r/OpenAI/comments/1uw2go5/gpt56_pro_solves_5_erdos_problems/",
+      "https://www.reddit.com/r/math/comments/1ociy35/i_made_a_website_to_collect_erdos_problems_ama/",
+      "https://www.reddit.com/r/math/comments/1qtwza0/llm_solves_erdos1051_and_erdos652_autonomously/",
+      "https://www.reddit.com/r/math/comments/1tqc79h/humans_just_disproved_the_sumproduct_conjecture/",
+      "https://www.reddit.com/r/mathematics/comments/1tqcfuz/a_40_year_major_conjecture_has_fallen_to_humans/",
+      "https://www.reddit.com/r/singularity/comments/1slb0hz/gpt54_pro_solves_erd%C5%91s_problem_1196/",
+      "https://www.reddit.com/r/singularity/comments/1uvrtl0/another_50_yearold_erd%C5%91s_problem_falls_to_gpt56/",
+      "https://www.reddit.com/r/singularity/comments/1v3xmuw/i_solved_6_open_erd%C5%91s_problems_in_5_days/",
+      "https://www.reddit.com/r/u_BagZealousideal449/comments/1rsd1wy/verified_the_erd%C5%91sstraus_conjecture_to_1014_100/",
+      "https://www.renyi.hu/~p_erdos/1971-28.pdf",
+      "https://www.sciencedirect.com/science/article/abs/pii/S1071579726000948",
+      "https://www.theatlantic.com/technology/2026/02/ai-math-terrance-tao/686107/?utm_source=apple_news",
+      "https://x.com/SebastienBubeck/status/1980311866770653632",
+      "https://x.com/thomasfbloom/status/2059972688915886242"
+    ]
+  },
+  "lit4": {
+    "queries": [
+      {
+        "q": "\"consecutive\" \"large gaps\" \"primes\" chains"
+      },
+      {
+        "q": "\"Erdos\" \"968\" solved"
+      },
+      {
+        "q": "\"On chains of large gaps\" primes"
+      }
+    ],
+    "result_urls": [
+      "https://annals.math.princeton.edu/2016/183-3/p04",
+      "https://arxiv.org/abs/1407.2213",
+      "https://arxiv.org/abs/1408.4505",
+      "https://arxiv.org/abs/1411.6543",
+      "https://arxiv.org/abs/1511.04468",
+      "https://de.wikipedia.org/wiki/Helmut_Maier_%28Mathematiker%29",
+      "https://doi.org/10.4007/annals.2016.183.3.4",
+      "https://en.wikipedia.org/wiki/Gaussian_moat",
+      "https://en.wikipedia.org/wiki/Helmut_Maier",
+      "https://en.wikipedia.org/wiki/Maier%27s_matrix_method",
+      "https://en.wikipedia.org/wiki/Prime_gap",
+      "https://es.wikipedia.org/wiki/Diferencia_entre_dos_n%C3%BAmeros_primos_consecutivos",
+      "https://github.com/teorth/erdosproblems",
+      "https://math.stackexchange.com/questions/627144/prime-chains-with-large-gaps?noredirect=1",
+      "https://oeis.org/A387591",
+      "https://ora.ox.ac.uk/objects/uuid%3A2ba965da-7ce1-418e-96aa-5f119f965910/files/mcee3215ec1fe0bde95855661a86b2988",
+      "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7375900",
+      "https://paperzz.com/doc/8348055/on-the-ratio-of-consecutive-gaps-between-primes",
+      "https://terrytao.wordpress.com/2015/11/16/chains-of-large-gaps-between-primes/",
+      "https://travorlzh.github.io/2024/11/12/maier-long-gap.html",
+      "https://www.collectionscanada.ca/obj/s4/f2/dsk3/OWTU/TC-OWTU-313.pdf",
+      "https://www.erdosproblems.com/968",
+      "https://www.ford126.web.illinois.edu/wwwpapers/primegaps_chains.pdf",
+      "https://www.reddit.com/r/askmath/comments/mv2pup",
+      "https://www.reddit.com/r/math/comments/1aypckv",
+      "https://www.reddit.com/r/math/comments/pfelkm",
+      "https://www.researchgate.net/publication/264936696_Large_gaps_between_consecutive_prime_numbers",
+      "https://www.sciencedirect.com/science/article/pii/S0022314X97920813",
+      "https://www.tandfonline.com/doi/full/10.1080/0025570X.2025.2481010"
+    ]
+  },
+  "lit5": {
+    "queries": [
+      {
+        "q": "Erdos 14 uniquely representable sums square root bound solved"
+      },
+      {
+        "q": "Erdos 323 Waring sums m kth powers lower bound open"
+      },
+      {
+        "q": "Erdos 25 logarithmic density congruence classes solved"
+      },
+      {
+        "q": "Littlewood conjecture 2026 proof refuted"
+      }
+    ],
+    "result_urls": [
+      "http://planetmath.org/Basis2",
+      "http://planetmath.org/BoundedInterval",
+      "https://alpo.ge/s6.pdf",
+      "https://arxiv.org/abs/2409.00233",
+      "https://arxiv.org/abs/2603.12611",
+      "https://arxiv.org/abs/2605.23601",
+      "https://arxiv.org/abs/2608.25059",
+      "https://combinatorica.hu/~p_erdos/1971-23.pdf",
+      "https://combinatorica.hu/~p_erdos/1988-03.pdf",
+      "https://de.wikipedia.org/wiki/Satz_von_Erd%C3%B6s-Suranyi",
+      "https://de.wikipedia.org/wiki/Waringsches_Problem",
+      "https://dlmf.nist.gov/27.13",
+      "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Fuchs_theorem",
+      "https://en.wikipedia.org/wiki/List_of_conjectures_by_Paul_Erd%C5%91s",
+      "https://en.wikipedia.org/wiki/Waring%27s_problem",
+      "https://en.wikipedia.org/wiki/Waring%E2%80%93Goldbach_problem",
+      "https://erdosproblemaday.com/report/14",
+      "https://firsching.ch/formal-conjectures/src/FormalConjectures/ErdosProblems/%C2%AB486%C2%BB/",
+      "https://github.com/Commencethescourge/erdos-straus-solver",
+      "https://github.com/teorth/erdosproblems/wiki/AI-contributions-to-Erd%C5%91s-problems",
+      "https://jig.so/",
+      "https://leangenius.org/proof/erdos-14-unique-sums",
+      "https://leangenius.org/proof/erdos-158",
+      "https://math.uni-paderborn.de/fileadmin/mathematik/AG-Diskrete_Mathematik/Publications-schmidt/littlewood.pdf",
+      "https://mathdb.com/p/405261/erdos-problem-848",
+      "https://planetmath.org/waringsproblem",
+      "https://www.erdosproblemaday.com/report/668",
+      "https://www.erdosproblems.com/25",
+      "https://www.reddit.com/r/Collatz/comments/1vi8w81/i_found_4_papers_in_2026_that_claim_to_solve_the/",
+      "https://www.reddit.com/r/Collatz/comments/1vy38as/removed/",
+      "https://www.reddit.com/r/SimulationTheory/comments/1w4ccs3/if_we_are_simulated_glitches_should_be_evidence/",
+      "https://www.reddit.com/r/accelerate/comments/1qa52s3/3rd_erd%C5%91s_problem_solved_plus_a_bonus_205_has/",
+      "https://www.reddit.com/r/math/comments/1thfyaq/second_hardylittlewood_conjecture/",
+      "https://www.reddit.com/r/math/comments/1tj0gt8/removed/",
+      "https://www.reddit.com/r/math/comments/1tz4t5n/removed/",
+      "https://www.reddit.com/r/math/comments/1uapccq/have_there_been_problems_in_math_that_seemed_to/",
+      "https://www.reddit.com/r/mathematics/comments/1tqcfuz/a_40_year_major_conjecture_has_fallen_to_humans/",
+      "https://www.reddit.com/r/mathematics/comments/1v508mk/the_recent_streak_of_llm_conjecture_proofs_and/",
+      "https://www.reddit.com/r/mathematics/comments/1w6dt9l/small_prime_gap_bound_is_now_186/",
+      "https://www.reddit.com/r/u_BagZealousideal449/comments/1rsd1wy/verified_the_erd%C5%91sstraus_conjecture_to_1014_100/",
+      "https://www.renyi.hu/~p_erdos/1974-14.pdf",
+      "https://www.theoremdb.org/statements/P2968/",
+      "https://www.ulam.ai/research/erdos25.pdf",
+      "https://www.ulam.ai/research/erdos943.pdf",
+      "https://www.unsolvedmath.com/problems/EP-323"
+    ]
+  },
+  "lit6": {
+    "queries": [
+      {
+        "q": "\"On the denominators of harmonic numbers. IV\""
+      },
+      {
+        "q": "\"inverse questions for the large sieve\" \"2026\""
+      },
+      {
+        "q": "\"Erdos\" \"1175\" triangle free solution"
+      },
+      {
+        "q": "\"Erdos\" \"1101\" polynomial good sequence"
+      }
+    ],
+    "result_urls": [
+      "http://wrap.warwick.ac.uk/107458/7/WRAP-inverse-questions-large-sieve-Green-2018.pdf",
+      "https://archive.intlpress.com/site/pub/files/_fulltext/journals/atmp/2001/0005/0006/ATMP-2001-0005-0006-a006.pdf",
+      "https://arxiv.org/abs/1311.6176",
+      "https://arxiv.org/abs/1607.02863v1",
+      "https://citeseerx.ist.psu.edu/document?doi=f33c6141ef5a6337c19b36da74f99a27c689c4c7&repid=rep1&type=pdf",
+      "https://combinatorica.hu/~p_erdos/1967-26.pdf",
+      "https://comptes-rendus.academie-sciences.fr/mathematique/item/10.5802/crmath.282.pdf",
+      "https://doi.org/10.5802/crmath.282",
+      "https://en.wikipedia.org/wiki/Italo_Jose_Dejter",
+      "https://erdosproblemaday.com/report/1175",
+      "https://erdosproblemaday.com/report/431",
+      "https://etheses.durham.ac.uk/id/eprint/4349/1/4349_1869.pdf",
+      "https://fr.wikipedia.org/wiki/Italo_Jose_Dejter",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/1175.lean",
+      "https://oeis.org/A002805",
+      "https://portal.mardi4nfdi.de/wiki/Publication%3A484089",
+      "https://probxiv.com/problems/erdos-1101",
+      "https://ru.wikipedia.org/wiki/%D0%A2%D0%B5%D0%BE%D1%80%D0%B5%D0%BC%D0%B0_%D0%A0%D0%BE%D1%82%D0%B0",
+      "https://terrytao.wordpress",
+      "https://wrap.warwick.ac.uk/view/rioxx_funders/Universit%3DE9_de_Montr%3DE9al%3D2E_Centre_de_recherches_math%3DE9matiques.html",
+      "https://www.erdosproblemaday.com/report/1175",
+      "https://www.erdosproblems.com/1175",
+      "https://www.erdosproblems.com/history/1101",
+      "https://www.its.caltech.edu/~dconlon/GraphRamsey.pdf",
+      "https://www.numdam.org/articles/10.5802/crmath.282/",
+      "https://www.numdam.org/articles/10.5802/crmath.282/}",
+      "https://www.researchgate.net/publication/405212040_A_Dyadic-Farey_Reduction_for_an_Erdos_Problem_on_Pairwise_Coprime_Sets",
+      "https://www.researchgate.net/publication/410594905_A_weighted_entropy_approach_for_the_quadratic_inverse_large_sieve_conjecture"
+    ]
+  },
+  "primary2": {
+    "queries": [],
+    "result_urls": [
+      "https://arxiv.org/abs/1607.02863v1†arxiv.org",
+      "https://arxiv.org/abs/2607.15311",
+      "https://arxiv.org/abs/2608.25059",
+      "https://doi.org/10.48550/arXiv.2607.15311†doi.org",
+      "https://doi.org/10.48550/arXiv.2608.25059†doi.org",
+      "https://www.numdam.org/articles/10.5802/crmath.282/",
+      "https://www.numdam.org/articles/10.5802/crmath.282/}",
+      "https://www.ulam.ai/research/erdos25.pdf"
+    ]
+  }
+}

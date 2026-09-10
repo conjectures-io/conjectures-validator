@@ -61,6 +61,10 @@ from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.dependencies import Services
+from submission_api.github import (
+    ContributionRefresher,
+    build_contribution_mirror,
+)
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
@@ -84,16 +88,18 @@ from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
     auth,
+    contributions,
     health,
     intents,
+    invitations,
     me,
     results,
     reviews,
     submissions,
     system,
     tasks,
+    web_submissions,
 )
-from submission_api.routers import catalog as catalog_router
 from submission_api.settings import Settings
 from submission_api.taskpool import TaskCatalog
 from submission_api.rates import build_tao_usd_reader
@@ -101,7 +107,6 @@ from submission_api.taostats import (
     TaoStatsAlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
-from submission_api.taskpool import TaskCatalog
 from submission_api.tmc_pay import TmcPayClient, UnavailableGateway
 from submission_api.verification import build_dispatcher
 from verifier.errors import VerifierError
@@ -164,6 +169,7 @@ def build_services(
     reward_targets = tuple(
         sorted({entry.reward_target_id for entry in resolved_catalog.entries.values()})
     )
+    verifier = build_payment_verifier(settings)
     return Services(
         settings=settings,
         engine=engine,
@@ -171,7 +177,7 @@ def build_services(
         catalog=resolved_catalog,
         retired=resolved_retired,
         authenticator=build_authenticator(settings),
-        payments=build_payment_verifier(settings),
+        payments=verifier,
         dispatcher=build_dispatcher(settings),
         pricing=DynamicBountyPricer(
             balance_reader=CachedBalanceReader(
@@ -236,6 +242,11 @@ def build_services(
             taostats_api_key=settings.taostats_api_key,
             taostats_ttl_seconds=settings.taostats_price_cache_seconds,
         ),
+        # Constructed empty. The refresh task started during lifespan is what fills it, so
+        # startup never waits on github.com and a GitHub outage cannot stop this process booting
+        # — `/v1/contributions` answers `503` until the first poll lands, which is the honest
+        # report of a corpus that has not been read yet.
+        contributions=build_contribution_mirror(settings),
     )
 
 
@@ -271,9 +282,20 @@ def create_app(
             submissions_paused=resolved_settings.submissions_paused,
             tmc_pay_enabled=resolved_settings.tmc_pay_enabled,
         )
+        # Started after the service graph exists and before the first request is served. Not
+        # awaited: its first poll is a network round trip, and blocking readiness on a third
+        # party would make a GitHub outage look like a failed deploy.
+        refresher = ContributionRefresher(
+            mirror=application.state.services.contributions,
+            interval_seconds=resolved_settings.contributions_refresh_seconds,
+        )
+        if resolved_settings.contributions_enabled:
+            refresher.start()
         try:
             yield
         finally:
+            # First, so a poll in flight is cancelled before the client it is using is closed.
+            await refresher.stop()
             get_axiom().info(
                 source="api", event_type="service_stopped", version=__version__
             )
@@ -291,6 +313,8 @@ def create_app(
                 # Both hold an httpx client open across requests, for the same reason.
                 await built.tao_usd.aclose()
                 await built.tmc_pay.aclose()
+                # Holds an httpx client open between polls, for the same reason.
+                await built.contributions.aclose()
                 # So does the Brevo mail transport. Duck-typed rather than a method on the
                 # `MailSender` protocol, because the SMTP and console senders have nothing to
                 # close and would have to carry an empty override to say so.
@@ -341,7 +365,7 @@ def create_app(
     application.add_middleware(
         CrossOriginWriteGuard,
         allowed_origins=resolved_settings.write_allowed_origins,
-        # The hotkey-signature endpoints carry no cookie, so there is no ambient credential for
+        # The coldkey-signature endpoints carry no cookie, so there is no ambient credential for
         # a cross-site page to abuse, and miner tooling sends neither header.
         #
         # The TMC PAY webhook is exempt for the same reason and one more: its caller is a payment
@@ -384,12 +408,19 @@ def create_app(
     application.include_router(catalog_router.router)
     application.include_router(results.router)
     application.include_router(system.router)
+    # The public contribution mirror. Its own prefix, shared with nothing, and unauthenticated
+    # like the catalog it sits alongside.
+    application.include_router(contributions.router)
     # Stage 2. The intent router shares the /v1/submissions prefix with the extrinsic path, so
     # it is included after it: the fixed segments (/preflight, /intents) cannot collide with
     # /{submission_id}, which is typed as a UUID.
     application.include_router(auth.router)
     application.include_router(me.router)
     application.include_router(intents.router)
+    # The one-call website path. Shares the /v1/submissions prefix with both of the above, and
+    # /web is a fixed segment like /preflight and /intents, so it cannot collide with the
+    # UUID-typed /{submission_id} either.
+    application.include_router(web_submissions.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
     # advisory record behind it). Both are role-gated at every route, and gated again on the
@@ -402,6 +433,10 @@ def create_app(
     application.include_router(tmc_pay_router.router)
     # Stage 3. Role-gated, and gated again on the session being a browser one — see
     # `routers/admin.py` for why an admin credential must not be reachable from a CLI token.
+    # The public half sits with the other unauthenticated reads; the operator half is gated on
+    # its own router, so both are registered here rather than one of them under `admin`.
+    application.include_router(invitations.public_router)
+    application.include_router(invitations.admin_router)
     application.include_router(admin.router)
     application.include_router(reviews.router)
     return application

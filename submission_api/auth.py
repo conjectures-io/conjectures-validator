@@ -1,17 +1,21 @@
-"""Miner authentication by Bittensor hotkey signature.
+"""Miner authentication by Bittensor coldkey signature.
 
 The signed message is the canonical **request digest** — the 32 raw bytes of
 `conjectures_subnet.db.submissions.canonical_request_digest`. The schema stores that signature
-on the submission (`hotkey_signature`, 64 bytes), so the row itself carries the proof that this
-miner authorised this exact request, and the binding stays auditable after the fact.
+on the submission (`signer_signature`, 64 bytes) next to the key it proves
+(`signer_coldkey`), so the row itself carries the proof that this miner authorised this exact
+request, and the binding stays auditable after the fact.
 
 Because the digest covers the proof digest, the task, the payment reference and the idempotency
 key, a captured signature cannot be reused for different proof bytes, a different task, or a
 different payment. Replay of the same request is handled by the uniqueness of
-`(hotkey, idempotency_key)` and of `payment_reference`, not by a separate nonce table.
+`(signer_coldkey, idempotency_key)` and of `payment_reference`, not by a separate nonce table.
 
-No chain query happens here. The hotkey is authenticated; coldkey ownership is established by
-the payment verifier, which has to read the chain anyway.
+**Still no chain query here, and V035 removed the one downstream.** The signer is
+authenticated by signature alone. Entitlement to the payment being cited used to need
+`SubtensorModule.Owner` — the hotkey signed, and the chain was asked whether the paying coldkey
+owned it — and is now the equality `transfer.sender == signer_coldkey`, computed by the payment
+verifier from values it already holds.
 """
 
 from __future__ import annotations
@@ -26,7 +30,7 @@ from bittensor.sp_core import Keypair
 
 from conjectures_subnet.db import digests
 from submission_api.errors import Unauthorized
-from submission_api.settings import DEVELOPMENT_AUTH, HOTKEY_SIGNATURE_AUTH, Settings
+from submission_api.settings import COLDKEY_SIGNATURE_AUTH, DEVELOPMENT_AUTH, Settings
 from verifier.bundle import SS58_ADDRESS
 
 SIGNATURE_HEX = re.compile(r"^[0-9a-f]{128}$")
@@ -39,7 +43,7 @@ REASON_SIGNATURE_INVALID = "SIGNATURE_INVALID"
 class SignedRequest:
     """What the miner signed: the request digest, and who claims to have signed it."""
 
-    hotkey: str
+    signer_coldkey: str
     request_digest: str  # sha256:<hex>
     signature: bytes  # 64 raw bytes, as stored on the submission
 
@@ -63,10 +67,10 @@ def normalise_signature(value: str) -> bytes:
     return bytes.fromhex(candidate)
 
 
-def assert_valid_hotkey(value: str) -> str:
+def assert_valid_coldkey(value: str) -> str:
     if SS58_ADDRESS.fullmatch(value) is None:
         raise Unauthorized(
-            "hotkey is not a valid SS58 address", reason_code=REASON_SIGNATURE_INVALID
+            "coldkey is not a valid SS58 address", reason_code=REASON_SIGNATURE_INVALID
         )
     return value
 
@@ -77,19 +81,22 @@ class Authenticator(Protocol):
 
 
 @dataclass(frozen=True)
-class HotkeySignatureAuthenticator:
-    """Verify an sr25519/ed25519 signature made by the miner's hotkey.
+class ColdkeySignatureAuthenticator:
+    """Verify an sr25519/ed25519 signature made by the miner's coldkey.
 
     `Keypair` here holds only the public key decoded from the SS58 address — this process
-    never sees a miner's secret, and the validator holds no miner keys.
+    never sees a miner's secret, and the validator holds no miner keys. That was true when a
+    hotkey signed and it is worth restating now that a coldkey does: nothing in this codebase
+    accepts, stores or transmits a miner's private key material, and the verification below is
+    a public-key operation on 64 bytes the client sent.
     """
 
     def verify(self, request: SignedRequest) -> None:
         try:
-            keypair = Keypair(ss58_address=request.hotkey)
+            keypair = Keypair(ss58_address=request.signer_coldkey)
         except Exception as exc:  # any decode failure is an auth failure
             raise Unauthorized(
-                "hotkey is not a valid SS58 address",
+                "coldkey is not a valid SS58 address",
                 reason_code=REASON_SIGNATURE_INVALID,
             ) from exc
         try:
@@ -107,14 +114,14 @@ class HotkeySignatureAuthenticator:
 
 @dataclass(frozen=True)
 class DevelopmentAuthenticator:
-    """Accept a fixed marker from an allowlisted hotkey. Never permitted in production."""
+    """Accept a fixed marker from an allowlisted coldkey. Never permitted in production."""
 
-    hotkeys: tuple[str, ...]
+    coldkeys: tuple[str, ...]
 
     def verify(self, request: SignedRequest) -> None:
-        if request.hotkey not in self.hotkeys:
+        if request.signer_coldkey not in self.coldkeys:
             raise Unauthorized(
-                "hotkey is not in the development allowlist",
+                "coldkey is not in the development allowlist",
                 reason_code=REASON_SIGNATURE_INVALID,
             )
         expected = DEVELOPMENT_SIGNATURE.encode("utf-8").ljust(SIGNATURE_BYTES, b"\x00")
@@ -131,14 +138,14 @@ def development_signature() -> str:
 
 
 def build_authenticator(settings: Settings) -> Authenticator:
-    if settings.authenticator == HOTKEY_SIGNATURE_AUTH:
-        return HotkeySignatureAuthenticator()
+    if settings.authenticator == COLDKEY_SIGNATURE_AUTH:
+        return ColdkeySignatureAuthenticator()
     if settings.authenticator == DEVELOPMENT_AUTH:
         if settings.production:  # pragma: no cover - Settings already refuses this
             raise RuntimeError(
                 "the development authenticator is not permitted in production"
             )
-        return DevelopmentAuthenticator(hotkeys=settings.development_hotkeys)
+        return DevelopmentAuthenticator(coldkeys=settings.development_coldkeys)
     raise RuntimeError(f"unknown authenticator: {settings.authenticator}")
 
 

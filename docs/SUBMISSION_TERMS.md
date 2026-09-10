@@ -1,7 +1,7 @@
 # Submission terms
 
-**Terms version:** `v4`<br>
-**Effective date:** 2026-08-10<br>
+**Terms version:** `v5`<br>
+**Effective date:** 2026-09-08<br>
 **Manual review policy:** `v2`
 
 These terms apply only to submissions accepted on or after the effective date. A submission
@@ -87,15 +87,20 @@ they were submitted; the new lock is not applied retroactively.
 
 ## Attribution and publication
 
-**Your hotkey is published with your result.** Every result on the public feeds — certified or
-awaiting review — names the hotkey that submitted it. Submitting is a public act: assume that
-anyone can see which hotkey attempted which conjecture, and when.
+**Your identity is published with your result.** Every result on the public feeds — certified or
+awaiting review — names its solver: your account display name if you have set one, and otherwise
+the coldkey that signed the submission. Submitting is a public act: assume that anyone can see
+which identity attempted which conjecture, and when.
+
+Note that setting a display name publishes it. If you would rather be identified only by an
+address, leave it unset.
 
 **Public name credit is optional and permanent for that submission.** You may attach a public
 credit name and, optionally, an HTTPS profile URL and ORCID. These values are included in the
-request digest your hotkey signs, stored as a snapshot on the submission, and published beside
-your hotkey once the result reaches a public feed. They are not taken from your mutable account
-display name. Omit public credit to remain credited only by hotkey. Do not name another person or
+request digest your coldkey signs, stored as a snapshot on the submission, and published beside
+your solver identity once the result reaches a public feed. They are not taken from your mutable
+account display name. Omit public credit and you are credited by display name or coldkey as
+above. Do not name another person or
 team without their permission.
 
 **An approved proof is published in full.** Once review approves your submission, the exact
@@ -103,7 +108,7 @@ team without their permission.
 proof that is still in review, was refused, or failed the kernel is not published.
 
 Per-conjecture activity is still served as salted pseudonyms, but they are weak now and you should
-not rely on them: because a verified result names your hotkey and carries its verification time,
+not rely on them: because a verified result names your solver identity and carries its verification time,
 the pseudonyms on a conjecture you have a verified result for can be matched back to you by
 timing — and with that, your unsuccessful attempts on that conjecture too.
 
@@ -118,7 +123,8 @@ and the verifier's stdout or stderr.
 - Credits are non-transferable and are not refundable to TAO.
 - The validator never asks for and never holds a secret key. Every signature you provide
   is over a message this service minted, and you can read it before signing.
-- A payout needs both a coldkey and a hotkey, because alpha is held as stake. Set them
+- A payout needs one coldkey. It does not have to be a key you have proved to us, or even one
+  you control — it is only a destination — so check it carefully. Set it
   together on your account before a reward can be paid.
 
 ## Conduct

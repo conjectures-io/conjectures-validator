@@ -36,9 +36,9 @@ DEVELOPMENT_MODE = "DEV"
 PRODUCTION_MODE = "PROD"
 APP_MODES = (DEVELOPMENT_MODE, PRODUCTION_MODE)
 
-HOTKEY_SIGNATURE_AUTH = "hotkey-signature"
+COLDKEY_SIGNATURE_AUTH = "coldkey-signature"
 DEVELOPMENT_AUTH = "development-static-key"
-AUTHENTICATORS = (HOTKEY_SIGNATURE_AUTH, DEVELOPMENT_AUTH)
+AUTHENTICATORS = (COLDKEY_SIGNATURE_AUTH, DEVELOPMENT_AUTH)
 
 CHAIN_PAYMENTS = "chain"
 DEVELOPMENT_PAYMENTS = "development"
@@ -85,10 +85,10 @@ CORS_WILDCARD = "*"
 #
 # `POST /v1/submissions` shares the POST verb, so the verb list can no longer be what protects
 # it. The protection moves to CORS_REQUEST_HEADERS below: that endpoint requires
-# `X-Conjectures-Hotkey`, `-Timestamp`, `-Signature`, `-Task-Id`, `-Task-Sha256`,
+# `X-Conjectures-Coldkey`, `-Timestamp`, `-Signature`, `-Task-Id`, `-Task-Sha256`,
 # `-Proof-Sha256` and `-Payment-Ref`, and none of them is on the allowlist. A browser cannot
 # send a header the preflight did not permit, so a page on an allowed origin still cannot form
-# a valid submission — and the endpoint authenticates a hotkey signature rather than a cookie,
+# a valid submission — and the endpoint authenticates a coldkey signature rather than a cookie,
 # so there is no ambient credential for it to ride on either.
 CORS_METHODS = ("GET", "HEAD", "OPTIONS", "POST", "PATCH", "PUT", "DELETE")
 # Deliberately narrow, and deliberately without any `X-Conjectures-*` signature header. Adding
@@ -144,6 +144,32 @@ DEFAULT_ACTIVITY_ITEMS = 50
 MAX_ACTIVITY_ITEMS = 200
 
 DEFAULT_PUBLIC_CACHE_SECONDS = 60
+
+# --- Contribution mirror -------------------------------------------------------------------
+# `/v1/contributions` republishes a public GitHub repository of partial Lean work. It needs no
+# credential and holds no secret, so unlike TMC PAY and TaoStats it is on by default: an
+# unconfigured deployment that silently served nothing would look like a corpus with no
+# contributions in it. `CONTRIBUTIONS_ENABLED=false` turns the surface off, and it then answers
+# `503` rather than an empty list.
+DEFAULT_CONTRIBUTIONS_REPOSITORY = "conjectures-io/conjectures-contribution"
+DEFAULT_CONTRIBUTIONS_BRANCH = "main"
+DEFAULT_CONTRIBUTIONS_API_URL = "https://api.github.com"
+DEFAULT_CONTRIBUTIONS_REFRESH_SECONDS = 60
+# The floor exists because the poll costs GitHub rate-limit budget whenever the corpus *has*
+# moved, and 60 unauthenticated requests an hour is the whole budget. Below this an operator is
+# not tuning freshness, they are arranging to be throttled.
+MIN_CONTRIBUTIONS_REFRESH_SECONDS = 15
+# When a snapshot stops being reported as current. Five missed polls at the default interval:
+# long enough that one failed refresh is not an alarm, short enough that a website reading
+# `meta.stale` learns about a sustained GitHub outage within minutes.
+DEFAULT_CONTRIBUTIONS_STALE_SECONDS = 300
+DEFAULT_CONTRIBUTIONS_TIMEOUT_SECONDS = 20.0
+DEFAULT_CONTRIBUTIONS_MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
+# `owner/name`. Interpolated into every request path and into the links published on every row.
+CONTRIBUTIONS_REPOSITORY = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+)
+CONTRIBUTIONS_BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$")
 
 # HTTP/3 is advertised, not implemented here: an ASGI app never sees the transport. The value
 # names the authority a client should retry over QUIC, which only the deployment knows.
@@ -205,7 +231,7 @@ DEFAULT_CLI_SESSION_MAX_DAYS = 90
 
 # How many live CLI tokens one account may hold at once. A miner legitimately has several —
 # a laptop, a couple of rigs, CI — and each `conjectures auth login` mints another. The ceiling
-# is what keeps a compromised hotkey from minting an unbounded pile of durable credentials that
+# is what keeps a compromised key from minting an unbounded pile of durable credentials that
 # each have to be revoked individually; reaching it evicts the oldest rather than refusing the
 # newest, so a stale token on a decommissioned box cannot lock a miner out of their own tooling.
 DEFAULT_CLI_SESSIONS_PER_ACCOUNT = 10
@@ -281,10 +307,31 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # actually agreeing to that v3 did not describe — the V012 bounty lock, and optional public name
 # credit frozen into the request digest. The terms version and manual-review version are separate
 # counters because terms v2 was already published.
+#
+# v5 is V035, and it is a bump rather than an edit because two things a miner agreed to changed
+# substantively: what identity is published with a result (an account display name now appears
+# ahead of the address, where before only a hotkey did), and what a payout destination is (one
+# coldkey, unproved and not required to be linked, where before it was a proved coldkey/hotkey
+# pair). Both are in the "what is published" and "getting paid" sections.
+#
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
 # leaving it behind would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v4"
-DEFAULT_TERMS_DATE = "2026-08-10"
+DEFAULT_TERMS_VERSION = "v5"
+DEFAULT_TERMS_DATE = "2026-09-08"
+
+# The website route that renders the sign-in page the magic link opens. That page reads the
+# token from the query string and POSTs it to `/v1/auth/email/verify`; the API itself never
+# serves this path. It lives in the website repository, which is why this is a default rather
+# than a constant -- see EMAIL_VERIFY_PATH.
+DEFAULT_EMAIL_VERIFY_PATH = "/login/verify"
+
+# The other three website routes this API puts in a mail, configured for the same reason and
+# validated by the same rule. Two of them carry a single-use credential; the third is only where
+# the "you already have an account" notice points. None of these pages exist in the website yet,
+# so these defaults are a contract with whoever builds them rather than a description of today.
+DEFAULT_SIGNUP_VERIFY_PATH = "/login/signup/verify"
+DEFAULT_PASSWORD_RESET_PATH = "/login/reset"
+DEFAULT_SIGN_IN_PATH = "/login"
 
 # The domain that goes into a signed login message, binding the signature to this
 # deployment so one produced for another instance is not valid here.
@@ -351,6 +398,13 @@ MAX_TMC_PAY_TTL_MINUTES = 1_440
 # a payment processor, so the ceiling is what stops one account filling somebody else's dashboard.
 DEFAULT_TMC_PAY_MAX_OPEN_ORDERS = 3
 
+# The ceiling on TMC_PAY_MAX_OPEN_ORDERS itself. The per-account allowance is already an
+# operator's call, so the bound on it is one too: a development or load-testing deployment
+# legitimately wants hundreds of open invoices at once, and hard-coding 100 meant editing the
+# source to get them. It stays bounded above so a mistyped value cannot remove the guard.
+DEFAULT_TMC_PAY_OPEN_ORDERS_CEILING = 100
+MAX_TMC_PAY_OPEN_ORDERS_CEILING = 10_000
+
 # The largest single purchase. Not a policy about wealth: an invoice is quoted in fiat from an
 # estimated rate, and a mistyped credit count should fail here rather than become a five-figure
 # invoice somebody has to explain.
@@ -391,6 +445,29 @@ DEFAULT_TAOMARKETCAP_API_BASE_URL = "https://api.taomarketcap.com"
 
 class SettingsError(RuntimeError):
     """The process is misconfigured and must not start."""
+
+
+def _website_path(environ: Mapping[str, str], key: str, default: str) -> str:
+    """A rooted path on the website, to be joined onto `WEBSITE_BASE_URL`.
+
+    The same rule `EMAIL_VERIFY_PATH` is validated by, shared rather than repeated four times:
+    an absolute URL — `https://elsewhere/x`, or the protocol-relative `//elsewhere/x` that is an
+    absolute URL wearing a path's clothes — would send a live sign-in credential to a host
+    nobody configured. That is the failure `WEBSITE_BASE_URL` is already validated to prevent,
+    and it must not come back through a path.
+
+    A trailing slash is normalised rather than refused: it changes nothing, and failing a
+    deployment over one would be theatre.
+    """
+    value = environ.get(key, default).strip()
+    if not value.startswith("/") or value.startswith("//"):
+        raise SettingsError(f"{key} must be a rooted path such as {default}")
+    if "?" in value or "#" in value:
+        raise SettingsError(
+            f"{key} must not carry a query string or fragment; the token is appended as the "
+            "only query parameter"
+        )
+    return value.rstrip("/") or "/"
 
 
 def _require(environ: Mapping[str, str], key: str) -> str:
@@ -645,8 +722,7 @@ class Settings:
     authenticator: str
     payment_verifier: str
     dispatcher: str
-    development_hotkeys: tuple[str, ...]
-    development_coldkey: str
+    development_coldkeys: tuple[str, ...]
     development_payment_references: tuple[str, ...]
     nonce_window_seconds: int
     max_bundle_bytes: int
@@ -693,6 +769,22 @@ class Settings:
     pin_rotation_start_minute: int
     pin_rotation_minutes: int
 
+    # --- Contribution mirror ---------------------------------------------------------------
+    # Read by `submission_api/github.py`, which polls the repository, and by
+    # `routers/contributions.py`, which publishes the freshness these two values define.
+    contributions_enabled: bool
+    contributions_repository: str
+    contributions_branch: str
+    contributions_api_base_url: str
+    contributions_refresh_seconds: int
+    contributions_stale_seconds: int
+    contributions_timeout_seconds: float
+    contributions_max_archive_bytes: int
+    # Optional, and never required: the mirror is designed to stay inside the unauthenticated
+    # 60-requests-an-hour ceiling. A token raises it to 5000, which matters only for a deployment
+    # whose egress address is shared with other GitHub traffic.
+    contributions_token: str = field(repr=False)
+
     # --- Accounts and sessions (Stage 2) ---------------------------------------------------
     mail_sender: str
     brevo_api_key: str = field(repr=False)
@@ -710,6 +802,17 @@ class Settings:
     # Where the magic link points. The website's origin, not this API's: the link is
     # clicked by a person in a browser and lands on a page, which then calls the API.
     website_base_url: str
+    # The path under `website_base_url` that renders the sign-in page. Configurable because
+    # it belongs to a separate repository on its own release cadence: when the website moves
+    # that route, a mailed link starts 404ing and nothing here would notice. A setting lets
+    # the deployment follow the move without waiting on an API release.
+    email_verify_path: str
+    # The three routes the password flows mail. Same reasoning as `email_verify_path`: they
+    # belong to the website's repository and this API never serves them, so a literal here is a
+    # link that breaks the moment the other side moves and cannot fail any test in this one.
+    signup_verify_path: str
+    password_reset_path: str
+    sign_in_path: str
     login_domain: str
     google_client_id: str
     session_days: int
@@ -815,7 +918,7 @@ class Settings:
             env,
             "SUBMISSION_AUTHENTICATOR",
             AUTHENTICATORS,
-            HOTKEY_SIGNATURE_AUTH if production else DEVELOPMENT_AUTH,
+            COLDKEY_SIGNATURE_AUTH if production else DEVELOPMENT_AUTH,
         )
         payment_verifier = _choice(
             env,
@@ -824,9 +927,9 @@ class Settings:
             CHAIN_PAYMENTS if production else DEVELOPMENT_PAYMENTS,
         )
         dispatcher = _choice(env, "SUBMISSION_DISPATCHER", DISPATCHERS, QUEUE_DISPATCH)
-        if production and authenticator != HOTKEY_SIGNATURE_AUTH:
+        if production and authenticator != COLDKEY_SIGNATURE_AUTH:
             raise SettingsError(
-                "production requires SUBMISSION_AUTHENTICATOR=hotkey-signature"
+                "production requires SUBMISSION_AUTHENTICATOR=coldkey-signature"
             )
         if production and payment_verifier != CHAIN_PAYMENTS:
             raise SettingsError("production requires SUBMISSION_PAYMENT_VERIFIER=chain")
@@ -913,23 +1016,84 @@ class Settings:
                 "TAOSTATS_API_KEY must not exceed 512 characters or contain control characters"
             )
 
-        development_hotkeys = _csv(env, "DEVELOPMENT_HOTKEYS")
+        contributions_repository = env.get(
+            "CONTRIBUTIONS_REPOSITORY", DEFAULT_CONTRIBUTIONS_REPOSITORY
+        ).strip()
+        if CONTRIBUTIONS_REPOSITORY.fullmatch(contributions_repository) is None:
+            raise SettingsError("CONTRIBUTIONS_REPOSITORY must be 'owner/name'")
+        contributions_branch = env.get(
+            "CONTRIBUTIONS_BRANCH", DEFAULT_CONTRIBUTIONS_BRANCH
+        ).strip()
+        if CONTRIBUTIONS_BRANCH.fullmatch(contributions_branch) is None:
+            raise SettingsError("CONTRIBUTIONS_BRANCH is not a valid ref name")
+        # Overridable so a test or an air-gapped deployment can point the mirror at a stand-in.
+        # Production still requires https: the ETag-conditional poll carries no credential, but a
+        # plaintext one would let anyone on the path decide what this API publishes as the corpus.
+        contributions_api_base_url = (
+            env.get("CONTRIBUTIONS_GITHUB_API_URL", "").strip()
+            or DEFAULT_CONTRIBUTIONS_API_URL
+        )
+        if not contributions_api_base_url.startswith(("http://", "https://")):
+            raise SettingsError(
+                "CONTRIBUTIONS_GITHUB_API_URL must be an absolute http(s) URL"
+            )
+        if production and not contributions_api_base_url.startswith("https://"):
+            raise SettingsError("CONTRIBUTIONS_GITHUB_API_URL must use https in production")
+        contributions_token = env.get("CONTRIBUTIONS_GITHUB_TOKEN", "").strip()
+        if len(contributions_token) > 512 or any(
+            ord(char) < 32 for char in contributions_token
+        ):
+            raise SettingsError(
+                "CONTRIBUTIONS_GITHUB_TOKEN must not exceed 512 characters or contain "
+                "control characters"
+            )
+        contributions_refresh_seconds = _positive_int(
+            env,
+            "CONTRIBUTIONS_REFRESH_SECONDS",
+            DEFAULT_CONTRIBUTIONS_REFRESH_SECONDS,
+            maximum=86_400,
+        )
+        # The floor is a rate-limit guardrail rather than a taste preference, so it refuses rather
+        # than clamping: an operator who asked for a five-second poll has a reason, and silently
+        # tripling it would leave them debugging a freshness figure nothing in the configuration
+        # explains.
+        if contributions_refresh_seconds < MIN_CONTRIBUTIONS_REFRESH_SECONDS:
+            raise SettingsError(
+                "CONTRIBUTIONS_REFRESH_SECONDS must be at least "
+                f"{MIN_CONTRIBUTIONS_REFRESH_SECONDS}; GitHub allows 60 unauthenticated "
+                "requests an hour"
+            )
+        contributions_stale_seconds = _positive_int(
+            env,
+            "CONTRIBUTIONS_STALE_SECONDS",
+            DEFAULT_CONTRIBUTIONS_STALE_SECONDS,
+            maximum=86_400,
+        )
+        if contributions_stale_seconds < contributions_refresh_seconds:
+            raise SettingsError(
+                "CONTRIBUTIONS_STALE_SECONDS must not be shorter than "
+                "CONTRIBUTIONS_REFRESH_SECONDS; a snapshot cannot be stale before the next "
+                "poll is even due"
+            )
+
+        # Renamed from DEVELOPMENT_HOTKEYS by V035, along with the keys it lists: a local run
+        # authenticates coldkey signatures because that is what the production authenticator
+        # does. DEVELOPMENT_COLDKEY went with it — the development payment verifier now echoes
+        # whichever of these signed, because production requires the payer and the signer to be
+        # the same key and a separately configured sender would fail that check locally.
+        development_coldkeys = _csv(env, "DEVELOPMENT_COLDKEYS")
         invalid = tuple(
-            item for item in development_hotkeys if SS58_ADDRESS.fullmatch(item) is None
+            item for item in development_coldkeys if SS58_ADDRESS.fullmatch(item) is None
         )
         if invalid:
             raise SettingsError(
-                "DEVELOPMENT_HOTKEYS contains invalid addresses: " + ", ".join(invalid)
+                "DEVELOPMENT_COLDKEYS contains invalid addresses: " + ", ".join(invalid)
             )
-        if authenticator == DEVELOPMENT_AUTH and not development_hotkeys:
+        if authenticator == DEVELOPMENT_AUTH and not development_coldkeys:
             raise SettingsError(
-                "DEVELOPMENT_HOTKEYS must list at least one address when using the "
+                "DEVELOPMENT_COLDKEYS must list at least one address when using the "
                 "development authenticator"
             )
-
-        development_coldkey = env.get("DEVELOPMENT_COLDKEY", "").strip() or recipient
-        if SS58_ADDRESS.fullmatch(development_coldkey) is None:
-            raise SettingsError("DEVELOPMENT_COLDKEY is not a valid SS58 address")
 
         # Turning the limiter off in production would leave an unauthenticated, database-backed
         # read surface with no ceiling on it at all.
@@ -1103,6 +1267,30 @@ class Settings:
             raise SettingsError("WEBSITE_BASE_URL must use https in production")
         if not website_base_url:
             website_base_url = "http://localhost:3000"
+
+        # Rooted, and no origin of its own: this is joined onto `website_base_url`, so an
+        # absolute URL here would silently send the sign-in link to a host nobody configured
+        # — the same failure WEBSITE_BASE_URL is validated to prevent.
+        email_verify_path = env.get(
+            "EMAIL_VERIFY_PATH", DEFAULT_EMAIL_VERIFY_PATH
+        ).strip()
+        if not email_verify_path.startswith("/") or email_verify_path.startswith("//"):
+            raise SettingsError(
+                "EMAIL_VERIFY_PATH must be a rooted path such as /login/verify"
+            )
+        if "?" in email_verify_path or "#" in email_verify_path:
+            raise SettingsError(
+                "EMAIL_VERIFY_PATH must not carry a query string or fragment; the token "
+                "is appended as the only query parameter"
+            )
+        email_verify_path = email_verify_path.rstrip("/") or "/"
+        signup_verify_path = _website_path(
+            env, "SIGNUP_VERIFY_PATH", DEFAULT_SIGNUP_VERIFY_PATH
+        )
+        password_reset_path = _website_path(
+            env, "PASSWORD_RESET_PATH", DEFAULT_PASSWORD_RESET_PATH
+        )
+        sign_in_path = _website_path(env, "SIGN_IN_PATH", DEFAULT_SIGN_IN_PATH)
 
         terms_date = env.get(
             "SUBMISSION_TERMS_EFFECTIVE_FROM", DEFAULT_TERMS_DATE
@@ -1304,8 +1492,7 @@ class Settings:
             authenticator=authenticator,
             payment_verifier=payment_verifier,
             dispatcher=dispatcher,
-            development_hotkeys=development_hotkeys,
-            development_coldkey=development_coldkey,
+            development_coldkeys=development_coldkeys,
             development_payment_references=_csv(env, "DEVELOPMENT_PAYMENT_REFERENCES"),
             nonce_window_seconds=_positive_int(
                 env, "NONCE_WINDOW_SECONDS", 120, maximum=3600
@@ -1415,6 +1602,25 @@ class Settings:
                 DEFAULT_PIN_ROTATION_MINUTES,
                 maximum=10_080,
             ),
+            contributions_enabled=_flag(env, "CONTRIBUTIONS_ENABLED", True),
+            contributions_repository=contributions_repository,
+            contributions_branch=contributions_branch,
+            contributions_api_base_url=contributions_api_base_url,
+            contributions_refresh_seconds=contributions_refresh_seconds,
+            contributions_stale_seconds=contributions_stale_seconds,
+            contributions_timeout_seconds=_positive_float(
+                env,
+                "CONTRIBUTIONS_TIMEOUT_SECONDS",
+                DEFAULT_CONTRIBUTIONS_TIMEOUT_SECONDS,
+                maximum=120.0,
+            ),
+            contributions_max_archive_bytes=_positive_int(
+                env,
+                "CONTRIBUTIONS_MAX_ARCHIVE_BYTES",
+                DEFAULT_CONTRIBUTIONS_MAX_ARCHIVE_BYTES,
+                maximum=1024 * 1024 * 1024,
+            ),
+            contributions_token=contributions_token,
             mail_sender=mail_sender,
             brevo_api_key=brevo_api_key,
             brevo_base_url=brevo_base_url,
@@ -1429,6 +1635,10 @@ class Settings:
             smtp_security=smtp_security,
             smtp_timeout_seconds=smtp_timeout_seconds,
             website_base_url=website_base_url,
+            email_verify_path=email_verify_path,
+            signup_verify_path=signup_verify_path,
+            password_reset_path=password_reset_path,
+            sign_in_path=sign_in_path,
             login_domain=login_domain,
             google_client_id=google_client_id,
             session_days=_positive_int(
@@ -1517,7 +1727,12 @@ class Settings:
                 env,
                 "TMC_PAY_MAX_OPEN_ORDERS",
                 DEFAULT_TMC_PAY_MAX_OPEN_ORDERS,
-                maximum=100,
+                maximum=_positive_int(
+                    env,
+                    "TMC_PAY_MAX_OPEN_ORDERS_CEILING",
+                    DEFAULT_TMC_PAY_OPEN_ORDERS_CEILING,
+                    maximum=MAX_TMC_PAY_OPEN_ORDERS_CEILING,
+                ),
             ),
             tmc_pay_max_credits=_positive_int(
                 env,

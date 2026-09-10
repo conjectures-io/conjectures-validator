@@ -1,17 +1,26 @@
 """Response models for the world-readable surface.
 
 Separate from `schemas.py` on purpose. Those models answer a miner who authenticated with a
-hotkey signature and is reading their own submission; these are served to anyone, with no
+coldkey signature and is reading their own submission; these are served to anyone, with no
 credential at all, and are rendered by a public website. The two sets have different rules, and
 mixing them in one module is how a field that belongs to one ends up on the other.
 
-**A result names its solver's hotkey; nothing here reaches their money.** The hotkey is
-published on `PublicResult`, `InReviewResult` and `PublicSolution` by product decision — a result
-is credited to the hotkey that produced it. The paying coldkey, the payment reference and the
-extrinsic remain absent from every model on this surface, and that is the boundary still enforced
-structurally: a hotkey is the public identity a miner signs with, while those three lead to the
-funds behind it. Per-task activity is still published as salted pseudonyms, but they are only as
-strong as the solver's absence from the results feed — see `conjectures_subnet.db.public.activity`.
+**A result names its solver; nothing here reaches their money.** `PublicResult`,
+`InReviewResult` and `PublicSolution` publish `solver_display_name` and `solver_coldkey` by
+product decision — a result is credited to whoever produced it. The payment reference and the
+extrinsic remain absent from every model on this surface, and so does `Account.payout_coldkey`:
+`solver_coldkey` is the key a submission was *signed* with, never the destination rewards are
+sent to. That boundary is the one still enforced structurally.
+
+V035 widened this surface, and it is worth stating rather than leaving to be discovered. The
+solver's account **display name** is now published ahead of the coldkey, where before only a
+hotkey appeared; a display name was previously visible only on the account's own surfaces. It is
+a chosen handle rather than a legal name, and `public_credit_name` remains the separate,
+explicitly opt-in authorship field — but an account that set a display name for itself is now
+naming itself publicly on every result it lands.
+
+Per-task activity is still published as salted pseudonyms, but they are only as strong as the
+solver's absence from the results feed — see `conjectures_subnet.db.public.activity`.
 
 **Proof bytes are published only for an approved submission, and verifier output never is.**
 `Main.lean` is served by `PublicSolution`, and only once review has approved the submission —
@@ -554,7 +563,7 @@ class PoolMeta(Model):
 class PublicActivityItem(Model):
     """One anonymised event on a conjecture.
 
-    `solver` is `HMAC(activity_salt, reward_target_id || hotkey)`, truncated — stable within a
+    `solver` is `HMAC(activity_salt, reward_target_id || solver_identity)`, truncated — stable within a
     conjecture so repeat attempts are visibly the same solver, and unlinkable across conjectures
     because the conjecture's identity is inside the MAC. Keyed on the reward target rather than
     on a task id for two reasons: a solver who attempts both directions of one conjecture must
@@ -597,7 +606,7 @@ RESULT_STATEMENT_DESCRIPTION = (
 
 
 class PublicCredit(Model):
-    """Authorship the submitting hotkey explicitly signed for public display."""
+    """Authorship the submitting coldkey explicitly signed for public display."""
 
     name: str
     url: str | None = None
@@ -627,13 +636,28 @@ class PublicResult(Model):
     queued, rejected, in review, or paid out. The three `*_status` fields are how a client tells
     those apart; the timestamps below say when, and are null until the state they name is reached.
 
-    Credited to the `hotkey` that submitted it and any public credit that hotkey signed. Nothing
+    Credited to whoever submitted it and any public credit they signed. Nothing
     here reaches that miner's funds: no paying coldkey, no payment reference, no extrinsic.
     """
 
     id: uuid.UUID
-    hotkey: str = Field(
-        description="The hotkey that submitted this proof, as an SS58 address"
+    solver_display_name: str | None = Field(
+        default=None,
+        description=(
+            "The solver's account display name, if they set one. Preferred over "
+            "solver_coldkey for display. Null for a submission whose account has no display "
+            "name, and for the extrinsic path, which has no account at all."
+        ),
+    )
+    solver_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The coldkey that signed this proof, as an SS58 address, or the hotkey for a "
+            "submission predating V035. Null for one authorised by a browser session, whose "
+            "submitter holds no Bittensor key -- such a result has no on-chain identity to "
+            "credit, and an address is never invented to fill the gap. This is a signing key, "
+            "never a payout destination."
+        ),
     )
     public_credit: PublicCredit | None = Field(
         default=None,
@@ -734,8 +758,23 @@ class InReviewResult(Model):
     """
 
     id: uuid.UUID
-    hotkey: str = Field(
-        description="The hotkey that submitted this proof, as an SS58 address"
+    solver_display_name: str | None = Field(
+        default=None,
+        description=(
+            "The solver's account display name, if they set one. Preferred over "
+            "solver_coldkey for display. Null for a submission whose account has no display "
+            "name, and for the extrinsic path, which has no account at all."
+        ),
+    )
+    solver_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The coldkey that signed this proof, as an SS58 address, or the hotkey for a "
+            "submission predating V035. Null for one authorised by a browser session, whose "
+            "submitter holds no Bittensor key -- such a result has no on-chain identity to "
+            "credit, and an address is never invented to fill the gap. This is a signing key, "
+            "never a payout destination."
+        ),
     )
     public_credit: PublicCredit | None = Field(
         default=None,
@@ -764,13 +803,28 @@ class PublicSolution(Model):
     wants — `Main.lean` is guaranteed UTF-8 and NUL-free by `verifier.submission`, so it survives
     a JSON string intact.
 
-    Credited to the `hotkey` that submitted it and any signed public credit, alongside the site
+    Credited to whoever submitted it and any signed public credit, alongside the site
     attribution.
     """
 
     id: uuid.UUID
-    hotkey: str = Field(
-        description="The hotkey that submitted this proof, as an SS58 address"
+    solver_display_name: str | None = Field(
+        default=None,
+        description=(
+            "The solver's account display name, if they set one. Preferred over "
+            "solver_coldkey for display. Null for a submission whose account has no display "
+            "name, and for the extrinsic path, which has no account at all."
+        ),
+    )
+    solver_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The coldkey that signed this proof, as an SS58 address, or the hotkey for a "
+            "submission predating V035. Null for one authorised by a browser session, whose "
+            "submitter holds no Bittensor key -- such a result has no on-chain identity to "
+            "credit, and an address is never invented to fill the gap. This is a signing key, "
+            "never a payout destination."
+        ),
     )
     public_credit: PublicCredit | None = Field(
         default=None,

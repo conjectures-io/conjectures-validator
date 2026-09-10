@@ -1,26 +1,26 @@
 {
-  "adapter_required": 394,
-  "automatically_taskable": 2654,
+  "adapter_required": 480,
+  "automatically_taskable": 4700,
   "by_category": {
-    "API": 205,
-    "research open": 1167,
-    "research solved": 1146,
-    "test": 595,
-    "textbook": 154
+    "API": 313,
+    "research open": 1426,
+    "research solved": 1589,
+    "test": 1689,
+    "textbook": 173
   },
   "by_classification": {
     "BOOL_ANSWER": 0,
-    "DEFINITION_HOLE": 1,
-    "DIRECT_PROP": 2634,
+    "DEFINITION_HOLE": 0,
+    "DIRECT_PROP": 4666,
     "FINITE_ANSWER": 0,
-    "GENERAL_VALUE_ANSWER": 116,
+    "GENERAL_VALUE_ANSWER": 123,
     "INT_ANSWER": 0,
     "MULTIPLE_ANSWER_HOLES": 0,
-    "NAT_ANSWER": 20,
-    "POINTER_DECLARATION": 211,
-    "PROP_ANSWER_WRAPPER": 277,
-    "UNSUPPORTED": 8
+    "NAT_ANSWER": 34,
+    "POINTER_DECLARATION": 0,
+    "PROP_ANSWER_WRAPPER": 357,
+    "UNSUPPORTED": 10
   },
-  "total_declarations": 3267,
-  "unsupported": 8
+  "total_declarations": 5190,
+  "unsupported": 10
 }

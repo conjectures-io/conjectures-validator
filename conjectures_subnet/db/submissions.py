@@ -17,9 +17,9 @@ Two properties of the schema shape everything below:
   verification status AND a review status AND a reward status. Each moves on its own, so
   reading one says nothing about the others.
 
-Concurrency safety comes from the unique constraints in the migration — `(hotkey,
-idempotency_key)`, `payment_reference`, and `proof_digest` — not from read-then-write checks,
-so two simultaneous requests cannot both succeed.
+Concurrency safety comes from the unique constraints in the migration — `(signer_coldkey,
+idempotency_key)`, `(account_id, idempotency_key)`, `payment_reference`, and `proof_digest` —
+not from read-then-write checks, so two simultaneous requests cannot both succeed.
 """
 
 from __future__ import annotations
@@ -41,6 +41,7 @@ from conjectures_subnet.db.errors import (
     DuplicatePayment,
     DuplicateProof,
     IdempotencyConflict,
+    RecordConflict,
     RecordNotFound,
 )
 from conjectures_subnet.db.models import (
@@ -66,6 +67,8 @@ IDEMPOTENCY_CONSTRAINT = "submissions_idempotency_unique"
 PAYMENT_CONSTRAINT = "submissions_payment_reference_unique"
 PROOF_CONSTRAINT = "submissions_proof_digest_key"
 REWARD_TARGET_CONSTRAINT = "submissions_reward_target_reward_unique"
+# V033. One correction per decision, so the append-only history is a chain rather than a fork.
+SUPERSEDES_CONSTRAINT = "review_decisions_supersedes_unique"
 
 PROBLEM_ALREADY_AWARDED = "PROBLEM_ALREADY_AWARDED"
 PROBLEM_CONTRADICTED = "PROBLEM_VERIFIED_IN_BOTH_MODES"
@@ -75,7 +78,7 @@ PROBLEM_CONTRADICTED = "PROBLEM_VERIFIED_IN_BOTH_MODES"
 class NewSubmission:
     """One confirmed-paid submission, ready to record."""
 
-    hotkey: str
+    signer_coldkey: str
     idempotency_key: uuid.UUID
     request_digest: str  # sha256:<hex>; converted at the column
     task_id: str
@@ -86,10 +89,13 @@ class NewSubmission:
     proof_content: bytes  # the miner's Main.lean, exactly as admitted
     proof_sha256: str  # sha256:<hex>
     payment_reference: str
-    payment_sender: str  # coldkey that paid, proven to own the hotkey
+    # The coldkey that paid. Since V035 it must equal `signer_coldkey`: the key that sent the
+    # money is the key that signs for it, which is what replaced the old two-key arrangement
+    # where a hotkey signed and the chain was asked whether its owner had paid.
+    payment_sender: str
     payment_amount_rao: int
     payment_block: int
-    hotkey_signature: bytes  # 64 bytes over request_digest
+    signer_signature: bytes  # 64 bytes by signer_coldkey over request_digest
     manual_review_required: bool
     review_policy_version: str
     # Indicative snapshot retained for audit. It is not a payout lock.
@@ -132,7 +138,7 @@ class AccountCounts:
 
 def canonical_request_digest(
     *,
-    hotkey: str,
+    signer_coldkey: str,
     task_id: str,
     task_bundle_sha256: str,
     proof_sha256: str,
@@ -147,15 +153,19 @@ def canonical_request_digest(
     signature cannot be reused for different proof bytes.
     """
     payload = {
-        "hotkey": hotkey,
+        # V035. Was "hotkey" and is deliberately a different key name, not the same name
+        # holding a different address: the digest IS the signed message, so a miner signing the
+        # old shape must fail loudly rather than produce a signature that verifies against an
+        # identity nobody proved.
+        "signer_coldkey": signer_coldkey,
         "idempotency_key": idempotency_key,
         "payment_reference": payment_reference,
         "proof_sha256": proof_sha256,
         "task_bundle_sha256": task_bundle_sha256,
         "task_id": task_id,
     }
-    # Omit rather than encode null, preserving the v1 digest for miners who do not request public
-    # name credit. When present, every published byte is protected by the hotkey signature.
+    # Omit rather than encode null, preserving the digest shape for miners who do not request
+    # public name credit. When present, every published byte is covered by the signature.
     if public_credit is not None:
         payload["public_credit"] = public_credit.to_dict()
     return sha256_bytes(canonical_json_bytes(payload))
@@ -166,12 +176,73 @@ def _violates(exc: IntegrityError, constraint: str) -> bool:
 
 
 
+def session_request_digest(
+    *,
+    account_id: str,
+    task_id: str,
+    task_bundle_sha256: str,
+    proof_sha256: str,
+    idempotency_key: str,
+    public_credit: PublicCredit | None = None,
+) -> str:
+    """The identity of a session-authorised request.
+
+    `submissions.request_digest` means "the canonical request", not "the bytes someone signed" —
+    the key-signed paths sign it as well, which is a second job for the same value. This path has
+    no signature, so the digest keeps only the first job, and it is the one that matters for the
+    column's stated purpose: telling a replay from a conflict. Reusing an idempotency key with
+    any of these values changed is a conflict.
+
+    Keyed by account rather than by a key, because on this path the session is the identity
+    that authorised it and there is no signature at all.
+    `payment_reference` is absent for the same reason it is on every credit-funded path: there
+    is no transfer.
+    """
+    payload = {
+        "account_id": account_id,
+        "idempotency_key": idempotency_key,
+        "proof_sha256": proof_sha256,
+        "task_bundle_sha256": task_bundle_sha256,
+        "task_id": task_id,
+    }
+    if public_credit is not None:
+        payload["public_credit"] = public_credit.to_dict()
+    return sha256_bytes(canonical_json_bytes(payload))
+
+
 async def find_by_idempotency_key(
-    session: AsyncSession, hotkey: str, idempotency_key: uuid.UUID
+    session: AsyncSession, signer_coldkey: str, idempotency_key: uuid.UUID
 ) -> Submission | None:
+    """The replay lookup for a coldkey-signed submission.
+
+    Mirrors `submissions_signer_idempotency_unique`. Re-keyed by V035 from the hotkey that used
+    to identify a miner to the coldkey that now does; the original index over
+    `(hotkey, idempotency_key)` stopped constraining anything the moment `hotkey` became null
+    on every new row, because PostgreSQL treats NULLs in a unique index as distinct.
+    """
     result = await session.execute(
         select(Submission).where(
-            Submission.hotkey == hotkey,
+            Submission.signer_coldkey == signer_coldkey,
+            Submission.idempotency_key == idempotency_key,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def find_session_submission_by_idempotency_key(
+    session: AsyncSession, account_id: uuid.UUID, idempotency_key: uuid.UUID
+) -> Submission | None:
+    """The replay lookup for a session-authorised submission.
+
+    Scoped by account and restricted to rows with a null hotkey, mirroring
+    `submissions_session_idempotency_unique`. The account half is what stops it answering
+    another caller's submission; the null-hotkey half is now true of every new row and is kept
+    only so the query still matches the partial index it was written for.
+    """
+    result = await session.execute(
+        select(Submission).where(
+            Submission.account_id == account_id,
+            Submission.hotkey.is_(None),
             Submission.idempotency_key == idempotency_key,
         )
     )
@@ -198,12 +269,12 @@ async def load_view(session: AsyncSession, submission: Submission) -> Submission
 
 
 async def get_for_miner(
-    session: AsyncSession, submission_id: uuid.UUID, hotkey: str
+    session: AsyncSession, submission_id: uuid.UUID, signer_coldkey: str
 ) -> SubmissionView:
     submission = await session.get(Submission, submission_id)
     # Another miner's submission is reported as absent rather than forbidden, so identifiers
     # cannot be probed for existence.
-    if submission is None or submission.hotkey != hotkey:
+    if submission is None or submission.signer_coldkey != signer_coldkey:
         raise RecordNotFound("submission not found")
     return await load_view(session, submission)
 
@@ -230,7 +301,7 @@ async def create_submission(
 ) -> SubmissionView:
     """Record one confirmed-paid submission, or return the original for an exact replay."""
     existing = await find_by_idempotency_key(
-        session, request.hotkey, request.idempotency_key
+        session, request.signer_coldkey, request.idempotency_key
     )
     if existing is not None:
         if bytes(existing.request_digest) != digests.to_bytes(request.request_digest):
@@ -246,7 +317,7 @@ async def create_submission(
     await ensure_proof(session, request.proof_content, request.proof_sha256)
 
     submission = Submission(
-        hotkey=request.hotkey,
+        signer_coldkey=request.signer_coldkey,
         public_credit_name=request.public_credit_name,
         public_credit_url=request.public_credit_url,
         public_credit_orcid=request.public_credit_orcid,
@@ -262,7 +333,7 @@ async def create_submission(
         payment_sender=request.payment_sender,
         payment_amount_rao=request.payment_amount_rao,
         payment_block=request.payment_block,
-        hotkey_signature=request.hotkey_signature,
+        signer_signature=request.signer_signature,
         verification_status=VerificationState.UNVERIFIED,
         manual_review_status=ManualReviewState.UNREVIEWED,
         reward_status=RewardState.INELIGIBLE,
@@ -471,12 +542,320 @@ async def approve_automatically(
     return decision
 
 
+# The three ways a human decision is refused by durable state rather than by policy. All are
+# conflicts rather than bad requests: the body was well formed and would have been accepted a
+# moment earlier, which is exactly what a reviewer needs told apart from a rejected reason code.
+REVIEW_ALREADY_DECIDED = "REVIEW_ALREADY_DECIDED"
+REWARD_ALREADY_IN_FLIGHT = "REWARD_ALREADY_IN_FLIGHT"
+REWARD_TARGET_ALREADY_HELD = "REWARD_TARGET_ALREADY_HELD"
+
+# And the three a *correction* is refused by, which are different failures with different
+# remedies — see `correct_human_decision`.
+REVIEW_NOT_DECIDED = "REVIEW_NOT_DECIDED"
+REVIEW_CORRECTION_STALE = "REVIEW_CORRECTION_STALE"
+REWARD_ALREADY_PAID = "REWARD_ALREADY_PAID"
+
+
+async def record_human_decision(
+    session: AsyncSession,
+    submission_id: uuid.UUID,
+    *,
+    decision: ReviewOutcome,
+    reason_code: str,
+    reviewer: str,
+    notes: str | None = None,
+    notes_public: str | None = None,
+) -> ReviewDecision:
+    """Record the binding HUMAN review decision and move the reward with it.
+
+    The counterpart of `approve_automatically` for the case manual review exists for, and the one
+    write in this module that turns a Lean-valid proof into money. Four properties, each of which
+    is the reason a line below is there rather than an obvious simplification:
+
+    * **The submission row is locked before anything is read off it.** Two reviewers with the panel
+      open on the same submission is the ordinary case, not the exotic one, and without the lock
+      the "still `UNREVIEWED`" check below would be a guess that both callers pass. `FOR UPDATE`
+      makes the check a decision: the second transaction waits, then sees the first one's outcome
+      and is refused. This is the concurrency answer the read-only router asked for.
+    * **A second decision is refused, not superseded.** `review_decisions` is append-only and its
+      `supersedes_id` chain exists precisely so a correction can be recorded — but a correction is
+      a different act from a decision. It re-prices a payout that may already be in flight, and it
+      needs its own reason for overriding a colleague. So this raises on an already-decided
+      submission and leaves the chain to whatever records corrections.
+    * **`reward_status` must still be `INELIGIBLE`.** Only an approval moves it off that value, so
+      an `UNREVIEWED` submission that is `ELIGIBLE` or beyond means money is already moving on a
+      submission nobody has decided. That is an anomaly, and a decision written over it would
+      either double-pay or silently un-pay. It is refused rather than corrected here.
+    * **A contradicted problem is not refused.** `approve_automatically` leaves a problem verified
+      in both modes `UNREVIEWED` with an ADVISORY note *so that a human sees it*. Refusing the
+      human decision on the same ground would make that submission undecidable by the only party
+      able to resolve it.
+
+    `reason_code` is checked against the published policy allowlists at the API boundary, not here:
+    the allowlist is the API's published vocabulary (`submission_api.credits`), and the workers that
+    also write this table have their own codes — `PROBLEM_ALREADY_AWARDED` is not a code any human
+    may pick, and it is written by the function above.
+    """
+    submission = await session.get(Submission, submission_id, with_for_update=True)
+    if submission is None:
+        raise RecordNotFound("no such submission")
+    # Same answer as `GET /v1/admin/reviews/{id}`, which serves Lean-verified submissions only:
+    # there is nothing to decide about work the kernel has not accepted, and review can never make
+    # a Lean-invalid proof valid.
+    if submission.verification_status != VerificationState.VERIFIED:
+        raise RecordNotFound("no such submission")
+
+    if submission.manual_review_status != ManualReviewState.UNREVIEWED:
+        raise RecordConflict(
+            "this submission has already been decided",
+            reason_code=REVIEW_ALREADY_DECIDED,
+            manual_review_status=str(submission.manual_review_status),
+        )
+    if submission.reward_status != RewardState.INELIGIBLE:
+        raise RecordConflict(
+            "this submission's reward is already in flight; it cannot be decided now",
+            reason_code=REWARD_ALREADY_IN_FLIGHT,
+            reward_status=str(submission.reward_status),
+        )
+
+    if decision == ReviewOutcome.APPROVED:
+        # Mirrors `submissions_reward_target_reward_unique`, which is the authority: setting
+        # `reward_status` below would raise an IntegrityError naming the index. Checked first so
+        # the reviewer is told which submission holds it and which code applies, rather than
+        # reading a constraint name out of a 409.
+        holder = await reward_target_holder(session, submission)
+        if holder is not None:
+            raise RecordConflict(
+                "another submission already holds this reward target's reward; reject this one "
+                "as DUPLICATE_OF_EARLIER_SUBMISSION instead",
+                reason_code=REWARD_TARGET_ALREADY_HELD,
+                reward_target_id=submission.reward_target_id,
+                held_by=str(holder),
+            )
+
+    recorded = ReviewDecision(
+        submission_id=submission.id,
+        decision=decision,
+        kind=ReviewerKind.HUMAN,
+        reviewer=reviewer,
+        # The submission's own policy version, matching `approve_automatically`: a decision is
+        # taken under the policy the submission was accepted under, not under whichever version
+        # happens to be current when the reviewer gets to it.
+        policy_version=submission.review_policy_version,
+        reason_code=reason_code,
+        notes=notes,
+        notes_public=notes_public,
+    )
+    session.add(recorded)
+    await session.flush()
+
+    if decision == ReviewOutcome.APPROVED:
+        submission.manual_review_status = ManualReviewState.APPROVED
+        # The money. `reward_events` is written by the payout path, which reads this column; the
+        # trigger on that table re-checks the amount against the submission's bounty lock or the
+        # decision recorded above, so an approval cannot price its own payout from here.
+        submission.reward_status = RewardState.ELIGIBLE
+    else:
+        submission.manual_review_status = ManualReviewState.REJECTED
+        # `reward_status` stays INELIGIBLE, which is where the guard above proved it already is.
+
+    await session.flush()
+    return recorded
+
+
+async def latest_binding_decision(
+    session: AsyncSession, submission_id: uuid.UUID
+) -> ReviewDecision | None:
+    """The current binding decision on a submission, or None if nobody has decided it.
+
+    ADVISORY rows are excluded, for the reason `db.public._latest_reviews` gives: a model's
+    assessment is evidence, and a later piece of evidence must not be able to hide the decision a
+    human or the automatic path took. Highest id wins rather than latest `created_at` — the column
+    is `Identity(always=True)`, so ids are the durable order and two decisions committed inside the
+    same clock tick still have one.
+    """
+    return await session.scalar(
+        select(ReviewDecision)
+        .where(
+            ReviewDecision.submission_id == submission_id,
+            ReviewDecision.kind != ReviewerKind.ADVISORY,
+        )
+        .order_by(ReviewDecision.id.desc())
+        .limit(1)
+    )
+
+
+async def _reward_event_exists(session: AsyncSession, submission_id: uuid.UUID) -> bool:
+    """Whether any payout row has ever been opened against this submission.
+
+    The authority on "money has started moving", and deliberately stronger than
+    `reward_status`: an event in PENDING has been committed before the extrinsic is signed, and
+    a FAILED one is an attempt that happened. A correction must not be able to un-approve a
+    submission on the strength of a status column while a row in `reward_events` says otherwise.
+    """
+    found = await session.scalar(
+        select(RewardEvent.id).where(RewardEvent.submission_id == submission_id).limit(1)
+    )
+    return found is not None
+
+
+async def correct_human_decision(
+    session: AsyncSession,
+    submission_id: uuid.UUID,
+    *,
+    supersedes_id: int,
+    decision: ReviewOutcome,
+    reason_code: str,
+    reviewer: str,
+    notes: str,
+    notes_public: str,
+) -> ReviewDecision:
+    """Correct a binding decision by appending the row that supersedes it.
+
+    The counterpart `record_human_decision` deliberately refuses to be: that function turns an
+    `UNREVIEWED` submission into a decided one and rejects a second attempt outright, because
+    "decide" and "override a colleague" are different acts with different risks. This one is the
+    second act, and every rule below is one of those risks.
+
+    **It names the decision it corrects, and the caller must have seen it.** `supersedes_id` is
+    required and is checked against the current binding decision under the row lock. A reviewer
+    correcting a decision that somebody else has already corrected is refused with
+    `REVIEW_CORRECTION_STALE` and the id that is actually current, rather than silently appending
+    a second correction to a decision that is no longer the live one. This is also what makes a
+    double-click safe without an idempotency key: the second request carries the id the first one
+    just superseded.
+
+    **A submission nobody decided cannot be corrected.** `REVIEW_NOT_DECIDED` rather than a
+    quiet fallback to recording a first decision — the two endpoints ask for different things
+    (this one requires the reason the earlier call was wrong) and a correction that silently
+    became an initial decision would put that reason on a row nobody is overriding.
+
+    **Un-approving is bounded by whether the money moved.** Turning APPROVED into REJECTED sets
+    `reward_status` back to INELIGIBLE, which is safe exactly while no payout exists: nothing has
+    been signed, and the submission simply leaves the payout notifier's queue. Once a
+    `reward_events` row exists — in any state, including PENDING and FAILED — the correction is
+    refused with `REWARD_ALREADY_PAID`, because nothing in this database can recall an extrinsic
+    and a status column quietly walked backwards under a paid submission is worse than a refusal
+    an operator has to act on. `RewardState.REWARDED` and `FAILED` are refused on the same
+    ground even in the anomalous case where no event row accompanies them.
+
+    **Re-approving re-checks the reward target.** A rejected submission's reward target may have
+    been awarded to somebody else in the meantime, so the same
+    `submissions_reward_target_reward_unique` guard `record_human_decision` applies is applied
+    here — otherwise correcting a rejection would raise an IntegrityError naming an index instead
+    of telling the reviewer which submission holds it.
+
+    **A correction that does not change the outcome is still a correction.** Fixing a reason code
+    or a published explanation on a decision that stays APPROVED leaves both status columns
+    exactly where they are and appends the row anyway, because the wrong published sentence is
+    the mistake being repaired and the history is what proves it was repaired rather than edited.
+
+    `notes` is required rather than optional, unlike on a first decision: the internal audit
+    trail is where the reason for overriding a colleague lives, and a correction with no stated
+    reason is the one an operator cannot reconstruct later.
+    """
+    submission = await session.get(Submission, submission_id, with_for_update=True)
+    if submission is None:
+        raise RecordNotFound("no such submission")
+    if submission.verification_status != VerificationState.VERIFIED:
+        raise RecordNotFound("no such submission")
+
+    current = await latest_binding_decision(session, submission_id)
+    if current is None:
+        raise RecordConflict(
+            "this submission has no binding decision to correct",
+            reason_code=REVIEW_NOT_DECIDED,
+            manual_review_status=str(submission.manual_review_status),
+        )
+    if current.id != supersedes_id:
+        raise RecordConflict(
+            "this decision is no longer the current one; re-read it and correct that",
+            reason_code=REVIEW_CORRECTION_STALE,
+            # Named `current_*` rather than `decision`/`reason_code`, because `reason_code` is
+            # already the refusal's own code in a problem body and two of them would be read as
+            # one. These say what the live decision is, so the panel can re-render and retry
+            # against it without a second request.
+            review_decision_id=current.id,
+            current_decision=str(current.decision),
+            current_reason_code=current.reason_code,
+        )
+
+    was_approved = current.decision == ReviewOutcome.APPROVED
+    now_approved = decision == ReviewOutcome.APPROVED
+
+    if was_approved and not now_approved:
+        paid = submission.reward_status in (RewardState.REWARDED, RewardState.FAILED)
+        if paid or await _reward_event_exists(session, submission_id):
+            raise RecordConflict(
+                "a payout already exists for this submission; the approval cannot be "
+                "withdrawn here",
+                reason_code=REWARD_ALREADY_PAID,
+                reward_status=str(submission.reward_status),
+            )
+    if not was_approved and now_approved:
+        holder = await reward_target_holder(session, submission)
+        if holder is not None:
+            raise RecordConflict(
+                "another submission already holds this reward target's reward; this rejection "
+                "cannot be corrected to an approval",
+                reason_code=REWARD_TARGET_ALREADY_HELD,
+                reward_target_id=submission.reward_target_id,
+                held_by=str(holder),
+            )
+
+    corrected = ReviewDecision(
+        submission_id=submission.id,
+        decision=decision,
+        kind=ReviewerKind.HUMAN,
+        reviewer=reviewer,
+        # The submission's policy version, not the current one — matching both writes above. A
+        # correction repairs a decision taken under a policy; it does not retry it under a newer
+        # one, which would be a different act again.
+        policy_version=submission.review_policy_version,
+        reason_code=reason_code,
+        notes=notes,
+        notes_public=notes_public,
+        supersedes_id=current.id,
+    )
+    session.add(corrected)
+    # Before the status columns move, so `review_decisions_supersedes_unique` gets its say first:
+    # if a concurrent correction beat this one past the staleness check, the insert is what
+    # refuses it, and nothing has been written to the submission by then.
+    #
+    # The row lock above should make this unreachable — two corrections on one submission are
+    # serialised, and the second one fails the staleness check. It is caught anyway because the
+    # index is the authority and the check is the courtesy: a future caller that reaches this
+    # function without the lock must get the conflict, not a 500 naming an index.
+    try:
+        await session.flush()
+    except IntegrityError as exc:  # pragma: no cover - the row lock serialises corrections
+        if not _violates(exc, SUPERSEDES_CONSTRAINT):
+            raise
+        raise RecordConflict(
+            "this decision is no longer the current one; re-read it and correct that",
+            reason_code=REVIEW_CORRECTION_STALE,
+            review_decision_id=current.id,
+        ) from exc
+
+    if now_approved:
+        submission.manual_review_status = ManualReviewState.APPROVED
+        submission.reward_status = RewardState.ELIGIBLE
+    else:
+        submission.manual_review_status = ManualReviewState.REJECTED
+        # Back to where a rejection leaves it. Reachable only through the guard above, which has
+        # already proved no payout exists, so this cannot un-pay anything.
+        submission.reward_status = RewardState.INELIGIBLE
+
+    await session.flush()
+    return corrected
+
+
 async def log_rejection(
     session: AsyncSession,
     *,
     reason_code: str,
     http_status: int | None = None,
-    hotkey_claimed: str | None = None,
+    claimed_ss58: str | None = None,
     idempotency_key: str | None = None,
     task_id: str | None = None,
     task_bundle_sha256: str | None = None,
@@ -499,7 +878,7 @@ async def log_rejection(
         ApiRejectionLog(
             reason_code=reason_code,
             http_status=http_status,
-            hotkey_claimed=hotkey_claimed,
+            claimed_ss58=claimed_ss58,
             idempotency_key=idempotency_key,
             task_id=task_id,
             task_bundle_sha256=task_bundle_sha256,
@@ -525,8 +904,9 @@ async def proof_bytes(
 
 # --- The miner panel -----------------------------------------------------------------
 # Reads scoped to one account, behind /v1/me/submissions and /v1/me/rewards. Distinct
-# from `get_for_miner` above, which scopes to a hotkey signature and predates accounts:
-# a signed-in miner may have several linked hotkeys and should see all of their work.
+# from `get_for_miner` above, which scopes to the coldkey that signed one submission and
+# predates accounts: a signed-in miner sees everything their account owns, including the
+# session-authorised submissions that carry no key to scope by at all.
 
 
 async def for_account(

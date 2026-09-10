@@ -249,6 +249,7 @@ async def record_entry(
     deposit_id: uuid.UUID | None = None,
     intent_id: uuid.UUID | None = None,
     tmc_pay_order_id: uuid.UUID | None = None,
+    invitation_redemption_id: uuid.UUID | None = None,
     reason: str | None = None,
     created_by: str = "system",
 ) -> CreditLedgerEntry:
@@ -258,7 +259,11 @@ async def record_entry(
     A DEPOSIT must name exactly one source: ``deposit_id`` for rao this validator read
     off finalized chain state, or ``tmc_pay_order_id`` for a purchase TMC PAY settled.
     The schema enforces the exclusive-or, so passing both or neither is a constraint
-    violation rather than a silently untraceable credit."""
+    violation rather than a silently untraceable credit.
+
+    A GRANT must likewise name its ``invitation_redemption_id`` and the price in force,
+    and nothing but a GRANT may name one — both enforced by the schema, so a granted
+    credit is never reachable without the redemption row that explains it."""
     entry = CreditLedgerEntry(
         account_id=account_id,
         kind=kind,
@@ -267,6 +272,7 @@ async def record_entry(
         deposit_id=deposit_id,
         intent_id=intent_id,
         tmc_pay_order_id=tmc_pay_order_id,
+        invitation_redemption_id=invitation_redemption_id,
         reason=reason,
         created_by=created_by,
     )

@@ -184,7 +184,17 @@ class AdminReview(Model):
     slug: str = Field(description="The conjecture this submission is against, as a stable slug")
     display_title: str
     task_id: str
-    hotkey: str
+    solver_display_name: str | None = Field(
+        default=None,
+        description="The solver's account display name, if they set one",
+    )
+    solver_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The coldkey that signed this submission, or the hotkey for one predating V035. "
+            "Null for a submission authorised by a browser session."
+        ),
+    )
     statement: str = Field(description="The elaborated Lean statement, from the catalog")
     task_bundle_sha256: str
     verified_at: datetime | None = None
@@ -196,8 +206,48 @@ class AdminReview(Model):
     attempts: tuple[AdminStageAttempt, ...] = ()
 
 
+class AdminDecision(Model):
+    """The binding decision as it was recorded, and the two statuses it moved.
+
+    Answered by `POST /v1/admin/reviews/{submission_id}/decision`, and deliberately not a copy of
+    the row: `review_decisions.notes` is the internal audit trail and never crosses an API
+    boundary — the module docstring's rule applies to a reviewer's own words as much as to a
+    model's — and the reviewer is named by account id in the Axiom event, not here.
+
+    `manual_review_status` and `reward_status` are echoed because they are what the panel is
+    really asking about: whether the decision took, and whether it made the submission payable.
+    Reading them off the response saves the panel a second request to learn the outcome of its
+    own write, and they are the submission's state after the commit rather than a prediction of
+    it.
+
+    Also answered by `POST /v1/admin/reviews/{submission_id}/correction`, which appends the row
+    that supersedes this one. Same shape on purpose: a correction *is* a decision, and a panel
+    that rendered the two differently would be inventing a distinction the table does not make.
+    """
+
+    submission_id: uuid.UUID
+    # The appended row's own id. Carried because a correction has to name the decision it
+    # supersedes, and this is the only place that id is published — without it the panel could
+    # record a decision and then have no way to address it.
+    review_decision_id: int
+    decision: str = Field(description="APPROVED | REJECTED")
+    reason_code: str
+    notes_public: str | None = None
+    policy_version: str
+    decided_at: datetime
+    manual_review_status: str
+    reward_status: str
+    # The decision this one corrects, or null for a first decision. Null is the common case and
+    # says "nothing was overridden" rather than "unknown".
+    supersedes_id: int | None = Field(
+        default=None,
+        description="The review decision this one supersedes; null for a first decision",
+    )
+
+
 __all__ = [
     "AdminCitation",
+    "AdminDecision",
     "AdminFinding",
     "AdminPriorSource",
     "AdminReview",

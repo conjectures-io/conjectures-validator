@@ -26,6 +26,7 @@ ALLOWLIST = TASKS_ROOT / "allowlist.json"
 POOL_ROOT = TASKS_ROOT / "pool"
 
 
+@pytest.mark.needs_checkouts
 def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
     catalog = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)
 
@@ -38,6 +39,7 @@ def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
     )
 
 
+@pytest.mark.needs_checkouts
 def test_api_catalog_identifies_tasks_by_manifest_not_directory_name():
     """The task repository names directories for humans and renames them freely.
 
@@ -53,6 +55,7 @@ def test_api_catalog_identifies_tasks_by_manifest_not_directory_name():
     assert all(entry.task_dir.is_dir() for entry in catalog.summaries())
 
 
+@pytest.mark.needs_checkouts
 def test_api_catalog_refuses_an_allowlisted_task_with_no_bytes_on_disk(tmp_path: Path):
     """A paid submission must never meet a task the pool cannot produce."""
     complete = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)

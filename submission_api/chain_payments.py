@@ -19,6 +19,13 @@ constraint on `payment_reference` actually prevents reuse instead of being defea
 
 This module deliberately holds no policy. Whether the recipient, the amount and the coldkey are
 *right* is `ChainPaymentVerifier`'s decision; this only answers what the chain says.
+
+**One method, and V035 is why.** There used to be two chain-ownership queries here --
+`coldkey_owns_hotkey`, which established that a payer was entitled to submit under the hotkey
+they named, and `hotkey_is_registered`, which checked that a declared payout hotkey existed at
+all. Miners now sign with the coldkey that paid, so entitlement is an equality the verifier
+computes from values it already holds, and there is no declared payout hotkey to check. Both
+questions, and the `SubtensorModule.Owner` read behind them, are gone rather than reimplemented.
 """
 
 from __future__ import annotations
@@ -82,19 +89,6 @@ class SubtensorTransferReader:
             block=transfer.block,
             block_timestamp=transfer.block_timestamp,
         )
-
-    async def coldkey_owns_hotkey(self, *, coldkey: str, hotkey: str) -> bool:
-        """Whether `coldkey` is the registered owner of `hotkey`.
-
-        False for a hotkey the chain knows no owner for. An unregistered hotkey reads back as the
-        zero account rather than as absent, which `conjectures_subnet.transfers.coldkey_of` maps to
-        None — so an unregistered hotkey can never be established as owned by anyone.
-        """
-        owner = await self.source.coldkey_of(hotkey=hotkey)
-        if owner is None:
-            logger.info("hotkey %s has no registered owner on chain", hotkey)
-            return False
-        return owner == coldkey
 
     async def aclose(self) -> None:
         close = getattr(self.source, "close", None)

@@ -17,12 +17,14 @@
 set -euo pipefail
 
 : "${MONITOR_PASSWORD:=monitor}"   # fallback if not provided via .env
+: "${REVIEWER_PASSWORD:=}"        # empty means create the role NOLOGIN
 
 psql -v ON_ERROR_STOP=1 \
      --username "$POSTGRES_USER" \
      --dbname "$POSTGRES_DB" \
      -v db_name="$POSTGRES_DB" \
-     -v monitor_password="$MONITOR_PASSWORD" <<-'EOSQL'
+     -v monitor_password="$MONITOR_PASSWORD" \
+     -v reviewer_password="$REVIEWER_PASSWORD" <<-'EOSQL'
 
     -- The schema needs no extension for UUIDs: gen_random_uuid() has been in
     -- core since PostgreSQL 13, so pgcrypto is deliberately not installed.
@@ -57,6 +59,28 @@ psql -v ON_ERROR_STOP=1 \
     -- the validator's security context. Grant specific views if a dashboard
     -- needs data, and do it in a versioned migration so the grant is reviewable.
 
+    -- Review role. It exists chiefly so that a pg_dump taken from an
+    -- environment that has it restores here without aborting: roles are
+    -- cluster-level, so a database dump carries the GRANTs that name them but
+    -- never the roles themselves, and pg_restore --single-transaction rolls the
+    -- whole restore back on the first missing grantee.
+    --
+    -- Created NOLOGIN unless REVIEWER_PASSWORD is set, so a fresh cluster does
+    -- not stand up a login role with a default password. Set REVIEWER_PASSWORD
+    -- in .env only where something actually authenticates as this role.
+    SELECT format(
+               'CREATE ROLE conjectures_reviewer %s',
+               CASE WHEN :'reviewer_password' = '' THEN 'NOLOGIN'
+                    ELSE format('LOGIN PASSWORD %L', :'reviewer_password') END)
+    WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'conjectures_reviewer')
+    \gexec
+
+    GRANT CONNECT ON DATABASE :"db_name" TO conjectures_reviewer;
+    GRANT USAGE ON SCHEMA public TO conjectures_reviewer;
+
+    -- As with monitor: no blanket SELECT. Whatever this role is meant to read
+    -- should be granted explicitly in a migration.
+
 EOSQL
 
-echo "00_init.sh: extensions, database settings and monitor role configured."
+echo "00_init.sh: extensions, database settings and the monitor and conjectures_reviewer roles configured."

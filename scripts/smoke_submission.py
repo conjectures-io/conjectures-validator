@@ -40,7 +40,7 @@ from conjectures_subnet.db.models import (  # noqa: E402
 
 # A well-known Substrate test address. Valid SS58 so the domain accepts it, and recognisably not a
 # real miner. `payment_reference` carries the marker that makes these rows greppable.
-SMOKE_HOTKEY = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
+SMOKE_COLDKEY = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"
 SMOKE_POLICY = "smoke-test"
 STUB_PROOF = """\
 -- Smoke test submission. The expected verdict is REJECTED.
@@ -81,7 +81,7 @@ def build(bundle: dict, proof: bytes) -> tuple[Proof, Submission]:
         Proof(digest=proof_digest, content=proof, byte_length=len(proof)),
         Submission(
             id=uuid.uuid4(),
-            hotkey=SMOKE_HOTKEY,
+            signer_coldkey=SMOKE_COLDKEY,
             idempotency_key=uuid.uuid4(),
             request_digest=hashlib.sha256(b"smoke-test-request").digest(),
             task_id=bundle["task_id"],
@@ -93,10 +93,10 @@ def build(bundle: dict, proof: bytes) -> tuple[Proof, Submission]:
             # Exactly one funding source is required. The extrinsic path needs all four fields,
             # and payment_reference is UNIQUE, so it carries a fresh marker each run.
             payment_reference=f"{SMOKE_POLICY}-{uuid.uuid4()}",
-            payment_sender=SMOKE_HOTKEY,
+            payment_sender=SMOKE_COLDKEY,
             payment_amount_rao=1,
             payment_block=1,
-            hotkey_signature=bytes(64),
+            signer_signature=bytes(64),
             review_policy_version=SMOKE_POLICY,
             bounty_amount_rao=1,  # bounty_amount_positive requires > 0
             bounty_policy_version=SMOKE_POLICY,

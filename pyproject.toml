@@ -45,12 +45,51 @@ db = [
 [project.scripts]
 fc-verifier = "verifier.cli:main"
 
+[tool.ruff]
+# Pinned explicitly rather than left to the installed ruff's defaults, which have widened
+# between releases: an unpinned `select` means a new ruff version fails CI on rules nobody
+# chose. Raising this list is a deliberate change with its own diff.
+target-version = "py311"
+line-length = 100
+extend-exclude = [
+    ".elan",
+    ".lake",
+    ".venv",
+    ".work",
+    "lean",
+    "vendor",
+    # Dated evidence includes scripts sealed by SHA-256 manifests. Preserve their exact bytes.
+    "docs/review-decisions",
+]
+
+[tool.ruff.lint]
+# Ruff's documented core: pycodestyle errors that are almost always bugs, plus pyflakes.
+# Deliberately not the wider UP/I/TRY families -- the codebase predates them by ~200
+# findings, and a gate that starts red is a gate nobody trusts. Widen it in its own PR.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# These modules add the repository root to `sys.path` before importing from it, because they
+# run as scripts rather than as installed modules. The imports genuinely cannot precede that,
+# so E402 is describing the design rather than a mistake.
+"scripts/*.py" = ["E402"]
+"tests/test_taostats.py" = ["E402"]
+# The tail of models.py imports `autoreview_models` for its side effect of registering those
+# tables on `Base.metadata`, and it has to run after `Base` exists. The comment at that import
+# explains why deleting it fails a test.
+"conjectures_subnet/db/models.py" = ["E402"]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
 markers = [
     "integration: requires the pinned Lean toolchain and trusted cache",
     "subnet_integration: requires the pinned local Subtensor chain",
+    # Reads the task-bundle checkout (a separate repository, pinned in pins.lock.json and cloned
+    # by `just pin-tasks`) or the vendored dependencies under vendor/ and .lake/ that
+    # scripts/pin_dependencies.sh creates. These are not integration tests -- they are ordinary
+    # and fast -- they just cannot run in a bare checkout, which is what CI has.
+    "needs_checkouts: requires the pinned task-pool or vendored dependency checkouts",
 ]
 
 [tool.hatch.build.targets.wheel]

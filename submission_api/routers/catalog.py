@@ -43,7 +43,7 @@ from pydantic import Field, StringConstraints
 
 from conjectures_subnet.bounty import BountyPoolSnapshot, LiveBounty
 from conjectures_subnet.db import public as public_store
-from submission_api import conjectures, credits as credit_config, tmc_pay
+from submission_api import conditional, conjectures, credits as credit_config, tmc_pay
 from submission_api import schemas_account as account_schemas, schemas_public as public
 from submission_api.conjectures import Conjecture, ConjectureIndex
 from submission_api.dependencies import ServicesDep, SessionDep
@@ -63,7 +63,6 @@ from submission_api.settings import (
 from submission_api.taskpool import TaskEntry
 from submission_api.taostats import amount_usd
 from verifier.bundle import BUNDLE_FORMAT
-from verifier.hashing import sha256_text
 
 router = APIRouter(prefix="/v1/catalog", tags=["catalog"])
 
@@ -672,41 +671,16 @@ def _conditional(
 
     Returns the 304 to send instead of the payload, or None to send the payload.
 
-    The tag is hashed from the *serialised payload* rather than assembled from the inputs that
-    built it, which is what makes it impossible for the validator to drift from the body: anything
-    that changes what is published changes the tag, including a field added to the model later.
-    Truncated to 32 hex characters — 128 bits, far past where an accidental collision between two
-    revisions of one endpoint's body is a practical concern.
-
-    Correctness does not depend on where the payload came from; usefulness does. A body that is
-    recomputed from the database on every request and changes constantly would be tagged honestly
-    and never hit, so the caller would pay the hash and get nothing back. Worth attaching only
-    where the body is stable between requests — which is why the result feeds do not have one.
+    The tag itself is `conditional.etag_for`, shared with `routers/contributions.py` so the two
+    public surfaces cannot answer `304` on two different rules. What stays here is the pairing
+    with `_cache`: a validator without a freshness lifetime makes every read a revalidation.
     """
-    etag = '"' + sha256_text(payload.model_dump_json())[len("sha256:") :][:32] + '"'
+    etag = conditional.etag_for(payload)
     _cache(response, settings)
     response.headers["ETag"] = etag
-    if not _matches(request.headers.get("if-none-match"), etag):
+    if not conditional.matches(request.headers.get("if-none-match"), etag):
         return None
-    # A 304 must repeat the validator and the caching headers, and must carry no body.
-    return Response(
-        status_code=304,
-        headers={"ETag": etag, "Cache-Control": response.headers["Cache-Control"]},
-    )
-
-
-def _matches(header: str | None, etag: str) -> bool:
-    """Whether `If-None-Match` names this entity.
-
-    A list, per RFC 9110, and `*` matches anything. Weak-comparison prefixes are stripped
-    because the tag above is strong and a weakened form of it still identifies the same bytes.
-    """
-    if not header:
-        return False
-    candidates = [item.strip() for item in header.split(",")]
-    return "*" in candidates or any(
-        item.removeprefix("W/") == etag for item in candidates
-    )
+    return conditional.not_modified(etag, response.headers["Cache-Control"])
 
 
 def _meta(
@@ -763,7 +737,7 @@ async def read_activity(
         session,
         target,
         limit=limit,
-        pseudonymise=lambda hotkey: _pseudonym(settings, target, hotkey),
+        pseudonymise=lambda identity: _pseudonym(settings, target, identity),
     )
     _cache(response, settings)
     return public.ConjectureActivity(
@@ -929,11 +903,22 @@ async def read_submission_terms(
             account_schemas.DisqualificationReason(code=code, description=description)
             for code, description in terms.disqualification_reasons
         ),
+        # Served here rather than on the account surface because the client that needs it is the
+        # submit page, which already fetches this document for the terms themselves — so the one
+        # field a web submitter cannot guess costs no extra round trip. Unauthenticated and
+        # cached like the rest of it: it is deployment configuration, and it is already the first
+        # line of every challenge message this server mints.
+        signing_domain=services.settings.login_domain,
     )
 
 
-def _pseudonym(settings: Settings, reward_target_id: str, hotkey: str) -> str:
-    """A per-conjecture pseudonym for a hotkey.
+def _pseudonym(settings: Settings, reward_target_id: str, identity: str) -> str:
+    """A per-conjecture pseudonym for one solver identity.
+
+    `identity` is whatever `db.public._SOLVER_IDENTITY` resolved: a signing coldkey, an account
+    id, or a historical hotkey. This function does not care which, and deliberately — it is a
+    keyed hash of an opaque string, and the length prefixes below are what keep two different
+    kinds of identity from colliding by concatenation.
 
     The conjecture's identity is inside the MAC, not concatenated after it, so the same solver
     gets a different pseudonym on every conjecture and the pseudonyms cannot be joined across the
@@ -945,12 +930,12 @@ def _pseudonym(settings: Settings, reward_target_id: str, hotkey: str) -> str:
     making one person look like two, and would rename every solver at each pin rotation.
 
     The salt is `PUBLIC_ACTIVITY_SALT`, which production must set to something that is not the
-    published development constant — a hotkey is a 48-character address from a known alphabet, so
-    an unsalted or publicly-salted digest is reversible by enumeration for anyone with a list of
-    subnet hotkeys.
+    published development constant — an SS58 address is 48 characters from a known alphabet, so
+    an unsalted or publicly-salted digest is reversible by enumeration for anyone holding a list
+    of subnet addresses.
     """
     message = (
-        f"{len(reward_target_id)}:{reward_target_id}:{len(hotkey)}:{hotkey}"
+        f"{len(reward_target_id)}:{reward_target_id}:{len(identity)}:{identity}"
     ).encode("utf-8")
     digest = hmac.new(settings.activity_salt.encode("utf-8"), message, "sha256").hexdigest()
     return digest[:PSEUDONYM_LENGTH]

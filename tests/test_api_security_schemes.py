@@ -45,6 +45,7 @@ from submission_api.routers import (
     admin,
     auth,
     catalog,
+    contributions,
     health,
     intents,
     me,
@@ -61,6 +62,7 @@ ROUTERS = (
     tasks,
     submissions,
     catalog,
+    contributions,
     results,
     system,
     auth,
@@ -261,7 +263,7 @@ def test_the_real_app_serves_the_schemes():
             # A write declares the same two. What it *additionally* requires — an allowlisted
             # `Origin` or a same-origin `Sec-Fetch-Site` — is not a credential and so is not
             # here; it is in the `BrowserSession` description.
-            assert _schemes(schema["paths"]["/v1/me/payout"]["put"]) == both
+            assert _schemes(schema["paths"]["/v1/me/coldkeys/payout"]["put"]) == both
             assert _schemes(schema["paths"]["/v1/catalog/index"]["get"]) == set()
         finally:
             await kit.teardown()

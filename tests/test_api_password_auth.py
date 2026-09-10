@@ -243,7 +243,10 @@ def test_registering_a_taken_address_mails_a_reset_and_still_answers_202():
                 assert (await register(http, password=NEW_PASSWORD)).status_code == 202
                 assert len(spy.signup) == 1  # no second signup mail
                 assert spy.existing[-1]["email"] == EMAIL
-                assert "/auth/password/reset?token=" in spy.existing[-1]["link"]
+                assert (
+                    kit.settings.password_reset_path + "?token="
+                    in spy.existing[-1]["link"]
+                )
                 assert await accounts_named(kit, EMAIL) == 1
                 # And crucially, the account still has the password its owner chose.
                 assert (await login(http)).status_code == 200
@@ -726,6 +729,47 @@ def test_choosing_a_new_password_does_move_that_timestamp():
                         await account_store.find_by_email(session, EMAIL)
                     ).password_updated_at
                 assert after > before
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_every_mailed_link_follows_the_configured_website_routes():
+    """The drift `EMAIL_VERIFY_PATH` was added to end, for the routes this branch adds.
+
+    The pages live in the website's repository and this API never serves them, so a literal
+    would 404 the moment the other side moved and nothing here would fail. Asserting against the
+    settings rather than against strings is what keeps that true for the new flows too.
+    """
+
+    async def scenario():
+        kit, spy = kit_with_mail(
+            WEBSITE_BASE_URL="https://conjectures.io",
+            SIGNUP_VERIFY_PATH="/welcome/confirm",
+            PASSWORD_RESET_PATH="/account/new-password",
+            SIGN_IN_PATH="/enter",
+        )
+        await kit.setup()
+        try:
+            async with await client(kit) as http:
+                assert (await register(http)).status_code == 202
+                assert spy.signup[-1]["link"].startswith(
+                    "https://conjectures.io/welcome/confirm?token="
+                )
+                assert (await confirm(http, MailSpy.token(spy.signup[-1]))).status_code == 200
+
+                assert (await forgot(http)).status_code == 202
+                assert spy.reset[-1]["link"].startswith(
+                    "https://conjectures.io/account/new-password?token="
+                )
+
+                # And the notice, which carries both a reset link and the sign-in page.
+                assert (await register(http)).status_code == 202
+                assert spy.existing[-1]["link"].startswith(
+                    "https://conjectures.io/account/new-password?token="
+                )
+                assert spy.existing[-1]["sign_in"] == "https://conjectures.io/enter"
         finally:
             await kit.teardown()
 

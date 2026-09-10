@@ -156,7 +156,7 @@ unsafe def withImports (modules : Array Name) (action : CoreM α) : IO α := do
   Lean.enableInitializersExecution
   let imports := modules.map fun moduleName => { module := moduleName }
   let environment ← importModules imports {} (trustLevel := 1024) (loadExts := true)
-  let options := ({} : Options).setNat `maxHeartbeats 0
+  let options := ({} : Options).set `maxHeartbeats (0 : Nat)
   let context : Core.Context := { fileName := "", fileMap := default, options }
   let (result, _) ← Lean.Core.CoreM.toIO action context { env := environment }
   return result

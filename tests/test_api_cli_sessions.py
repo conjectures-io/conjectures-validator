@@ -1,7 +1,7 @@
 """CLI bearer sessions and the admin IAM surface.
 
 Two credentials now reach the account API: the browser's HttpOnly cookie and a bearer token a
-hotkey mints for the miner CLI. Almost everything here is about the boundary between them —
+coldkey mints for the miner CLI. Almost everything here is about the boundary between them —
 what a bearer token may do, what it must not, and the ways the two could be confused for one
 another. Needs a real PostgreSQL server:
 
@@ -25,8 +25,8 @@ pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
 from conftest_api import (  # noqa: E402
     COLDKEY,
-    HOTKEY,
-    OTHER_HOTKEY,
+    MINER_COLDKEY,
+    OTHER_MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
     harness,
@@ -66,32 +66,40 @@ OTHER_EMAIL = "second@example.com"
 # --- Helpers -------------------------------------------------------------------------------
 
 
-async def link_hotkey(kit, http, hotkey: str = HOTKEY) -> None:
-    """Attach a hotkey to the signed-in account, the way the website does."""
+async def link_coldkey(kit, http, coldkey: str = MINER_COLDKEY) -> None:
+    """Attach a coldkey to the signed-in account, the way the website does.
+
+    One flow since V035, where there were two: the CLI's bearer token is minted by a coldkey
+    signature and scoped to that key, so what has to be linked first is a wallet.
+    """
     challenge = await http.post(
-        "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=same_origin(http)
+        "/v1/me/wallets/challenge", json={"coldkey": coldkey}, headers=same_origin(http)
     )
     assert challenge.status_code == 200, challenge.text
-    message = challenge.json()["message"]
+    body = challenge.json()
     linked = await http.post(
-        "/v1/me/hotkeys",
-        json={"hotkey": hotkey, "signature": sign(hotkey, message)},
+        "/v1/me/wallets",
+        json={
+            "coldkey": coldkey,
+            "nonce": body["nonce"],
+            "signature": sign(coldkey, body["message"]),
+        },
         headers=same_origin(http),
     )
     assert linked.status_code == 201, linked.text
 
 
-async def cli_login(kit, cli, hotkey: str = HOTKEY) -> dict:
+async def cli_login(kit, cli, coldkey: str = MINER_COLDKEY) -> dict:
     """The whole CLI flow: challenge, sign the server's message, verify. Returns the body."""
-    challenge = await cli.post("/v1/auth/cli/challenge", json={"address": hotkey})
+    challenge = await cli.post("/v1/auth/cli/challenge", json={"address": coldkey})
     assert challenge.status_code == 200, challenge.text
     body = challenge.json()
     verified = await cli.post(
         "/v1/auth/cli/verify",
         json={
-            "address": hotkey,
+            "address": coldkey,
             "nonce": body["nonce"],
-            "signature": sign(hotkey, body["message"]),
+            "signature": sign(coldkey, body["message"]),
         },
     )
     assert verified.status_code == 200, verified.text
@@ -102,12 +110,12 @@ def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def linked_account_with_cli_token(kit, hotkey: str = HOTKEY) -> tuple[dict, str]:
-    """A signed-up account with `hotkey` linked, and a live CLI token for it."""
+async def linked_account_with_cli_token(kit, coldkey: str = MINER_COLDKEY) -> tuple[dict, str]:
+    """A signed-up account with `coldkey` linked, and a live CLI token for it."""
     async with await client(kit) as browser, await client(kit) as cli:
         account = await sign_in_by_email(kit, browser)
-        await link_hotkey(kit, browser, hotkey)
-        body = await cli_login(kit, cli, hotkey)
+        await link_coldkey(kit, browser, coldkey)
+        body = await cli_login(kit, cli, coldkey)
     return account, body["access_token"]
 
 
@@ -122,35 +130,35 @@ async def grant_role(kit, account_id: str, role: str) -> None:
 # --- The happy path ------------------------------------------------------------------------
 
 
-def test_a_linked_hotkey_exchanges_a_signature_for_a_bearer_token():
+def test_a_linked_coldkey_exchanges_a_signature_for_a_bearer_token():
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
 
                 challenge = await cli.post(
-                    "/v1/auth/cli/challenge", json={"address": HOTKEY}
+                    "/v1/auth/cli/challenge", json={"address": MINER_COLDKEY}
                 )
                 assert challenge.status_code == 200, challenge.text
                 minted = challenge.json()
                 # Domain-separated, and pinning the address it was minted for.
                 assert minted["message"].startswith("conjectures-cli-session-v1\n")
-                assert f"address: {HOTKEY}" in minted["message"]
+                assert f"address: {MINER_COLDKEY}" in minted["message"]
 
                 verified = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": minted["nonce"],
-                        "signature": sign(HOTKEY, minted["message"]),
+                        "signature": sign(MINER_COLDKEY, minted["message"]),
                     },
                 )
                 assert verified.status_code == 200, verified.text
                 body = verified.json()
                 assert body["token_type"] == "bearer"
-                assert body["hotkey_scope"] == HOTKEY
+                assert body["coldkey_scope"] == MINER_COLDKEY
                 assert body["access_token"].startswith(BEARER_TOKEN_PREFIX)
                 # The one response in the API carrying a live credential must not be stored.
                 assert verified.headers["cache-control"] == "no-store"
@@ -201,7 +209,7 @@ def test_a_bearer_write_needs_no_proof_of_initiator():
     run(scenario())
 
 
-def test_an_unlinked_hotkey_is_refused_without_burning_the_challenge():
+def test_an_unlinked_coldkey_is_refused_without_burning_the_challenge():
     """The common first-run error. It must not cost a nonce, a passphrase and a new signature."""
 
     async def scenario():
@@ -209,29 +217,29 @@ def test_an_unlinked_hotkey_is_refused_without_burning_the_challenge():
         try:
             async with await client(kit) as cli:
                 challenge = await cli.post(
-                    "/v1/auth/cli/challenge", json={"address": HOTKEY}
+                    "/v1/auth/cli/challenge", json={"address": MINER_COLDKEY}
                 )
                 minted = challenge.json()
-                signature = sign(HOTKEY, minted["message"])
+                signature = sign(MINER_COLDKEY, minted["message"])
                 refused = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": minted["nonce"],
                         "signature": signature,
                     },
                 )
                 assert refused.status_code == 403, refused.text
-                assert refused.json()["reason_code"] == "HOTKEY_NOT_LINKED"
+                assert refused.json()["reason_code"] == "COLDKEY_NOT_LINKED"
 
-                # The nonce survived: linking the hotkey and retrying the *same* signature works.
+                # The nonce survived: linking the coldkey and retrying the *same* signature works.
                 async with await client(kit) as browser:
                     await sign_in_by_email(kit, browser)
-                    await link_hotkey(kit, browser)
+                    await link_coldkey(kit, browser)
                 retried = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": minted["nonce"],
                         "signature": signature,
                     },
@@ -243,21 +251,22 @@ def test_an_unlinked_hotkey_is_refused_without_burning_the_challenge():
     run(scenario())
 
 
-def test_the_challenge_endpoint_does_not_disclose_whether_a_hotkey_is_linked():
-    """Hotkeys are public on chain, so a differing answer would map keys to accounts here."""
+def test_the_challenge_endpoint_does_not_disclose_whether_a_coldkey_is_linked():
+    """A coldkey that has transacted is public on chain, so a differing answer would map
+    addresses to accounts here."""
 
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as cli:
                 unlinked = await cli.post(
-                    "/v1/auth/cli/challenge", json={"address": HOTKEY}
+                    "/v1/auth/cli/challenge", json={"address": MINER_COLDKEY}
                 )
                 async with await client(kit) as browser:
                     await sign_in_by_email(kit, browser)
-                    await link_hotkey(kit, browser)
+                    await link_coldkey(kit, browser)
                 linked = await cli.post(
-                    "/v1/auth/cli/challenge", json={"address": HOTKEY}
+                    "/v1/auth/cli/challenge", json={"address": MINER_COLDKEY}
                 )
                 assert unlinked.status_code == linked.status_code == 200
                 assert set(unlinked.json()) == set(linked.json())
@@ -273,7 +282,7 @@ def test_the_challenge_endpoint_does_not_disclose_whether_a_hotkey_is_linked():
 def test_a_second_challenge_does_not_invalidate_the_first():
     """The targeted-lockout regression.
 
-    Hotkeys are public, so anyone can request a challenge for anyone's key. If verification
+    Addresses are public, so anyone can request a challenge for anyone's key. If verification
     resolved "the latest open challenge for this address", one request per minute from a
     stranger would permanently stop a miner logging in. Challenges are addressed by their own
     nonce instead, so both stay redeemable by whoever holds one.
@@ -284,20 +293,20 @@ def test_a_second_challenge_does_not_invalidate_the_first():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
 
                 mine = (
-                    await cli.post("/v1/auth/cli/challenge", json={"address": HOTKEY})
+                    await cli.post("/v1/auth/cli/challenge", json={"address": MINER_COLDKEY})
                 ).json()
-                # An attacker supersedes it with a challenge of their own for the same hotkey.
-                await cli.post("/v1/auth/cli/challenge", json={"address": HOTKEY})
+                # An attacker supersedes it with a challenge of their own for the same key.
+                await cli.post("/v1/auth/cli/challenge", json={"address": MINER_COLDKEY})
 
                 verified = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": mine["nonce"],
-                        "signature": sign(HOTKEY, mine["message"]),
+                        "signature": sign(MINER_COLDKEY, mine["message"]),
                     },
                 )
                 assert verified.status_code == 200, verified.text
@@ -313,18 +322,18 @@ def test_a_challenge_is_spent_after_too_many_failed_signatures():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 minted = (
-                    await cli.post("/v1/auth/cli/challenge", json={"address": HOTKEY})
+                    await cli.post("/v1/auth/cli/challenge", json={"address": MINER_COLDKEY})
                 ).json()
 
                 # A signature over the wrong bytes: valid sr25519, wrong message.
-                wrong = sign(HOTKEY, "conjectures-cli-session-v1\nnot the message")
+                wrong = sign(MINER_COLDKEY, "conjectures-cli-session-v1\nnot the message")
                 for _ in range(2):
                     bad = await cli.post(
                         "/v1/auth/cli/verify",
                         json={
-                            "address": HOTKEY,
+                            "address": MINER_COLDKEY,
                             "nonce": minted["nonce"],
                             "signature": wrong,
                         },
@@ -335,9 +344,9 @@ def test_a_challenge_is_spent_after_too_many_failed_signatures():
                 spent = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": minted["nonce"],
-                        "signature": sign(HOTKEY, minted["message"]),
+                        "signature": sign(MINER_COLDKEY, minted["message"]),
                     },
                 )
                 assert spent.status_code == 401
@@ -356,25 +365,25 @@ def test_a_wrong_signature_alone_does_not_spend_the_challenge():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 minted = (
-                    await cli.post("/v1/auth/cli/challenge", json={"address": HOTKEY})
+                    await cli.post("/v1/auth/cli/challenge", json={"address": MINER_COLDKEY})
                 ).json()
                 bad = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": minted["nonce"],
-                        "signature": sign(HOTKEY, "something else entirely"),
+                        "signature": sign(MINER_COLDKEY, "something else entirely"),
                     },
                 )
                 assert bad.status_code == 401
                 good = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": minted["nonce"],
-                        "signature": sign(HOTKEY, minted["message"]),
+                        "signature": sign(MINER_COLDKEY, minted["message"]),
                     },
                 )
                 assert good.status_code == 200, good.text
@@ -384,23 +393,23 @@ def test_a_wrong_signature_alone_does_not_spend_the_challenge():
     run(scenario())
 
 
-def test_a_nonce_minted_for_one_hotkey_cannot_be_redeemed_for_another():
+def test_a_nonce_minted_for_one_coldkey_cannot_be_redeemed_for_another():
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser, HOTKEY)
-                await link_hotkey(kit, browser, OTHER_HOTKEY)
+                await link_coldkey(kit, browser, MINER_COLDKEY)
+                await link_coldkey(kit, browser, OTHER_MINER_COLDKEY)
                 minted = (
-                    await cli.post("/v1/auth/cli/challenge", json={"address": HOTKEY})
+                    await cli.post("/v1/auth/cli/challenge", json={"address": MINER_COLDKEY})
                 ).json()
                 crossed = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": OTHER_HOTKEY,
+                        "address": OTHER_MINER_COLDKEY,
                         "nonce": minted["nonce"],
-                        "signature": sign(OTHER_HOTKEY, minted["message"]),
+                        "signature": sign(OTHER_MINER_COLDKEY, minted["message"]),
                     },
                 )
                 assert crossed.status_code == 401
@@ -411,8 +420,8 @@ def test_a_nonce_minted_for_one_hotkey_cannot_be_redeemed_for_another():
     run(scenario())
 
 
-def test_a_hotkey_link_signature_cannot_be_replayed_as_a_cli_login():
-    """Domain separation, on the one pair of flows that both take a hotkey signature."""
+def test_a_coldkey_link_signature_cannot_be_replayed_as_a_cli_login():
+    """Domain separation, on a pair of flows that both take a coldkey signature."""
 
     async def scenario():
         kit = await harness().setup()
@@ -420,23 +429,23 @@ def test_a_hotkey_link_signature_cannot_be_replayed_as_a_cli_login():
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
                 link_challenge = await browser.post(
-                    "/v1/me/hotkeys/challenge",
-                    json={"hotkey": HOTKEY},
+                    "/v1/me/wallets/challenge",
+                    json={"coldkey": MINER_COLDKEY},
                     headers=same_origin(browser),
                 )
                 link_message = link_challenge.json()["message"]
-                assert link_message.startswith("conjectures-hotkey-link-v1\n")
+                assert link_message.startswith("conjectures-coldkey-link-v1\n")
 
                 cli_challenge = (
-                    await cli.post("/v1/auth/cli/challenge", json={"address": HOTKEY})
+                    await cli.post("/v1/auth/cli/challenge", json={"address": MINER_COLDKEY})
                 ).json()
                 replayed = await cli.post(
                     "/v1/auth/cli/verify",
                     json={
-                        "address": HOTKEY,
+                        "address": MINER_COLDKEY,
                         "nonce": cli_challenge["nonce"],
                         # A real signature — over the *link* message.
-                        "signature": sign(HOTKEY, link_message),
+                        "signature": sign(MINER_COLDKEY, link_message),
                     },
                 )
                 assert replayed.status_code == 401
@@ -453,7 +462,7 @@ def test_the_number_of_live_cli_tokens_per_account_is_capped():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 account = await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 first = (await cli_login(kit, cli))["access_token"]
                 second = (await cli_login(kit, cli))["access_token"]
                 third = (await cli_login(kit, cli))["access_token"]
@@ -575,8 +584,8 @@ def test_authorization_is_not_a_permitted_cross_origin_request_header():
 # --- The takeover chain --------------------------------------------------------------------
 
 
-def test_a_cli_token_cannot_link_another_hotkey():
-    """Step one of turning a stolen hotkey into a stolen account."""
+def test_a_cli_token_cannot_link_another_coldkey():
+    """Step one of turning a stolen token into a stolen account."""
 
     async def scenario():
         kit = await harness().setup()
@@ -584,8 +593,8 @@ def test_a_cli_token_cannot_link_another_hotkey():
             _, token = await linked_account_with_cli_token(kit)
             async with await client(kit) as cli:
                 refused = await cli.post(
-                    "/v1/me/hotkeys/challenge",
-                    json={"hotkey": OTHER_HOTKEY},
+                    "/v1/me/wallets/challenge",
+                    json={"coldkey": OTHER_MINER_COLDKEY},
                     headers=bearer(token),
                 )
                 assert refused.status_code == 403, refused.text
@@ -605,8 +614,8 @@ def test_a_cli_token_cannot_repoint_the_payout_destination():
             _, token = await linked_account_with_cli_token(kit)
             async with await client(kit) as cli:
                 refused = await cli.put(
-                    "/v1/me/payout",
-                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": COLDKEY},
                     headers=bearer(token),
                 )
                 assert refused.status_code == 403, refused.text
@@ -637,33 +646,47 @@ def test_a_cli_token_cannot_edit_the_profile_or_touch_deposits():
     run(scenario())
 
 
-def test_a_cli_token_is_scoped_to_the_hotkey_that_minted_it():
-    """An account may own several hotkeys; a token speaks for exactly one of them."""
+def test_a_cli_token_is_scoped_to_the_coldkey_that_minted_it():
+    """An account may have several linked coldkeys; a token speaks for exactly one.
+
+    The shape of this changed with V035 and is worth stating, because the check now protects
+    against something slightly different. The intent request used to name a key, so the
+    refusal was "you asked to act as a key you did not prove". It names none now — the
+    signer is `Account.submission_coldkey` — so the refusal is "the account re-designated to
+    a key this token never proved". A token minted on rig A must not start signing as rig B
+    just because the designation moved while it was live.
+    """
 
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser, HOTKEY)
-                await link_hotkey(kit, browser, OTHER_HOTKEY)
-                token = (await cli_login(kit, cli, HOTKEY))["access_token"]
+                await link_coldkey(kit, browser, MINER_COLDKEY)
+                await link_coldkey(kit, browser, OTHER_MINER_COLDKEY)
+                # Minted while MINER_COLDKEY is the key the CLI proved.
+                token = (await cli_login(kit, cli, MINER_COLDKEY))["access_token"]
+
+                # Then the account designates the *other* key as its signer.
+                designated = await browser.put(
+                    "/v1/me/coldkeys/submission",
+                    json={"coldkey": OTHER_MINER_COLDKEY},
+                    headers=same_origin(browser),
+                )
+                assert designated.status_code == 200, designated.text
 
                 # A real task, so the refusal is unambiguously the scope check rather than a
                 # rejected digest.
-                body = {
-                    "task_id": TASK_ID,
-                    "task_bundle_sha256": TASK_DIGEST,
-                    "hotkey": OTHER_HOTKEY,
-                }
+                body = {"task_id": TASK_ID, "task_bundle_sha256": TASK_DIGEST}
                 refused = await cli.post(
                     "/v1/submissions/intents", json=body, headers=bearer(token)
                 )
                 assert refused.status_code == 403, refused.text
-                assert refused.json()["reason_code"] == "HOTKEY_OUT_OF_SCOPE"
+                assert refused.json()["reason_code"] == "COLDKEY_OUT_OF_SCOPE"
 
-                # The browser session owns both keys and is not scoped, so it gets past the
-                # check — proving the refusal above is about the credential, not the hotkey.
+                # The browser session proved both keys and is not scoped to either, so it
+                # gets past the check — proving the refusal above is about the credential
+                # rather than about the designation being wrong.
                 allowed = await browser.post(
                     "/v1/submissions/intents", json=body, headers=same_origin(browser)
                 )
@@ -675,35 +698,48 @@ def test_a_cli_token_is_scoped_to_the_hotkey_that_minted_it():
 
 
 def test_a_cli_session_sees_a_redacted_account():
-    """A hotkey lives unencrypted on a mining box. It does not get the email or the payout keys."""
+    """A CLI token is a file on a mining box. It does not get the email or the payout key."""
 
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser, HOTKEY)
-                await link_hotkey(kit, browser, OTHER_HOTKEY)
+                await link_coldkey(kit, browser, MINER_COLDKEY)
+                await link_coldkey(kit, browser, OTHER_MINER_COLDKEY)
                 await browser.put(
-                    "/v1/me/payout",
-                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": COLDKEY},
                     headers=same_origin(browser),
                 )
-                token = (await cli_login(kit, cli, HOTKEY))["access_token"]
+                token = (await cli_login(kit, cli, MINER_COLDKEY))["access_token"]
 
                 full = (await browser.get("/v1/me")).json()
                 assert full["email"] == EMAIL
                 assert full["payout"] is not None
-                assert len(full["hotkeys"]) == 2
+                assert len(full["wallets"]) == 2
 
                 seen = (await cli.get("/v1/me", headers=bearer(token))).json()
                 assert seen["email"] is None
                 assert seen["payout"] is None
+                # Emptied, not narrowed to the key in scope. A coldkey signs in, so the whole
+                # list is a map of ways back into the account and follows the `email` rule.
+                # The hotkey list this replaced was narrowed instead, because a hotkey was not
+                # a way in.
                 assert seen["wallets"] == []
-                assert [item["hotkey"] for item in seen["hotkeys"]] == [HOTKEY]
+                assert seen["coldkeys"]["payout_coldkey"] is None
                 # Still the same account, and still honest about what it is.
                 assert seen["id"] == full["id"]
                 assert seen["email_verified"] is True
+
+                # And the token can still find out which key it signs as, from the endpoint
+                # that serves exactly that and nothing else.
+                pair = await cli.get("/v1/me/coldkeys", headers=bearer(token))
+                assert pair.status_code == 200, pair.text
+                assert pair.json() == {
+                    "submission_coldkey": None,
+                    "payout_coldkey": COLDKEY,
+                }
         finally:
             await kit.teardown()
 
@@ -724,26 +760,33 @@ def test_a_cli_session_sees_a_redacted_session_envelope():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 account = await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser, HOTKEY)
-                await link_hotkey(kit, browser, OTHER_HOTKEY)
+                await link_coldkey(kit, browser, MINER_COLDKEY)
+                await link_coldkey(kit, browser, OTHER_MINER_COLDKEY)
+                # Designated, and it has to be the key the CLI will mint from: `submit` is
+                # refused to a bearer session whose scope is not the account's signer.
                 await browser.put(
-                    "/v1/me/payout",
-                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    "/v1/me/coldkeys/submission",
+                    json={"coldkey": MINER_COLDKEY},
+                    headers=same_origin(browser),
+                )
+                await browser.put(
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": COLDKEY},
                     headers=same_origin(browser),
                 )
                 await grant_credits(kit, uuid.UUID(account["id"]), 2)
-                token = (await cli_login(kit, cli, HOTKEY))["access_token"]
+                token = (await cli_login(kit, cli, MINER_COLDKEY))["access_token"]
 
                 seen = await cli.get("/v1/auth/session", headers=bearer(token))
                 assert seen.status_code == 200, seen.text
                 assert seen.headers["cache-control"] == "no-store"
                 body = seen.json()
 
-                # The mailbox and the coldkey are the two ways back into this account. Neither
-                # is disclosed to a token minted by a key sitting on a mining box.
+                # The mailbox and the linked coldkeys are the ways back into this account.
+                # Neither is disclosed to a token read off a mining box.
                 assert body["identities"] == []
                 assert body["payout"] is None
-                assert [item["hotkey"] for item in body["hotkeys"]] == [HOTKEY]
+                assert body["wallets"] == []
                 # Kept: what it needs to operate.
                 assert body["credits"] == {"balance": 2, "held": 0}
 
@@ -805,7 +848,7 @@ def test_an_admin_on_the_cli_is_told_the_role_is_held_but_not_exercisable():
     run(scenario())
 
 
-def test_unlinking_the_scoped_hotkey_kills_the_token_on_the_next_request():
+def test_unlinking_the_scoped_coldkey_kills_the_token_on_the_next_request():
     async def scenario():
         kit = await harness().setup()
         try:
@@ -817,10 +860,12 @@ def test_unlinking_the_scoped_hotkey_kills_the_token_on_the_next_request():
                 async with kit.session() as session:
                     from sqlalchemy import delete
 
-                    from conjectures_subnet.db.models import LinkedHotkey
+                    from conjectures_subnet.db.models import AccountWallet
 
                     await session.execute(
-                        delete(LinkedHotkey).where(LinkedHotkey.hotkey == HOTKEY)
+                        delete(AccountWallet).where(
+                            AccountWallet.coldkey == MINER_COLDKEY
+                        )
                     )
                     await session.commit()
 
@@ -857,7 +902,7 @@ def test_a_cli_logout_does_not_sign_the_browser_out():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 token = (await cli_login(kit, cli))["access_token"]
 
                 out = await cli.post("/v1/auth/logout", headers=bearer(token))
@@ -895,7 +940,7 @@ def test_the_session_listing_shows_both_kinds_and_never_a_digest():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 await cli_login(kit, cli)
 
                 listed = await browser.get("/v1/me/sessions")
@@ -909,7 +954,7 @@ def test_the_session_listing_shows_both_kinds_and_never_a_digest():
                 assert current[0]["kind"] == "COOKIE"
 
                 cli_row = next(row for row in rows if row["kind"] == "BEARER")
-                assert cli_row["hotkey_scope"] == HOTKEY
+                assert cli_row["coldkey_scope"] == MINER_COLDKEY
 
                 serialised = listed.text
                 for leak in ("token_sha256", "csrf_sha256", "access_token"):
@@ -926,7 +971,7 @@ def test_a_leaked_cli_token_can_be_revoked_from_the_browser():
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 token = (await cli_login(kit, cli))["access_token"]
 
                 rows = (await browser.get("/v1/me/sessions")).json()
@@ -980,7 +1025,7 @@ def test_revoking_every_other_session_spares_the_caller_and_can_select_a_kind():
                 await client(kit) as other_browser,
             ):
                 await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 token = (await cli_login(kit, cli))["access_token"]
 
                 cleared = await browser.delete(
@@ -1088,14 +1133,14 @@ def test_an_admin_cannot_remove_their_own_admin_role():
 
 
 def test_an_admin_role_cannot_be_exercised_from_a_cli_token():
-    """A hotkey sits unencrypted on a mining box; it must not be a route to admin."""
+    """A CLI token sits in a file on a mining box; it must not be a route to admin."""
 
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as browser, await client(kit) as cli:
                 boss = await sign_in_by_email(kit, browser)
-                await link_hotkey(kit, browser)
+                await link_coldkey(kit, browser)
                 await grant_role(kit, boss["id"], ADMIN_ROLE)
                 token = (await cli_login(kit, cli))["access_token"]
 
@@ -1128,8 +1173,8 @@ def test_an_admin_can_cut_every_credential_an_account_holds():
                 await grant_role(kit, boss["id"], ADMIN_ROLE)
 
                 subject = await sign_in_by_email(kit, member, OTHER_EMAIL)
-                await link_hotkey(kit, member, OTHER_HOTKEY)
-                token = (await cli_login(kit, cli, OTHER_HOTKEY))["access_token"]
+                await link_coldkey(kit, member, OTHER_MINER_COLDKEY)
+                token = (await cli_login(kit, cli, OTHER_MINER_COLDKEY))["access_token"]
 
                 listed = await admin.get(f"/v1/admin/accounts/{subject['id']}/sessions")
                 assert listed.status_code == 200, listed.text

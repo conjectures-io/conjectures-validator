@@ -15,7 +15,7 @@
 --
 -- The enum addition is intentionally isolated. PostgreSQL does not permit a new enum value to
 -- be referenced by a CHECK constraint until the transaction that added it has committed, so the
--- corresponding columns and constraints are added by V029. Same reason as V022/V023.
+-- corresponding columns and constraints are added by V037. Same reason as V022/V023.
 
 ALTER TYPE login_challenge_kind ADD VALUE 'PASSWORD_SIGNUP';
 ALTER TYPE login_challenge_kind ADD VALUE 'PASSWORD_RESET';

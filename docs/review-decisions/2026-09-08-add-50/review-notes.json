@@ -1,0 +1,252 @@
+{
+  "Erdos25.erdos_25": [
+    "Strictly increasing positive moduli; residue exclusions begin at the modulus. The target asks for logarithmic density for arbitrary such sequences.",
+    "The 2026 Ulam/Chojecki manuscript handles summable reciprocal moduli and coprime cases and explicitly leaves the general step open.",
+    "https://www.ulam.ai/research/erdos25.pdf"
+  ],
+  "Erdos30.erdos_30": [
+    "The Sidon extremal function differs from sqrt(N) by O_epsilon(N^epsilon) for every positive epsilon. This is stronger than an asymptotic with leading constant one.",
+    "PR 3935 records partial bounds and Singer assumptions, leaving this main target open; the newer N^(1/4) error bounds do not suffice.",
+    "https://github.com/google-deepmind/formal-conjectures/pull/3935"
+  ],
+  "Erdos52.erdos_52": [
+    "The sum-product question quantifies over finite sets of integers, not arbitrary real sets.",
+    "The 2026 counterexample concerns real sets and does not settle the integer conjecture.",
+    "https://arxiv.org/abs/2605.28781"
+  ],
+  "Erdos61.erdos_61": [
+    "The full Erdos-Hajnal statement quantifies over every fixed forbidden induced graph with an exponent allowed to depend on that graph.",
+    "Known results for five-vertex graphs and newer individual forbidden graphs do not establish the universal assertion.",
+    "https://www.erdosproblems.com/61"
+  ],
+  "Erdos91.erdos_91": [
+    "For every sufficiently large cardinality, there must be two non-similar planar configurations attaining the minimum number of distinct distances. The minimum is a natural-number infimum; the real casts in the set builder do not turn it into a real infimum.",
+    "Results on a density-one set of cardinalities do not establish the eventual assertion for all cardinalities.",
+    "https://www.erdosproblems.com/91"
+  ],
+  "Erdos98.erdos_98": [
+    "No three collinear and no four concyclic; the minimum distinct-distance count divided by cardinality tends to infinity. The general-position conditions and superlinear conclusion were checked separately.",
+    "The recent linear lower bound is weaker. A forum proof attempt was acknowledged to rely on unsupported axioms.",
+    "https://www.erdosproblems.com/forum/thread/98"
+  ],
+  "Erdos124.erdos124.ne_zero": [
+    "The selected extension excludes exponent zero, uses coprime bases at least three, and retains the reciprocal-sum condition. This differs from the unit-allowing version.",
+    "The existing Aristotle result and PR 4354 concern exponent zero and do not solve the selected extension.",
+    "https://github.com/google-deepmind/formal-conjectures/pull/4354"
+  ],
+  "Erdos138.erdos_138": [
+    "The kth root of the van der Waerden number tends to infinity; a fixed exponential lower bound does not imply it.",
+    "The 2026 lower bound of order k times 2^(k-1) and solutions of a difference variant leave this target open.",
+    "https://arxiv.org/abs/2608.20824"
+  ],
+  "Erdos168.erdos_168.parts.ii": [
+    "Irrationality of the limiting extremal ratio, encoded using limsup. Existence of the limit and irrationality are separate questions.",
+    "The known formula and numerical value of the limit do not establish irrationality.",
+    "https://www.erdosproblems.com/168"
+  ],
+  "Erdos234.erdos_234": [
+    "Natural densities of normalized consecutive-prime-gap events for every nonnegative real threshold, forming a continuous distribution function.",
+    "The exponential distribution predicted conditionally by prime-tuple conjectures is not an unconditional solution.",
+    "https://www.erdosproblems.com/234"
+  ],
+  "Erdos287.erdos_287": [
+    "Distinct increasing denominators greater than one, reciprocal sum exactly one, and a consecutive gap at least three. Strictness and denominator endpoints were checked.",
+    "Finite exclusions and the known gap-at-least-two result in PR 5249 do not establish this assertion.",
+    "https://github.com/google-deepmind/formal-conjectures/pull/5249"
+  ],
+  "Erdos304.upper_bound": [
+    "The selected bound is N(b)=O(log log b), not the known lower bound.",
+    "PR 5237 formalizes lower-bound metadata; PR 4870 explicitly leaves the main problem unchanged after a related reduction.",
+    "https://github.com/google-deepmind/formal-conjectures/pull/4870"
+  ],
+  "Erdos307.erdos_307": [
+    "Finite sets of primes satisfying the exact reciprocal-product equation. The main target is distinct from the finite-cardinality exclusions.",
+    "PRs 5236/4403 only extend exclusions. PR 4479 corrects a false helper in a sibling result; a forum claim's key step was refuted.",
+    "https://github.com/google-deepmind/formal-conjectures/pull/4479"
+  ],
+  "Erdos317.erdos_317.variants.claim2": [
+    "For all sufficiently large N, every nonzero signed harmonic sum with coefficients in {-1,0,1} has absolute value strictly greater than 1/lcm(1,...,N). The strict inequality is essential: the non-strict bound is elementary.",
+    "Finite searches and heuristics do not prove the eventual strict bound; the separate c/2^N claim is not substituted.",
+    "https://www.erdosproblems.com/317"
+  ],
+  "Erdos400.erdos_400.parts.i": [
+    "For each fixed k, the summatory function has an asymptotic c_k*x*log(x) with positive c_k. A lower bound is insufficient.",
+    "The 2026 work supplies bounds rather than this full asymptotic. The stronger part ii is not also added as another target.",
+    "https://arxiv.org/abs/2606.23661"
+  ],
+  "Erdos410.erdos_410": [
+    "Iterating sigma_1 from n>1, the kth root tends to infinity. The exclusion of n=1 prevents the fixed-point counterexample; k=0 is irrelevant to the eventual limit.",
+    "No exact resolution found in the problem page, discussion, or relevant upstream changes.",
+    "https://www.erdosproblems.com/410"
+  ],
+  "Erdos413.erdos_413.parts.i": [
+    "Infinitely many barriers for the number of distinct prime factors omega. The stronger big-Omega version is not counted separately.",
+    "The new O(log i) block result is weaker than the exact barrier required here.",
+    "https://arxiv.org/abs/2604.15042"
+  ],
+  "Erdos495.erdos_495": [
+    "Classical Littlewood: for every pair of reals, liminf of n*||n alpha||*||n beta|| is zero. A bounded subsequence prevents an unbounded-real-liminf default-value interpretation.",
+    "The new uniform Littlewood counterexamples have different quantifiers and do not settle the classical statement.",
+    "https://arxiv.org/abs/2608.25059"
+  ],
+  "Erdos14.erdos_14.parts.i": [
+    "For each fixed infinite set and every positive epsilon, its nonunique-sum count is bounded below at scale N^(1/2-epsilon). Uniqueness is modulo swapping summands and includes diagonal sums.",
+    "Finite computations and conditional structural claims do not solve this. Existing part ii asks for a set with o(sqrt(N)) nonunique sums; it is compatible and independent, not a Sidon-density assertion as the earlier batch report described it.",
+    "https://www.erdosproblems.com/forum/thread/14"
+  ],
+  "Erdos647.erdos_647": [
+    "Existence of n>24 for which max over m<n of m+tau(m) is at most n+2. The strict lower endpoint removes the known small examples.",
+    "PR 4407 gives reductions and computations, not a witness or impossibility proof. An older purported solution was refuted for using an unsupported axiom.",
+    "https://github.com/google-deepmind/formal-conjectures/pull/4407"
+  ],
+  "Erdos681.erdos_681": [
+    "For every sufficiently large N there is k such that N+k is composite and its least prime factor exceeds k^2. The prime/composite restriction matters when k=1.",
+    "Almost-all heuristics do not cover the required pointwise assertion, including N one below a prime.",
+    "https://www.erdosproblems.com/681"
+  ],
+  "Green36.green_36.variants.cks05": [
+    "The CKS simultaneous double product property uses i != k and arbitrary epsilon, along infinitely many sizes. The product bound forces nonempty families. Checked against CKS Definition 4.1; the other index pattern is excluded.",
+    "The cited construction conjecture remains open; no exact construction or impossibility proof found.",
+    "https://theory.stanford.edu/~virgi/cs367/papers/groupmatrix.pdf"
+  ],
+  "Erdos749.erdos_749": [
+    "Lower density of A+A can be arbitrarily close to one while the ordered representation function stays bounded.",
+    "The solved upper-density variant is weaker and does not settle lower density.",
+    "https://www.erdosproblems.com/749"
+  ],
+  "Erdos886.erdos_886": [
+    "For every positive epsilon a uniform bound on divisors in (sqrt(n),sqrt(n)+n^(1/2-epsilon)). Interval endpoints and uniformity in n were checked.",
+    "Known epsilon>1/4 cases do not give all positive epsilon; the corrected four-divisor sibling is distinct.",
+    "https://arxiv.org/abs/2503.12146"
+  ],
+  "Erdos930.erdos_930": [
+    "A fixed number of disjoint intervals of positive integers, each sufficiently long with a bound depending on that number, cannot have product a perfect power. The interval hypotheses avoid empty products and zero.",
+    "No exact resolution found in the reviewed source and discussion.",
+    "https://www.erdosproblems.com/930"
+  ],
+  "Erdos933.erdos_933": [
+    "The normalized combination of the 2-adic and 3-adic valuations of n(n+1) has infinite limsup. Natural valuations, positivity, and normalization were checked.",
+    "A negative forum claim had its proposed bound explicitly refuted; no valid exact solution remained in that exchange.",
+    "https://www.erdosproblems.com/forum/thread/933"
+  ],
+  "Erdos944.erdos_944": [
+    "Vertex-critical k-chromatic graphs for every k>=4, with the stated robust edge-critical-set requirement for arbitrary r.",
+    "The k>=5 case is known; k=4 remains. PR 4237 covers a restricted 6-regular r=1 case.",
+    "https://github.com/google-deepmind/formal-conjectures/pull/4237"
+  ],
+  "Erdos949.erdos_949": [
+    "For arbitrary sum-free S in the reals, a continuum-sized A avoiding S whose pairwise sums also avoid S. No measurability or Baire assumption is inserted.",
+    "Known results with regularity, Sidon, or smaller-cardinality hypotheses do not establish this general assertion.",
+    "https://www.erdosproblems.com/949"
+  ],
+  "Erdos962.erdos_962": [
+    "The log of the maximum prime-factor-interval length is bounded at exponent 1/2+o(1) in log(n). The finite search cap k<=n is sound: a longer interval starting at m<=n contains a power of two, violating its prime-factor requirement.",
+    "The known O(sqrt(n)) length bound is far weaker than the selected subpolynomial target.",
+    "https://www.erdosproblems.com/962"
+  ],
+  "Erdos323.erdos_323.parts.ii": [
+    "For every 1<=m<k, the number of distinct integers represented by m kth powers is at least order x^(m/k). It counts represented values, not tuples.",
+    "Independent of the new diagonal lower bound and the active diagonal o(x) upper bound. Existing problem 325 treats three summands and does not imply this full family.",
+    "https://www.erdosproblems.com/323"
+  ],
+  "Erdos979.erdos_979": [
+    "Unbounded limsup of the number of representations as a sum of k prime kth powers, for every k>=2. Ordering changes counts by at most k!, so not unboundedness.",
+    "The 2026 cubic result solves k=3 only; the quartic result gives a finite lower bound and explicitly does not generalize to all k.",
+    "https://arxiv.org/abs/2608.19262"
+  ],
+  "Erdos1056.erdos_1056": [
+    "Arbitrarily many consecutive nonempty positive intervals whose products are one modulo a prime. Strictly increasing endpoints force nonempty intervals, and products one forbid crossing multiples of the prime.",
+    "Finite k searches and restricted factorial-collision results do not establish arbitrary k. A directly related implication is not separately counted.",
+    "https://www.erdosproblems.com/1056"
+  ],
+  "Erdos1062.erdos_1062.parts.ii": [
+    "Irrationality of the density of the specified union of divisor conditions. Limit existence is a distinct issue.",
+    "The recent existence/formula discussion explicitly leaves irrationality open.",
+    "https://www.erdosproblems.com/forum/thread/1062"
+  ],
+  "Erdos1082.erdos_1082.parts.i": [
+    "A set with no three collinear points determines at least floor(n/2) distinct distances globally. The stronger pinned-distance assertion is not selected.",
+    "Harborth's counterexample and its 2026 rediscovery settle the pinned-distance sibling, not this global-count target; small-n verification is partial.",
+    "https://www.erdosproblems.com/1082"
+  ],
+  "Erdos1113.erdos_1113.variants.filaseta_finch_kozek": [
+    "Every Sierpinski number is a perfect power or admits a finite covering set of primes. This is the FFK question, not existence or infinitude of Sierpinski numbers.",
+    "PR 4407 and the known classical constructions concern the solved infinitude sibling.",
+    "https://www.erdosproblems.com/1113"
+  ],
+  "Erdos1175.erdos_1175": [
+    "For every uncountable cardinal kappa there exists a cardinal mu such that every mu-chromatic graph has a triangle-free subgraph of chromatic number exactly kappa. Subgraph is not induced; mu is existential.",
+    "Shelah's consistency obstruction at mu=kappa=aleph_1 does not refute the existential-mu statement. Related odd-cycle and triangle-free coloring results do not resolve it.",
+    "https://www.erdosproblems.com/1175"
+  ],
+  "Erdos291.erdos_291.variants.shiu_heuristic_density_zero": [
+    "Natural density zero of indices at which the harmonic numerator is coprime to the relevant lcm.",
+    "The forum misstates a complementary set: Wu-Yan obtain conditional upper density one for the indices where the reduced denominator is smaller than the lcm. Even that does not give natural density one. Known infinitude of non-coprime indices is weaker.",
+    "https://www.numdam.org/articles/10.5802/crmath.282/"
+  ],
+  "Erdos686.erdos_686.variants.twenty_five": [
+    "The exact quotient of the two separated consecutive products is 25 for some k>=2. This fixes the square value, preserving positivity and division conditions.",
+    "Finite exclusions of k do not settle existence. General all-square/all-integer versions are not added as duplicate implication targets.",
+    "https://www.erdosproblems.com/686"
+  ],
+  "Erdos890.erdos_890.parts.b": [
+    "The limsup of the sum of ordinary distinct-prime-factor counts in a fixed consecutive block, normalized by loglog(n)/log(n), equals one for every fixed positive block length.",
+    "New work on the liminf in part a does not settle part b. The altered restricted omega_k helper in part a is not used here.",
+    "https://www.erdosproblems.com/890"
+  ],
+  "Erdos936.erdos_936.variants.factorial_add_one": [
+    "Finiteness of indices for which n!+1 is powerful. The finite small-index conventions do not affect finiteness.",
+    "The ABC-conditional argument does not establish an unconditional solution. This is independent of the factorial-minus-one and active exponential variants.",
+    "https://www.erdosproblems.com/936"
+  ],
+  "Erdos936.erdos_936.variants.factorial_sub_one": [
+    "Finiteness of indices for which n!-1 is powerful. Natural subtraction only affects small indices and not the finiteness question.",
+    "Only conditional ABC consequences were found; no implication between this sign and the factorial-plus-one sign establishes either target.",
+    "https://www.erdosproblems.com/936"
+  ],
+  "Erdos770.erdos_770.parts.i": [
+    "For each prime p, the level set h(n)=p has natural density. The infimum ranges over m>2 in extended naturals; conversion of infinity to zero cannot enter a prime level set.",
+    "Conditional infinitude of the p=3 level under a Mersenne-prime hypothesis does not establish density for every prime.",
+    "https://www.erdosproblems.com/770"
+  ],
+  "Green39.green_39": [
+    "Uniform fixed-cardinality random subsets of Z/pZ, with floor(sqrt(p)) elements; the covering probability tends to one along primes. The finite probability denominator is nonzero.",
+    "Existing translate-covering bounds leave this threshold open.",
+    "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.39"
+  ],
+  "Green44.green_44": [
+    "Exactly 1000 increasing primes, floor(p/2) removed classes, and p_max^10<N^9. The integer inequality faithfully avoids fractional powers.",
+    "The usual square-root sieve range does not establish this bound.",
+    "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.44"
+  ],
+  "Green47.green_47": [
+    "The eventual residue-class bound leads either to sparse growth or whole-set containment in one rational quadratic image of integers.",
+    "Croot-Yip's 2026 result gives a large intersection with a quadratic, not whole-set containment.",
+    "https://arxiv.org/abs/2607.15311"
+  ],
+  "Green66.green_66": [
+    "An eventual real-X assertion with the specific constant 1/10. Natural squares suffice because signs do not alter squares.",
+    "A known bound with an unspecified constant does not settle this fixed constant.",
+    "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf#problem.66"
+  ],
+  "Erdos323.erdos_323.parts.i": [
+    "For every k>=1 and epsilon>0, the diagonal represented-value count is bounded below by x^(1-epsilon). Distinct values, not representations, are counted.",
+    "Known k=2 asymptotics leave the full family open. This lower bound is compatible with the existing k>2 diagonal o(x) upper bound.",
+    "https://www.erdosproblems.com/323"
+  ],
+  "Erdos1101.erdos_1101.parts.i": [
+    "Existence of a good sequence with polynomial growth. The pinned statement has positive polarity; current upstream negates it to match the conjectured negative answer. Both generated modes preserve the pinned question. Zero/one initial terms cannot trivialize the strict gap condition.",
+    "The publicly claimed subexponential construction concerns part ii, which is excluded; it does not supply polynomial growth.",
+    "https://www.erdosproblems.com/forum/thread/1101"
+  ],
+  "Erdos950.erdos_950.parts.iii": [
+    "The function is o(log log n). This is compatible with the active assertions of liminf one and infinite limsup.",
+    "The conditional O(log log log n) estimate does not establish the unconditional target; discussion of a second-moment step is not a completed proof.",
+    "https://www.erdosproblems.com/950"
+  ],
+  "Erdos700.erdos_700.parts.ii": [
+    "Infinitely many composite n have min_{2<=k<=floor(n/2)} gcd(n,C(n,k)) strictly greater than sqrt(n). The natural infimum is over a nonempty finite set for composite n>=4, and f(n)^2>n is equivalent to the strict real-root inequality. The known prime-square family attains equality and does not solve it.",
+    "The public constructions rely on unproved infinitude of special primes or prime pairs. The discussion supplies no unconditional infinite family. PR 5212 corrects only the characterization answer in part i; part ii and its minimum are unchanged. No exact prior solution or active/retired equivalent target found.",
+    "https://www.erdosproblems.com/forum/thread/700"
+  ]
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "bytes": 48300,
+    "path": "README.md",
+    "sha256": "e104e4f67279214462f06dc76e952dd79e485255de51573db059a657ba1f4635"
+  },
+  {
+    "bytes": 29672,
+    "path": "docs/DATA_FLOW.md",
+    "sha256": "2c02b40f9d6138bc2663c30e55c04cccdd07c876e8d83867415c4a9edea96337"
+  },
+  {
+    "bytes": 10992,
+    "path": "docs/SUBMISSION_BUNDLE.md",
+    "sha256": "8f9ea3944f0374a37569e365a2efdeb55392664963c0acafdb027141a994d5e5"
+  },
+  {
+    "bytes": 21624,
+    "path": "docs/SUBNET.md",
+    "sha256": "d5ab242314af040bfd432b76945b1da2c42afb35267a3a785651f6007e26fbd1"
+  },
+  {
+    "bytes": 3025,
+    "path": "docs/data_flow.mermaid",
+    "sha256": "a737073208c23f4c1b0a5071004cea114930cb5e1ed1c9118ab2d6184328dd09"
+  },
+  {
+    "bytes": 1936,
+    "path": "pins.lock.json",
+    "sha256": "f17fee7e0adade701415fbbd72269104ac8b73721c6305b7de175d7ac2bb36fe"
+  },
+  {
+    "bytes": 4166,
+    "path": "pyproject.toml",
+    "sha256": "1fc43738eacd7241d505b778af14eb8bd3ba77bc2769c05fa06159a68aaa4d4f"
+  },
+  {
+    "bytes": 4465,
+    "path": "scripts/build_submission_bundle.py",
+    "sha256": "c4d7df4e6f2327d849c50b72f4f3bdba3cabfc7d66879eb3448ceaafa05034db"
+  },
+  {
+    "bytes": 37766,
+    "path": "tests/test_api_submissions.py",
+    "sha256": "2af6ee13910ebfbb78849d6f6ffd8767cbe0f4ca30e6a32366320fa1013d26ac"
+  },
+  {
+    "bytes": 35151,
+    "path": "tests/test_bundle.py",
+    "sha256": "d5ec0144c39e41cb3396aea804ea2aedd67b5ea3de89fc1b07968e1059f2c7dc"
+  },
+  {
+    "bytes": 14834,
+    "path": "tests/test_task_generator.py",
+    "sha256": "5f3034b5de5fc67c89fdb0e9cd70122da85e75021440940d69015b3403cc9e1b"
+  },
+  {
+    "bytes": 6322,
+    "path": "tests/test_task_loader.py",
+    "sha256": "f860ffdcacceb6cd70c233597d5ec777d3ee00fbd08caefcea7eee925f85099f"
+  },
+  {
+    "bytes": 18911,
+    "path": "tests/test_task_pool.py",
+    "sha256": "0987c41c2832f7fc3707a59df7b935aabb1142de3d3bae4b4717c57c038ac641"
+  },
+  {
+    "bytes": 24550,
+    "path": "verifier/task_generator.py",
+    "sha256": "95510c55ee1bbd34805c1ec1c404afdef4e1f844129b610fa80b8bf002cdb4d8"
+  },
+  {
+    "bytes": 21727,
+    "path": "verifier/task_loader.py",
+    "sha256": "25103cce4548acfe72c2150f7f35e60e3c7e971a978e7e0960bcc855a57e8926"
+  },
+  {
+    "bytes": 40069,
+    "path": "verifier/task_pool.py",
+    "sha256": "f89b07903d5f51641424daf64b127bafa844126c7c8349b25f50c137ff374401"
+  }
+]

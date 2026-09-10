@@ -39,7 +39,6 @@ from conjectures_subnet.attribution import (
     public_credit_from_values,
 )
 from conjectures_subnet.axiom import get_axiom
-from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import intents as intent_store
 from conjectures_subnet.db.errors import RecordConflict
@@ -50,7 +49,7 @@ from submission_api.dependencies import (
     ServicesDep,
     SessionDep,
     WriterDep,
-    assert_hotkey_in_scope,
+    assert_coldkey_in_scope,
 )
 from submission_api.errors import (
     ApiError,
@@ -75,7 +74,7 @@ from verifier.task_registry import TaskNotAllowed as RegistryTaskNotAllowed
 router = APIRouter(prefix="/v1/submissions", tags=["submission"])
 
 REASON_TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED"
-REASON_HOTKEY_NOT_LINKED = "HOTKEY_NOT_LINKED"
+REASON_NO_SUBMISSION_COLDKEY = "NO_SUBMISSION_COLDKEY"
 
 
 class Payload(BaseModel):
@@ -89,9 +88,17 @@ class PublicCreditRequest(Payload):
 
 
 class IntentRequest(Payload):
+    """What an attempt needs. Note what is absent: the signing key.
+
+    There was a `hotkey` field here until V035, and it is gone rather than renamed. The signer
+    is `Account.submission_coldkey`, which the server reads off the account — at most one is
+    designated, so there is nothing for a client to choose and no way for it to name a key it
+    should not. Letting the request carry an address would only reintroduce a check
+    (`owns_wallet`) that the designation already settled.
+    """
+
     task_id: str = Field(min_length=1, max_length=255, pattern=r"^[a-z0-9][a-z0-9-]{0,254}$")
     task_bundle_sha256: str = Field(min_length=71, max_length=71)
-    hotkey: str = Field(min_length=48, max_length=48)
     public_credit: PublicCreditRequest | None = None
 
 
@@ -121,7 +128,7 @@ def _signature_bytes(value: str) -> bytes:
 def intent_request_digest(
     *,
     intent_id: uuid.UUID,
-    hotkey: str,
+    signer_coldkey: str,
     task_id: str,
     task_bundle_sha256: str,
     proof_sha256: str,
@@ -134,10 +141,14 @@ def intent_request_digest(
     intent *is* the idempotency key here: one intent is one attempt.
 
     Every field a signature must not be transferable across is inside it: the proof bytes (by
-    digest), the task, the submitting hotkey, and the specific attempt.
+    digest), the task, the signing coldkey, and the specific attempt.
+
+    The key name is `signer_coldkey`, not the old `hotkey` holding a new kind of address. The
+    digest IS the signed message, so a client still building the old shape must fail to verify
+    rather than produce a signature that checks out against an identity nobody proved.
     """
     value = {
-        "hotkey": hotkey,
+        "signer_coldkey": signer_coldkey,
         "intent_id": str(intent_id),
         "proof_sha256": proof_sha256,
         "task_bundle_sha256": task_bundle_sha256,
@@ -152,7 +163,7 @@ def _intent(intent) -> schemas.SubmissionIntent:
     return schemas.SubmissionIntent(
         id=intent.id,
         status=str(intent.status),
-        hotkey=intent.hotkey,
+        signer_coldkey=intent.signer_coldkey,
         public_credit=(
             None
             if (credit := public_credit_from_values(intent)) is None
@@ -181,12 +192,12 @@ def _resolve_task(services, task_id: str, task_bundle_sha256: str):
         raise NotFound(str(exc), reason_code=REASON_TASK_NOT_ALLOWED) from exc
 
 
-async def _uploaded_bundle(
+async def uploaded_bundle(
     request: Request,
     services,
     entry,
     *,
-    hotkey: str,
+    signer: str | None,
     content_type: str | None,
     content_length: int | None,
 ) -> ProofBundle:
@@ -195,6 +206,11 @@ async def _uploaded_bundle(
     The same ordering the extrinsic path uses, and for the same reason: headers and the
     declared length first, so a hostile body is refused at the door rather than buffered and
     then measured.
+
+    `signer=None` checks the session-authorised bundle format, including during free preflight.
+    There is no address to bind the manifest to, and `admit_proof_bundle` refuses a bundle
+    that names one anyway. Every caller that verified a signature passes the key it verified,
+    and the binding there is unchanged.
     """
     settings = services.settings
     if content_type is None or content_type.split(";")[0].strip().lower() != BUNDLE_MEDIA_TYPE:
@@ -214,7 +230,7 @@ async def _uploaded_bundle(
             raw,
             task_manifest=entry.manifest,
             expected_task_sha256=entry.task_bundle_sha256,
-            expected_hotkey=hotkey,
+            expected_signer=signer,
         )
     except VerifierError as exc:
         raise from_verifier_error(exc) from exc
@@ -233,7 +249,7 @@ async def preflight(
     services: ServicesDep,
     task_id: Annotated[str, Header(alias="X-Conjectures-Task-Id")],
     task_sha256: Annotated[str, Header(alias="X-Conjectures-Task-Sha256")],
-    hotkey: Annotated[str, Header(alias="X-Conjectures-Hotkey")],
+    coldkey: Annotated[str | None, Header(alias="X-Conjectures-Coldkey")] = None,
     content_length: Annotated[int | None, Header(alias="Content-Length")] = None,
     content_type: Annotated[str | None, Header(alias="Content-Type")] = None,
 ) -> schemas.PreflightResult:
@@ -243,22 +259,26 @@ async def preflight(
     account. It writes nothing, holds nothing, and the work is bounded by the body cap, so
     there is nothing here worth gating.
 
+    Without a coldkey header, check the keyless bundle format used by browser-session
+    submissions. A supplied header still requires a matching key in the manifest. This check
+    never authenticates a signer or authorises a submission.
+
     A failure is returned as `ok: false` with the reason code rather than as an error status.
     The request succeeded — the answer is "this bundle would be refused", which is exactly what
     was asked.
     """
     entry = _resolve_task(services, task_id, task_sha256)
     try:
-        bundle = await _uploaded_bundle(
+        bundle = await uploaded_bundle(
             request,
             services,
             entry,
-            hotkey=hotkey,
+            signer=coldkey,
             content_type=content_type,
             content_length=content_length,
         )
     except ApiError as exc:
-        # Every failure `_uploaded_bundle` raises is an ApiError — a malformed request, or a
+        # Every failure `uploaded_bundle` raises is an ApiError — a malformed request, or a
         # bundle the verifier refused, already translated to a reason code. Caught as one type
         # rather than three, and reported in the body: the caller asked "would this be
         # accepted", and "no, because X" is a successful answer to that question.
@@ -309,15 +329,17 @@ async def create_intent(
 ) -> schemas.SubmissionIntent:
     """Hold a credit for one attempt on one task.
 
-    The hotkey must be linked to this account. Otherwise a signed-in account could spend its
-    own credit to submit under someone else's identity, and the resulting reward would have a
-    disputed owner.
+    The signing key is the account's designated `submission_coldkey`, read from the account
+    rather than taken from the request. An account that has designated none is refused with
+    `NO_SUBMISSION_COLDKEY`: this flow ends in a signature, so there has to be a key it will be
+    checked against, and the account is the only place that decides which.
 
-    A **CLI session** must additionally name the hotkey it was minted for. `owns_hotkey` is an
-    account-level question, which is the right one for a browser session — the person owns all of
+    A **CLI session** must additionally be scoped to that same key. Being designated is an
+    account-level fact, which is the right one for a browser session — the person holds all of
     their keys. It is the wrong one for a bearer token, which was opened by one key on one
     machine: without the scope check, a token read off rig A could spend the account's credits
-    and have the submission, and its reward, attributed to rig B.
+    after the account re-designated to rig B, and have the submission — and its reward — signed
+    as a key that token never proved.
 
     Insufficient credit is a 409 carrying the balance, so a client can show what is missing
     without a second request.
@@ -329,14 +351,20 @@ async def create_intent(
             reason_code=REASON_SUBMISSIONS_PAUSED,
         )
 
-    # Before the task is resolved: this is a question about the caller's credential, not about
-    # the request's content, and a caller who may not act as this hotkey should be refused
-    # without the server first doing catalog work on their behalf.
-    assert_hotkey_in_scope(principal, payload.hotkey)
+    # Before the task is resolved: these are questions about the caller's credential and its
+    # account, not about the request's content, and a caller with no usable signing key should
+    # be refused without the server first doing catalog work on their behalf.
+    signer = principal.account.submission_coldkey
+    if signer is None:
+        raise Conflict(
+            "designate a submission coldkey before spending credits on an attempt",
+            reason_code=REASON_NO_SUBMISSION_COLDKEY,
+        )
+    assert_coldkey_in_scope(principal, signer)
 
     # Then the content. Parsed before the task is resolved for the same reason — a malformed
     # credit is the caller's error and costs nothing to refuse — but after the credential check,
-    # so a caller who may not act as this hotkey learns that first.
+    # so a caller who cannot sign at all learns that first.
     try:
         credit = (
             None
@@ -351,18 +379,14 @@ async def create_intent(
         raise BadRequest(str(exc)) from exc
 
     entry = _resolve_task(services, payload.task_id, payload.task_bundle_sha256)
-    if not await account_store.owns_hotkey(
-        session, principal.account.id, payload.hotkey
-    ):
-        raise Conflict(
-            "link that hotkey to your account before submitting under it",
-            reason_code=REASON_HOTKEY_NOT_LINKED,
-        )
+    # No `owns_wallet` check here, and it is not missing: `submission_coldkey` cannot hold a key
+    # this account has not proved. `account_submission_coldkey_is_linked` is a composite foreign
+    # key against `(account_id, coldkey)`, so an unproved key never reaches the column.
 
     intent, _ = await intent_store.open_intent(
         session,
         account_id=principal.account.id,
-        hotkey=payload.hotkey,
+        signer_coldkey=signer,
         task_id=entry.task_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         credit_price_rao=settings.payment_amount_rao,
@@ -379,7 +403,7 @@ async def create_intent(
         event_type="intent_opened",
         intent_id=str(intent.id),
         account_id=str(principal.account.id),
-        hotkey=payload.hotkey,
+        signer_coldkey=signer,
         task_id=entry.task_id,
         credit_price_rao=settings.payment_amount_rao,
         expires_in_minutes=settings.intent_minutes,
@@ -415,18 +439,18 @@ async def upload_bundle(
     entry = _resolve_task(
         services, intent.task_id, digests.to_prefixed(intent.task_bundle_sha256)
     )
-    bundle = await _uploaded_bundle(
+    bundle = await uploaded_bundle(
         request,
         services,
         entry,
-        hotkey=intent.hotkey,
+        signer=intent.signer_coldkey,
         content_type=content_type,
         content_length=content_length,
     )
 
     request_digest = intent_request_digest(
         intent_id=intent.id,
-        hotkey=intent.hotkey,
+        signer_coldkey=intent.signer_coldkey,
         task_id=intent.task_id,
         task_bundle_sha256=entry.task_bundle_sha256,
         proof_sha256=bundle.proof.sha256,
@@ -446,7 +470,7 @@ async def upload_bundle(
         event_type="intent_bundle_stored",
         intent_id=str(intent.id),
         account_id=str(principal.account.id),
-        hotkey=intent.hotkey,
+        signer_coldkey=intent.signer_coldkey,
         task_id=intent.task_id,
         proof_sha256=bundle.proof.sha256,
         proof_bytes=len(bundle.proof.raw),
@@ -492,7 +516,7 @@ async def confirm_intent(
             "upload a bundle before confirming", reason_code="INTENT_HAS_NO_BUNDLE"
         )
 
-    # The digest is 32 raw bytes, and the hotkey signature is over exactly those bytes — the
+    # The digest is 32 raw bytes, and the coldkey signature is over exactly those bytes — the
     # same convention the extrinsic path uses, so miner tooling signs one kind of thing.
     services.authenticator.verify(
         _signed_request(intent, signature)
@@ -531,7 +555,7 @@ async def confirm_intent(
             problem_id=entry.problem_id,
             reward_target_id=entry.reward_target_id,
             task_mode=TaskMode(entry.mode),
-            hotkey_signature=signature,
+            signer_signature=signature,
             manual_review_required=settings.manual_review_enabled,
             review_policy_version=settings.review_policy_version,
             bounty_amount_rao=quote.amount_rao,
@@ -564,7 +588,7 @@ async def confirm_intent(
         event_type="submission_accepted",
         submission_id=str(confirmed.submission.id),
         account_id=str(principal.account.id),
-        hotkey=intent.hotkey,
+        signer_coldkey=intent.signer_coldkey,
         task_id=intent.task_id,
         problem_id=entry.problem_id,
         reward_target_id=entry.reward_target_id,
@@ -593,7 +617,7 @@ def _signed_request(intent, signature: bytes):
     from submission_api.auth import SignedRequest
 
     return SignedRequest(
-        hotkey=intent.hotkey,
+        signer_coldkey=intent.signer_coldkey,
         request_digest=digests.to_prefixed(intent.request_digest),
         signature=signature,
     )
@@ -632,4 +656,4 @@ async def read_intent(
     )
 
 
-__all__ = ["intent_request_digest", "router"]
+__all__ = ["intent_request_digest", "router", "uploaded_bundle"]

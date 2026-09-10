@@ -146,6 +146,20 @@ class Conflict(ApiError):
     reason_code = "CONFLICT"
 
 
+class Gone(ApiError):
+    """The thing existed and is permanently unusable. Not 404, and the difference is the point.
+
+    Used for an invitation that has expired, been withdrawn, or been fully redeemed. Someone
+    holding such a link is entitled to know which, because "expired" sends them to ask for a new
+    one while "not found" sends them to check their typing and then write to us. An invitation
+    code is 256 bits, so saying a known code is dead leaks nothing that could be enumerated.
+    """
+
+    status_code = 410
+    title = "No longer available"
+    reason_code = "GONE"
+
+
 class LengthRequired(ApiError):
     status_code = 411
     title = "Content-Length required"

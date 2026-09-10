@@ -25,9 +25,8 @@ from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 
 from conftest_api import (
-    COLDKEY,
-    HOTKEY,
-    OTHER_HOTKEY,
+    MINER_COLDKEY,
+    OTHER_MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
     VALID_PROOF,
@@ -104,13 +103,15 @@ def test_a_paid_submission_is_recorded_and_queued():
             assert body["verification_status"] == VerificationState.UNVERIFIED.value
             assert body["manual_review_status"] == ManualReviewState.UNREVIEWED.value
             assert body["reward_status"] == RewardState.INELIGIBLE.value
-            assert body["hotkey"] == HOTKEY
+            assert body["signer_coldkey"] == MINER_COLDKEY
             assert body["task_id"] == TASK_ID
             assert body["proof_sha256"] == sha256_bytes(VALID_PROOF)
             assert body["manual_review_required"] is True
 
             # Payment is a precondition, so it is present unconditionally.
-            assert body["payment"]["sender"] == COLDKEY
+            # The signer, because the development verifier echoes it — which is the
+            # production invariant since V035: the key that paid is the key that signs.
+            assert body["payment"]["sender"] == MINER_COLDKEY
             assert body["payment"]["amount_rao"] == 500_000_000
             assert body["payment"]["block"] > 0
 
@@ -120,6 +121,47 @@ def test_a_paid_submission_is_recorded_and_queued():
                 assert proof is not None
                 assert bytes(proof.content) == VALID_PROOF
                 assert proof.byte_length == len(VALID_PROOF)
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("extra_byte", [0, 1])
+def test_ten_mib_proof_intake_boundary_with_postgres(extra_byte):
+    from dataclasses import replace
+    from test_bundle import STORED, archive
+    from verifier.task_generator import MAX_SUBMISSION_BYTES
+
+    async def scenario():
+        entry = task_entry()
+        entry = replace(entry, manifest=replace(
+            entry.manifest, max_submission_bytes=MAX_SUBMISSION_BYTES,
+        ))
+        kit = await harness(entries=(entry,)).setup()
+        try:
+            padding_size = MAX_SUBMISSION_BYTES + extra_byte - len(VALID_PROOF)
+            line = b"--" + b"x" * 997 + b"\n"
+            proof = VALID_PROOF + line * (padding_size // len(line)) + b" " * (padding_size % len(line))
+            digest = sha256_bytes(proof)
+            candidate = archive(proof=proof, manifest=manifest_json(
+                proof_bytes=len(proof), proof_sha256=digest,
+            ))
+            for member in candidate.entries:
+                member.method = STORED
+            bundle = candidate.build()
+            assert len(bundle) > MAX_SUBMISSION_BYTES  # uncompressed packaging also fits
+            response = await _post(kit, bundle, proof_digest=digest)
+            if extra_byte:
+                assert response.status_code == 413, response.text
+                assert await _count(kit, Submission) == 0
+                assert await _count(kit, Proof) == 0
+            else:
+                assert response.status_code == 201, response.text
+                async with kit.session() as session:
+                    stored = await session.get(Proof, digests.to_bytes(digest))
+                    assert stored.byte_length == MAX_SUBMISSION_BYTES
+                    assert bytes(stored.content) == proof
         finally:
             await kit.teardown()
 
@@ -554,7 +596,7 @@ def test_a_hostile_bundle_is_refused_and_logged():
             row = logged[0]
             assert row.reason_code == ReasonCode.BUNDLE_POLICY_VIOLATION.value
             assert row.http_status == 422
-            assert row.hotkey_claimed == HOTKEY
+            assert row.claimed_ss58 == MINER_COLDKEY
             assert row.task_id == TASK_ID
             assert row.payment_reference == "0xpayment-0001"
             # Digests are stored as bare hex text in this table.
@@ -694,7 +736,7 @@ def test_a_bundle_naming_another_miner_is_rejected():
         kit = await harness().setup()
         try:
             response = await _post(
-                kit, valid_bundle(manifest=manifest_json(miner_hotkey=OTHER_HOTKEY))
+                kit, valid_bundle(manifest=manifest_json(miner_coldkey=OTHER_MINER_COLDKEY))
             )
             assert response.status_code == 422
             assert response.json()["reason_code"] == ReasonCode.BUNDLE_MANIFEST_INVALID.value
@@ -774,7 +816,7 @@ def test_a_miner_cannot_read_another_miners_submission():
             async with await _client(kit) as client:
                 response = await client.get(
                     f"/v1/submissions/{created['submission_id']}",
-                    headers=read_headers(OTHER_HOTKEY),
+                    headers=read_headers(OTHER_MINER_COLDKEY),
                 )
             # Absent rather than forbidden, so ids cannot be probed.
             assert response.status_code == 404

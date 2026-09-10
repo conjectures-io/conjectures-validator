@@ -32,13 +32,16 @@ verification core.
 | API-neutral proof handoff with exact task digest | Implemented |
 | Hardened miner submission bundle format and archive admission | Implemented |
 | Miner-facing paid submission and status API | Implemented |
-| Website accounts, browser sessions, and hotkey linking | Implemented |
-| CLI sessions: a linked hotkey mints a scoped bearer token | Implemented |
+| Website accounts, browser sessions, and coldkey linking | Implemented |
+| CLI sessions: a linked coldkey mints a scoped bearer token | Implemented |
+| Website submissions: a coldkey signs a readable message, one credit pays, one call | Implemented |
+| Session submissions: one credit pays and no Bittensor key is needed at all | Implemented |
 | Roles and the operator surface (`MINER`/`REVIEWER`/`ADMIN`) | Implemented |
 | Shared durable schema and migrations | Implemented |
 | Finalized transfer reader, wired into both funding paths | Implemented |
 | Deposit watcher: TAO at the treasury becomes credits | Implemented |
 | TMC PAY: credits bought at 0.5 TAO each through the payment processor | Implemented |
+| Invitation links: free verification attempts granted without a wallet | Implemented |
 | Asynchronous verification worker | Implemented |
 | Manual reward-review decision service | To build |
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
@@ -70,7 +73,7 @@ remaining work.
    kernel result: a rejected bundle costs nothing to fix.
 2. The miner pays exactly **0.5 TAO** and submits the proof bundle through the validator API with
    its task ID and digest, the payment reference, miner identity, and an idempotency key.
-3. The API admits the bundle, authenticates the hotkey signature, and confirms the transfer
+3. The API admits the bundle, authenticates the coldkey signature, and confirms the transfer
    against finalized chain state. Intake is payment-gated: a refused request creates no
    submission and is recorded in `api_rejection_log` instead.
 4. Once confirmed, the API durably records the proof bytes and the submission, and returns a
@@ -138,7 +141,7 @@ targets.
 The pinned data flow is:
 
 ```text
-Formal Conjectures 379fc029…
+Formal Conjectures 8432eac9…
   -> Lean environment catalog extraction
   -> open-source eligibility + versioned adapter
   -> deterministic task payload + externally published SHA-256
@@ -192,7 +195,7 @@ is the point — see
 ## Submission API
 
 The miner-facing API lives in [`submission_api/`](submission_api/). It authenticates a miner by
-hotkey signature, admits one proof bundle, records durable submission and payment state, and queues
+coldkey signature, admits one proof bundle, records durable submission and payment state, and queues
 the proof for the isolated verifier.
 
 ```bash
@@ -221,7 +224,7 @@ finalized chain state, so a refused request creates no submission and is recorde
 ```bash
 python3 scripts/build_submission_bundle.py \
   --proof Main.lean --task-id <task id> --task-sha256 <sha256:…> \
-  --hotkey <ss58> --output submission.zip
+  --coldkey <ss58> --output submission.zip
 
 python -m verifier bundle scan --bundle submission.zip
 
@@ -419,16 +422,21 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 159
-active audited targets (139 Erdős targets and 20 Green's Open Problems targets), including complete
-statements and independently formalized parts or variants. Seventeen additional audited targets are
-retired from admission — eight for dependency or semantic-fidelity defects, four after verified
-submissions settled them, two after literature solutions, and three by maintainer request — and are
-absent from the deny-by-default allowlist. The source
-snapshot is Formal Conjectures commit `379fc0298dc146df549e7061c3ede0353a5bb51f`, deterministically
-derived from upstream `f7349f32ba6df6e7b7baf77467a3c6c7777a634d` plus the checked-in semantic
-correction patch. The tier contains 318 active immutable bundles for 159 theorem targets. Every
-target has a `formalized` task for `P` and a `counterexample` task for `¬ P`.
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 259
+active audited targets (235 Erdős and 24 Green targets) across 223 numbered source files.
+The September 8 review retires six live targets and adds 57 reviewed targets, including replacements
+for withdrawn candidates. Twenty-four historical retirement decisions remain recorded; targets with
+unresolved full-scope proof claims are withheld from admission.
+The source remains Formal Conjectures `8432eac998110a563e03df65a28c117e97c8c142`, derived from
+upstream `7d1a8c9912747679d0093f6d1216420c33ee5ffa` plus the checked-in semantic correction patch,
+on Lean 4.33.1. The tier contains 518 immutable bundles: a `formalized` task for `P` and a
+`counterexample` task for `¬ P` for each target. Every active manifest permits a 10 MiB
+(10,485,760-byte) proof. The enlarged limit is committed through fresh task IDs and digests;
+stable reward identities are preserved.
+
+See the [production release review](docs/review-decisions/2026-09-08-production-release/REVIEW.md)
+for dated source evidence, statement comparisons, exclusions, and validation. Absence of a solution
+in this bounded search is not a certification that no prior solution exists.
 
 Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
 `reward_target_id` shared by its proof/refutation pair and later source repins. Independently
@@ -465,7 +473,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 159 active audited direct propositions, generates committed `formalized` and
+the 259 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
@@ -620,7 +628,8 @@ local wallet name. WEJH's notice also tells them to paste only the shell code bl
 the first signer's `call_hash` and `timepoint` before confirming an existing multisig operation.
 
 The paired payout watcher holds no wallet and reads successful
-`SubtensorModule.StakeAndHotkeyTransferred` plus `StakeAdded` events. A matching event on the best
+`SubtensorModule.StakeTransferred` plus `StakeAdded` events — and the retired
+`StakeAndHotkeyTransferred`, still decoded so payouts made before V035 stay reconcilable. A matching event on the best
 chain changes the owner-facing tracker to `SUBMITTED`/Paying; only the same event in a finalized
 block changes it to `CONFIRMED`/Paid and moves the submission to `REWARDED`. If an unfinalized event
 is reorganized away, the watcher returns the instruction to `PENDING`. The exact Alpha amount comes
@@ -738,7 +747,10 @@ Mathlib revision, Lean, Comparator, a Lean-4.27 `lean4export` backport, Landrun,
 checks every available checkout for the exact commit and a clean tree, validates the actual Elan and
 Lean binary identities, including Comparator's Lake dependency tree, and reports whether the
 production sandbox is available. Production readiness also requires a live behavioral sandbox
-probe, not only binary presence. Comparator's own
+probe, not only binary presence, and that the user `doctor` runs as can actually open the trusted
+Lean build outputs it reports on — Mathlib's cache arrives from `leantar` at mode 0600, so a
+readable pin set is no evidence that the verification user can read the cache behind it. Comparator's
+own
 implementation toolchain can differ from the target project's Lean version; the exporter is the
 component that must match the target
 environment. Normal verification never fetches or updates a branch. Network access is needed only
@@ -778,7 +790,23 @@ definition holes merely because Comparator can type-check them.
 
 Unit tests cover schemas, hashes, catalog statistics, adapters, deterministic skips, tokenizer
 behavior, answer literals, workspaces, and reports. The opt-in integration suite uses the real pinned
-catalog. `data/performance.json` records this checkout's measured catalog extraction, direct task
+catalog.
+
+Database tests **skip** when they cannot reach a server, so a green run on a laptop with no
+database has not exercised them. Bring the throwaway stack up first, or point the suite elsewhere
+with `FC_POSTGRES_DSN`:
+
+```bash
+docker compose -f docker-compose.pytest-db.yml up -d
+```
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs three gates on every pull request:
+`ruff check`, the self-contained suite against a Postgres service, and
+`scripts/check_schema_drift.py`. It deliberately does *not* provision the pinned task-bundle
+checkout or the vendored Lake packages, so the handful of test files needing those are listed as
+`--ignore` entries in the workflow with the reason beside them; the `integration` and
+`subnet_integration` markers cover the rest. Adding the task pool to CI is what shortens that
+list. `data/performance.json` records this checkout's measured catalog extraction, direct task
 generation, and warm/cold verification runs; hardware and cache state are included alongside the
 numbers rather than presenting them as universal benchmarks.
 

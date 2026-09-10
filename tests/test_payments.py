@@ -1,5 +1,10 @@
 """Payment confirmation at intake: the five things a verifier must establish, and its refusals.
 
+V035 changed the fifth. Entitlement to cite a transfer used to be "the paying coldkey owns the
+submitting hotkey", which needed a `SubtensorModule.Owner` read; it is now the equality
+`transfer.sender == signer_coldkey`, computed from values already in hand. So the reader has one
+method rather than two, and the tests below no longer stub a chain ownership table.
+
 `docs/API.md` lists what confirmation has to prove before any write, because nothing downstream
 re-checks it. These are those five, one test each, plus the failures that are ours rather than the
 miner's — a chain that cannot be read must never be recorded as a refused payment.
@@ -30,9 +35,11 @@ from submission_api.payments import (
 )
 
 TREASURY = "5Gn2SyG6PmBstAjiPD93CTuxADqYaYqf6fKeFuezKsX7Chf9"
+# The coldkey that sent the transfer, and therefore — since V035 — the one that must have signed
+# the submission. One key, where this file used to need a (coldkey, hotkey) pair.
 COLDKEY = "5HMqFHmvUpzuAjEnse3hzMKS5LsFL428hffCfenF2smuGNhs"
+# A different coldkey, for the case that matters most here: citing a transfer somebody else sent.
 OTHER_COLDKEY = "5EZotmLfrufXYvD6CCGsRRELEFdg9SnjaEzTmaemiBPNofBP"
-HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 STRANGER = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
 
 PRICE = 500_000_000  # 0.5 TAO
@@ -49,19 +56,12 @@ class FakeReader:
     """A `payments.TransferReader` that answers from what the test set up."""
 
     transfer: FinalizedTransfer | None = None
-    owner_of: dict | None = None
     raises: Exception | None = None
 
     async def finalized_transfer(self, *, reference: str):
         if self.raises is not None:
             raise self.raises
         return self.transfer
-
-    async def coldkey_owns_hotkey(self, *, coldkey: str, hotkey: str) -> bool:
-        # `is None`, not `or`: an empty dict means "the chain knows no owners", which is a case
-        # under test, and a falsy-check would silently substitute the default.
-        owners = {HOTKEY: COLDKEY} if self.owner_of is None else self.owner_of
-        return owners.get(hotkey) == coldkey
 
 
 def transfer(**overrides) -> FinalizedTransfer:
@@ -86,14 +86,17 @@ def verifier(**overrides) -> ChainPaymentVerifier:
     )
 
 
-def confirm(v: ChainPaymentVerifier, *, reference: str = REFERENCE, hotkey: str = HOTKEY):
-    return run(v.confirm(reference=reference, hotkey=hotkey))
+def confirm(
+    v: ChainPaymentVerifier, *, reference: str = REFERENCE, signer_coldkey: str = COLDKEY
+):
+    """Confirm as the coldkey that sent the fixture transfer, which is the entitled case."""
+    return run(v.confirm(reference=reference, signer_coldkey=signer_coldkey))
 
 
 # --- The happy path ----------------------------------------------------------------------
 
 
-def test_a_finalized_transfer_of_the_right_amount_from_the_owning_coldkey_confirms():
+def test_a_finalized_transfer_of_the_right_amount_from_the_signing_coldkey_confirms():
     payment = confirm(verifier())
 
     assert payment.reference == REFERENCE
@@ -154,19 +157,24 @@ def test_an_amount_that_is_not_exactly_the_price_is_refused_either_way():
             confirm(verifier(reader=FakeReader(transfer=transfer(amount_rao=amount))))
 
 
-def test_a_transfer_from_a_coldkey_that_does_not_own_the_hotkey_is_refused():
-    """Otherwise a miner could cite somebody else's transfer and submit on their payment."""
+def test_a_transfer_sent_by_another_coldkey_is_refused():
+    """Otherwise a miner could cite somebody else's transfer and submit on their payment.
+
+    The replacement for the old ownership check, and strictly stronger: that one accepted a
+    hotkey signature plus a chain claim that the payer owned it, whereas this requires the
+    paying key itself to have signed the request.
+    """
     reader = FakeReader(transfer=transfer(sender=OTHER_COLDKEY))
 
-    with pytest.raises(PaymentRequired, match="does not own the submitting hotkey"):
+    with pytest.raises(PaymentRequired, match="not sent by the coldkey that signed"):
         confirm(verifier(reader=reader))
 
 
-def test_a_hotkey_with_no_registered_owner_is_refused():
-    reader = FakeReader(transfer=transfer(), owner_of={})
-
-    with pytest.raises(PaymentRequired, match="does not own the submitting hotkey"):
-        confirm(verifier(reader=reader))
+def test_the_signer_alone_does_not_entitle_a_caller_to_an_unrelated_transfer():
+    """The mirror of the test above, driven from the signer rather than the sender: the same
+    fixture transfer, cited by a key that did not send it."""
+    with pytest.raises(PaymentRequired, match="not sent by the coldkey that signed"):
+        confirm(verifier(), signer_coldkey=STRANGER)
 
 
 # --- Failures that are ours, not the miner's ---------------------------------------------
@@ -207,16 +215,12 @@ class FakeSource:
 
     head: int = 9_000_000
     transfers: tuple = ()
-    owners: dict | None = None
 
     async def finalized_head(self):
         return self.head
 
     async def transfers_in(self, *, block: int):
         return [item for item in self.transfers if item.block == block]
-
-    async def coldkey_of(self, *, hotkey: str):
-        return (self.owners or {}).get(hotkey)
 
     async def block(self, number):  # pragma: no cover - unused by the reader
         raise AssertionError
@@ -235,20 +239,16 @@ def test_the_reader_returns_none_for_a_reference_it_cannot_resolve():
     assert run(reader.finalized_transfer(reference="0x8b21ab")) is None
 
 
-def test_the_reader_reports_an_unregistered_hotkey_as_unowned():
-    """`SubtensorModule.Owner` answers with the zero account for a hotkey nobody registered —
-    verified against Finney. `coldkey_of` maps that to None, so ownership can never be
-    established for one."""
-    reader = SubtensorTransferReader(source=FakeSource(owners={}))
+def test_the_reader_has_no_ownership_query_left():
+    """`coldkey_owns_hotkey` and `hotkey_is_registered` were both removed by V035, along with
+    the `SubtensorModule.Owner` read behind them. Asserted rather than merely deleted, because
+    a reintroduced ownership query would be a chain round trip on the intake path that nothing
+    needs — and a route calling one would fail closed only if the method is genuinely absent.
+    """
+    reader = SubtensorTransferReader(source=FakeSource())
 
-    assert run(reader.coldkey_owns_hotkey(coldkey=COLDKEY, hotkey=HOTKEY)) is False
-
-
-def test_the_reader_confirms_a_real_owner():
-    reader = SubtensorTransferReader(source=FakeSource(owners={HOTKEY: COLDKEY}))
-
-    assert run(reader.coldkey_owns_hotkey(coldkey=COLDKEY, hotkey=HOTKEY)) is True
-    assert run(reader.coldkey_owns_hotkey(coldkey=OTHER_COLDKEY, hotkey=HOTKEY)) is False
+    assert not hasattr(reader, "coldkey_owns_hotkey")
+    assert not hasattr(reader, "hotkey_is_registered")
 
 
 # --- The development verifier ------------------------------------------------------------
@@ -258,8 +258,8 @@ def test_the_development_verifier_spends_nothing():
     """It must not write a synthetic `chain_transfers` row. That table is the record of what was
     observed on chain, and invented block positions in it would make the operator's
     unattributed-money queue untrustworthy."""
-    dev = DevelopmentPaymentVerifier(sender=COLDKEY, amount_rao=PRICE)
-    payment = run(dev.confirm(reference="0xpayment-0001", hotkey=HOTKEY))
+    dev = DevelopmentPaymentVerifier(amount_rao=PRICE)
+    payment = run(dev.confirm(reference="0xpayment-0001", signer_coldkey=COLDKEY))
 
     # No session is touched, so passing None proves it writes nothing.
     run(dev.spend(None, payment, submission_id=None))

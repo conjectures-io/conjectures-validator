@@ -111,35 +111,50 @@ If you did not ask to reset it, you can ignore this message — your password ha
 """
 
 
-def magic_link(*, base_url: str, token: str) -> str:
+def magic_link(*, base_url: str, token: str, path: str) -> str:
     """The URL in the sign-in email.
+
+    `path` is the website's sign-in route, not one this API serves, so it is passed in from
+    `settings.email_verify_path` rather than written here. It was a literal until it drifted:
+    the website moved the page and every mailed link 404'd, with nothing in this repository
+    to notice because nothing in this repository serves it.
 
     The token goes in the query string, which means it can end up in browser history and
     in a referrer. That is why it is single-use and short-lived, and why the endpoint
     that consumes it exchanges it for a session cookie immediately: the token in the URL
     is worthless within seconds of being used.
     """
-    return _link(base_url, "/auth/verify", token)
+    return _link(base_url, path, token)
 
 
-def signup_link(*, base_url: str, token: str) -> str:
+def signup_link(*, base_url: str, token: str, path: str) -> str:
     """The URL in the signup confirmation email.
 
-    A different path from `magic_link` because it lands on a different page and consumes a
-    different challenge kind. Sharing one path would mean the website had to guess which flow a
-    token belonged to, and guessing wrong is a confusing failure on a credential that is now
-    spent.
+    A different route from `magic_link` because it lands on a different page and consumes a
+    different challenge kind. Sharing one would mean the website had to guess which flow a token
+    belonged to, and guessing wrong is a confusing failure on a credential that is now spent.
+
+    Configured rather than written here for the reason `magic_link` gives, and the reason is not
+    hypothetical for this one: the page it points at does not exist in the website yet, so the
+    default names a route someone still has to build. A literal would be a link that 404s until
+    two repositories happen to be released together — the exact failure `EMAIL_VERIFY_PATH` was
+    added to end.
     """
-    return _link(base_url, "/auth/signup/verify", token)
+    return _link(base_url, path, token)
 
 
-def password_reset_link(*, base_url: str, token: str) -> str:
+def password_reset_link(*, base_url: str, token: str, path: str) -> str:
     """The URL in the password reset email. Lands on the page that asks for a new password."""
-    return _link(base_url, "/auth/password/reset", token)
+    return _link(base_url, path, token)
 
 
-def sign_in_url(*, base_url: str) -> str:
-    return f"{base_url.rstrip('/')}/auth/sign-in"
+def sign_in_url(*, base_url: str, path: str) -> str:
+    """Where the "you already have an account" mail says to go.
+
+    Not a credential, and a flow does not break if it is wrong — but it is still a route owned
+    by another repository, so it is configured rather than guessed like the other three.
+    """
+    return f"{base_url.rstrip('/')}{path}"
 
 
 def _link(base_url: str, path: str, token: str) -> str:

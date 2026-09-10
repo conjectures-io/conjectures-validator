@@ -34,6 +34,20 @@ export ELAN_HOME="${ELAN_HOME:-$ROOT/.elan}"
 export PATH="$ELAN_HOME/bin:$PATH"
 export LEAN_NUM_THREADS="${FC_LEAN_BUILD_THREADS:-${LEAN_NUM_THREADS:-2}}"
 
+pin_field() {
+  python3 - "$ROOT" "$1" "$2" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root, section, field = sys.argv[1:]
+pins = json.loads((Path(root) / "pins.lock.json").read_text(encoding="utf-8"))
+print(pins[section][field])
+PY
+}
+pinned_toolchain="$(pin_field lean toolchain)"
+pinned_lean_commit="$(pin_field lean commit)"
+
 sandbox_tools=1
 if [[ "$miner" = 1 || "$(uname -s)" != Linux ]]; then
   sandbox_tools=0
@@ -76,7 +90,25 @@ if [[ "$stage" = vendor || "$stage" = all ]]; then
 
   substep "build lean4export"
   cd "$ROOT/vendor/lean4export"
-  lake build lean4export
+  # lean4export imports the environment it exports, so its binary has to be produced by the exact
+  # Lean that compiled those oleans -- a different patch release cannot read them at all. Upstream
+  # tags one lean4export commit per toolchain and published no v4.33.1, so the pinned commit
+  # declares v4.33.0 in its own lean-toolchain. Build it under the toolchain from pins.lock.json
+  # rather than the one it declares, and leave the checkout untouched so it still matches its pin.
+  ELAN_TOOLCHAIN="$pinned_toolchain" lake build lean4export
+  # Then prove it: the exporter states the Lean it was linked against in the meta line it emits
+  # before anything else. Without this check a toolchain mismatch would not fail the build -- it
+  # would surface much later as a proof that cannot be exported, which reads as a miner's fault.
+  exporter_lean_commit="$(
+    ./.lake/build/bin/lean4export --version 2>/dev/null |
+      python3 -c 'import json,sys; print(json.loads(sys.stdin.readline())["meta"]["lean"]["githash"])'
+  )"
+  if [[ "$exporter_lean_commit" != "$pinned_lean_commit" ]]; then
+    echo "lean4export was linked against Lean $exporter_lean_commit," >&2
+    echo "  but pins.lock.json pins $pinned_lean_commit ($pinned_toolchain);" >&2
+    echo "  it could not import an environment built by the pinned toolchain" >&2
+    exit 2
+  fi
 
   substep "build the comparator -- installs a second Lean toolchain, about 3 GB"
   cd "$ROOT/vendor/comparator"

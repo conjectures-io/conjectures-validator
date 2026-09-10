@@ -22,10 +22,27 @@ is named by `results.named_of`, the same function the public feed uses. Only the
 new. A reviewer and a visitor therefore cannot be shown different answers to "which submissions are
 awaiting review" or "what is this conjecture called".
 
-**Nothing here writes.** Recording a decision advances `reward_status` and is the one action on a
-submission that spends money; it belongs with the service that already owns that transaction, not
-with a queue view. So this module has no POST, and adding one would need the concurrency argument
-in `conjectures-review`'s `docs/api.md` answered again rather than assumed.
+**Two routes write, and between them they are the whole reason the queue exists.**
+`POST /reviews/{submission_id}/decision` records the binding decision and advances
+`reward_status`. `POST /reviews/{submission_id}/correction` appends the row that supersedes an
+earlier decision, which is the other direction the same money moves in. Both live here rather
+than in a second service for the same reason the reads do — the panel reaches one API base with
+one session — and the concurrency argument they need is answered rather than assumed:
+`submissions.record_human_decision` and `submissions.correct_human_decision` each take
+`FOR UPDATE` on the submission row before reading the state they are about to overwrite, so two
+reviewers acting on the same submission are serialised and the second one is refused rather than
+overwriting the first. Nothing else here writes.
+
+They are two routes rather than one because they are two acts. Deciding turns an `UNREVIEWED`
+submission into a decided one; correcting overrides a colleague, and it asks for a stated reason
+and for the id of the decision being overridden precisely because of that. `record_human_decision`
+refuses a second decision outright, and always did — this router simply had nowhere to send a
+reviewer who needed to undo one, which is what the correction route fixes.
+
+The writes are gated more tightly than the reads. `require_role_writer` adds the cross-site write
+guard to the role check, so neither a decision nor a correction can be driven by another origin
+holding the reviewer's ambient cookie, and the CLI exclusion the reads inherit matters most here:
+these are the requests that turn a proof into a payout, or take one back.
 
 The queue lists `UNREVIEWED` submissions. The detail route serves any Lean-verified one, decided or
 not, so a reviewer can reread the advisory record behind a decision already taken — the same
@@ -36,21 +53,36 @@ means, while reading one row by id changes nothing.
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Path, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Response, status
+from pydantic import BaseModel, ConfigDict, Field
 
+from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import autoreview as autoreview_store
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import public as public_store
-from conjectures_subnet.db.models import REVIEWER_ROLE
+from conjectures_subnet.db import submissions as submission_store
+from conjectures_subnet.db.models import (
+    REVIEWER_ROLE,
+    ReviewDecision,
+    ReviewOutcome,
+    Submission,
+)
 from submission_api import schemas_admin as admin
 from submission_api.conjectures import ConjectureIndex
-from submission_api.dependencies import ServicesDep, SessionDep, require_role
-from submission_api.errors import NotFound
+from submission_api.credits import APPROVAL_CODES, DISQUALIFICATION_CODES
+from submission_api.dependencies import (
+    ServicesDep,
+    SessionDep,
+    require_role,
+    require_role_writer,
+)
+from submission_api.errors import BadRequest, NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.routers.results import named_of, slug_of
 from submission_api.schemas_public import CursorPage
+from submission_api.sessions import Principal
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
 
 router = APIRouter(
@@ -63,10 +95,142 @@ router = APIRouter(
     #
     # `require_role` also refuses to exercise REVIEWER from a CLI bearer token — see
     # `dependencies.BEARER_ROLES`. That is inherited rather than asked for, and it is right: a
-    # hotkey-minted token in a file on a mining box should not open the queue that decides
+    # a long-lived token in a file on a mining box should not open the queue that decides
     # whether a proof earns money.
     dependencies=[Depends(require_role(REVIEWER_ROLE))],
 )
+
+
+# Built once at module scope, for the reason `routers/admin.py` gives: `require_role_writer`
+# returns a fresh closure per call, and FastAPI caches a resolved dependency per request by
+# function identity, so a factory invoked inline in a signature resolves twice.
+#
+# The router-level `require_role` still runs for this route as well. That is a duplicated role
+# lookup on one request and it is worth keeping: the router-level declaration is what makes a
+# route added here later gated by default, and this annotation is what says *in the signature*
+# that this particular route writes.
+ReviewerWriter = Annotated[Principal, Depends(require_role_writer(REVIEWER_ROLE))]
+
+# What a reviewer's published explanation may be. The column permits 100 000 characters
+# (`review_notes_public_length`); this is deliberately far below it, because the field is the
+# concise miner-visible explanation the policy asks for and the full rationale is published as a
+# document under `docs/review-decisions/` with its citations. A cap the panel's textarea cannot
+# reach by accident also means a paste of the whole rationale is refused rather than half-stored.
+NOTES_PUBLIC_MAX = 4_000
+NOTES_MAX = 20_000
+
+REASON_EXPLANATION_REQUIRED = "REVIEW_EXPLANATION_REQUIRED"
+REASON_CODE_NOT_ALLOWED = "REVIEW_REASON_NOT_ALLOWED"
+REASON_CORRECTION_REQUIRED = "REVIEW_CORRECTION_REASON_REQUIRED"
+
+
+class DecisionRequest(BaseModel):
+    """One binding decision, as the panel's modal sends it.
+
+    `extra="forbid"`, like every other request body on this API: a misspelled field name is a
+    reviewer's decision going somewhere other than where they think it is, and on this endpoint
+    that means the wrong reason code attached to a payout.
+
+    Two text fields, and the difference between them is the whole reason the column pair exists.
+    `notes_public` is published — it reaches the miner on `GET /v1/results/{id}` and is the
+    "concise miner-visible explanation" the review policy requires of every binding decision, so
+    it is required here rather than optional. `notes` is the internal audit trail and never
+    crosses an API boundary again, in either direction: nothing reads it back out to a client.
+
+    `decision` is spelled as the two outcomes rather than as `approve: bool`, so the request says
+    what it does and matches `review_decisions.decision` and every status this API serves.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["APPROVED", "REJECTED"]
+    reason_code: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern="^[A-Z][A-Z0-9_]*$",
+        description=(
+            "One published policy code: an approval code with APPROVED, a disqualification "
+            "code with REJECTED. Refused with REVIEW_REASON_NOT_ALLOWED otherwise."
+        ),
+    )
+    notes_public: str = Field(
+        min_length=1,
+        max_length=NOTES_PUBLIC_MAX,
+        description="The explanation shown to the miner on the public record.",
+    )
+    notes: str | None = Field(
+        default=None,
+        max_length=NOTES_MAX,
+        description="Internal audit trail. Never served back by any endpoint.",
+    )
+
+
+class CorrectionRequest(BaseModel):
+    """One correction: the decision that replaces an earlier one, and what it replaces.
+
+    Three differences from `DecisionRequest`, and each one is the reason this is a separate body
+    rather than a flag on that one.
+
+    `supersedes_id` is required and names the decision being corrected as the reviewer last read
+    it. If it is not the current binding decision the request is refused with the id that is —
+    so a reviewer cannot correct a decision somebody else has already corrected, and a
+    double-clicked correction is refused rather than appended twice. It is the panel's optimistic
+    lock, and there is no way to spell "correct whatever is current" because that is exactly the
+    request nobody should be able to make blind.
+
+    `notes` is required rather than optional. On a first decision the internal note is a
+    courtesy; on a correction it is the record of why a colleague's decision was overridden, and
+    that is the sentence an operator needs six months later when a payout is questioned.
+
+    `notes_public` is required for the same reason it is on a decision, and carries more weight:
+    it *replaces* the published explanation the miner was already given, so leaving the old one
+    standing under a new outcome is not an option the body offers.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    supersedes_id: int = Field(
+        ge=1,
+        description=(
+            "The id of the binding decision being corrected, as `review_decision_id` on the "
+            "decision that recorded it. Refused with REVIEW_CORRECTION_STALE if it is no "
+            "longer the current one."
+        ),
+    )
+    decision: Literal["APPROVED", "REJECTED"]
+    reason_code: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern="^[A-Z][A-Z0-9_]*$",
+        description=(
+            "One published policy code, checked against the same allowlist a first decision "
+            "uses: an approval code with APPROVED, a disqualification code with REJECTED."
+        ),
+    )
+    notes_public: str = Field(
+        min_length=1,
+        max_length=NOTES_PUBLIC_MAX,
+        description="The corrected explanation, which replaces the published one.",
+    )
+    notes: str = Field(
+        min_length=1,
+        max_length=NOTES_MAX,
+        description=(
+            "Why the earlier decision is being overridden. Internal, required, and never "
+            "served back by any endpoint."
+        ),
+    )
+
+
+def _codes_for(decision: str) -> frozenset[str]:
+    """The reason codes that decision may carry.
+
+    `submission_api.credits` is the single source of these two sets, and it is the same list
+    `GET /v1/system/terms` publishes to a miner before they spend a credit. So a reviewer cannot
+    reject under a code the miner was never shown, and the panel's local copy of the list — see
+    `lib/admin/reasons.ts` — is checked against the published one rather than trusted.
+    """
+    return APPROVAL_CODES if decision == "APPROVED" else DISQUALIFICATION_CODES
 
 
 def _no_store(response: Response) -> None:
@@ -186,7 +350,8 @@ def _review(
         slug=slug_of(row),
         display_title=named.display_title,
         task_id=row.task_id,
-        hotkey=row.hotkey,
+        solver_display_name=row.solver_display_name,
+        solver_coldkey=row.solver_coldkey,
         statement=named.statement,
         task_bundle_sha256=digests.to_prefixed(row.task_bundle_sha256),
         verified_at=row.verified_at,
@@ -279,3 +444,250 @@ async def read_review(
 
     _no_store(response)
     return _review(row, services.index, attempts.get(row.id, ()))
+
+
+@router.post(
+    "/reviews/{submission_id}/decision",
+    response_model=admin.AdminDecision,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record the binding review decision for one submission",
+)
+async def record_decision(
+    response: Response,
+    session: SessionDep,
+    principal: ReviewerWriter,
+    payload: DecisionRequest,
+    submission_id: Annotated[uuid.UUID, Path()],
+) -> admin.AdminDecision:
+    """Decide one submission: approve it for its reward, or refuse it under a published code.
+
+    `201`, and a new `review_decisions` row every time — the table is append-only, so this creates
+    a record rather than editing the submission's review state, even though it also advances the
+    two summary columns the rest of the system reads.
+
+    Three refusals, and which one a caller gets is the useful part:
+
+    * `404` for a submission that does not exist *or* that Lean has not verified, matching
+      `GET /v1/admin/reviews/{id}`. Nothing here can make an unverified proof payable, so the
+      distinction would only tell a caller that an id exists;
+    * `400 REVIEW_REASON_NOT_ALLOWED` for a code outside the published allowlist for that
+      outcome, with the permitted codes in the body. A rejection code on an approval is the
+      mistake this catches, and it is a policy error rather than a malformed request, so the
+      permitted set is served rather than left to be guessed;
+    * `409` for state: `REVIEW_ALREADY_DECIDED` if another reviewer got there first — the row
+      lock makes that answer authoritative rather than a race — `REWARD_TARGET_ALREADY_HELD` if
+      an earlier submission already holds this target's single reward, and
+      `REWARD_ALREADY_IN_FLIGHT` for the anomaly of an undecided submission whose reward is
+      already moving.
+
+    Retrying is safe in the sense that matters: a repeat of a decision that landed is refused with
+    `REVIEW_ALREADY_DECIDED` rather than recording a second one, so a double-click cannot write
+    two decisions or two payouts. It is not idempotent — the second call is an error, not a
+    replay of the first — and the panel reads the state off the `409` instead of a `201`.
+    """
+    if payload.reason_code not in _codes_for(payload.decision):
+        raise BadRequest(
+            f"{payload.reason_code} is not a published reason code for a "
+            f"{payload.decision} decision",
+            reason_code=REASON_CODE_NOT_ALLOWED,
+            extra={"allowed_reason_codes": sorted(_codes_for(payload.decision))},
+        )
+
+    explanation = payload.notes_public.strip()
+    if not explanation:
+        # Pydantic's `min_length` counts characters, so a body of spaces reaches here. The column
+        # would refuse it too (`review_notes_public_length`); this answers with the reason a
+        # reviewer can act on rather than a constraint name.
+        raise BadRequest(
+            "a binding decision must carry the explanation shown to the miner",
+            reason_code=REASON_EXPLANATION_REQUIRED,
+        )
+    internal = (payload.notes or "").strip() or None
+
+    # Raises RecordNotFound (404) or RecordConflict (409); both are mapped by
+    # `errors.from_database_error`, so the state rules live with the write that enforces them
+    # rather than being re-checked here against a row this request has not locked.
+    recorded = await submission_store.record_human_decision(
+        session,
+        submission_id,
+        decision=ReviewOutcome(payload.decision),
+        reason_code=payload.reason_code,
+        # The account id, never the email address: the privacy rule `routers/admin.py` sets out
+        # for events applies to a stored column with more force, because this one is permanent.
+        # `reviewer` is `TEXT` for the model ids ADVISORY rows carry.
+        reviewer=str(principal.account.id),
+        notes=internal,
+        notes_public=explanation,
+    )
+    # The row the call above locked and updated, from the identity map rather than the database.
+    # Read before the commit and kept as plain strings: what the panel is told the decision did
+    # must be the state this transaction wrote, not a re-read that a later one could have moved.
+    submission = await session.get(Submission, submission_id)
+    if submission is None:  # pragma: no cover - the write above holds the row
+        raise NotFound("no such submission")
+    review_status = str(submission.manual_review_status)
+    reward_status = str(submission.reward_status)
+
+    await session.commit()
+
+    # After the commit, and naming both the submission and the reviewer. The decision row is the
+    # durable record; this is what makes the *act* queryable next to every other privileged write,
+    # which is what an operator asks for when a payout is questioned. The explanation itself is
+    # not in the event: it is published on the public record, and duplicating it here would put
+    # miner-visible prose in the log without anyone deciding to.
+    get_axiom().info(
+        source="api-review",
+        event_type="review_decision_recorded",
+        submission_id=str(submission_id),
+        review_decision_id=recorded.id,
+        actor_account_id=str(principal.account.id),
+        decision=str(recorded.decision),
+        reason_code=recorded.reason_code,
+        policy_version=recorded.policy_version,
+        manual_review_status=review_status,
+        reward_status=reward_status,
+    )
+
+    _no_store(response)
+    return _decided(recorded, review_status, reward_status)
+
+
+def _decided(
+    recorded: ReviewDecision, manual_review_status: str, reward_status: str
+) -> admin.AdminDecision:
+    """One recorded `review_decisions` row as the panel is told about it.
+
+    Shared by the decision route and the correction route, because a correction is a decision:
+    the same row in the same table, differing only in that `supersedes_id` names what it
+    replaced. Anything the two ever needed to answer differently would be a sign that the
+    append-only model had been abandoned somewhere.
+
+    `notes` is absent, and there is no field for it to arrive in — the internal audit trail never
+    crosses this boundary, and on a correction it is the reviewer's own reason for overriding a
+    colleague, which makes that rule stricter here rather than looser.
+    """
+    return admin.AdminDecision(
+        submission_id=recorded.submission_id,
+        review_decision_id=recorded.id,
+        decision=str(recorded.decision),
+        reason_code=recorded.reason_code,
+        notes_public=recorded.notes_public,
+        policy_version=recorded.policy_version,
+        decided_at=recorded.created_at,
+        manual_review_status=manual_review_status,
+        reward_status=reward_status,
+        supersedes_id=recorded.supersedes_id,
+    )
+
+
+@router.post(
+    "/reviews/{submission_id}/correction",
+    response_model=admin.AdminDecision,
+    status_code=status.HTTP_201_CREATED,
+    summary="Correct a binding review decision by appending the row that supersedes it",
+)
+async def correct_decision(
+    response: Response,
+    session: SessionDep,
+    principal: ReviewerWriter,
+    payload: CorrectionRequest,
+    submission_id: Annotated[uuid.UUID, Path()],
+) -> admin.AdminDecision:
+    """Override an earlier decision, on the record rather than in place.
+
+    `review_decisions` has carried `supersedes_id` since the first migration and nothing has ever
+    written it: the table was built append-only so a correction could be recorded, and until this
+    route existed a misfiled decision was permanent from the panel — `POST .../decision` refuses a
+    second one with `REVIEW_ALREADY_DECIDED`, by design, because deciding and overriding are
+    different acts. This is the other act. It never updates the earlier row; it appends a new one
+    naming it, and the original stays exactly as it was recorded, which is what
+    `docs/MANUAL_REVIEW_CRITERIA.md` promises a miner who asks for reconsideration.
+
+    Same gate as the decision route, for the same reason: `require_role_writer` on top of the
+    router's `REVIEWER`, so a correction cannot be driven by another origin holding the
+    reviewer's ambient cookie. It moves money in both directions, which if anything makes the
+    cross-site guard matter more here.
+
+    What the refusals mean, since a reviewer acts differently on each:
+
+    * `404` — no such submission, or one Lean never verified. Same answer as the rest of this
+      router;
+    * `400 REVIEW_REASON_NOT_ALLOWED` — a code outside the published allowlist for that outcome,
+      with the permitted set in the body. The allowlist does not soften for a correction;
+    * `409 REVIEW_NOT_DECIDED` — nothing has been decided, so there is nothing to supersede. The
+      panel should call `POST .../decision` instead;
+    * `409 REVIEW_CORRECTION_STALE` — `supersedes_id` is not the current binding decision. The
+      body carries `review_decision_id`, `current_decision` and `current_reason_code`, so the
+      panel can re-render and let the reviewer decide again against what is actually there. This
+      is also the answer a double-clicked correction gets;
+    * `409 REWARD_ALREADY_PAID` — the approval being withdrawn already has a `reward_events` row.
+      Nothing here can recall an extrinsic, so the correction is refused rather than allowed to
+      walk `reward_status` backwards under a paid submission. Withdrawing a paid award is an
+      operator action against the chain, not an API call;
+    * `409 REWARD_TARGET_ALREADY_HELD` — correcting a rejection to an approval, for a conjecture
+      whose single reward another submission took in the meantime.
+
+    An approval corrected to a rejection returns the submission to `INELIGIBLE`, and a rejection
+    corrected to an approval makes it `ELIGIBLE` — the response says which, off the same
+    transaction that wrote it.
+    """
+    if payload.reason_code not in _codes_for(payload.decision):
+        raise BadRequest(
+            f"{payload.reason_code} is not a published reason code for a "
+            f"{payload.decision} decision",
+            reason_code=REASON_CODE_NOT_ALLOWED,
+            extra={"allowed_reason_codes": sorted(_codes_for(payload.decision))},
+        )
+
+    explanation = payload.notes_public.strip()
+    if not explanation:
+        raise BadRequest(
+            "a correction must carry the explanation shown to the miner",
+            reason_code=REASON_EXPLANATION_REQUIRED,
+        )
+    internal = payload.notes.strip()
+    if not internal:
+        # Distinct from the public one, because they are refused for different reasons: the
+        # published sentence is owed to the miner, and this one is owed to whoever reads the
+        # audit trail after the fact.
+        raise BadRequest(
+            "a correction must say why the earlier decision is being overridden",
+            reason_code=REASON_CORRECTION_REQUIRED,
+        )
+
+    corrected = await submission_store.correct_human_decision(
+        session,
+        submission_id,
+        supersedes_id=payload.supersedes_id,
+        decision=ReviewOutcome(payload.decision),
+        reason_code=payload.reason_code,
+        reviewer=str(principal.account.id),
+        notes=internal,
+        notes_public=explanation,
+    )
+    submission = await session.get(Submission, submission_id)
+    if submission is None:  # pragma: no cover - the write above holds the row
+        raise NotFound("no such submission")
+    review_status = str(submission.manual_review_status)
+    reward_status = str(submission.reward_status)
+
+    await session.commit()
+
+    get_axiom().info(
+        source="api-review",
+        event_type="review_decision_corrected",
+        submission_id=str(submission_id),
+        review_decision_id=corrected.id,
+        # The row that was overridden, so the event alone answers "what changed" without
+        # replaying the table.
+        supersedes_id=corrected.supersedes_id,
+        actor_account_id=str(principal.account.id),
+        decision=str(corrected.decision),
+        reason_code=corrected.reason_code,
+        policy_version=corrected.policy_version,
+        manual_review_status=review_status,
+        reward_status=reward_status,
+    )
+
+    _no_store(response)
+    return _decided(corrected, review_status, reward_status)

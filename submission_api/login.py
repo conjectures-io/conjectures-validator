@@ -1,4 +1,4 @@
-"""Wallet sign-in and hotkey linking: the messages, and how they are verified.
+"""Coldkey sign-in, linking and signing: the messages, and how they are verified.
 
 Both flows are the same shape — the server mints a nonce, the client signs a message
 containing it, the server checks the signature — and the security of both rests on the
@@ -6,19 +6,22 @@ message being *domain-separated*. A signature is only meaningful relative to wha
 signed, so every distinct thing this validator ever asks a key to sign gets a distinct,
 unambiguous prefix.
 
-There are now seven:
+There are now seven, every one of them signed by a coldkey since V035 retired the hotkey
+paths:
 
-    conjectures-login-v1         sign in to an account with a coldkey
-    conjectures-coldkey-link-v1  attach another coldkey to an account
-    conjectures-hotkey-link-v1   attach a hotkey to an account
-    conjectures-cli-session-v1   open a CLI session with an already-linked hotkey
-    conjectures-deposit-claim-v1 claim a transfer this coldkey made
-    conjectures-read-v1          read a submission's status (submission_api/routers)
-    <the request digest>         authorise one paid submission (32 raw bytes)
+    conjectures-login-v1          sign in to an account with a coldkey
+    conjectures-coldkey-link-v1   attach another coldkey to an account
+    conjectures-cli-session-v1    open a CLI session with an already-linked coldkey
+    conjectures-deposit-claim-v1  claim a transfer this coldkey made
+    conjectures-web-submission-v1 authorise one credit-funded submission from a browser
+    conjectures-read-v1           read a submission's status (submission_api/routers)
+    <the request digest>          authorise one paid submission (32 raw bytes)
 
-``conjectures-cli-session-v1`` deserves a note, because it is the one prefix a *hotkey* signs
-for a durable credential, and a hotkey is a key miners sign with routinely. Three things keep
-that from being a way to harvest a session:
+``conjectures-hotkey-link-v1`` was the eighth and is gone; nothing mints or verifies it.
+
+``conjectures-cli-session-v1`` deserves a note, because it is the prefix that mints a durable
+credential and it is now signed by a coldkey — a key that is far more valuable than the hotkey
+that used to sign it. Three things keep that from being a way to harvest a session:
 
 * No other prefix is a prefix of it and it is a prefix of none of them, and it sits alone on
   the message's first line. A `conjectures-read-v1` signature is not a session signature.
@@ -27,6 +30,13 @@ that from being a way to harvest a session:
   challenge here.
 * The message is human-readable and the CLI shows it before unlocking the key, so "sign this
   opaque blob" is not the interaction being asked for.
+
+The token it mints is bounded to match: it is scoped to the signing coldkey, it cannot link
+another key or change the payout destination (see ``dependencies.py``), and there is a ceiling
+on how many may be live at once. Those bounds mattered when a hotkey minted it and they matter
+more now — but note what did NOT change, and is the reason this is not a downgrade: the CLI
+never holds the coldkey. It asks for a signature once, at login, and thereafter holds only the
+scoped token. A hotkey used to sit unencrypted on the mining box *and* mint tokens from there.
 
 The properties that matter:
 
@@ -55,16 +65,16 @@ from submission_api.errors import Unauthorized
 
 LOGIN_PREFIX = "conjectures-login-v1"
 COLDKEY_LINK_PREFIX = "conjectures-coldkey-link-v1"
-HOTKEY_LINK_PREFIX = "conjectures-hotkey-link-v1"
 CLI_SESSION_PREFIX = "conjectures-cli-session-v1"
 DEPOSIT_CLAIM_PREFIX = "conjectures-deposit-claim-v1"
+WEB_SUBMISSION_PREFIX = "conjectures-web-submission-v1"
 
 REASON_SIGNATURE_INVALID = "SIGNATURE_INVALID"
 REASON_CHALLENGE_INVALID = "CHALLENGE_INVALID"
-# The hotkey signed correctly but no account has claimed it. Distinct from the two above
+# The coldkey signed correctly but no account has linked it. Distinct from the two above
 # because it is the one refusal here the caller can actually fix, and the fix is in the
-# browser: link the hotkey at the website first.
-REASON_HOTKEY_NOT_LINKED = "HOTKEY_NOT_LINKED"
+# browser: link the coldkey at the website first.
+REASON_COLDKEY_NOT_LINKED = "COLDKEY_NOT_LINKED"
 
 
 def login_message(*, domain: str, address: str, nonce: str, expires_at: dt.datetime) -> str:
@@ -76,15 +86,6 @@ def login_message(*, domain: str, address: str, nonce: str, expires_at: dt.datet
     opaque blob is something people click through.
     """
     return _message(LOGIN_PREFIX, domain=domain, address=address, nonce=nonce, expires_at=expires_at)
-
-
-def hotkey_link_message(
-    *, domain: str, address: str, nonce: str, expires_at: dt.datetime
-) -> str:
-    """The exact text a hotkey signs to be attached to an account."""
-    return _message(
-        HOTKEY_LINK_PREFIX, domain=domain, address=address, nonce=nonce, expires_at=expires_at
-    )
 
 
 def coldkey_link_message(
@@ -103,14 +104,15 @@ def coldkey_link_message(
 def cli_session_message(
     *, domain: str, address: str, nonce: str, expires_at: dt.datetime
 ) -> str:
-    """The exact text a hotkey signs to open a CLI session.
+    """The exact text a coldkey signs to open a CLI session.
 
-    Same shape as the other two nonce flows, and deliberately so — the security of all three
-    rests on the same three facts, and a message built a fourth way would have to be reasoned
+    Same shape as the other nonce flows, and deliberately so — the security of all of them
+    rests on the same three facts, and a message built another way would have to be reasoned
     about separately. What differs is only the prefix, which is what makes a signature
-    collected for a hotkey *link* useless for minting a *session*: linking proves control of a
+    collected for a coldkey *link* useless for minting a *session*: linking proves control of a
     key to an account that is already signed in, while this mints a credential, and the two
-    must not be interchangeable.
+    must not be interchangeable. It is also what stops a plain sign-in signature
+    (``conjectures-login-v1``) from becoming a bearer token.
     """
     return _message(
         CLI_SESSION_PREFIX, domain=domain, address=address, nonce=nonce, expires_at=expires_at
@@ -136,6 +138,54 @@ def deposit_claim_message(*, domain: str, address: str, extrinsic_reference: str
     )
 
 
+def web_submission_message(
+    *,
+    domain: str,
+    address: str,
+    task_id: str,
+    task_bundle_sha256: str,
+    bundle_sha256: str,
+    idempotency_key: str,
+    expires_at: dt.datetime,
+) -> str:
+    """The exact text a coldkey signs to authorise one credit-funded submission.
+
+    Not built from ``_message``, because this one has no server-minted nonce to pin and four
+    more fields that it must pin instead. `bundle_sha256` is the nonce that matters: it is the
+    digest of the archive being uploaded, so the signature is bound to those exact bytes and
+    cannot be moved to a different proof. `idempotency_key` distinguishes two attempts at the
+    same archive, and `expires` bounds how long the whole thing stays usable.
+
+    **The server rebuilds this from what it actually received and holds**, never from what the
+    request claimed: the digest of the body it read, and the task digest from its own allowlist.
+    A caller who understated either signs one message and is checked against another, which is
+    the property that makes a one-call flow safe without the server minting a challenge first.
+
+    Readable, `key: value` per line, because a person approves this in a wallet popup. A browser
+    extension shows the text it is asked to sign; an opaque 32-byte digest — what the extrinsic
+    and intent paths sign — is something people click through, and it is also not something a
+    wallet designed for messages will render at all.
+
+    There was a ``hotkey`` line here until V035. It pinned the delegation target a submitter
+    declared for their payout, and it is gone because there is no longer one to declare: a
+    payout hands the destination coldkey ownership of stake that never leaves the validator's
+    own hotkey. Removing a line changes the message, so a signature made against the old shape
+    no longer verifies — which is correct, and is why the whole flow is versioned by its prefix.
+    """
+    return "\n".join(
+        (
+            WEB_SUBMISSION_PREFIX,
+            f"domain: {domain}",
+            f"address: {address}",
+            f"task: {task_id}",
+            f"task_bundle_sha256: {task_bundle_sha256}",
+            f"bundle_sha256: {bundle_sha256}",
+            f"idempotency: {idempotency_key}",
+            f"expires: {_stamp(expires_at)}",
+        )
+    )
+
+
 def _message(
     prefix: str, *, domain: str, address: str, nonce: str, expires_at: dt.datetime
 ) -> str:
@@ -145,9 +195,19 @@ def _message(
             f"domain: {domain}",
             f"address: {address}",
             f"nonce: {nonce}",
-            f"expires: {expires_at.astimezone(dt.UTC).isoformat().replace('+00:00', 'Z')}",
+            f"expires: {_stamp(expires_at)}",
         )
     )
+
+
+def _stamp(value: dt.datetime) -> str:
+    """One spelling of an instant, shared by every message a key is asked to sign.
+
+    A message is verified by rebuilding it, so the formatting is part of the protocol: two
+    call sites rendering the same instant two ways would produce two different messages and
+    one failed signature.
+    """
+    return value.astimezone(dt.UTC).isoformat().replace("+00:00", "Z")
 
 
 def verify_signature(*, address: str, message: str, signature: bytes) -> None:
@@ -183,15 +243,15 @@ __all__ = [
     "CLI_SESSION_PREFIX",
     "COLDKEY_LINK_PREFIX",
     "DEPOSIT_CLAIM_PREFIX",
-    "HOTKEY_LINK_PREFIX",
     "LOGIN_PREFIX",
     "REASON_CHALLENGE_INVALID",
-    "REASON_HOTKEY_NOT_LINKED",
+    "REASON_COLDKEY_NOT_LINKED",
     "REASON_SIGNATURE_INVALID",
+    "WEB_SUBMISSION_PREFIX",
     "cli_session_message",
     "coldkey_link_message",
     "deposit_claim_message",
-    "hotkey_link_message",
     "login_message",
     "verify_signature",
+    "web_submission_message",
 ]

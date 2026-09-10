@@ -6,10 +6,19 @@ input is a successful Subtensor event decoded from a best or finalized block, an
 plus submission state change in one transaction.
 
 Matching uses the complete economic fingerprint available on chain: treasury coldkey/hotkey,
-destination coldkey/hotkey, subnet, and exact Alpha amount.  The chain call has no memo field for a
+destination coldkey, subnet, and exact Alpha amount.  The chain call has no memo field for a
 reward-event id.  If two outstanding obligations have an identical fingerprint, the oldest is
 settled first; those calls are byte-for-byte indistinguishable on chain, so FIFO is the only stable
 accounting order rather than a guess from off-chain timing.
+
+The destination *hotkey* is part of that fingerprint only for the rows that have one.  V035
+switched payouts from ``transfer_stake_and_hotkey`` to ``transfer_stake``: the stake no longer
+moves to a new position, so ``reward_events.destination_hotkey`` is NULL on every new obligation
+and there is nothing to compare.  Historical rows keep theirs and are still matched on it, which
+is why the predicates below are written as "equal, or the stored value is NULL" rather than
+dropping the column from the comparison outright — a pre-V035 payout to the same coldkey for the
+same amount but a *different* delegated hotkey is a different payout, and collapsing the
+fingerprint would let one settle the other.
 """
 
 from __future__ import annotations
@@ -141,8 +150,12 @@ async def oldest_unresolved_at(session: AsyncSession) -> dt.datetime | None:
 def _same_payout(event: RewardEvent, observed: ObservedPayout) -> bool:
     return (
         event.destination_coldkey == observed.destination_coldkey
-        and event.destination_hotkey == observed.destination_hotkey
         and event.amount_rao == observed.amount_rao
+        # See the module docstring: only history has a destination hotkey to compare.
+        and (
+            event.destination_hotkey is None
+            or event.destination_hotkey == observed.destination_hotkey
+        )
     )
 
 
@@ -179,8 +192,13 @@ async def _oldest_match(
                 ),
             ),
             RewardEvent.destination_coldkey == observed.destination_coldkey,
-            RewardEvent.destination_hotkey == observed.destination_hotkey,
             RewardEvent.amount_rao == observed.amount_rao,
+            # The SQL half of `_same_payout`, and it has to agree with it exactly: a row this
+            # predicate selects is one that function will then be asked to confirm.
+            or_(
+                RewardEvent.destination_hotkey.is_(None),
+                RewardEvent.destination_hotkey == observed.destination_hotkey,
+            ),
             RewardEvent.created_at
             <= observed.block_timestamp + CHAIN_CLOCK_TOLERANCE,
         )

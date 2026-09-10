@@ -271,34 +271,46 @@ def test_the_signup_message_says_no_account_exists_yet():
 # --- the links --------------------------------------------------------------------------
 
 
-def test_each_flow_lands_on_its_own_path_with_an_escaped_token():
+def test_each_flow_appends_the_token_to_its_configured_route():
     base = "https://conjectures.io/"
     token = "a token/with+specials"
-    assert magic_link(base_url=base, token=token).startswith(
-        "https://conjectures.io/auth/verify?token="
+    assert magic_link(base_url=base, token=token, path="/login/verify").startswith(
+        "https://conjectures.io/login/verify?token="
     )
-    assert signup_link(base_url=base, token=token).startswith(
-        "https://conjectures.io/auth/signup/verify?token="
-    )
-    assert password_reset_link(base_url=base, token=token).startswith(
-        "https://conjectures.io/auth/password/reset?token="
-    )
+    assert signup_link(
+        base_url=base, token=token, path="/login/signup/verify"
+    ).startswith("https://conjectures.io/login/signup/verify?token=")
+    assert password_reset_link(
+        base_url=base, token=token, path="/login/reset"
+    ).startswith("https://conjectures.io/login/reset?token=")
     # A token in a URL is a credential; anything that could end the query string is escaped.
     for link in (
-        magic_link(base_url=base, token=token),
-        signup_link(base_url=base, token=token),
-        password_reset_link(base_url=base, token=token),
+        magic_link(base_url=base, token=token, path="/login/verify"),
+        signup_link(base_url=base, token=token, path="/login/signup/verify"),
+        password_reset_link(base_url=base, token=token, path="/login/reset"),
     ):
         assert "a%20token%2Fwith%2Bspecials" in link
 
 
-def test_the_three_paths_are_distinct():
-    # A token minted for one flow must not be presentable to another's page. Distinct paths are
-    # what let the website route without guessing which kind it holds.
+def test_a_moved_route_moves_the_link_without_an_api_release():
+    # The whole reason these are settings rather than literals: the pages live in another
+    # repository on its own cadence, and this API never serves them, so nothing here could fail
+    # when one moves.
+    assert password_reset_link(
+        base_url="https://x", token="t", path="/account/new-password"
+    ) == "https://x/account/new-password?token=t"
+
+
+def test_the_three_routes_stay_distinct_under_their_defaults():
+    # A token minted for one flow must not be presentable to another's page. Distinct routes are
+    # what let the website dispatch without guessing which kind it holds.
+    settings = build_settings()
     links = {
-        magic_link(base_url="https://x", token="t"),
-        signup_link(base_url="https://x", token="t"),
-        password_reset_link(base_url="https://x", token="t"),
+        magic_link(base_url="https://x", token="t", path=settings.email_verify_path),
+        signup_link(base_url="https://x", token="t", path=settings.signup_verify_path),
+        password_reset_link(
+            base_url="https://x", token="t", path=settings.password_reset_path
+        ),
     }
     assert len(links) == 3
 

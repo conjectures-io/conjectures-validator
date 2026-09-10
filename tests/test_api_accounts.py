@@ -25,8 +25,8 @@ pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 from bittensor.sp_core import Keypair
 from conftest_api import (
     COLDKEY,
-    HOTKEY,
-    OTHER_HOTKEY,
+    MINER_COLDKEY,
+    OTHER_MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
     distinct_bundle,
@@ -62,9 +62,15 @@ EMAIL = "solver@example.com"
 OTHER_COLDKEY = Keypair.create_from_uri("//Eve").ss58_address
 
 # The fixture addresses are the standard development keys, so a test can sign as them.
+#
+# Four distinct keys, and the names say which job each does. MINER_COLDKEY and
+# OTHER_MINER_COLDKEY are miner signing keys from `conftest_api` and are on the development
+# authenticator's allowlist; COLDKEY and OTHER_COLDKEY are account wallets, and OTHER_COLDKEY is
+# deliberately NOT on that allowlist — it is the "linked but cannot authenticate a submission"
+# case.
 URI = {
-    HOTKEY: "//Alice",
-    OTHER_HOTKEY: "//Bob",
+    MINER_COLDKEY: "//Alice",
+    OTHER_MINER_COLDKEY: "//Bob",
     COLDKEY: "//Dave",
     OTHER_COLDKEY: "//Eve",
 }
@@ -301,7 +307,7 @@ def test_wallet_sign_in_verifies_a_real_signature_over_the_served_message():
                 assert challenge.status_code == 200, challenge.text
                 body = challenge.json()
                 # Domain-separated, and it pins the address and the expiry, so the signature
-                # cannot be replayed into the hotkey-link flow or for another address.
+                # cannot be replayed into the coldkey-link flow or for another address.
                 assert body["message"].startswith("conjectures-login-v1\n")
                 assert f"address: {COLDKEY}" in body["message"]
 
@@ -315,7 +321,14 @@ def test_wallet_sign_in_verifies_a_real_signature_over_the_served_message():
                 assert verified.status_code == 200, verified.text
                 account = verified.json()["account"]
                 assert account["wallets"] == [
-                    {"coldkey": COLDKEY, "linked_at": account["wallets"][0]["linked_at"]}
+                    {
+                        "coldkey": COLDKEY,
+                        # Linked, and not designated: signing in proves a key, it does not
+                        # choose which one submits.
+                        "is_submission_coldkey": False,
+                        "label": None,
+                        "linked_at": account["wallets"][0]["linked_at"],
+                    }
                 ]
                 # A wallet-only account has no email and is not pretending to.
                 assert account["email"] is None
@@ -647,7 +660,7 @@ def test_every_account_response_is_no_store():
     run(scenario())
 
 
-# --- Linked hotkeys and payout -----------------------------------------------------------
+# --- Linked coldkeys, the designation, and the payout ------------------------------------
 
 
 async def link_wallet(kit, http, coldkey: str):
@@ -831,36 +844,50 @@ def test_a_coldkey_link_signature_cannot_be_replayed_as_a_sign_in():
     run(scenario())
 
 
-async def link(kit, http, hotkey: str):
-    challenge = await http.post(
-        "/v1/me/hotkeys/challenge", json={"hotkey": hotkey}, headers=same_origin(http)
-    )
-    assert challenge.status_code == 200, challenge.text
-    message = challenge.json()["message"]
-    assert message.startswith("conjectures-hotkey-link-v1\n")
-    return await http.post(
-        "/v1/me/hotkeys",
-        json={"hotkey": hotkey, "signature": sign(hotkey, message)},
+# `link` was a separate hotkey-linking flow until V035, with its own challenge kind and
+# message prefix. There is one kind of key now, so it is the wallet flow — kept as a name
+# because most of the suite reads better saying "link this key to the account" than naming the
+# endpoint, and because a single definition is what stops half the tests linking one way.
+link = link_wallet
+
+
+async def designate(kit, http, coldkey: str):
+    """Link a coldkey and designate it as the one this account submits under.
+
+    Two calls, because they are two decisions: linking proves control, designating chooses
+    among proved keys. The intent flow needs the second — it takes its signer from
+    `Account.submission_coldkey` rather than from the request — so most intent tests want this
+    rather than bare `link`.
+    """
+    linked = await link(kit, http, coldkey)
+    assert linked.status_code == 201, linked.text
+    designated = await http.put(
+        "/v1/me/coldkeys/submission",
+        json={"coldkey": coldkey},
         headers=same_origin(http),
     )
+    assert designated.status_code == 200, designated.text
+    return designated
 
 
-def test_a_hotkey_is_linked_by_signature_and_belongs_to_one_account():
+def test_a_coldkey_is_linked_by_signature_and_belongs_to_one_account():
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as first, await client(kit) as second:
                 await sign_in_by_email(kit, first, email="one@example.com")
-                linked = await link(kit, first, HOTKEY)
+                linked = await link(kit, first, MINER_COLDKEY)
                 assert linked.status_code == 201, linked.text
-                assert [item["hotkey"] for item in linked.json()["hotkeys"]] == [HOTKEY]
+                assert [item["coldkey"] for item in linked.json()["wallets"]] == [
+                    MINER_COLDKEY
+                ]
 
                 # A second account cannot claim it: attribution must have one answer, and a
                 # reward one owner.
                 await sign_in_by_email(kit, second, email="two@example.com")
-                stolen = await link(kit, second, HOTKEY)
+                stolen = await link(kit, second, MINER_COLDKEY)
                 assert stolen.status_code == 409
-                assert stolen.json()["reason_code"] == "HOTKEY_ALREADY_LINKED"
+                assert stolen.json()["reason_code"] == "WALLET_ALREADY_LINKED"
         finally:
             await kit.teardown()
 
@@ -868,8 +895,8 @@ def test_a_hotkey_is_linked_by_signature_and_belongs_to_one_account():
 
 
 def test_a_link_signature_cannot_be_replayed_as_a_sign_in():
-    """The two flows use different domain-separated prefixes precisely so that a hotkey
-    signature collected for linking is not a credential."""
+    """The two flows use different domain-separated prefixes precisely so that a signature
+    collected for linking is not a credential."""
 
     async def scenario():
         kit = await harness().setup()
@@ -877,8 +904,8 @@ def test_a_link_signature_cannot_be_replayed_as_a_sign_in():
             async with await client(kit) as http:
                 await sign_in_by_email(kit, http)
                 challenge = await http.post(
-                    "/v1/me/hotkeys/challenge",
-                    json={"hotkey": HOTKEY},
+                    "/v1/me/wallets/challenge",
+                    json={"coldkey": MINER_COLDKEY},
                     headers=same_origin(http),
                 )
                 link_message = challenge.json()["message"]
@@ -886,12 +913,12 @@ def test_a_link_signature_cannot_be_replayed_as_a_sign_in():
             async with await client(kit) as attacker:
                 # Open a login challenge for the same address, then present the signature that
                 # was made over the *link* message.
-                await attacker.post("/v1/auth/wallet/challenge", json={"address": HOTKEY})
+                await attacker.post("/v1/auth/wallet/challenge", json={"address": MINER_COLDKEY})
                 replayed = await attacker.post(
                     "/v1/auth/wallet/verify",
                     json={
-                        "address": HOTKEY,
-                        "signature": sign(HOTKEY, link_message),
+                        "address": MINER_COLDKEY,
+                        "signature": sign(MINER_COLDKEY, link_message),
                     },
                 )
                 assert replayed.status_code == 401
@@ -902,9 +929,58 @@ def test_a_link_signature_cannot_be_replayed_as_a_sign_in():
     run(scenario())
 
 
-def test_a_payout_destination_must_be_a_hotkey_the_account_linked():
-    """Otherwise a signed-in session could nominate any address at all — the shape of a
-    change-the-payout-address takeover."""
+def test_a_payout_destination_needs_no_link_and_no_signature():
+    """The rule V035 replaced, and inverting it is deliberate.
+
+    Setting a payout destination used to require the named hotkey to be linked to the account.
+    That bought the *appearance* of proof — an attacker holding a session could link their own
+    key first — while making the common legitimate case impossible: paying to a hardware
+    wallet, an exchange deposit address, or a multisig the account does not solely control.
+
+    Naming a payout address can only give the account's own money away, so what defends the
+    field is the credential needed to reach it, not proof of control over the destination.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+
+                # No linked key at all, and an address this account has never proved.
+                ok = await http.put(
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": OTHER_COLDKEY},
+                    headers=same_origin(http),
+                )
+                assert ok.status_code == 200, ok.text
+                assert ok.json()["payout"] == {"coldkey": OTHER_COLDKEY}
+                assert ok.json()["coldkeys"]["payout_coldkey"] == OTHER_COLDKEY
+                # Designating is the separate, proved decision, and it is untouched by this.
+                assert ok.json()["coldkeys"]["submission_coldkey"] is None
+
+                # And it clears, which stops a payout resolving rather than redirecting it.
+                cleared = await http.put(
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": None},
+                    headers=same_origin(http),
+                )
+                assert cleared.status_code == 200, cleared.text
+                assert cleared.json()["payout"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_submission_coldkey_must_be_one_this_account_proved():
+    """The other half of the asymmetry: this key can spend, so it must be proved.
+
+    Proof happens at `POST /v1/me/wallets`; this endpoint only chooses among keys already
+    proved. Designating one the account has not linked is refused, and designating one another
+    account linked is refused by the same composite foreign key — a plain reference to
+    `account_wallets.coldkey` would have allowed it.
+    """
 
     async def scenario():
         kit = await harness().setup()
@@ -913,21 +989,132 @@ def test_a_payout_destination_must_be_a_hotkey_the_account_linked():
                 await sign_in_by_email(kit, http)
 
                 premature = await http.put(
-                    "/v1/me/payout",
-                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    "/v1/me/coldkeys/submission",
+                    json={"coldkey": MINER_COLDKEY},
                     headers=same_origin(http),
                 )
                 assert premature.status_code == 409
-                assert premature.json()["reason_code"] == "PAYOUT_HOTKEY_NOT_LINKED"
+                assert premature.json()["reason_code"] == "COLDKEY_NOT_LINKED"
 
-                await link(kit, http, HOTKEY)
+                await link(kit, http, MINER_COLDKEY)
                 ok = await http.put(
-                    "/v1/me/payout",
-                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    "/v1/me/coldkeys/submission",
+                    json={"coldkey": MINER_COLDKEY},
                     headers=same_origin(http),
                 )
-                assert ok.status_code == 200
-                assert ok.json()["payout"] == {"coldkey": COLDKEY, "hotkey": HOTKEY}
+                assert ok.status_code == 200, ok.text
+                assert ok.json()["coldkeys"]["submission_coldkey"] == MINER_COLDKEY
+                # The wallet list carries the designation too, so the account page needs one read.
+                designated = [
+                    item["coldkey"]
+                    for item in ok.json()["wallets"]
+                    if item["is_submission_coldkey"]
+                ]
+                assert designated == [MINER_COLDKEY]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_coldkeys_endpoint_returns_both_and_neither_is_derived_from_the_other():
+    """`GET /v1/me/coldkeys`: the pair, independently settable, in one read.
+
+    The four states are all reachable and none implies another — an account may submit without
+    a payout destination, be paid without a designated signer, both, or neither.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+
+                empty = await http.get("/v1/me/coldkeys")
+                assert empty.status_code == 200, empty.text
+                assert empty.json() == {
+                    "submission_coldkey": None,
+                    "payout_coldkey": None,
+                }
+
+                # Payout only. Note the address is not linked, and does not need to be.
+                await http.put(
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": OTHER_COLDKEY},
+                    headers=same_origin(http),
+                )
+                assert (await http.get("/v1/me/coldkeys")).json() == {
+                    "submission_coldkey": None,
+                    "payout_coldkey": OTHER_COLDKEY,
+                }
+
+                # Then the submission key, which does have to be linked.
+                await link(kit, http, MINER_COLDKEY)
+                await http.put(
+                    "/v1/me/coldkeys/submission",
+                    json={"coldkey": MINER_COLDKEY},
+                    headers=same_origin(http),
+                )
+                assert (await http.get("/v1/me/coldkeys")).json() == {
+                    "submission_coldkey": MINER_COLDKEY,
+                    "payout_coldkey": OTHER_COLDKEY,
+                }
+
+                # Clearing one leaves the other exactly as it was.
+                await http.put(
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": None},
+                    headers=same_origin(http),
+                )
+                assert (await http.get("/v1/me/coldkeys")).json() == {
+                    "submission_coldkey": MINER_COLDKEY,
+                    "payout_coldkey": None,
+                }
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_unlinking_the_designated_wallet_clears_the_designation_rather_than_failing():
+    """`ON DELETE SET NULL (submission_coldkey)` on the composite foreign key.
+
+    An account removing a key should not have to remember to undesignate it first, and the
+    alternative — refusing the unlink — would leave a key that cannot be removed. What must not
+    happen is the designation surviving as a dangling address.
+    """
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http)
+                await link(kit, http, MINER_COLDKEY)
+                await http.put(
+                    "/v1/me/coldkeys/submission",
+                    json={"coldkey": MINER_COLDKEY},
+                    headers=same_origin(http),
+                )
+                assert (
+                    await http.get("/v1/me/coldkeys")
+                ).json()["submission_coldkey"] == MINER_COLDKEY
+
+                from sqlalchemy import delete
+
+                from conjectures_subnet.db.models import AccountWallet
+
+                async with kit.session() as session:
+                    await session.execute(
+                        delete(AccountWallet).where(
+                            AccountWallet.coldkey == MINER_COLDKEY
+                        )
+                    )
+                    await session.commit()
+
+                assert (await http.get("/v1/me/coldkeys")).json() == {
+                    "submission_coldkey": None,
+                    "payout_coldkey": None,
+                }
         finally:
             await kit.teardown()
 
@@ -992,8 +1179,12 @@ def test_the_session_envelope_carries_identities_holdings_and_capabilities():
                         "linked_at": body["account"]["created_at"],
                     }
                 ]
-                assert body["hotkeys"] == []
+                assert body["wallets"] == []
                 assert body["payout"] is None
+                assert body["account"]["coldkeys"] == {
+                    "submission_coldkey": None,
+                    "payout_coldkey": None,
+                }
                 assert body["credits"] == {"balance": 0, "held": 0}
                 assert body["counts"] == {
                     "submissions_total": 0,
@@ -1004,15 +1195,18 @@ def test_the_session_envelope_carries_identities_holdings_and_capabilities():
                     "review_queue": None,
                 }
 
-                # Nothing linked and nothing bought, so both reasons are reported — in the
-                # order the endpoint would hit them.
+                # Nothing linked and nothing bought — but a browser needs no key to submit
+                # since `POST /v1/submissions/session`, so credits are the only thing missing.
                 assert body["capabilities"]["submit"] == {
                     "allowed": False,
-                    "missing": ["HOTKEY_NOT_LINKED", "INSUFFICIENT_CREDITS"],
+                    "missing": ["INSUFFICIENT_CREDITS"],
                 }
+                # Allowed with no key linked at all, which V035 changed: a payout destination
+                # needs no proof of control, so there is nothing left for a browser session to
+                # be missing here.
                 assert body["capabilities"]["set_payout"] == {
-                    "allowed": False,
-                    "missing": ["HOTKEY_NOT_LINKED"],
+                    "allowed": True,
+                    "missing": [],
                 }
                 # A browser session can always buy: the declared-deposit path needs nothing
                 # beyond the cookie.
@@ -1031,7 +1225,7 @@ def test_the_session_envelope_carries_identities_holdings_and_capabilities():
 
 def test_capabilities_open_as_the_account_gains_what_they_require():
     """The point of `missing`: a client greys a button out for a named reason and can watch it
-    go away, rather than re-deriving the rule from roles, hotkeys and a balance."""
+    go away, rather than re-deriving the rule from roles, wallets and a balance."""
 
     async def scenario():
         kit = await harness().setup()
@@ -1039,16 +1233,21 @@ def test_capabilities_open_as_the_account_gains_what_they_require():
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
 
-                await link(kit, http, HOTKEY)
+                await link(kit, http, MINER_COLDKEY)
                 after_link = (await http.get("/v1/auth/session")).json()
-                # The hotkey reason is gone; the credit one is not.
+                # Only the credit reason was ever going to survive here for a browser.
                 assert after_link["capabilities"]["submit"]["missing"] == [
                     "INSUFFICIENT_CREDITS"
                 ]
                 assert after_link["capabilities"]["set_payout"]["allowed"] is True
-                assert [item["hotkey"] for item in after_link["hotkeys"]] == [HOTKEY]
+                assert [item["coldkey"] for item in after_link["wallets"]] == [
+                    MINER_COLDKEY
+                ]
+                # Linked but not designated: proving a key and choosing which one submits are
+                # two decisions, and this is the first without the second.
+                assert after_link["wallets"][0]["is_submission_coldkey"] is False
                 # No column to name a key yet, and the field says so rather than inventing one.
-                assert after_link["hotkeys"][0]["label"] is None
+                assert after_link["wallets"][0]["label"] is None
 
                 await grant_credits(kit, uuid.UUID(account["id"]), 3)
                 funded = (await http.get("/v1/auth/session")).json()
@@ -1061,13 +1260,14 @@ def test_capabilities_open_as_the_account_gains_what_they_require():
                 # And the payout, once set, appears at the top level and inside `account` —
                 # derived from one read, so the two cannot drift.
                 await http.put(
-                    "/v1/me/payout",
-                    json={"coldkey": COLDKEY, "hotkey": HOTKEY},
+                    "/v1/me/coldkeys/payout",
+                    json={"coldkey": COLDKEY},
                     headers=same_origin(http),
                 )
                 paid = (await http.get("/v1/auth/session")).json()
-                assert paid["payout"] == {"coldkey": COLDKEY, "hotkey": HOTKEY}
+                assert paid["payout"] == {"coldkey": COLDKEY}
                 assert paid["payout"] == paid["account"]["payout"]
+                assert paid["account"]["coldkeys"]["payout_coldkey"] == COLDKEY
         finally:
             await kit.teardown()
 
@@ -1353,7 +1553,15 @@ def test_a_credited_deposit_uses_the_observed_amount_not_the_declared_one():
 # --- The credit-funded submission path ---------------------------------------------------
 
 
-def test_an_intent_needs_a_credit_and_a_linked_hotkey():
+def test_an_intent_needs_a_credit_and_a_designated_submission_coldkey():
+    """Two refusals, in this order, and the order is the point: the signing identity is a
+    question about the account and is answered before any credit is looked at.
+
+    A *linked* key is not enough — the flow ends in a signature checked against
+    `Account.submission_coldkey`, so a key that is merely proved but not designated leaves
+    nothing for the server to verify against.
+    """
+
     async def scenario():
         kit = await harness().setup()
         try:
@@ -1362,16 +1570,28 @@ def test_an_intent_needs_a_credit_and_a_linked_hotkey():
                 body = {
                     "task_id": TASK_ID,
                     "task_bundle_sha256": TASK_DIGEST,
-                    "hotkey": HOTKEY,
                 }
 
-                unlinked = await http.post(
+                undesignated = await http.post(
                     "/v1/submissions/intents", json=body, headers=same_origin(http)
                 )
-                assert unlinked.status_code == 409
-                assert unlinked.json()["reason_code"] == "HOTKEY_NOT_LINKED"
+                assert undesignated.status_code == 409
+                assert undesignated.json()["reason_code"] == "NO_SUBMISSION_COLDKEY"
 
-                await link(kit, http, HOTKEY)
+                # Linked but not designated: still refused, and for the same reason.
+                linked = await link(kit, http, MINER_COLDKEY)
+                assert linked.status_code == 201, linked.text
+                still = await http.post(
+                    "/v1/submissions/intents", json=body, headers=same_origin(http)
+                )
+                assert still.status_code == 409
+                assert still.json()["reason_code"] == "NO_SUBMISSION_COLDKEY"
+
+                await http.put(
+                    "/v1/me/coldkeys/submission",
+                    json={"coldkey": MINER_COLDKEY},
+                    headers=same_origin(http),
+                )
                 broke = await http.post(
                     "/v1/submissions/intents", json=body, headers=same_origin(http)
                 )
@@ -1407,12 +1627,11 @@ def test_a_held_credit_cannot_be_spent_twice_by_opening_two_intents():
         try:
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
-                await link(kit, http, HOTKEY)
+                await designate(kit, http, MINER_COLDKEY)
                 await grant_credits(kit, uuid.UUID(account["id"]), 1)
                 body = {
                     "task_id": TASK_ID,
                     "task_bundle_sha256": TASK_DIGEST,
-                    "hotkey": HOTKEY,
                 }
                 first = await http.post(
                     "/v1/submissions/intents", json=body, headers=same_origin(http)
@@ -1439,7 +1658,6 @@ async def full_intent(
         json={
             "task_id": TASK_ID,
             "task_bundle_sha256": TASK_DIGEST,
-            "hotkey": HOTKEY,
             **(
                 {}
                 if public_credit_payload is None
@@ -1451,7 +1669,7 @@ async def full_intent(
     assert opened.status_code == 201, opened.text
     intent_id = opened.json()["id"]
 
-    bundle, _ = distinct_bundle(marker, hotkey=HOTKEY)
+    bundle, _ = distinct_bundle(marker, coldkey=MINER_COLDKEY)
     uploaded = await http.put(
         f"/v1/submissions/intents/{intent_id}/bundle",
         content=bundle,
@@ -1469,7 +1687,7 @@ def test_the_server_computes_the_digest_the_miner_signs():
         try:
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
-                await link(kit, http, HOTKEY)
+                await designate(kit, http, MINER_COLDKEY)
                 intent_id, result = await full_intent(
                     kit, http, uuid.UUID(account["id"])
                 )
@@ -1496,7 +1714,7 @@ def test_confirm_debits_the_credit_and_writes_the_submission_once():
         try:
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
-                await link(kit, http, HOTKEY)
+                await designate(kit, http, MINER_COLDKEY)
                 intent_id, _ = await full_intent(kit, http, uuid.UUID(account["id"]))
 
                 confirmed = await http.post(
@@ -1509,7 +1727,7 @@ def test_confirm_debits_the_credit_and_writes_the_submission_once():
 
                 submission = body["submission"]
                 assert submission["verification_status"] == "UNVERIFIED"
-                assert submission["hotkey"] == HOTKEY
+                assert submission["signer_coldkey"] == MINER_COLDKEY
                 # The funding side is a read of durable state, not a guess.
                 assert submission["funding"]["source"] == "credit"
                 assert submission["funding"]["intent_id"] == intent_id
@@ -1546,7 +1764,7 @@ def test_credit_funded_submission_signs_and_snapshots_public_credit():
         try:
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
-                await link(kit, http, HOTKEY)
+                await designate(kit, http, MINER_COLDKEY)
                 credit = {
                     "name": "Ramanujan Collaboration",
                     "url": "https://example.org/ramanujan",
@@ -1582,7 +1800,7 @@ def test_credit_funded_submission_signs_and_snapshots_public_credit():
                     )
                     expected = intent_request_digest(
                         intent_id=uuid.UUID(intent_id),
-                        hotkey=HOTKEY,
+                        signer_coldkey=MINER_COLDKEY,
                         task_id=TASK_ID,
                         task_bundle_sha256=TASK_DIGEST,
                         proof_sha256=uploaded["proof_sha256"],
@@ -1601,14 +1819,13 @@ def test_confirming_without_a_bundle_is_refused():
         try:
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
-                await link(kit, http, HOTKEY)
+                await designate(kit, http, MINER_COLDKEY)
                 await grant_credits(kit, uuid.UUID(account["id"]), 1)
                 opened = await http.post(
                     "/v1/submissions/intents",
                     json={
                         "task_id": TASK_ID,
                         "task_bundle_sha256": TASK_DIGEST,
-                        "hotkey": HOTKEY,
                     },
                     headers=same_origin(http),
                 )
@@ -1631,7 +1848,7 @@ def test_an_intent_belonging_to_another_account_is_absent():
         try:
             async with await client(kit) as mine, await client(kit) as theirs:
                 account = await sign_in_by_email(kit, mine, email="one@example.com")
-                await link(kit, mine, HOTKEY)
+                await designate(kit, mine, MINER_COLDKEY)
                 intent_id, _ = await full_intent(kit, mine, uuid.UUID(account["id"]))
 
                 await sign_in_by_email(kit, theirs, email="two@example.com")
@@ -1662,7 +1879,7 @@ def test_the_panel_shows_only_the_accounts_own_submissions():
         try:
             async with await client(kit) as mine, await client(kit) as theirs:
                 account = await sign_in_by_email(kit, mine, email="one@example.com")
-                await link(kit, mine, HOTKEY)
+                await designate(kit, mine, MINER_COLDKEY)
                 intent_id, _ = await full_intent(kit, mine, uuid.UUID(account["id"]))
                 confirmed = await mine.post(
                     f"/v1/submissions/intents/{intent_id}/confirm",
@@ -1703,7 +1920,7 @@ def test_submission_detail_returns_public_review_notes_but_never_internal_eviden
         try:
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
-                await link(kit, http, HOTKEY)
+                await designate(kit, http, MINER_COLDKEY)
                 intent_id, _ = await full_intent(kit, http, uuid.UUID(account["id"]))
                 confirmed = await http.post(
                     f"/v1/submissions/intents/{intent_id}/confirm",
@@ -1760,14 +1977,13 @@ def test_intake_endpoints_refuse_while_submissions_are_paused():
         try:
             async with await client(kit) as http:
                 account = await sign_in_by_email(kit, http)
-                await link(kit, http, HOTKEY)
+                await designate(kit, http, MINER_COLDKEY)
                 await grant_credits(kit, uuid.UUID(account["id"]), 1)
                 refused = await http.post(
                     "/v1/submissions/intents",
                     json={
                         "task_id": TASK_ID,
                         "task_bundle_sha256": TASK_DIGEST,
-                        "hotkey": HOTKEY,
                     },
                     headers=same_origin(http),
                 )
@@ -1782,12 +1998,60 @@ def test_intake_endpoints_refuse_while_submissions_are_paused():
 # --- Preflight and the public Stage 2 catalog --------------------------------------------
 
 
+@pytest.mark.parametrize(
+    ("manifest_coldkey", "header_coldkey", "expected_ok"),
+    [
+        (None, None, True),
+        (MINER_COLDKEY, MINER_COLDKEY, True),
+        (MINER_COLDKEY, None, False),
+        (None, MINER_COLDKEY, False),
+        (MINER_COLDKEY, OTHER_MINER_COLDKEY, False),
+    ],
+)
+def test_preflight_accepts_browser_bundles_and_preserves_explicit_key_binding(
+    manifest_coldkey, header_coldkey, expected_ok
+):
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                bundle, digest = distinct_bundle("browser-preflight", coldkey=manifest_coldkey)
+                headers = {
+                    "Content-Type": "application/zip",
+                    "X-Conjectures-Task-Id": TASK_ID,
+                    "X-Conjectures-Task-Sha256": TASK_DIGEST,
+                }
+                if header_coldkey is not None:
+                    headers["X-Conjectures-Coldkey"] = header_coldkey
+                response = await http.post(
+                    "/v1/submissions/preflight", content=bundle, headers=headers
+                )
+                assert response.status_code == 200, response.text
+                result = response.json()
+                assert result["ok"] is expected_ok, result
+                if expected_ok:
+                    assert result["proof_sha256"] == digest
+                else:
+                    assert result["reason_code"] == "BUNDLE_MANIFEST_INVALID"
+
+                # A browser upload must still pass the same ZIP and static admission policy.
+                bad = await http.post(
+                    "/v1/submissions/preflight", content=b"not a zip", headers=headers
+                )
+                assert bad.status_code == 200, bad.text
+                assert bad.json()["ok"] is False
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_preflight_is_free_unauthenticated_and_costs_no_credit():
     async def scenario():
         kit = await harness().setup()
         try:
             async with await client(kit) as http:
-                bundle, digest = distinct_bundle("preflight", hotkey=HOTKEY)
+                bundle, digest = distinct_bundle("preflight", coldkey=MINER_COLDKEY)
                 ok = await http.post(
                     "/v1/submissions/preflight",
                     content=bundle,
@@ -1795,7 +2059,7 @@ def test_preflight_is_free_unauthenticated_and_costs_no_credit():
                         "Content-Type": "application/zip",
                         "X-Conjectures-Task-Id": TASK_ID,
                         "X-Conjectures-Task-Sha256": TASK_DIGEST,
-                        "X-Conjectures-Hotkey": HOTKEY,
+                        "X-Conjectures-Coldkey": MINER_COLDKEY,
                     },
                 )
                 assert ok.status_code == 200, ok.text
@@ -1818,7 +2082,7 @@ def test_preflight_is_free_unauthenticated_and_costs_no_credit():
                         "Content-Type": "application/zip",
                         "X-Conjectures-Task-Id": TASK_ID,
                         "X-Conjectures-Task-Sha256": TASK_DIGEST,
-                        "X-Conjectures-Hotkey": HOTKEY,
+                        "X-Conjectures-Coldkey": MINER_COLDKEY,
                     },
                 )
                 assert bad.status_code == 200, bad.text
@@ -1880,9 +2144,9 @@ def test_credit_pricing_and_terms_are_public():
                 # v4 adds signed opt-in public credit to the expanded v2 review contract. It
                 # moves with `docs/SUBMISSION_TERMS.md`: the body is served under this string, so
                 # the two must not drift.
-                assert terms.json()["version"] == "v4"
+                assert terms.json()["version"] == "v5"
                 assert "One credit buys" in terms.json()["body_md"]
-                assert "Your hotkey is published" in terms.json()["body_md"]
+                assert "Your identity is published" in terms.json()["body_md"]
                 assert "Public name credit is optional" in terms.json()["body_md"]
                 approval_codes = {
                     item["code"] for item in terms.json()["approval_reasons"]

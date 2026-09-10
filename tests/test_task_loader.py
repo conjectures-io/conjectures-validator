@@ -8,12 +8,17 @@ import pytest
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import sha256_file
 from verifier.repository import tasks_repository_root
-from verifier.task_generator import task_id
+from verifier.task_generator import MAX_SUBMISSION_BYTES, task_id
 from verifier.task_loader import load_task, load_task_bundle, verify_trusted_hashes
 
 
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_ROOT = tasks_repository_root(ROOT)
+
+# Every test here copies a fixture out of the task repository, so all of them need that
+# checkout. Marked at module scope rather than test by test: a test added to this file
+# will need it too.
+pytestmark = pytest.mark.needs_checkouts
 
 
 def copied_task(tmp_path: Path) -> Path:
@@ -30,6 +35,16 @@ def test_load_task_rejects_non_deterministic_id(tmp_path):
     with pytest.raises(VerifierError) as error:
         load_task(task)
     assert error.value.reason == ReasonCode.INVALID_MANIFEST
+
+
+def test_enlarging_a_released_task_requires_a_new_identity(tmp_path):
+    task = copied_task(tmp_path)
+    path = task / "manifest.json"
+    value = json.loads(path.read_text())
+    value["max_submission_bytes"] = MAX_SUBMISSION_BYTES
+    path.write_text(json.dumps(value))
+    with pytest.raises(VerifierError, match="identity is inconsistent"):
+        load_task_bundle(task)
 
 
 def test_load_task_rejects_legacy_polarity_mode(tmp_path):
@@ -96,7 +111,7 @@ def test_task_bundle_rejects_extra_files_and_excessive_limits(tmp_path):
     (task / "hidden.lean").unlink()
     path = task / "manifest.json"
     value = json.loads(path.read_text(encoding="utf-8"))
-    value["max_submission_bytes"] = 1_000_001
+    value["max_submission_bytes"] = 10 * 1024 * 1024 + 1
     path.write_text(json.dumps(value), encoding="utf-8")
     with pytest.raises(VerifierError) as error:
         load_task_bundle(task)

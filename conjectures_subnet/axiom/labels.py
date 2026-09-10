@@ -41,7 +41,7 @@ class Severity(StrEnum):
 # Which area of the system the event came from. The API is split per router rather than reported
 # as one "api", because the routers have genuinely different audiences and failure modes: the
 # public catalog is read by a browser, `/v1/submissions` is written by miner tooling with a
-# hotkey signature, and `/v1/me` is a signed-in account surface. One label for all three would
+# coldkey signature, and `/v1/me` is a signed-in account surface. One label for all three would
 # make every dashboard start with a path filter.
 Source: TypeAlias = Literal[
     # --- submission API ---------------------------------------------------------------------
@@ -57,6 +57,14 @@ Source: TypeAlias = Literal[
     "api-submissions",
     "api-system",
     "api-tasks",
+    # The public mirror of the contribution corpus. Its own source because it is the one part of
+    # the API whose health depends on a third party being reachable: "the contribution listing is
+    # stale" is an incident about github.com, not about this service.
+    "api-contributions",
+    # Invitation links: the public page and redemption. Its own source rather than folded into
+    # `api-me`, because "how many invitations were redeemed this week" is an operator question
+    # about a campaign, not about one account's traffic.
+    "api-invitations",
     # The cross-cutting ASGI layers — rate limiting, CORS, the write guard, security headers.
     "api-middleware",
     # Outbound side effects the API owns, worth separating because they fail for reasons that
@@ -123,6 +131,19 @@ EventType: TypeAlias = Literal[
     "login_completed",
     "logout",
     "wallet_linked",
+    # V035. Which of an account's proved coldkeys it submits and spends credits under, and
+    # where its rewards are sent. Two types rather than one because the two are guarded
+    # differently and asked about differently.
+    #
+    # `submission_coldkey_set` changes what the account's work is attributed to. It also
+    # revokes every bearer token scoped to the key being replaced, so a token dying
+    # unexpectedly is answerable from this event plus the `session_revoked` beside it.
+    "submission_coldkey_set",
+    # `payout_coldkey_set` is the field a session compromise would target — it needs no proof
+    # of control over the address it names, deliberately — so the event carries the previous
+    # address as well as the new one. Where the money used to go has to be recoverable from
+    # the audit stream and not only from the row that was overwritten.
+    "payout_coldkey_set",
     # An external sign-in provider was attached to an existing account. Separate from
     # `login_completed` because it changes *how many ways in* an account has rather than
     # exercising one, which is the shape of a takeover step and so worth its own type.
@@ -135,6 +156,17 @@ EventType: TypeAlias = Literal[
     # An account's roles were replaced. `accounts.roles` is overwritten in place, so this event
     # is the only record that the change happened — see `routers/admin.py`.
     "roles_changed",
+    # A reviewer's binding decision on a submission. The other privileged operator write, and
+    # named here for the same reason as `roles_changed`: it moves `reward_status`, so it is the
+    # act someone asks about when a payout is questioned. `routers/reviews.py` explains why the
+    # published explanation is deliberately not carried on the event.
+    "review_decision_recorded",
+    # A reviewer overriding an earlier binding decision. Separate from the type above rather than
+    # a field on it, because the two are asked about separately: "who decided this" and "who
+    # changed somebody else's decision" are different questions, and the second is the one an
+    # audit starts from. Carries `supersedes_id`, so the event says what was overridden without
+    # replaying `review_decisions`.
+    "review_decision_corrected",
     # --- verification worker ----------------------------------------------------------------
     "submission_claimed",
     "verdict_recorded",
@@ -173,6 +205,26 @@ EventType: TypeAlias = Literal[
     "tmc_pay_webhook_unmatched",
     # One reconciliation pass that found something: orders read, credited, unreadable.
     "tmc_pay_reconciled",
+    # --- contribution mirror ------------------------------------------------------------------
+    # One successful poll that changed the served snapshot. Carries the head commit and the row
+    # counts, so "when did the corpus last move, and to what" is one query.
+    "contributions_refreshed",
+    # A poll that failed. Warning rather than error: the previous snapshot keeps serving, so a
+    # single failure is not an outage — a *run* of them is, which is what a rate over this type
+    # answers.
+    "contributions_refresh_failed",
+    # GitHub refused on budget. Separate from the type above because the remedy is different: this
+    # one means the interval or the egress address needs attention, not that anything is broken.
+    "contributions_rate_limited",
+    # --- invitations ------------------------------------------------------------------------
+    # The three moments an invitation moves money, and the only record that any of them
+    # happened: the code is stored as a digest, so there is nothing else to reconstruct a
+    # campaign from. `invitation_issued` and `invitation_revoked` name the operator;
+    # `invitation_redeemed` names the account and the ledger entry. None of them carries the
+    # code -- it is a live credential, and a log is exactly where one must not be.
+    "invitation_issued",
+    "invitation_revoked",
+    "invitation_redeemed",
     # --- emissions worker -------------------------------------------------------------------
     "epoch_observed",
     "weights_set",

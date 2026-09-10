@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import uuid
 
@@ -10,7 +11,12 @@ from sqlalchemy.exc import IntegrityError
 
 from conjectures_subnet.db.engine import create_db_engine, session_factory
 from conjectures_subnet.db.models import (
+    MINER_ROLE,
+    Account,
     Base,
+    CreditEntryKind,
+    CreditLedgerEntry,
+    IntentState,
     ManualReviewState,
     PayoutDiscordDelivery,
     Proof,
@@ -20,6 +26,7 @@ from conjectures_subnet.db.models import (
     RewardEvent,
     RewardState,
     Submission,
+    SubmissionIntent,
     TaskMode,
     VerificationState,
 )
@@ -27,7 +34,7 @@ from payout_notifier.settings import NotifierSettings, SettingsError
 from payout_notifier.pricing import DefectAwardQuote, quote_formalization_defect_award
 from payout_notifier.worker import PayoutNotifier
 
-HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+MINER_COLDKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
 
 
@@ -98,7 +105,9 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
             session.add(
                 Submission(
                     id=submission_id,
-                    hotkey=HOTKEY,
+                    # Signer and payer are one key, which is what V035 requires of the
+                    # extrinsic path and what `submission_signer_coldkey_is_funded` enforces.
+                    signer_coldkey=COLDKEY,
                     idempotency_key=uuid.uuid4(),
                     request_digest=hashlib.sha256(b"request").digest(),
                     task_id="fixture-task",
@@ -111,7 +120,7 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
                     payment_sender=COLDKEY,
                     payment_amount_rao=500_000_000,
                     payment_block=1,
-                    hotkey_signature=b"x" * 64,
+                    signer_signature=b"x" * 64,
                     verification_status=VerificationState.VERIFIED,
                     manual_review_status=ManualReviewState.APPROVED,
                     reward_status=RewardState.ELIGIBLE,
@@ -167,7 +176,9 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
             assert reward.pricing_policy_version == "dynamic-age-v1"
             assert reward.pricing_inputs == {"fixture": True}
             assert reward.destination_coldkey == COLDKEY
-            assert reward.destination_hotkey == HOTKEY
+            # NULL, and that is the assertion that matters: `transfer_stake` records no
+            # destination hotkey, so a value here would mean the notifier had invented one.
+            assert reward.destination_hotkey is None
             assert reward.eligibility_reason == "REVIEW_APPROVED"
             assert reward.generation_key == f"submission:{submission_id}"
             deliveries = session.scalars(
@@ -179,6 +190,112 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
             assert {item.status for item in deliveries} == {"SENT"}
             assert all(item.attempt_count == 1 for item in deliveries)
             assert all(item.delivered_at is not None for item in deliveries)
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_a_website_submission_pays_the_coldkey_that_signed_it():
+    """A credit-funded submission has no `payment_sender`, and this account has set no payout
+    destination to fall back on. What the row does have is the coldkey that signed for this
+    exact attempt. Without `signer_coldkey` in the destination coalesce it would be silently
+    skipped forever.
+    """
+    engine = create_db_engine(postgres_dsn())
+    try:
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
+        sessions = session_factory(engine)
+        content = b"theorem web_payout_fixture : True := trivial"
+        digest = hashlib.sha256(content).digest()
+        submission_id = uuid.uuid4()
+        account_id = uuid.uuid4()
+        intent_id = uuid.uuid4()
+        with sessions.begin() as session:
+            session.add(Account(id=account_id, roles=[MINER_ROLE]))
+            session.add(Proof(digest=digest, content=content, byte_length=len(content)))
+            session.flush()
+            session.add(
+                SubmissionIntent(
+                    id=intent_id,
+                    account_id=account_id,
+                    signer_coldkey=COLDKEY,
+                    task_id="fixture-task",
+                    task_bundle_sha256=hashlib.sha256(b"task").digest(),
+                    # OPEN until the submission exists, exactly as `intents.confirm` orders it:
+                    # `intent_confirmed_has_a_submission` forbids the shortcut.
+                    status=IntentState.OPEN,
+                    credit_price_rao=500_000_000,
+                    expires_at=dt.datetime.now(dt.UTC) + dt.timedelta(minutes=30),
+                )
+            )
+            session.flush()
+            spend = CreditLedgerEntry(
+                account_id=account_id,
+                kind=CreditEntryKind.SPEND,
+                amount_rao=-500_000_000,
+                credit_price_rao=500_000_000,
+                intent_id=intent_id,
+                created_by="test",
+            )
+            session.add(spend)
+            session.flush()
+            session.add(
+                Submission(
+                    id=submission_id,
+                    signer_coldkey=COLDKEY,
+                    idempotency_key=uuid.uuid4(),
+                    request_digest=hashlib.sha256(b"web-request").digest(),
+                    task_id="fixture-task",
+                    task_bundle_sha256=hashlib.sha256(b"task").digest(),
+                    problem_id="fixture-problem",
+                    reward_target_id="fixture-target",
+                    task_mode=TaskMode.FORMALIZED,
+                    proof_digest=digest,
+                    signer_signature=b"c" * 64,
+                    account_id=account_id,
+                    credit_ledger_id=spend.id,
+                    intent_id=intent_id,
+                    verification_status=VerificationState.VERIFIED,
+                    manual_review_status=ManualReviewState.APPROVED,
+                    reward_status=RewardState.ELIGIBLE,
+                    review_policy_version="v1",
+                    bounty_amount_rao=2_000,
+                    bounty_policy_version="dynamic-age-v2",
+                    bounty_inputs={"fixture": True},
+                )
+            )
+            session.flush()
+            intent = session.get(SubmissionIntent, intent_id)
+            intent.status = IntentState.CONFIRMED
+            intent.submission_id = submission_id
+            session.add(
+                ReviewDecision(
+                    submission_id=submission_id,
+                    decision=ReviewOutcome.APPROVED,
+                    kind=ReviewerKind.HUMAN,
+                    reviewer="test-reviewer",
+                    policy_version="v1",
+                    reason_code="REVIEW_APPROVED",
+                )
+            )
+
+        notifier = PayoutNotifier(
+            sessions=sessions,
+            webhook_url="https://discord.com/api/webhooks/1/token",
+            worker_id="test-worker",
+            sender=lambda _url, payloads: len(payloads),
+        )
+        assert notifier.seed_reward_events() == 1
+
+        with sessions() as session:
+            reward = session.scalar(select(RewardEvent))
+            assert reward is not None
+            assert reward.destination_coldkey == COLDKEY
+            # NULL, and that is the assertion that matters: `transfer_stake` records no
+            # destination hotkey, so a value here would mean the notifier had invented one.
+            assert reward.destination_hotkey is None
+            assert reward.amount_rao == 2_000
     finally:
         engine.dispose()
 
@@ -199,7 +316,7 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
             session.add(
                 Submission(
                     id=submission_id,
-                    hotkey=HOTKEY,
+                    signer_coldkey=COLDKEY,
                     idempotency_key=uuid.uuid4(),
                     request_digest=hashlib.sha256(b"defect-request").digest(),
                     task_id="defect-fixture-task",
@@ -212,7 +329,7 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
                     payment_sender=COLDKEY,
                     payment_amount_rao=500_000_000,
                     payment_block=1,
-                    hotkey_signature=b"x" * 64,
+                    signer_signature=b"x" * 64,
                     verification_status=VerificationState.VERIFIED,
                     manual_review_status=ManualReviewState.APPROVED,
                     reward_status=RewardState.ELIGIBLE,

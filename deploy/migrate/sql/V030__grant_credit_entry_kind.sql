@@ -1,0 +1,21 @@
+-- Credits granted rather than bought. An invitation link carries a number of verification
+-- attempts, and redeeming it writes one of these to the ledger.
+--
+-- Its own kind, rather than reusing one that exists:
+--
+--   * not BONUS, which today means "extra credits attached to a purchased package". Folding
+--     grants into it would mean "how much have we given away" is no longer one query, and the
+--     answer to that question is the reason anyone runs an invitation scheme.
+--   * not ADJUSTMENT, which is bidirectional and explains itself in free text. A grant has a
+--     structural source -- the redemption row -- not a sentence someone typed, and V031 makes
+--     naming that row a constraint rather than a convention.
+--
+-- The enum addition is intentionally isolated, matching V022 and V024. PostgreSQL does not
+-- permit a value added in one transaction to be referenced by a CHECK constraint until that
+-- transaction has committed, so everything that names GRANT lives in V031.
+
+-- Appended rather than positioned, for the reason V024 records: scripts/check_schema_drift.py
+-- compares this enum against the ORM mirror including sort order, and ADD VALUE ... BEFORE
+-- produces a fractional position that Base.metadata.create_all cannot reproduce. Last here,
+-- last in models.py.
+ALTER TYPE credit_entry_kind ADD VALUE IF NOT EXISTS 'GRANT';

@@ -607,10 +607,11 @@ _check-env:
       done
     else
       # Outside production SUBMISSION_AUTHENTICATOR defaults to `development`, which
-      # refuses to start unless DEVELOPMENT_HOTKEYS names at least one address.
+      # refuses to start unless DEVELOPMENT_COLDKEYS names at least one address.
+      # Renamed from DEVELOPMENT_HOTKEYS by V035, along with the keys it lists.
       auth=$(grep -E '^SUBMISSION_AUTHENTICATOR=' .env | tail -1 | cut -d= -f2- || true)
       if [[ -z "$auth" || "$auth" == "development" ]]; then
-        grep -qE '^DEVELOPMENT_HOTKEYS=.+' .env || missing+=("DEVELOPMENT_HOTKEYS")
+        grep -qE '^DEVELOPMENT_COLDKEYS=.+' .env || missing+=("DEVELOPMENT_COLDKEYS")
       fi
     fi
     if (( ${#missing[@]} )); then

@@ -8,7 +8,7 @@ this file without taking on dependencies.
       --proof Main.lean \
       --task-id fc-379fc029-erdos89-erdos-89-c956ed476a-formalized-v1 \
       --task-sha256 sha256:<64 hex> \
-      --hotkey 5F... \
+      --coldkey 5F... \
       --output submission.zip
 
 The archive is written with exactly the two admitted entries, in the required order, with no
@@ -30,10 +30,15 @@ from pathlib import Path
 
 
 BUNDLE_FORMAT = "conjectures-submission/v1"
-SCHEMA_VERSION = 1
+# Must equal `verifier.bundle.BUNDLE_SCHEMA_VERSION`, which the validator compares for equality.
+# 2 as of V035, which renamed `miner_hotkey` to `miner_coldkey`. Restated here rather than
+# imported because this script is deliberately standalone — a miner can copy it out of the
+# repository — and `tests/test_bundle.py` admits its output through the real verifier, which is
+# what keeps the two numbers from drifting apart silently.
+SCHEMA_VERSION = 2
 MANIFEST_NAME = "submission.json"
 PROOF_NAME = "Main.lean"
-MAX_PROOF_BYTES = 1_000_000
+MAX_PROOF_BYTES = 10 * 1024 * 1024
 
 
 def digest(data: bytes) -> str:
@@ -44,7 +49,7 @@ def build_manifest(
     *,
     task_id: str,
     task_sha256: str,
-    hotkey: str,
+    coldkey: str,
     proof: bytes,
     solver_name: str | None,
     solver_version: str | None,
@@ -57,7 +62,7 @@ def build_manifest(
         "proof_path": PROOF_NAME,
         "proof_sha256": digest(proof),
         "proof_bytes": len(proof),
-        "miner_hotkey": hotkey,
+        "miner_coldkey": coldkey,
     }
     if solver_name is not None:
         if solver_version is None:
@@ -84,7 +89,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--proof", type=Path, required=True, help="the candidate Main.lean")
     parser.add_argument("--task-id", required=True)
     parser.add_argument("--task-sha256", required=True, help="sha256:<64 hex> from GET /v1/tasks")
-    parser.add_argument("--hotkey", required=True, help="the submitting miner's SS58 address")
+    parser.add_argument(
+        "--coldkey", required=True, help="the submitting miner's coldkey SS58 address"
+    )
     parser.add_argument("--output", type=Path, default=Path("submission.zip"))
     parser.add_argument("--solver-name")
     parser.add_argument("--solver-version")
@@ -105,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest = build_manifest(
         task_id=args.task_id,
         task_sha256=args.task_sha256,
-        hotkey=args.hotkey,
+        coldkey=args.coldkey,
         proof=proof,
         solver_name=args.solver_name,
         solver_version=args.solver_version,

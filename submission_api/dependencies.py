@@ -28,6 +28,10 @@ from submission_api.auth import Authenticator
 from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
 from submission_api.errors import Forbidden, Unauthorized
+from submission_api.github import (
+    ContributionMirror,
+    UnavailableContributionMirror,
+)
 from submission_api.google_identity import (
     DisabledGoogleCredentialVerifier,
     GoogleCredentialVerifier,
@@ -80,6 +84,11 @@ class Services:
         default_factory=DisabledGoogleCredentialVerifier
     )
     bounty_usd: AlphaUsdPriceReader = field(default_factory=UnavailableAlphaUsdPriceReader)
+    # There was a `hotkeys: HotkeyDirectory` here until V035. It answered "does the chain know
+    # this hotkey" for `POST /v1/submissions/web`, the one path where a hotkey was declared
+    # rather than proved, because `transfer_stake_and_hotkey` could not stake to an address
+    # nobody owned. A payout now leaves the stake on the validator's own hotkey, so nothing is
+    # declared, nothing needs checking, and the whole service — plus its chain read — is gone.
     # The TMC PAY funding path. Both default to the unavailable implementation, so a deployment
     # that has not configured the processor — and every test that does not care about it — refuses
     # the purchase endpoints instead of reaching a network. See `submission_api/tmc_pay.py`.
@@ -94,6 +103,13 @@ class Services:
     # against, and nothing in this field can ever reach that path. Empty by default, so a test
     # that cares about admission does not have to know this exists.
     retired: RetiredIndex = field(default_factory=RetiredIndex.empty)
+    # The mirrored contribution corpus behind `/v1/contributions`. Unavailable by default, like
+    # every other external source here, so a service graph assembled without it — including every
+    # test that does not name it — answers `503` rather than reaching github.com or, worse,
+    # publishing an empty corpus as though it had read one. See `submission_api/github.py`.
+    contributions: ContributionMirror = field(
+        default_factory=UnavailableContributionMirror
+    )
     # The public view of `catalog`: tasks grouped into slug-addressable conjectures. Derived
     # rather than passed so that building a `Services` at all runs the slug collision check —
     # including in tests, which construct this directly. A pool that cannot be addressed by
@@ -233,16 +249,16 @@ async def get_optional_principal(
     if principal is None:
         return None
 
-    # A bearer session exists because a hotkey proved control of itself, and it is scoped to
-    # that hotkey. If the link is gone — unlinked, or moved to another account — the basis for
+    # A bearer session exists because a coldkey proved control of itself, and it is scoped to
+    # that coldkey. If the link is gone — unlinked, or moved to another account — the basis for
     # the token is gone, and it must stop working on the next request rather than at the next
-    # expiry. `revoke_sessions_for_hotkey` does this eagerly when the API is what removes the
+    # expiry. `revoke_sessions_for_coldkey` does this eagerly when the API is what removes the
     # link; this check is what makes the guarantee hold when something else did, including a
-    # direct database change. One indexed lookup on a UNIQUE column, on bearer requests only.
+    # direct database change. One indexed lookup on the primary key, on bearer requests only.
     if principal.is_bearer:
-        scope = principal.hotkey_scope
-        if scope is None or not await account_store.hotkey_still_linked(
-            session, hotkey=scope, account_id=principal.account.id
+        scope = principal.coldkey_scope
+        if scope is None or not await account_store.coldkey_still_linked(
+            session, coldkey=scope, account_id=principal.account.id
         ):
             return None
 
@@ -309,7 +325,7 @@ async def require_writer(
     The cost of failing closed is that a **non-browser** client holding a cookie session must
     now send one of the two headers itself. That is intentional and it is nearly free: the
     browser is the only client that has a cookie it did not deliberately attach, so the
-    requirement lands only on scripts that chose to keep a cookie jar. `scripts/link_hotkey.py`
+    requirement lands only on scripts that chose to keep a cookie jar. `scripts/link_coldkey.py`
     is the one in this repository, and it sends `Sec-Fetch-Site: same-origin`.
 
     **The two headers are read off the raw request, not declared as security schemes**, which
@@ -344,21 +360,29 @@ async def require_cookie_writer(principal: WriterDep) -> Principal:
     """A write that a CLI token may not make. The browser's cookie, or nothing.
 
     Not every write is equally consequential, and the bearer credential is the weaker of the
-    two. A Bittensor hotkey is stored **unencrypted** on disk by default — that is the point of
-    the coldkey/hotkey split — and the token it mints is another file next to it. So anything
-    that can change *who the account is* or *where its money goes* is deliberately out of a CLI
-    token's reach:
+    two. A CLI token is a **file on a mining machine**: long-lived, read by automation, and
+    copyable by anything that can read the disk. So anything that can change *who the account
+    is* or *where its money goes* is deliberately out of its reach:
 
-      * linking a hotkey — otherwise a token scoped to one key extends its own scope at will;
-      * setting the payout destination — the end of the chain that turns a hotkey read off a
-        mining box into permanent theft of that account's rewards;
+      * linking a coldkey, or designating which one submits — otherwise a token scoped to one
+        key extends its own scope at will;
+      * setting the payout destination — the end of the chain that turns a stolen token into
+        permanent theft of that account's rewards, and the one that needs no proof of control
+        at all, precisely because naming a destination is meant to be easy;
       * editing the profile, and claiming a deposit against an address.
 
-    Without this gate those three compose into full account takeover from a stolen file: link
-    an attacker-controlled hotkey, point the payout at it, collect. With it, the CLI keeps
+    Without this gate those compose into full account takeover from a stolen file: link an
+    attacker-controlled coldkey, point the payout at it, collect. With it, the CLI keeps
     exactly what it needs — reading its own work, and the intent flow that spends credits it
-    already has — and the destructive half requires a coldkey or a mailbox, in a browser, with
-    an HttpOnly cookie and a browser that says where the request came from.
+    already has — and the destructive half requires a coldkey signature or a mailbox, in a
+    browser, with an HttpOnly cookie and a browser that says where the request came from.
+
+    V035 sharpened rather than weakened this. The token used to be minted by a hotkey, which
+    lived unencrypted on the same box; it is now minted by a coldkey, which does **not** — the
+    CLI asks for one signature at login and thereafter holds only the scoped token. The
+    credential in the file is no more powerful than before, and the key behind it never
+    arrives on the machine. What makes the gate necessary is unchanged: a file is not an
+    interactive session, and the payout destination is worth more than either.
 
     403 rather than 401: the caller is authenticated and their account may well be permitted to
     do this. The credential is what is insufficient, and the reason code says so, so a CLI can
@@ -374,29 +398,33 @@ async def require_cookie_writer(principal: WriterDep) -> Principal:
 
 CookieWriterDep = Annotated[Principal, Depends(require_cookie_writer)]
 
-REASON_HOTKEY_OUT_OF_SCOPE = "HOTKEY_OUT_OF_SCOPE"
+REASON_COLDKEY_OUT_OF_SCOPE = "COLDKEY_OUT_OF_SCOPE"
 
 
-def assert_hotkey_in_scope(principal: Principal, hotkey: str) -> None:
-    """Refuse a bearer session acting for a hotkey other than the one that minted it.
+def assert_coldkey_in_scope(principal: Principal, coldkey: str) -> None:
+    """Refuse a bearer session acting for a coldkey other than the one that minted it.
 
-    An account may own several hotkeys, and `owns_hotkey` is what checks that — at the level of
-    the *account*. That is the right check for a browser session, which represents the person
-    who owns all of them. It is the wrong check for a bearer token, which represents one key:
-    a token minted on rig A would otherwise be able to spend the account's credits and have the
-    resulting submission — and its reward — attributed to rig B.
+    An account may have several linked coldkeys, and `owns_wallet` is what checks that — at the
+    level of the *account*. That is the right check for a browser session, which represents the
+    person who holds all of them. It is the wrong check for a bearer token, which represents
+    one key: a token minted on rig A would otherwise be able to spend the account's credits and
+    have the resulting submission — and its reward — attributed to rig B.
 
-    Called by handlers rather than expressed as a dependency because the hotkey arrives in the
-    body, and a dependency cannot see it without parsing the body a second time. Every such
-    handler must call this; a cookie principal passes through untouched.
+    Still worth enforcing now that at most one coldkey is *designated* to submit, because the
+    designation is mutable and the token is not. Re-designating while a token is live would
+    otherwise silently re-point that token at the new key.
+
+    Called by handlers rather than expressed as a dependency because the coldkey is resolved
+    from the account, and a dependency would have to load it a second time. Every handler that
+    resolves a signer must call this; a cookie principal passes through untouched.
     """
     if not principal.is_bearer:
         return
-    if principal.hotkey_scope != hotkey:
+    if principal.coldkey_scope != coldkey:
         raise Forbidden(
-            "this CLI session is scoped to a different hotkey; run the login again from the "
+            "this CLI session is scoped to a different coldkey; run the login again from the "
             "machine holding that key, or use the website",
-            reason_code=REASON_HOTKEY_OUT_OF_SCOPE,
+            reason_code=REASON_COLDKEY_OUT_OF_SCOPE,
         )
 
 
@@ -411,16 +439,16 @@ REASON_ROLE_NEEDS_BROWSER = "ROLE_REQUIRES_BROWSER_SESSION"
 
 # Which roles a CLI bearer token may exercise. MINER, and only MINER.
 #
-# This is a deliberate ceiling, not an oversight. A bearer session is minted by a *hotkey*
-# signature, and a hotkey is an operational key: it lives on mining machines, it is used by
-# automation, and the whole point of the coldkey/hotkey split in Bittensor is that a hotkey is
-# the less protected of the two. The token it mints then sits in a file. None of that is a
-# suitable basis for granting REVIEWER or ADMIN, which decide whether a proof earns money.
+# This is a deliberate ceiling, not an oversight. A bearer token sits in a file on a mining
+# machine: long-lived, read by automation, and copyable by anything that can read the disk.
+# That is not a suitable basis for granting REVIEWER or ADMIN, which decide whether a proof
+# earns money — and it is unchanged by V035, which moved the minting signature from a hotkey to
+# a coldkey but left the credential in the file exactly as exposed as it was.
 #
 # So privileged work requires the coldkey-or-mailbox sign-in in a browser: a credential that is
 # HttpOnly, guarded against cross-site writes, revoked on every re-authentication, and visible
-# to the person holding it. An account may hold ADMIN and still use the CLI as a miner; what it may not do is act as
-# an admin over a hotkey-minted token.
+# to the person holding it. An account may hold ADMIN and still use the CLI as a miner; what it
+# may not do is act as an admin over a token read off a rig.
 BEARER_ROLES = frozenset({MINER_ROLE})
 
 

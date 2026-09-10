@@ -15,7 +15,11 @@ from verifier.task_generator import TRUSTED_NAMES, task_id
 
 
 EXAMPLES = ROOT / "examples"
-REPOSITORY_COMMIT = "379fc0298dc146df549e7061c3ede0353a5bb51f"
+# Read from the pin file rather than restated here: a second copy of the commit is a second thing
+# to forget on a repin, and this one would silently stamp example bundles with the previous pin.
+REPOSITORY_COMMIT = json.loads(
+    (ROOT / "pins.lock.json").read_text(encoding="utf-8")
+)["formal_conjectures"]["commit"]
 
 
 def main() -> int:

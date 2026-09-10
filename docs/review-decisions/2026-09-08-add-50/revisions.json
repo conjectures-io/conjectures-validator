@@ -1,0 +1,25 @@
+{
+  "audit_date_utc": "2026-09-08",
+  "bundle_prerequisite": "c1829b7c28bd54a59a9f1f2dcb9834b1cab53cfd",
+  "catalog_sha256": "cc73949c5500d9c12738daee2088c8935dab75c19556974f699cd907c0c69d80",
+  "compatible_allowlist_builder_and_lean_environment": "a8d559db1d4d6ccdd2f7cc07e7d7dd5d45a8afb2",
+  "erdos_tracker": "5308c57c700559416b9f205df274b136784203e7",
+  "external_snapshot_sha256": {
+    "closed-issues.json": "074e39f53bfb1863d8494c43333e5c3d443dad4395f28493165251462ca2ff3b",
+    "open-issues.json": "3f5cf25d369b92eef20bb998fc0a8c11782995bf539477e43a01fa916b68843f",
+    "open-prs.json": "f0ec483d7ca36ef269fd471fb814f8136264b5588f78cf8095467c237e7f8887",
+    "starfleetmath.html": "a0fd62579258f29d18792c4f114f3d90a45077c6d4e5ab532cda045750b20c8e"
+  },
+  "formal_conjectures_pinned": "379fc0298dc146df549e7061c3ede0353a5bb51f",
+  "formal_conjectures_reviewed_main": "2c817e975be7a95478b72a8429155ca568e1a3de",
+  "green_problem_document_sha256": "e06971245914947f152550dee59bbb29fe0e798f0c51b2bc2557f824c2f9a44a",
+  "green_problem_document_url": "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+  "lean": "leanprover/lean4:v4.27.0",
+  "open_issue_records": 1121,
+  "open_pull_requests_with_file_lists": 359,
+  "recently_closed_issue_records": 584,
+  "tasks_baseline": "8dd81458db1cdcd2ec4fd3e6f866aa1907006858",
+  "tasks_branch": "codex/add-50-reviewed-20260908",
+  "tasks_release": "a0282e5029b6102a64b113aefdfe6f4767136f40",
+  "validator_workspace_head": "87cb2a55beefb318f6ff747293ed18ce6ea4f9e0"
+}

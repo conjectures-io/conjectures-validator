@@ -23,8 +23,9 @@ from verifier.task_policy import (
 PERMITTED_AXIOMS = ("propext", "Quot.sound", "Classical.choice")
 DEFAULT_TIMEOUT_SECONDS = 3600
 MAX_TIMEOUT_SECONDS = 3600
-DEFAULT_MAX_SUBMISSION_BYTES = 1_000_000
-MAX_SUBMISSION_BYTES = 1_000_000
+LEGACY_MAX_SUBMISSION_BYTES = 1_000_000
+MAX_SUBMISSION_BYTES = 10 * 1024 * 1024
+DEFAULT_MAX_SUBMISSION_BYTES = MAX_SUBMISSION_BYTES
 TRUSTED_NAMES = (
     "Challenge.lean",
     "SolutionHeader.lean.txt",
@@ -47,8 +48,18 @@ def task_slug(theorem: str) -> str:
     return shortened or sha256_text(theorem)[7:19]
 
 
-def task_id(repository_commit: str, theorem: str, mode: str, adapter_version: int) -> str:
+def task_id(
+    repository_commit: str,
+    theorem: str,
+    mode: str,
+    adapter_version: int,
+    *,
+    max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
+) -> str:
     seed = f"{repository_commit}\0{theorem}\0{mode}\0{adapter_version}"
+    # Preserve released identities, while giving the enlarged policy fresh commitments.
+    if max_submission_bytes > LEGACY_MAX_SUBMISSION_BYTES:
+        seed += f"\0max_submission_bytes={max_submission_bytes}"
     digest = sha256_text(seed)[7:17]
     return f"fc-{repository_commit[:8]}-{task_slug(theorem)}-{digest}-{mode}-v{adapter_version}"
 
@@ -68,8 +79,12 @@ def group_task_id(
     theorems: tuple[str, ...],
     mode: str,
     adapter_version: int,
+    *,
+    max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
 ) -> str:
     seed = f"{repository_commit}\0{mode}\0{adapter_version}\0" + "\0".join(theorems)
+    if max_submission_bytes > LEGACY_MAX_SUBMISSION_BYTES:
+        seed += f"\0max_submission_bytes={max_submission_bytes}"
     digest = sha256_text(seed)[7:17]
     slug = f"{task_slug(theorems[0])}-all-{len(theorems)}"
     return f"fc-{repository_commit[:8]}-{slug}-{digest}-{mode}-v{adapter_version}"
@@ -287,7 +302,10 @@ def generate_task(
         raise VerifierError(ReasonCode.INVALID_ARGUMENT, f"task output already exists: {output}")
     context = GenerationContext(catalog.repository_commit, adapter.version)
     generated = adapter.generate(declaration, mode, context)
-    identifier = task_id(catalog.repository_commit, declaration.theorem, mode, adapter.version)
+    identifier = task_id(
+        catalog.repository_commit, declaration.theorem, mode, adapter.version,
+        max_submission_bytes=max_submission_bytes,
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{identifier}.", dir=output.parent))
     try:
@@ -449,6 +467,7 @@ def generate_group_task(
         tuple(item.theorem for item in declarations),
         mode,
         adapter_version,
+        max_submission_bytes=max_submission_bytes,
     )
     if output.exists():
         raise VerifierError(ReasonCode.INVALID_ARGUMENT, f"task output already exists: {output}")

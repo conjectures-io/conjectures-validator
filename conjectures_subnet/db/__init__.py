@@ -18,6 +18,9 @@ that schema, not its source of truth:
   Integer rao only, and holds are not ledger entries;
 * ``intents`` — hold a credit, attach a bundle, then spend and submit in one
   transaction. Also the submission timeline;
+* ``invitations`` — links that carry free verification attempts, and the GRANT entries
+  redeeming one writes. Stores a digest of the code and never the code, and serialises
+  redemptions on the invitation row before reading the counter they race for;
 * ``public`` — the read-only queries behind the unauthenticated endpoints, whose
   row types carry no miner-identifying column at all;
 * ``verification`` — claiming work off the verification queue under a lease, because
@@ -70,6 +73,7 @@ _LAZY_MODULES = {
     "engine",
     "errors",
     "intents",
+    "invitations",
     "models",
     "payouts",
     "public",
@@ -114,6 +118,7 @@ __all__ = [
     "engine",
     "errors",
     "intents",
+    "invitations",
     "models",
     "payouts",
     "public",
