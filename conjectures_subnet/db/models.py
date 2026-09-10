@@ -235,9 +235,10 @@ class Submission(Base):
     payment_sender: Mapped[str | None] = mapped_column(SS58)
     payment_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
     payment_block: Mapped[int | None] = mapped_column(BigInteger)
-    # HISTORY ONLY as of V035, together with `hotkey`. These 64 bytes were signed by the row's
-    # own `hotkey` — or, on the V028 website rows, by `signer_coldkey`, which is the anomaly
-    # V035 removes by giving the coldkey signature a column of its own.
+    # HISTORY ONLY as of V035, together with `hotkey`, and since V038 only ever the signature
+    # the row's own `hotkey` made. V035 gave the coldkey signature a column of its own but left
+    # the V028 website rows' bytes sitting here; V038 moved them to `signer_signature`, so a
+    # value here no longer verifies against anything but the hotkey beside it.
     hotkey_signature: Mapped[bytes | None] = mapped_column(LargeBinary)
     # V028, and since V035 the live attribution on every key-signed path. The coldkey that
     # authorised this submission: it signs the request on the extrinsic and intent paths and a
@@ -2943,46 +2944,101 @@ from conjectures_subnet.db.autoreview_models import (
 _AUTOREVIEW_TABLES = (AutoreviewRun, AutoreviewStageResult)
 
 
-# --- V035: the retirement CHECKs, which have to be NOT VALID ------------------
+# --- V038: the retirement rules, enforced where intake happens ----------------
 #
-# These three say "no new row may do this" while leaving history alone, and NOT VALID is the
-# only thing that expresses that: a plain CHECK is validated against existing rows on creation
-# and would reject the nine hotkey-signed submissions the migration deliberately keeps.
+# These three say "no new row may do this" while leaving history alone. V035 expressed them as
+# NOT VALID CHECKs on the belief that NOT VALID means "existing rows are exempt". It does not:
+# it exempts them from validation when the constraint is created, and from nothing after that.
+# The constraint is still evaluated against every new row version, and an UPDATE produces one
+# whether or not it touches the constrained columns — so the nine hotkey-signed submissions the
+# migration set out to keep were not exempted but frozen, unable to accept a reward transition,
+# a re-review or a verification lease ever again.
 #
-# `CheckConstraint` has no way to emit NOT VALID, so they are added as DDL after the table
-# exists — the same mechanism this module already uses for the immutability triggers. Declaring
-# them here rather than only in the migration is what keeps `check_schema_drift.py` honest: the
-# ORM mirror has to produce the identical catalog entry, NOT VALID included.
+# A CHECK cannot express the rule, because SQL gives it no way to know an insert from an update.
+# The rule is about intake, so V038 enforces it at intake with a BEFORE INSERT trigger. Each
+# raises with the constraint name its CHECK used, so any caller matching on that name — and the
+# error surface generally — is unchanged.
 #
-# On a metadata-created database every table is empty, so validated-or-not makes no behavioural
-# difference there. It makes all the difference to the catalog comparison.
+# Declared here as DDL rather than only in the migration for the same reason the immutability
+# triggers are: `check_schema_drift.py` compares triggers and trigger function bodies, so the
+# ORM mirror has to produce the identical catalog entry.
 
 event.listen(
     Submission.__table__,
     "after_create",
     DDL(
-        "ALTER TABLE submissions "
-        "ADD CONSTRAINT submission_names_no_hotkey "
-        "CHECK (hotkey IS NULL AND hotkey_signature IS NULL) NOT VALID;"
+        "CREATE FUNCTION submissions_reject_hotkey() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.hotkey IS NOT NULL OR NEW.hotkey_signature IS NOT NULL THEN\n"
+        "        RAISE EXCEPTION 'submission may not name a hotkey'\n"
+        "            USING ERRCODE = '23514', "
+        "CONSTRAINT = 'submission_names_no_hotkey';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submissions_reject_hotkey\n"
+        "    BEFORE INSERT ON submissions\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submissions_reject_hotkey();"
     ),
+)
+event.listen(
+    Submission.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submissions_reject_hotkey() CASCADE;"),
 )
 event.listen(
     SubmissionIntent.__table__,
     "after_create",
     DDL(
-        "ALTER TABLE submission_intents "
-        "ADD CONSTRAINT intent_names_no_hotkey "
-        "CHECK (hotkey IS NULL) NOT VALID;"
+        "CREATE FUNCTION submission_intents_reject_hotkey() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.hotkey IS NOT NULL THEN\n"
+        "        RAISE EXCEPTION 'submission intent may not name a hotkey'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'intent_names_no_hotkey';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submission_intents_reject_hotkey\n"
+        "    BEFORE INSERT ON submission_intents\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submission_intents_reject_hotkey();"
     ),
 )
+event.listen(
+    SubmissionIntent.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submission_intents_reject_hotkey() CASCADE;"),
+)
+# A challenge row is minted and then UPDATEd when it is consumed, so the CHECK froze any
+# HOTKEY_LINK or HOTKEY_SESSION challenge still open when V035 landed — the retired kinds stay
+# in the enum precisely so that history stays readable, which a frozen row is not.
 event.listen(
     LoginChallenge.__table__,
     "after_create",
     DDL(
-        "ALTER TABLE login_challenges "
-        "ADD CONSTRAINT challenge_kind_is_not_retired "
-        "CHECK (kind NOT IN ('HOTKEY_LINK', 'HOTKEY_SESSION')) NOT VALID;"
+        "CREATE FUNCTION login_challenges_reject_retired_kind() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.kind IN ('HOTKEY_LINK', 'HOTKEY_SESSION') THEN\n"
+        "        RAISE EXCEPTION 'login challenge kind is retired'\n"
+        "            USING ERRCODE = '23514', "
+        "CONSTRAINT = 'challenge_kind_is_not_retired';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER login_challenges_reject_retired_kind\n"
+        "    BEFORE INSERT ON login_challenges\n"
+        "    FOR EACH ROW EXECUTE FUNCTION login_challenges_reject_retired_kind();"
     ),
+)
+event.listen(
+    LoginChallenge.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS login_challenges_reject_retired_kind() CASCADE;"),
 )
 
 
