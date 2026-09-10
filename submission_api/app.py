@@ -291,6 +291,13 @@ def create_app(
                 # Both hold an httpx client open across requests, for the same reason.
                 await built.tao_usd.aclose()
                 await built.tmc_pay.aclose()
+                # So does the Brevo mail transport. Duck-typed rather than a method on the
+                # `MailSender` protocol, because the SMTP and console senders have nothing to
+                # close and would have to carry an empty override to say so.
+                mail_transport = getattr(built.mail, "transport", None)
+                close_mail = getattr(mail_transport, "aclose", None)
+                if close_mail is not None:
+                    await close_mail()
             # Last, so the shutdown event above and anything logged during teardown are flushed
             # before the process exits. `atexit` would do it too; doing it here means it happens
             # while the loop is still running rather than during interpreter shutdown.

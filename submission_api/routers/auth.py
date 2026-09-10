@@ -1,13 +1,15 @@
 """Sign in, sign out, and read the current session.
 
-Four ways in. Three are for a browser and end in an HttpOnly cookie: a Google identity, a magic
-link to an email address, and a signature from a coldkey. The fourth is for the miner CLI and ends
-in a bearer token: a signature from a hotkey that has already been linked to an account in the
-browser. See `submission_api/sessions.py` for the two credentials and why only one of them has to
-prove where a write was initiated, `submission_api/origin_policy.py` for how it proves it, and
-`submission_api/login.py` for the signed messages.
+Five ways in. Four are for a browser and end in an HttpOnly cookie: a Google identity, a magic
+link to an email address, an email address with a password, and a signature from a coldkey. The
+fifth is for the miner CLI and ends in a bearer token: a signature from a hotkey that has already
+been linked to an account in the browser. See `submission_api/sessions.py` for the two credentials
+and why only one of them has to prove where a write was initiated,
+`submission_api/origin_policy.py` for how it proves it, `submission_api/login.py` for the signed
+messages, and `submission_api/passwords.py` for the hashing.
 
-Seven things here are security decisions rather than conveniences:
+The password flows have their own section below, with the reasoning specific to them. Eight
+things across the whole router are security decisions rather than conveniences:
 
 * **`request-link` always answers 202.** Whether an account exists for an address is not
   disclosed, so this endpoint cannot be used to enumerate who has signed up. The response
@@ -29,13 +31,19 @@ Seven things here are security decisions rather than conveniences:
   proved control of the key. The per-challenge attempt ceiling is what bounds the first choice.
 * **Every response here is `no-store`.** All of them are caller-dependent, and one of them
   contains a live credential.
+* **No account exists until a mailbox answers.** Registration writes a pending challenge, not
+  an unverified `accounts` row, so nobody can squat an address they do not control. See the
+  email-and-password section.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import ipaddress
+import math
 import secrets
+import time
+from asyncio import to_thread
 from typing import Annotated
 from urllib.parse import parse_qs, urlencode
 
@@ -47,12 +55,19 @@ from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db.errors import RecordConflict
 from conjectures_subnet.db.models import (
+    MAILED_CHALLENGE_KINDS,
     MINER_ROLE,
     Account,
     AccountSessionKind,
     LoginChallengeKind,
 )
-from submission_api import login, mail, schemas_account as account_schemas, sessions
+from submission_api import (
+    login,
+    mail,
+    passwords,
+    schemas_account as account_schemas,
+    sessions,
+)
 from submission_api.dependencies import (
     CookieWriterDep,
     OptionalPrincipalDep,
@@ -93,6 +108,21 @@ EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 REASON_TOO_MANY_CHALLENGES = "TOO_MANY_CHALLENGES"
 
+# The password flows. Four codes, and the split between them is the disclosure boundary:
+# PASSWORD_REJECTED is about the password the caller just typed and says nothing about any
+# account, while PASSWORD_INVALID covers a wrong password, an address with no account, and an
+# account with no password set — three situations a caller must not be able to tell apart.
+REASON_PASSWORD_REJECTED = "PASSWORD_REJECTED"
+REASON_PASSWORD_INVALID = "PASSWORD_INVALID"
+REASON_PASSWORD_ATTEMPTS_EXCEEDED = "PASSWORD_ATTEMPTS_EXCEEDED"
+REASON_EMAIL_IN_USE = "EMAIL_IN_USE"
+
+# Bounds the request, not the policy. `passwords.assert_acceptable` owns the rules and produces
+# a message a person can act on; this only stops an unauthenticated caller from posting a
+# megabyte to be normalised and hashed. Well above `passwords.MAX_LENGTH`, so a password that
+# is merely too long is refused by policy with an explanation rather than by schema with a 422.
+MAX_PASSWORD_FIELD = 512
+
 
 class Payload(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -108,6 +138,29 @@ class EmailLinkRequest(Payload):
 
 class EmailVerifyRequest(Payload):
     token: str = Field(min_length=16, max_length=MAX_TOKEN_LENGTH)
+
+
+class PasswordRegisterRequest(Payload):
+    email: str = Field(min_length=3, max_length=254, pattern=EMAIL_PATTERN)
+    password: str = Field(min_length=1, max_length=MAX_PASSWORD_FIELD)
+
+
+class PasswordLoginRequest(Payload):
+    email: str = Field(min_length=3, max_length=254, pattern=EMAIL_PATTERN)
+    password: str = Field(min_length=1, max_length=MAX_PASSWORD_FIELD)
+
+
+class PasswordEmailRequest(Payload):
+    email: str = Field(min_length=3, max_length=254, pattern=EMAIL_PATTERN)
+
+
+class PasswordTokenRequest(Payload):
+    token: str = Field(min_length=16, max_length=MAX_TOKEN_LENGTH)
+
+
+class PasswordResetRequest(Payload):
+    token: str = Field(min_length=16, max_length=MAX_TOKEN_LENGTH)
+    password: str = Field(min_length=1, max_length=MAX_PASSWORD_FIELD)
 
 
 class WalletChallengeRequest(Payload):
@@ -502,6 +555,457 @@ async def verify_email(
         method="email-link",
         user_agent=user_agent,
         source_ip=_client_ip(request, services.settings),
+    )
+
+
+# --- Email and password ------------------------------------------------------------------
+#
+# Five endpoints, and the shape of all of them follows from one decision: **no account exists
+# until the mailbox answers.** A registration is a `PASSWORD_SIGNUP` challenge carrying the
+# address and the already-hashed password, and nothing more. `accounts` is not touched until
+# the link is followed.
+#
+# That is not tidiness. An unverified account row created at registration time is a squatting
+# primitive: register someone else's address and they can never sign up, never link Google to
+# it, and never be found by their own mailbox — and `email_verified` quietly degrades from
+# "this mailbox answered" to "somebody typed this". Holding the pending registration in the
+# challenge table costs one nullable column and removes the whole class.
+#
+# The other four decisions here:
+#
+# * **Registering an address that already has an account mails a reset link, not a refusal.**
+#   The HTTP response is 202 either way, so the endpoint stays useless for enumeration, and the
+#   person actually reading the mailbox gets something they can act on. It also happens to be
+#   how a Google-only or wallet-only account acquires a password: the owner proves the mailbox
+#   and chooses one, which is the same proof a fresh signup gives.
+# * **A wrong password and an unknown address cost the same time and return the same body.**
+#   `spend_dummy_verification` does a real scrypt derivation for an address with no account,
+#   because ~140ms against ~0ms is an enumeration oracle that identical status codes do not
+#   close.
+# * **Guessing is bounded twice, and the two halves cover different things.** `accounts` carries
+#   a durable counter and a pause that survive restarts and are shared across replicas;
+#   `services.password_failures` is an in-process window that also applies to addresses with no
+#   account, which is what keeps a 429 from being the disclosure the 401 was careful not to be.
+# * **The pause stops the password method and nothing else.** Magic link, Google and coldkey
+#   sign-in keep working throughout, so tripping it on someone else's address costs them one
+#   button for a few minutes rather than access to their account.
+
+
+def _password_or_reject(password: str, *, email: str | None = None) -> str:
+    """Apply policy, or refuse with something the person can act on.
+
+    Policy is checked before anything is looked up, and its refusal is deliberately specific —
+    "at least 12 characters" is a fact about what was typed, not about who has an account here,
+    so saying it plainly discloses nothing.
+    """
+    try:
+        return passwords.assert_acceptable(password, email=email)
+    except passwords.PasswordRejected as exc:
+        raise BadRequest(str(exc), reason_code=REASON_PASSWORD_REJECTED) from exc
+
+
+async def _hash(password: str, settings: Settings) -> str:
+    """Derive a hash off the event loop.
+
+    scrypt at the configured cost is ~140ms of CPU with 64 MiB resident. Run inline it would
+    stall every other request on this worker for that long, and the endpoints that call it are
+    unauthenticated — which would make the KDF's cost a denial-of-service lever rather than a
+    defence.
+    """
+    return await to_thread(
+        passwords.hash_password, password, cost_log2=settings.password_cost_log2
+    )
+
+
+async def _mail_budget_spent(session, email: str, settings: Settings, *, now) -> bool:
+    """Whether this address has already had its hour's worth of mail from us.
+
+    One budget across all three mailed kinds — sign-in link, signup confirmation, reset — for
+    the reason `MAILED_CHALLENGE_KINDS` gives: three separate budgets are three budgets an
+    attacker spends in turn against the same mailbox.
+    """
+    sent = await account_store.recent_challenge_count(
+        session,
+        kind=MAILED_CHALLENGE_KINDS,
+        since=now - dt.timedelta(hours=1),
+        email=email,
+    )
+    if sent >= settings.email_links_per_hour:
+        # No address on the event, for the reason `_sign_in` gives. The response is 202 either
+        # way, deliberately, so this is the only place the ceiling is visible at all.
+        get_axiom().warn(
+            source="api-auth",
+            event_type="account_mail_sent",
+            delivered=False,
+            reason="rate_limited",
+            recent_requests=sent,
+            limit=settings.email_links_per_hour,
+        )
+        return True
+    return False
+
+
+@router.post(
+    "/password/register",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Begin registering an account with an email address and a password",
+)
+async def register_password(
+    payload: PasswordRegisterRequest,
+    services: ServicesDep,
+    session: SessionDep,
+) -> Response:
+    """Always 202 once the password itself is acceptable.
+
+    No account is created here. What is created is a single-use `PASSWORD_SIGNUP` challenge
+    holding the address and the hashed password; following the link in the mail is what creates
+    the account, and an unanswered registration leaves nothing behind but an expired row.
+
+    An address that already has an account gets a password reset link instead, under a subject
+    line that explains why. That is the same mail `password/forgot` sends and costs the same
+    budget, so it grants an attacker nothing they did not already have — and it is the path by
+    which an account that signed up with Google or a wallet adds a password.
+    """
+    settings = services.settings
+    now = _now()
+    password = _password_or_reject(payload.password, email=payload.email)
+
+    if await _mail_budget_spent(session, payload.email, settings, now=now):
+        return Response(status_code=status.HTTP_202_ACCEPTED)
+
+    existing = await account_store.find_by_email(session, payload.email)
+    token = sessions.new_token()
+    expires_at = now + dt.timedelta(minutes=settings.email_link_minutes)
+
+    if existing is not None:
+        await account_store.create_challenge(
+            session,
+            kind=LoginChallengeKind.PASSWORD_RESET,
+            secret_digest=account_store.digest(token),
+            expires_at=expires_at,
+            account_id=existing.id,
+            email=payload.email,
+        )
+        await session.commit()
+        await services.mail.send_existing_account_notice(
+            email=payload.email,
+            link=mail.password_reset_link(
+                base_url=settings.website_base_url, token=token
+            ),
+            expires_in_minutes=settings.email_link_minutes,
+            sign_in_url=mail.sign_in_url(base_url=settings.website_base_url),
+        )
+        get_axiom().info(
+            source="api-auth",
+            event_type="account_mail_sent",
+            delivered=True,
+            kind="registration_on_existing_account",
+        )
+        return Response(status_code=status.HTTP_202_ACCEPTED)
+
+    # Hashed before the row is written, so the plaintext never reaches anything that persists.
+    await account_store.create_challenge(
+        session,
+        kind=LoginChallengeKind.PASSWORD_SIGNUP,
+        secret_digest=account_store.digest(token),
+        expires_at=expires_at,
+        email=payload.email,
+        password_hash=await _hash(password, settings),
+    )
+    await session.commit()
+    await services.mail.send_signup_link(
+        email=payload.email,
+        link=mail.signup_link(base_url=settings.website_base_url, token=token),
+        expires_in_minutes=settings.email_link_minutes,
+    )
+    get_axiom().info(
+        source="api-auth",
+        event_type="account_mail_sent",
+        delivered=True,
+        kind="signup",
+        expires_in_minutes=settings.email_link_minutes,
+    )
+    return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
+@router.post(
+    "/password/verify",
+    response_model=account_schemas.SessionEnvelope,
+    summary="Confirm a registration and create the account",
+)
+async def verify_password_signup(
+    payload: PasswordTokenRequest,
+    request: Request,
+    response: Response,
+    services: ServicesDep,
+    session: SessionDep,
+    user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
+) -> account_schemas.SessionEnvelope:
+    """Consume the confirmation token, create the account, and sign in.
+
+    The address is verified by construction: this token was delivered to it and nowhere else.
+
+    An account appearing for the address between registration and confirmation is refused
+    rather than adopted. The password on this challenge was chosen by whoever started the
+    registration, and that need not be whoever owns the account now — silently applying it
+    would turn a stale link into a credential handover.
+    """
+    _no_store(response)
+    now = _now()
+    challenge = await account_store.consume_challenge(
+        session,
+        kind=LoginChallengeKind.PASSWORD_SIGNUP,
+        secret_digest=account_store.digest(payload.token),
+        now=now,
+    )
+    if challenge is None or not challenge.email or not challenge.password_hash:
+        # One refusal for expired, already-used, and never-existed, as with the magic link.
+        raise Unauthorized(
+            "that confirmation link is not valid; register again to get a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+
+    if await account_store.find_by_email(session, challenge.email) is not None:
+        raise Conflict(
+            "an account already exists for that email; sign in or reset the password instead",
+            reason_code=REASON_EMAIL_IN_USE,
+        )
+
+    account = await account_store.create_account(
+        session,
+        email=challenge.email,
+        email_verified=True,
+        password_hash=challenge.password_hash,
+        now=now,
+    )
+    return await _sign_in(
+        session,
+        response,
+        account,
+        services.settings,
+        method="password-signup",
+        user_agent=user_agent,
+        source_ip=_client_ip(request, services.settings),
+    )
+
+
+@router.post(
+    "/password/login",
+    response_model=account_schemas.SessionEnvelope,
+    summary="Sign in with an email address and a password",
+)
+async def password_login(
+    payload: PasswordLoginRequest,
+    request: Request,
+    response: Response,
+    services: ServicesDep,
+    session: SessionDep,
+    user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
+) -> account_schemas.SessionEnvelope:
+    """Verify the password and sign in, or refuse identically to every other failure.
+
+    Every refusal that is about the credential — wrong password, no account, an account that
+    has never set a password — is the same 401 with the same reason code and the same elapsed
+    time. The only distinguishable refusal is the 429, and that one is reachable for an address
+    with no account too, which is what stops it from being the oracle the 401 avoids being.
+    """
+    _no_store(response)
+    settings = services.settings
+    now = _now()
+    clock = time.monotonic()
+    key = account_store.normalise_email(payload.email)
+
+    refused = Unauthorized(
+        "email address or password is not correct",
+        reason_code=REASON_PASSWORD_INVALID,
+    )
+
+    attempts = services.password_failures.peek(key, clock)
+    if not attempts.allowed:
+        raise _too_many_attempts(attempts.reset_seconds)
+
+    account = await account_store.find_by_email(session, payload.email)
+    if account is None or account.password_hash is None:
+        # A real derivation against a throwaway hash. Returning here in microseconds while a
+        # registered address takes ~140ms would say which addresses exist regardless of what
+        # the body says.
+        await to_thread(passwords.spend_dummy_verification, payload.password)
+        services.password_failures.check(key, clock)
+        raise refused
+
+    paused = account_store.password_pause_remaining(account, now=now)
+    if paused is not None:
+        raise _too_many_attempts(math.ceil(paused.total_seconds()))
+
+    if not await to_thread(passwords.verify, payload.password, account.password_hash):
+        services.password_failures.check(key, clock)
+        throttled_until = await account_store.record_password_failure(
+            session,
+            account,
+            now=now,
+            attempts=settings.password_attempts,
+            throttle=dt.timedelta(minutes=settings.password_throttle_minutes),
+        )
+        # Committed, or the counter that exists to survive a restart would not survive this
+        # request. The account id, never the address — see `_sign_in`.
+        await session.commit()
+        get_axiom().warn(
+            source="api-auth",
+            event_type="password_sign_in_failed",
+            account_id=str(account.id),
+            throttled=throttled_until is not None,
+        )
+        raise refused
+
+    if passwords.needs_rehash(
+        account.password_hash, cost_log2=settings.password_cost_log2
+    ):
+        # The stored hash predates a cost increase. This is the only moment the plaintext is
+        # available to derive a stronger one, which is why the rehash lives on the sign-in path
+        # rather than in a migration — a migration cannot do it at all. `rehash_password`
+        # rather than `set_password`, so `password_updated_at` keeps meaning "when the owner
+        # last chose a password" rather than "when a hash was last written".
+        await account_store.rehash_password(
+            session, account, password_hash=await _hash(payload.password, settings)
+        )
+    else:
+        await account_store.clear_password_failures(session, account)
+
+    return await _sign_in(
+        session,
+        response,
+        account,
+        settings,
+        method="password",
+        user_agent=user_agent,
+        source_ip=_client_ip(request, settings),
+    )
+
+
+@router.post(
+    "/password/forgot",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Mail a single-use password reset link",
+)
+async def request_password_reset(
+    payload: PasswordEmailRequest,
+    services: ServicesDep,
+    session: SessionDep,
+) -> Response:
+    """Always 202, whatever happened. Same reasoning as `request-link`.
+
+    Offered to any account with an address, not only ones that already have a password: an
+    account created through Google or a coldkey uses this to set its first one, and refusing
+    here would disclose which accounts have a password.
+    """
+    settings = services.settings
+    now = _now()
+    if await _mail_budget_spent(session, payload.email, settings, now=now):
+        return Response(status_code=status.HTTP_202_ACCEPTED)
+
+    account = await account_store.find_by_email(session, payload.email)
+    if account is None or not account.email:
+        return Response(status_code=status.HTTP_202_ACCEPTED)
+
+    token = sessions.new_token()
+    await account_store.create_challenge(
+        session,
+        kind=LoginChallengeKind.PASSWORD_RESET,
+        secret_digest=account_store.digest(token),
+        expires_at=now + dt.timedelta(minutes=settings.email_link_minutes),
+        account_id=account.id,
+        email=account.email,
+    )
+    await session.commit()
+    await services.mail.send_password_reset_link(
+        email=account.email,
+        link=mail.password_reset_link(
+            base_url=settings.website_base_url, token=token
+        ),
+        expires_in_minutes=settings.email_link_minutes,
+    )
+    get_axiom().info(
+        source="api-auth",
+        event_type="account_mail_sent",
+        delivered=True,
+        kind="password_reset",
+        expires_in_minutes=settings.email_link_minutes,
+    )
+    return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
+@router.post(
+    "/password/reset",
+    response_model=account_schemas.SessionEnvelope,
+    summary="Set a new password with a reset token, and sign in",
+)
+async def reset_password(
+    payload: PasswordResetRequest,
+    request: Request,
+    response: Response,
+    services: ServicesDep,
+    session: SessionDep,
+    user_agent: Annotated[str | None, Header(alias="User-Agent")] = None,
+) -> account_schemas.SessionEnvelope:
+    """Consume the reset token, set the password, and sign in.
+
+    Signing in here rather than sending the person back to a login form is the same judgement
+    the magic link makes: the mailbox has just been proved, which is the whole of what a
+    password reset can establish. `_sign_in` then revokes every other browser session, so a
+    reset ends any session an attacker had — which is the reason most people reach for it.
+
+    Reaching the mailbox also verifies the address, for a Google-first account whose address
+    was a claim from a provider rather than something this service ever mailed.
+    """
+    _no_store(response)
+    settings = services.settings
+    now = _now()
+    # Policy first, and before the token is spent: a rejected password must not consume the
+    # link, or the person is sent back to request another for typing a short one.
+    password = _password_or_reject(payload.password)
+
+    challenge = await account_store.consume_challenge(
+        session,
+        kind=LoginChallengeKind.PASSWORD_RESET,
+        secret_digest=account_store.digest(payload.token),
+        now=now,
+    )
+    if challenge is None or challenge.account_id is None:
+        raise Unauthorized(
+            "that reset link is not valid; request a new one",
+            reason_code=login.REASON_CHALLENGE_INVALID,
+        )
+
+    account = await account_store.get_account(session, challenge.account_id)
+    await account_store.set_password(
+        session, account, password_hash=await _hash(password, settings), now=now
+    )
+    if not account.email_verified:
+        account.email_verified = True
+        await session.flush()
+
+    return await _sign_in(
+        session,
+        response,
+        account,
+        settings,
+        method="password-reset",
+        user_agent=user_agent,
+        source_ip=_client_ip(request, settings),
+    )
+
+
+def _too_many_attempts(retry_after_seconds: int) -> TooManyRequests:
+    """The one refusal on the sign-in path that is not a 401.
+
+    Reachable for an address with no account as well as one with too many failures against it,
+    because `services.password_failures` keys on the address rather than on a row. If it were
+    only reachable for real accounts it would answer the question the 401 refuses to.
+    """
+    return TooManyRequests(
+        "too many sign-in attempts for that address; try again later",
+        reason_code=REASON_PASSWORD_ATTEMPTS_EXCEEDED,
+        extra={"retry_after_seconds": retry_after_seconds},
     )
 
 

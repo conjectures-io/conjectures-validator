@@ -168,8 +168,15 @@ MAX_BANNER_LENGTH = 500
 # --- Accounts and sessions (Stage 2) --------------------------------------------------------
 
 SMTP_MAIL = "smtp"
+BREVO_MAIL = "brevo"
 CONSOLE_MAIL = "console"
-MAIL_SENDERS = (SMTP_MAIL, CONSOLE_MAIL)
+MAIL_SENDERS = (SMTP_MAIL, BREVO_MAIL, CONSOLE_MAIL)
+# Brevo's transactional API. Configured as a base URL rather than a full endpoint so that the
+# path this service posts to stays this service's business — an operator points it at Brevo, or
+# at a recording proxy in staging, and nothing else moves.
+DEFAULT_BREVO_BASE_URL = "https://api.brevo.com"
+DEFAULT_BREVO_TIMEOUT_SECONDS = 10.0
+DEFAULT_BREVO_SENDER_NAME = "conjectures.io"
 SMTP_STARTTLS = "starttls"
 SMTP_IMPLICIT_TLS = "implicit-tls"
 SMTP_PLAINTEXT = "none"
@@ -214,6 +221,24 @@ DEFAULT_CHALLENGE_MINUTES = 5
 # than requests per requester.
 DEFAULT_EMAIL_LINKS_PER_HOUR = 5
 DEFAULT_CHALLENGES_PER_HOUR = 30
+
+# scrypt's cost, as log2(n), with r and p fixed at the values `submission_api/passwords.py`
+# documents. Configurable because it is the one security parameter whose right value is a
+# property of the hardware this runs on: it should be the largest cost the sign-in path can
+# afford, and that number changes when the instance changes. Stored hashes record the cost they
+# were made with, so raising this rehashes accounts as they sign in and needs no migration.
+DEFAULT_PASSWORD_COST_LOG2 = 16
+MIN_PASSWORD_COST_LOG2 = 12
+MAX_PASSWORD_COST_LOG2 = 20
+
+# Consecutive failed password sign-ins before that account's *password* method is paused, and
+# for how long. Deliberately not a lockout: every other way into the account — magic link,
+# Google, coldkey — keeps working, so an attacker who trips this on someone else's address has
+# denied them one sign-in button for a few minutes rather than access to their account. Without
+# it, a memory-hard KDF is the only thing between an online guesser and a weak password, and
+# 140ms per guess is not enough on its own.
+DEFAULT_PASSWORD_ATTEMPTS = 10
+DEFAULT_PASSWORD_THROTTLE_MINUTES = 15
 
 # Public OAuth client identifier, not a secret. Empty keeps Google sign-in disabled without
 # weakening either of the existing login methods.
@@ -670,6 +695,11 @@ class Settings:
 
     # --- Accounts and sessions (Stage 2) ---------------------------------------------------
     mail_sender: str
+    brevo_api_key: str = field(repr=False)
+    brevo_base_url: str
+    brevo_sender_address: str
+    brevo_sender_name: str
+    brevo_timeout_seconds: float
     smtp_host: str
     smtp_port: int
     smtp_username: str
@@ -691,6 +721,9 @@ class Settings:
     challenge_minutes: int
     email_links_per_hour: int
     challenges_per_hour: int
+    password_cost_log2: int
+    password_attempts: int
+    password_throttle_minutes: int
     challenge_attempts: int
     intent_minutes: int
     deposit_hours: int
@@ -916,10 +949,10 @@ class Settings:
         mail_sender = _choice(
             env, "MAIL_SENDER", MAIL_SENDERS, SMTP_MAIL if production else CONSOLE_MAIL
         )
-        if production and mail_sender != SMTP_MAIL:
+        if production and mail_sender == CONSOLE_MAIL:
             raise SettingsError(
-                "production requires MAIL_SENDER=smtp; the console sender writes sign-in "
-                "links, which are credentials, to the process log"
+                "production requires MAIL_SENDER=smtp or MAIL_SENDER=brevo; the console "
+                "sender writes sign-in links, which are credentials, to the process log"
             )
 
         smtp_host = env.get("SMTP_HOST", "").strip()
@@ -959,6 +992,67 @@ class Settings:
                 raise SettingsError("SMTP_PASSWORD must not contain NUL or line breaks")
             if production and smtp_security == SMTP_PLAINTEXT:
                 raise SettingsError("production SMTP must use TLS")
+
+        # Brevo's transactional API. The key is a bearer credential for the whole Brevo
+        # account, so it is validated for shape here and kept out of `repr` on the dataclass;
+        # it is never logged and never reaches a response.
+        brevo_api_key = env.get("BREVO_API_KEY", "").strip()
+        brevo_base_url = env.get("BREVO_BASE_URL", DEFAULT_BREVO_BASE_URL).strip()
+        brevo_sender_address = env.get("BREVO_SENDER_ADDRESS", "").strip()
+        brevo_sender_name = env.get(
+            "BREVO_SENDER_NAME", DEFAULT_BREVO_SENDER_NAME
+        ).strip()
+        brevo_timeout_seconds = _positive_float(
+            env,
+            "BREVO_TIMEOUT_SECONDS",
+            DEFAULT_BREVO_TIMEOUT_SECONDS,
+            maximum=120.0,
+        )
+        if mail_sender == BREVO_MAIL:
+            if not brevo_api_key:
+                raise SettingsError("BREVO_API_KEY is required when MAIL_SENDER=brevo")
+            if any(character.isspace() for character in brevo_api_key):
+                # A key with a stray newline becomes a header with a stray newline. httpx
+                # refuses that, but it refuses it at the moment someone is waiting for a
+                # sign-in link rather than at startup, which is the wrong moment to find out.
+                raise SettingsError("BREVO_API_KEY must not contain whitespace")
+            if not brevo_sender_address:
+                raise SettingsError(
+                    "BREVO_SENDER_ADDRESS is required when MAIL_SENDER=brevo; it must be a "
+                    "sender Brevo has verified for the account"
+                )
+            if SMTP_FROM_ADDRESS.fullmatch(brevo_sender_address) is None:
+                raise SettingsError("BREVO_SENDER_ADDRESS must be one email address")
+            if not brevo_base_url.startswith(("http://", "https://")):
+                raise SettingsError("BREVO_BASE_URL must be an absolute http(s) URL")
+            if production and not brevo_base_url.startswith("https://"):
+                raise SettingsError("BREVO_BASE_URL must use https in production")
+            if "\n" in brevo_sender_name or "\r" in brevo_sender_name:
+                raise SettingsError("BREVO_SENDER_NAME must not contain line breaks")
+
+        # The KDF cost, and the online-guessing ceiling that sits on top of it. Both bounded:
+        # a cost below the floor is not worth storing a hash for, and one above the ceiling
+        # makes every sign-in a multi-second, hundreds-of-megabytes operation that an
+        # unauthenticated caller can trigger at will. See `submission_api/passwords.py`.
+        password_cost_log2 = _positive_int(
+            env,
+            "PASSWORD_COST_LOG2",
+            DEFAULT_PASSWORD_COST_LOG2,
+            maximum=MAX_PASSWORD_COST_LOG2,
+        )
+        if password_cost_log2 < MIN_PASSWORD_COST_LOG2:
+            raise SettingsError(
+                f"PASSWORD_COST_LOG2 must be at least {MIN_PASSWORD_COST_LOG2}"
+            )
+        password_attempts = _positive_int(
+            env, "PASSWORD_ATTEMPTS", DEFAULT_PASSWORD_ATTEMPTS, maximum=1_000
+        )
+        password_throttle_minutes = _positive_int(
+            env,
+            "PASSWORD_THROTTLE_MINUTES",
+            DEFAULT_PASSWORD_THROTTLE_MINUTES,
+            maximum=1_440,
+        )
 
         login_domain = env.get("LOGIN_DOMAIN", DEFAULT_LOGIN_DOMAIN).strip()
         if LOGIN_DOMAIN.fullmatch(login_domain) is None:
@@ -1322,6 +1416,11 @@ class Settings:
                 maximum=10_080,
             ),
             mail_sender=mail_sender,
+            brevo_api_key=brevo_api_key,
+            brevo_base_url=brevo_base_url,
+            brevo_sender_address=brevo_sender_address,
+            brevo_sender_name=brevo_sender_name,
+            brevo_timeout_seconds=brevo_timeout_seconds,
             smtp_host=smtp_host,
             smtp_port=smtp_port,
             smtp_username=smtp_username,
@@ -1364,6 +1463,9 @@ class Settings:
             challenges_per_hour=_positive_int(
                 env, "LOGIN_CHALLENGES_PER_HOUR", DEFAULT_CHALLENGES_PER_HOUR, maximum=10_000
             ),
+            password_cost_log2=password_cost_log2,
+            password_attempts=password_attempts,
+            password_throttle_minutes=password_throttle_minutes,
             intent_minutes=_positive_int(
                 env, "INTENT_MINUTES", DEFAULT_INTENT_MINUTES, maximum=1_440
             ),

@@ -134,16 +134,27 @@ async def create_account(
     email: str | None = None,
     email_verified: bool = False,
     display_name: str | None = None,
+    password_hash: str | None = None,
+    now: dt.datetime | None = None,
 ) -> Account:
     """A new account with the MINER role and nothing else.
 
     Roles are never taken from client input. An operator grants REVIEWER or ADMIN
     out of band; a signup cannot ask for one.
+
+    ``password_hash`` is a finished hash, never a password. This module does no hashing and
+    holds no policy about what makes an acceptable one — that is `submission_api/passwords.py`,
+    and keeping the split sharp is what stops a plaintext credential from ever reaching a
+    function whose job is to write rows.
     """
     account = Account(
         email=normalise_email(email) if email else None,
         email_verified=email_verified,
         display_name=display_name,
+        password_hash=password_hash,
+        password_updated_at=(
+            (now or dt.datetime.now(dt.UTC)) if password_hash else None
+        ),
         roles=[MINER_ROLE],
     )
     session.add(account)
@@ -208,6 +219,120 @@ async def set_payout(
     account.payout_hotkey = hotkey
     await session.flush()
     return account
+
+
+# --- Passwords ------------------------------------------------------------------------
+#
+# This module stores hashes and counts failures. It does not hash, does not compare, and holds
+# no policy about what an acceptable password is — all of that is `submission_api/passwords.py`.
+# The split is deliberate: a plaintext password must never reach a function whose job is to
+# write rows, and the easiest way to guarantee that is for these functions to have no parameter
+# that could carry one.
+
+
+async def set_password(
+    session: AsyncSession, account: Account, *, password_hash: str, now: dt.datetime
+) -> Account:
+    """Attach or replace an account's password, and forgive the guessing counter.
+
+    Clearing the counter is not a convenience. Whoever set this password proved control of the
+    account, and leaving a throttle in place would mean an attacker who ran a victim's counter
+    up could keep them locked out of the credential they just chose.
+    """
+    account.password_hash = password_hash
+    account.password_updated_at = now
+    account.failed_password_attempts = 0
+    account.password_throttled_until = None
+    await session.flush()
+    return account
+
+
+async def rehash_password(
+    session: AsyncSession, account: Account, *, password_hash: str
+) -> Account:
+    """Replace the stored hash with a stronger derivation of the same password.
+
+    Deliberately not `set_password`: `password_updated_at` answers "when did the owner last
+    choose a password", and a rehash is not the owner doing anything. Bumping it would make the
+    column say a credential changed on an account where nothing did — which is exactly the
+    question that column would be consulted for after a compromise.
+
+    Failed attempts are cleared because this only ever runs after a correct password.
+    """
+    account.password_hash = password_hash
+    account.failed_password_attempts = 0
+    account.password_throttled_until = None
+    await session.flush()
+    return account
+
+
+async def clear_password_failures(session: AsyncSession, account: Account) -> None:
+    """Forget the failed attempts after a correct password. Writes only when there is one."""
+    if account.failed_password_attempts == 0 and account.password_throttled_until is None:
+        return
+    account.failed_password_attempts = 0
+    account.password_throttled_until = None
+    await session.flush()
+
+
+async def record_password_failure(
+    session: AsyncSession,
+    account: Account,
+    *,
+    now: dt.datetime,
+    attempts: int,
+    throttle: dt.timedelta,
+) -> dt.datetime | None:
+    """Count one wrong password. Returns when the password method is paused until, or None.
+
+    The increment is a single UPDATE reading the column it writes, rather than a read followed
+    by a write. Under a parallel guessing attack — which is the only situation this counter
+    exists for — read-then-write loses increments precisely when it matters, and a ceiling that
+    relaxes the harder it is attacked is not a ceiling.
+
+    Crossing the ceiling starts a pause and resets the count, so each pause is earned afresh
+    rather than every subsequent attempt re-arming an already-expired one.
+    """
+    counted = (
+        await session.execute(
+            update(Account)
+            .where(Account.id == account.id)
+            .values(failed_password_attempts=Account.failed_password_attempts + 1)
+            .returning(Account.failed_password_attempts)
+            .execution_options(synchronize_session=False)
+        )
+    ).scalar_one()
+    throttled_until: dt.datetime | None = None
+    if counted >= attempts:
+        throttled_until = now + throttle
+        await session.execute(
+            update(Account)
+            .where(Account.id == account.id)
+            .values(failed_password_attempts=0, password_throttled_until=throttled_until)
+            .execution_options(synchronize_session=False)
+        )
+    # The UPDATEs bypassed the identity map, so the in-memory account still holds the values it
+    # was loaded with. Expiring them is what stops a later read in the same request from
+    # reporting a throttle that is one attempt out of date.
+    session.expire(account, ["failed_password_attempts", "password_throttled_until"])
+    return throttled_until
+
+
+def password_pause_remaining(
+    account: Account, *, now: dt.datetime
+) -> dt.timedelta | None:
+    """How much longer the password method is paused for this account, or None.
+
+    A pure read, so it is here rather than in the router only to keep the meaning of the two
+    columns in one place. Every other sign-in method ignores it, which is the point.
+    """
+    until = account.password_throttled_until
+    if until is None:
+        return None
+    if until.tzinfo is None:  # a naive value can only come from a session that lost the tz
+        until = until.replace(tzinfo=dt.UTC)
+    remaining = until - now
+    return remaining if remaining > dt.timedelta(0) else None
 
 
 # --- External identities --------------------------------------------------------------
@@ -658,6 +783,7 @@ async def create_challenge(
     email: str | None = None,
     ss58: str | None = None,
     message: str | None = None,
+    password_hash: str | None = None,
 ) -> LoginChallenge:
     challenge = LoginChallenge(
         kind=kind,
@@ -666,6 +792,7 @@ async def create_challenge(
         ss58=ss58,
         secret_sha256=secret_digest,
         message=message,
+        password_hash=password_hash,
         expires_at=expires_at,
     )
     session.add(challenge)
@@ -822,7 +949,7 @@ async def hotkey_still_linked(
 async def recent_challenge_count(
     session: AsyncSession,
     *,
-    kind: LoginChallengeKind,
+    kind: LoginChallengeKind | Sequence[LoginChallengeKind],
     since: dt.datetime,
     email: str | None = None,
     ss58: str | None = None,
@@ -832,9 +959,14 @@ async def recent_challenge_count(
     The per-identity limit. The IP-based limiter cannot cover this: mailing a magic
     link is an action taken against someone else's mailbox, so the thing to bound is
     requests per address, not per requester.
+
+    ``kind`` takes several kinds so that one budget can span them. The three mailed kinds
+    share one — see ``MAILED_CHALLENGE_KINDS`` — because a per-kind budget is three budgets an
+    attacker spends in turn against the same mailbox.
     """
+    kinds = (kind,) if isinstance(kind, LoginChallengeKind) else tuple(kind)
     statement = select(func.count()).select_from(LoginChallenge).where(
-        LoginChallenge.kind == kind, LoginChallenge.created_at >= since
+        LoginChallenge.kind.in_(kinds), LoginChallenge.created_at >= since
     )
     if email is not None:
         statement = statement.where(
@@ -848,6 +980,7 @@ async def recent_challenge_count(
 __all__ = [
     "Authenticated",
     "authenticate",
+    "clear_password_failures",
     "consume_challenge",
     "create_account",
     "create_challenge",
@@ -867,12 +1000,16 @@ __all__ = [
     "normalise_email",
     "oldest_live_session",
     "owns_hotkey",
+    "password_pause_remaining",
     "recent_challenge_count",
+    "record_password_failure",
+    "rehash_password",
     "revoke_all_sessions",
     "revoke_session",
     "revoke_session_for_account",
     "revoke_sessions_for_hotkey",
     "set_display_name",
+    "set_password",
     "set_payout",
     "set_roles",
     "touch_session",

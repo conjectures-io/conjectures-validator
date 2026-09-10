@@ -44,8 +44,16 @@ from submission_api.taostats import (
     AlphaUsdPriceReader,
     UnavailableAlphaUsdPriceReader,
 )
+from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.tmc_pay import InvoiceGateway, UnavailableGateway
 from submission_api.verification import VerificationDispatcher
+
+
+# How many addresses the password failure window tracks at once. The keys are attacker-chosen —
+# one per address tried — so the table needs a cap for the same reason the request limiter's
+# does. Eviction drops the coldest entries, which hands back a full budget; that is the correct
+# direction to fail, because the cap exists so the ceiling cannot itself become the outage.
+PASSWORD_FAILURE_KEYS = 50_000
 
 
 @dataclass(frozen=True)
@@ -91,10 +99,31 @@ class Services:
     # including in tests, which construct this directly. A pool that cannot be addressed by
     # stable slug fails here, at startup, rather than serving one conjecture at another's URL.
     index: ConjectureIndex = field(init=False)
+    # Failed password sign-ins, per address. Derived from settings for the same reason `index`
+    # is derived: every construction gets a correctly configured one and no caller can forget
+    # to pass it — including the test harness, which is where a silently absent brute-force
+    # ceiling would go unnoticed longest.
+    #
+    # In-process, and that is a real limitation with the same shape as the request limiter's in
+    # `submission_api/ratelimit.py`: N replicas admit N times the attempts, and a restart
+    # forgives everything. It is not the durable half of this defence — `accounts` carries a
+    # counter and a pause that survive both — it is the half that applies to addresses with no
+    # account at all, which is what keeps a refusal from disclosing that an account exists. See
+    # `password_login` in `submission_api/routers/auth.py`.
+    password_failures: SlidingWindowLimiter = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(
             self, "index", ConjectureIndex.build(self.catalog, retired=self.retired)
+        )
+        object.__setattr__(
+            self,
+            "password_failures",
+            SlidingWindowLimiter(
+                limit=self.settings.password_attempts,
+                window_seconds=self.settings.password_throttle_minutes * 60,
+                max_clients=PASSWORD_FAILURE_KEYS,
+            ),
         )
 
 
