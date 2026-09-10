@@ -383,8 +383,13 @@ the Alpha amount remains authoritative when this display-only conversion is abse
 distinguishes an open target from one already solved, and `locked` is false because catalog prices
 remain live until a submission is accepted. The
 pool-wide `/v1/catalog/meta` response publishes `bounty.balance_rao` and its display-only
-`bounty.balance_usd` conversion, plus the open-target count, total age weight, rational policy
-constant, maximum age weight, and rational per-target share cap behind the task estimates.
+`bounty.balance_usd` conversion, plus the open-target count, rational starting share
+(`constant_numerator` / `constant_denominator`),
+`ramp_seconds`, and rational maximum share. Under `linear-age-v3-locked`, each quote starts at
+1/10 of uncommitted funds and increases linearly to 1/6 after 1296000 elapsed seconds (15 days).
+`total_age_weight` and `max_age_weight` remain as legacy descriptive metadata; they do not affect
+this formula. Quotes use the target's original opening date and the minute-resolution `as_of`.
+Existing locked submissions retain their recorded amount, version, and inputs.
 Acceptance takes a serialized fresh quote, subtracting outstanding locks from the treasury balance,
 and fixes that amount for the submission.
 

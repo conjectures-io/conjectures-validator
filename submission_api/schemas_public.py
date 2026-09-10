@@ -136,7 +136,7 @@ class BountyInfo(Model):
     as_of: datetime
     locked: bool = Field(
         default=False,
-        description="Always false: submission acceptance does not reserve this amount.",
+        description="Always false for catalog estimates; accepted submissions lock their own quote.",
     )
 
 
@@ -156,9 +156,10 @@ class BountyPoolInfo(Model):
     netuid: int
     asset: str = Field(description="alpha")
     open_targets: int
-    total_age_weight: int
-    constant_numerator: int
-    constant_denominator: int
+    total_age_weight: int = Field(description="Legacy age statistic; does not affect pricing.")
+    constant_numerator: int = Field(description="Numerator of the starting treasury share.")
+    constant_denominator: int = Field(description="Denominator of the starting treasury share.")
+    ramp_seconds: int = Field(description="Elapsed seconds from the starting share to the maximum.")
     max_age_weight: int
     max_bounty_share_numerator: int
     max_bounty_share_denominator: int

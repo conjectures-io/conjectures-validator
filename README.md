@@ -584,20 +584,20 @@ proof/refutation pair and source repins; parents, parts, and variants remain ind
 
 ## Dynamic bounty pricing
 
-For each open reward target `i`, the API publishes the integer-RAO estimate
+For each open reward target `i`, policy `linear-age-v3-locked` publishes:
 
 ```text
-w_i = min(60, 1 + floor(age_i / age_period))
-b_i = min(c * B * N * w_i / W, 33 * B / 100)
+B = finalized treasury balance - outstanding locked exposure
+progress_i = min(max(age_i_seconds, 0), 1296000) / 1296000
+b_i = floor(B * (1/10 + (1/6 - 1/10) * progress_i))
 ```
 
-`B` is the finalized Subnet 66 Alpha stake held by the configured bounty coldkey/hotkey minus
-outstanding locked exposure, `N` is the number of open stable reward targets, `w_i` is the capped
-age weight, and `W` is the sum of the open targets' capped weights. The default policy uses
-`c = 1/4`, a one-day age period, a maximum age weight of 60, and a maximum bounty of exactly 33%
-of that uncommitted balance. Multiplying by `N` removes the
-otherwise accidental division of every task's bounty by the number of tasks in the pool: an
-average-age task is worth `c * B` regardless of `N`.
+A target starts at 10% of the available Subnet 66 Alpha treasury and reaches exactly 1/6
+(16.67%) after 15 elapsed days. Its share then stays at 1/6; funding and commitments can still
+change the Alpha amount. Age advances within the day at the catalog's minute-resolution clock.
+Pricing uses integer arithmetic with one final floor to base units. Neither catalog size nor
+other targets' ages enter the calculation. The legacy `total_age_weight` and `max_age_weight`
+metadata remain available for older clients but no longer affect prices.
 
 `bounty_tasks.opened_at` is inserted once per stable `reward_target_id`, so an API restart or source
 repin does not reset age. A target leaves the pricing pool as soon as one submission holds its
@@ -607,6 +607,28 @@ chain balance minus outstanding locks. Competing attempts for one target contrib
 maximum locked amount because at most one can win; verification or review rejection releases an
 attempt's exposure. The policy is prospective: submissions accepted before V012 retain their
 payout-time pricing contract and are not retroactively converted into locks.
+
+### Switching to the 15-day policy
+
+Deploy this policy prospectively: preserve every existing submission lock, pricing input, and
+`bounty_tasks.opened_at`. Targets already at least 15 days old immediately quote the maximum
+share for new submissions. No database migration or age reset is needed.
+
+Before restarting the API, update any explicit overrides in `.env`:
+
+```dotenv
+BOUNTY_POLICY_VERSION=linear-age-v3-locked
+BOUNTY_CONSTANT_NUMERATOR=1
+BOUNTY_CONSTANT_DENOMINATOR=10
+BOUNTY_MAX_SHARE_NUMERATOR=1
+BOUNTY_MAX_SHARE_DENOMINATOR=6
+BOUNTY_RAMP_SECONDS=1296000
+```
+
+These are also the new application and Compose defaults. An old `dynamic-age-*` policy label
+is rejected at startup so new arithmetic cannot be recorded as the old contract. The old
+`BOUNTY_AGE_PERIOD_SECONDS` and `BOUNTY_MAX_AGE_WEIGHT` settings control descriptive metadata
+only. After deployment, check `/v1/catalog/meta` for the new version, shares, and `ramp_seconds`.
 
 ### Automatic payout signer notifications
 
