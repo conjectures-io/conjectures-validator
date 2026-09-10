@@ -206,6 +206,16 @@ class AdminReview(Model):
     attempts: tuple[AdminStageAttempt, ...] = ()
 
 
+class AdminReviewProof(Model):
+    """Exact submitted source, available only to authenticated reviewers."""
+
+    submission_id: uuid.UUID
+    filename: str
+    source: str = Field(description="Unmodified UTF-8 Lean source; render as text, not HTML")
+    proof_sha256: str = Field(description="SHA-256 of the original source bytes, with sha256: prefix")
+    byte_length: int = Field(ge=0)
+
+
 class AdminDecision(Model):
     """The binding decision as it was recorded, and the two statuses it moved.
 

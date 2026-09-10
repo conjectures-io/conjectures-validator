@@ -25,6 +25,7 @@ whose verdict was missing a base field, would be refused on insert.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import uuid
 
 import pytest
@@ -41,6 +42,7 @@ from decimal import Decimal
 from conftest_api import (
     MINER_COLDKEY,
     TASK_ID,
+    VALID_PROOF,
     distinct_bundle,
     harness,
     new_key,
@@ -184,7 +186,7 @@ async def _submit(kit, marker: str) -> str:
                 bundle,
                 coldkey=MINER_COLDKEY,
                 idempotency_key=new_key(),
-                payment_reference=f"0xpay-{marker}",
+                payment_reference=f"0xpay-{hashlib.sha256(marker.encode()).hexdigest()}",
                 proof_digest=digest,
             ),
         )
@@ -1031,4 +1033,58 @@ def test_the_decision_response_is_never_cached():
         finally:
             await kit.teardown()
 
+    run(scenario())
+
+
+@pytest.mark.parametrize("decision", [None, APPROVAL, REJECTION])
+def test_reviewer_proof_preserves_source_and_stays_private(decision):
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            marker = "proof λ <script>alert(1)</script>  \r\n-- trailing spaces  "
+            submission_id = await _verified(kit, marker)
+            expected = VALID_PROOF + f"-- {marker}\n".encode("utf-8")
+            path = f"/v1/admin/reviews/{submission_id}/proof"
+            async with await _client(kit) as http:
+                assert (await http.get(path)).status_code == 401
+                account = await _sign_in(kit, http)
+                assert (await http.get(path)).status_code == 403
+                await _grant_reviewer(kit, account["id"])
+                if decision is not None:
+                    result = await http.post(
+                        _decision_path(submission_id), json=decision, headers=WRITE
+                    )
+                    assert result.status_code == 201, result.text
+                response = await http.get(path)
+                assert response.status_code == 200, response.text
+                assert response.json() == {
+                    "submission_id": submission_id,
+                    "filename": "Main.lean",
+                    "source": expected.decode("utf-8"),
+                    "proof_sha256": "sha256:" + hashlib.sha256(expected).hexdigest(),
+                    "byte_length": len(expected),
+                }
+                assert response.headers["cache-control"] == "no-store"
+                assert response.headers["vary"] == "Authorization, Cookie"
+                if decision != APPROVAL:
+                    public = await http.get(f"/v1/results/{submission_id}/solution")
+                    assert public.status_code == 404
+        finally:
+            await kit.teardown()
+    run(scenario())
+
+
+def test_reviewer_proof_refuses_missing_and_unverified_submissions():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            unverified = await _submit(kit, "proof-unverified")
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                for submission_id in (unverified, str(uuid.uuid4())):
+                    response = await http.get(f"/v1/admin/reviews/{submission_id}/proof")
+                    assert response.status_code == 404
+                    assert response.json()["reason_code"] == "NOT_FOUND"
+        finally:
+            await kit.teardown()
     run(scenario())
