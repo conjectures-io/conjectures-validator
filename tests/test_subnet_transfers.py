@@ -613,13 +613,10 @@ def test_stalled_chain_io_is_bounded_and_the_next_read_reconnects(hang_at, monke
     """Reproduce pending RPCs, including cancellation that enters stalled cleanup."""
 
     class StalledClient(_FakeClient):
-        def __await__(self):
-            async def connect():
-                if hang_at == "connect":
-                    await asyncio.Future()
-                return self
-
-            return connect().__await__()
+        async def connect(self):
+            if hang_at == "connect":
+                await asyncio.Future()
+            return self
 
         async def query(self, *args, **kwargs):
             if hang_at == "close":
@@ -639,15 +636,12 @@ def test_stalled_chain_io_is_bounded_and_the_next_read_reconnects(hang_at, monke
                 await asyncio.Future()
 
     class FreshClient(_FakeClient):
-        def __await__(self):
-            async def connect():
-                return self
-
-            return connect().__await__()
+        async def connect(self):
+            return self
 
     broken, fresh = StalledClient(), FreshClient()
     clients = iter([broken, fresh])
-    monkeypatch.setattr("conjectures_subnet.transfers.bt.Subtensor", lambda _: next(clients))
+    monkeypatch.setattr("conjectures_subnet.transfers.bt.Client", lambda _: next(clients))
     source = BittensorTransferSource("finney", read_timeout=0.02, close_timeout=0.01)
 
     async def body():

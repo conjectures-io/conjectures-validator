@@ -776,13 +776,11 @@ class BittensorTransferSource:
         client = self._clients.get(network)
         if client is not None:
             return client
-        # Awaiting the instance connects it on this loop and returns the async client, which is
-        # the bittensor 11 contract — `async with` would close it on the way out, and the point
-        # here is to keep it.
-        client = bt.Subtensor(network)
-        # Retain the client before connecting, so interrupted setup can close it too.
+        # Use the public async client directly: awaiting bt.Subtensor returns a different
+        # object, and retaining its wrapper would route later methods through blocking mode.
+        client = bt.Client(network)
         self._clients[network] = client
-        await client
+        await client.connect()
         logger.info("connected to %s", network)
         return client
 
