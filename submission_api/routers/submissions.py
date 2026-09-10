@@ -10,8 +10,9 @@ Ordering here is a security and cost property, not a style choice:
    buffered and then measured;
 2. idempotency replay — an exact retry is answered from durable state without re-uploading;
 3. the body, streamed under a running cap, and the bundle admitted by the exact-shape scanner;
-4. the hotkey signature over the canonical request digest, which covers the proof digest;
-5. the payment, confirmed against finalized chain state.
+4. the coldkey signature over the canonical request digest, which covers the proof digest;
+5. the payment, confirmed against finalized chain state — and that the coldkey which signed is
+   the one that sent it.
 
 Payment is confirmed last among the checks but before any write, because the schema makes it a
 precondition: a submission row exists only for a transfer already confirmed. Anything refused
@@ -52,7 +53,7 @@ from submission_api import schemas
 from submission_api.auth import (
     SignedRequest,
     assert_fresh_nonce,
-    assert_valid_hotkey,
+    assert_valid_coldkey,
     normalise_signature,
 )
 from submission_api.dependencies import Services, ServicesDep, SessionDep
@@ -226,7 +227,7 @@ async def _status(
         )
     return schemas.SubmissionStatus(
         submission_id=submission.id,
-        hotkey=submission.hotkey,
+        signer_coldkey=submission.signer_coldkey or submission.hotkey,
         public_credit=(
             None
             if (credit := public_credit_from_values(submission)) is None
@@ -270,7 +271,7 @@ async def create_submission(
     services: ServicesDep,
     session: SessionDep,
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
-    hotkey: Annotated[str, Header(alias="X-Conjectures-Hotkey")],
+    coldkey: Annotated[str, Header(alias="X-Conjectures-Coldkey")],
     timestamp: Annotated[str, Header(alias="X-Conjectures-Timestamp")],
     signature: Annotated[str, Header(alias="X-Conjectures-Signature")],
     task_id: Annotated[str, Header(alias="X-Conjectures-Task-Id")],
@@ -289,7 +290,7 @@ async def create_submission(
         session=session,
         source_ip=request.client.host if request.client else None,
         user_agent=user_agent,
-        hotkey_claimed=hotkey,
+        claimed_ss58=coldkey,
         idempotency_key=idempotency_key,
         task_id=task_id,
         task_bundle_sha256=task_sha256,
@@ -333,7 +334,7 @@ async def create_submission(
         except ValueError as exc:
             raise BadRequest(str(exc)) from exc
         nonce_ms = _require_nonce(timestamp)
-        miner = assert_valid_hotkey(hotkey)
+        miner = assert_valid_coldkey(coldkey)
         audit.proof_digest = declared_proof
 
         try:
@@ -343,7 +344,7 @@ async def create_submission(
             raise NotFound(str(exc), reason_code=REASON_TASK_NOT_ALLOWED) from exc
 
         request_digest = store.canonical_request_digest(
-            hotkey=miner,
+            signer_coldkey=miner,
             task_id=task_id,
             task_bundle_sha256=task_sha256,
             proof_sha256=declared_proof,
@@ -381,7 +382,7 @@ async def create_submission(
                 raw,
                 task_manifest=entry.manifest,
                 expected_task_sha256=entry.task_bundle_sha256,
-                expected_hotkey=miner,
+                expected_signer=miner,
             )
         except VerifierError as exc:
             audit.proof_byte_length = len(raw)
@@ -396,7 +397,7 @@ async def create_submission(
 
         services.authenticator.verify(
             SignedRequest(
-                hotkey=miner,
+                signer_coldkey=miner,
                 request_digest=request_digest,
                 signature=normalise_signature(signature),
             )
@@ -413,8 +414,11 @@ async def create_submission(
 
         # Payment last, and before any write: the schema has no unpaid state.
         try:
+            # Confirms the transfer AND that `miner` is the coldkey that sent it. Those were
+            # two facts until V035 — a hotkey signature plus a chain read establishing that its
+            # owner had paid — and are now one, because the paying key signs for itself.
             payment = await services.payments.confirm(
-                reference=payment_reference, hotkey=miner
+                reference=payment_reference, signer_coldkey=miner
             )
         except ApiError as exc:
             # Recorded here rather than left to `_Audit`, which sees the same failure as a generic
@@ -426,7 +430,7 @@ async def create_submission(
                 severity=Severity.ERROR if exc.status_code >= 500 else Severity.WARNING,
                 source="api-payments",
                 event_type="payment_rejected",
-                hotkey=miner,
+                signer_coldkey=miner,
                 payment_reference=payment_reference,
                 reason_code=exc.reason_code,
                 http_status=exc.status_code,
@@ -436,7 +440,7 @@ async def create_submission(
         get_axiom().info(
             source="api-payments",
             event_type="payment_accepted",
-            hotkey=miner,
+            signer_coldkey=miner,
             payment_reference=payment.reference,
             payment_sender=payment.sender,
             amount_rao=payment.amount_rao,
@@ -447,7 +451,7 @@ async def create_submission(
         view = await store.create_submission(
             session,
             store.NewSubmission(
-                hotkey=miner,
+                signer_coldkey=miner,
                 idempotency_key=key,
                 request_digest=request_digest,
                 task_id=task_id,
@@ -461,7 +465,7 @@ async def create_submission(
                 payment_sender=payment.sender,
                 payment_amount_rao=payment.amount_rao,
                 payment_block=payment.block,
-                hotkey_signature=normalise_signature(signature),
+                signer_signature=normalise_signature(signature),
                 manual_review_required=settings.manual_review_enabled,
                 review_policy_version=review_policy_for_track(entry.manifest.track, settings.review_policy_version),
                 bounty_amount_rao=quote.amount_rao,
@@ -503,7 +507,7 @@ async def create_submission(
             source="api-submissions",
             event_type="submission_accepted",
             submission_id=str(view.submission.id),
-            hotkey=miner,
+            signer_coldkey=miner,
             task_id=task_id,
             problem_id=entry.problem_id,
             reward_target_id=entry.reward_target_id,
@@ -563,7 +567,7 @@ class _Audit:
         session: AsyncSession,
         source_ip: str | None,
         user_agent: str | None,
-        hotkey_claimed: str | None,
+        claimed_ss58: str | None,
         idempotency_key: str | None,
         task_id: str | None,
         task_bundle_sha256: str | None,
@@ -573,7 +577,7 @@ class _Audit:
         self._armed = True
         self.source_ip = source_ip
         self.user_agent = user_agent
-        self.hotkey_claimed = hotkey_claimed
+        self.claimed_ss58 = claimed_ss58
         self.idempotency_key = idempotency_key
         self.task_id = task_id
         self.task_bundle_sha256 = task_bundle_sha256
@@ -607,7 +611,7 @@ class _Audit:
                 self._session,
                 reason_code=problem.reason_code,
                 http_status=problem.status_code,
-                hotkey_claimed=self.hotkey_claimed,
+                claimed_ss58=self.claimed_ss58,
                 idempotency_key=self.idempotency_key,
                 task_id=self.task_id,
                 task_bundle_sha256=_bare_hex(self.task_bundle_sha256),
@@ -634,7 +638,7 @@ class _Audit:
             event_type="submission_rejected",
             reason_code=problem.reason_code,
             http_status=problem.status_code,
-            hotkey=self.hotkey_claimed,
+            claimed_ss58=self.claimed_ss58,
             task_id=self.task_id,
             payment_reference=self.payment_reference,
             proof_digest=_bare_hex(self.proof_digest),
@@ -655,14 +659,14 @@ def _bare_hex(value: str | None) -> str | None:
 
 
 def _read_authentication(
-    services: Services, submission_id: str, hotkey: str, timestamp: str, signature: str
+    services: Services, submission_id: str, coldkey: str, timestamp: str, signature: str
 ) -> str:
     """Authenticate a status read.
 
     The signed message is the digest of the submission id, so a read signature can never be
     replayed as a submission — the intake digest covers six fields and can never equal it.
     """
-    miner = assert_valid_hotkey(hotkey)
+    miner = assert_valid_coldkey(coldkey)
     digest = sha256_bytes(
         f"conjectures-read-v1:{miner}:{submission_id}".encode()
     )
@@ -671,7 +675,7 @@ def _read_authentication(
     )
     services.authenticator.verify(
         SignedRequest(
-            hotkey=miner,
+            signer_coldkey=miner,
             request_digest=digest,
             signature=normalise_signature(signature),
         )
@@ -688,12 +692,12 @@ async def read_submission(
     submission_id: Annotated[uuid.UUID, Path()],
     services: ServicesDep,
     session: SessionDep,
-    hotkey: Annotated[str, Header(alias="X-Conjectures-Hotkey")],
+    coldkey: Annotated[str, Header(alias="X-Conjectures-Coldkey")],
     timestamp: Annotated[str, Header(alias="X-Conjectures-Timestamp")],
     signature: Annotated[str, Header(alias="X-Conjectures-Signature")],
 ) -> schemas.SubmissionStatus:
     miner = _read_authentication(
-        services, str(submission_id), hotkey, timestamp, signature
+        services, str(submission_id), coldkey, timestamp, signature
     )
     return await _status(
         await store.get_for_miner(session, submission_id, miner),
@@ -711,14 +715,14 @@ async def read_report(
     submission_id: Annotated[uuid.UUID, Path()],
     services: ServicesDep,
     session: SessionDep,
-    hotkey: Annotated[str, Header(alias="X-Conjectures-Hotkey")],
+    coldkey: Annotated[str, Header(alias="X-Conjectures-Coldkey")],
     timestamp: Annotated[str, Header(alias="X-Conjectures-Timestamp")],
     signature: Annotated[str, Header(alias="X-Conjectures-Signature")],
 ) -> schemas.VerificationReportResponse:
     import json
 
     miner = _read_authentication(
-        services, str(submission_id), hotkey, timestamp, signature
+        services, str(submission_id), coldkey, timestamp, signature
     )
     view = await store.get_for_miner(session, submission_id, miner)
     run = view.verification

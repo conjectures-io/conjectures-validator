@@ -34,7 +34,7 @@ from payout_notifier.settings import NotifierSettings, SettingsError
 from payout_notifier.pricing import DefectAwardQuote, quote_formalization_defect_award
 from payout_notifier.worker import PayoutNotifier
 
-HOTKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+MINER_COLDKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
 
 
@@ -105,7 +105,9 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
             session.add(
                 Submission(
                     id=submission_id,
-                    hotkey=HOTKEY,
+                    # Signer and payer are one key, which is what V035 requires of the
+                    # extrinsic path and what `submission_signer_coldkey_is_funded` enforces.
+                    signer_coldkey=COLDKEY,
                     idempotency_key=uuid.uuid4(),
                     request_digest=hashlib.sha256(b"request").digest(),
                     task_id="fixture-task",
@@ -118,7 +120,7 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
                     payment_sender=COLDKEY,
                     payment_amount_rao=500_000_000,
                     payment_block=1,
-                    hotkey_signature=b"x" * 64,
+                    signer_signature=b"x" * 64,
                     verification_status=VerificationState.VERIFIED,
                     manual_review_status=ManualReviewState.APPROVED,
                     reward_status=RewardState.ELIGIBLE,
@@ -174,7 +176,9 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
             assert reward.pricing_policy_version == "dynamic-age-v1"
             assert reward.pricing_inputs == {"fixture": True}
             assert reward.destination_coldkey == COLDKEY
-            assert reward.destination_hotkey == HOTKEY
+            # NULL, and that is the assertion that matters: `transfer_stake` records no
+            # destination hotkey, so a value here would mean the notifier had invented one.
+            assert reward.destination_hotkey is None
             assert reward.eligibility_reason == "REVIEW_APPROVED"
             assert reward.generation_key == f"submission:{submission_id}"
             deliveries = session.scalars(
@@ -192,11 +196,10 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
 
 @pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
 def test_a_website_submission_pays_the_coldkey_that_signed_it():
-    """A credit-funded submission has no `payment_sender`, and a browser-wallet account has no
-    configured payout pair to fall back on — it cannot even set one, because that endpoint wants a
-    linked hotkey and a browser wallet has no hotkey to sign with. What the row does have is the
-    coldkey that signed for this exact attempt, and the hotkey that signature nominated. Without
-    `signer_coldkey` in the destination coalesce this submission would be silently skipped forever.
+    """A credit-funded submission has no `payment_sender`, and this account has set no payout
+    destination to fall back on. What the row does have is the coldkey that signed for this
+    exact attempt. Without `signer_coldkey` in the destination coalesce it would be silently
+    skipped forever.
     """
     engine = create_db_engine(postgres_dsn())
     try:
@@ -216,7 +219,6 @@ def test_a_website_submission_pays_the_coldkey_that_signed_it():
                 SubmissionIntent(
                     id=intent_id,
                     account_id=account_id,
-                    hotkey=HOTKEY,
                     signer_coldkey=COLDKEY,
                     task_id="fixture-task",
                     task_bundle_sha256=hashlib.sha256(b"task").digest(),
@@ -241,8 +243,6 @@ def test_a_website_submission_pays_the_coldkey_that_signed_it():
             session.add(
                 Submission(
                     id=submission_id,
-                    hotkey=HOTKEY,
-                    # Declared, never proved, and the reward is staked to it for the coldkey.
                     signer_coldkey=COLDKEY,
                     idempotency_key=uuid.uuid4(),
                     request_digest=hashlib.sha256(b"web-request").digest(),
@@ -252,7 +252,7 @@ def test_a_website_submission_pays_the_coldkey_that_signed_it():
                     reward_target_id="fixture-target",
                     task_mode=TaskMode.FORMALIZED,
                     proof_digest=digest,
-                    hotkey_signature=b"c" * 64,
+                    signer_signature=b"c" * 64,
                     account_id=account_id,
                     credit_ledger_id=spend.id,
                     intent_id=intent_id,
@@ -292,7 +292,9 @@ def test_a_website_submission_pays_the_coldkey_that_signed_it():
             reward = session.scalar(select(RewardEvent))
             assert reward is not None
             assert reward.destination_coldkey == COLDKEY
-            assert reward.destination_hotkey == HOTKEY
+            # NULL, and that is the assertion that matters: `transfer_stake` records no
+            # destination hotkey, so a value here would mean the notifier had invented one.
+            assert reward.destination_hotkey is None
             assert reward.amount_rao == 2_000
     finally:
         engine.dispose()
@@ -314,7 +316,7 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
             session.add(
                 Submission(
                     id=submission_id,
-                    hotkey=HOTKEY,
+                    signer_coldkey=COLDKEY,
                     idempotency_key=uuid.uuid4(),
                     request_digest=hashlib.sha256(b"defect-request").digest(),
                     task_id="defect-fixture-task",
@@ -327,7 +329,7 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
                     payment_sender=COLDKEY,
                     payment_amount_rao=500_000_000,
                     payment_block=1,
-                    hotkey_signature=b"x" * 64,
+                    signer_signature=b"x" * 64,
                     verification_status=VerificationState.VERIFIED,
                     manual_review_status=ManualReviewState.APPROVED,
                     reward_status=RewardState.ELIGIBLE,

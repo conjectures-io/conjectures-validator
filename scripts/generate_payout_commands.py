@@ -101,8 +101,11 @@ def _query(event_ids: Sequence[int]) -> str:
         where_event = " AND id IN (" + ",".join(str(value) for value in unique_ids) + ")"
     return (
         "BEGIN READ ONLY;\n"
-        "SELECT id, submission_id::text, destination_coldkey, "
-        "destination_hotkey, amount_rao\n"
+        # `destination_hotkey` is deliberately not selected. It is NULL on every payout made
+        # since V035 and history-only on the rest; `transfer_stake` takes the validator's own
+        # hotkey, which comes from `--origin-hotkey`. Selecting a mostly-NULL column would
+        # produce a row shape the renderer would then have to ignore.
+        "SELECT id, submission_id::text, destination_coldkey, amount_rao\n"
         "FROM reward_events\n"
         "WHERE status = 'PENDING'\n"
         "  AND extrinsic_reference IS NULL"
@@ -188,13 +191,13 @@ def pending_payouts(
     event_ids: Sequence[int],
     *,
     db_container: str | None = None,
-) -> list[tuple[int, str, str, str, int]]:
+) -> list[tuple[int, str, str, int]]:
     """Load unpaid payout facts, oldest first, without opening a write transaction."""
     output = _run_psql(_query(event_ids), dsn=dsn, db_container=db_container)
     parsed = list(csv.reader(io.StringIO(output)))
-    if any(len(row) != 5 for row in parsed):
+    if any(len(row) != 4 for row in parsed):
         raise RuntimeError("psql returned an unexpected payout row shape")
-    return [(int(row[0]), row[1], row[2], row[3], int(row[4])) for row in parsed]
+    return [(int(row[0]), row[1], row[2], int(row[3])) for row in parsed]
 
 
 def main(argv: list[str] | None = None) -> int:

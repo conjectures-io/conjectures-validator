@@ -1,4 +1,4 @@
-"""The account: profile, linked hotkeys, payout destination, credits, and the miner panel.
+"""The account: profile, linked coldkeys, payout destination, credits, and the miner panel.
 
 Everything under `/v1/me` is served only to the signed-in owner of the data. The access control
 is in the signature of each handler: `PrincipalDep` for a read, `WriterDep` for a write — the
@@ -8,15 +8,20 @@ why the two names do not look interchangeable.
 
 There is a third name, `CookieWriterDep`, and it marks the writes a **CLI token may not make**.
 Two credentials reach this router: a browser cookie, opened by a coldkey signature or by proving
-control of a mailbox, and a CLI bearer token, opened by a hotkey — which Bittensor stores
-unencrypted on disk by design. They are not equal evidence of "this is the account holder", so
-the changes that decide *who the account is* and *where its money goes* — linking a hotkey,
-setting the payout destination, editing the profile, declaring or claiming a deposit — require
-the browser. Left open to a bearer token those compose into account takeover from one stolen
-file: link an attacker's hotkey, repoint the payout, collect. See `require_cookie_writer`.
+control of a mailbox, and a CLI bearer token — a long-lived file on a mining machine, readable
+by anything that can read the disk. They are not equal evidence of "this is the account
+holder", so the changes that decide *who the account is* and *where its money goes* — linking a
+coldkey, designating which one submits, setting the payout destination, editing the profile,
+declaring or claiming a deposit — require the browser. Left open to a bearer token those
+compose into account takeover from one stolen file: link an attacker's coldkey, repoint the
+payout, collect. See `require_cookie_writer`.
 
 Reads are open to both, but a bearer session sees a **redacted** account: no email address, no
-payout keys, no coldkey, and only the one hotkey it is scoped to. See `account_response`.
+payout destination, and only the one linked coldkey it is scoped to. See `account_response`.
+
+`GET /v1/me/coldkeys` is the deliberate exception on the read side. It returns the two
+addresses and nothing else, to either credential, so a client does not have to fetch the whole
+account record to find out which key it signs as.
 
 Ownership is enforced in the query, not after it. Every store call takes the account id and
 scopes on it, and a row belonging to someone else is reported **absent** rather than forbidden
@@ -79,7 +84,6 @@ from verifier.bundle import SS58_ADDRESS
 
 router = APIRouter(prefix="/v1/me", tags=["account"])
 
-REASON_PAYOUT_HOTKEY_NOT_LINKED = "PAYOUT_HOTKEY_NOT_LINKED"
 REASON_TOO_MANY_CHALLENGES = "TOO_MANY_CHALLENGES"
 REASON_WALLET_NOT_LINKED = "WALLET_NOT_LINKED"
 REASON_NO_OPEN_DEPOSIT = "NO_OPEN_DEPOSIT"
@@ -109,15 +113,6 @@ class ProfilePatch(Payload):
     display_name: str | None = Field(default=None, min_length=1, max_length=64)
 
 
-class HotkeyChallengeRequest(Payload):
-    hotkey: str = Field(min_length=48, max_length=48)
-
-
-class HotkeyLinkRequest(Payload):
-    hotkey: str = Field(min_length=48, max_length=48)
-    signature: str = Field(min_length=128, max_length=132)
-
-
 class ColdkeyChallengeRequest(Payload):
     coldkey: str = Field(min_length=48, max_length=48)
 
@@ -133,8 +128,23 @@ class ColdkeyLinkRequest(Payload):
 
 
 class PayoutRequest(Payload):
-    coldkey: str = Field(min_length=48, max_length=48)
-    hotkey: str = Field(min_length=48, max_length=48)
+    """Where rewards go. One coldkey, and `null` to clear it.
+
+    No signature field, and that is the design rather than an omission — see
+    `put_payout_coldkey` for why proof of control would defend nothing here while refusing the
+    ordinary destinations.
+    """
+
+    coldkey: str | None = Field(default=None, min_length=48, max_length=48)
+
+
+class SubmissionColdkeyRequest(Payload):
+    """Which already-linked coldkey submits. `null` clears the designation.
+
+    Proof lives at `POST /v1/me/wallets`; this only chooses among keys already proved.
+    """
+
+    coldkey: str | None = Field(default=None, min_length=48, max_length=48)
 
 
 class DepositRequest(Payload):
@@ -318,11 +328,11 @@ async def revoke_other_sessions(
 async def read_me(
     response: Response, principal: PrincipalDep, session: SessionDep
 ) -> schemas.Account:
-    """Redacted for a CLI session: `hotkey_scope` is what decides, so a bearer caller cannot
+    """Redacted for a CLI session: `coldkey_scope` is what decides, so a bearer caller cannot
     reach the email address or payout keys by asking a different endpoint for the same row."""
     _no_store(response)
     return await account_response(
-        session, principal.account, bearer_scope=principal.hotkey_scope
+        session, principal.account, bearer_scope=principal.coldkey_scope
     )
 
 
@@ -349,7 +359,7 @@ async def patch_me(
     return await account_response(session, principal.account)
 
 
-# --- Linked wallets and hotkeys ----------------------------------------------------------
+# --- Linked coldkeys, and the two the account designates ---------------------------------
 
 
 @router.post(
@@ -502,153 +512,148 @@ async def link_coldkey(
     return await account_response(session, principal.account)
 
 
-@router.post(
-    "/hotkeys/challenge",
-    response_model=schemas.WalletChallenge,
-    summary="A nonce for linking a hotkey",
+@router.get(
+    "/coldkeys",
+    response_model=schemas.AccountColdkeys,
+    summary="The currently linked submission and payout coldkeys",
 )
-async def hotkey_challenge(
-    payload: HotkeyChallengeRequest,
-    principal: CookieWriterDep,
-    services: ServicesDep,
-    session: SessionDep,
-) -> schemas.WalletChallenge:
-    """Mint a single-use nonce bound to this account and this hotkey.
+async def get_coldkeys(principal: PrincipalDep) -> schemas.AccountColdkeys:
+    """The account's two coldkeys, either of which may be unset.
 
-    The message carries the `conjectures-hotkey-link-v1` prefix rather than the login prefix, so
-    a signature collected here cannot be replayed as a sign-in — which matters, because a hotkey
-    is a key a miner signs with routinely.
+    One request for the pair, because a client almost always wants both: the account page shows
+    them together, and the submit flow needs to know whether a submission key is designated
+    before it offers a signing step. Reading them from `GET /v1/me` would work but returns the
+    whole account, including its email and every linked wallet — more than a header or a submit
+    button needs, and more than a CLI session is shown.
 
-    The challenge row carries `account_id`, so a nonce minted for one account cannot be redeemed
-    by another even if it leaks.
+    Both are read straight off the account row and neither is derived from the other. `null`
+    means "not set", never "not permitted"; the two `PUT`s below set them, and both are
+    browser-only.
+
+    **The asymmetry between them is the thing to understand, and it is not an inconsistency.**
+    `submission_coldkey` is proved and is always one of the account's linked wallets, because it
+    signs submissions, spends credits, and on the extrinsic path cites a transfer — a key that
+    can spend has to be proved. `payout_coldkey` is unproved and need not be linked at all,
+    because naming it can only give this account's own money away.
+
+    Available to a CLI session as well as a browser one. `submission_coldkey` is the key that
+    token already signs as, and `payout_coldkey` is a destination the CLI cannot change; a token
+    that could not read either would have to discover its own signing identity by being
+    refused. Note this differs from `GET /v1/me`, which redacts the payout destination for a
+    bearer session — that response is the whole account record and a stolen token reading it
+    learns the email address too, whereas this one is two addresses and nothing else.
     """
-    settings = services.settings
-    hotkey = _assert_ss58(payload.hotkey, "hotkey")
-    now = _now()
-    issued = await account_store.recent_challenge_count(
-        session,
-        kind=LoginChallengeKind.HOTKEY_LINK,
-        since=now - dt.timedelta(hours=1),
-        ss58=hotkey,
+    account = principal.account
+    return schemas.AccountColdkeys(
+        submission_coldkey=account.submission_coldkey,
+        payout_coldkey=account.payout_coldkey,
     )
-    if issued >= settings.challenges_per_hour:
-        raise TooManyRequests(
-            "too many link challenges for that hotkey; try again later",
-            reason_code=REASON_TOO_MANY_CHALLENGES,
-        )
-
-    nonce = sessions.new_token()
-    expires_at = now + dt.timedelta(minutes=settings.challenge_minutes)
-    message = login.hotkey_link_message(
-        domain=settings.login_domain,
-        address=hotkey,
-        nonce=nonce,
-        expires_at=expires_at,
-    )
-    await account_store.create_challenge(
-        session,
-        kind=LoginChallengeKind.HOTKEY_LINK,
-        secret_digest=account_store.digest(nonce),
-        expires_at=expires_at,
-        account_id=principal.account.id,
-        ss58=hotkey,
-        message=message,
-    )
-    await session.commit()
-    return schemas.WalletChallenge(nonce=nonce, message=message, expires_at=expires_at)
 
 
-@router.post(
-    "/hotkeys",
+@router.put(
+    "/coldkeys/submission",
     response_model=schemas.Account,
-    status_code=status.HTTP_201_CREATED,
-    summary="Link a hotkey by signature",
+    summary="Designate which linked coldkey this account submits under",
 )
-async def link_hotkey(
-    payload: HotkeyLinkRequest,
+async def put_submission_coldkey(
+    payload: SubmissionColdkeyRequest,
     principal: CookieWriterDep,
     session: SessionDep,
 ) -> schemas.Account:
-    """Attach a hotkey the account proved control of.
+    """Designate one already-linked coldkey as the key this account submits and spends under.
 
-    A hotkey belongs to exactly one account. One already claimed elsewhere is a 409, not a
-    silent re-parent: submission attribution must have one answer, and a reward one owner.
+    **This designates; it does not prove.** Proof happened when the key was linked at
+    `POST /v1/me/wallets`, which is where the signature over a server nonce lives. Designating
+    an unlinked key is refused by `account_submission_coldkey_is_linked`, a composite foreign
+    key against `(account_id, coldkey)` — so the check is race-free in a way a read-then-write
+    could not be: a caller cannot unlink the wallet between a check and this update.
+
+    `coldkey: null` clears the designation. That does not orphan anything already submitted —
+    a submission records the key that signed it — it only stops the intent flow until another is
+    designated.
+
+    Browser-only, like every write that changes what the account *is*. A CLI token is scoped to
+    one coldkey, and letting it re-point the designation would let a token minted for one key
+    arrange for the account's work to be signed as another.
     """
-    hotkey = _assert_ss58(payload.hotkey, "hotkey")
-    signature = _signature_bytes(payload.signature)
-    now = _now()
-
-    challenge = await account_store.latest_open_challenge(
-        session,
-        kind=LoginChallengeKind.HOTKEY_LINK,
-        ss58=hotkey,
-        now=now,
-        account_id=principal.account.id,
+    coldkey = (
+        None if payload.coldkey is None else _assert_ss58(payload.coldkey, "coldkey")
     )
-    if challenge is None or challenge.message is None:
-        raise Unauthorized(
-            "no open link challenge for that hotkey; request a new one",
-            reason_code=login.REASON_CHALLENGE_INVALID,
+    if coldkey is not None and not await account_store.owns_wallet(
+        session, principal.account.id, coldkey
+    ):
+        # Checked here as well as by the foreign key, and only to name the fix. The constraint
+        # is the authority; this is what turns "integrity error" into "link it first".
+        raise Conflict(
+            "link that coldkey to your account before submitting with it",
+            reason_code=login.REASON_COLDKEY_NOT_LINKED,
         )
-    # Verified before consuming, so a wrong signature does not burn the nonce and force the
-    # user to start over — and so an attacker cannot grief a hotkey by spamming bad signatures.
-    login.verify_signature(
-        address=hotkey, message=challenge.message, signature=signature
+    # Every live bearer token scoped to the key being replaced is revoked. Each of those was
+    # minted to submit as that key, and after this it no longer can — so the token's basis is
+    # gone and it must stop working now rather than fail confusingly on its next submission.
+    # `dependencies.py` re-checks the link on every bearer request, which covers an unlink; a
+    # re-designation leaves the wallet linked, so it needs this.
+    previous = principal.account.submission_coldkey
+    await account_store.set_submission_coldkey(
+        session, principal.account, coldkey=coldkey
     )
-    consumed = await account_store.consume_challenge(
-        session,
-        kind=LoginChallengeKind.HOTKEY_LINK,
-        secret_digest=bytes(challenge.secret_sha256),
-        now=now,
-    )
-    if consumed is None:
-        raise Unauthorized(
-            "that challenge has already been used; request a new one",
-            reason_code=login.REASON_CHALLENGE_INVALID,
-        )
-
-    await account_store.link_hotkey(
-        session, principal.account, hotkey=hotkey, signature=signature
-    )
+    if previous is not None and previous != coldkey:
+        await account_store.revoke_sessions_for_coldkey(session, previous)
     await session.commit()
-    # After the commit. A hotkey decides submission attribution and reward ownership, so the fact
-    # that this account now owns it is worth a durable record beyond the row itself. The address
-    # is on the event because a hotkey is already published with verified results — see
-    # DEFAULT_TERMS_VERSION in settings.py — unlike the email addresses in `api-auth`.
     get_axiom().info(
         source="api-me",
-        event_type="wallet_linked",
+        event_type="submission_coldkey_set",
         account_id=str(principal.account.id),
-        kind="hotkey",
-        hotkey=hotkey,
+        coldkey=coldkey,
     )
     return await account_response(session, principal.account)
 
 
 @router.put(
-    "/payout", response_model=schemas.Account, summary="Set the payout destination"
+    "/coldkeys/payout",
+    response_model=schemas.Account,
+    summary="Set where rewards are sent",
 )
-async def put_payout(
+async def put_payout_coldkey(
     payload: PayoutRequest, principal: CookieWriterDep, session: SessionDep
 ) -> schemas.Account:
-    """Both keys together. Alpha is held as stake, so a payout needs a coldkey and a hotkey.
+    """One coldkey, and deliberately no proof of control over it.
 
-    The hotkey must already be linked to this account. Without that, a signed-in session could
-    nominate any address at all as the payout destination — which is the shape of a
-    change-the-payout-address takeover, and the linked-hotkey flow is the proof of control that
-    closes it.
+    **Why no signature, when this is the field a takeover would target.** Proof of control
+    would not defend it. An attacker who can reach this endpoint holds a browser session for
+    the account, and can equally sign with a key they generated a moment ago — so a signature
+    requirement stops nobody and instead refuses the ordinary destinations: a hardware wallet,
+    an exchange deposit address, a multisig the account does not solely control. What actually
+    defends this field is the credential needed to reach it, which is why it is
+    `CookieWriterDep` and out of a CLI token's reach entirely, and why the change is recorded
+    on the audit stream below.
+
+    This replaced a rule that required the payout hotkey to be linked to the account. That rule
+    bought the appearance of proof — an attacker with a session could link their own key first
+    — while making the common legitimate case impossible.
+
+    `coldkey: null` clears it. A reward with no destination is skipped by the payout notifier
+    rather than sent anywhere, and is picked up on the next poll once one is set; "awarded,
+    waiting for somewhere to send it" is a state the pipeline already has.
     """
-    coldkey = _assert_ss58(payload.coldkey, "coldkey")
-    hotkey = _assert_ss58(payload.hotkey, "hotkey")
-    if not await account_store.owns_hotkey(session, principal.account.id, hotkey):
-        raise Conflict(
-            "link that hotkey to your account before using it as a payout destination",
-            reason_code=REASON_PAYOUT_HOTKEY_NOT_LINKED,
-        )
-    await account_store.set_payout(
-        session, principal.account, coldkey=coldkey, hotkey=hotkey
+    coldkey = (
+        None if payload.coldkey is None else _assert_ss58(payload.coldkey, "coldkey")
+    )
+    previous = principal.account.payout_coldkey
+    await account_store.set_payout_coldkey(
+        session, principal.account, coldkey=coldkey
     )
     await session.commit()
+    # After the commit, and carrying both addresses. This is the field that turns a session
+    # compromise into permanent theft of an account's rewards, so where the money used to go
+    # has to be recoverable from the audit stream and not only from the row that was overwritten.
+    get_axiom().info(
+        source="api-me",
+        event_type="payout_coldkey_set",
+        account_id=str(principal.account.id),
+        coldkey=coldkey,
+        previous_coldkey=previous,
+    )
     return await account_response(session, principal.account)
 
 
@@ -985,7 +990,7 @@ async def read_report(
 
     Nothing is withheld here, unlike the public subset: the output quotes the owner's own proof
     back at them, which is exactly what they need in order to fix it, and is not a disclosure to
-    anyone else. The same bytes the hotkey-signature surface already returns to them.
+    anyone else. The same bytes the coldkey-signature surface already returns to them.
     """
     view = await submission_store.get_for_account(
         session, _as_uuid(submission_id, "submission"), principal.account.id

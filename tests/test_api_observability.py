@@ -327,7 +327,7 @@ def audit(session: FakeSession):
         session=session,  # type: ignore[arg-type]
         source_ip="203.0.113.7",
         user_agent="miner-tooling/1.0",
-        hotkey_claimed="5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
+        claimed_ss58="5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
         idempotency_key="key-1",
         task_id="erdos-1",
         task_bundle_sha256="sha256:" + "a" * 64,

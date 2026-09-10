@@ -477,7 +477,7 @@ conditional amount-of-record, and later payout generation copies it without repr
 
 The Discord notifier creates `PENDING` and sends the reviewed multisig call to both human signers.
 The read-only payout watcher then derives state from runtime events: a matching
-`StakeAndHotkeyTransferred` on the best chain is `SUBMITTED`, the same event in a finalized block
+`StakeTransferred` on the best chain is `SUBMITTED`, the same event in a finalized block
 is `CONFIRMED`, and a pre-finality reorganization returns it to `PENDING`. It pairs the transfer
 event with that call's `StakeAdded` event because the former reports TAO-equivalent value while the
 latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.

@@ -31,7 +31,7 @@ def verify_proof_bundle_bytes(
     project_root: Path,
     expected_task_id: str | None = None,
     expected_task_sha256: str | None = None,
-    expected_hotkey: str | None = None,
+    expected_signer: str | None = None,
     allow_insecure_development: bool = False,
 ) -> BundlePreflight:
     """Bind a miner bundle to a local task and run the production proof verifier.
@@ -54,8 +54,8 @@ def verify_proof_bundle_bytes(
             "requested task digest does not match the local task bundle",
         )
 
-    # Read the manifest before admission only to obtain the claimed hotkey for standalone local
-    # verification. A submitting client supplies its authenticated hotkey instead. Admission then
+    # Read the manifest before admission only to obtain the claimed coldkey for standalone local
+    # verification. A submitting client supplies its authenticated coldkey instead. Admission then
     # reparses and binds every field against the trusted task and that expected identity.
     claimed = load_proof_bundle(
         raw, max_proof_bytes=task.manifest.max_submission_bytes
@@ -64,7 +64,7 @@ def verify_proof_bundle_bytes(
         raw,
         task_manifest=task.manifest,
         expected_task_sha256=task.sha256,
-        expected_hotkey=expected_hotkey or claimed.manifest.miner_hotkey,
+        expected_signer=expected_signer or claimed.manifest.miner_coldkey,
     )
     report = ProductionVerifierAdapter(
         project_root=project_root,
@@ -84,7 +84,7 @@ def verify_proof_bundle_file(
     project_root: Path,
     expected_task_id: str | None = None,
     expected_task_sha256: str | None = None,
-    expected_hotkey: str | None = None,
+    expected_signer: str | None = None,
     allow_insecure_development: bool = False,
 ) -> BundlePreflight:
     return verify_proof_bundle_bytes(
@@ -93,6 +93,6 @@ def verify_proof_bundle_file(
         project_root=project_root,
         expected_task_id=expected_task_id,
         expected_task_sha256=expected_task_sha256,
-        expected_hotkey=expected_hotkey,
+        expected_signer=expected_signer,
         allow_insecure_development=allow_insecure_development,
     )

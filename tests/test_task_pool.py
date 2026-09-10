@@ -108,7 +108,8 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     )
 
     assert policy["schema_version"] == TASK_POOL_SCHEMA_VERSION
-    assert policy["tier_order"] == [DEFAULT_TASK_TIER]
+    # tier-1 is the paired production tier; the formalization tier-2 pool coexists.
+    assert policy["tier_order"] == [DEFAULT_TASK_TIER, "tier-2"]
     tier_policy = policy["tier_policies"][DEFAULT_TASK_TIER]
     audit = load_selection_audit(TIER_METADATA / "selection-audit.json")
     targets = load_task_targets(TIER_METADATA / "task-targets.json")
@@ -132,13 +133,14 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     assert tier_policy["task_scope"] == TASK_POOL_TASK_SCOPE
     assert tier_policy["multi_target_tasks"] == 0
     assert tier_policy["excluded_source_prefixes"] == list(EXCLUDED_SOURCE_PREFIXES)
-    assert len(registry.tasks) == DEFAULT_TIER_TASK_COUNT
     assert len(registry.tasks_for_tier(DEFAULT_TASK_TIER)) == DEFAULT_TIER_TASK_COUNT
     assert len(task_directories) == DEFAULT_TIER_TASK_COUNT
     assert (TASKS_ROOT / "pool").stat().st_mode & 0o005 == 0o005
     assert allowlist.stat().st_mode & 0o004 == 0o004
+    # tier-1 sources are tagged tier-1; the pool also carries the tier-2 formalization sources.
     assert {row["tier"] for row in policy["allowed_source_theorems"]} == {
-        DEFAULT_TASK_TIER
+        DEFAULT_TASK_TIER,
+        "tier-2",
     }
 
     source_occurrences = {}
@@ -184,11 +186,13 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     assert len(source_occurrences) == DEFAULT_TIER_SIZE
     assert all(modes == set(PRODUCTION_TASK_MODES) for modes in source_occurrences.values())
     problem_modes = {}
-    for task in registry.tasks.values():
+    for task in registry.tasks_for_tier(DEFAULT_TASK_TIER):
         problem_modes.setdefault(task.problem_id, set()).add(task.mode)
     assert len(problem_modes) == DEFAULT_TIER_SIZE
     assert all(modes == set(PRODUCTION_TASK_MODES) for modes in problem_modes.values())
-    reward_targets = {task.reward_target_id for task in registry.tasks.values()}
+    reward_targets = {
+        task.reward_target_id for task in registry.tasks_for_tier(DEFAULT_TASK_TIER)
+    }
     assert len(reward_targets) == DEFAULT_TIER_SIZE
     assert len(
         registry.tasks_for_reward_target("fc-target:Erdos340.erdos_340")

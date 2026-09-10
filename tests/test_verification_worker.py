@@ -602,7 +602,8 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
         pool_root=TASKS_ROOT / "pool",
     )
 
-    tasks = tuple(resolver.tasks.values())
+    # tier-1 is the paired production tier; the formalization tier-2 pool coexists in the resolver.
+    tasks = tuple(task for task in resolver.tasks.values() if task.tier == "tier-1")
     assert len(tasks) == DEFAULT_TIER_TASK_COUNT
     assert all(task.task_dir.is_dir() for task in tasks)
     assert all(task.task_dir.name != task.task_id for task in tasks)

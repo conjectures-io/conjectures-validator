@@ -748,7 +748,7 @@ async def read_activity(
         session,
         target,
         limit=limit,
-        pseudonymise=lambda hotkey: _pseudonym(settings, target, hotkey),
+        pseudonymise=lambda identity: _pseudonym(settings, target, identity),
     )
     _cache(response, settings)
     return public.ConjectureActivity(
@@ -924,8 +924,13 @@ async def read_submission_terms(
     )
 
 
-def _pseudonym(settings: Settings, reward_target_id: str, hotkey: str) -> str:
-    """A per-conjecture pseudonym for a hotkey.
+def _pseudonym(settings: Settings, reward_target_id: str, identity: str) -> str:
+    """A per-conjecture pseudonym for one solver identity.
+
+    `identity` is whatever `db.public._SOLVER_IDENTITY` resolved: a signing coldkey, an account
+    id, or a historical hotkey. This function does not care which, and deliberately — it is a
+    keyed hash of an opaque string, and the length prefixes below are what keep two different
+    kinds of identity from colliding by concatenation.
 
     The conjecture's identity is inside the MAC, not concatenated after it, so the same solver
     gets a different pseudonym on every conjecture and the pseudonyms cannot be joined across the
@@ -937,12 +942,12 @@ def _pseudonym(settings: Settings, reward_target_id: str, hotkey: str) -> str:
     making one person look like two, and would rename every solver at each pin rotation.
 
     The salt is `PUBLIC_ACTIVITY_SALT`, which production must set to something that is not the
-    published development constant — a hotkey is a 48-character address from a known alphabet, so
-    an unsalted or publicly-salted digest is reversible by enumeration for anyone with a list of
-    subnet hotkeys.
+    published development constant — an SS58 address is 48 characters from a known alphabet, so
+    an unsalted or publicly-salted digest is reversible by enumeration for anyone holding a list
+    of subnet addresses.
     """
     message = (
-        f"{len(reward_target_id)}:{reward_target_id}:{len(hotkey)}:{hotkey}"
+        f"{len(reward_target_id)}:{reward_target_id}:{len(identity)}:{identity}"
     ).encode("utf-8")
     digest = hmac.new(settings.activity_salt.encode("utf-8"), message, "sha256").hexdigest()
     return digest[:PSEUDONYM_LENGTH]

@@ -16,7 +16,6 @@ page, and is the supported way to mine.
 git clone https://github.com/conjectures-io/conjectures-miner && cd conjectures-miner
 ./install.sh
 conjectures config set wallet_name my-wallet     # names only -- no key material, ever
-conjectures config set wallet_hotkey my-hotkey
 ```
 
 Then the whole flow:
@@ -53,8 +52,14 @@ checkout of this repository and a Bittensor wallet.
 
 ## 0. Before you start
 
-You need a Bittensor wallet whose **coldkey pays** and whose **hotkey signs** the request. The
-validator requires that the paying coldkey owns the submitting hotkey.
+You need a Bittensor wallet whose **coldkey pays and signs**. There is no hotkey in this flow
+any more: the validator requires the coldkey that sent the payment to be the coldkey that signs
+the request, which it checks as a plain equality rather than by asking the chain who owns what.
+
+That means signing prompts for your coldkey passphrase, where a hotkey signature did not. It is
+a deliberate trade — the key that authorises a submission is the key that paid for it — and
+nothing in this flow ever puts the coldkey on a mining machine permanently: `conjectures auth
+login` asks for one signature and then holds only a scoped token.
 
 Install the client dependencies:
 
@@ -124,7 +129,7 @@ python3 scripts/build_submission_bundle.py \
   --proof Main.lean \
   --task-id  <task_id> \
   --task-sha256 <task_bundle_sha256> \
-  --hotkey   <your hotkey ss58> \
+  --coldkey  <your coldkey ss58> \
   --output   submission.zip
 
 python3 -m verifier bundle scan --bundle submission.zip
@@ -180,15 +185,16 @@ python3 scripts/submit_proof.py \
   --credit-name "Your Name or Team" \
   --credit-url "https://example.org/your-profile" \
   --credit-orcid "0000-0002-1825-0097" \
-  --wallet <wallet name> --hotkey <hotkey name>
+  --wallet <wallet name>
 ```
 
 On success you get `201` and a `submission_id`. Save it.
 
 The three `--credit-*` flags are optional; URL and ORCID require a name. If supplied, the exact
-credit is covered by your hotkey signature and published beside the hotkey after Lean verification.
-It is a permanent snapshot for this submission, not your account display name. Omit all three to
-receive public credit by hotkey only.
+credit is covered by your signature and published beside the solver identity after Lean
+verification. It is a permanent snapshot for this submission, not your account display name.
+Omit all three and the result is credited to your account display name if you have set one, and
+to your coldkey otherwise.
 
 Before opening the network request, the script requires `--task` and repeats the full local
 verification against the bundle bytes it will send. A rejection is printed locally and nothing is
@@ -196,7 +202,7 @@ submitted. `--skip-local-verification` is available for exceptional setups, but 
 protection. If your machine needs the development sandbox shim, pass
 `--allow-insecure-local-verification`.
 
-The script then signs the canonical request digest with your hotkey. If you'd rather build the
+The script then signs the canonical request digest with your coldkey. If you'd rather build the
 request yourself, the headers and the exact digest construction are in
 [API.md](API.md#authentication).
 
@@ -204,7 +210,7 @@ request yourself, the headers and the exact digest construction are in
 
 ```bash
 python3 scripts/submit_proof.py --api "$CONJECTURES_API" \
-  --status <submission_id> --wallet <wallet name> --hotkey <hotkey name>
+  --status <submission_id> --wallet <wallet name>
 ```
 
 Three statuses move independently — none of them implies another:
@@ -235,7 +241,9 @@ A rejection tells you which gate failed — `LEAN_KERNEL_REJECTED`, `STATEMENT_M
 - **One payment, one submission.** Reusing an extrinsic reference is `409 DUPLICATE_PAYMENT`.
 - **Retries are safe, but only with the same idempotency key.** Same key and same request
   returns your original submission with `200`. A different request under a used key is `409`.
-- **Your hotkey must appear in the bundle manifest** and must match the one that signs.
+- **Your coldkey must appear in the bundle manifest**, as `miner_coldkey`, and must match the
+  one that signs. The manifest is `schema_version: 2`; a bundle built by older tooling names
+  `miner_hotkey` and is refused on the version rather than on the field.
 - **The archive shape is exact**: two entries, `submission.json` then `Main.lean`, nothing else.
   Use the builder and this is automatic.
 
@@ -243,8 +251,8 @@ A rejection tells you which gate failed — `LEAN_KERNEL_REJECTED`, `STATEMENT_M
 
 | `reason_code` | What to do |
 | --- | --- |
-| `PAYMENT_NOT_FINALIZED` | Wait for finality, or check the recipient, amount, and that your coldkey owns the hotkey |
-| `SIGNATURE_INVALID` | Sign the request digest, not the bundle; check the hotkey matches |
+| `PAYMENT_NOT_FINALIZED` | Wait for finality, or check the recipient, the amount, and that the coldkey signing is the one that sent the transfer |
+| `SIGNATURE_INVALID` | Sign the request digest, not the bundle; check the coldkey matches |
 | `TASK_NOT_ALLOWED` | Re-read `/v1/tasks`; the pool changes between releases |
 | `DUPLICATE_PROOF` / `DUPLICATE_PAYMENT` | Already used; nothing to retry |
 | `IDEMPOTENCY_CONFLICT` | Use a fresh UUID for a genuinely new submission |

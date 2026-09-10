@@ -1,4 +1,4 @@
-"""Accounts, sessions, login challenges, and linked keys.
+"""Accounts, sessions, login challenges, and linked coldkeys.
 
 The seam behind ``/v1/auth`` and ``/v1/me``. Four properties are enforced here rather
 than left to a router to remember:
@@ -41,16 +41,18 @@ from conjectures_subnet.db.models import (
     AccountSession,
     AccountSessionKind,
     AccountWallet,
-    LinkedHotkey,
     LoginChallenge,
     LoginChallengeKind,
 )
 
-# Constraint and index names from deploy/migrate/sql/V003__accounts_credits_intents.sql.
-# Matching on the name is what lets one IntegrityError be reported as the specific
-# conflict the caller caused.
-HOTKEY_UNIQUE = "linked_hotkeys_hotkey_key"
+# Constraint and index names from deploy/migrate/sql/V003__accounts_credits_intents.sql and
+# V035__retire_miner_hotkeys.sql. Matching on the name is what lets one IntegrityError be
+# reported as the specific conflict the caller caused.
 WALLET_PRIMARY = "account_wallets_pkey"
+# V035. The composite FK that pins `accounts.submission_coldkey` to a wallet on the same
+# account. Reached when a caller designates a coldkey it has not proved, which is a 409 about
+# that specific key rather than an opaque integrity error.
+SUBMISSION_COLDKEY_LINKED = "account_submission_coldkey_is_linked"
 EMAIL_UNIQUE = "accounts_email_idx"
 IDENTITY_SUBJECT_UNIQUE = "account_identities_provider_subject_key"
 IDENTITY_PROVIDER_UNIQUE = "account_identities_account_provider_key"
@@ -97,17 +99,17 @@ async def find_by_coldkey(session: AsyncSession, coldkey: str) -> Account | None
     return (await session.execute(statement)).scalar_one_or_none()
 
 
-async def find_by_hotkey(session: AsyncSession, hotkey: str) -> Account | None:
-    """The account a submitting hotkey belongs to.
+async def find_by_submission_coldkey(
+    session: AsyncSession, coldkey: str
+) -> Account | None:
+    """The account that submits under this coldkey.
 
-    Used to attribute a submission and to check that an intent's hotkey is one the
-    account actually proved control of.
+    Narrower than ``find_by_coldkey``, and the difference matters. That one answers "who has
+    proved this key", which is the sign-in question and is true of every linked wallet. This
+    one answers "who submits as this key", which is true of at most one wallet per account —
+    the designated one. A key an account merely signs in with does not attribute a submission.
     """
-    statement = (
-        select(Account)
-        .join(LinkedHotkey, LinkedHotkey.account_id == Account.id)
-        .where(LinkedHotkey.hotkey == hotkey)
-    )
+    statement = select(Account).where(Account.submission_coldkey == coldkey)
     return (await session.execute(statement)).scalar_one_or_none()
 
 
@@ -196,17 +198,50 @@ async def set_roles(
     return account
 
 
-async def set_payout(
-    session: AsyncSession, account: Account, *, coldkey: str, hotkey: str
+async def set_payout_coldkey(
+    session: AsyncSession, account: Account, *, coldkey: str | None
 ) -> Account:
-    """Set the payout destination. Both keys or neither — the schema enforces the pair.
+    """Set — or clear — where this account's rewards go.
 
-    Alpha is held as stake, so a transfer needs both, and half a destination cannot
-    be paid to.
+    **Deliberately takes no signature and checks no link.** Naming a payout address can only
+    give this account's own money away, so proof of control would buy nothing and would lock
+    out the ordinary destinations: a hardware wallet, an exchange deposit address, a multisig
+    the account does not solely control. Contrast ``set_submission_coldkey``, where the key can
+    spend and must therefore be proved.
+
+    ``None`` clears it, which stops future payouts resolving rather than redirecting them: the
+    payout notifier skips a reward whose destination is null and picks it up again once one is
+    set. "Awarded, waiting for somewhere to send it" is a state the pipeline already has.
     """
     account.payout_coldkey = coldkey
-    account.payout_hotkey = hotkey
     await session.flush()
+    return account
+
+
+async def set_submission_coldkey(
+    session: AsyncSession, account: Account, *, coldkey: str | None
+) -> Account:
+    """Designate which linked coldkey this account submits and spends credits under.
+
+    The key must already be linked to THIS account. That is not checked here with a SELECT —
+    ``account_submission_coldkey_is_linked`` is a composite foreign key and refuses the write
+    outright, which is race-free in a way a read-then-write check is not: a caller could
+    otherwise unlink the wallet between the check and the update.
+
+    ``None`` clears the designation and always succeeds.
+    """
+    account.submission_coldkey = coldkey
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        await session.rollback()
+        if coldkey is not None and SUBMISSION_COLDKEY_LINKED in str(exc.orig):
+            raise RecordConflict(
+                "link that coldkey to your account before submitting with it",
+                reason_code="COLDKEY_NOT_LINKED",
+                coldkey=coldkey,
+            ) from exc
+        raise
     return account
 
 
@@ -284,49 +319,6 @@ async def identities_for(
 # --- Linked keys -------------------------------------------------------------------
 
 
-async def link_hotkey(
-    session: AsyncSession, account: Account, *, hotkey: str, signature: bytes
-) -> LinkedHotkey:
-    """Attach a hotkey to this account.
-
-    Globally unique, so a hotkey already claimed by another account is a conflict
-    rather than a silent re-parent: submission attribution has to have one answer,
-    and a reward has to have one owner.
-    """
-    link = LinkedHotkey(account_id=account.id, hotkey=hotkey, signature=signature)
-    session.add(link)
-    try:
-        await session.flush()
-    except IntegrityError as exc:
-        await session.rollback()
-        raise RecordConflict(
-            "that hotkey is already linked to an account",
-            reason_code="HOTKEY_ALREADY_LINKED",
-            hotkey=hotkey,
-        ) from exc
-    return link
-
-
-async def hotkeys_for(
-    session: AsyncSession, account_id: uuid.UUID
-) -> Sequence[LinkedHotkey]:
-    statement = (
-        select(LinkedHotkey)
-        .where(LinkedHotkey.account_id == account_id)
-        .order_by(LinkedHotkey.linked_at.desc())
-    )
-    return list((await session.execute(statement)).scalars())
-
-
-async def owns_hotkey(
-    session: AsyncSession, account_id: uuid.UUID, hotkey: str
-) -> bool:
-    statement = select(LinkedHotkey.id).where(
-        LinkedHotkey.account_id == account_id, LinkedHotkey.hotkey == hotkey
-    )
-    return (await session.execute(statement)).first() is not None
-
-
 async def link_wallet(
     session: AsyncSession, account: Account, *, coldkey: str, signature: bytes
 ) -> AccountWallet:
@@ -357,10 +349,12 @@ async def owns_wallet(
 ) -> bool:
     """Whether this coldkey is linked to this account.
 
-    The coldkey counterpart of ``owns_hotkey``, and it exists for the same reason: a signature
-    proves control of a key, not that the key belongs here. The website submission path checks
-    both — the coldkey that signed, and the hotkey the work is attributed to — because a linked
-    key is the only thing that ties either of them to the account whose credit is being spent.
+    It exists because a signature proves control of a key, not that the key belongs here. Every
+    path that spends an account's credits checks this: a linked key is the only thing that ties
+    the signer to the account whose money is moving.
+
+    Distinct from ``Account.submission_coldkey``, which is the one linked key designated to
+    submit. Linking is what a caller proves; designating is what it then chooses.
     """
     statement = select(AccountWallet.coldkey).where(
         AccountWallet.account_id == account_id, AccountWallet.coldkey == coldkey
@@ -386,14 +380,14 @@ async def create_session(
     token_digest: bytes,
     expires_at: dt.datetime,
     kind: AccountSessionKind = AccountSessionKind.COOKIE,
-    hotkey_scope: str | None = None,
+    coldkey_scope: str | None = None,
     user_agent: str | None = None,
     source_ip: str | None = None,
 ) -> AccountSession:
     """Record a new session. The caller holds the only copy of the token.
 
-    ``kind`` decides whether ``hotkey_scope`` is required, and the schema's biconditional
-    CHECK is what enforces it: a BEARER session is bounded to the hotkey that minted it, a
+    ``kind`` decides whether ``coldkey_scope`` is required, and the schema's biconditional
+    CHECK is what enforces it: a BEARER session is bounded to the coldkey that minted it, a
     COOKIE session is scoped to the account and must not carry one. Passing the wrong pair
     is an IntegrityError rather than a session whose authority is quietly unbounded.
     """
@@ -401,7 +395,7 @@ async def create_session(
         account_id=account.id,
         kind=kind,
         token_sha256=token_digest,
-        hotkey_scope=hotkey_scope,
+        coldkey_scope=coldkey_scope,
         expires_at=expires_at,
         user_agent=user_agent,
         source_ip=source_ip,
@@ -563,19 +557,19 @@ async def revoke_all_sessions(
     return result.rowcount
 
 
-async def revoke_sessions_for_hotkey(session: AsyncSession, hotkey: str) -> int:
-    """Every live bearer session scoped to this hotkey.
+async def revoke_sessions_for_coldkey(session: AsyncSession, coldkey: str) -> int:
+    """Every live bearer session scoped to this coldkey.
 
-    Called when a hotkey stops belonging to the account that minted the token — an
-    unlink, or a re-link elsewhere. The token names the account it was issued for, so
-    without this it would keep working against an account that no longer holds the key
-    that proved it, which is exactly the authority the scope was supposed to bound.
+    Called when a coldkey stops belonging to the account that minted the token — an unlink, or
+    a re-link elsewhere. The token names the account it was issued for, so without this it
+    would keep working against an account that no longer holds the key that proved it, which is
+    exactly the authority the scope was supposed to bound.
     """
     result = await session.execute(
         update(AccountSession)
         .where(
             AccountSession.kind == AccountSessionKind.BEARER,
-            AccountSession.hotkey_scope == hotkey,
+            AccountSession.coldkey_scope == coldkey,
             AccountSession.revoked_at.is_(None),
         )
         .values(revoked_at=func.now())
@@ -616,7 +610,7 @@ async def live_session_count(
 ) -> int:
     """How many live sessions of one kind this account holds.
 
-    The per-account ceiling on concurrent CLI tokens. Without a ceiling, a hotkey that
+    The per-account ceiling on concurrent CLI tokens. Without a ceiling, a coldkey that
     can mint a session can mint unboundedly many, and every one of them is a durable
     credential that has to be revoked individually to be got rid of.
     """
@@ -704,7 +698,7 @@ async def consume_challenge(
     forwarded email logs in twice.
 
     ``kind`` is part of the predicate so a secret minted for one flow cannot be
-    redeemed in another: a hotkey-link nonce must not be usable as a sign-in.
+    redeemed in another: a coldkey-link nonce must not be usable as a sign-in.
     """
     statement = (
         update(LoginChallenge)
@@ -768,8 +762,9 @@ async def open_challenge_by_nonce(
 
     The alternative — ``latest_open_challenge``, which the coldkey flow uses — picks the
     newest open row for an address, and that is a denial-of-service primitive whenever the
-    address is public knowledge. Hotkeys are published on chain. An attacker who requests a
-    challenge for someone else's hotkey supersedes the challenge that person is in the middle
+    address is public knowledge. A coldkey that has ever transacted is public on chain. An
+    attacker who requests a challenge for someone else's key supersedes the challenge that
+    person is in the middle
     of signing, so their signature arrives valid over a message that is no longer "latest"
     and is refused. Repeat once a minute and that miner can never log in again.
 
@@ -817,20 +812,20 @@ async def record_failed_attempt(session: AsyncSession, challenge_id: uuid.UUID) 
     return (await session.execute(statement)).scalar_one()
 
 
-async def hotkey_still_linked(
-    session: AsyncSession, *, hotkey: str, account_id: uuid.UUID
+async def coldkey_still_linked(
+    session: AsyncSession, *, coldkey: str, account_id: uuid.UUID
 ) -> bool:
-    """Whether this hotkey is *currently* linked to this account.
+    """Whether this coldkey is *currently* linked to this account.
 
     Checked on every request a bearer session authenticates, not only at mint. A bearer token
-    records the hotkey that proved it, and that hotkey is the entire basis for the token's
+    records the coldkey that proved it, and that key is the entire basis for the token's
     existence — so if the link is gone, the token's authority is gone with it, and the next
     request must fail rather than the next expiry. Revoking scoped sessions eagerly on unlink
-    is the other half of this (``revoke_sessions_for_hotkey``); this is the half that does not
+    is the other half of this (``revoke_sessions_for_coldkey``); this is the half that does not
     depend on remembering to call it.
     """
-    statement = select(LinkedHotkey.id).where(
-        LinkedHotkey.hotkey == hotkey, LinkedHotkey.account_id == account_id
+    statement = select(AccountWallet.coldkey).where(
+        AccountWallet.coldkey == coldkey, AccountWallet.account_id == account_id
     )
     return (await session.execute(statement)).first() is not None
 
@@ -864,6 +859,7 @@ async def recent_challenge_count(
 __all__ = [
     "Authenticated",
     "authenticate",
+    "coldkey_still_linked",
     "consume_challenge",
     "create_account",
     "create_challenge",
@@ -871,27 +867,24 @@ __all__ = [
     "digest",
     "find_by_coldkey",
     "find_by_email",
-    "find_by_hotkey",
+    "find_by_submission_coldkey",
     "get_account",
-    "hotkey_still_linked",
-    "hotkeys_for",
     "latest_open_challenge",
-    "link_hotkey",
     "link_wallet",
     "live_session_count",
     "live_sessions_for",
     "normalise_email",
     "oldest_live_session",
-    "owns_hotkey",
     "owns_wallet",
     "recent_challenge_count",
     "revoke_all_sessions",
     "revoke_session",
     "revoke_session_for_account",
-    "revoke_sessions_for_hotkey",
+    "revoke_sessions_for_coldkey",
     "set_display_name",
-    "set_payout",
+    "set_payout_coldkey",
     "set_roles",
+    "set_submission_coldkey",
     "touch_session",
     "wallets_for",
 ]

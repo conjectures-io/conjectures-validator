@@ -30,10 +30,13 @@ POOL_ROOT = TASKS_ROOT / "pool"
 def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
     catalog = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)
 
-    modes = [entry.manifest.task_mode for entry in catalog.summaries()]
-    assert modes.count(EXACT_TASK_MODE) == DEFAULT_TIER_SIZE
-    assert modes.count(COUNTEREXAMPLE_TASK_MODE) == DEFAULT_TIER_SIZE
-    assert {entry.tier for entry in catalog.summaries()} == {DEFAULT_TASK_TIER}
+    # tier-1 is the paired production tier; the formalization tier-2 pool coexists.
+    tier1_modes = [
+        entry.manifest.task_mode for entry in catalog.summaries() if entry.tier == DEFAULT_TASK_TIER
+    ]
+    assert tier1_modes.count(EXACT_TASK_MODE) == DEFAULT_TIER_SIZE
+    assert tier1_modes.count(COUNTEREXAMPLE_TASK_MODE) == DEFAULT_TIER_SIZE
+    assert {entry.tier for entry in catalog.summaries()} == {DEFAULT_TASK_TIER, "tier-2"}
     assert all(
         entry.task_id == entry.manifest.task_id for entry in catalog.summaries()
     )

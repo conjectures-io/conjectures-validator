@@ -42,7 +42,7 @@ from submission_api.dependencies import (
     REASON_ROLE_NEEDS_BROWSER,
     REASON_ROLE_REQUIRED,
 )
-from submission_api.login import REASON_HOTKEY_NOT_LINKED
+from submission_api.login import REASON_COLDKEY_NOT_LINKED
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.routers.submissions import REASON_SUBMISSIONS_PAUSED
 from submission_api.settings import Settings
@@ -64,48 +64,54 @@ async def account_response(
 ) -> schemas.Account:
     """The account, with its linked keys, as the credential in hand is entitled to see it.
 
-    Served only to the account's owner. Every field here — the email, the payout keys, the
-    hotkeys — would be a disclosure on the public surface, which is why those models live in a
-    different module with the opposite rule.
+    Served only to the account's owner. Every field here — the email, the payout destination,
+    the linked coldkeys — would be a disclosure on the public surface, which is why those models
+    live in a different module with the opposite rule.
 
     **`bearer_scope` redacts it for a CLI session**, and the asymmetry is deliberate. A browser
-    session is opened by a coldkey signature or by proving control of a mailbox; a CLI session is
-    opened by a hotkey, which Bittensor stores unencrypted on disk by design. The two are not
-    equally strong evidence of "this is the account holder", so they do not see the same thing.
-    What a bearer session gets back is what it needs to operate — who it is, what it may act as,
-    and how much it can spend — and not:
+    session is an interactive credential in a browser that reports where its requests came from;
+    a CLI session is a long-lived token in a file on a mining machine, readable by anything that
+    can read the disk. The two are not equally strong evidence of "this is the account holder",
+    so they do not see the same thing. What a bearer session gets back is what it needs to
+    operate — who it is, what it may act as, and how much it can spend — and not:
 
       * `email`, which is the recovery channel for the whole account and, on a shared or
         compromised mining box, the first thing worth stealing;
-      * `payout`, which names where the money goes;
-      * `wallets`, which names the coldkey that can sign in;
+      * `payout`, which names where the money goes — and which needs no proof of control to
+        change, so knowing it is the first half of redirecting it;
+      * `wallets`, which names every key that can sign in and maps out the rest of the
+        operation;
       * `identities`, which names the Google account that can sign in — the same recovery-channel
-        argument as `email`, and for a provider that needs no mailbox access to use;
-      * the *other* linked hotkeys, which map out the rest of the operation.
+        argument as `email`, and for a provider that needs no mailbox access to use.
 
     `roles` and `email_verified` stay: neither is a secret, both are facts about capability
     rather than about a person, and the CLI needs the former to explain a role refusal.
 
     A redacted response is still an honest one — the fields are absent or empty, never wrong.
-    `hotkeys` narrows to the single key in scope, which is a true statement about what this
-    token may do, and `email_verified` is reported as it actually is.
+    `email_verified` is reported as it actually is.
+
+    **`wallets` is emptied rather than narrowed to the key in scope**, and that is a change
+    of shape from the hotkey list it replaced. That list was narrowed, because a hotkey was
+    not a way *into* an account and the one in scope was safe to name. A coldkey is a way in
+    — it signs in — so the whole list follows the same rule as `email` and `identities`.
+    Nothing is lost by it: `coldkeys.submission_coldkey` below tells the token which key it
+    signs as, and `GET /v1/me/coldkeys` serves the pair to either credential.
+
+    `coldkeys.submission_coldkey` is NOT redacted, and that is deliberate rather than an
+    oversight: it is the key this token already signs as, so the token knows it. Its
+    counterpart `payout_coldkey` is redacted with the rest of `payout`.
     """
     redacted = bearer_scope is not None
-    hotkeys = await account_store.hotkeys_for(session, account.id)
-    if redacted:
-        hotkeys = [item for item in hotkeys if item.hotkey == bearer_scope]
     wallets = [] if redacted else await account_store.wallets_for(session, account.id)
-    # Withheld from a bearer session on the same rule as `email` and `wallets`: a linked Google
-    # account is a way back *into* this account, so disclosing it to a token minted by a hotkey
-    # on a mining box would hand an attacker the next door to try.
+    # Withheld from a bearer session on the same rule as `email` and `wallets`: a linked
+    # Google account is a way back *into* this account, so disclosing it to a token read off a
+    # mining box would hand an attacker the next door to try.
     identities = (
         [] if redacted else await account_store.identities_for(session, account.id)
     )
     payout = None
-    if not redacted and account.payout_coldkey and account.payout_hotkey:
-        payout = schemas.PayoutDestination(
-            coldkey=account.payout_coldkey, hotkey=account.payout_hotkey
-        )
+    if not redacted and account.payout_coldkey:
+        payout = schemas.PayoutDestination(coldkey=account.payout_coldkey)
     return schemas.Account(
         id=account.id,
         email=None if redacted else account.email,
@@ -113,12 +119,16 @@ async def account_response(
         display_name=account.display_name,
         roles=tuple(account.roles or ()),
         payout=payout,
-        hotkeys=tuple(
-            schemas.LinkedHotkey(hotkey=item.hotkey, linked_at=_utc(item.linked_at))
-            for item in hotkeys
+        coldkeys=schemas.AccountColdkeys(
+            submission_coldkey=account.submission_coldkey,
+            payout_coldkey=None if redacted else account.payout_coldkey,
         ),
         wallets=tuple(
-            schemas.LinkedWallet(coldkey=item.coldkey, linked_at=_utc(item.linked_at))
+            schemas.LinkedWallet(
+                coldkey=item.coldkey,
+                is_submission_coldkey=item.coldkey == account.submission_coldkey,
+                linked_at=_utc(item.linked_at),
+            )
             for item in wallets
         ),
         identities=tuple(
@@ -150,8 +160,8 @@ def _identities(account: schemas.Account) -> tuple[schemas.Identity, ...]:
     Derived from the `schemas.Account` rather than re-read from the database, which is what
     makes the two halves of the envelope incapable of disagreeing — and means a CLI session's
     redaction is inherited rather than re-implemented: `account_response` has already dropped
-    the email and the wallets, so this yields an empty list for a bearer caller without knowing
-    that it is one.
+    the email, the wallets and the external identities, so this yields an empty list for a
+    bearer caller without knowing that it is one.
 
     **Only verified email counts as an identity.** An address that has not been proved is not a
     way in, and listing it as one would tell someone they have a recovery channel they do not.
@@ -216,33 +226,33 @@ def _capabilities(
 
     This is advisory. Nothing here authorises anything; the endpoint checks again.
     """
-    has_hotkey = bool(account.hotkeys)
+    # Off the response model, not the row: this function is handed the already-redacted
+    # `schemas.Account` so that the advice can never describe state the caller was not shown.
+    has_submission_coldkey = account.coldkeys.submission_coldkey is not None
     roles = set(account.roles)
 
     submit: list[str] = []
     if settings.submissions_paused:
         submit.append(REASON_SUBMISSIONS_PAUSED)
-    # Three intake paths, and a browser needs none of them to hold a key:
+    # Three intake paths, and a browser needs no key at all for one of them:
     #
-    #   a linked **hotkey** drives the three-call intent flow, from either credential;
+    #   a designated **submission coldkey** drives the three-call intent flow, from either
+    #   credential;
     #   a linked **coldkey** drives `POST /v1/submissions/web`, from a browser session only;
     #   **nothing at all** drives `POST /v1/submissions/session`, also browser-only, where the
     #   session itself is the authorisation.
     #
-    # So the only account this can still refuse is a **CLI session with no linked hotkey**. A
-    # bearer token is minted by a hotkey and scoped to it, and neither browser path is reachable
-    # with one, so a hotkey really is the only answer for that credential — which is why
-    # `is_bearer` is the condition rather than an absence of keys.
+    # So the only account this can still refuse is a **CLI session with no designated
+    # submission coldkey**. A bearer token is scoped to the coldkey that minted it and neither
+    # browser path is reachable with one, so a designated key really is the only answer for
+    # that credential — which is why `is_bearer` is part of the condition rather than an
+    # absence of keys on its own.
     #
-    # Reporting `HOTKEY_NOT_LINKED` to a signed-in browser with no keys was the shape of a
-    # website greying out its own submit button against the very person the session path exists
-    # for: a mathematician who signed in with an email address and holds no Bittensor key.
-    #
-    # Wallets no longer appear here at all. That is not an oversight — a coldkey is one way to
-    # submit from a browser and no longer a requirement, so naming it would make this stricter
-    # than `POST /v1/submissions/session` actually is.
-    if is_bearer and not has_hotkey:
-        submit.append(REASON_HOTKEY_NOT_LINKED)
+    # Reporting a missing key to a signed-in browser with no keys was the shape of a website
+    # greying out its own submit button against the very person the session path exists for: a
+    # mathematician who signed in with an email address and holds no Bittensor key.
+    if is_bearer and not has_submission_coldkey:
+        submit.append(REASON_COLDKEY_NOT_LINKED)
     if credits_available < 1:
         submit.append(REASON_INSUFFICIENT_CREDITS)
 
@@ -251,11 +261,15 @@ def _capabilities(
     # reason: the deposit path is always there, so credits are still buyable.
     buy_credits = [REASON_BROWSER_SESSION_REQUIRED] if is_bearer else []
 
+    # The credential is the only gate, and V035 removed the other one. This used to also
+    # require a linked hotkey, because a payout named a (coldkey, hotkey) stake position and
+    # half a destination could not be paid to. A payout destination is now one coldkey, it
+    # needs no proof of control, and it need not be linked to the account at all — so demanding
+    # a key before it can be set would refuse the ordinary case this endpoint exists for:
+    # sending rewards to a hardware wallet or an exchange address.
     set_payout: list[str] = []
     if is_bearer:
         set_payout.append(REASON_BROWSER_SESSION_REQUIRED)
-    if not has_hotkey:
-        set_payout.append(REASON_HOTKEY_NOT_LINKED)
 
     return schemas.Capabilities(
         submit=schemas.Capability(allowed=not submit, missing=tuple(submit)),
@@ -299,8 +313,8 @@ async def session_envelope(
 
     `bearer_scope` is passed straight through to `account_response`, and everything else is
     built from what that returns — so the redaction is decided in exactly one place. A CLI
-    session therefore sees no email identity, no coldkey identity, no payout and no hotkey but
-    its own, without this function branching on it.
+    session therefore sees no email identity, no Google identity, no payout and no linked
+    coldkey but its own, without this function branching on it.
 
     Two things are *not* inherited and are decided here:
 
@@ -341,7 +355,7 @@ async def session_envelope(
     return schemas.SessionEnvelope(
         account=body,
         identities=_identities(body),
-        hotkeys=body.hotkeys,
+        wallets=body.wallets,
         payout=body.payout,
         credits=schemas.SessionCredits(
             balance=balance.credits_available,
@@ -371,7 +385,7 @@ def session_view(row, *, current_id) -> schemas.SessionView:
         id=row.id,
         kind=str(row.kind),
         current=row.id == current_id,
-        hotkey_scope=row.hotkey_scope,
+        coldkey_scope=row.coldkey_scope,
         issued_at=_utc(row.issued_at),
         last_seen_at=_utc(row.last_seen_at),
         expires_at=_utc(row.expires_at),
@@ -407,7 +421,9 @@ def submission_summary(submission) -> schemas.SubmissionSummary:
     credit = public_credit_from_values(submission)
     return schemas.SubmissionSummary(
         id=submission.id,
-        hotkey=submission.hotkey,
+        # Falls back to the historical `hotkey` so a pre-V035 submission still shows the key
+        # that authorised it on the account's own panel.
+        signer_coldkey=submission.signer_coldkey or submission.hotkey,
         public_credit=None if credit is None else credit.to_dict(),
         task_id=submission.task_id,
         proof_sha256=digests.to_prefixed(submission.proof_digest),
@@ -446,7 +462,7 @@ async def submission_detail(session: AsyncSession, view) -> schemas.SubmissionDe
     credit = public_credit_from_values(submission)
     return schemas.SubmissionDetail(
         id=submission.id,
-        hotkey=submission.hotkey,
+        signer_coldkey=submission.signer_coldkey or submission.hotkey,
         public_credit=None if credit is None else credit.to_dict(),
         task_id=submission.task_id,
         task_bundle_sha256=digests.to_prefixed(submission.task_bundle_sha256),

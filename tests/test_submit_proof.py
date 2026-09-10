@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 TASK_DIGEST = "sha256:" + "ab" * 32
 PROOF_DIGEST = "sha256:" + "cd" * 32
-HOTKEY = "5" * 48
+MINER_COLDKEY = "5" * 48
 
 
 def load_client():
@@ -39,7 +39,7 @@ def arguments(tmp_path):
 
 
 def keypair():
-    return SimpleNamespace(ss58_address=HOTKEY, sign=lambda message: b"signature")
+    return SimpleNamespace(ss58_address=MINER_COLDKEY, sign=lambda message: b"signature")
 
 
 def test_submit_does_not_open_the_network_when_local_lean_rejects(
@@ -119,7 +119,7 @@ def test_reference_client_sends_credit_covered_by_the_server_digest(monkeypatch,
         captured["X-Conjectures-Public-Credit"]
     ) == credit
     assert client.canonical_request_digest(
-        hotkey=HOTKEY,
+        signer_coldkey=MINER_COLDKEY,
         task_id=args.task_id,
         task_bundle_sha256=args.task_sha256,
         proof_sha256=PROOF_DIGEST,
@@ -127,7 +127,7 @@ def test_reference_client_sends_credit_covered_by_the_server_digest(monkeypatch,
         idempotency_key=args.idempotency_key,
         public_credit=credit,
     ) == server_digest(
-        hotkey=HOTKEY,
+        signer_coldkey=MINER_COLDKEY,
         task_id=args.task_id,
         task_bundle_sha256=args.task_sha256,
         proof_sha256=PROOF_DIGEST,

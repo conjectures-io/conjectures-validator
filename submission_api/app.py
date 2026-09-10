@@ -80,7 +80,6 @@ from submission_api.observability import (
     AxiomRequestMiddleware,
     request_event_mode,
 )
-from submission_api.hotkeys import build_hotkey_directory
 from submission_api.payments import build_payment_verifier
 from submission_api.pins import PinSet, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
@@ -171,8 +170,6 @@ def build_services(
     reward_targets = tuple(
         sorted({entry.reward_target_id for entry in resolved_catalog.entries.values()})
     )
-    # Built before `Services` because the hotkey directory borrows its chain reader: one
-    # websocket answers both "was this transfer finalized" and "does this hotkey exist".
     verifier = build_payment_verifier(settings)
     return Services(
         settings=settings,
@@ -182,7 +179,6 @@ def build_services(
         retired=resolved_retired,
         authenticator=build_authenticator(settings),
         payments=verifier,
-        hotkeys=build_hotkey_directory(settings, payments=verifier),
         dispatcher=build_dispatcher(settings),
         pricing=DynamicBountyPricer(
             balance_reader=CachedBalanceReader(
@@ -371,7 +367,7 @@ def create_app(
     application.add_middleware(
         CrossOriginWriteGuard,
         allowed_origins=resolved_settings.write_allowed_origins,
-        # The hotkey-signature endpoints carry no cookie, so there is no ambient credential for
+        # The coldkey-signature endpoints carry no cookie, so there is no ambient credential for
         # a cross-site page to abuse, and miner tooling sends neither header.
         #
         # The TMC PAY webhook is exempt for the same reason and one more: its caller is a payment

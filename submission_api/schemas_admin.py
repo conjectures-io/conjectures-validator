@@ -184,7 +184,17 @@ class AdminReview(Model):
     slug: str = Field(description="The conjecture this submission is against, as a stable slug")
     display_title: str
     task_id: str
-    hotkey: str | None = None
+    solver_display_name: str | None = Field(
+        default=None,
+        description="The solver's account display name, if they set one",
+    )
+    solver_coldkey: str | None = Field(
+        default=None,
+        description=(
+            "The coldkey that signed this submission, or the hotkey for one predating V035. "
+            "Null for a submission authorised by a browser session."
+        ),
+    )
     statement: str = Field(description="The elaborated Lean statement, from the catalog")
     task_bundle_sha256: str
     verified_at: datetime | None = None
@@ -209,9 +219,17 @@ class AdminDecision(Model):
     Reading them off the response saves the panel a second request to learn the outcome of its
     own write, and they are the submission's state after the commit rather than a prediction of
     it.
+
+    Also answered by `POST /v1/admin/reviews/{submission_id}/correction`, which appends the row
+    that supersedes this one. Same shape on purpose: a correction *is* a decision, and a panel
+    that rendered the two differently would be inventing a distinction the table does not make.
     """
 
     submission_id: uuid.UUID
+    # The appended row's own id. Carried because a correction has to name the decision it
+    # supersedes, and this is the only place that id is published — without it the panel could
+    # record a decision and then have no way to address it.
+    review_decision_id: int
     decision: str = Field(description="APPROVED | REJECTED")
     reason_code: str
     notes_public: str | None = None
@@ -219,6 +237,12 @@ class AdminDecision(Model):
     decided_at: datetime
     manual_review_status: str
     reward_status: str
+    # The decision this one corrects, or null for a first decision. Null is the common case and
+    # says "nothing was overridden" rather than "unknown".
+    supersedes_id: int | None = Field(
+        default=None,
+        description="The review decision this one supersedes; null for a first decision",
+    )
 
 
 __all__ = [

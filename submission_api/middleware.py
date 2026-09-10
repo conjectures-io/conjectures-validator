@@ -371,7 +371,7 @@ def cors_options(settings: Settings) -> MutableMapping[str, Any]:
 
     Methods still exclude `POST /v1/submissions`' verb set for the browser: writes are allowed
     only on the account surface. `POST /v1/submissions` is called by miner tooling, never by a
-    browser, and it authenticates with a hotkey signature rather than a cookie — so a page on a
+    browser, and it authenticates with a coldkey signature rather than a cookie — so a page on a
     compromised allowlisted origin still cannot spend a miner's payment.
     """
     from submission_api.settings import (
@@ -415,7 +415,7 @@ class CrossOriginWriteGuard:
     `POST /v1/auth/email/request-link` sends mail, so a cross-site page must not be able to
     trigger it — and it refuses before a route parses a body.
 
-    The hotkey-signature endpoints are exempt by path. They carry no cookie and authenticate a
+    The coldkey-signature endpoints are exempt by path. They carry no cookie and authenticate a
     signature instead, so there is no ambient credential in play at all.
     """
 

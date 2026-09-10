@@ -42,7 +42,6 @@ class ClaimedDelivery:
     reward_event_id: int
     submission_id: str
     destination_coldkey: str
-    destination_hotkey: str
     amount_rao: int
     signer_wallet: str
     discord_user_id: str
@@ -85,19 +84,28 @@ class PayoutNotifier:
         ``FORMALIZATION_DEFECT_AWARD`` instead creates the policy's fixed $750 payout using one
         current authoritative quote shared by every defect award in this pass.
 
-        The destination is the first of three that the row can answer for, and the order is by
-        strength of evidence:
+        The destination is one coldkey as of V035, and it is the first of three the row can
+        answer for, in order of strength of evidence:
 
-        1. the **account-configured payout pair**, which the owner set deliberately;
-        2. ``signer_coldkey`` — a website submission, where a coldkey *signed* for this exact
-           attempt. Stronger evidence than either fallback below, and paired with the hotkey the
-           same signature nominated;
-        3. ``payment_sender`` — a legacy direct submission, paid by a finalized transfer, paired
-           with the submitting hotkey.
+        1. the **account-configured** ``payout_coldkey``, which the owner set deliberately;
+        2. ``signer_coldkey`` — a coldkey that *signed* for this exact attempt;
+        3. ``payment_sender`` — paid by a finalized transfer.
 
-        A credit submission with none of the three is deliberately skipped rather than guessed:
-        the schema leaves ``payment_sender`` NULL on that path, so before the website path existed
-        an account that never configured a payout had no address anybody could stand behind.
+        There is no destination hotkey to resolve any more, and that removed a whole class of
+        mismatch. It used to be a second coalesce over a different pair of columns
+        (``Account.payout_hotkey``, ``Submission.hotkey``), which could only be trusted to agree
+        with the coldkey coalesce because a CHECK forced the account's two payout columns to be
+        set together — an invariant holding up an unrelated one. ``transfer_stake`` leaves the
+        stake on the validator's own hotkey, so the only hotkey in a payout is configuration.
+
+        Note 2 and 3 are usually now the same address: since V035 the extrinsic path requires
+        the paying coldkey to be the signing coldkey. They stay separate because the website
+        path has a signer and no payment, and pre-V035 rows have a payment whose sender was
+        never proved to be a signer.
+
+        A submission with none of the three is deliberately skipped rather than guessed: an
+        account that has set no payout destination has no address anybody could stand behind.
+        The row stays ELIGIBLE and the next poll picks it up once one is set.
         """
         with self.sessions() as session:
             latest_decision_id = (
@@ -127,12 +135,6 @@ class PayoutNotifier:
                 Submission.signer_coldkey,
                 Submission.payment_sender,
             )
-            # No `signer_coldkey` counterpart, because `Submission.hotkey` already *is* the
-            # hotkey that signature nominated. The account pair stays both-or-neither — a CHECK
-            # enforces it — so these two coalesces cannot resolve to a mismatched pair.
-            destination_hotkey = func.coalesce(
-                Account.payout_hotkey, Submission.hotkey
-            )
             existing_reward = exists(
                 select(RewardEvent.id).where(
                     RewardEvent.submission_id == Submission.id
@@ -149,13 +151,11 @@ class PayoutNotifier:
                     Submission.bounty_policy_version.label("locked_policy_version"),
                     Submission.bounty_inputs.label("locked_pricing_inputs"),
                     destination_coldkey.label("destination_coldkey"),
-                    destination_hotkey.label("destination_hotkey"),
                 )
                 .outerjoin(Account, Account.id == Submission.account_id)
                 .where(
                     Submission.reward_status == RewardState.ELIGIBLE,
                     destination_coldkey.is_not(None),
-                    destination_hotkey.is_not(None),
                     ~existing_reward,
                     or_(
                         latest_reason == "FORMALIZATION_DEFECT_AWARD",
@@ -202,7 +202,9 @@ class PayoutNotifier:
                         pricing_policy_version=pricing_policy_version,
                         pricing_inputs=pricing_inputs,
                         destination_coldkey=candidate.destination_coldkey,
-                        destination_hotkey=candidate.destination_hotkey,
+                        # `destination_hotkey` is deliberately left NULL. It is history only:
+                        # a pre-V035 payout recorded the hotkey its stake was moved to, and
+                        # `transfer_stake` moves stake to no new position.
                         initiated_by="payout-notifier:auto",
                         generation_key=f"submission:{candidate.id}",
                     )
@@ -263,7 +265,6 @@ class PayoutNotifier:
                     RewardEvent.id.label("claimed_reward_event_id"),
                     RewardEvent.submission_id.label("claimed_submission_id"),
                     RewardEvent.destination_coldkey.label("claimed_destination_coldkey"),
-                    RewardEvent.destination_hotkey.label("claimed_destination_hotkey"),
                     RewardEvent.amount_rao.label("claimed_amount_rao"),
                 )
                 .join(
@@ -296,7 +297,6 @@ class PayoutNotifier:
                 reward_event_id=row.claimed_reward_event_id,
                 submission_id=str(row.claimed_submission_id),
                 destination_coldkey=row.claimed_destination_coldkey,
-                destination_hotkey=row.claimed_destination_hotkey,
                 amount_rao=row.claimed_amount_rao,
                 signer_wallet=delivery.signer_wallet,
                 discord_user_id=delivery.discord_user_id,
@@ -346,7 +346,6 @@ class PayoutNotifier:
                             claimed.reward_event_id,
                             claimed.submission_id,
                             claimed.destination_coldkey,
-                            claimed.destination_hotkey,
                             claimed.amount_rao,
                         )
                     ],
