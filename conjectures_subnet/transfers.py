@@ -558,11 +558,23 @@ class BittensorTransferSource:
     archive endpoint; following the head does not. Same split as ninja-validator's chain watcher.
     """
 
-    def __init__(self, network: str, *, archive_network: str | None = None) -> None:
+    def __init__(
+        self,
+        network: str,
+        *,
+        archive_network: str | None = None,
+        read_timeout: float = 60.0,
+        close_timeout: float = 5.0,
+    ) -> None:
+        if read_timeout <= 0 or close_timeout <= 0:
+            raise ValueError("chain timeouts must be positive")
+        self.read_timeout = read_timeout
+        self.close_timeout = close_timeout
         self.network = network
         self.archive_network = archive_network or network
         self._lock = asyncio.Lock()
         self._clients: dict[str, Any] = {}
+        self._pending_cleanup: set[asyncio.Task[Any]] = set()
 
     async def close(self) -> None:
         """Close every held connection. Idempotent, and safe to call after a failure."""
@@ -584,13 +596,12 @@ class BittensorTransferSource:
             # subscription deterministically instead of at collection time — which on a held
             # connection matters more than it does on one about to be closed anyway. Same
             # reasoning as conjectures_subnet/chain.py.
-            stream = cast(
-                AsyncGenerator[bt.BlockHeader, None], client.blocks(finalized=True)
-            )
+            stream = cast(AsyncGenerator[bt.BlockHeader, None], client.blocks(finalized=True))
             try:
                 header = await anext(stream)
             finally:
-                await stream.aclose()
+                # Cancellation can enter generator cleanup that itself waits for an RPC.
+                await self._bounded(stream.aclose(), self.close_timeout)
             return int(header.number)
 
         return await self._read(self.network, read)
@@ -628,9 +639,7 @@ class BittensorTransferSource:
 
         return await self._read(self.archive_network, read)
 
-    async def transfers_to(
-        self, *, recipient: str, block: int
-    ) -> Sequence[IncomingTransfer]:
+    async def transfers_to(self, *, recipient: str, block: int) -> Sequence[IncomingTransfer]:
         """Every transfer into `recipient` in one finalized block.
 
         One storage read for the overwhelmingly common case of a block with nothing in it for us,
@@ -673,9 +682,7 @@ class BittensorTransferSource:
         stamp = await self._read(self.archive_network, read_timestamp)
         return payouts_in_events(records, block=block, block_timestamp=stamp)
 
-    async def _transfers(
-        self, *, block: int, recipient: str | None
-    ) -> Sequence[IncomingTransfer]:
+    async def _transfers(self, *, block: int, recipient: str | None) -> Sequence[IncomingTransfer]:
         async def read_events(client: Any) -> Any:
             return await client.query(SYSTEM_EVENTS, block=block)
 
@@ -710,20 +717,29 @@ class BittensorTransferSource:
 
     # --- connection handling ------------------------------------------------------------
 
-    async def _read(
-        self, network: str, operation: Callable[[Any], Awaitable[T]]
-    ) -> T:
+    async def _read(self, network: str, operation: Callable[[Any], Awaitable[T]]) -> T:
         """Run one chain read on the held connection, dropping it if it fails.
 
         Only chain I/O goes in here. Decoding happens in the caller, so a runtime shape this
         module cannot read is not mistaken for a broken socket and does not cost a reconnect.
         """
         async with self._lock:
-            client = await self._connect(network)
             try:
-                return await operation(client)
+                # A dead transport can leave a request pending without raising. Bound both
+                # connection setup and the read so the caller can retry the same block.
+                async def read() -> T:
+                    client = await self._connect(network)
+                    return await operation(client)
+
+                return await self._bounded(read(), self.read_timeout)
             except asyncio.CancelledError:
+                await self._drop(network)
                 raise
+            except TimeoutError as exc:
+                await self._drop(network)
+                raise ChainUnavailable(
+                    f"chain read timed out on {network} after {self.read_timeout:g}s"
+                ) from exc
             except Exception as exc:
                 # The connection is suspect either way, and a stale one would fail every
                 # subsequent read the same way. Dropped here; the next call reconnects.
@@ -732,6 +748,30 @@ class BittensorTransferSource:
                     raise
                 raise ChainUnavailable(f"chain read failed on {network}: {exc}") from exc
 
+    async def _bounded(self, operation: Awaitable[T], timeout: float) -> T:
+        """Bound wall time even if a cancelled RPC enters asynchronous cleanup.
+
+        wait_for waits for cancellation to finish; a subscription's unsubscribe RPC can hang
+        there too. Retain cancelled tasks until they finish and retrieve any late exception.
+        Closing the discarded client separately wakes its pending requests.
+        """
+        task = asyncio.ensure_future(operation)
+        try:
+            done, _ = await asyncio.wait({task}, timeout=timeout)
+            if not done:
+                raise TimeoutError
+            return task.result()
+        finally:
+            if not task.done():
+                self._pending_cleanup.add(task)
+                task.add_done_callback(self._cleanup_finished)
+                task.cancel()
+
+    def _cleanup_finished(self, task: asyncio.Task[Any]) -> None:
+        self._pending_cleanup.discard(task)
+        if not task.cancelled():
+            task.exception()
+
     async def _connect(self, network: str) -> Any:
         client = self._clients.get(network)
         if client is not None:
@@ -739,8 +779,10 @@ class BittensorTransferSource:
         # Awaiting the instance connects it on this loop and returns the async client, which is
         # the bittensor 11 contract — `async with` would close it on the way out, and the point
         # here is to keep it.
-        client = await bt.Subtensor(network)
+        client = bt.Subtensor(network)
+        # Retain the client before connecting, so interrupted setup can close it too.
         self._clients[network] = client
+        await client
         logger.info("connected to %s", network)
         return client
 
@@ -749,9 +791,9 @@ class BittensorTransferSource:
         if client is None:
             return
         try:
-            await client.close()
-        except Exception:  # pragma: no cover - closing a broken socket is best-effort
-            logger.debug("closing the %s connection failed", network, exc_info=True)
+            await self._bounded(client.close(), self.close_timeout)
+        except Exception:
+            logger.warning("closing the %s connection failed", network, exc_info=True)
 
 
 # A placeholder, replaced with the block's real timestamp before any transfer leaves
@@ -787,9 +829,7 @@ async def finalized_transfer(
     if reference.block > head:
         return None
     transfers = await source.transfers_in(block=reference.block)
-    in_extrinsic = [
-        item for item in transfers if item.extrinsic_index == reference.extrinsic_index
-    ]
+    in_extrinsic = [item for item in transfers if item.extrinsic_index == reference.extrinsic_index]
     if not in_extrinsic:
         return None
     if reference.event_index is not None:
