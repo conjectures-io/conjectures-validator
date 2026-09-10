@@ -606,3 +606,81 @@ def test_close_releases_the_held_connection():
 
     asyncio.run(body())
     assert client.closed
+
+
+@pytest.mark.parametrize("hang_at", ["connect", "read", "unsubscribe", "close"])
+def test_stalled_chain_io_is_bounded_and_the_next_read_reconnects(hang_at, monkeypatch):
+    """Reproduce pending RPCs, including cancellation that enters stalled cleanup."""
+
+    class StalledClient(_FakeClient):
+        async def connect(self):
+            if hang_at == "connect":
+                await asyncio.Future()
+            return self
+
+        async def query(self, *args, **kwargs):
+            if hang_at == "close":
+                raise OSError("disconnected")
+            await asyncio.Future()
+
+        async def blocks(self, *, finalized):
+            assert finalized
+            try:
+                yield type("Header", (), {"number": 100})()
+            finally:
+                await asyncio.Future()  # unsubscribe never gets an RPC response
+
+        async def close(self):
+            self.closed = True
+            if hang_at == "close":
+                await asyncio.Future()
+
+    class FreshClient(_FakeClient):
+        async def connect(self):
+            return self
+
+    broken, fresh = StalledClient(), FreshClient()
+    clients = iter([broken, fresh])
+    monkeypatch.setattr("conjectures_subnet.transfers.bt.Client", lambda _: next(clients))
+    source = BittensorTransferSource("finney", read_timeout=0.02, close_timeout=0.01)
+
+    async def body():
+        operation = (
+            source.finalized_head()
+            if hang_at == "unsubscribe"
+            else source.transfers_to(recipient=RECIPIENT, block=100)
+        )
+        with pytest.raises(ChainUnavailable):
+            await asyncio.wait_for(operation, 1)
+        assert broken.closed
+        assert "finney" not in source._clients
+        found = await source.transfers_to(recipient=RECIPIENT, block=100)
+        assert [item.amount_rao for item in found] == [RAO_PER_TAO]
+        await source.close()
+        await asyncio.sleep(0)
+        assert not source._pending_cleanup
+
+    asyncio.run(body())
+
+
+def test_cancellation_drops_the_client_and_releases_the_read_lock():
+    broken, fresh = _FakeClient(), _FakeClient()
+    source = _source([broken, fresh])
+
+    async def body():
+        entered = asyncio.Event()
+
+        async def hang(client):
+            entered.set()
+            await asyncio.Future()
+
+        task = asyncio.create_task(source._read("finney", hang))
+        await entered.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert broken.closed
+        assert await source.hotkey_at(netuid=66, uid=121) == RECIPIENT
+        await source.close()
+
+    asyncio.run(body())
