@@ -858,6 +858,51 @@ def test_a_rejection_publishes_its_explanation_and_leaves_the_reward_ineligible(
     run(scenario())
 
 
+@pytest.mark.parametrize("payload,reward_status", [(APPROVAL, "ELIGIBLE"), (REJECTION, "INELIGIBLE")])
+def test_legacy_hotkey_submission_can_be_decided(payload, reward_status):
+    """A pre-V035 authorisation remains intact after a human decision."""
+    from sqlalchemy import text
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "legacy-review")
+            async with kit.session() as session:
+                # Reconstruct a historical row in the isolated test database. These guards
+                # must be disabled only for fixture setup, never for the decision itself.
+                for trigger in ("submissions_protect_legacy_hotkey", "submissions_protect_signer_coldkey"):
+                    await session.execute(text(f"ALTER TABLE submissions DISABLE TRIGGER {trigger}"))
+                await session.execute(text(
+                    "UPDATE submissions SET hotkey = signer_coldkey, "
+                    "hotkey_signature = signer_signature, signer_coldkey = NULL, "
+                    "signer_signature = NULL WHERE id = :id"
+                ), {"id": uuid.UUID(submission_id)})
+                for trigger in ("submissions_protect_legacy_hotkey", "submissions_protect_signer_coldkey"):
+                    await session.execute(text(f"ALTER TABLE submissions ENABLE TRIGGER {trigger}"))
+                row = await session.get(Submission, uuid.UUID(submission_id))
+                original = (row.hotkey, row.hotkey_signature)
+                assert all(original)
+                await session.commit()
+
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                response = await http.post(
+                    _decision_path(submission_id), json=payload, headers=WRITE,
+                )
+                assert response.status_code == 201, response.text
+            assert await _statuses(kit, submission_id) == (payload["decision"], reward_status)
+            assert len(await _decisions(kit, submission_id)) == 1
+            async with kit.session() as session:
+                row = await session.get(Submission, uuid.UUID(submission_id))
+                assert (row.hotkey, row.hotkey_signature) == original
+                assert row.signer_coldkey is None
+                assert row.signer_signature is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_second_decision_is_refused_rather_than_recorded():
     """Two reviewers with the panel open is the ordinary case, and a double-click is the common one.
 
