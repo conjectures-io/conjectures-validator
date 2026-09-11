@@ -9,6 +9,11 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `GET` | `/v1/auth/session` | `SessionEnvelope` | The whole signed-in state, or `401` |
 | `POST` | `/v1/auth/email/request-link` | `202` | Mail a single-use sign-in link |
 | `POST` | `/v1/auth/email/verify` | `SessionEnvelope` | Exchange the token for a session |
+| `POST` | `/v1/auth/password/register` | `202` | Begin registering with an address and a password |
+| `POST` | `/v1/auth/password/verify` | `SessionEnvelope` | Confirm the address, create the account, open a session |
+| `POST` | `/v1/auth/password/login` | `SessionEnvelope` | Sign in with an address and a password |
+| `POST` | `/v1/auth/password/forgot` | `202` | Mail a single-use password reset link |
+| `POST` | `/v1/auth/password/reset` | `SessionEnvelope` | Set a new password, open a session |
 | `POST` | `/v1/auth/google/callback` | `303` | Verify Google's redirect-mode ID token, open a session |
 | `POST` | `/v1/auth/google/link` | `SessionEnvelope` | Attach Google to the signed-in account — browser only |
 | `POST` | `/v1/auth/wallet/challenge` | `{ nonce, message, expires_at }` | A nonce and the exact message to sign |
@@ -441,6 +446,74 @@ website serves it elsewhere sets `EMAIL_VERIFY_PATH` and needs no API release.
 `POST /v1/auth/email/verify` consumes the token in one conditional `UPDATE`, so a forwarded email
 or a double-clicked link signs in once. It is signup and sign-in at once — verifying a token
 proves receipt at that address, which is the whole of what an email account proves.
+
+### Email and password
+
+Five endpoints, all shaped by one rule: **no account exists until a mailbox answers.**
+
+`POST /v1/auth/password/register` takes an address and a password and writes a single-use
+`PASSWORD_SIGNUP` challenge holding the address and the *hashed* password. It does not touch
+`accounts`. Following the link in the mail is what creates the account; an unanswered
+registration leaves nothing behind but a row that expires.
+
+That ordering is the point. An unverified `accounts` row created at registration time would be a
+squatting primitive — register someone else's address and they can never sign up, never link
+Google to it, and never be found by their own mailbox — and `email_verified` would quietly
+degrade from "this mailbox answered" to "somebody typed this".
+
+The endpoint answers `202` for every address once the password itself passes policy, so it is no
+more an enumeration oracle than `request-link` is. An address that **already has an account**
+gets a password reset link under a subject line explaining why, rather than a refusal or silence.
+That is the same mail `password/forgot` sends, on the same per-address budget, so it grants an
+attacker nothing new — and it is how an account created through Google or a coldkey adds a
+password: the owner proves the mailbox and chooses one.
+
+A rejected password is a `400` with `PASSWORD_REJECTED` and a specific reason ("at least 12
+characters"). That is a fact about what was typed, not about who has an account here, so saying
+it plainly discloses nothing.
+
+| Refusal | Status | `reason_code` |
+| --- | --- | --- |
+| Password fails policy | `400` | `PASSWORD_REJECTED` |
+| Wrong password, unknown address, or account with no password | `401` | `PASSWORD_INVALID` |
+| Confirmation or reset token expired, spent, or invented | `401` | `CHALLENGE_INVALID` |
+| Too many failed attempts for that address | `429` | `PASSWORD_ATTEMPTS_EXCEEDED` |
+| An account appeared for the address mid-registration | `409` | `EMAIL_IN_USE` |
+
+`POST /v1/auth/password/login` collapses three failures into one indistinguishable `401`: a wrong
+password, an address with no account, and an account that has never set a password. They cost the
+same time as well as returning the same body — an address with no account still pays a real
+scrypt derivation, because returning in microseconds where a registered address takes ~140ms is
+an enumeration oracle no status code can close.
+
+Guessing is bounded twice. `accounts` carries a durable counter and a pause that survive restarts
+and are shared across replicas. An in-process per-address window (`PASSWORD_ATTEMPTS`,
+`PASSWORD_THROTTLE_MINUTES`) covers addresses with **no** account too, which is what keeps the
+`429` from disclosing what the `401` refuses to. Both pause the *password method only*: magic
+link, Google and coldkey sign-in keep working throughout, so tripping the ceiling on someone
+else's address costs them one button for a few minutes rather than access to their account.
+
+`POST /v1/auth/password/reset` checks the new password against policy **before** consuming the
+token, so a typo does not cost a mail. It then signs the person in — the mailbox has just been
+proved, which is the whole of what a reset can establish — and, through the normal sign-in path,
+revokes every other browser session. That last part is the reason most people reach for a reset,
+and the mail says so.
+
+Passwords are scrypt, from the standard library, stored as `scrypt$<cost>$<r>$<p>$<salt>$<key>`.
+The parameters travel with the digest, so raising `PASSWORD_COST_LOG2` rehashes accounts as they
+sign in and needs no migration. See [`submission_api/passwords.py`](../submission_api/passwords.py).
+
+The three routes these mails point at are configured, exactly as `EMAIL_VERIFY_PATH` is and for
+the same reason — the pages belong to the website repository and this API never serves them:
+
+| Setting | Default | The page it names |
+| --- | --- | --- |
+| `SIGNUP_VERIFY_PATH` | `/login/signup/verify` | Reads the token and POSTs it to `/v1/auth/password/verify` |
+| `PASSWORD_RESET_PATH` | `/login/reset` | Asks for a new password, POSTs both to `/v1/auth/password/reset` |
+| `SIGN_IN_PATH` | `/login` | Where the "you already have an account" mail points |
+
+**None of these pages exist yet.** The defaults are a contract with whoever builds them, not a
+description of the website today.
 
 ### Google
 
@@ -1288,6 +1361,11 @@ the other four values below are ones production refuses to start without or with
 | --- | --- |
 | `WEBSITE_BASE_URL` | Required, https. Where the sign-in link points — a link to a guessed origin is a credential sent somewhere nobody chose |
 | `EMAIL_VERIFY_PATH` | The route under `WEBSITE_BASE_URL` that renders the sign-in page. Defaults to `/login/verify`. Rooted path only: no origin, no query string, no fragment. Configurable because the page lives in the website repository — when it moves, a mailed link 404s and nothing in this API fails |
+| `SIGNUP_VERIFY_PATH`, `PASSWORD_RESET_PATH`, `SIGN_IN_PATH` | The same, for the routes the password flows mail. Same rooted-path rule, same reason. Default to `/login/signup/verify`, `/login/reset` and `/login` |
+| `MAIL_SENDER` | `smtp`, `brevo`, or `console`. Production refuses `console`, which writes sign-in links to the log. `brevo` posts to the transactional API and surfaces delivery failures at the moment of the call; `smtp` speaks SMTP to any provider, Brevo's relay included, and cannot tell a rejected recipient from a delivered one |
+| `BREVO_API_KEY`, `BREVO_SENDER_ADDRESS` | Required when `MAIL_SENDER=brevo`. The key is a bearer credential for the whole Brevo account; the sender must be one Brevo has verified, with SPF/DKIM published for its domain |
+| `PASSWORD_COST_LOG2` | scrypt's cost as log2(n), minimum 12, default 16 (64 MiB and ~140ms per sign-in). Every concurrent sign-in holds that much memory and the endpoint is unauthenticated, so size it to the instance |
+| `PASSWORD_ATTEMPTS`, `PASSWORD_THROTTLE_MINUTES` | Failed sign-ins before an account's password method pauses, and for how long. Other sign-in methods are unaffected |
 | `MAIL_SENDER` | Must be `smtp`. `console` writes sign-in links to the process log |
 | `SMTP_HOST`, `SMTP_FROM_ADDRESS` | Required with SMTP. The provider host and verified sender address |
 | `SMTP_PORT`, `SMTP_SECURITY` | Defaults to port 587 with `starttls`; `implicit-tls` supports port 465. Production refuses plaintext |

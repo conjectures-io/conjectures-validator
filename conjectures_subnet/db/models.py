@@ -1141,6 +1141,8 @@ class LoginChallengeKind(enum.StrEnum):
     HOTKEY_SESSION = "HOTKEY_SESSION"  # retired V035: a hotkey opening a CLI session
     COLDKEY_LINK = "COLDKEY_LINK"  # attaching another coldkey to an account
     COLDKEY_SESSION = "COLDKEY_SESSION"  # V034: a coldkey opening a CLI session
+    PASSWORD_SIGNUP = "PASSWORD_SIGNUP"  # V036: a pending email/password registration
+    PASSWORD_RESET = "PASSWORD_RESET"  # V036: authorises setting a new password
 
 
 # Minting one of these is a bug, not a policy choice, so the set is named once here rather than
@@ -1148,6 +1150,15 @@ class LoginChallengeKind(enum.StrEnum):
 RETIRED_CHALLENGE_KINDS = (
     LoginChallengeKind.HOTKEY_LINK,
     LoginChallengeKind.HOTKEY_SESSION,
+)
+
+# The kinds that put a link in someone's mailbox. Counted together against the per-address
+# hourly ceiling, because the thing being bounded is mail sent to a person who did not ask for
+# it — an attacker who could spend a separate budget on each kind would simply spend all three.
+MAILED_CHALLENGE_KINDS = (
+    LoginChallengeKind.EMAIL,
+    LoginChallengeKind.PASSWORD_SIGNUP,
+    LoginChallengeKind.PASSWORD_RESET,
 )
 
 
@@ -1245,6 +1256,24 @@ class Account(Base):
         Boolean, nullable=False, server_default=text("false")
     )
     display_name: Mapped[str | None] = mapped_column(Text)
+    # NULL for an account that signs in only by link, Google or wallet. The encoding is
+    # `scrypt$<cost>$<r>$<p>$<salt>$<key>`, all base64 — see `submission_api/passwords.py`,
+    # which owns the format. The column is Text rather than BYTEA because the parameters
+    # travel with the digest: a row has to say how it was derived to be verifiable at all.
+    password_hash: Mapped[str | None] = mapped_column(Text)
+    password_updated_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    # Online guessing, bounded. Reset by any successful password sign-in and by setting a new
+    # password. `password_throttled_until` pauses only the password method — every other way
+    # into the account keeps working — so tripping it on someone else's address denies them a
+    # button for a few minutes, not their account. See `DEFAULT_PASSWORD_ATTEMPTS`.
+    failed_password_attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0")
+    )
+    password_throttled_until: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     roles: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, server_default=text("ARRAY['MINER']::TEXT[]")
     )
@@ -1280,6 +1309,20 @@ class Account(Base):
         CheckConstraint(
             "roles <@ ARRAY['MINER', 'REVIEWER', 'ADMIN']::TEXT[]",
             name="account_roles_are_known",
+        ),
+        CheckConstraint(
+            "(password_hash IS NULL) = (password_updated_at IS NULL)",
+            name="password_hash_is_dated",
+        ),
+        # A password may only exist on an account that has an address to reset it through.
+        # Otherwise a forgotten password is unrecoverable by construction.
+        CheckConstraint(
+            "password_hash IS NULL OR email IS NOT NULL",
+            name="password_requires_an_email",
+        ),
+        CheckConstraint(
+            "failed_password_attempts >= 0",
+            name="password_attempts_not_negative",
         ),
         CheckConstraint(
             "updated_at >= created_at", name="accounts_updated_not_before_created"
@@ -1531,6 +1574,15 @@ class LoginChallenge(Base):
     # The exact bytes the client is asked to sign, stored verbatim so verification
     # never reconstructs them and cannot reconstruct them differently.
     message: Mapped[str | None] = mapped_column(Text)
+    # PASSWORD_SIGNUP only: the already-hashed password the account will be created with.
+    #
+    # It lives here rather than on an unverified `accounts` row because an account that exists
+    # before its address is proved is a squatting primitive — register victim@example.com and
+    # they can never sign up, link Google, or be found by their own address. Nothing is created
+    # until the mailbox answers, so an unanswered registration leaves no trace but an expired
+    # row. The value is a finished scrypt hash, never a password: this table is not a place a
+    # plaintext credential is permitted to rest, however briefly.
+    password_hash: Mapped[str | None] = mapped_column(Text)
 
     expires_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -1548,7 +1600,17 @@ class LoginChallenge(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "kind <> 'EMAIL' OR email IS NOT NULL", name="challenge_email_present"
+            "kind NOT IN ('EMAIL', 'PASSWORD_SIGNUP', 'PASSWORD_RESET') "
+            "OR email IS NOT NULL",
+            name="challenge_email_present",
+        ),
+        CheckConstraint(
+            "(kind = 'PASSWORD_SIGNUP') = (password_hash IS NOT NULL)",
+            name="challenge_password_hash_is_signup_only",
+        ),
+        CheckConstraint(
+            "kind <> 'PASSWORD_RESET' OR account_id IS NOT NULL",
+            name="challenge_reset_has_account",
         ),
         CheckConstraint("attempts >= 0", name="challenge_attempts_not_negative"),
         # Every signature flow needs both the address and the verbatim message. COLDKEY_SESSION
