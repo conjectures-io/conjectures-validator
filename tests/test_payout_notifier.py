@@ -38,14 +38,24 @@ MINER_COLDKEY = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
 
 
-def test_settings_require_the_webhook_and_bound_polling():
-    with pytest.raises(SettingsError, match="PAYOUT_DISCORD_WEBHOOK_URL"):
-        NotifierSettings.from_env({"DATABASE_URL": "postgresql://unused"})
+def test_settings_make_the_webhook_optional_and_bound_polling():
+    # Unset is a supported configuration: obligations are still seeded, nobody is notified.
+    without_webhook = NotifierSettings.from_env(
+        {
+            "DATABASE_URL": "postgresql://unused",
+            "TAOSTATS_API_KEY": "test-taostats-key",
+        }
+    )
+    assert without_webhook.webhook_url == ""
+    assert without_webhook.notifications_enabled is False
+
+    # Set but malformed stays a hard error: that is a typo in a channel somebody believes is live.
     with pytest.raises(SettingsError, match="discord.com"):
         NotifierSettings.from_env(
             {
                 "DATABASE_URL": "postgresql://unused",
                 "PAYOUT_DISCORD_WEBHOOK_URL": "https://example.com/api/webhooks/1/token",
+                "TAOSTATS_API_KEY": "test-taostats-key",
             }
         )
 
@@ -69,6 +79,7 @@ def test_settings_require_the_webhook_and_bound_polling():
     assert settings.taostats_api_key == "test-taostats-key"
     assert settings.bounty_netuid == 66
     assert settings.taostats_timeout_seconds == 8
+    assert settings.notifications_enabled is True
 
 
 def test_defect_award_quote_uses_decimal_prices_and_records_inputs(monkeypatch):
@@ -87,6 +98,63 @@ def test_defect_award_quote_uses_decimal_prices_and_records_inputs(monkeypatch):
     assert quote.pricing_inputs["netuid"] == 66
 
 
+def seed_eligible_submission(sessions) -> uuid.UUID:
+    """Seed one VERIFIED+APPROVED submission that is ELIGIBLE for a reward.
+
+    Shared by the delivery test and the Discord-disabled test so the two cannot drift on
+    what "eligible" means -- the whole point of the second test is that the same input
+    still produces the same obligation.
+    """
+    content = b"theorem payout_notification_fixture : True := trivial"
+    digest = hashlib.sha256(content).digest()
+    submission_id = uuid.uuid4()
+    with sessions.begin() as session:
+        session.add(
+            Proof(digest=digest, content=content, byte_length=len(content))
+        )
+        session.flush()
+        session.add(
+            Submission(
+                id=submission_id,
+                # Signer and payer are one key, which is what V035 requires of the
+                # extrinsic path and what `submission_signer_coldkey_is_funded` enforces.
+                signer_coldkey=COLDKEY,
+                idempotency_key=uuid.uuid4(),
+                request_digest=hashlib.sha256(b"request").digest(),
+                task_id="fixture-task",
+                task_bundle_sha256=hashlib.sha256(b"task").digest(),
+                problem_id="fixture-problem",
+                reward_target_id="fixture-target",
+                task_mode=TaskMode.FORMALIZED,
+                proof_digest=digest,
+                payment_reference="fixture-payment",
+                payment_sender=COLDKEY,
+                payment_amount_rao=500_000_000,
+                payment_block=1,
+                signer_signature=b"x" * 64,
+                verification_status=VerificationState.VERIFIED,
+                manual_review_status=ManualReviewState.APPROVED,
+                reward_status=RewardState.ELIGIBLE,
+                review_policy_version="v1",
+                bounty_amount_rao=1_000,
+                bounty_policy_version="dynamic-age-v1",
+                bounty_inputs={"fixture": True},
+            )
+        )
+        session.flush()
+        session.add(
+            ReviewDecision(
+                submission_id=submission_id,
+                decision=ReviewOutcome.APPROVED,
+                kind=ReviewerKind.HUMAN,
+                reviewer="test-reviewer",
+                policy_version="v1",
+                reason_code="REVIEW_APPROVED",
+            )
+        )
+    return submission_id
+
+
 @pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
 def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
     engine = create_db_engine(postgres_dsn())
@@ -94,53 +162,7 @@ def test_eligible_decision_creates_locked_reward_and_delivers_once_per_signer():
         Base.metadata.drop_all(engine)
         Base.metadata.create_all(engine)
         sessions = session_factory(engine)
-        content = b"theorem payout_notification_fixture : True := trivial"
-        digest = hashlib.sha256(content).digest()
-        submission_id = uuid.uuid4()
-        with sessions.begin() as session:
-            session.add(
-                Proof(digest=digest, content=content, byte_length=len(content))
-            )
-            session.flush()
-            session.add(
-                Submission(
-                    id=submission_id,
-                    # Signer and payer are one key, which is what V035 requires of the
-                    # extrinsic path and what `submission_signer_coldkey_is_funded` enforces.
-                    signer_coldkey=COLDKEY,
-                    idempotency_key=uuid.uuid4(),
-                    request_digest=hashlib.sha256(b"request").digest(),
-                    task_id="fixture-task",
-                    task_bundle_sha256=hashlib.sha256(b"task").digest(),
-                    problem_id="fixture-problem",
-                    reward_target_id="fixture-target",
-                    task_mode=TaskMode.FORMALIZED,
-                    proof_digest=digest,
-                    payment_reference="fixture-payment",
-                    payment_sender=COLDKEY,
-                    payment_amount_rao=500_000_000,
-                    payment_block=1,
-                    signer_signature=b"x" * 64,
-                    verification_status=VerificationState.VERIFIED,
-                    manual_review_status=ManualReviewState.APPROVED,
-                    reward_status=RewardState.ELIGIBLE,
-                    review_policy_version="v1",
-                    bounty_amount_rao=1_000,
-                    bounty_policy_version="dynamic-age-v1",
-                    bounty_inputs={"fixture": True},
-                )
-            )
-            session.flush()
-            session.add(
-                ReviewDecision(
-                    submission_id=submission_id,
-                    decision=ReviewOutcome.APPROVED,
-                    kind=ReviewerKind.HUMAN,
-                    reviewer="test-reviewer",
-                    policy_version="v1",
-                    reason_code="REVIEW_APPROVED",
-                )
-            )
+        submission_id = seed_eligible_submission(sessions)
 
         sent: list[dict[str, object]] = []
 
@@ -409,5 +431,60 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
                 malformed.pop("price_source_urls")
                 reward.pricing_inputs = malformed
                 session.flush()
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_obligations_are_seeded_when_discord_is_not_configured():
+    """No webhook, and the payout is still owed, recorded and reconcilable.
+
+    Discord is how a human is told to sign, not how a payout is authorised. Requiring it made an
+    optional channel a hard dependency of writing the obligation at all: with no webhook the
+    worker exited on startup, so `reward_events` stayed empty and the chain watcher -- which is
+    what actually settles a payout and marks the submission REWARDED -- had nothing to find.
+
+    The obligation is therefore seeded exactly as it is with delivery on. What is skipped is the
+    outbox: a delivery row nobody can send is a queue that only grows.
+    """
+    engine = create_db_engine(postgres_dsn())
+    try:
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
+        sessions = session_factory(engine)
+        submission_id = seed_eligible_submission(sessions)
+
+        def refuse(_url: str, _payloads: list[dict[str, object]]) -> int:
+            raise AssertionError("delivery attempted with no webhook configured")
+
+        notifier = PayoutNotifier(
+            sessions=sessions,
+            webhook_url="",
+            worker_id="test-worker",
+            sender=refuse,
+        )
+        assert notifier.notifications_enabled is False
+
+        first = notifier.process_once()
+        second = notifier.process_once()
+
+        assert first.payouts_seeded == 1
+        assert first.seeded == 0
+        assert first.delivered == 0
+        assert first.failed == 0
+        # Idempotent across passes for the same reason it is with Discord on: the obligation is
+        # keyed by submission, not by whether anyone was told about it.
+        assert second.payouts_seeded == 0
+
+        with sessions() as session:
+            reward = session.scalar(select(RewardEvent))
+            assert reward is not None
+            assert reward.submission_id == submission_id
+            assert reward.destination_coldkey == COLDKEY
+            assert reward.generation_key == f"submission:{submission_id}"
+            # This is the row the payout watcher reconciles, and it is identical to the one the
+            # delivering path produces.
+            assert reward.amount_rao == 1_000
+            assert session.scalars(select(PayoutDiscordDelivery)).all() == []
     finally:
         engine.dispose()

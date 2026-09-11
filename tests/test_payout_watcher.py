@@ -35,7 +35,8 @@ from payout_notifier.discord import (
     DEFAULT_PROXY_FOR,
 )
 from payout_watcher.settings import PayoutWatcherSettings, SettingsError
-from payout_watcher.watcher import PayoutWatcher
+from payout_watcher.watcher import MAX_BACKOFF_SECONDS, PayoutWatcher
+from conjectures_subnet.db.payouts import _same_payout
 from submission_api.routers._account import latest_reward
 
 DESTINATION_COLDKEY = "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
@@ -420,3 +421,108 @@ def test_a_transfer_stake_payout_reconciles_without_a_destination_hotkey():
     finally:
         asyncio.run(async_engine.dispose())
         sync_engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_a_nominated_hotkey_does_not_block_a_transfer_stake_payout():
+    """A row that names a destination hotkey, paid by the call that moves no stake.
+
+    This is the straddle the V035 changeover left behind, and it was found stranding two real
+    obligations. The notifier stopped filling `destination_hotkey` only when the new code
+    deployed, so rows written in between carry a hotkey the miner *nominated* while the payout
+    that settles them is a `transfer_stake` whose only hotkey is the validator's own.
+
+    Matching those two against each other compares a nomination with a constant. They can never
+    be equal, so before this fix the money moved, the event was decoded correctly, and the
+    obligation stayed PENDING while the watcher logged `payout_unmatched` forever. The hotkey is
+    now consulted only when the event actually moved the stake, which the legacy test above
+    still covers.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        # The row carries a nominated hotkey, exactly as the pre-V035 notifier wrote it.
+        submission_id, reward_id = seed_pending(sync_sessions)
+        async_sessions = async_session_factory(async_engine)
+        observed = observed_stake_transfer()
+        assert observed.moved_hotkey is False
+        assert observed.destination_hotkey != DESTINATION_HOTKEY
+        source = FakePayoutSource(finalized=102, best=102, payouts={102: (observed,)})
+        watcher = PayoutWatcher(
+            settings=settings(dsn), sessions=async_sessions, source=source
+        )
+
+        async def scenario():
+            scanned = await watcher.scan_once()
+            assert scanned is not None
+            assert scanned.confirmed == 1
+            assert scanned.unmatched == 0
+            async with async_sessions() as session:
+                reward = await session.get(RewardEvent, reward_id)
+                submission = await session.get(Submission, submission_id)
+                assert reward is not None
+                assert reward.status == PayoutState.CONFIRMED
+                assert reward.chain_observed is True
+                # The nomination is retained rather than overwritten with the validator's own
+                # hotkey: it is what the row recorded, and settling it proves nothing about it.
+                assert reward.destination_hotkey == DESTINATION_HOTKEY
+                assert submission is not None
+                assert submission.reward_status == RewardState.REWARDED
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+def test_a_legacy_payout_still_requires_its_nominated_hotkey():
+    """The other side of the same rule, and the reason it is not simply dropped.
+
+    A `StakeAndHotkeyTransferred` event genuinely moved the stake to a new position, so both
+    sides name the same thing and the comparison is meaningful. Two pre-V035 obligations to the
+    same coldkey for the same amount but different delegated hotkeys are different payouts, and
+    one must not settle the other.
+    """
+    moved = observed_payout()
+    assert moved.moved_hotkey is True
+
+    class Row:
+        destination_coldkey = DESTINATION_COLDKEY
+        amount_rao = AMOUNT
+        destination_hotkey = "5CiQaJSuTyKAWoVXYzWSweHb2ECfFJjky8bxZabw8yyyp5cT"
+
+    # A different delegated hotkey on a stake-moving payout is still a different payout.
+    assert _same_payout(Row(), moved) is False
+    # ...and the matching one still settles.
+    Row.destination_hotkey = DESTINATION_HOTKEY
+    assert _same_payout(Row(), moved) is True
+
+
+def test_a_failing_streak_backs_off_instead_of_hammering_a_rate_limit():
+    """The most common scan failure is a refused chain read, and the most common refusal is an
+    archive endpoint's historical-work budget.
+
+    Retrying that on the ordinary poll interval spends the budget on rejections and can hold it
+    exhausted indefinitely, so the wait grows with the streak and is capped. One success resets
+    it, because a watcher that recovered must not stay slow.
+    """
+    dsn = postgres_dsn()
+    watcher = PayoutWatcher(
+        settings=settings(dsn or "postgresql://unused"), sessions=None, source=None
+    )
+    poll = watcher.settings.poll_seconds
+
+    # A healthy pass waits exactly the poll interval.
+    assert watcher._delay(0) == poll
+    # Then doubling, so a single hiccup costs nothing noticeable.
+    assert watcher._delay(1) == poll
+    assert watcher._delay(2) == poll * 2
+    assert watcher._delay(3) == poll * 4
+    # Capped, and the cap holds however long the outage lasts rather than growing without bound.
+    assert watcher._delay(50) == MAX_BACKOFF_SECONDS
+    assert watcher._delay(10_000) == MAX_BACKOFF_SECONDS

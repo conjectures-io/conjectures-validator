@@ -56,7 +56,12 @@ class Processed:
 
 
 class PayoutNotifier:
-    """Turn eligible decisions into locked payout events, then notify every signer."""
+    """Turn eligible decisions into locked payout events, then notify every signer.
+
+    The two halves are independent by design.  Seeding writes the obligation that the payout
+    chain watcher reconciles against; notifying only tells a human where to find it.  Pass an
+    empty `webhook_url` to run the first half alone -- see `NotifierSettings.from_env`.
+    """
 
     def __init__(
         self,
@@ -333,8 +338,21 @@ class PayoutNotifier:
                 delivery.next_attempt_at = now + dt.timedelta(seconds=self.retry_seconds)
                 delivery.last_error = error[:2_000]
 
+    @property
+    def notifications_enabled(self) -> bool:
+        """Whether this notifier has a Discord webhook to deliver to."""
+        return bool(self.webhook_url)
+
     def process_once(self) -> Processed:
+        # Seeding comes first and runs unconditionally.  It is the step that creates the payout
+        # obligation the chain watcher later reconciles, and it is the only step that has to
+        # happen for a reward to be payable at all.
         payouts_seeded = self.seed_reward_events()
+        if not self.notifications_enabled:
+            # No outbox rows either: a delivery row nobody can send is a queue that only grows,
+            # and seeding them would also hide a later webhook being configured behind a backlog
+            # of rows already marked pending against signers who were never told.
+            return Processed(payouts_seeded=payouts_seeded)
         seeded = self.seed()
         delivered = 0
         failed = 0
