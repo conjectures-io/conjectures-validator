@@ -422,14 +422,14 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 259
-active audited targets (235 Erdős and 24 Green targets) across 223 numbered source files.
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 260
+active audited targets (236 Erdős and 24 Green targets) across 224 numbered source files.
 The September 8 review retires six live targets and adds 57 reviewed targets, including replacements
 for withdrawn candidates. Twenty-four historical retirement decisions remain recorded; targets with
 unresolved full-scope proof claims are withheld from admission.
 The source remains Formal Conjectures `8432eac998110a563e03df65a28c117e97c8c142`, derived from
 upstream `7d1a8c9912747679d0093f6d1216420c33ee5ffa` plus the checked-in semantic correction patch,
-on Lean 4.33.1. The tier contains 518 immutable bundles: a `formalized` task for `P` and a
+on Lean 4.33.1. The tier contains 520 immutable bundles: a `formalized` task for `P` and a
 `counterexample` task for `¬ P` for each target. Every active manifest permits a 10 MiB
 (10,485,760-byte) proof. The enlarged limit is committed through fresh task IDs and digests;
 stable reward identities are preserved.
@@ -473,7 +473,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 259 active audited direct propositions, generates committed `formalized` and
+the 260 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).

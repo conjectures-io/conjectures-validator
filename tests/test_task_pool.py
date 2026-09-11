@@ -47,6 +47,22 @@ TIER_METADATA = TASKS_ROOT / "tiers/tier-1"
 
 
 @pytest.mark.needs_checkouts
+def test_reinstated_erdos96_preserves_reward_identity_and_both_modes():
+    theorem = "Erdos96.erdos_96"
+    policy = json.loads((TASKS_ROOT / "allowlist.json").read_text())
+    rows = [row for row in policy["allowed_task_bundles"] if theorem in row["theorems"]]
+    assert {row["mode"] for row in rows} == set(PRODUCTION_TASK_MODES)
+    assert len(rows) == 2
+    assert {row["reward_target_id"] for row in rows} == {f"fc-target:{theorem}"}
+    assert theorem not in load_retired_sources(
+        TIER_METADATA / "retired-source-theorems.json"
+    ).theorems
+    assert f"fc-target:{theorem}" not in load_retired_conjectures(
+        TIER_METADATA / "retired-conjectures.json"
+    ).entries
+
+
+@pytest.mark.needs_checkouts
 def test_task_selection_is_new_and_audited_across_source_families():
     catalog = load_catalog(ROOT / "data/catalog.json")
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
@@ -82,7 +98,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 223
+    assert len({item.source_path for item in selected}) == 224
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries

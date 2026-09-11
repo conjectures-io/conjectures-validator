@@ -115,6 +115,17 @@ EventType: TypeAlias = Literal[
     "intent_committed",
     # --- accounts ---------------------------------------------------------------------------
     "login_link_sent",
+    # Any credential-bearing mail sent on an account's behalf, or refused by the per-address
+    # budget. `kind` says which — signup confirmation, password reset, or the notice a
+    # registration against an existing account gets — and `delivered` says whether it went. The
+    # endpoints answer 202 regardless, deliberately, so this is the only place a mail that was
+    # never sent is visible at all. Never carries the address: see `login_completed`.
+    "account_mail_sent",
+    # A password was offered and rejected. `throttled` says whether that attempt was the one
+    # that paused the account's password method. Worth its own type because a run of these
+    # against one account is what online guessing looks like, and the response is a flat 401
+    # that says nothing.
+    "password_sign_in_failed",
     # Both kinds of sign-in. `method` distinguishes them and `session_kind` says which credential
     # was handed out, so "how much of our traffic is the CLI" is one query rather than a guess.
     "login_completed",

@@ -235,9 +235,10 @@ class Submission(Base):
     payment_sender: Mapped[str | None] = mapped_column(SS58)
     payment_amount_rao: Mapped[int | None] = mapped_column(BigInteger)
     payment_block: Mapped[int | None] = mapped_column(BigInteger)
-    # HISTORY ONLY as of V035, together with `hotkey`. These 64 bytes were signed by the row's
-    # own `hotkey` — or, on the V028 website rows, by `signer_coldkey`, which is the anomaly
-    # V035 removes by giving the coldkey signature a column of its own.
+    # HISTORY ONLY as of V035, together with `hotkey`, and since V038 only ever the signature
+    # the row's own `hotkey` made. V035 gave the coldkey signature a column of its own but left
+    # the V028 website rows' bytes sitting here; V038 moved them to `signer_signature`, so a
+    # value here no longer verifies against anything but the hotkey beside it.
     hotkey_signature: Mapped[bytes | None] = mapped_column(LargeBinary)
     # V028, and since V035 the live attribution on every key-signed path. The coldkey that
     # authorised this submission: it signs the request on the extrinsic and intent paths and a
@@ -1141,6 +1142,8 @@ class LoginChallengeKind(enum.StrEnum):
     HOTKEY_SESSION = "HOTKEY_SESSION"  # retired V035: a hotkey opening a CLI session
     COLDKEY_LINK = "COLDKEY_LINK"  # attaching another coldkey to an account
     COLDKEY_SESSION = "COLDKEY_SESSION"  # V034: a coldkey opening a CLI session
+    PASSWORD_SIGNUP = "PASSWORD_SIGNUP"  # V036: a pending email/password registration
+    PASSWORD_RESET = "PASSWORD_RESET"  # V036: authorises setting a new password
 
 
 # Minting one of these is a bug, not a policy choice, so the set is named once here rather than
@@ -1148,6 +1151,15 @@ class LoginChallengeKind(enum.StrEnum):
 RETIRED_CHALLENGE_KINDS = (
     LoginChallengeKind.HOTKEY_LINK,
     LoginChallengeKind.HOTKEY_SESSION,
+)
+
+# The kinds that put a link in someone's mailbox. Counted together against the per-address
+# hourly ceiling, because the thing being bounded is mail sent to a person who did not ask for
+# it — an attacker who could spend a separate budget on each kind would simply spend all three.
+MAILED_CHALLENGE_KINDS = (
+    LoginChallengeKind.EMAIL,
+    LoginChallengeKind.PASSWORD_SIGNUP,
+    LoginChallengeKind.PASSWORD_RESET,
 )
 
 
@@ -1245,6 +1257,24 @@ class Account(Base):
         Boolean, nullable=False, server_default=text("false")
     )
     display_name: Mapped[str | None] = mapped_column(Text)
+    # NULL for an account that signs in only by link, Google or wallet. The encoding is
+    # `scrypt$<cost>$<r>$<p>$<salt>$<key>`, all base64 — see `submission_api/passwords.py`,
+    # which owns the format. The column is Text rather than BYTEA because the parameters
+    # travel with the digest: a row has to say how it was derived to be verifiable at all.
+    password_hash: Mapped[str | None] = mapped_column(Text)
+    password_updated_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    # Online guessing, bounded. Reset by any successful password sign-in and by setting a new
+    # password. `password_throttled_until` pauses only the password method — every other way
+    # into the account keeps working — so tripping it on someone else's address denies them a
+    # button for a few minutes, not their account. See `DEFAULT_PASSWORD_ATTEMPTS`.
+    failed_password_attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0")
+    )
+    password_throttled_until: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     roles: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, server_default=text("ARRAY['MINER']::TEXT[]")
     )
@@ -1280,6 +1310,20 @@ class Account(Base):
         CheckConstraint(
             "roles <@ ARRAY['MINER', 'REVIEWER', 'ADMIN']::TEXT[]",
             name="account_roles_are_known",
+        ),
+        CheckConstraint(
+            "(password_hash IS NULL) = (password_updated_at IS NULL)",
+            name="password_hash_is_dated",
+        ),
+        # A password may only exist on an account that has an address to reset it through.
+        # Otherwise a forgotten password is unrecoverable by construction.
+        CheckConstraint(
+            "password_hash IS NULL OR email IS NOT NULL",
+            name="password_requires_an_email",
+        ),
+        CheckConstraint(
+            "failed_password_attempts >= 0",
+            name="password_attempts_not_negative",
         ),
         CheckConstraint(
             "updated_at >= created_at", name="accounts_updated_not_before_created"
@@ -1531,6 +1575,15 @@ class LoginChallenge(Base):
     # The exact bytes the client is asked to sign, stored verbatim so verification
     # never reconstructs them and cannot reconstruct them differently.
     message: Mapped[str | None] = mapped_column(Text)
+    # PASSWORD_SIGNUP only: the already-hashed password the account will be created with.
+    #
+    # It lives here rather than on an unverified `accounts` row because an account that exists
+    # before its address is proved is a squatting primitive — register victim@example.com and
+    # they can never sign up, link Google, or be found by their own address. Nothing is created
+    # until the mailbox answers, so an unanswered registration leaves no trace but an expired
+    # row. The value is a finished scrypt hash, never a password: this table is not a place a
+    # plaintext credential is permitted to rest, however briefly.
+    password_hash: Mapped[str | None] = mapped_column(Text)
 
     expires_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -1548,7 +1601,17 @@ class LoginChallenge(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "kind <> 'EMAIL' OR email IS NOT NULL", name="challenge_email_present"
+            "kind NOT IN ('EMAIL', 'PASSWORD_SIGNUP', 'PASSWORD_RESET') "
+            "OR email IS NOT NULL",
+            name="challenge_email_present",
+        ),
+        CheckConstraint(
+            "(kind = 'PASSWORD_SIGNUP') = (password_hash IS NOT NULL)",
+            name="challenge_password_hash_is_signup_only",
+        ),
+        CheckConstraint(
+            "kind <> 'PASSWORD_RESET' OR account_id IS NOT NULL",
+            name="challenge_reset_has_account",
         ),
         CheckConstraint("attempts >= 0", name="challenge_attempts_not_negative"),
         # Every signature flow needs both the address and the verbatim message. COLDKEY_SESSION
@@ -2881,46 +2944,101 @@ from conjectures_subnet.db.autoreview_models import (
 _AUTOREVIEW_TABLES = (AutoreviewRun, AutoreviewStageResult)
 
 
-# --- V035: the retirement CHECKs, which have to be NOT VALID ------------------
+# --- V038: the retirement rules, enforced where intake happens ----------------
 #
-# These three say "no new row may do this" while leaving history alone, and NOT VALID is the
-# only thing that expresses that: a plain CHECK is validated against existing rows on creation
-# and would reject the nine hotkey-signed submissions the migration deliberately keeps.
+# These three say "no new row may do this" while leaving history alone. V035 expressed them as
+# NOT VALID CHECKs on the belief that NOT VALID means "existing rows are exempt". It does not:
+# it exempts them from validation when the constraint is created, and from nothing after that.
+# The constraint is still evaluated against every new row version, and an UPDATE produces one
+# whether or not it touches the constrained columns — so the nine hotkey-signed submissions the
+# migration set out to keep were not exempted but frozen, unable to accept a reward transition,
+# a re-review or a verification lease ever again.
 #
-# `CheckConstraint` has no way to emit NOT VALID, so they are added as DDL after the table
-# exists — the same mechanism this module already uses for the immutability triggers. Declaring
-# them here rather than only in the migration is what keeps `check_schema_drift.py` honest: the
-# ORM mirror has to produce the identical catalog entry, NOT VALID included.
+# A CHECK cannot express the rule, because SQL gives it no way to know an insert from an update.
+# The rule is about intake, so V038 enforces it at intake with a BEFORE INSERT trigger. Each
+# raises with the constraint name its CHECK used, so any caller matching on that name — and the
+# error surface generally — is unchanged.
 #
-# On a metadata-created database every table is empty, so validated-or-not makes no behavioural
-# difference there. It makes all the difference to the catalog comparison.
+# Declared here as DDL rather than only in the migration for the same reason the immutability
+# triggers are: `check_schema_drift.py` compares triggers and trigger function bodies, so the
+# ORM mirror has to produce the identical catalog entry.
 
 event.listen(
     Submission.__table__,
     "after_create",
     DDL(
-        "ALTER TABLE submissions "
-        "ADD CONSTRAINT submission_names_no_hotkey "
-        "CHECK (hotkey IS NULL AND hotkey_signature IS NULL) NOT VALID;"
+        "CREATE FUNCTION submissions_reject_hotkey() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.hotkey IS NOT NULL OR NEW.hotkey_signature IS NOT NULL THEN\n"
+        "        RAISE EXCEPTION 'submission may not name a hotkey'\n"
+        "            USING ERRCODE = '23514', "
+        "CONSTRAINT = 'submission_names_no_hotkey';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submissions_reject_hotkey\n"
+        "    BEFORE INSERT ON submissions\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submissions_reject_hotkey();"
     ),
+)
+event.listen(
+    Submission.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submissions_reject_hotkey() CASCADE;"),
 )
 event.listen(
     SubmissionIntent.__table__,
     "after_create",
     DDL(
-        "ALTER TABLE submission_intents "
-        "ADD CONSTRAINT intent_names_no_hotkey "
-        "CHECK (hotkey IS NULL) NOT VALID;"
+        "CREATE FUNCTION submission_intents_reject_hotkey() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.hotkey IS NOT NULL THEN\n"
+        "        RAISE EXCEPTION 'submission intent may not name a hotkey'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'intent_names_no_hotkey';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submission_intents_reject_hotkey\n"
+        "    BEFORE INSERT ON submission_intents\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submission_intents_reject_hotkey();"
     ),
 )
+event.listen(
+    SubmissionIntent.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submission_intents_reject_hotkey() CASCADE;"),
+)
+# A challenge row is minted and then UPDATEd when it is consumed, so the CHECK froze any
+# HOTKEY_LINK or HOTKEY_SESSION challenge still open when V035 landed — the retired kinds stay
+# in the enum precisely so that history stays readable, which a frozen row is not.
 event.listen(
     LoginChallenge.__table__,
     "after_create",
     DDL(
-        "ALTER TABLE login_challenges "
-        "ADD CONSTRAINT challenge_kind_is_not_retired "
-        "CHECK (kind NOT IN ('HOTKEY_LINK', 'HOTKEY_SESSION')) NOT VALID;"
+        "CREATE FUNCTION login_challenges_reject_retired_kind() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.kind IN ('HOTKEY_LINK', 'HOTKEY_SESSION') THEN\n"
+        "        RAISE EXCEPTION 'login challenge kind is retired'\n"
+        "            USING ERRCODE = '23514', "
+        "CONSTRAINT = 'challenge_kind_is_not_retired';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER login_challenges_reject_retired_kind\n"
+        "    BEFORE INSERT ON login_challenges\n"
+        "    FOR EACH ROW EXECUTE FUNCTION login_challenges_reject_retired_kind();"
     ),
+)
+event.listen(
+    LoginChallenge.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS login_challenges_reject_retired_kind() CASCADE;"),
 )
 
 

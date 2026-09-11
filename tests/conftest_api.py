@@ -323,6 +323,7 @@ def harness(
     payments=None,
     bounty_usd=None,
     google=None,
+    mail=None,
     retired=None,
     tmc_pay=None,
     tao_usd=None,
@@ -334,6 +335,10 @@ def harness(
     `payments` injects a payment verifier. Needed for the chain verifier, because
     `build_payment_verifier` would otherwise construct a real Subtensor reader and the test would
     reach the live network.
+
+    `mail` injects a `MailSender`. The default writes to the log and asserts nothing, which is
+    right for every test that does not care; a test of a mailed credential passes a spy, because
+    the token only ever exists in the message and in a digest column.
 
     `retired` injects a `RetiredIndex`. Empty unless a test asks for one, which is the point:
     every other test in the suite then proves that adding retired conjectures changed nothing
@@ -381,7 +386,7 @@ def harness(
             max_bounty_share_denominator=settings.bounty_max_share_denominator,
         ),
         pins=pin_set(),
-        mail=ConsoleSender(),
+        mail=mail if mail is not None else ConsoleSender(),
         packages=parse_packages(
             settings.credit_packages, credit_price_rao=settings.payment_amount_rao
         ),

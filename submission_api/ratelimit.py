@@ -57,6 +57,31 @@ class SlidingWindowLimiter:
         default_factory=OrderedDict, init=False, repr=False
     )
 
+    def peek(self, key: str, now: float) -> Decision:
+        """Say whether `key` would be admitted, without spending anything.
+
+        For the caller that has to consult the budget before doing the work and charge it only
+        if the work fails — a password check, where the successful case must cost nothing. A
+        `check` at the top of that path would charge every correct password too, and a limiter
+        that punishes people for signing in successfully is not a limiter.
+        """
+        window = self._hits.get(key)
+        if window is None:
+            return Decision(
+                allowed=True, limit=self.limit, remaining=self.limit, reset_seconds=1
+            )
+        self._prune(window, now)
+        if not window:
+            return Decision(
+                allowed=True, limit=self.limit, remaining=self.limit, reset_seconds=1
+            )
+        return Decision(
+            allowed=len(window) < self.limit,
+            limit=self.limit,
+            remaining=max(0, self.limit - len(window)),
+            reset_seconds=_ceil_positive(window[0] + self.window_seconds - now),
+        )
+
     def check(self, key: str, now: float) -> Decision:
         """Record a request against `key` and say whether it is admitted."""
         window = self._hits.get(key)
@@ -66,9 +91,7 @@ class SlidingWindowLimiter:
         # Most-recently-seen last, so eviction below drops the coldest keys.
         self._hits.move_to_end(key)
 
-        horizon = now - self.window_seconds
-        while window and window[0] <= horizon:
-            window.popleft()
+        self._prune(window, now)
 
         if len(window) >= self.limit:
             # Refused requests are not recorded. Counting them would extend the penalty every
@@ -88,6 +111,11 @@ class SlidingWindowLimiter:
             remaining=self.limit - len(window),
             reset_seconds=_ceil_positive(window[0] + self.window_seconds - now),
         )
+
+    def _prune(self, window: deque[float], now: float) -> None:
+        horizon = now - self.window_seconds
+        while window and window[0] <= horizon:
+            window.popleft()
 
     def _evict(self, now: float) -> None:
         """Drop the coldest keys until the table is within its cap.
