@@ -29,6 +29,14 @@ from payout_watcher.settings import PayoutWatcherSettings, SettingsError
 
 logger = logging.getLogger("payout_watcher")
 
+# The longest a failing streak backs off to.  Five minutes is well inside the window an archive
+# budget refills over, and short enough that a watcher which recovered unattended is not sitting
+# idle long after the fact.
+MAX_BACKOFF_SECONDS = 300.0
+# Doubling past this many steps cannot reach further than the ceiling above, and stopping the
+# exponent from growing keeps the shift bounded however long an outage lasts.
+_BACKOFF_CEILING_STEPS = 16
+
 
 @dataclass
 class Scanned:
@@ -279,6 +287,13 @@ class PayoutWatcher:
 
     async def run_forever(self, *, stop: asyncio.Event | None = None) -> None:
         halt = stop or asyncio.Event()
+        # Consecutive failed passes, which decides how long to wait before the next one.  A
+        # failing scan is usually a chain read that was refused, and the most common refusal is
+        # an archive endpoint's historical-work budget.  Retrying that on the ordinary poll
+        # interval spends the budget on rejections and can hold it exhausted indefinitely, so
+        # each failure in a row waits longer, up to `MAX_BACKOFF_SECONDS`.  One success resets
+        # it: the very next pass after recovery runs at full speed.
+        failures = 0
         while not halt.is_set():
             try:
                 scanned = await self.scan_once()
@@ -287,22 +302,39 @@ class PayoutWatcher:
             except SettingsError:
                 raise
             except Exception:
-                logger.exception("payout scan failed; finalized cursor did not skip failed work")
+                failures += 1
+                logger.exception(
+                    "payout scan failed; finalized cursor did not skip failed work "
+                    "(consecutive failures=%d)",
+                    failures,
+                )
                 get_axiom().exception(
                     source="payout-watcher",
                     event_type="unexpected_error",
                     severity=Severity.WARNING,
                     watcher_id=self.settings.watcher_id,
+                    consecutive_failures=failures,
                 )
                 scanned = None
+            else:
+                failures = 0
             if scanned is not None:
                 self._log_pass(scanned)
                 if scanned.finalized_blocks >= self.settings.batch_blocks:
                     continue
             try:
-                await asyncio.wait_for(halt.wait(), self.settings.poll_seconds)
+                await asyncio.wait_for(halt.wait(), self._delay(failures))
             except TimeoutError:
                 pass
+
+    def _delay(self, failures: int) -> float:
+        """How long to wait before the next pass, given the failing streak behind this one."""
+        if failures == 0:
+            return self.settings.poll_seconds
+        # Doubling from the poll interval, so a healthy watcher's first hiccup costs nothing
+        # noticeable and a sustained outage settles at one attempt per `MAX_BACKOFF_SECONDS`.
+        backoff = self.settings.poll_seconds * 2 ** min(failures - 1, _BACKOFF_CEILING_STEPS)
+        return min(backoff, MAX_BACKOFF_SECONDS)
 
     def _log_pass(self, scanned: Scanned) -> None:
         active = scanned.observed or scanned.submitted or scanned.confirmed or scanned.reorged

@@ -50,11 +50,17 @@ def main() -> int:
         signal.signal(signal_name, lambda *_args: stop.set())
 
     logger.info(
-        "payout notifier %s started poll=%ss retry=%ss",
+        "payout notifier %s started poll=%ss retry=%ss discord=%s",
         settings.worker_id,
         settings.poll_seconds,
         settings.retry_seconds,
+        "on" if settings.notifications_enabled else "off",
     )
+    if not settings.notifications_enabled:
+        logger.info(
+            "PAYOUT_DISCORD_WEBHOOK_URL is unset: payout obligations are still recorded and "
+            "reconciled on chain, but no signer will be notified. Set it to deliver."
+        )
     try:
         result = Processed()
         while not stop.is_set():

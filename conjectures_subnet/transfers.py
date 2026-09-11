@@ -660,10 +660,17 @@ class BittensorTransferSource:
     async def payouts_in(self, *, block: int) -> Sequence[ObservedPayout]:
         """Every successful stake transfer in one block, current shape or legacy.
 
-        Unlike incoming free-TAO transfers, payout matching always needs the block timestamp and
-        at least two related events, so there is no empty-block timestamp shortcut here.  Reads
-        use the archive connection because deployment deliberately replays historical/manual paid
-        rows before trusting them; the regular public endpoint may have pruned those blocks.
+        Reads use the archive connection because deployment deliberately replays
+        historical/manual paid rows before trusting them; the regular public endpoint may have
+        pruned those blocks.
+
+        Two reads, and the second one only when the first found something -- the same shape as
+        `_transfers`, for a sharper reason.  `payouts_in_events` uses the timestamp for nothing
+        but stamping the payouts it returns; it drives no pairing or filtering decision.  So on
+        a block with no payout in it -- which is very nearly all of them -- reading the timestamp
+        buys nothing and doubles the cost of the scan.  That matters here in a way it does not
+        for the head-following readers: an archive endpoint meters historical work, and a replay
+        of a month of blocks at two reads each exhausts that budget and stalls the watcher.
         """
 
         async def read_events(client: Any) -> Any:
@@ -672,6 +679,11 @@ class BittensorTransferSource:
         records = await self._read(self.archive_network, read_events)
         if records is None:
             raise ChainUnavailable(f"block {block} returned no event list")
+        # Decoded against the placeholder first, exactly as `_transfers` does, so that the
+        # timestamp read below is paid for only by a block that actually holds a payout.
+        found = payouts_in_events(records, block=block, block_timestamp=_EPOCH)
+        if not found:
+            return ()
 
         async def read_timestamp(client: Any) -> dt.datetime:
             millis = await client.query(BLOCK_TIMESTAMP, block=block)
@@ -680,7 +692,7 @@ class BittensorTransferSource:
             return dt.datetime.fromtimestamp(int(millis) / 1000, tz=dt.UTC)
 
         stamp = await self._read(self.archive_network, read_timestamp)
-        return payouts_in_events(records, block=block, block_timestamp=stamp)
+        return [replace(item, block_timestamp=stamp) for item in found]
 
     async def _transfers(self, *, block: int, recipient: str | None) -> Sequence[IncomingTransfer]:
         async def read_events(client: Any) -> Any:
