@@ -330,6 +330,27 @@ logs *service:
 migrate: _preflight
     {{ compose }} up --exit-code-from migrate migrate
 
+# Rewrites checksums for migrations that are already applied and touches no application
+# data. The answer to "Migration checksum mismatch for migration version NNN" on a
+# development box whose database came from somewhere else. On production the same message
+# means a migration was edited after it shipped — fix the file there, not the history.
+
+# Realign flyway_schema_history with the migration files in this checkout.
+repair: _check-docker _check-env
+    {{ compose }} run --rm --no-deps migrate repair
+
+# DESTRUCTIVE: the database is dropped and recreated, so every row in it now is gone — a
+# safety dump is taken into .work/db-restore/ first. With no argument it takes the newest
+# *.dump in this directory. Stops whatever is connected, restores into an empty database,
+# reapplies deploy/db/00_init.sh (which dropping the database dropped), migrates — running
+# `repair` first if the dump's history disagrees with this checkout — and starts back
+# exactly the containers it stopped. For --yes, --no-migrate and the rest, call the script
+# directly: `scripts/restore_dev_db.sh --help`.
+
+# Restore this development database from a production dump: `just restore-db backup.dump`
+restore-db *dump: _check-docker _check-env
+    scripts/restore_dev_db.sh "$@"
+
 # The task bundles are a detached checkout of a separate repository, pinned in
 # pins.lock.json and NOT stored in this repo. Its location comes from the compose
 # file (see _tasks-paths), never from a path written down twice. Docker will
