@@ -428,7 +428,7 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `NONCE_WINDOW_SECONDS` | `120` | |
 | `MAX_BUNDLE_BYTES` | `12582912` | 12 MiB; cannot exceed the verifier policy |
 | `MANUAL_REWARD_REVIEW_ENABLED` | `true` | Captured per submission at creation |
-| `REVIEW_POLICY_VERSION` | `v2` | Captured at acceptance; v2 expands `NOT_NOVEL` for exact prior public solutions substantially implemented by the submission |
+| `REVIEW_POLICY_VERSION` | `v3` | Captured at acceptance; defect awards are capped at the lesser of $750 and the locked task bounty; earlier contracts retain their terms |
 | `BOUNTY_WALLET_COLDKEY_SS58` | payment recipient | Coldkey owning the bounty stake |
 | `BOUNTY_WALLET_HOTKEY_SS58` | required in `PROD` | Hotkey identifying the bounty stake position |
 | `BOUNTY_NETUID` | `66` | Subnet whose finalized Alpha balance is `B` |

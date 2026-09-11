@@ -315,10 +315,11 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # coldkey, unproved and not required to be linked, where before it was a proved coldkey/hotkey
 # pair). Both are in the "what is published" and "getting paid" sections.
 #
+# v6 adopts review policy v3: defect awards cannot exceed the submission bounty lock.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
 # leaving it behind would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v5"
-DEFAULT_TERMS_DATE = "2026-09-08"
+DEFAULT_TERMS_VERSION = "v6"
+DEFAULT_TERMS_DATE = "2026-09-11"
 
 # The website route that renders the sign-in page the magic link opens. That page reads the
 # token from the query string and POSTs it to `/v1/auth/email/verify`; the API itself never
@@ -958,7 +959,7 @@ class Settings:
             bounty_hotkey_raw or recipient,
         )
 
-        review_policy_version = env.get("REVIEW_POLICY_VERSION", "v2").strip()
+        review_policy_version = env.get("REVIEW_POLICY_VERSION", "v3").strip()
         if POLICY_VERSION.fullmatch(review_policy_version) is None:
             raise SettingsError(
                 "REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
@@ -1332,6 +1333,14 @@ class Settings:
         if POLICY_VERSION.fullmatch(terms_version) is None:
             raise SettingsError(
                 "SUBMISSION_TERMS_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
+            )
+
+        if not env.get("SUBMISSION_TERMS_PATH", "").strip() and (
+            terms_version != DEFAULT_TERMS_VERSION or review_policy_version != "v3"
+        ):
+            raise SettingsError(
+                "the bundled submission terms require SUBMISSION_TERMS_VERSION=v6 and "
+                "REVIEW_POLICY_VERSION=v3; earlier contracts remain on existing submissions"
             )
 
         # A pinned USD rate, or nothing. Converting TAO to USD needs a live external rate

@@ -304,7 +304,9 @@ def test_development_defaults_are_convenient():
     assert isinstance(build_payment_verifier(settings), DevelopmentPaymentVerifier)
     assert settings.payment_amount_rao == 500_000_000
     assert settings.nonce_window_seconds == 120
-    assert settings.review_policy_version == "v2"
+    assert settings.review_policy_version == "v3"
+    assert settings.submission_terms_version == "v6"
+    assert settings.submission_terms_effective_from == "2026-09-11"
     assert settings.bounty_pool_balance_rao == 4_000_000_000
     assert settings.bounty_constant_numerator == 1
     assert settings.bounty_constant_denominator == 10
@@ -361,6 +363,8 @@ def test_the_shared_resolver_supplies_the_url(monkeypatch):
         ({"MAX_BUNDLE_BYTES": "99999999"}, "must not exceed"),
         ({"MANUAL_REWARD_REVIEW_ENABLED": "maybe"}, "boolean"),
         ({"REVIEW_POLICY_VERSION": "Not Valid"}, "REVIEW_POLICY"),
+        ({"REVIEW_POLICY_VERSION": "v2"}, "bundled submission terms require"),
+        ({"SUBMISSION_TERMS_VERSION": "v5"}, "bundled submission terms require"),
         ({"APP_MODE": "STAGING"}, "APP_MODE"),
         ({"NONCE_WINDOW_SECONDS": "0"}, "positive"),
         # DEVELOPMENT_COLDKEY was retired by V035: the development payment verifier echoes

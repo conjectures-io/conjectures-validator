@@ -612,7 +612,8 @@ payout-time pricing contract and are not retroactively converted into locks.
 
 Deploy this policy prospectively: preserve every existing submission lock, pricing input, and
 `bounty_tasks.opened_at`. Targets already at least 15 days old immediately quote the maximum
-share for new submissions. No database migration or age reset is needed.
+share for new submissions. The bounty curve needs no age reset. Apply migration V039 before
+starting the updated payout notifier; it enforces the new formalization-defect award cap.
 
 Before restarting the API, update any explicit overrides in `.env`:
 
@@ -623,12 +624,20 @@ BOUNTY_CONSTANT_DENOMINATOR=10
 BOUNTY_MAX_SHARE_NUMERATOR=1
 BOUNTY_MAX_SHARE_DENOMINATOR=8
 BOUNTY_RAMP_SECONDS=1296000
+REVIEW_POLICY_VERSION=v3
+SUBMISSION_TERMS_VERSION=v6
+SUBMISSION_TERMS_EFFECTIVE_FROM=2026-09-11
 ```
 
 These are also the new application and Compose defaults. An old `dynamic-age-*` policy label
 is rejected at startup so new arithmetic cannot be recorded as the old contract. The old
 `BOUNTY_AGE_PERIOD_SECONDS` and `BOUNTY_MAX_AGE_WEIGHT` settings control descriptive metadata
 only. After deployment, check `/v1/catalog/meta` for the new version, shares, and `ramp_seconds`.
+
+Review policy v3 / submission terms v6 cap a formalization-defect award at the lesser of $750
+converted to Alpha when the payout record is created and the submission's locked task bounty.
+The worker records both limits and the database checks the minimum. Earlier review-policy v1/v2
+submissions retain their fixed $750 defect award, and existing payout records are not changed.
 
 ### Automatic payout signer notifications
 

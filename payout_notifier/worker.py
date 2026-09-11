@@ -30,6 +30,7 @@ from payout_notifier.discord import (
     send_discord_notifications,
 )
 from payout_notifier.pricing import (
+    CAPPED_FORMALIZATION_DEFECT_POLICY_VERSION,
     DefectAwardQuote,
     FORMALIZATION_DEFECT_POLICY_VERSION,
 )
@@ -81,8 +82,8 @@ class PayoutNotifier:
         """Create one idempotent payout instruction for each newly eligible submission.
 
         Full bounties copy the submission-time lock byte-for-byte. A binding
-        ``FORMALIZATION_DEFECT_AWARD`` instead creates the policy's fixed $750 payout using one
-        current authoritative quote shared by every defect award in this pass.
+        ``FORMALIZATION_DEFECT_AWARD`` uses one authoritative $750 conversion per pass. Review
+        policy v3 caps it at the submission's locked task bounty; older contracts retain $750.
 
         The destination is one coldkey as of V035, and it is the first of three the row can
         answer for, in order of strength of evidence:
@@ -150,6 +151,8 @@ class PayoutNotifier:
                     Submission.bounty_amount_rao.label("locked_amount_rao"),
                     Submission.bounty_policy_version.label("locked_policy_version"),
                     Submission.bounty_inputs.label("locked_pricing_inputs"),
+                    Submission.bounty_locked_at,
+                    Submission.review_policy_version,
                     destination_coldkey.label("destination_coldkey"),
                 )
                 .outerjoin(Account, Account.id == Submission.account_id)
@@ -188,6 +191,18 @@ class PayoutNotifier:
                     )
                     amount_rao = defect_quote.amount_rao
                     pricing_policy_version = FORMALIZATION_DEFECT_POLICY_VERSION
+                    if candidate.review_policy_version == "v3":
+                        if candidate.bounty_locked_at is None:
+                            raise ValueError("a v3 defect award requires a submission bounty lock")
+                        amount_rao = min(amount_rao, candidate.locked_amount_rao)
+                        pricing_policy_version = CAPPED_FORMALIZATION_DEFECT_POLICY_VERSION
+                        pricing_inputs.update(
+                            {
+                                "uncapped_amount_rao": defect_quote.amount_rao,
+                                "bounty_cap_rao": candidate.locked_amount_rao,
+                                "calculation": "min(round(750 * 1000000000 / alpha_usd), bounty_cap_rao)",
+                            }
+                        )
                 else:
                     amount_rao = candidate.locked_amount_rao
                     pricing_policy_version = candidate.locked_policy_version

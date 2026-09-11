@@ -1,16 +1,17 @@
 # Manual reward-review policy
 
-**Policy version:** `v2`<br>
-**Effective date:** 2026-08-07<br>
-**Applies to:** submissions accepted with `review_policy_version = "v2"` on or after
+**Policy version:** `v3`<br>
+**Effective date:** 2026-09-11<br>
+**Applies to:** submissions accepted with `review_policy_version = "v3"` on or after
 this date
 
-## Relationship to v1
+## Relationship to earlier policies
 
-This is a prospective successor to the [v1 manual reward-review policy](https://github.com/conjectures-io/conjectures-validator/blob/19c4d29becb5e24bff480446fd741d891f041b4c/docs/MANUAL_REVIEW_CRITERIA.md).
-The policy version captured when a submission is accepted is its contract. This policy
-does not alter the outcome or available reason codes for a submission accepted under
-v1.
+This is a prospective successor to the [v2 manual reward-review policy](https://github.com/conjectures-io/conjectures-validator/blob/acfd64c5db4e03689aa4b56f472ab9a912716c06/docs/MANUAL_REVIEW_CRITERIA.md).
+The policy version captured when a submission is accepted is its contract. V3 caps a
+formalization-defect award at the submission's locked task bounty; other review criteria and
+reason codes are unchanged. Submissions accepted under v1 or v2 retain their original terms,
+including their fixed $750 formalization-defect award. Existing payout records are not repriced.
 
 ## Purpose
 
@@ -22,7 +23,7 @@ change the submitted proof, or judge it against a different task. The reviewer d
 verified submission:
 
 1. earns the displayed conjecture bounty;
-2. earns the $750 formalization-defect award; or
+2. earns the formalization-defect award capped at the lower of $750 or its locked task bounty; or
 3. is rejected for one of the published disqualification reasons.
 
 The exact task bundle accepted at submission is the submission's contract. It includes the task
@@ -96,13 +97,16 @@ Use this outcome when:
 - the result therefore does not genuinely settle the intended conjecture; and
 - no disqualification reason applies.
 
-The miner receives **$750 USD equivalent, paid in Subnet 66 Alpha**, instead of the displayed
-conjecture bounty. This is an approved result, not a rejection and not an additional payment.
+The miner receives **$750 USD equivalent or the task bounty locked for the submission,
+whichever is less, paid in Subnet 66 Alpha**, instead of the full conjecture bounty.
+This is an approved result, not a rejection and not an additional payment.
 
 Convert $750 to integer Alpha rao using the authoritative Alpha/USD price source used by the
-bounty system when the payout record is created. Record the price, source, timestamp, calculated
-Alpha amount, and payout-policy version. The USD value is fixed; the Alpha amount is determined at
-payout time.
+bounty system when the payout record is created, rounding to the nearest rao as for earlier
+awards. Pay the smaller of that conversion and `submission.bounty_amount_rao`; a v3 submission
+must have a submission-time bounty lock. Record the $750 ceiling, price, source, timestamp,
+uncapped Alpha conversion, locked bounty cap, actual Alpha amount, and payout-policy version
+`formalization-defect-capped-v2`. Do not use the task's later catalog quote as the cap.
 
 A material formalization defect includes an omitted or added hypothesis, an incorrect domain or
 quantifier, the wrong notion of convergence or equality, an incorrect negation, or another
@@ -123,7 +127,7 @@ After this outcome:
 
 The public explanation must identify the mismatch, state what the Lean artifact actually proved
 or refuted, explain why that did not settle the intended conjecture, and state that the miner
-received the $750 formalization-defect award in Alpha.
+received the capped formalization-defect award, stating the actual Alpha amount and which limit applied.
 
 ### 3. Rejection
 
@@ -161,7 +165,7 @@ miner. Approve the submission if it otherwise qualifies, even when the two proof
 
 ### A solution was published before submission
 
-Under v2, prior publication can support `NOT_NOVEL` only when both of the following are established:
+Under this policy, prior publication can support `NOT_NOVEL` only when both of the following are established:
 
 1. the earlier source resolves the same direct informal problem represented by the submitted Lean
    target; and
@@ -260,7 +264,7 @@ disqualification code with `REJECTED`.
 12. If a formalization defect was found, quarantine or correct the task independently of the
     payout.
 13. If a qualifying prior public solution was found, suspend or retire the affected task before
-    accepting another v2 submission for it.
+    accepting another v3 submission for it.
 
 ## Public explanation
 
@@ -269,7 +273,7 @@ Publish a concise rationale for every binding approval and rejection. It must st
 - what was decided;
 - which reason code and policy version were used;
 - the decisive facts and timestamps;
-- whether the displayed bounty or $750 formalization-defect award applies;
+- whether the full locked bounty or the lower-of-$750-or-locked-bounty defect award applies;
 - for `NOT_NOVEL`, the exact earlier result and the concrete source-to-submission correspondence;
 - how the independent agent assessments agreed or materially disagreed;
 - how the team resolved any material disagreement;
@@ -320,4 +324,4 @@ original remains available for audit.
 - Verification, review, reward eligibility, and payout are separate states.
 
 Any material change to this policy requires a new `REVIEW_POLICY_VERSION`. Do not reinterpret
-`v2` retroactively for submissions accepted under an earlier version.
+`v3` retroactively for submissions accepted under an earlier version.

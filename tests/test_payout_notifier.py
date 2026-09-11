@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 from conftest import DATABASE_SKIP_REASON, postgres_dsn
-from sqlalchemy import select
+from sqlalchemy import null, select
 from sqlalchemy.exc import IntegrityError
 
 from conjectures_subnet.db.engine import create_db_engine, session_factory
@@ -301,7 +301,18 @@ def test_a_website_submission_pays_the_coldkey_that_signed_it():
 
 
 @pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
-def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
+@pytest.mark.parametrize(
+    ("review_policy", "locked_amount", "expected_amount", "has_lock"),
+    [
+        ("v1", 500_000_000_000, 1_250_000_000_000, False),
+        ("v2", 500_000_000_000, 1_250_000_000_000, False),
+        ("v3", 500_000_000_000, 500_000_000_000, True),
+        ("v3", 1_250_000_000_000, 1_250_000_000_000, True),
+        ("v3", 9_000_000_000_000, 1_250_000_000_000, True),
+        ("v3", 500_000_000_000, None, False),
+    ],
+)
+def test_defect_award_respects_the_submission_contract(review_policy, locked_amount, expected_amount, has_lock):
     engine = create_db_engine(postgres_dsn())
     try:
         Base.metadata.drop_all(engine)
@@ -310,6 +321,7 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
         content = b"theorem defect_award_notification_fixture : True := trivial"
         digest = hashlib.sha256(content).digest()
         submission_id = uuid.uuid4()
+        accepted_at = dt.datetime.now(dt.UTC)
         with sessions.begin() as session:
             session.add(Proof(digest=digest, content=content, byte_length=len(content)))
             session.flush()
@@ -333,8 +345,10 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
                     verification_status=VerificationState.VERIFIED,
                     manual_review_status=ManualReviewState.APPROVED,
                     reward_status=RewardState.ELIGIBLE,
-                    review_policy_version="v2",
-                    bounty_amount_rao=9_000_000_000_000,
+                    review_policy_version=review_policy,
+                    created_at=accepted_at,
+                    bounty_locked_at=accepted_at if has_lock else null(),
+                    bounty_amount_rao=locked_amount,
                     bounty_policy_version="dynamic-age-v2-locked",
                     bounty_inputs={"displayed_full_bounty": True},
                 )
@@ -346,7 +360,7 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
                     decision=ReviewOutcome.APPROVED,
                     kind=ReviewerKind.HUMAN,
                     reviewer="test-reviewer",
-                    policy_version="v2",
+                    policy_version=review_policy,
                     reason_code="FORMALIZATION_DEFECT_AWARD",
                 )
             )
@@ -379,6 +393,13 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
             defect_award_quoter=quote,
         )
 
+        if expected_amount is None:
+            with pytest.raises(ValueError, match="requires a submission bounty lock"):
+                notifier.seed_reward_events()
+            with sessions() as session:
+                assert session.scalar(select(RewardEvent.id)) is None
+            return
+
         first = notifier.process_once()
         second = notifier.process_once()
 
@@ -393,9 +414,14 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
                 select(RewardEvent).where(RewardEvent.submission_id == submission_id)
             )
             assert reward is not None
-            assert reward.amount_rao == 1_250_000_000_000
-            assert reward.amount_rao != 9_000_000_000_000
-            assert reward.pricing_policy_version == "formalization-defect-usd-v1"
+            assert reward.amount_rao == expected_amount
+            assert reward.pricing_policy_version == (
+                "formalization-defect-capped-v2" if review_policy == "v3" else "formalization-defect-usd-v1"
+            )
+            if review_policy == "v3":
+                assert reward.amount_rao <= locked_amount
+                assert reward.pricing_inputs["bounty_cap_rao"] == locked_amount
+                assert reward.pricing_inputs["uncapped_amount_rao"] == 1_250_000_000_000
             assert reward.eligibility_reason == "FORMALIZATION_DEFECT_AWARD"
             assert reward.pricing_inputs["award_code"] == "FORMALIZATION_DEFECT_AWARD"
             assert isinstance(reward.pricing_inputs["review_decision_id"], int)
@@ -409,5 +435,25 @@ def test_defect_decision_uses_fixed_usd_quote_instead_of_full_bounty():
                 malformed.pop("price_source_urls")
                 reward.pricing_inputs = malformed
                 session.flush()
+        # Direct database writes cannot bypass the conversion or the submission's cap.
+        with pytest.raises(IntegrityError, match="recorded Alpha/USD rate"):
+            with sessions.begin() as session:
+                reward = session.scalar(select(RewardEvent).where(RewardEvent.submission_id == submission_id))
+                reward.amount_rao = expected_amount + 1
+                session.flush()
+        if review_policy == "v3":
+            for field in ("bounty_cap_rao", "uncapped_amount_rao"):
+                with pytest.raises(IntegrityError, match="cap must match"):
+                    with sessions.begin() as session:
+                        reward = session.scalar(select(RewardEvent).where(RewardEvent.submission_id == submission_id))
+                        malformed = dict(reward.pricing_inputs)
+                        malformed.pop(field)
+                        reward.pricing_inputs = malformed
+                        session.flush()
+            with pytest.raises(IntegrityError, match="latest approved review decision"):
+                with sessions.begin() as session:
+                    reward = session.scalar(select(RewardEvent).where(RewardEvent.submission_id == submission_id))
+                    reward.pricing_policy_version = "formalization-defect-usd-v1"
+                    session.flush()
     finally:
         engine.dispose()
