@@ -203,7 +203,7 @@ class Submission(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     # HISTORY ONLY as of V035. Miners sign with a coldkey, so no new row may set this —
-    # `submission_names_no_hotkey` refuses it, and `signer_coldkey` is the live attribution.
+    # `submissions_reject_hotkey` refuses it; `signer_coldkey` is the live attribution.
     # Kept because the nine rows that have it are still credited by it: `db/public.py` falls
     # back to this address when the solver's account has no display name.
     hotkey: Mapped[str | None] = mapped_column(SS58)
@@ -488,8 +488,8 @@ class Submission(Base):
         ),
         # V035. Three ways in, exactly one of which authorised any given row. Still VALID, so
         # it has to keep admitting the historical hotkey-signed rows; closing that branch to
-        # NEW rows is `submission_names_no_hotkey` below, deliberately a separate constraint so
-        # that neither expression has to be read twice to see which half applies to history.
+        # NEW rows is the V038 `submissions_reject_hotkey` trigger below. V039 separately
+        # preserves historical attribution while permitting unrelated updates.
         CheckConstraint(
             # Legacy, history only.
             "(hotkey IS NOT NULL AND hotkey_signature IS NOT NULL) "
@@ -2988,6 +2988,33 @@ event.listen(
     "before_drop",
     DDL("DROP FUNCTION IF EXISTS submissions_reject_hotkey() CASCADE;"),
 )
+# V039 protects the historical fields after V038 has repaired web signatures.
+event.listen(
+    Submission.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION submissions_protect_legacy_hotkey() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    IF NEW.hotkey IS DISTINCT FROM OLD.hotkey\n"
+        "       OR NEW.hotkey_signature IS DISTINCT FROM OLD.hotkey_signature THEN\n"
+        "        RAISE EXCEPTION 'submission historical hotkey and signature are immutable'\n"
+        "            USING ERRCODE = '23514', CONSTRAINT = 'submission_legacy_hotkey_immutable';\n"
+        "    END IF;\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER submissions_protect_legacy_hotkey\n"
+        "    BEFORE UPDATE ON submissions\n"
+        "    FOR EACH ROW EXECUTE FUNCTION submissions_protect_legacy_hotkey();"
+    ),
+)
+event.listen(
+    Submission.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS submissions_protect_legacy_hotkey() CASCADE;"),
+)
+
 event.listen(
     SubmissionIntent.__table__,
     "after_create",
