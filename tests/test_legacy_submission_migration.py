@@ -4,9 +4,10 @@ import uuid
 
 import pytest
 
-psycopg = pytest.importorskip("psycopg")
-from psycopg import sql
 from conftest import DATABASE_SKIP_REASON, postgres_dsn
+
+psycopg = pytest.importorskip("psycopg")
+sql = psycopg.sql
 
 pytestmark = pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
 MIGRATIONS = Path(__file__).resolve().parents[1] / "deploy/migrate/sql"
