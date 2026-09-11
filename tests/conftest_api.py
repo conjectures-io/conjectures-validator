@@ -22,7 +22,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, replace
-from datetime import date
+from datetime import UTC, date, datetime
 from functools import cache
 from pathlib import Path
 
@@ -361,6 +361,9 @@ def harness(
         repository_commit=REPOSITORY_COMMIT,
         entries=entries if entries is not None else (task_entry(),),
     )
+    # Keep pricing deterministic if an API flow crosses a wall-clock minute. Tests of aging
+    # replace this clock explicitly; timestamps for submission/payment records remain real.
+    pricing_now = datetime.now(UTC)
     services = Services(
         settings=settings,
         engine=engine,
@@ -370,6 +373,7 @@ def harness(
         payments=verifier,
         dispatcher=dispatcher or QueueDispatcher(),
         pricing=DynamicBountyPricer(
+            clock=lambda: pricing_now,
             balance_reader=StaticBalanceReader(settings.bounty_pool_balance_rao),
             balance_coldkey=settings.bounty_wallet_coldkey,
             balance_hotkey=settings.bounty_wallet_hotkey,
@@ -380,6 +384,7 @@ def harness(
             policy_version=settings.bounty_policy_version,
             constant_numerator=settings.bounty_constant_numerator,
             constant_denominator=settings.bounty_constant_denominator,
+            ramp_seconds=settings.bounty_ramp_seconds,
             age_period_seconds=settings.bounty_age_period_seconds,
             max_age_weight=settings.bounty_max_age_weight,
             max_bounty_share_numerator=settings.bounty_max_share_numerator,

@@ -472,8 +472,8 @@ review is configured globally, per task, or per submission.
 `reward_events` records the submission, eligibility reason, actual integer payout amount,
 dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
 evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
-targets without a successful reward claim. Age weight stops accruing at 60 periods and every target
-quote is capped at 33/100 of the uncommitted balance. Acceptance stores the quote as the immutable
+targets without a successful reward claim. Each target starts at 1/10 of uncommitted funds and
+reaches the 1/8 maximum linearly over 15 elapsed days. Acceptance stores the quote as the immutable
 conditional amount-of-record, and later payout generation copies it without repricing.
 
 The Discord notifier creates `PENDING` and sends the reviewed multisig call to both human signers.
@@ -487,7 +487,7 @@ latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.
 
 | Required input | Status |
 | --- | --- |
-| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` produces the versioned age weight; no subjective difficulty score is used |
+| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` drives a linear 15-day ramp from 1/10 to 1/8 of uncommitted funds; no subjective difficulty score is used |
 | Payout proof-of-inclusion returned to the miner | **Implemented.** Owner responses carry the canonical event reference and finalized block |
 | Automated bounty transfer and reconciliation | **Partial.** Transfer signing remains human multisig; best/finalized event reconciliation is automatic |
 

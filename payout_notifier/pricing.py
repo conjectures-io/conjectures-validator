@@ -13,6 +13,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 RAO_PER_ALPHA = Decimal(1_000_000_000)
 FORMALIZATION_DEFECT_AWARD_USD = Decimal("750.00")
 FORMALIZATION_DEFECT_POLICY_VERSION = "formalization-defect-usd-v1"
+CAPPED_FORMALIZATION_DEFECT_POLICY_VERSION = "formalization-defect-capped-v2"
 
 TAOSTATS_TAO_PRICE_URL = "https://api.taostats.io/api/price/latest/v1"
 TAOSTATS_SUBNET_POOL_URL = "https://api.taostats.io/api/dtao/pool/latest/v1"
@@ -33,11 +34,13 @@ def quote_formalization_defect_award(
     timeout_seconds: float = 10.0,
     now: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC),
 ) -> DefectAwardQuote:
-    """Convert the fixed $750 award with the bounty system's TaoStats feeds.
+    """Convert the $750 ceiling with the bounty system's TaoStats feeds.
 
     TaoStats publishes Alpha/TAO and TAO/USD as decimal strings. Keeping the complete
     calculation in ``Decimal`` makes the integer rao amount reproducible and matches the
     rounding convention already present on historical defect-award payout records.
+    The worker applies the submission's bounty cap for review policy v3; earlier contracts
+    retain the fixed-USD award.
     """
     if not api_key:
         raise ValueError("a TaoStats API key is required for a defect award")

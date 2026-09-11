@@ -251,8 +251,8 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert item["attribution"] == "conjectures.io"
             assert item["certified_at"] is not None
             assert item["verified_at"] is not None
-            assert item["bounty_amount_rao"] == 1_000_000_000
-            assert item["bounty_amount_usd"] == "50.00"
+            assert item["bounty_amount_rao"] == 400_000_000
+            assert item["bounty_amount_usd"] == "20.00"
             assert item["verifier_version"] == "verifier-1.2.3"
             assert item["report_available"] is True
             assert item["review"]["decision"] == "APPROVED"

@@ -1,8 +1,8 @@
 # Submission terms
 
-**Terms version:** `v5`<br>
-**Effective date:** 2026-09-08<br>
-**Manual review policy:** `v2`
+**Terms version:** `v6`<br>
+**Effective date:** 2026-09-11<br>
+**Manual review policy:** `v3`
 
 These terms apply only to submissions accepted on or after the effective date. A submission
 accepted earlier remains governed by the terms and review-policy version recorded at acceptance.
@@ -80,7 +80,16 @@ Bounty amounts shown in the catalog are dynamic estimates. For submissions accep
 policy activation, a fresh quote is locked and will not be repriced during verification or review.
 The lock is conditional: it does not reserve the reward target, and another proof may become the
 successful claim first. Rejected attempts release their treasury exposure. If your submission
-wins, its payout event copies the locked amount and pricing inputs exactly.
+is approved for the full conjecture bounty, its payout event copies the locked amount and pricing
+inputs exactly.
+
+For a `FORMALIZATION_DEFECT_AWARD` under review policy `v3`, the reward is **$750 USD equivalent
+or the task bounty locked for your submission, whichever is less**, paid in Subnet 66 Alpha.
+Convert $750 to integer Alpha rao at the authoritative Alpha/USD rate when the payout record is
+created, using the existing nearest-rao rounding convention, then take the smaller of that amount
+and your locked bounty. This replaces the full conjecture bounty; it is not an additional reward.
+Submissions accepted under earlier review policies retain their recorded award terms, including
+the fixed $750 defect award under policies `v1` and `v2`.
 
 Submissions accepted before that activation retain the payout-time pricing policy in force when
 they were submitted; the new lock is not applied retroactively.

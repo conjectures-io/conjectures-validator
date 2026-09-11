@@ -852,7 +852,7 @@ class RewardEvent(Base):
     )
 
 
-# V012, hardened by V013. An automatically generated payout must carry the facts that were
+# V012, hardened by V013 and capped prospectively by V039. Automatic payouts carry the facts
 # already locked elsewhere — the submission's bounty lock, or the review decision awarding a
 # fixed-USD defect payment — so a worker bug cannot reprice a reward on its way out. Rows with a
 # NULL generation_key are the operator's manual attempts and pass through untouched.
@@ -904,7 +904,10 @@ event.listen(
         "    IF latest_decision.reason_code = 'FORMALIZATION_DEFECT_AWARD' THEN\n"
         "        IF latest_decision.decision <> 'APPROVED'\n"
         "           OR NEW.eligibility_reason <> 'FORMALIZATION_DEFECT_AWARD'\n"
-        "           OR NEW.pricing_policy_version <> 'formalization-defect-usd-v1' THEN\n"
+        "           OR NEW.pricing_policy_version IS DISTINCT FROM\n"
+        "                (CASE WHEN submission_lock.review_policy_version = 'v3'\n"
+        "                    THEN 'formalization-defect-capped-v2'\n"
+        "                    ELSE 'formalization-defect-usd-v1' END) THEN\n"
         "            RAISE EXCEPTION 'defect award must match the latest approved review decision'\n"
         "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_defect_decision';\n"
         "        END IF;\n"
@@ -936,11 +939,26 @@ event.listen(
         "        IF award_usd IS NULL\n"
         "           OR alpha_usd IS NULL\n"
         "           OR award_usd <> 750.00\n"
-        "           OR alpha_usd <= 0 THEN\n"
+        "           OR alpha_usd <= 0\n"
+        "           OR alpha_usd::TEXT IN ('NaN', 'Infinity', '-Infinity') THEN\n"
         "            RAISE EXCEPTION 'defect award must price exactly $750 at a positive Alpha/USD rate'\n"
         "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_valid_defect_price';\n"
         "        END IF;\n"
         "        calculated_rao := round(award_usd * 1000000000 / alpha_usd)::BIGINT;\n"
+        "        IF submission_lock.review_policy_version = 'v3' THEN\n"
+        "            IF submission_lock.bounty_locked_at IS NULL THEN\n"
+        "                RAISE EXCEPTION 'capped defect award requires a submission-time bounty lock'\n"
+        "                    USING ERRCODE = '23514', CONSTRAINT = 'reward_event_requires_bounty_lock';\n"
+        "            END IF;\n"
+        "            IF NEW.pricing_inputs ->> 'uncapped_amount_rao'\n"
+        "                    IS DISTINCT FROM calculated_rao::TEXT\n"
+        "               OR NEW.pricing_inputs ->> 'bounty_cap_rao'\n"
+        "                    IS DISTINCT FROM submission_lock.bounty_amount_rao::TEXT THEN\n"
+        "                RAISE EXCEPTION 'defect award cap must match the submission bounty lock and USD conversion'\n"
+        "                    USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_defect_cap';\n"
+        "            END IF;\n"
+        "            calculated_rao := LEAST(calculated_rao, submission_lock.bounty_amount_rao);\n"
+        "        END IF;\n"
         "        IF NEW.amount_rao <> calculated_rao THEN\n"
         "            RAISE EXCEPTION 'defect award amount does not match its recorded Alpha/USD rate'\n"
         "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_matches_defect_price';\n"

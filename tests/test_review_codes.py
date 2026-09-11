@@ -22,8 +22,8 @@ def test_every_available_review_code_is_documented():
 def test_submission_terms_make_both_approval_codes_available():
     terms = SubmissionTerms.load(
         ROOT / "docs" / "SUBMISSION_TERMS.md",
-        version="v5",
-        effective_from=date(2026, 9, 8),
+        version="v6",
+        effective_from=date(2026, 9, 11),
     )
     assert {code for code, _ in terms.approval_reasons} == {
         "REVIEW_APPROVED",
@@ -34,8 +34,8 @@ def test_submission_terms_make_both_approval_codes_available():
 def test_prior_external_formalization_is_a_published_disqualification():
     terms = SubmissionTerms.load(
         ROOT / "docs" / "SUBMISSION_TERMS.md",
-        version="v5",
-        effective_from=date(2026, 9, 8),
+        version="v6",
+        effective_from=date(2026, 9, 11),
     )
 
     reasons = dict(terms.disqualification_reasons)
@@ -46,8 +46,8 @@ def test_prior_external_formalization_is_a_published_disqualification():
 def test_not_novel_covers_exact_prior_public_solutions_used_by_the_submission():
     terms = SubmissionTerms.load(
         ROOT / "docs" / "SUBMISSION_TERMS.md",
-        version="v5",
-        effective_from=date(2026, 9, 8),
+        version="v6",
+        effective_from=date(2026, 9, 11),
     )
 
     reason = dict(terms.disqualification_reasons)["NOT_NOVEL"]
@@ -55,3 +55,17 @@ def test_not_novel_covers_exact_prior_public_solutions_used_by_the_submission():
     assert "same direct problem" in reason
     assert "substantially implements" in reason
     assert "exact target" in reason
+
+
+def test_capped_defect_award_is_published_with_the_new_contract_versions():
+    body = (ROOT / "docs" / "SUBMISSION_TERMS.md").read_text()
+    assert "**Terms version:** `v6`" in body
+    assert "**Manual review policy:** `v3`" in body
+    assert "whichever is less" in body
+    assert "earlier review policies retain" in body
+    terms = SubmissionTerms.load(
+        ROOT / "docs" / "SUBMISSION_TERMS.md", version="v6", effective_from=date(2026, 9, 11)
+    )
+    reason = dict(terms.approval_reasons)["FORMALIZATION_DEFECT_AWARD"]
+    assert "lesser of $750" in reason
+    assert "locked task bounty" in reason

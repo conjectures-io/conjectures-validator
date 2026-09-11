@@ -227,7 +227,7 @@ def test_the_bounty_is_locked_at_intake_and_replay_keeps_the_amount():
     async def scenario():
         kit = await harness(
             BOUNTY_POOL_BALANCE_RAO="16800000000",
-            BOUNTY_POLICY_VERSION="dynamic-age-v1",
+            BOUNTY_POLICY_VERSION="linear-age-v3-locked",
             bounty_usd=StaticAlphaUsdPriceReader(Decimal("50")),
         ).setup()
         try:
@@ -237,9 +237,9 @@ def test_the_bounty_is_locked_at_intake_and_replay_keeps_the_amount():
             assert first.status_code == 201, first.text
             # Acceptance turns the final serialized pool quote into an immutable amount.
             assert first.json()["bounty"] == {
-                "amount_rao": 4_200_000_000,
-                "amount_usd": "210.00",
-                "policy_version": "dynamic-age-v1",
+                "amount_rao": 1_680_000_000,
+                "amount_usd": "84.00",
+                "policy_version": "linear-age-v3-locked",
                 "available": True,
                 "reason": "LOCKED_AT_SUBMISSION",
                 "as_of": first.json()["bounty"]["as_of"],
@@ -252,12 +252,12 @@ def test_the_bounty_is_locked_at_intake_and_replay_keeps_the_amount():
                     Submission, uuid.UUID(first.json()["submission_id"])
                 )
                 assert submission is not None
-                assert submission.bounty_amount_rao == 4_200_000_000
-                assert submission.bounty_policy_version == "dynamic-age-v1"
+                assert submission.bounty_amount_rao == 1_680_000_000
+                assert submission.bounty_policy_version == "linear-age-v3-locked"
                 assert submission.bounty_locked_at is not None
             replay = await _post(kit, bundle, idempotency_key=key)
             assert replay.status_code == 200
-            assert replay.json()["bounty"]["amount_rao"] == 4_200_000_000
+            assert replay.json()["bounty"]["amount_rao"] == 1_680_000_000
             assert replay.json()["bounty"]["locked"] is True
             assert replay.json()["bounty"]["as_of"] == first.json()["bounty"]["as_of"]
 
@@ -300,7 +300,7 @@ def test_locked_exposure_uses_target_maximum_and_rejections_release_it():
         try:
             first = await _post(kit, valid_bundle())
             assert first.status_code == 201, first.text
-            assert first.json()["bounty"]["amount_rao"] == 4_200_000_000
+            assert first.json()["bounty"]["amount_rao"] == 1_680_000_000
 
             competing_bundle, competing_digest = distinct_bundle("second-attempt")
             second = await _post(
@@ -310,16 +310,16 @@ def test_locked_exposure_uses_target_maximum_and_rejections_release_it():
                 proof_digest=competing_digest,
             )
             assert second.status_code == 201, second.text
-            assert second.json()["bounty"]["amount_rao"] == 3_150_000_000
+            assert second.json()["bounty"]["amount_rao"] == 1_512_000_000
 
             # Two attempts against one mutually exclusive reward target reserve its maximum,
-            # 4.2 Alpha, rather than their 7.35 Alpha sum.
+            # 1.68 Alpha, rather than their 3.192 Alpha sum.
             async with kit.session() as session:
                 quote = await kit.services.pricing.quote(
                     session, reward_target_id=second_target
                 )
-                assert quote.amount_rao == 3_150_000_000
-                assert quote.inputs["committed_bounty_rao"] == 4_200_000_000
+                assert quote.amount_rao == 1_512_000_000
+                assert quote.inputs["committed_bounty_rao"] == 1_680_000_000
 
                 first_row = await session.get(
                     Submission, uuid.UUID(first.json()["submission_id"])
@@ -333,8 +333,8 @@ def test_locked_exposure_uses_target_maximum_and_rejections_release_it():
                 quote = await kit.services.pricing.quote(
                     session, reward_target_id=second_target
                 )
-                assert quote.amount_rao == 3_412_500_000
-                assert quote.inputs["committed_bounty_rao"] == 3_150_000_000
+                assert quote.amount_rao == 1_528_800_000
+                assert quote.inputs["committed_bounty_rao"] == 1_512_000_000
 
                 second_row = await session.get(
                     Submission, uuid.UUID(second.json()["submission_id"])
@@ -347,7 +347,7 @@ def test_locked_exposure_uses_target_maximum_and_rejections_release_it():
                 quote = await kit.services.pricing.quote(
                     session, reward_target_id=second_target
                 )
-                assert quote.amount_rao == 4_200_000_000
+                assert quote.amount_rao == 1_680_000_000
                 assert quote.inputs["committed_bounty_rao"] == 0
 
                 # A live, unresolved legacy row does not consume locked exposure.
@@ -363,6 +363,45 @@ def test_locked_exposure_uses_target_maximum_and_rejections_release_it():
                     session, reward_target_id=second_target
                 )
                 assert quote.inputs["committed_bounty_rao"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_historical_v2_lock_keeps_its_amount_and_reservation_under_v3():
+    async def scenario():
+        kit = await harness(BOUNTY_POOL_BALANCE_RAO="16800000000").setup()
+        try:
+            bundle = valid_bundle()
+            key = new_key()
+            first = await _post(kit, bundle, idempotency_key=key)
+            assert first.status_code == 201, first.text
+            submission_id = uuid.UUID(first.json()["submission_id"])
+            # Seed the persisted contract of a submission accepted before the policy change.
+            historical_inputs = {"age_weight": 60, "balance_rao": 16_800_000_000}
+            async with kit.session() as session:
+                row = await session.get(Submission, submission_id)
+                row.bounty_amount_rao = 4_200_000_000
+                row.bounty_policy_version = "dynamic-age-v2-locked-capped"
+                row.bounty_inputs = historical_inputs
+                await session.commit()
+
+            async with await _client(kit) as client:
+                response = await client.get(f"/v1/submissions/{submission_id}", headers=read_headers())
+            assert response.status_code == 200, response.text
+            assert response.json()["bounty"]["amount_rao"] == 4_200_000_000
+            assert response.json()["bounty"]["policy_version"] == "dynamic-age-v2-locked-capped"
+            replay = await _post(kit, bundle, idempotency_key=key)
+            assert replay.json()["bounty"] == response.json()["bounty"]
+            async with kit.session() as session:
+                target = kit.services.pricing.reward_target_ids[0]
+                quote = await kit.services.pricing.quote(session, reward_target_id=target)
+                assert quote.policy_version == "linear-age-v3-locked"
+                assert quote.inputs["committed_bounty_rao"] == 4_200_000_000
+                assert quote.amount_rao == 1_260_000_000
+                row = await session.get(Submission, submission_id)
+                assert row.bounty_inputs == historical_inputs
         finally:
             await kit.teardown()
 

@@ -1,4 +1,4 @@
-"""Live, age-weighted bounty pricing with submission-time amount locks.
+"""Live, linear-age bounty pricing with submission-time amount locks.
 
 Catalog prices remain live estimates. Once a paid submission is accepted, its quote is immutable:
 later balance and age changes affect new submissions only. Several proofs may still compete for
@@ -7,15 +7,15 @@ exclusive claim merely for arriving first.
 
 For every currently open reward target ``i`` the capped policy is::
 
-    w_i = min(w_max, 1 + floor(age_i / age_period))
-    b_i = min(c * B * N * w_i / W, m * B)
+    t_i = min(age_i_seconds, ramp_seconds)
+    b_i = floor(B * (c + (m - c) * t_i / ramp_seconds))
 
-where ``B`` is the live treasury balance minus outstanding locked exposure, ``N`` is the number
-of open reward targets, ``w_i`` is the target's capped age weight, ``W`` is the sum of all open
-weights, and ``c`` defaults to ``1/4``. This is the integer form of ``c * B * w_i / w_avg``.
-``w_max`` defaults to ``60`` and ``m`` defaults to ``33/100``, so age stops accruing after sixty
-periods and no one target can quote more than 33% of the uncommitted balance. Integer division
-rounds down, so pricing never creates a fractional base unit or exceeds either cap.
+``B`` is the live treasury balance minus outstanding locked exposure. The starting share ``c``
+defaults to ``1/10``, the maximum share ``m`` to ``1/8``, and the ramp to 15 elapsed days.
+Only the target's own age affects its share; catalog size and other targets' ages do not.
+Arithmetic is integer-only, with one final floor to base units. Catalog timestamps retain their
+minute precision, so quotes progress within each day without daily weight jumps. Legacy age
+weights remain available as descriptive API metadata, but never enter this pricing formula.
 
 Task age is database-owned.  The first API process to see a reward target inserts it into
 ``bounty_tasks``; later catalog repins reuse that original ``opened_at`` through the stable
@@ -51,6 +51,8 @@ from conjectures_subnet.db.models import (
 # Submission writers serialize only the short quote-and-insert transaction. Public catalog reads
 # do not take this lock. The integer is stable across processes and deployments.
 BOUNTY_RESERVATION_ADVISORY_LOCK = 0x434F4E4A425459
+LINEAR_BOUNTY_POLICY_VERSION = "linear-age-v3-locked"
+DEFAULT_RAMP_SECONDS = 15 * 86_400
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,7 @@ class BountyPoolSnapshot:
     as_of: datetime
     constant_numerator: int
     constant_denominator: int
+    ramp_seconds: int
     max_age_weight: int
     max_bounty_share_numerator: int
     max_bounty_share_denominator: int
@@ -202,13 +205,14 @@ class DynamicBountyPricer:
     balance_hotkey: str
     balance_netuid: int
     reward_target_ids: tuple[str, ...]
-    policy_version: str = "dynamic-age-v2-locked-capped"
+    policy_version: str = LINEAR_BOUNTY_POLICY_VERSION
     constant_numerator: int = 1
-    constant_denominator: int = 4
+    constant_denominator: int = 10
+    ramp_seconds: int = DEFAULT_RAMP_SECONDS
     age_period_seconds: int = 86_400
     max_age_weight: int = 60
-    max_bounty_share_numerator: int = 33
-    max_bounty_share_denominator: int = 100
+    max_bounty_share_numerator: int = 1
+    max_bounty_share_denominator: int = 8
     confirmed_payout_grace_seconds: int = 60
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
 
@@ -219,6 +223,10 @@ class DynamicBountyPricer:
             raise ValueError("bounty balance netuid must be positive")
         if self.constant_numerator <= 0 or self.constant_denominator <= 0:
             raise ValueError("bounty constant must be a positive rational")
+        if self.ramp_seconds <= 0:
+            raise ValueError("bounty ramp must be positive")
+        if self.policy_version.startswith("dynamic-age-"):
+            raise ValueError("linear pricing requires a new bounty policy version")
         if self.age_period_seconds <= 0:
             raise ValueError("age period must be positive")
         if self.max_age_weight <= 0:
@@ -229,6 +237,11 @@ class DynamicBountyPricer:
             or self.max_bounty_share_numerator > self.max_bounty_share_denominator
         ):
             raise ValueError("maximum bounty share must be in the interval (0, 1]")
+        if (
+            self.constant_numerator * self.max_bounty_share_denominator
+            > self.max_bounty_share_numerator * self.constant_denominator
+        ):
+            raise ValueError("starting bounty share cannot exceed the maximum share")
         if self.confirmed_payout_grace_seconds <= 0:
             raise ValueError("confirmed payout grace period must be positive")
         if not self.reward_target_ids:
@@ -282,7 +295,7 @@ class DynamicBountyPricer:
         if now.tzinfo is None:
             now = now.replace(tzinfo=UTC)
         # Public catalog responses carry a strong ETag. Minute precision is enough to explain
-        # a daily age-weight policy and keeps otherwise identical reads cacheable, while a
+        # the linear age policy and keeps otherwise identical reads cacheable, while a
         # changed balance or solved-target set still changes the response immediately.
         now = now.astimezone(UTC).replace(second=0, microsecond=0)
 
@@ -382,6 +395,7 @@ class DynamicBountyPricer:
                 "balance_netuid": self.balance_netuid,
                 "constant_denominator": self.constant_denominator,
                 "constant_numerator": self.constant_numerator,
+                "ramp_seconds": self.ramp_seconds,
                 "max_age_weight": self.max_age_weight,
                 "max_bounty_share_denominator": self.max_bounty_share_denominator,
                 "max_bounty_share_numerator": self.max_bounty_share_numerator,
@@ -416,19 +430,16 @@ class DynamicBountyPricer:
                 continue
 
             weight = weights[target]
+            age_seconds = max(0, int((now - opened_at[target]).total_seconds()))
             amount = calculate_bounty_rao(
                 balance_rao=balance,
-                open_targets=len(open_targets),
-                task_age_weight=weight,
-                total_age_weight=total_weight,
+                age_seconds=age_seconds,
+                ramp_seconds=self.ramp_seconds,
                 constant_numerator=self.constant_numerator,
                 constant_denominator=self.constant_denominator,
                 max_bounty_share_numerator=self.max_bounty_share_numerator,
                 max_bounty_share_denominator=self.max_bounty_share_denominator,
             )
-            # A very old target can be worth more than the average-age formula's remaining pool.
-            # A locked promise cannot exceed funds that are actually uncommitted.
-            amount = min(amount, balance)
             quotes[target] = LiveBounty(
                 amount_rao=amount,
                 policy_version=self.policy_version,
@@ -442,6 +453,7 @@ class DynamicBountyPricer:
                 inputs={
                     **base_inputs,
                     "age_weight": weight,
+                    "age_seconds": age_seconds,
                     "opened_at": opened_at[target].isoformat(),
                 },
             )
@@ -459,6 +471,7 @@ class DynamicBountyPricer:
             as_of=now,
             constant_numerator=self.constant_numerator,
             constant_denominator=self.constant_denominator,
+            ramp_seconds=self.ramp_seconds,
             max_age_weight=self.max_age_weight,
             max_bounty_share_numerator=self.max_bounty_share_numerator,
             max_bounty_share_denominator=self.max_bounty_share_denominator,
@@ -468,36 +481,33 @@ class DynamicBountyPricer:
 def calculate_bounty_rao(
     *,
     balance_rao: int,
-    open_targets: int,
-    task_age_weight: int,
-    total_age_weight: int,
+    age_seconds: int,
+    ramp_seconds: int = DEFAULT_RAMP_SECONDS,
     constant_numerator: int = 1,
-    constant_denominator: int = 4,
-    max_bounty_share_numerator: int = 33,
-    max_bounty_share_denominator: int = 100,
+    constant_denominator: int = 10,
+    max_bounty_share_numerator: int = 1,
+    max_bounty_share_denominator: int = 8,
 ) -> int:
-    """Evaluate the weighted quote and treasury-share cap, rounding down to base units."""
+    """Interpolate from the starting share to the cap, with one final integer floor."""
     values = (
-        balance_rao,
-        open_targets,
-        task_age_weight,
-        total_age_weight,
+        ramp_seconds,
         constant_numerator,
         constant_denominator,
         max_bounty_share_numerator,
         max_bounty_share_denominator,
     )
-    if balance_rao < 0 or any(value <= 0 for value in values[1:]):
-        raise ValueError("balance must be non-negative and pricing inputs positive")
+    if balance_rao < 0 or age_seconds < 0 or any(value <= 0 for value in values):
+        raise ValueError("balance and age must be non-negative and pricing inputs positive")
     if max_bounty_share_numerator > max_bounty_share_denominator:
         raise ValueError("maximum bounty share cannot exceed the treasury")
-    numerator = constant_numerator * balance_rao * open_targets * task_age_weight
-    denominator = constant_denominator * total_age_weight
-    weighted_amount = numerator // denominator
-    maximum_amount = (
-        max_bounty_share_numerator * balance_rao // max_bounty_share_denominator
-    )
-    return min(weighted_amount, maximum_amount)
+    start = constant_numerator * max_bounty_share_denominator
+    maximum = max_bounty_share_numerator * constant_denominator
+    if start > maximum:
+        raise ValueError("starting bounty share cannot exceed the maximum share")
+    elapsed = min(age_seconds, ramp_seconds)
+    numerator = balance_rao * (start * ramp_seconds + (maximum - start) * elapsed)
+    denominator = constant_denominator * max_bounty_share_denominator * ramp_seconds
+    return numerator // denominator
 
 
 def calculate_age_weight(

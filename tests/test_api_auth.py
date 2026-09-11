@@ -304,13 +304,17 @@ def test_development_defaults_are_convenient():
     assert isinstance(build_payment_verifier(settings), DevelopmentPaymentVerifier)
     assert settings.payment_amount_rao == 500_000_000
     assert settings.nonce_window_seconds == 120
-    assert settings.review_policy_version == "v2"
+    assert settings.review_policy_version == "v3"
+    assert settings.submission_terms_version == "v6"
+    assert settings.submission_terms_effective_from == "2026-09-11"
     assert settings.bounty_pool_balance_rao == 4_000_000_000
     assert settings.bounty_constant_numerator == 1
-    assert settings.bounty_constant_denominator == 4
+    assert settings.bounty_constant_denominator == 10
+    assert settings.bounty_ramp_seconds == 1296000
+    assert settings.bounty_policy_version == "linear-age-v3-locked"
     assert settings.bounty_max_age_weight == 60
-    assert settings.bounty_max_share_numerator == 33
-    assert settings.bounty_max_share_denominator == 100
+    assert settings.bounty_max_share_numerator == 1
+    assert settings.bounty_max_share_denominator == 8
     assert settings.bounty_netuid == 66
 
 
@@ -359,6 +363,8 @@ def test_the_shared_resolver_supplies_the_url(monkeypatch):
         ({"MAX_BUNDLE_BYTES": "99999999"}, "must not exceed"),
         ({"MANUAL_REWARD_REVIEW_ENABLED": "maybe"}, "boolean"),
         ({"REVIEW_POLICY_VERSION": "Not Valid"}, "REVIEW_POLICY"),
+        ({"REVIEW_POLICY_VERSION": "v2"}, "bundled submission terms require"),
+        ({"SUBMISSION_TERMS_VERSION": "v5"}, "bundled submission terms require"),
         ({"APP_MODE": "STAGING"}, "APP_MODE"),
         ({"NONCE_WINDOW_SECONDS": "0"}, "positive"),
         # DEVELOPMENT_COLDKEY was retired by V035: the development payment verifier echoes
@@ -470,3 +476,22 @@ def test_a_garbage_signature_is_rejected():
         ColdkeySignatureAuthenticator().verify(
             signed(hotkey=key.ss58_address, signature=b"\xff" * 64)
         )
+
+
+@pytest.mark.parametrize(
+    "version", ["dynamic-age-v1", "dynamic-age-v2-locked", "dynamic-age-v2-locked-capped"]
+)
+def test_old_policy_names_cannot_label_new_quotes(version):
+    with pytest.raises(SettingsError, match="old pricing formula"):
+        Settings.from_env(base_env(BOUNTY_POLICY_VERSION=version))
+
+
+def test_starting_bounty_share_cannot_exceed_the_cap():
+    with pytest.raises(SettingsError, match="BOUNTY_CONSTANT"):
+        Settings.from_env(base_env(BOUNTY_CONSTANT_DENOMINATOR="4"))
+
+
+@pytest.mark.parametrize("duration", ["0", "-1", "31536001"])
+def test_bounty_ramp_duration_must_be_positive_and_bounded(duration):
+    with pytest.raises(SettingsError, match="BOUNTY_RAMP_SECONDS"):
+        Settings.from_env(base_env(BOUNTY_RAMP_SECONDS=duration))
