@@ -440,7 +440,7 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `BOUNTY_AGE_PERIOD_SECONDS` | `86400` | Legacy descriptive age-weight period; no effect on pricing |
 | `BOUNTY_MAX_AGE_WEIGHT` | `60` | Legacy descriptive age-weight cap; no effect on pricing |
 | `BOUNTY_MAX_SHARE_NUMERATOR` | `1` | Numerator of the per-target treasury-share cap |
-| `BOUNTY_MAX_SHARE_DENOMINATOR` | `6` | Denominator of the per-target treasury-share cap |
+| `BOUNTY_MAX_SHARE_DENOMINATOR` | `8` | Denominator of the per-target treasury-share cap |
 | `BOUNTY_BALANCE_CACHE_SECONDS` | `60` | Maximum chain-read frequency per API process |
 | `BITTENSOR_NETWORK` | `finney` | Network used for the finalized Alpha-stake read |
 | `TAOSTATS_API_KEY` | — | Enables `bounty.amount_usd`; sent only to the TaoStats price endpoints |

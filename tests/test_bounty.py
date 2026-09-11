@@ -23,32 +23,32 @@ from conjectures_subnet.bounty import (
     ("age_seconds", "expected"),
     [
         (0, 9_000_000_000),
-        (5 * 86400, 11_000_000_000),
-        (int(7.5 * 86400), 12_000_000_000),
-        (10 * 86400, 13_000_000_000),
-        (15 * 86400, 15_000_000_000),
-        (365 * 86400, 15_000_000_000),
+        (5 * 86400, 9_750_000_000),
+        (int(7.5 * 86400), 10_125_000_000),
+        (10 * 86400, 10_500_000_000),
+        (15 * 86400, 11_250_000_000),
+        (365 * 86400, 11_250_000_000),
     ],
 )
-def test_linear_ramp_reaches_one_sixth_after_fifteen_days(age_seconds, expected):
+def test_linear_ramp_reaches_one_eighth_after_fifteen_days(age_seconds, expected):
     assert calculate_bounty_rao(balance_rao=90_000_000_000, age_seconds=age_seconds) == expected
 
 
 def test_ramp_progresses_within_a_day_and_caps_at_the_exact_boundary():
     # This balance makes each second of the ramp worth one base unit.
-    balance = 19_440_000
-    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1) == 1_944_001
-    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1295999) == 3_239_999
-    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1296000) == 3_240_000
-    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1296001) == 3_240_000
+    balance = 51_840_000
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1) == 5_184_001
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1295999) == 6_479_999
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1296000) == 6_480_000
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1296001) == 6_480_000
 
 
 def test_round_only_after_combining_start_and_age_increment():
     assert calculate_bounty_rao(balance_rao=19, age_seconds=648000) == 2
-    assert calculate_bounty_rao(balance_rao=19, age_seconds=1296000) == 3
+    assert calculate_bounty_rao(balance_rao=19, age_seconds=1296000) == 2
     assert calculate_bounty_rao(balance_rao=0, age_seconds=1296000) == 0
     assert calculate_bounty_rao(balance_rao=5, age_seconds=1296000) == 0
-    assert calculate_bounty_rao(balance_rao=2**63 - 1, age_seconds=1296000) == (2**63 - 1) // 6
+    assert calculate_bounty_rao(balance_rao=2**63 - 1, age_seconds=1296000) == (2**63 - 1) // 8
 
 
 def test_configured_shares_and_duration_are_used():
@@ -70,9 +70,9 @@ def test_configured_shares_and_duration_are_used():
             age_seconds=5,
             ramp_seconds=10,
             constant_numerator=1,
-            constant_denominator=6,
+            constant_denominator=8,
         )
-        == 166
+        == 125
     )
 
 
@@ -86,7 +86,7 @@ def test_configured_shares_and_duration_are_used():
         {"constant_denominator": 0},
         {"max_bounty_share_numerator": 0},
         {"max_bounty_share_denominator": 0},
-        {"max_bounty_share_numerator": 7},
+        {"max_bounty_share_numerator": 9},
         {"constant_denominator": 4},
     ],
 )

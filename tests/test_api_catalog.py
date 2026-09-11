@@ -648,7 +648,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
                 "ramp_seconds": 1296000,
                 "max_age_weight": 60,
                 "max_bounty_share_numerator": 1,
-                "max_bounty_share_denominator": 6,
+                "max_bounty_share_denominator": 8,
                 "as_of": body["bounty"]["as_of"],
                 "locked_at_submission": True,
             }

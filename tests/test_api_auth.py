@@ -312,7 +312,7 @@ def test_development_defaults_are_convenient():
     assert settings.bounty_policy_version == "linear-age-v3-locked"
     assert settings.bounty_max_age_weight == 60
     assert settings.bounty_max_share_numerator == 1
-    assert settings.bounty_max_share_denominator == 6
+    assert settings.bounty_max_share_denominator == 8
     assert settings.bounty_netuid == 66
 
 

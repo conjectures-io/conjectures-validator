@@ -589,11 +589,11 @@ For each open reward target `i`, policy `linear-age-v3-locked` publishes:
 ```text
 B = finalized treasury balance - outstanding locked exposure
 progress_i = min(max(age_i_seconds, 0), 1296000) / 1296000
-b_i = floor(B * (1/10 + (1/6 - 1/10) * progress_i))
+b_i = floor(B * (1/10 + (1/8 - 1/10) * progress_i))
 ```
 
-A target starts at 10% of the available Subnet 66 Alpha treasury and reaches exactly 1/6
-(16.67%) after 15 elapsed days. Its share then stays at 1/6; funding and commitments can still
+A target starts at 10% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
+(12.5%) after 15 elapsed days. Its share then stays at 1/8; funding and commitments can still
 change the Alpha amount. Age advances within the day at the catalog's minute-resolution clock.
 Pricing uses integer arithmetic with one final floor to base units. Neither catalog size nor
 other targets' ages enter the calculation. The legacy `total_age_weight` and `max_age_weight`
@@ -621,7 +621,7 @@ BOUNTY_POLICY_VERSION=linear-age-v3-locked
 BOUNTY_CONSTANT_NUMERATOR=1
 BOUNTY_CONSTANT_DENOMINATOR=10
 BOUNTY_MAX_SHARE_NUMERATOR=1
-BOUNTY_MAX_SHARE_DENOMINATOR=6
+BOUNTY_MAX_SHARE_DENOMINATOR=8
 BOUNTY_RAMP_SECONDS=1296000
 ```
 

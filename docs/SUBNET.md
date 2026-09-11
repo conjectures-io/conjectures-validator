@@ -177,10 +177,10 @@ one proof is payable at most once. Amounts are integers in rao; floating point a
 payment accounting.
 
 **Catalog bounty estimates are live; accepted submissions are locked.** For open target `i`, the versioned policy is
-`b_i = floor(B * (1/10 + (1/6 - 1/10) * min(age_seconds / 1296000, 1)))`,
+`b_i = floor(B * (1/10 + (1/8 - 1/10) * min(age_seconds / 1296000, 1)))`,
 evaluated with integer arithmetic under `linear-age-v3-locked`. `B` is the finalized bounty-wallet
 balance after outstanding submission locks; task age comes from the durable
-`bounty_tasks.opened_at` row. New targets start at 10%, reaching 1/6 after 15 elapsed days.
+`bounty_tasks.opened_at` row. New targets start at 10%, reaching 1/8 after 15 elapsed days.
 Other targets' ages and catalog size do not affect the share. Existing locks keep their recorded
 amount and policy across this change. Acceptance serializes quote-and-insert
 with a PostgreSQL advisory transaction lock. Competing proofs contribute the maximum locked amount
