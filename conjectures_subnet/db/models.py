@@ -2727,6 +2727,189 @@ event.listen(
 )
 
 
+# --- The payout watcher's ledger ----------------------------------------------
+# Mirrors deploy/migrate/sql/V041__treasury_payout_ledger.sql. The outbound twin
+# of `chain_transfers`: what left the treasury, and what (if anything) it paid.
+
+
+class TreasuryPayoutState(enum.StrEnum):
+    UNCLAIMED = "UNCLAIMED"  # finalized, bound to nothing yet
+    CLAIMED = "CLAIMED"
+    DISREGARDED = "DISREGARDED"  # ruled out by an operator, and it says why
+
+
+TREASURY_PAYOUT_STATE = _pg_enum(TreasuryPayoutState, "treasury_payout_state")
+
+
+class TreasuryPayout(Base):
+    """One finalized outbound stake-transfer payout from the treasury.
+
+    Recorded unconditionally, which is the whole point. Before this table the
+    watcher only advanced while obligations were outstanding, so a payout that
+    matched nothing was a log line over a block that would never be read again.
+    Recording first and matching second makes reconciliation a re-runnable join
+    between two durable sides instead of a race the first pass has to win.
+
+    FINALIZED ONLY. A best-chain observation is not written here: `SUBMITTED` is
+    reversible by definition, and a row in this table is a fact nothing rolls
+    back.
+
+    Append-mostly, like `ChainTransfer`. The chain columns are written once; only
+    `status`, `reward_event_id` and `note` ever move.
+    """
+
+    __tablename__ = "treasury_payouts"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+
+    extrinsic_reference: Mapped[str] = mapped_column(Text, nullable=False)
+
+    block: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    block_timestamp: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    extrinsic_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_index: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # The whole fingerprint, stored rather than re-derived, so an operator can see
+    # what a match was made on without trusting the watcher's configuration.
+    origin_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    origin_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    destination_coldkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    # Equal to `origin_hotkey` on every payout since V035; they differ only on a
+    # historical StakeAndHotkeyTransferred.
+    destination_hotkey: Mapped[str] = mapped_column(SS58, nullable=False)
+    origin_netuid: Mapped[int] = mapped_column(Integer, nullable=False)
+    destination_netuid: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Alpha in its integer base unit, from the companion StakeAdded event. The
+    # payout event's own `amount` is TAO-equivalent and must not be stored here.
+    amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    status: Mapped[TreasuryPayoutState] = mapped_column(
+        TREASURY_PAYOUT_STATE,
+        nullable=False,
+        server_default=TreasuryPayoutState.UNCLAIMED.value,
+    )
+
+    # UNIQUE: one chain event settles at most one reward, enforced by the schema
+    # rather than by whichever scan reached it first.
+    reward_event_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("reward_events.id"), unique=True
+    )
+
+    note: Mapped[str | None] = mapped_column(Text)
+
+    observed_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # The two names `ObservedPayout` carries, so one recorded row and one freshly
+    # decoded event answer the matching helpers in `db/payouts.py` identically and
+    # neither side needs a branch on which it was handed.
+    @property
+    def moved_hotkey(self) -> bool:
+        """Whether this payout changed the stake's hotkey, i.e. whether it is legacy."""
+        return self.origin_hotkey != self.destination_hotkey
+
+    @property
+    def reference(self) -> str:
+        return self.extrinsic_reference
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(extrinsic_reference) BETWEEN 1 AND 128",
+            name="treasury_payout_reference_length",
+        ),
+        CheckConstraint("block > 0", name="treasury_payout_block_positive"),
+        CheckConstraint(
+            "extrinsic_index >= 0",
+            name="treasury_payout_extrinsic_index_nonnegative",
+        ),
+        CheckConstraint(
+            "event_index >= 0", name="treasury_payout_event_index_nonnegative"
+        ),
+        CheckConstraint(
+            "origin_netuid >= 0", name="treasury_payout_origin_netuid_nonnegative"
+        ),
+        CheckConstraint(
+            "destination_netuid >= 0",
+            name="treasury_payout_destination_netuid_nonnegative",
+        ),
+        CheckConstraint("amount_rao > 0", name="treasury_payout_amount_positive"),
+        CheckConstraint(
+            "note IS NULL OR length(note) BETWEEN 1 AND 500",
+            name="treasury_payout_note_length",
+        ),
+        # The two halves of "claimed means bound", so neither can drift from the FK.
+        CheckConstraint(
+            "status <> 'CLAIMED' OR reward_event_id IS NOT NULL",
+            name="treasury_payout_claimed_names_its_reward",
+        ),
+        CheckConstraint(
+            "status = 'CLAIMED' OR reward_event_id IS NULL",
+            name="treasury_payout_unbound_unless_claimed",
+        ),
+        CheckConstraint(
+            "status <> 'DISREGARDED' OR note IS NOT NULL",
+            name="treasury_payout_disregarded_needs_a_reason",
+        ),
+        CheckConstraint(
+            "updated_at >= observed_at",
+            name="treasury_payouts_updated_not_before_observed",
+        ),
+        # The watcher's idempotency: a re-read block, a crash between recording and
+        # advancing the cursor, or a deliberate rescan all land on this index.
+        Index("treasury_payouts_reference_idx", "extrinsic_reference", unique=True),
+        # The same fact by its parts, so a malformed reference cannot smuggle a
+        # duplicate past the index above.
+        Index(
+            "treasury_payouts_position_idx",
+            "block",
+            "extrinsic_index",
+            "event_index",
+            unique=True,
+        ),
+        Index(
+            "treasury_payouts_destination_idx",
+            "destination_coldkey",
+            text("block DESC"),
+        ),
+        # The reconciler's working set, and the operator's queue.
+        Index(
+            "treasury_payouts_unclaimed_idx",
+            "block",
+            postgresql_where=text("status = 'UNCLAIMED'"),
+        ),
+    )
+
+
+event.listen(
+    TreasuryPayout.__table__,
+    "after_create",
+    DDL(
+        "CREATE FUNCTION treasury_payouts_touch_updated_at() RETURNS TRIGGER AS $$\n"
+        "BEGIN\n"
+        "    NEW.updated_at := now();\n"
+        "    RETURN NEW;\n"
+        "END;\n"
+        "$$ LANGUAGE plpgsql;\n"
+        "\n"
+        "CREATE TRIGGER treasury_payouts_touch_updated_at\n"
+        "    BEFORE UPDATE ON treasury_payouts\n"
+        "    FOR EACH ROW EXECUTE FUNCTION treasury_payouts_touch_updated_at();"
+    ),
+)
+event.listen(
+    TreasuryPayout.__table__,
+    "before_drop",
+    DDL("DROP FUNCTION IF EXISTS treasury_payouts_touch_updated_at() CASCADE;"),
+)
+
+
 class ChainWatchCursor(Base):
     """Where the watcher has read to, and what it believes it is watching.
 
