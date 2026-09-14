@@ -57,6 +57,9 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Path, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
+
+from verifier.bundle import PROOF_NAME
 
 from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.db import autoreview as autoreview_store
@@ -65,6 +68,8 @@ from conjectures_subnet.db import public as public_store
 from conjectures_subnet.db import submissions as submission_store
 from conjectures_subnet.db.models import (
     REVIEWER_ROLE,
+    Proof,
+    VerificationState,
     ReviewDecision,
     ReviewOutcome,
     Submission,
@@ -444,6 +449,43 @@ async def read_review(
 
     _no_store(response)
     return _review(row, services.index, attempts.get(row.id, ()))
+
+
+@router.get(
+    "/reviews/{submission_id}/proof",
+    response_model=admin.AdminReviewProof,
+    summary="The exact submitted Lean source for a reviewer",
+)
+async def read_review_proof(
+    response: Response,
+    session: SessionDep,
+    submission_id: Annotated[uuid.UUID, Path()],
+) -> admin.AdminReviewProof:
+    """Serve verified proof bytes regardless of the human decision, under REVIEWER.
+
+    Loaded separately from the queue because proofs can be large. The public solution
+    endpoint retains its approval gate; this route inherits the reviewer's session gate.
+    """
+    statement = (
+        select(Proof.content, Proof.digest, Proof.byte_length)
+        .join(Submission, Submission.proof_digest == Proof.digest)
+        .where(
+            Submission.id == submission_id,
+            Submission.verification_status == VerificationState.VERIFIED,
+        )
+    )
+    row = (await session.execute(statement)).first()
+    if row is None:
+        raise NotFound("no such submission")
+
+    _no_store(response)
+    return admin.AdminReviewProof(
+        submission_id=submission_id,
+        filename=PROOF_NAME,
+        source=bytes(row.content).decode("utf-8"),
+        proof_sha256=digests.to_prefixed(bytes(row.digest)),
+        byte_length=row.byte_length,
+    )
 
 
 @router.post(
