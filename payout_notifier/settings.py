@@ -44,9 +44,12 @@ def _positive_int(env: Mapping[str, str], name: str, default: int) -> int:
 @dataclass(frozen=True)
 class NotifierSettings:
     database_url: str
-    # Empty when no webhook is configured, which disables delivery and leaves obligation
-    # seeding running on its own.  See `from_env`.
+    # Empty when no webhook is configured OR when the configured one is malformed; both
+    # disable delivery and leave obligation seeding running on its own.  See `from_env`.
     webhook_url: str
+    # Why delivery is off, when it is off because of a bad value rather than an absent one.
+    # Carried rather than raised so the caller can keep saying it, loudly, on every pass.
+    webhook_error: str | None
     poll_seconds: float
     retry_seconds: float
     lease_seconds: float
@@ -70,15 +73,27 @@ class NotifierSettings:
         # none configured the worker exited 2 on startup, so no obligation was ever written and
         # nothing was ever paid.
         #
-        # Unset means "do not notify" and the worker still seeds obligations.  A value that is
-        # set but malformed is still a hard error: that is a typo in a channel somebody believes
-        # is live, and failing loudly is better than silently never delivering.
+        # Unset means "do not notify" and the worker still seeds obligations.
+        #
+        # A malformed value used to be a hard error, on the reasoning that a typo in a channel
+        # somebody believes is live should fail loudly rather than deliver nothing in silence.
+        # The loudness was right; killing the process to achieve it was not, and it reproduced
+        # the exact bug the paragraph above describes: `PAYOUT_DISCORD_WEBHOOK_URL` set to a
+        # four-character placeholder exited 2 on every start, so no obligation was seeded for
+        # five days and three approved rewards were never payable.  A notification channel must
+        # not be able to stop obligations being created, however it is broken.
+        #
+        # So a malformed value now disables delivery exactly as an absent one does, and the
+        # reason travels with the settings so the worker can report it on every pass.  Loud, and
+        # survivable.
         webhook_url = env.get("PAYOUT_DISCORD_WEBHOOK_URL", "").strip()
+        webhook_error: str | None = None
         if webhook_url:
             try:
                 validate_discord_webhook(webhook_url)
             except ValueError as exc:
-                raise SettingsError(str(exc)) from exc
+                webhook_error = str(exc)
+                webhook_url = ""
         taostats_api_key = env.get("TAOSTATS_API_KEY", "").strip()
         if not taostats_api_key:
             raise SettingsError(
@@ -87,6 +102,7 @@ class NotifierSettings:
         return cls(
             database_url=env.get("DATABASE_URL", "").strip() or database_url(),
             webhook_url=webhook_url,
+            webhook_error=webhook_error,
             poll_seconds=_positive_float(
                 env, "PAYOUT_NOTIFIER_POLL_SECONDS", 5.0, 3600.0
             ),

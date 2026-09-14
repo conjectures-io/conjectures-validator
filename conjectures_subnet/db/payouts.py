@@ -37,6 +37,7 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import and_, func, or_, select, true
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.errors import RecordNotFound
@@ -47,6 +48,8 @@ from conjectures_subnet.db.models import (
     RewardState,
     Submission,
     SubmissionEvent,
+    TreasuryPayout,
+    TreasuryPayoutState,
 )
 from conjectures_subnet.transfers import ObservedPayout
 
@@ -156,7 +159,9 @@ async def oldest_unresolved_at(session: AsyncSession) -> dt.datetime | None:
 # --- Event settlement ---------------------------------------------------------------------
 
 
-def _hotkey_agrees(event: RewardEvent, observed: ObservedPayout) -> bool:
+def _hotkey_agrees(
+    event: RewardEvent, observed: ObservedPayout | TreasuryPayout
+) -> bool:
     """Whether a stored destination hotkey may be compared with the observed one at all.
 
     Only a payout that *moved* the stake carries a destination hotkey that means the same thing
@@ -178,7 +183,9 @@ def _hotkey_agrees(event: RewardEvent, observed: ObservedPayout) -> bool:
     )
 
 
-def _same_payout(event: RewardEvent, observed: ObservedPayout) -> bool:
+def _same_payout(
+    event: RewardEvent, observed: ObservedPayout | TreasuryPayout
+) -> bool:
     return (
         event.destination_coldkey == observed.destination_coldkey
         and event.amount_rao == observed.amount_rao
@@ -187,7 +194,7 @@ def _same_payout(event: RewardEvent, observed: ObservedPayout) -> bool:
 
 
 async def _by_reference(
-    session: AsyncSession, observed: ObservedPayout
+    session: AsyncSession, observed: ObservedPayout | TreasuryPayout
 ) -> RewardEvent | None:
     statement = (
         select(RewardEvent)
@@ -198,7 +205,7 @@ async def _by_reference(
 
 
 async def _oldest_match(
-    session: AsyncSession, observed: ObservedPayout
+    session: AsyncSession, observed: ObservedPayout | TreasuryPayout
 ) -> RewardEvent | None:
     # Unverified legacy states participate in the same FIFO as new obligations.  A legacy
     # reference may not use the canonical block-extrinsic-event form, so the complete economic
@@ -254,7 +261,7 @@ def _timeline(
     submission_id: uuid.UUID,
     kind: str,
     detail: str,
-    observed: ObservedPayout,
+    observed: ObservedPayout | TreasuryPayout,
     previous_reference: str | None = None,
 ) -> SubmissionEvent:
     context: dict[str, object] = {
@@ -344,32 +351,59 @@ async def mark_submitted(
 async def confirm(
     session: AsyncSession, observed: ObservedPayout
 ) -> PayoutUpdate | None:
-    """Settle one finalized chain payout and its submission atomically."""
+    """Settle one finalized chain payout and its submission atomically.
+
+    Kept for a caller holding only a decoded event and no ledger row.  The watcher goes through
+    `record_payout` then `claim_payout` instead, so that a payout which matches nothing is still
+    durably recorded rather than merely logged.
+    """
     event = await _by_reference(session, observed)
     if event is not None:
         if not _same_payout(event, observed):
             raise PayoutConflict(
                 f"reference {observed.reference} is attached to a different payout"
             )
-        if event.status not in (
-            PayoutState.PENDING,
-            PayoutState.SUBMITTED,
-            PayoutState.CONFIRMED,
-        ):
-            raise PayoutConflict(
-                f"reference {observed.reference} belongs to reward event {event.id} in "
-                f"{event.status}, not a reconcilable state"
-            )
     else:
         event = await _oldest_match(session, observed)
         if event is None:
             return None
+    return await _settle(session, event, observed)
 
+
+async def _settle(
+    session: AsyncSession,
+    event: RewardEvent,
+    observed: ObservedPayout | TreasuryPayout,
+    *,
+    claims: TreasuryPayout | None = None,
+) -> PayoutUpdate:
+    """Move one obligation and its submission to paid, and bind the ledger row that paid it.
+
+    `observed` may be a freshly decoded event or a recorded ledger row; both carry the same
+    names, so there is no branch here on which it was.  `claims` is the row to mark CLAIMED, and
+    is bound even when the obligation was already settled -- a reward confirmed before this table
+    existed still needs its payout accounted for, or it would sit UNCLAIMED forever.
+    """
+    if event.status not in (
+        PayoutState.PENDING,
+        PayoutState.SUBMITTED,
+        PayoutState.CONFIRMED,
+    ):
+        raise PayoutConflict(
+            f"reference {observed.reference} belongs to reward event {event.id} in "
+            f"{event.status}, not a reconcilable state"
+        )
     submission = await _submission_for(session, event)
-    already_confirmed = (
-        event.status == PayoutState.CONFIRMED and event.chain_observed
-    )
+
+    def _bind() -> None:
+        if claims is not None:
+            claims.status = TreasuryPayoutState.CLAIMED
+            claims.reward_event_id = event.id
+
+    already_confirmed = event.status == PayoutState.CONFIRMED and event.chain_observed
     if already_confirmed and submission.reward_status == RewardState.REWARDED:
+        _bind()
+        await session.flush()
         return PayoutUpdate(event.id, event.submission_id, changed=False)
     if submission.reward_status not in (RewardState.ELIGIBLE, RewardState.REWARDED):
         raise PayoutConflict(
@@ -391,6 +425,7 @@ async def confirm(
     event.confirmed_at = transition_at
     event.failure_reason = None
     submission.reward_status = RewardState.REWARDED
+    _bind()
     session.add(
         _timeline(
             submission_id=submission.id,
@@ -402,6 +437,168 @@ async def confirm(
     )
     await session.flush()
     return PayoutUpdate(event.id, submission.id, changed=True)
+
+
+# --- The finalized payout ledger ----------------------------------------------------------
+#
+# Recording is unconditional and matching is a separate, repeatable step.  That split is the
+# point: before it, a payout the watcher could not match was a log line over a block the cursor
+# would never revisit, so a payment made before its obligation existed was gone.  Now it is a row
+# that stays `UNCLAIMED` until something claims it or an operator rules it out.
+
+
+async def record_payout(
+    session: AsyncSession, observed: ObservedPayout
+) -> TreasuryPayout:
+    """Record one finalized payout, returning the existing row if it is already known.
+
+    Idempotent on `extrinsic_reference`, which is what lets the watcher re-read a block freely:
+    a restart between recording a payout and advancing the cursor, or a deliberate rescan of
+    history, lands on the unique index instead of recording one chain event twice.
+    """
+    statement = (
+        insert(TreasuryPayout)
+        .values(
+            extrinsic_reference=observed.reference,
+            block=observed.block,
+            block_timestamp=observed.block_timestamp,
+            extrinsic_index=observed.extrinsic_index,
+            event_index=observed.event_index,
+            origin_coldkey=observed.origin_coldkey,
+            origin_hotkey=observed.origin_hotkey,
+            destination_coldkey=observed.destination_coldkey,
+            destination_hotkey=observed.destination_hotkey,
+            origin_netuid=observed.origin_netuid,
+            destination_netuid=observed.destination_netuid,
+            amount_rao=observed.amount_rao,
+        )
+        .on_conflict_do_nothing(index_elements=["extrinsic_reference"])
+    )
+    await session.execute(statement)
+    # Re-read rather than use RETURNING: on the conflict path RETURNING yields nothing, and the
+    # caller needs the stored row either way to decide what to do with it.
+    existing = await session.execute(
+        select(TreasuryPayout)
+        .where(TreasuryPayout.extrinsic_reference == observed.reference)
+        .with_for_update()
+    )
+    return existing.scalar_one()
+
+
+async def claim_payout(
+    session: AsyncSession, payout_id: int
+) -> PayoutUpdate | None:
+    """Settle one recorded payout against the obligation it pays, if one can be found.
+
+    Taken by id and in its own transaction, so that a conflict raised here cannot roll back the
+    recording that preceded it.  That ordering is the guarantee the ledger rests on: what the
+    chain did is committed before anything tries to interpret it.
+
+    None means the payout stays `UNCLAIMED`: either nothing matches its fingerprint, or the only
+    candidates were created after it was paid.  That second case is not a failure to be retried
+    into success -- it is the out-of-order payment this whole table exists to make visible, and
+    it is resolved by `bind_payout` rather than by waiting.
+    """
+    payout = await session.get(TreasuryPayout, payout_id, with_for_update=True)
+    if payout is None:
+        raise RecordNotFound(f"no treasury payout {payout_id}")
+    if payout.status is not TreasuryPayoutState.UNCLAIMED:
+        return None
+    event = await _by_reference(session, payout)
+    if event is not None:
+        if not _same_payout(event, payout):
+            raise PayoutConflict(
+                f"reference {payout.reference} is attached to a different payout"
+            )
+    else:
+        event = await _oldest_match(session, payout)
+        if event is None:
+            return None
+    return await _settle(session, event, payout, claims=payout)
+
+
+async def unclaimed_payouts(
+    session: AsyncSession,
+    *,
+    claimable_since: dt.datetime | None = None,
+    limit: int = 100,
+) -> tuple[TreasuryPayout, ...]:
+    """Finalized treasury money that settles nothing: the operator's queue.
+
+    `claimable_since` narrows it to payouts an *automatic* match could still reach, and the bound
+    the reconciler passes is exactly `now - CHAIN_CLOCK_TOLERANCE`.  Anything older cannot be
+    claimed automatically however many times it is retried: every obligation written from here on
+    carries `created_at >= now`, and `_oldest_match` requires `created_at <= block_timestamp +
+    CHAIN_CLOCK_TOLERANCE`.  Omit it for the operator's view, which wants precisely the rows
+    automatic matching has given up on.
+    """
+    statement = select(TreasuryPayout).where(
+        TreasuryPayout.status == TreasuryPayoutState.UNCLAIMED
+    )
+    if claimable_since is not None:
+        statement = statement.where(TreasuryPayout.block_timestamp >= claimable_since)
+    statement = statement.order_by(TreasuryPayout.block, TreasuryPayout.id).limit(limit)
+    return tuple((await session.execute(statement)).scalars().all())
+
+
+async def bind_payout(
+    session: AsyncSession,
+    *,
+    payout_id: int,
+    reward_event_id: int,
+    note: str,
+) -> PayoutUpdate:
+    """Bind a payout to an obligation by hand, on an operator's authority.
+
+    The deliberate escape from the clock rule in `_oldest_match`.  That rule refuses to let a new
+    obligation eat an older lookalike transfer, which is right as an automatic policy and wrong as
+    a final answer -- somebody paid by hand before the system knew to expect it, and only a person
+    can say which submission that money was for.  `note` is required because this is the one path
+    that settles money on an assertion rather than on a fingerprint.
+    """
+    payout = await session.get(TreasuryPayout, payout_id, with_for_update=True)
+    if payout is None:
+        raise RecordNotFound(f"no treasury payout {payout_id}")
+    if payout.status is not TreasuryPayoutState.UNCLAIMED:
+        raise PayoutConflict(
+            f"treasury payout {payout_id} is {payout.status}, not UNCLAIMED"
+        )
+    event = await session.get(RewardEvent, reward_event_id, with_for_update=True)
+    if event is None:
+        raise RecordNotFound(f"no reward event {reward_event_id}")
+    if event.amount_rao != payout.amount_rao:
+        raise PayoutConflict(
+            f"reward event {reward_event_id} is for {event.amount_rao} rao but treasury "
+            f"payout {payout_id} moved {payout.amount_rao}"
+        )
+    if event.destination_coldkey != payout.destination_coldkey:
+        raise PayoutConflict(
+            f"reward event {reward_event_id} pays {event.destination_coldkey} but treasury "
+            f"payout {payout_id} went to {payout.destination_coldkey}"
+        )
+    payout.note = note
+    return await _settle(session, event, payout, claims=payout)
+
+
+async def disregard_payout(
+    session: AsyncSession, *, payout_id: int, note: str
+) -> TreasuryPayout:
+    """Rule one payout out of reconciliation, with a recorded reason.
+
+    What keeps `UNCLAIMED` a queue somebody can empty.  Treasury alpha moves for reasons that are
+    not bounties, and without this every one of them would sit in the operator's queue forever.
+    """
+    payout = await session.get(TreasuryPayout, payout_id, with_for_update=True)
+    if payout is None:
+        raise RecordNotFound(f"no treasury payout {payout_id}")
+    if payout.status is not TreasuryPayoutState.UNCLAIMED:
+        raise PayoutConflict(
+            f"treasury payout {payout_id} is {payout.status}, not UNCLAIMED"
+        )
+    payout.status = TreasuryPayoutState.DISREGARDED
+    payout.note = note
+    await session.flush()
+    return payout
 
 
 async def submitted_after(
@@ -471,11 +668,16 @@ __all__ = [
     "PayoutUpdate",
     "SubmittedPayout",
     "advance_cursor",
+    "bind_payout",
+    "claim_payout",
     "confirm",
     "cursor",
+    "disregard_payout",
     "mark_submitted",
     "oldest_unresolved_at",
     "open_cursor",
+    "record_payout",
     "revert_submitted",
     "submitted_after",
+    "unclaimed_payouts",
 ]

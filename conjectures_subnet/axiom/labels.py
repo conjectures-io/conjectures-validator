@@ -187,10 +187,6 @@ EventType: TypeAlias = Literal[
     "transfer_ignored",
     "transfer_conflict",
     # --- payout watcher --------------------------------------------------------------------
-    # The cursor skipping ahead over a range no reward row can ever match, because none is
-    # outstanding.  Worth a named event rather than a log line: it is the one place the watcher
-    # declines to read blocks, so an auditor reconstructing what was inspected needs to see it.
-    "cursor_fast_forwarded",
     "payout_confirmed",
     "payout_reorged",
     "payout_unmatched",
