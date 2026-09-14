@@ -488,7 +488,7 @@ class Submission(Base):
         ),
         # V035. Three ways in, exactly one of which authorised any given row. Still VALID, so
         # it has to keep admitting the historical hotkey-signed rows; closing that branch to
-        # NEW rows is the V038 `submissions_reject_hotkey` trigger below. V039 separately
+        # NEW rows is the V038 `submissions_reject_hotkey` trigger below. V040 separately
         # preserves historical attribution while permitting unrelated updates.
         CheckConstraint(
             # Legacy, history only.
@@ -3006,7 +3006,7 @@ event.listen(
     "before_drop",
     DDL("DROP FUNCTION IF EXISTS submissions_reject_hotkey() CASCADE;"),
 )
-# V039 protects the historical fields after V038 has repaired web signatures.
+# V040 protects the historical fields after V038 has repaired web signatures.
 event.listen(
     Submission.__table__,
     "after_create",

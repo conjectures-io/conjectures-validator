@@ -1,4 +1,4 @@
-"""Exercise V038 and V039 against existing rows, including the V035 failure it replaces."""
+"""Exercise V038 and V040 against existing rows, including the V035 failure it replaces."""
 from pathlib import Path
 import uuid
 
@@ -27,13 +27,13 @@ def test_migration_preserves_history_and_closes_hotkey_writes():
                 with conn.transaction():
                     conn.execute("UPDATE submissions SET manual_review_status = 'APPROVED' WHERE id = 1")
 
-            # Apply V038's submission intake DDL before the V039 update guard. The full
+            # Apply V038's submission intake DDL before the V040 update guard. The full
             # migration chain and ORM mirror are also checked by check_schema_drift.py.
             intake = (MIGRATIONS / "V038__hotkey_retirement_binds_inserts.sql").read_text()
             intake = intake[intake.index("CREATE FUNCTION submissions_reject_hotkey()"):]
             intake = intake[:intake.index("CREATE FUNCTION submission_intents_reject_hotkey()")]
             conn.execute(intake)
-            conn.execute((MIGRATIONS / "V039__preserve_legacy_submission_updates.sql").read_text())
+            conn.execute((MIGRATIONS / "V040__preserve_legacy_submission_updates.sql").read_text())
             for status in ("APPROVED", "REJECTED"):
                 conn.execute("UPDATE submissions SET manual_review_status = %s WHERE id = 1", (status,))
                 assert conn.execute("SELECT hotkey, hotkey_signature, manual_review_status FROM submissions WHERE id = 1").fetchone() == ("historical", b"signature", status)
