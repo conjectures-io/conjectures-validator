@@ -268,8 +268,9 @@ APPROVAL_REASONS: tuple[tuple[str, str], ...] = (
     (
         "FORMALIZATION_DEFECT_AWARD",
         "The exact published Lean task was proved or refuted through a material "
-        "formalization defect; the submission earns the $750 USD-equivalent award "
-        "paid in Subnet 66 Alpha instead of the displayed conjecture bounty.",
+        "formalization defect; under review policy v3 the award is the lesser of $750 USD "
+        "equivalent and the locked task bounty, paid in Subnet 66 Alpha instead of the full "
+        "conjecture bounty. Earlier submissions retain their recorded award terms.",
     ),
 )
 

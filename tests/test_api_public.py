@@ -285,6 +285,7 @@ def test_a_production_configured_app_emits_hsts_and_alt_svc():
                 policy_version=settings.bounty_policy_version,
                 constant_numerator=settings.bounty_constant_numerator,
                 constant_denominator=settings.bounty_constant_denominator,
+                ramp_seconds=settings.bounty_ramp_seconds,
                 age_period_seconds=settings.bounty_age_period_seconds,
                 max_age_weight=settings.bounty_max_age_weight,
                 max_bounty_share_numerator=settings.bounty_max_share_numerator,

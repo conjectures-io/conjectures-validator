@@ -422,14 +422,16 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 260
-active audited targets (236 Erdős and 24 Green targets) across 224 numbered source files.
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 259
+active audited targets (236 Erdős and 23 Green targets) across 223 numbered source files.
 The September 8 review retires six live targets and adds 57 reviewed targets, including replacements
-for withdrawn candidates. Twenty-four historical retirement decisions remain recorded; targets with
-unresolved full-scope proof claims are withheld from admission.
+for withdrawn candidates. Green 44 is retired following the
+[September 10 prior-solution review](docs/review-decisions/2026-09-10-green-44-retirement.md).
+Twenty-four current retirement decisions remain recorded; targets with unresolved full-scope
+proof claims are withheld from admission.
 The source remains Formal Conjectures `8432eac998110a563e03df65a28c117e97c8c142`, derived from
 upstream `7d1a8c9912747679d0093f6d1216420c33ee5ffa` plus the checked-in semantic correction patch,
-on Lean 4.33.1. The tier contains 520 immutable bundles: a `formalized` task for `P` and a
+on Lean 4.33.1. The tier contains 518 immutable bundles: a `formalized` task for `P` and a
 `counterexample` task for `¬ P` for each target. Every active manifest permits a 10 MiB
 (10,485,760-byte) proof. The enlarged limit is committed through fresh task IDs and digests;
 stable reward identities are preserved.
@@ -473,7 +475,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 260 active audited direct propositions, generates committed `formalized` and
+the 259 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
@@ -584,20 +586,20 @@ proof/refutation pair and source repins; parents, parts, and variants remain ind
 
 ## Dynamic bounty pricing
 
-For each open reward target `i`, the API publishes the integer-RAO estimate
+For each open reward target `i`, policy `linear-age-v3-locked` publishes:
 
 ```text
-w_i = min(60, 1 + floor(age_i / age_period))
-b_i = min(c * B * N * w_i / W, 33 * B / 100)
+B = finalized treasury balance - outstanding locked exposure
+progress_i = min(max(age_i_seconds, 0), 1296000) / 1296000
+b_i = floor(B * (1/10 + (1/8 - 1/10) * progress_i))
 ```
 
-`B` is the finalized Subnet 66 Alpha stake held by the configured bounty coldkey/hotkey minus
-outstanding locked exposure, `N` is the number of open stable reward targets, `w_i` is the capped
-age weight, and `W` is the sum of the open targets' capped weights. The default policy uses
-`c = 1/4`, a one-day age period, a maximum age weight of 60, and a maximum bounty of exactly 33%
-of that uncommitted balance. Multiplying by `N` removes the
-otherwise accidental division of every task's bounty by the number of tasks in the pool: an
-average-age task is worth `c * B` regardless of `N`.
+A target starts at 10% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
+(12.5%) after 15 elapsed days. Its share then stays at 1/8; funding and commitments can still
+change the Alpha amount. Age advances within the day at the catalog's minute-resolution clock.
+Pricing uses integer arithmetic with one final floor to base units. Neither catalog size nor
+other targets' ages enter the calculation. The legacy `total_age_weight` and `max_age_weight`
+metadata remain available for older clients but no longer affect prices.
 
 `bounty_tasks.opened_at` is inserted once per stable `reward_target_id`, so an API restart or source
 repin does not reset age. A target leaves the pricing pool as soon as one submission holds its
@@ -607,6 +609,37 @@ chain balance minus outstanding locks. Competing attempts for one target contrib
 maximum locked amount because at most one can win; verification or review rejection releases an
 attempt's exposure. The policy is prospective: submissions accepted before V012 retain their
 payout-time pricing contract and are not retroactively converted into locks.
+
+### Switching to the 15-day policy
+
+Deploy this policy prospectively: preserve every existing submission lock, pricing input, and
+`bounty_tasks.opened_at`. Targets already at least 15 days old immediately quote the maximum
+share for new submissions. The bounty curve needs no age reset. Apply migration V039 before
+starting the updated payout notifier; it enforces the new formalization-defect award cap.
+
+Before restarting the API, update any explicit overrides in `.env`:
+
+```dotenv
+BOUNTY_POLICY_VERSION=linear-age-v3-locked
+BOUNTY_CONSTANT_NUMERATOR=1
+BOUNTY_CONSTANT_DENOMINATOR=10
+BOUNTY_MAX_SHARE_NUMERATOR=1
+BOUNTY_MAX_SHARE_DENOMINATOR=8
+BOUNTY_RAMP_SECONDS=1296000
+REVIEW_POLICY_VERSION=v3
+SUBMISSION_TERMS_VERSION=v6
+SUBMISSION_TERMS_EFFECTIVE_FROM=2026-09-11
+```
+
+These are also the new application and Compose defaults. An old `dynamic-age-*` policy label
+is rejected at startup so new arithmetic cannot be recorded as the old contract. The old
+`BOUNTY_AGE_PERIOD_SECONDS` and `BOUNTY_MAX_AGE_WEIGHT` settings control descriptive metadata
+only. After deployment, check `/v1/catalog/meta` for the new version, shares, and `ramp_seconds`.
+
+Review policy v3 / submission terms v6 cap a formalization-defect award at the lesser of $750
+converted to Alpha when the payout record is created and the submission's locked task bounty.
+The worker records both limits and the database checks the minimum. Earlier review-policy v1/v2
+submissions retain their fixed $750 defect award, and existing payout records are not changed.
 
 ### Automatic payout signer notifications
 

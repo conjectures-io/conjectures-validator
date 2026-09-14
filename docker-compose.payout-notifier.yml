@@ -24,7 +24,11 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      PAYOUT_DISCORD_WEBHOOK_URL: ${PAYOUT_DISCORD_WEBHOOK_URL:?set the payout Discord webhook in .env}
+      # Optional. Unset means payout obligations are still recorded and reconciled on chain,
+      # and no signer is notified -- so `:?` here would make an optional notification channel a
+      # hard dependency of paying anyone at all. A value that is set but malformed is still
+      # refused, by the worker at startup.
+      PAYOUT_DISCORD_WEBHOOK_URL: ${PAYOUT_DISCORD_WEBHOOK_URL:-}
       PAYOUT_NOTIFIER_POLL_SECONDS: ${PAYOUT_NOTIFIER_POLL_SECONDS:-5}
       PAYOUT_NOTIFIER_RETRY_SECONDS: ${PAYOUT_NOTIFIER_RETRY_SECONDS:-30}
       PAYOUT_NOTIFIER_LEASE_SECONDS: ${PAYOUT_NOTIFIER_LEASE_SECONDS:-60}

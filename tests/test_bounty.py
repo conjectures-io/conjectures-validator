@@ -19,87 +19,92 @@ from conjectures_subnet.bounty import (
 )
 
 
-def test_an_average_age_task_is_not_divided_by_the_number_of_tasks():
-    for tasks in (1, 4, 74, 10_000):
-        assert calculate_bounty_rao(
-            balance_rao=4_000_000_000,
-            open_targets=tasks,
-            task_age_weight=7,
-            total_age_weight=7 * tasks,
-        ) == 1_000_000_000
+@pytest.mark.parametrize(
+    ("age_seconds", "expected"),
+    [
+        (0, 9_000_000_000),
+        (5 * 86400, 9_750_000_000),
+        (int(7.5 * 86400), 10_125_000_000),
+        (10 * 86400, 10_500_000_000),
+        (15 * 86400, 11_250_000_000),
+        (365 * 86400, 11_250_000_000),
+    ],
+)
+def test_linear_ramp_reaches_one_eighth_after_fifteen_days(age_seconds, expected):
+    assert calculate_bounty_rao(balance_rao=90_000_000_000, age_seconds=age_seconds) == expected
 
 
-def test_bounties_follow_the_ratio_to_average_age_weight():
-    # Weights 1, 2, 3 average to 2. With c*B = 1 Alpha, prices are .5, 1, 1.5 Alpha.
-    assert [
+def test_ramp_progresses_within_a_day_and_caps_at_the_exact_boundary():
+    # This balance makes each second of the ramp worth one base unit.
+    balance = 51_840_000
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1) == 5_184_001
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1295999) == 6_479_999
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1296000) == 6_480_000
+    assert calculate_bounty_rao(balance_rao=balance, age_seconds=1296001) == 6_480_000
+
+
+def test_round_only_after_combining_start_and_age_increment():
+    assert calculate_bounty_rao(balance_rao=19, age_seconds=648000) == 2
+    assert calculate_bounty_rao(balance_rao=19, age_seconds=1296000) == 2
+    assert calculate_bounty_rao(balance_rao=0, age_seconds=1296000) == 0
+    assert calculate_bounty_rao(balance_rao=5, age_seconds=1296000) == 0
+    assert calculate_bounty_rao(balance_rao=2**63 - 1, age_seconds=1296000) == (2**63 - 1) // 8
+
+
+def test_configured_shares_and_duration_are_used():
+    assert (
         calculate_bounty_rao(
-            balance_rao=4_000_000_000,
-            open_targets=3,
-            task_age_weight=weight,
-            total_age_weight=6,
+            balance_rao=1000,
+            age_seconds=5,
+            ramp_seconds=10,
+            constant_numerator=1,
+            constant_denominator=20,
             max_bounty_share_numerator=1,
-            max_bounty_share_denominator=1,
+            max_bounty_share_denominator=4,
         )
-        for weight in (1, 2, 3)
-    ] == [500_000_000, 1_000_000_000, 1_500_000_000]
-
-
-def test_one_bounty_is_capped_at_33_percent_of_the_treasury():
-    assert calculate_bounty_rao(
-        balance_rao=4_000_000_000,
-        open_targets=3,
-        task_age_weight=3,
-        total_age_weight=6,
-    ) == 1_320_000_000
-
-
-def test_age_weight_is_capped_at_60():
-    opened_at = datetime(2026, 1, 1, tzinfo=UTC)
-    assert calculate_age_weight(
-        opened_at,
-        now=opened_at + timedelta(days=58),
-        period_seconds=86_400,
-    ) == 59
-    assert calculate_age_weight(
-        opened_at,
-        now=opened_at + timedelta(days=500),
-        period_seconds=86_400,
-    ) == 60
-
-
-def test_fractional_base_units_round_down():
-    assert calculate_bounty_rao(
-        balance_rao=11,
-        open_targets=3,
-        task_age_weight=2,
-        total_age_weight=7,
-    ) == 2
+        == 150
+    )
+    assert (
+        calculate_bounty_rao(
+            balance_rao=1000,
+            age_seconds=5,
+            ramp_seconds=10,
+            constant_numerator=1,
+            constant_denominator=8,
+        )
+        == 125
+    )
 
 
 @pytest.mark.parametrize(
     "arguments",
     [
-        {"balance_rao": -1, "open_targets": 1, "task_age_weight": 1, "total_age_weight": 1},
-        {"balance_rao": 1, "open_targets": 0, "task_age_weight": 1, "total_age_weight": 1},
-        {"balance_rao": 1, "open_targets": 1, "task_age_weight": 0, "total_age_weight": 1},
-        {"balance_rao": 1, "open_targets": 1, "task_age_weight": 1, "total_age_weight": 0},
+        {"balance_rao": -1},
+        {"age_seconds": -1},
+        {"ramp_seconds": 0},
+        {"constant_numerator": 0},
+        {"constant_denominator": 0},
+        {"max_bounty_share_numerator": 0},
+        {"max_bounty_share_denominator": 0},
+        {"max_bounty_share_numerator": 9},
+        {"constant_denominator": 4},
     ],
 )
-def test_invalid_pool_inputs_are_refused(arguments):
+def test_invalid_pricing_inputs_are_refused(arguments):
     with pytest.raises(ValueError):
-        calculate_bounty_rao(**arguments)
+        calculate_bounty_rao(**{"balance_rao": 1000, "age_seconds": 0, **arguments})
 
 
-def test_a_bounty_share_above_the_whole_treasury_is_refused():
-    with pytest.raises(ValueError, match="cannot exceed"):
-        calculate_bounty_rao(
-            balance_rao=1,
-            open_targets=1,
-            task_age_weight=1,
-            total_age_weight=1,
-            max_bounty_share_numerator=101,
-            max_bounty_share_denominator=100,
+def test_legacy_age_metadata_still_caps_at_sixty():
+    opened_at = datetime(2026, 1, 1, tzinfo=UTC)
+    assert (
+        calculate_age_weight(
+            opened_at,
+            now=opened_at + timedelta(days=500),
+            period_seconds=86400,
         )
+        == 60
+    )
 
 
 def test_concurrent_quotes_share_one_balance_read():

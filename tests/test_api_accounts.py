@@ -1956,7 +1956,7 @@ def test_submission_detail_returns_public_review_notes_but_never_internal_eviden
                 review = response.json()["review"]
                 assert review["decision"] == "APPROVED"
                 assert review["reason_code"] == "FORMALIZATION_DEFECT_AWARD"
-                assert review["policy_version"] == "v2"
+                assert review["policy_version"] == "v3"
                 assert review["decided_at"] is not None
                 assert review["notes_public"] == (
                     "Lean verified the published task, but it did not match the informal "

@@ -177,9 +177,12 @@ one proof is payable at most once. Amounts are integers in rao; floating point a
 payment accounting.
 
 **Catalog bounty estimates are live; accepted submissions are locked.** For open target `i`, the versioned policy is
-`b_i = c * B * N * w_i / W`, evaluated with integer arithmetic. `B` is the finalized bounty-wallet
-balance after outstanding submission locks; `N` and `W` cover only open stable reward targets; and
-task age comes from the durable `bounty_tasks.opened_at` row. Acceptance serializes quote-and-insert
+`b_i = floor(B * (1/10 + (1/8 - 1/10) * min(age_seconds / 1296000, 1)))`,
+evaluated with integer arithmetic under `linear-age-v3-locked`. `B` is the finalized bounty-wallet
+balance after outstanding submission locks; task age comes from the durable
+`bounty_tasks.opened_at` row. New targets start at 10%, reaching 1/8 after 15 elapsed days.
+Other targets' ages and catalog size do not affect the share. Existing locks keep their recorded
+amount and policy across this change. Acceptance serializes quote-and-insert
 with a PostgreSQL advisory transaction lock. Competing proofs contribute the maximum locked amount
 for their shared target, not a sum, because only one can win. Rejection releases exposure, and an
 approved winner's payout event copies its submission amount, policy, and inputs without repricing.
@@ -256,8 +259,8 @@ for the exact security boundary and residual risks.
 The repository currently includes:
 
 - deterministic extraction and task generation from the pinned Formal Conjectures revision;
-- an audited allowlist of 520 proof/counterexample bundles for 260 active theorem targets (236
-  Erdős and 24 Green) in 260 stable reward targets, with twenty-three additional audited targets recorded
+- an audited allowlist of 518 proof/counterexample bundles for 259 active theorem targets (236
+  Erdős and 23 Green) in 259 stable reward targets, with twenty-four additional audited targets recorded
   as retirements and excluded from admission;
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;

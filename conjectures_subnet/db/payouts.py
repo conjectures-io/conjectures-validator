@@ -11,14 +11,23 @@ reward-event id.  If two outstanding obligations have an identical fingerprint, 
 settled first; those calls are byte-for-byte indistinguishable on chain, so FIFO is the only stable
 accounting order rather than a guess from off-chain timing.
 
-The destination *hotkey* is part of that fingerprint only for the rows that have one.  V035
-switched payouts from ``transfer_stake_and_hotkey`` to ``transfer_stake``: the stake no longer
-moves to a new position, so ``reward_events.destination_hotkey`` is NULL on every new obligation
-and there is nothing to compare.  Historical rows keep theirs and are still matched on it, which
-is why the predicates below are written as "equal, or the stored value is NULL" rather than
-dropping the column from the comparison outright — a pre-V035 payout to the same coldkey for the
-same amount but a *different* delegated hotkey is a different payout, and collapsing the
-fingerprint would let one settle the other.
+The destination *hotkey* is part of that fingerprint only when the observed event is one that
+actually moved the stake.  V035 switched payouts from ``transfer_stake_and_hotkey`` to
+``transfer_stake``: the stake no longer moves to a new position, so ``transfer_stake`` reports
+the validator's own hotkey as the destination and ``reward_events.destination_hotkey`` is NULL
+on every obligation written since.
+
+Which side decides is the whole subtlety, and getting it from the *event* rather than the row is
+what ``_hotkey_agrees`` exists for.  A row written before the notifier stopped filling that
+column records the hotkey the stake was to be moved *to* — a nomination.  Pay it with
+``transfer_stake`` and the event reports the validator's key instead, so a row-driven comparison
+asks a nomination to equal a constant, fails forever, and strands a correct payout as
+``payout_unmatched``.  Two such rows were already outstanding when this was found.
+
+So the stored hotkey is consulted only for a legacy ``StakeAndHotkeyTransferred`` event, where
+both sides name the position the stake ended up in — and there it is still compared, because a
+pre-V035 payout to the same coldkey for the same amount but a *different* delegated hotkey is a
+different payout and collapsing the fingerprint would let one settle the other.
 """
 
 from __future__ import annotations
@@ -27,7 +36,7 @@ import datetime as dt
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.errors import RecordNotFound
@@ -147,15 +156,33 @@ async def oldest_unresolved_at(session: AsyncSession) -> dt.datetime | None:
 # --- Event settlement ---------------------------------------------------------------------
 
 
+def _hotkey_agrees(event: RewardEvent, observed: ObservedPayout) -> bool:
+    """Whether a stored destination hotkey may be compared with the observed one at all.
+
+    Only a payout that *moved* the stake carries a destination hotkey that means the same thing
+    on both sides.  `transfer_stake` leaves the stake on the validator's own hotkey, so the
+    destination hotkey such an event reports is that key -- configuration, not a destination
+    anybody chose.  A reward row written before the payout command changed over records the
+    hotkey the stake was to be moved *to*, and comparing the two compares a nomination with a
+    constant: they never agree, and the obligation stalls unmatched however correct the payout.
+
+    So the stored value is consulted only for a legacy `StakeAndHotkeyTransferred` event, where
+    both sides genuinely name the position the stake ended up in.  A row that names no hotkey
+    still matches anything, which is the V035-onward case and unchanged.
+    """
+    if not observed.moved_hotkey:
+        return True
+    return (
+        event.destination_hotkey is None
+        or event.destination_hotkey == observed.destination_hotkey
+    )
+
+
 def _same_payout(event: RewardEvent, observed: ObservedPayout) -> bool:
     return (
         event.destination_coldkey == observed.destination_coldkey
         and event.amount_rao == observed.amount_rao
-        # See the module docstring: only history has a destination hotkey to compare.
-        and (
-            event.destination_hotkey is None
-            or event.destination_hotkey == observed.destination_hotkey
-        )
+        and _hotkey_agrees(event, observed)
     )
 
 
@@ -193,12 +220,14 @@ async def _oldest_match(
             ),
             RewardEvent.destination_coldkey == observed.destination_coldkey,
             RewardEvent.amount_rao == observed.amount_rao,
-            # The SQL half of `_same_payout`, and it has to agree with it exactly: a row this
+            # The SQL half of `_hotkey_agrees`, and it has to agree with it exactly: a row this
             # predicate selects is one that function will then be asked to confirm.
             or_(
                 RewardEvent.destination_hotkey.is_(None),
                 RewardEvent.destination_hotkey == observed.destination_hotkey,
-            ),
+            )
+            if observed.moved_hotkey
+            else true(),
             RewardEvent.created_at
             <= observed.block_timestamp + CHAIN_CLOCK_TOLERANCE,
         )

@@ -48,12 +48,12 @@ flowchart TD
         CAT["data/catalog.json<br/>5190 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>260 active asserted picks"]
+        PICK["task target policy<br/>259 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>520 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>518 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -182,6 +182,7 @@ the pipeline.
 | 10 | active after retiring a target under an active upstream correction | **208** targets from 181 files (189 Erdős over 165 files, 19 Green over 16) |
 | 11 | September 8 review: six live withdrawals and 57 additions | **259** targets from 223 files (235 Erdős, 24 Green) |
 | 12 | September 10: reinstate Erdős 96 with its original bounty age | **260** targets from 224 files (236 Erdős, 24 Green) |
+| 13 | September 10: retire Green 44 for a prior external formalization | **259** targets from 223 files (236 Erdős, 23 Green) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -199,7 +200,7 @@ selection time.
 
 ### Human picks, machine proves the pick is legal
 
-The 260 active targets are explicitly recorded in one target file after source, statement,
+The 259 active targets are explicitly recorded in one target file after source, statement,
 prior-solution, and proof-claim review. The historical funnel below describes earlier snapshots;
 its counts are not current catalog statistics. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
@@ -307,7 +308,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 8, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-260 `allowed_source_theorems` and 520 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+259 `allowed_source_theorems` and 518 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
@@ -329,7 +330,7 @@ combined with a tampered audit file:
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 236 active Erdős targets and 24 Green targets.
+all 236 active Erdős targets and 23 Green targets.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
@@ -472,8 +473,8 @@ review is configured globally, per task, or per submission.
 `reward_events` records the submission, eligibility reason, actual integer payout amount,
 dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
 evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
-targets without a successful reward claim. Age weight stops accruing at 60 periods and every target
-quote is capped at 33/100 of the uncommitted balance. Acceptance stores the quote as the immutable
+targets without a successful reward claim. Each target starts at 1/10 of uncommitted funds and
+reaches the 1/8 maximum linearly over 15 elapsed days. Acceptance stores the quote as the immutable
 conditional amount-of-record, and later payout generation copies it without repricing.
 
 The Discord notifier creates `PENDING` and sends the reviewed multisig call to both human signers.
@@ -487,7 +488,7 @@ latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.
 
 | Required input | Status |
 | --- | --- |
-| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` produces the versioned age weight; no subjective difficulty score is used |
+| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` drives a linear 15-day ramp from 1/10 to 1/8 of uncommitted funds; no subjective difficulty score is used |
 | Payout proof-of-inclusion returned to the miner | **Implemented.** Owner responses carry the canonical event reference and finalized block |
 | Automated bounty transfer and reconciliation | **Partial.** Transfer signing remains human multisig; best/finalized event reconciliation is automatic |
 

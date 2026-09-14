@@ -360,8 +360,10 @@ def test_a_naive_timestamp_is_refused():
 class _FakeClient:
     """Stands in for a connected bittensor client. Fails on demand, records what it was asked."""
 
-    def __init__(self, *, fail_times: int = 0):
+    def __init__(self, *, fail_times: int = 0, events=None):
         self.fail_times = fail_times
+        # Defaults to one plain balance transfer, which is a block with no payout in it.
+        self.events = events
         self.queries: list[tuple] = []
         self.closed = False
 
@@ -371,6 +373,8 @@ class _FakeClient:
             self.fail_times -= 1
             raise OSError("websocket went away")
         if item == SYSTEM_EVENTS:
+            if self.events is not None:
+                return self.events
             return [_transfer(amount=RAO_PER_TAO)]
         if item == BLOCK_TIMESTAMP:
             return int(WHEN.timestamp() * 1000)
@@ -422,8 +426,8 @@ def test_the_connection_is_reused_across_reads_rather_than_reopened():
     assert not client.closed
 
 
-def test_historical_payout_events_use_the_archive_connection():
-    client = _FakeClient()
+def _archive_reads(client) -> tuple[list[str], BittensorTransferSource]:
+    """A source whose every connect is recorded, handing out `client` per network."""
     source = BittensorTransferSource("finney", archive_network="archive-finney")
     connected: list[str] = []
 
@@ -436,9 +440,38 @@ def test_historical_payout_events_use_the_archive_connection():
         return held
 
     source._connect = connect
-    asyncio.run(source.payouts_in(block=100))
+    return connected, source
 
+
+def test_historical_payout_events_use_the_archive_connection():
+    """A block holding a payout is read twice, and both reads go to the archive.
+
+    The archive and not the head connection, because the watcher replays historical and manually
+    reconciled rows over blocks a lite node has pruned.
+    """
+    client = _FakeClient(events=_payout_events())
+    connected, source = _archive_reads(client)
+
+    found = asyncio.run(source.payouts_in(block=100))
+
+    assert len(found) == 1
     assert connected == ["archive-finney", "archive-finney"]
+
+
+def test_a_block_with_no_payout_costs_one_archive_read_not_two():
+    """The timestamp read is paid for only by a block that actually holds a payout.
+
+    It is used for nothing but stamping the payouts returned -- it drives no pairing or
+    filtering decision -- so on the overwhelming majority of blocks the second read buys
+    nothing. An archive endpoint meters historical work, and at two reads per block a replay of
+    a month of history exhausts that budget and stalls the watcher instead of finishing.
+    """
+    client = _FakeClient()
+    connected, source = _archive_reads(client)
+
+    assert asyncio.run(source.payouts_in(block=100)) == ()
+    assert connected == ["archive-finney"]
+    assert [item for item, _params, _block in client.queries] == [SYSTEM_EVENTS]
 
 
 def test_a_block_with_no_arrivals_costs_one_read_not_two():
