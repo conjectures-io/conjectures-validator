@@ -36,6 +36,7 @@ from payout_notifier.discord import (
 )
 from payout_watcher.settings import PayoutWatcherSettings, SettingsError
 from payout_watcher.watcher import MAX_BACKOFF_SECONDS, PayoutWatcher
+from conjectures_subnet.db import payouts as store
 from conjectures_subnet.db.payouts import _same_payout
 from submission_api.routers._account import latest_reward
 
@@ -116,13 +117,20 @@ def settings(dsn: str) -> PayoutWatcherSettings:
     )
 
 
-def seed_pending(sessions, *, destination_hotkey=DESTINATION_HOTKEY) -> tuple[uuid.UUID, int]:
+def seed_pending(
+    sessions, *, destination_hotkey=DESTINATION_HOTKEY, marker: str = ""
+) -> tuple[uuid.UUID, int]:
     """Seed one PENDING reward event.
 
     `destination_hotkey=None` is the current shape — `transfer_stake` records none — and the
     default is the legacy one, so both eras of row are reconciled by this file.
+
+    `marker` varies the three values a second row would otherwise collide on -- the proof
+    text behind `submissions.proof_digest`, the payment reference, and `reward_target_id`,
+    which carries a one-payout-per-target UNIQUE.  A test that needs a second outstanding
+    obligation passes one; the default keeps every existing caller's fixture unchanged.
     """
-    content = b"theorem payout_chain_fixture : True := trivial"
+    content = b"theorem payout_chain_fixture : True := trivial" + marker.encode()
     digest = hashlib.sha256(content).digest()
     submission_id = uuid.uuid4()
     with sessions.begin() as session:
@@ -137,10 +145,10 @@ def seed_pending(sessions, *, destination_hotkey=DESTINATION_HOTKEY) -> tuple[uu
                 task_id="fixture-task",
                 task_bundle_sha256=hashlib.sha256(b"task").digest(),
                 problem_id="fixture-problem",
-                reward_target_id="fixture-target",
+                reward_target_id=f"fixture-target{marker}",
                 task_mode=TaskMode.FORMALIZED,
                 proof_digest=digest,
-                payment_reference="fixture-payment",
+                payment_reference=f"fixture-payment{marker}",
                 payment_sender=DESTINATION_COLDKEY,
                 payment_amount_rao=500_000_000,
                 payment_block=1,
@@ -526,3 +534,138 @@ def test_a_failing_streak_backs_off_instead_of_hammering_a_rate_limit():
     # Capped, and the cap holds however long the outage lasts rather than growing without bound.
     assert watcher._delay(50) == MAX_BACKOFF_SECONDS
     assert watcher._delay(10_000) == MAX_BACKOFF_SECONDS
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_an_idle_cursor_fast_forwards_instead_of_drifting_behind_finality():
+    """An empty payout queue must not cost the next payout a backlog replay.
+
+    The cursor is only written while settling an event, so before this it sat at the last
+    payout's block and fell a day further behind finality every day.  The next obligation then
+    waited for every intervening block to be read one at a time before it could be observed.
+
+    Skipping them is sound because `_oldest_match` will not match a row against a block older
+    than `created_at - CHAIN_CLOCK_TOLERANCE`: with nothing outstanding, no row that will ever
+    exist can want the range being skipped.  The second half of this test is that claim stated
+    as behaviour -- a payout landing after the jump is still settled normally.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        submission_id, reward_id = seed_pending(sync_sessions)
+        async_sessions = async_session_factory(async_engine)
+        source = FakePayoutSource(
+            finalized=102, best=102, payouts={102: (observed_payout(),)}
+        )
+        # Far enough past block 102 that every block below the head is behind the tolerance
+        # boundary, which is the state an idle production watcher is actually in.
+        now = START + dt.timedelta(seconds=20_000 * 12)
+        watcher = PayoutWatcher(
+            settings=settings(dsn),
+            sessions=async_sessions,
+            source=source,
+            clock=lambda: now,
+        )
+
+        async def scenario():
+            # Settle the only outstanding payout, so the queue is empty and the cursor stops.
+            first = await watcher.scan_once()
+            assert first is not None and first.confirmed == 1
+            async with async_sessions() as session:
+                cursor = await store.cursor(session)
+                assert cursor is not None
+                assert cursor.last_scanned_block == 102
+
+            # Finality has moved a long way while nothing was owed.
+            source.finalized = source.best = 20_000
+            assert await watcher.scan_once() is None
+
+            async with async_sessions() as session:
+                cursor = await store.cursor(session)
+                assert cursor is not None
+                # The head's own timestamp is `now`, so the boundary sits one tolerance back
+                # rather than at the head: the newest blocks stay unread on purpose.
+                assert cursor.last_scanned_block == 19_995
+                assert cursor.last_scanned_block < source.finalized
+
+            # A payout in the range that was deliberately left unread is still settled, which
+            # is what makes the boundary a safety margin rather than an off-by-five.
+            _, second_reward_id = seed_pending(sync_sessions, marker="-late")
+            late = replace(
+                observed_payout(),
+                block=19_999,
+                block_timestamp=now,
+                extrinsic_index=3,
+                event_index=4,
+            )
+            source.payouts[19_999] = (late,)
+            scanned = await watcher.scan_once()
+            assert scanned is not None and scanned.confirmed == 1
+            async with async_sessions() as session:
+                reward = await session.get(RewardEvent, second_reward_id)
+                assert reward is not None
+                assert reward.status == PayoutState.CONFIRMED
+                assert reward.finalized_block == 19_999
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_a_small_idle_gap_is_left_to_the_ordinary_scan():
+    """Under one batch the fast-forward declines, so the steady state costs one chain read.
+
+    Without this the bisection in `first_block_at_or_after` would run on every poll of an
+    already caught-up watcher, spending an archive endpoint's historical-work budget to
+    rediscover a boundary a few blocks from where it was last time.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        seed_pending(sync_sessions)
+        async_sessions = async_session_factory(async_engine)
+
+        probed: list[int] = []
+
+        class CountingSource(FakePayoutSource):
+            async def block(self, number: int) -> ObservedBlock:
+                probed.append(number)
+                return await super().block(number)
+
+        source = CountingSource(
+            finalized=102, best=102, payouts={102: (observed_payout(),)}
+        )
+        now = START + dt.timedelta(seconds=300 * 12)
+        watcher = PayoutWatcher(
+            settings=settings(dsn),
+            sessions=async_sessions,
+            source=source,
+            clock=lambda: now,
+        )
+
+        async def scenario():
+            assert (await watcher.scan_once()) is not None
+            source.finalized = source.best = 102 + 199  # one short of a 200-block batch
+            probed.clear()
+            assert await watcher.scan_once() is None
+            assert probed == []
+            async with async_sessions() as session:
+                cursor = await store.cursor(session)
+                assert cursor is not None and cursor.last_scanned_block == 102
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()

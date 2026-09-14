@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -36,6 +37,10 @@ MAX_BACKOFF_SECONDS = 300.0
 # Doubling past this many steps cannot reach further than the ceiling above, and stopping the
 # exponent from growing keeps the shift bounded however long an outage lasts.
 _BACKOFF_CEILING_STEPS = 16
+
+
+def _now() -> dt.datetime:
+    return dt.datetime.now(dt.UTC)
 
 
 @dataclass
@@ -62,10 +67,15 @@ class PayoutWatcher:
         settings: PayoutWatcherSettings,
         sessions: async_sessionmaker[AsyncSession],
         source: chain.PayoutSource,
+        clock: Callable[[], dt.datetime] = _now,
     ) -> None:
         self.settings = settings
         self.sessions = sessions
         self.source = source
+        # Injected so the idle fast-forward's boundary is testable.  That boundary is wall-clock
+        # by necessity -- it is a claim about rows that do not exist yet -- so a fake chain alone
+        # cannot exercise it.
+        self.clock = clock
 
     async def resolve_cursor(self) -> PayoutWatchCursor | None:
         """Open the durable boundary when the first unresolved payout exists.
@@ -147,6 +157,9 @@ class PayoutWatcher:
             unresolved = await store.oldest_unresolved_at(session)
             cursor = await store.cursor(session)
         if unresolved is None:
+            if cursor is not None:
+                self._require_same_watch(cursor)
+                await self._fast_forward_idle(cursor)
             return None
         if cursor is None:
             cursor = await self.resolve_cursor()
@@ -173,6 +186,73 @@ class PayoutWatcher:
         if last >= finalized_head:
             await self._scan_best_tail(scanned)
         return scanned
+
+    async def _fast_forward_idle(self, cursor: PayoutWatchCursor) -> None:
+        """Close the cursor's gap to finality while nothing is outstanding.
+
+        The cursor is otherwise only written by `_scan_finalized_block`, which runs only when
+        there is unresolved work.  An idle watcher therefore holds its high-water mark at the
+        last payout it settled and falls a further day behind finality every day.  The next
+        obligation then cannot be observed until that entire backlog has been replayed one
+        block at a time, which is the latency this removes -- not a correctness fix, a
+        time-to-first-status one.
+
+        Skipping those blocks is not a risk being accepted; it is dead range.  `_oldest_match`
+        admits a row only when `created_at <= block_timestamp + CHAIN_CLOCK_TOLERANCE`, and a
+        payout command is never rendered before its reward row commits.  So: no unresolved row
+        exists to want these blocks, and every row written from here on carries
+        `created_at >= now`.  A block older than `now - CHAIN_CLOCK_TOLERANCE` can never match
+        anything again, whoever is paid next.
+
+        That tolerance is what keeps the boundary honest rather than merely cheap.  Advancing
+        to the head instead would skip the newest blocks moments before a row created a few
+        seconds later could legitimately have matched one of them.
+        """
+        finalized_head = await self.source.finalized_head()
+        # One cheap read per idle pass.  Bisecting is worth avoiding while the gap is small, and
+        # a gap under one batch is one an ordinary scan absorbs in a single pass anyway -- so
+        # once caught up this returns here and the expensive path runs about once per batch.
+        if finalized_head - cursor.last_scanned_block < self.settings.batch_blocks:
+            return
+
+        boundary = self.clock() - store.CHAIN_CLOCK_TOLERANCE
+        head = await self.source.block(finalized_head)
+        if head.timestamp < boundary:
+            # Finality lagging the wall clock by more than the tolerance is the ordinary case,
+            # and `first_block_at_or_after` refuses a boundary past the head rather than
+            # inventing one.  Every finalized block is already behind the boundary, so there is
+            # nothing to bisect for.
+            through = finalized_head
+        else:
+            through = (
+                await chain.first_block_at_or_after(
+                    self.source, boundary, head=finalized_head
+                )
+            ).number - 1
+        if through <= cursor.last_scanned_block:
+            return
+
+        skipped = through - cursor.last_scanned_block
+        async with async_session_scope(self.sessions) as session:
+            await store.advance_cursor(
+                session, through_block=through, now=self.clock()
+            )
+        logger.info(
+            "no unresolved payout; cursor fast-forwarded %d-%d (%d blocks) to finalized head %d",
+            cursor.last_scanned_block + 1,
+            through,
+            skipped,
+            finalized_head,
+        )
+        get_axiom().info(
+            source="payout-watcher",
+            event_type="cursor_fast_forwarded",
+            watcher_id=self.settings.watcher_id,
+            from_block=cursor.last_scanned_block,
+            through_block=through,
+            skipped_blocks=skipped,
+            finalized_head=finalized_head,
+        )
 
     async def _scan_finalized_block(self, number: int, scanned: Scanned) -> None:
         observed_events = await self.source.payouts_in(block=number)
