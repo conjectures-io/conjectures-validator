@@ -98,7 +98,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 224
+    assert len({item.source_path for item in selected}) == 223
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -219,6 +219,8 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
 @pytest.mark.needs_checkouts
 def test_newly_retired_targets_are_recorded_but_not_admitted():
     newly_retired = {
+        # 2026-09-10: a public Lean counterexample settles the exact target.
+        "Green44.green_44",
         # 2026-08-05: defective or exploitable formalizations found by audit.
         "Erdos1055.erdos_1055.variants.erdos_limit",
         "Erdos1055.erdos_1055.variants.selfridge_limit",
