@@ -56,7 +56,17 @@ def main() -> int:
         settings.retry_seconds,
         "on" if settings.notifications_enabled else "off",
     )
-    if not settings.notifications_enabled:
+    if settings.webhook_error is not None:
+        # Loud, and repeated on every pass by the loop below, because a misconfigured channel
+        # that nobody notices is how signers stop being told.  Not fatal, because obligations
+        # must keep being seeded whatever state the notification channel is in.
+        logger.error(
+            "PAYOUT_DISCORD_WEBHOOK_URL is set but unusable (%s): payout obligations are still "
+            "recorded and reconciled on chain, but NO SIGNER WILL BE NOTIFIED. Fix the value, "
+            "or unset it to silence this.",
+            settings.webhook_error,
+        )
+    elif not settings.notifications_enabled:
         logger.info(
             "PAYOUT_DISCORD_WEBHOOK_URL is unset: payout obligations are still recorded and "
             "reconciled on chain, but no signer will be notified. Set it to deliver."

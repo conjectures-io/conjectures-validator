@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -36,6 +37,10 @@ MAX_BACKOFF_SECONDS = 300.0
 # Doubling past this many steps cannot reach further than the ceiling above, and stopping the
 # exponent from growing keeps the shift bounded however long an outage lasts.
 _BACKOFF_CEILING_STEPS = 16
+
+
+def _now() -> dt.datetime:
+    return dt.datetime.now(dt.UTC)
 
 
 @dataclass
@@ -62,10 +67,15 @@ class PayoutWatcher:
         settings: PayoutWatcherSettings,
         sessions: async_sessionmaker[AsyncSession],
         source: chain.PayoutSource,
+        clock: Callable[[], dt.datetime] = _now,
     ) -> None:
         self.settings = settings
         self.sessions = sessions
         self.source = source
+        # Injected so the idle fast-forward's boundary is testable.  That boundary is wall-clock
+        # by necessity -- it is a claim about rows that do not exist yet -- so a fake chain alone
+        # cannot exercise it.
+        self.clock = clock
 
     async def resolve_cursor(self) -> PayoutWatchCursor | None:
         """Open the durable boundary when the first unresolved payout exists.
@@ -143,14 +153,20 @@ class PayoutWatcher:
         )
 
     async def scan_once(self) -> Scanned | None:
+        """One pass: read finalized blocks, record what left the treasury, then match.
+
+        Reading is no longer conditional on an obligation being outstanding.  It used to be, and
+        the cursor only advanced inside a scan, so an idle watcher fell a day behind finality for
+        every quiet day and a payout made in that gap was never read at all.  Recording first and
+        matching second is what makes that gap harmless -- and unnecessary.
+        """
         async with async_session_scope(self.sessions) as session:
-            unresolved = await store.oldest_unresolved_at(session)
             cursor = await store.cursor(session)
-        if unresolved is None:
-            return None
         if cursor is None:
             cursor = await self.resolve_cursor()
-            if cursor is None:  # pragma: no cover - unresolved was just observed
+            if cursor is None:
+                # No cursor and nothing to open one from: no payout has ever been owed, so there
+                # is no boundary this watcher could honestly claim to have read from.
                 return None
         self._require_same_watch(cursor)
 
@@ -171,6 +187,7 @@ class PayoutWatcher:
         # payout already in an older finalized block could be presented as merely SUBMITTED while
         # the cursor works through its backlog.
         if last >= finalized_head:
+            await self._reconcile_recent(scanned)
             await self._scan_best_tail(scanned)
         return scanned
 
@@ -180,8 +197,14 @@ class PayoutWatcher:
             if not self._ours(observed):
                 continue
             scanned.observed += 1
+            # Record first, and commit that before anything tries to interpret it.  Separate
+            # transactions on purpose: a conflict raised while matching must not roll back the
+            # record of what the chain actually did.  Re-recording is free -- `record_payout` is
+            # idempotent on the reference -- so a crash between the two costs a replay, not a fact.
             async with async_session_scope(self.sessions) as session:
-                update = await store.confirm(session, observed)
+                payout_id = (await store.record_payout(session, observed)).id
+            async with async_session_scope(self.sessions) as session:
+                update = await store.claim_payout(session, payout_id)
             if update is None:
                 scanned.unmatched += 1
                 self._log_unmatched(observed, finalized=True)
@@ -209,8 +232,47 @@ class PayoutWatcher:
         # replay through the event reference.
         async with async_session_scope(self.sessions) as session:
             await store.advance_cursor(
-                session, through_block=number, now=dt.datetime.now(dt.UTC)
+                session, through_block=number, now=self.clock()
             )
+
+    async def _reconcile_recent(self, scanned: Scanned) -> None:
+        """Retry payouts recorded before the obligation that pays them existed.
+
+        The narrow race this closes: a payout is observed, matches nothing, and the notifier
+        seeds its obligation moments later.  Without a retry that payout would need an operator
+        to bind it even though automatic matching was about to become possible.
+
+        Deliberately bounded to `CHAIN_CLOCK_TOLERANCE`, which is not an optimisation but the
+        exact reach of automatic matching.  A payout older than that can never be claimed
+        automatically -- every obligation written from now on has `created_at >= now`, and
+        `_oldest_match` refuses `created_at > block_timestamp + tolerance` -- so retrying one
+        would be asking the same question forever and always getting the same answer.
+        """
+        async with async_session_scope(self.sessions) as session:
+            pending = await store.unclaimed_payouts(
+                session, claimable_since=self.clock() - store.CHAIN_CLOCK_TOLERANCE
+            )
+        for item in pending:
+            async with async_session_scope(self.sessions) as session:
+                update = await store.claim_payout(session, item.id)
+            if update is not None and update.changed:
+                scanned.confirmed += 1
+                logger.info(
+                    "confirmed reward event %d from previously unclaimed payout %s",
+                    update.reward_event_id,
+                    item.extrinsic_reference,
+                )
+                get_axiom().info(
+                    source="payout-watcher",
+                    event_type="payout_confirmed",
+                    reward_event_id=update.reward_event_id,
+                    submission_id=str(update.submission_id),
+                    extrinsic_reference=item.extrinsic_reference,
+                    block=item.block,
+                    amount_rao=item.amount_rao,
+                    destination_coldkey=item.destination_coldkey,
+                    destination_hotkey=item.destination_hotkey,
+                )
 
     async def _scan_best_tail(self, scanned: Scanned) -> None:
         best_head = max(scanned.finalized_head, await self.source.best_head())
@@ -244,7 +306,7 @@ class PayoutWatcher:
                 continue
             async with async_session_scope(self.sessions) as session:
                 changed = await store.revert_submitted(
-                    session, item, now=dt.datetime.now(dt.UTC)
+                    session, item, now=self.clock()
                 )
             if changed:
                 scanned.reorged += 1

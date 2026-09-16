@@ -30,7 +30,7 @@ from conjectures_subnet.db.models import (
     TaskMode,
     VerificationState,
 )
-from payout_notifier.settings import NotifierSettings, SettingsError
+from payout_notifier.settings import NotifierSettings
 from payout_notifier.pricing import DefectAwardQuote, quote_formalization_defect_award
 from payout_notifier.worker import PayoutNotifier
 
@@ -49,15 +49,29 @@ def test_settings_make_the_webhook_optional_and_bound_polling():
     assert without_webhook.webhook_url == ""
     assert without_webhook.notifications_enabled is False
 
-    # Set but malformed stays a hard error: that is a typo in a channel somebody believes is live.
-    with pytest.raises(SettingsError, match="discord.com"):
-        NotifierSettings.from_env(
-            {
-                "DATABASE_URL": "postgresql://unused",
-                "PAYOUT_DISCORD_WEBHOOK_URL": "https://example.com/api/webhooks/1/token",
-                "TAOSTATS_API_KEY": "test-taostats-key",
-            }
-        )
+    # Set but malformed disables delivery and reports why, rather than killing the process.
+    #
+    # This reverses a deliberate earlier decision, so the reasoning matters. A typo in a channel
+    # somebody believes is live should be loud -- that part was right. Exiting to achieve it was
+    # not: it made an optional notification channel a hard dependency of creating obligations,
+    # which is the exact bug that making the webhook optional had just fixed for the unset case.
+    # In production a four-character placeholder here stopped obligation seeding for five days
+    # and left three approved rewards unpayable. `webhook_error` carries the loudness instead.
+    malformed = NotifierSettings.from_env(
+        {
+            "DATABASE_URL": "postgresql://unused",
+            "PAYOUT_DISCORD_WEBHOOK_URL": "https://example.com/api/webhooks/1/token",
+            "TAOSTATS_API_KEY": "test-taostats-key",
+        }
+    )
+    assert malformed.notifications_enabled is False
+    assert malformed.webhook_url == ""
+    assert malformed.webhook_error is not None
+    assert "discord.com" in malformed.webhook_error
+
+    # An absent webhook is not an error, and says so: the two reasons delivery is off stay
+    # distinguishable, because only one of them wants somebody woken up.
+    assert without_webhook.webhook_error is None
 
     settings = NotifierSettings.from_env(
         {

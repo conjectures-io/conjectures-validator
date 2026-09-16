@@ -16,6 +16,7 @@ from conjectures_subnet.db.engine import (
     create_db_engine,
     session_factory,
 )
+from conjectures_subnet.db import async_session_scope
 from conjectures_subnet.db.models import (
     Base,
     ManualReviewState,
@@ -26,6 +27,8 @@ from conjectures_subnet.db.models import (
     Submission,
     SubmissionEvent,
     TaskMode,
+    TreasuryPayout,
+    TreasuryPayoutState,
     VerificationState,
 )
 from conjectures_subnet.transfers import ObservedBlock, ObservedPayout
@@ -36,6 +39,7 @@ from payout_notifier.discord import (
 )
 from payout_watcher.settings import PayoutWatcherSettings, SettingsError
 from payout_watcher.watcher import MAX_BACKOFF_SECONDS, PayoutWatcher
+from conjectures_subnet.db import payouts as store
 from conjectures_subnet.db.payouts import _same_payout
 from submission_api.routers._account import latest_reward
 
@@ -116,13 +120,28 @@ def settings(dsn: str) -> PayoutWatcherSettings:
     )
 
 
-def seed_pending(sessions, *, destination_hotkey=DESTINATION_HOTKEY) -> tuple[uuid.UUID, int]:
+def seed_pending(
+    sessions,
+    *,
+    destination_hotkey=DESTINATION_HOTKEY,
+    marker: str = "",
+    created_at: dt.datetime = REWARD_CREATED,
+) -> tuple[uuid.UUID, int]:
     """Seed one PENDING reward event.
 
     `destination_hotkey=None` is the current shape — `transfer_stake` records none — and the
     default is the legacy one, so both eras of row are reconciled by this file.
+
+    `marker` varies the three values a second row would otherwise collide on -- the proof
+    text behind `submissions.proof_digest`, the payment reference, and `reward_target_id`,
+    which carries a one-payout-per-target UNIQUE.  A test that needs a second outstanding
+    obligation passes one; the default keeps every existing caller's fixture unchanged.
+
+    `created_at` is set at insert because `enforce_locked_reward_event` fires on UPDATE and
+    refuses a reward row that stops copying its submission's bounty lock. A test that needs an
+    obligation dated after the payment it settles has to say so here.
     """
-    content = b"theorem payout_chain_fixture : True := trivial"
+    content = b"theorem payout_chain_fixture : True := trivial" + marker.encode()
     digest = hashlib.sha256(content).digest()
     submission_id = uuid.uuid4()
     with sessions.begin() as session:
@@ -137,10 +156,10 @@ def seed_pending(sessions, *, destination_hotkey=DESTINATION_HOTKEY) -> tuple[uu
                 task_id="fixture-task",
                 task_bundle_sha256=hashlib.sha256(b"task").digest(),
                 problem_id="fixture-problem",
-                reward_target_id="fixture-target",
+                reward_target_id=f"fixture-target{marker}",
                 task_mode=TaskMode.FORMALIZED,
                 proof_digest=digest,
-                payment_reference="fixture-payment",
+                payment_reference=f"fixture-payment{marker}",
                 payment_sender=DESTINATION_COLDKEY,
                 payment_amount_rao=500_000_000,
                 payment_block=1,
@@ -166,7 +185,7 @@ def seed_pending(sessions, *, destination_hotkey=DESTINATION_HOTKEY) -> tuple[uu
             destination_hotkey=destination_hotkey,
             status=PayoutState.PENDING,
             initiated_by="test",
-            created_at=REWARD_CREATED,
+            created_at=created_at,
         )
         session.add(reward)
         session.flush()
@@ -526,3 +545,318 @@ def test_a_failing_streak_backs_off_instead_of_hammering_a_rate_limit():
     # Capped, and the cap holds however long the outage lasts rather than growing without bound.
     assert watcher._delay(50) == MAX_BACKOFF_SECONDS
     assert watcher._delay(10_000) == MAX_BACKOFF_SECONDS
+
+
+def _ledger(sessions):
+    """Every recorded treasury payout, oldest first, as (reference, status, reward_event_id)."""
+    with sessions.begin() as session:
+        return [
+            (row.extrinsic_reference, row.status, row.reward_event_id)
+            for row in session.scalars(
+                select(TreasuryPayout).order_by(TreasuryPayout.id)
+            )
+        ]
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_the_watcher_reads_and_records_with_nothing_outstanding():
+    """Scanning no longer waits for an obligation, and an unmatched payout survives as a row.
+
+    This is the whole inversion. Before it the cursor only moved inside a scan that an
+    outstanding obligation had authorised, so a quiet period left the watcher behind finality
+    and a payout made during one was never read at all. Here there is nothing owed, and the
+    payout is still read, still recorded, and still available to be claimed later.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        submission_id, reward_id = seed_pending(sync_sessions)
+        async_sessions = async_session_factory(async_engine)
+        source = FakePayoutSource(
+            finalized=102, best=102, payouts={102: (observed_payout(),)}
+        )
+        watcher = PayoutWatcher(
+            settings=settings(dsn), sessions=async_sessions, source=source
+        )
+
+        async def scenario():
+            first = await watcher.scan_once()
+            assert first is not None and first.confirmed == 1
+            assert _ledger(sync_sessions) == [
+                ("102-7-13", TreasuryPayoutState.CLAIMED, reward_id)
+            ]
+
+            # Nothing is owed now. A payout still arrives, and is still read.
+            orphan = replace(
+                observed_payout(),
+                block=140,
+                block_timestamp=START + dt.timedelta(seconds=139 * 12),
+                extrinsic_index=2,
+                event_index=5,
+                amount_rao=999_000_000_000,
+            )
+            source.finalized = source.best = 150
+            source.payouts[140] = (orphan,)
+
+            second = await watcher.scan_once()
+            assert second is not None
+            assert second.observed == 1
+            assert second.unmatched == 1
+            assert second.confirmed == 0
+
+            async with async_sessions() as session:
+                cursor = await store.cursor(session)
+                assert cursor is not None
+                # The cursor moved with no obligation outstanding, which is the point.
+                assert cursor.last_scanned_block == 150
+
+            assert _ledger(sync_sessions) == [
+                ("102-7-13", TreasuryPayoutState.CLAIMED, reward_id),
+                ("140-2-5", TreasuryPayoutState.UNCLAIMED, None),
+            ]
+            assert submission_id is not None
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_a_payout_made_before_its_obligation_is_recorded_then_bound_by_hand():
+    """The incident this table was built for, end to end.
+
+    Somebody paid a solver by hand before the notifier had seeded the obligation. Automatic
+    matching must still refuse -- `_oldest_match` will not let a new obligation eat an older
+    lookalike transfer, and relaxing that would be the more expensive bug. What changes is that
+    refusing is no longer the end of it: the payout is a durable row, an operator binds it to the
+    obligation it actually paid, and no second payout command is ever rendered.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        async_sessions = async_session_factory(async_engine)
+        seed_pending(sync_sessions)
+        source = FakePayoutSource(
+            finalized=102, best=102, payouts={102: (observed_payout(),)}
+        )
+        watcher = PayoutWatcher(
+            settings=settings(dsn), sessions=async_sessions, source=source
+        )
+        orphan_at = START + dt.timedelta(seconds=139 * 12)
+        orphan = replace(
+            observed_payout(),
+            block=140,
+            block_timestamp=orphan_at,
+            extrinsic_index=2,
+            event_index=5,
+        )
+
+        async def scenario():
+            # Settle the first obligation, which is what opens the cursor.
+            assert (await watcher.scan_once()) is not None
+
+            # A hand-made payment lands while nothing is owed.
+            source.finalized = source.best = 150
+            source.payouts[140] = (orphan,)
+            scanned = await watcher.scan_once()
+            assert scanned is not None
+            assert scanned.unmatched == 1 and scanned.confirmed == 0
+            assert _ledger(sync_sessions)[-1] == (
+                "140-2-5",
+                TreasuryPayoutState.UNCLAIMED,
+                None,
+            )
+
+            # Only now does the notifier seed the obligation that payment was for.
+            submission_id, reward_id = seed_pending(
+                sync_sessions,
+                marker="-late",
+                created_at=orphan_at + dt.timedelta(hours=4),
+            )
+
+            # Refused, deliberately: the obligation postdates the payment by far more than the
+            # chain-clock tolerance, so nothing may claim it automatically, however many passes run.
+            assert (await watcher.scan_once()) is not None
+            assert (await watcher.scan_once()) is not None
+            async with async_sessions() as session:
+                reward = await session.get(RewardEvent, reward_id)
+                assert reward is not None and reward.status == PayoutState.PENDING
+                queue = await store.unclaimed_payouts(session)
+                assert [row.extrinsic_reference for row in queue] == ["140-2-5"]
+                payout_id = queue[0].id
+
+            # An operator says what that money was for.
+            async with async_session_scope(async_sessions) as session:
+                update = await store.bind_payout(
+                    session,
+                    payout_id=payout_id,
+                    reward_event_id=reward_id,
+                    note="paid by hand before the notifier was repaired",
+                )
+            assert update.changed is True
+
+            async with async_sessions() as session:
+                reward = await session.get(RewardEvent, reward_id)
+                submission = await session.get(Submission, submission_id)
+                assert reward is not None
+                assert reward.status == PayoutState.CONFIRMED
+                assert reward.chain_observed is True
+                assert reward.extrinsic_reference == "140-2-5"
+                assert submission is not None
+                assert submission.reward_status == RewardState.REWARDED
+                # The queue is empty, so nothing prompts a second payment.
+                assert await store.unclaimed_payouts(session) == ()
+            assert _ledger(sync_sessions)[-1] == (
+                "140-2-5",
+                TreasuryPayoutState.CLAIMED,
+                reward_id,
+            )
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_an_obligation_seeded_just_after_its_payment_still_settles_itself():
+    """Inside the chain-clock tolerance the retry pass closes the race without an operator.
+
+    The narrow but real case: a payout is observed, matches nothing, and the notifier seeds its
+    obligation moments later. Automatic matching is still permitted there, so needing a human
+    would be a worse answer than retrying.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        async_sessions = async_session_factory(async_engine)
+        seed_pending(sync_sessions)
+        orphan_at = START + dt.timedelta(seconds=139 * 12)
+        source = FakePayoutSource(
+            finalized=102, best=102, payouts={102: (observed_payout(),)}
+        )
+        watcher = PayoutWatcher(
+            settings=settings(dsn),
+            sessions=async_sessions,
+            source=source,
+            # The pass runs while the payment is still inside the tolerance window.
+            clock=lambda: orphan_at + dt.timedelta(seconds=30),
+        )
+
+        async def scenario():
+            assert (await watcher.scan_once()) is not None
+
+            source.finalized = source.best = 150
+            source.payouts[140] = (
+                replace(
+                    observed_payout(),
+                    block=140,
+                    block_timestamp=orphan_at,
+                    extrinsic_index=2,
+                    event_index=5,
+                ),
+            )
+            first = await watcher.scan_once()
+            assert first is not None and first.unmatched == 1
+            assert _ledger(sync_sessions)[-1] == (
+                "140-2-5",
+                TreasuryPayoutState.UNCLAIMED,
+                None,
+            )
+
+            # The obligation lands 20 seconds after the block: inside the tolerance.
+            _, reward_id = seed_pending(
+                sync_sessions,
+                marker="-real",
+                created_at=orphan_at + dt.timedelta(seconds=20),
+            )
+            second = await watcher.scan_once()
+            assert second is not None
+            assert second.confirmed == 1
+            assert _ledger(sync_sessions)[-1] == (
+                "140-2-5",
+                TreasuryPayoutState.CLAIMED,
+                reward_id,
+            )
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_rescanning_a_block_records_one_row_and_disregard_empties_the_queue():
+    """Recording is idempotent, so replaying history is safe; disregarding ends a row's life.
+
+    Both halves are what make the ledger operable. Without idempotence a rescan would double-count
+    the treasury's own outgoings; without a disposition the unclaimed queue could only grow, since
+    treasury alpha moves for reasons that are not bounties.
+    """
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        seed_pending(sync_sessions)
+        async_sessions = async_session_factory(async_engine)
+        unrelated = replace(
+            observed_payout(), amount_rao=5_000_000_000, extrinsic_index=1, event_index=2
+        )
+        source = FakePayoutSource(finalized=102, best=102, payouts={102: (unrelated,)})
+        watcher = PayoutWatcher(
+            settings=settings(dsn), sessions=async_sessions, source=source
+        )
+
+        async def scenario():
+            assert await watcher.scan_once() is not None
+            assert _ledger(sync_sessions) == [
+                ("102-1-2", TreasuryPayoutState.UNCLAIMED, None)
+            ]
+
+            # Replay the same block by rewinding the cursor, as a deliberate rescan would.
+            async with async_session_scope(async_sessions) as session:
+                cursor = await store.cursor(session)
+                assert cursor is not None
+                cursor.last_scanned_block = 101
+            assert await watcher.scan_once() is not None
+            assert _ledger(sync_sessions) == [
+                ("102-1-2", TreasuryPayoutState.UNCLAIMED, None)
+            ]
+
+            async with async_sessions() as session:
+                queue = await store.unclaimed_payouts(session)
+                payout_id = queue[0].id
+            async with async_session_scope(async_sessions) as session:
+                await store.disregard_payout(
+                    session, payout_id=payout_id, note="treasury rebalance, not a bounty"
+                )
+            async with async_sessions() as session:
+                assert await store.unclaimed_payouts(session) == ()
+            assert _ledger(sync_sessions) == [
+                ("102-1-2", TreasuryPayoutState.DISREGARDED, None)
+            ]
+
+        asyncio.run(scenario())
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
