@@ -19,7 +19,12 @@ if [[ ! -x "$SECCOMP_LAUNCHER" || -L "$SECCOMP_LAUNCHER" ]]; then
 fi
 "$SECCOMP_LAUNCHER" --check-landlock
 
-arguments=()
+# Comparator's environment allowlist omits LEAN_NUM_THREADS. Apply the same
+# single-thread policy as verifier.environment inside this boundary, for both
+# Lake builds and exports. Otherwise Lean detects host CPUs and can exhaust
+# RLIMIT_AS reserving 1 GiB stacks even when physical memory use is small.
+export LEAN_NUM_THREADS=1
+arguments=(--env LEAN_NUM_THREADS)
 while (($#)); do
   case "$1" in
     --best-effort)

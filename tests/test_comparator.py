@@ -62,7 +62,7 @@ def test_sandbox_helpers_keep_default_call_compatibility():
 
 
 def test_comparator_memory_budget_covers_large_kernel_checked_certificates():
-    assert COMPARATOR_MEMORY_BYTES == 64 * 1024 * 1024 * 1024
+    assert COMPARATOR_MEMORY_BYTES == 96 * 1024 * 1024 * 1024
 
 
 def test_the_process_cap_applies_under_production_isolation_only():
