@@ -326,9 +326,22 @@ ps:
 logs *service:
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} logs -f --tail=200 "$@"
 
-# Apply pending migrations only, then exit.
+# Two databases, two tools: Flyway owns the proofs schema (plain SQL) and Alembic owns
+# the competition schema (generated from the models). They share nothing, so `migrate`
+# runs both and either can be run alone when only one moved.
+
+# Apply pending migrations to both databases, then exit.
 migrate: _preflight
     {{ compose }} up --exit-code-from migrate migrate
+    {{ compose }} up --exit-code-from migrate-competition migrate-competition
+
+# Apply pending proofs-database migrations only (Flyway).
+migrate-proofs: _preflight
+    {{ compose }} up --exit-code-from migrate migrate
+
+# Apply pending competition-database migrations only (Alembic).
+migrate-competition: _preflight
+    {{ compose }} up --exit-code-from migrate-competition migrate-competition
 
 # deploy/db/01_competition.sh creates this database, but the postgres entrypoint runs
 # it only on an empty data directory. A cluster that predates the competition work
@@ -423,6 +436,22 @@ pin-tasks: _check-docker _check-env
 # Open a psql shell on the database.
 psql:
     docker exec -it conjectures_db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+
+# Open a psql shell on the competition database.
+competition-psql:
+    docker exec -it conjectures_db sh -c 'psql -U "$POSTGRES_USER" -d "${COMPETITION_POSTGRES_DB:-conjectures_competition}"'
+
+# Writes the file and stops. Read it before committing -- autogenerate is a first draft,
+# not an authority: it does not see data migrations, it renders a rename as a drop plus an
+# add, and tests/test_competition_schema.py is what decides whether the result agrees with
+# the models. Runs on the host, not in the migration image, because the output is a source
+# file that belongs in this checkout. Needs the `competition` extra in the active
+# environment (`pip install -e '.[competition]'`); nothing else in this file assumes a
+# Python environment, so it is named here rather than assumed.
+
+# Autogenerate a competition revision: `just competition-revision add-foo`
+competition-revision message: _check-env
+    python -m alembic -c deploy/migrate/competition/alembic.ini revision --autogenerate -m "{{ message }}"
 
 # Hit the API's liveness and readiness endpoints.
 health:

@@ -31,8 +31,11 @@ service = [
     "uvicorn==0.51.0",
 ]
 subnet = ["bittensor==11.0.0"]
-# Database access only. Migrations are plain SQL applied by Flyway
-# (deploy/migrate/sql), so no migration tool belongs in this extra.
+# Database access only. The proofs schema's migrations are plain SQL applied by
+# Flyway (deploy/migrate/sql), so no migration tool belongs in this extra -- and
+# that stays true now that a second database exists: Alembic owns the competition
+# schema alone, and it is in `competition` below so that nothing which merely
+# reads the proofs database drags a migration tool in with it.
 # greenlet is explicit rather than left to SQLAlchemy's platform-conditional
 # dependency, because the API drives the async engine and would fail at runtime
 # with MissingGreenlet on any platform where that condition does not hold.
@@ -41,6 +44,10 @@ db = [
     "greenlet==3.5.4",
     "psycopg[binary]==3.3.4",
 ]
+# The competition schema, in its own database. Unlike the proofs schema, these
+# models are the source of truth and Alembic generates the deploy path from them,
+# which is why a migration tool appears here and nowhere else.
+competition = ["formal-conjectures-verifier[db]", "alembic==1.20.0"]
 
 [project.scripts]
 fc-verifier = "verifier.cli:main"

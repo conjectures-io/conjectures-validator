@@ -108,5 +108,20 @@ services:
     command: ["migrate"]
     restart: "no"
 
+  # The competition schema for the suite, in the second database 00_init.sh's companion
+  # script created. Fixed credentials like everything else in this stack.
+  migrate-competition:
+    build:
+      context: .
+      dockerfile: deploy/migrate/competition/Dockerfile
+    image: conjectures-competition-migrate:local
+    container_name: conjectures-migrate-competition-pytest
+    environment:
+      COMPETITION_DATABASE_URL: postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw@db:5432/conjectures-pytest-competition
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   pgdata:

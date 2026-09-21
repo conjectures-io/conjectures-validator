@@ -109,5 +109,30 @@ services:
     command: ["migrate"]
     restart: "no"
 
+  # The competition schema, in its own database. A separate one-shot from `migrate`
+  # above because it is a different tool against a different database: Alembic owns this
+  # schema and Flyway owns the proofs one. They touch nothing in common, so they can run
+  # concurrently; both gate on the same healthy `db`.
+  #
+  # Built rather than pulled, unlike Flyway, because these revisions import the
+  # SQLAlchemy models they were generated from. See deploy/migrate/competition/Dockerfile.
+  migrate-competition:
+    build:
+      context: .
+      dockerfile: deploy/migrate/competition/Dockerfile
+    image: conjectures-competition-migrate:local
+    container_name: conjectures_migrate_competition
+    env_file: .env
+    environment:
+      # Named explicitly rather than inherited from .env, so this container cannot be
+      # pointed at the proofs database by an environment that happens to set
+      # COMPETITION_DATABASE_URL for host-side use. `db` is the compose hostname; 5432 is
+      # the in-network port regardless of what POSTGRES_PORT publishes on the host.
+      COMPETITION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${COMPETITION_POSTGRES_DB:-conjectures_competition}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   pgdata:
