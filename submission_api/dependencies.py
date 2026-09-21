@@ -25,6 +25,7 @@ from conjectures_subnet.db.models import MINER_ROLE, AccountSessionKind
 from submission_api import origin_policy, security
 from submission_api import sessions as session_layer
 from submission_api.auth import Authenticator
+from submission_api.competitions import CompetitionRegistry
 from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
 from submission_api.errors import Forbidden, ServiceUnavailable, Unauthorized
@@ -89,6 +90,9 @@ class Services:
     # handler touching both is two units of work and has to be written as such.
     competition_engine: AsyncEngine | None = None
     competition_sessions: async_sessionmaker | None = None
+    # Which competitions this deployment serves. Empty by default, so a service graph that
+    # did not opt in 404s every slug rather than serving one it was never configured with.
+    competitions: CompetitionRegistry = field(default_factory=CompetitionRegistry.empty)
     # Fail closed for manually assembled service graphs that do not opt in to Google. Production
     # construction always replaces this with the client-ID-bound verifier.
     google: GoogleCredentialVerifier = field(

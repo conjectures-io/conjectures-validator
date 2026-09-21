@@ -13,10 +13,11 @@ import logging
 from collections.abc import Callable, Iterable
 from typing import Protocol, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
+from . import _statements as q
 from . import models
 from conjectures_subnet.db.engine import session_scope
 
@@ -150,19 +151,12 @@ class RegistrationsDb:
         # Whether the subnet has ever carried this hotkey. A miner who has not registered
         # is refused before anything else is checked.
         with session_scope(self._sessions) as session:
-            return (
-                session.execute(
-                    select(models.Registration.id)
-                    .where(models.Registration.ss58_hot == hotkey)
-                    .limit(1)
-                ).first()
-                is not None
-            )
+            return session.execute(q.is_registered(hotkey)).first() is not None
 
     def available_slots(self, hotkey: str) -> int:
         # Registrations this hotkey holds that no accepted submission has spent yet.
         with session_scope(self._sessions) as session:
-            return _available_slots(session, hotkey)
+            return int(session.execute(q.available_slots(hotkey)).scalar_one())
 
     def claim_slot(self, session: Session, hotkey: str, submission_id: int) -> int:
         """Spend this hotkey's oldest unclaimed registration on `submission_id`.
@@ -191,19 +185,3 @@ class RegistrationsDb:
         session.add(models.EntitlementClaim(registration_id=row[0], submission_id=submission_id))
         session.flush()
         return int(row[0])
-
-
-def _available_slots(session: Session, hotkey: str) -> int:
-    # Shared by the API's reservation check and by available_slots(); takes a session so
-    # the worker can ask the question inside the transaction that is about to claim.
-    claimed = select(models.EntitlementClaim.registration_id)
-    return int(
-        session.execute(
-            select(func.count())
-            .select_from(models.Registration)
-            .where(
-                models.Registration.ss58_hot == hotkey,
-                models.Registration.id.not_in(claimed),
-            )
-        ).scalar_one()
-    )

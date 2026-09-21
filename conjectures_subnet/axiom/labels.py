@@ -50,6 +50,11 @@ Source: TypeAlias = Literal[
     "api-admin",
     "api-auth",
     "api-catalog",
+    # The proof-gated competitions. Its own source because its failure modes belong to a
+    # different machine: the gate runs on bare metal with Lean and cargo, against a second
+    # database, and "the competition queue is not draining" is an incident about that host
+    # rather than about the API serving this label's requests.
+    "api-competitions",
     "api-health",
     "api-intents",
     "api-me",

@@ -47,6 +47,7 @@ from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import Base
 from submission_api.app import create_app
+from submission_api.competitions import Competition, CompetitionRegistry
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
@@ -380,6 +381,20 @@ def harness(
             async_session_factory(competition_engine)
             if competition_engine is not None
             else None
+        ),
+        # Mirrors build_services: the registry is populated exactly when there is a
+        # database to serve it from, so a test cannot reach a competition whose rows have
+        # nowhere to live.
+        competitions=(
+            CompetitionRegistry.of(
+                Competition(
+                    slug=settings.competition_slug,
+                    name=settings.competition_name,
+                    speed_floor=settings.competition_speed_floor,
+                )
+            )
+            if competition_engine is not None
+            else CompetitionRegistry.empty()
         ),
         catalog=catalog,
         authenticator=build_authenticator(settings),

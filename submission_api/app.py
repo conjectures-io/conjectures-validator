@@ -61,6 +61,7 @@ from conjectures_subnet.db import (
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
+from submission_api.competitions import Competition, CompetitionRegistry
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.dependencies import Services
 from submission_api.github import (
@@ -86,6 +87,7 @@ from submission_api.pins import PinSet, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
+from submission_api.routers import competitions as competitions_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
@@ -184,8 +186,16 @@ def build_services(
     # databases: Alembic owns that schema and Flyway owns this one, and nothing joins across
     # them. Built here, beside the other, so both are disposed by the same lifespan.
     competition_engine: AsyncEngine | None = None
+    competitions = CompetitionRegistry.empty()
     if settings.competitions_enabled:
         competition_engine = create_async_db_engine(competition_url(settings))
+        competitions = CompetitionRegistry.of(
+            Competition(
+                slug=settings.competition_slug,
+                name=settings.competition_name,
+                speed_floor=settings.competition_speed_floor,
+            )
+        )
     balance_reader = (
         BittensorBalanceReader(
             network=settings.bittensor_network,
@@ -210,6 +220,7 @@ def build_services(
             if competition_engine is not None
             else None
         ),
+        competitions=competitions,
         catalog=resolved_catalog,
         retired=resolved_retired,
         authenticator=build_authenticator(settings),
@@ -455,11 +466,19 @@ def create_app(
     # /{submission_id}, which is typed as a UUID.
     application.include_router(auth.router)
     application.include_router(me.router)
+    # The account's own competition submissions. Its path is under /v1/me, its code is with
+    # the rest of the competition handlers; `me.router` declares no /competitions segment,
+    # so the two cannot collide.
+    application.include_router(competitions_router.me_router)
     application.include_router(intents.router)
     # The one-call website path. Shares the /v1/submissions prefix with both of the above, and
     # /web is a fixed segment like /preflight and /intents, so it cannot collide with the
     # UUID-typed /{submission_id} either.
     application.include_router(web_submissions.router)
+    # After the `/v1/submissions` family and before `/v1/admin`, matching the order the
+    # surfaces are documented in. Its own prefix, so no fixed-segment-before-typed-path
+    # question arises with any of them.
+    application.include_router(competitions_router.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
     # advisory record behind it). Both are role-gated at every route, and gated again on the

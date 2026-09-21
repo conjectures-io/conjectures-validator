@@ -6,14 +6,14 @@ import datetime as dt
 import logging
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, func, select, update
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
+from . import _statements as q
 from . import clock, models
 from conjectures_subnet.db.engine import session_scope
-from .registrations import NoSlot, RegistrationsDb, _available_slots
-from .status import PENDING, SubmissionState
+from .registrations import NoSlot, RegistrationsDb
+from .status import SubmissionState
 
 logger = logging.getLogger(__name__)
 
@@ -39,32 +39,38 @@ class SubmissionsDb:
         self._registrations = RegistrationsDb(sessions)
 
     # --- writing --------------------------------------------------------------
-    def add(self, hotkey: str, digest: str) -> tuple[int, bool]:
+    def add(
+        self,
+        hotkey: str,
+        digest: str,
+        *,
+        parse_source: bytes = b"",
+        proof_source: bytes = b"",
+    ) -> tuple[int, bool]:
         """Queue a submission. The same files from the same hotkey return the same id.
 
-        Returns (id, fresh). `fresh` is False for a resubmission, which is what tells the
-        API not to rewrite the stored files -- an idempotent submit, unchanged since the
-        competition's first service.
+        Returns (id, fresh). `fresh` is False for a resubmission -- an idempotent submit,
+        unchanged since the competition's first service.
+
+        The API does not call this; it uses the async path in `queries.py`, which shares
+        the same statement. This one remains for operator tooling and for tests that seed
+        a queue, which is why the two file columns have empty defaults rather than being
+        required: a seeded row that no gate will ever run needs no sources.
         """
         with session_scope(self._sessions) as session:
-            stmt = (
-                insert(models.Submission)
-                .values(
+            fresh_id = session.execute(
+                q.insert_submission(
                     hotkey=hotkey,
                     digest=digest,
                     submitted_at=clock.now(),
-                    state=SubmissionState.QUEUED.value,
+                    parse_source=parse_source,
+                    proof_source=proof_source,
                 )
-                .on_conflict_do_nothing(index_elements=["hotkey", "digest"])
-                .returning(models.Submission.id)
-            )
-            fresh_id = session.execute(stmt).scalar_one_or_none()
+            ).scalar_one_or_none()
             if fresh_id is not None:
                 return int(fresh_id), True
             existing = session.execute(
-                select(models.Submission.id).where(
-                    models.Submission.hotkey == hotkey, models.Submission.digest == digest
-                )
+                q.submission_id_by_digest(hotkey, digest)
             ).scalar_one()
             return int(existing), False
 
@@ -166,16 +172,7 @@ class SubmissionsDb:
     def pending_from(self, hotkey: str) -> int:
         # How many of this hotkey's submissions are queued or being verified.
         with session_scope(self._sessions) as session:
-            return int(
-                session.execute(
-                    select(func.count())
-                    .select_from(models.Submission)
-                    .where(
-                        models.Submission.hotkey == hotkey,
-                        models.Submission.state.in_([s.value for s in PENDING]),
-                    )
-                ).scalar_one()
-            )
+            return int(session.execute(q.pending_count(hotkey)).scalar_one())
 
     def may_queue(self, hotkey: str) -> tuple[bool, int, int]:
         """(allowed, slots, pending) for this hotkey, read in one transaction.
@@ -185,28 +182,13 @@ class SubmissionsDb:
         service. The slot is not taken here -- only acceptance spends one.
         """
         with session_scope(self._sessions) as session:
-            slots = _available_slots(session, hotkey)
-            pending = int(
-                session.execute(
-                    select(func.count())
-                    .select_from(models.Submission)
-                    .where(
-                        models.Submission.hotkey == hotkey,
-                        models.Submission.state.in_([s.value for s in PENDING]),
-                    )
-                ).scalar_one()
-            )
+            slots = int(session.execute(q.available_slots(hotkey)).scalar_one())
+            pending = int(session.execute(q.pending_count(hotkey)).scalar_one())
             return pending < slots, slots, pending
 
     def queue_depth(self) -> int:
         with session_scope(self._sessions) as session:
-            return int(
-                session.execute(
-                    select(func.count())
-                    .select_from(models.Submission)
-                    .where(models.Submission.state.in_([s.value for s in PENDING]))
-                ).scalar_one()
-            )
+            return int(session.execute(q.queue_depth()).scalar_one())
 
     def leaderboard(self) -> list[models.Submission]:
         """Every hotkey's best accepted submission, fewest bytes first.
@@ -217,25 +199,8 @@ class SubmissionsDb:
         the competition has always ranked by, and the one the rules promise.
         """
         with session_scope(self._sessions) as session:
-            rows = (
-                session.execute(
-                    select(models.Submission)
-                    .distinct(models.Submission.hotkey)
-                    .where(
-                        models.Submission.state == SubmissionState.ACCEPTED.value,
-                        models.Submission.bytes.is_not(None),
-                    )
-                    .order_by(
-                        models.Submission.hotkey,
-                        models.Submission.bytes,
-                        models.Submission.submitted_at,
-                        models.Submission.id,
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            ordered = sorted(rows, key=lambda r: (r.bytes, r.submitted_at, r.id))
+            rows = session.execute(q.leaderboard()).scalars().all()
+            ordered = q.order_leaderboard(list(rows))
             for row in ordered:
                 session.expunge(row)
             return ordered
@@ -244,9 +209,4 @@ class SubmissionsDb:
         # The incumbent's total as the most recent report measured it. It moves when the
         # operator promotes a new incumbent, so the newest measurement is the right one.
         with session_scope(self._sessions) as session:
-            return session.execute(
-                select(models.Submission.incumbent_bytes)
-                .where(models.Submission.incumbent_bytes.is_not(None))
-                .order_by(models.Submission.id.desc())
-                .limit(1)
-            ).scalar_one_or_none()
+            return session.execute(q.latest_incumbent_bytes()).scalar_one_or_none()

@@ -6,9 +6,9 @@ import datetime as dt
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, delete, select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
+from . import _statements as q
 from . import clock, models
 from conjectures_subnet.db.engine import session_scope
 
@@ -47,16 +47,9 @@ class RateLimiter:
         """
         start = window_start(clock.now(), self._window)
         with session_scope(self._sessions) as session:
-            stmt = (
-                insert(models.RateLimitWindow)
-                .values(subject=subject, window_start=start, hits=1)
-                .on_conflict_do_update(
-                    index_elements=["subject", "window_start"],
-                    set_={"hits": models.RateLimitWindow.hits + 1},
-                )
-                .returning(models.RateLimitWindow.hits)
+            hits = int(
+                session.execute(q.touch_rate_window(subject, start)).scalar_one()
             )
-            hits = int(session.execute(stmt).scalar_one())
             return hits <= self._limit, hits
 
     def peek(self, subject: str) -> int:

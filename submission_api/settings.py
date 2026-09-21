@@ -708,6 +708,11 @@ def _cors_origins(
     return tuple(sorted(set(origins)))
 
 
+# Each of the two submitted competition files. Generous on purpose: the largest reference
+# submission is under 20 KB, so anything approaching this is not a parser and a proof.
+MAX_COMPETITION_FILE_BYTES = 512 * 1024
+
+
 @dataclass(frozen=True)
 class Settings:
     app_mode: str
@@ -722,6 +727,18 @@ class Settings:
     # is the POSTGRES_* credentials with COMPETITION_POSTGRES_DB. Production requires it
     # explicitly; see from_env.
     competition_database_url: str
+    # Which competition this deployment serves. One, because the competition schema carries
+    # no slug column -- see submission_api/competitions.py.
+    competition_slug: str
+    competition_name: str
+    competition_speed_floor: float
+    # Signed submissions allowed per hotkey per minute, counted in Postgres rather than in
+    # process memory: an in-process counter is a limit per replica per uptime, and what
+    # needs bounding here is a hotkey's claim on gate time across the whole deployment.
+    competition_rate_per_minute: int
+    # How far a submission's signed timestamp may sit from this clock. A captured request is
+    # useless once it falls outside, which is what stops a recorded upload being replayed.
+    competition_signature_window_seconds: int
     task_allowlist_path: Path
     task_pool_root: Path
     verifier_project_root: Path
@@ -1524,6 +1541,23 @@ class Settings:
             database_url=env.get("DATABASE_URL", "").strip(),
             competitions_enabled=competitions_enabled,
             competition_database_url=competition_database_url,
+            competition_slug=env.get("COMPETITION_SLUG", "").strip() or "miniz-oxide",
+            competition_name=(
+                env.get("COMPETITION_NAME", "").strip() or "miniz_oxide DEFLATE"
+            ),
+            competition_speed_floor=_positive_float(
+                env, "COMPETITION_SPEED_FLOOR", 8.0, maximum=1_000.0
+            ),
+            competition_rate_per_minute=_bounded_int(
+                env, "COMPETITION_RATE_PER_MINUTE", 10, minimum=1, maximum=10_000
+            ),
+            competition_signature_window_seconds=_bounded_int(
+                env,
+                "COMPETITION_SIGNATURE_WINDOW_SECONDS",
+                300,
+                minimum=1,
+                maximum=86_400,
+            ),
             # Renamed with the pool itself: neither gold/allowlist.json nor a gold pool exists
             # any more, so the old names could only ever have resolved to nothing.
             task_allowlist_path=_directory(
