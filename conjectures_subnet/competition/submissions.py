@@ -94,6 +94,9 @@ class SubmissionsDb:
             row.state = SubmissionState.VERIFYING.value
             row.worker_id = worker_id
             row.claimed_at = clock.now()
+            # Counted on the claim, not on the outcome: a worker that dies mid-gate never
+            # reaches an outcome, and that is exactly the case the cap exists to bound.
+            row.attempts = (row.attempts or 0) + 1
             session.flush()
             session.expunge(row)
             return row
@@ -131,6 +134,23 @@ class SubmissionsDb:
                 logger.info("submission %d spent registration %d", sub_id, registration)
             row.state = state.value
             return state.value
+
+    def abandon(self, sub_id: int, note: str) -> None:
+        """Give up on a submission the gate keeps breaking on.
+
+        Terminal `error`, not `rejected`: nothing here is a statement about the miner's
+        submission, and it must not spend their registration. It exists so one poisonous row
+        stops blocking the queue behind it and starts being visible to an operator instead.
+        """
+        with session_scope(self._sessions) as session:
+            row = session.get(models.Submission, sub_id, with_for_update=True)
+            if row is None:
+                raise LookupError(f"no submission {sub_id}")
+            row.state = SubmissionState.ERROR.value
+            row.finished_at = clock.now()
+            row.report = (row.report or "") + note
+            row.worker_id = None
+            row.claimed_at = None
 
     def requeue(self, sub_id: int) -> None:
         # Put a submission back at the head of the queue without charging it: the gate

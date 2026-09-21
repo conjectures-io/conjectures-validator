@@ -134,6 +134,12 @@ class Submission(Base):
     worker_id: Mapped[str | None] = mapped_column(Text)
     claimed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    # How many times a worker has claimed this row. A validator-side error requeues a
+    # submission uncharged, which is right -- it is not the miner's fault -- but without a
+    # count a submission that breaks the gate every time cycles forever, and the queue behind
+    # it never moves. The worker gives up on it after `max_attempts` and marks it `error`,
+    # which is the outcome an operator can actually see.
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     claim: Mapped[EntitlementClaim | None] = relationship(back_populates="submission")
 

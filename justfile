@@ -437,6 +437,16 @@ pin-tasks: _check-docker _check-env
 psql:
     docker exec -it conjectures_db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 
+# The gate worker does not run here: it needs bubblewrap, elan/Lean, Charon/Aeneas and
+# cargo, so it lives on a gate host under systemd (deploy/worker/*competition-worker*). This
+# runs its preflight against whatever this shell is configured for -- every gate in the
+# registry verified against its pinned commit and PINS.json, plus the database -- without
+# claiming a submission. Run it after editing deploy/competitions/registry.json.
+
+# Verify the competition gates and database without taking work.
+competition-worker-check:
+    python -m competition_worker --check
+
 # Open a psql shell on the competition database.
 competition-psql:
     docker exec -it conjectures_db sh -c 'psql -U "$POSTGRES_USER" -d "${COMPETITION_POSTGRES_DB:-conjectures_competition}"'
