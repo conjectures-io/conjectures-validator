@@ -330,6 +330,19 @@ logs *service:
 migrate: _preflight
     {{ compose }} up --exit-code-from migrate migrate
 
+# deploy/db/01_competition.sh creates this database, but the postgres entrypoint runs
+# it only on an empty data directory. A cluster that predates the competition work
+# therefore has the volume but not the database, and nothing announces it: Alembic
+# connects to a named database and reports it missing, it does not create one.
+#
+# The script is piped in rather than mounted so this works against a container that
+# was started before the mount existed — which is exactly the cluster that needs it.
+# Idempotent, so running it on a cluster that already has the database is a no-op.
+
+# Create the competition database on a cluster initialised without it.
+db-create-competition: _check-docker _check-env
+    {{ compose }} exec -T -e COMPETITION_POSTGRES_DB="${COMPETITION_POSTGRES_DB:-conjectures_competition}" db bash -s < deploy/db/01_competition.sh
+
 # Rewrites checksums for migrations that are already applied and touches no application
 # data. The answer to "Migration checksum mismatch for migration version NNN" on a
 # development box whose database came from somewhere else. On production the same message
