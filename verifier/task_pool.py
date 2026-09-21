@@ -27,9 +27,9 @@ TASK_TARGET_SCHEMA_VERSION = 3
 RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 259
+DEFAULT_TIER_SIZE = 295
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
-MINIMUM_ERDOS_TASKS = 236
+MINIMUM_ERDOS_TASKS = 238
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
 SUBPROBLEM_POOL_SELECTION = "audited-part-or-variant-v2"
 TASK_POOL_GROUPING = "none-single-target-v1"
@@ -44,7 +44,12 @@ ERDOS_SOURCE_PREFIX = "FormalConjectures/ErdosProblems/"
 GREENS_OPEN_PROBLEMS_SOURCE_PREFIX = "FormalConjectures/GreensOpenProblems/"
 ERDOS_SOURCE_FAMILY = "erdos"
 GREENS_OPEN_PROBLEMS_SOURCE_FAMILY = "greens-open-problems"
+WIKIPEDIA_SOURCE_FAMILY = "wikipedia"
+MILLENNIUM_SOURCE_FAMILY = "millennium"
+NAMED_SOURCE_FAMILIES = frozenset({WIKIPEDIA_SOURCE_FAMILY, MILLENNIUM_SOURCE_FAMILY})
 SOURCE_FAMILY_PREFIXES = {
+    WIKIPEDIA_SOURCE_FAMILY: "FormalConjectures/Wikipedia/",
+    MILLENNIUM_SOURCE_FAMILY: "FormalConjectures/Millennium/",
     ERDOS_SOURCE_FAMILY: ERDOS_SOURCE_PREFIX,
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: GREENS_OPEN_PROBLEMS_SOURCE_PREFIX,
 }
@@ -53,9 +58,49 @@ SOURCE_FAMILY_THEOREM_PREFIXES = {
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: "Green",
 }
 SOURCE_FAMILY_STATUSES = {
+    WIKIPEDIA_SOURCE_FAMILY: frozenset({"open"}),
+    MILLENNIUM_SOURCE_FAMILY: frozenset({"open"}),
     ERDOS_SOURCE_FAMILY: frozenset({"decidable", "falsifiable", "open", "verifiable"}),
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: frozenset({"open"}),
 }
+# Named source identities are explicit: a similar filename or namespace is not admission.
+NAMED_SOURCE_NAMESPACES = {
+    "FormalConjectures/Millennium/RiemannHypothesis.lean": "RiemannHypothesis",
+    "FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean": "ArtinPrimitiveRootsConjecture",
+    "FormalConjectures/Wikipedia/BorsukConjecture.lean": "Borsuk",
+    "FormalConjectures/Wikipedia/BrocardConjecture.lean": "Brocard",
+    "FormalConjectures/Wikipedia/Bunyakovsky.lean": "Bunyakovsky",
+    "FormalConjectures/Wikipedia/CarmichaelTotient.lean": "CarmichaelTotient",
+    "FormalConjectures/Wikipedia/ClassNumberProblem.lean": "ClassNumberProblem",
+    "FormalConjectures/Wikipedia/Dickson.lean": "Dickson",
+    "FormalConjectures/Wikipedia/Fermat.lean": "Fermat",
+    "FormalConjectures/Wikipedia/GaussCircleProblem.lean": "GaussCircleProblem",
+    "FormalConjectures/Wikipedia/GoldbachConjecture.lean": "GoldbachConjecture",
+    "FormalConjectures/Wikipedia/Goormaghtigh.lean": "Goormaghtigh",
+    "FormalConjectures/Wikipedia/Hadamard.lean": "Hadamard",
+    "FormalConjectures/Wikipedia/HardyLittlewood.lean": "HardyLittlewood",
+    "FormalConjectures/Wikipedia/IdonealCompleteness.lean": "Idoneal",
+    "FormalConjectures/Wikipedia/InscribedSquare.lean": "InscribedSquare",
+    "FormalConjectures/Wikipedia/InverseGalois.lean": "InverseGalois",
+    "FormalConjectures/Wikipedia/Irrational.lean": "Irrational",
+    "FormalConjectures/Wikipedia/KummerVandiver.lean": "KummerVandiver",
+    "FormalConjectures/Wikipedia/LegendreConjecture.lean": "LegendreConjecture",
+    "FormalConjectures/Wikipedia/LehmerMahlerMeasureProblem.lean": "LehmerMahlerMeasureProblem",
+    "FormalConjectures/Wikipedia/LehmerTotient.lean": "LehmerTotient",
+    "FormalConjectures/Wikipedia/Lemoine.lean": "Lemoine",
+    "FormalConjectures/Wikipedia/Mersenne.lean": "Mersenne",
+    "FormalConjectures/Wikipedia/NormalityOfPi.lean": "NormalNumber",
+    "FormalConjectures/Wikipedia/Oppermann.lean": "Oppermann",
+    "FormalConjectures/Wikipedia/PerfectNumbers.lean": "PerfectNumbers",
+    "FormalConjectures/Wikipedia/PollocksConjecture.lean": "PollocksConjecture",
+    "FormalConjectures/Wikipedia/PrimesAndPerfectSquares.lean": "PrimesAndPerfectSquares",
+    "FormalConjectures/Wikipedia/RegularPrimes.lean": "RegularPrimes",
+    "FormalConjectures/Wikipedia/TwinPrimes.lean": "TwinPrimes",
+}
+CLASSICAL_STATUS_LOCATOR = (
+    "https://github.com/conjectures-io/conjectures-tasks/blob/main/"
+    "tiers/tier-1/classical-status-audit.json"
+)
 SOURCE_STATUS_SPECS = (
     {
         "family": ERDOS_SOURCE_FAMILY,
@@ -67,6 +112,10 @@ SOURCE_STATUS_SPECS = (
         "locator": "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
         "revision_kind": "document-update",
     },
+)
+SOURCE_STATUS_SPECS += tuple(
+    {"family": family, "locator": CLASSICAL_STATUS_LOCATOR, "revision_kind": "sha256"}
+    for family in (WIKIPEDIA_SOURCE_FAMILY, MILLENNIUM_SOURCE_FAMILY)
 )
 EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
 FEASIBILITY_SIGNALS = frozenset(
@@ -122,7 +171,7 @@ class AuditedSelectionEntry:
     theorem: str
     source_path: str
     source_family: str
-    source_problem_number: int
+    source_problem_number: int | str
     source_status: str
     feasibility_signals: tuple[str, ...]
     open_prs_touching_source: tuple[int, ...]
@@ -160,7 +209,7 @@ class TaskTarget:
     theorem: str
     source_path: str
     source_family: str
-    source_problem_number: int
+    source_problem_number: int | str
     reward_target_id: str
 
 
@@ -190,13 +239,17 @@ def _is_commit(value: object) -> bool:
 
 
 def source_family_from_path(source_path: object) -> str | None:
-    """Return the audited family only for a canonical numbered source path."""
+    """Return a family only for a canonical numbered or explicitly approved named path."""
     if not isinstance(source_path, str):
         return None
     for family, prefix in SOURCE_FAMILY_PREFIXES.items():
         if not source_path.startswith(prefix) or not source_path.endswith(".lean"):
             continue
         problem_number = source_path.removeprefix(prefix).removesuffix(".lean")
+        if family in NAMED_SOURCE_FAMILIES:
+            if source_path in NAMED_SOURCE_NAMESPACES:
+                return family
+            continue
         if problem_number.isdecimal() and int(problem_number) > 0:
             return family
     return None
@@ -211,11 +264,19 @@ def _valid_source_identity(
     if (
         not isinstance(family, str)
         or family not in SOURCE_FAMILY_PREFIXES
-        or type(problem_number) is not int
-        or problem_number <= 0
         or not isinstance(source_path, str)
         or not isinstance(theorem, str)
     ):
+        return False
+    if family in NAMED_SOURCE_FAMILIES:
+        namespace = NAMED_SOURCE_NAMESPACES.get(source_path)
+        return (
+            isinstance(problem_number, str)
+            and source_path == f"{SOURCE_FAMILY_PREFIXES[family]}{problem_number}.lean"
+            and namespace is not None
+            and theorem.startswith(namespace + ".")
+        )
+    if type(problem_number) is not int or problem_number <= 0:
         return False
     return (
         source_path == f"{SOURCE_FAMILY_PREFIXES[family]}{problem_number}.lean"
@@ -223,13 +284,19 @@ def _valid_source_identity(
     )
 
 
-def _valid_source_status_sources(value: object) -> bool:
-    if not isinstance(value, list) or len(value) != len(SOURCE_STATUS_SPECS):
+def _valid_source_status_sources(value: object, required_families: set[str] | None = None) -> bool:
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         return False
-    expected_families = [item["family"] for item in SOURCE_STATUS_SPECS]
+    families = [item.get("family") for item in value]
+    if not all(isinstance(family, str) for family in families):
+        return False
+    if not (required_families or set()) <= set(families):
+        return False
+    specs = [item for item in SOURCE_STATUS_SPECS if item["family"] in families]
+    expected_families = [item["family"] for item in specs]
     if [item.get("family") for item in value if isinstance(item, dict)] != expected_families:
         return False
-    for item, expected in zip(value, SOURCE_STATUS_SPECS, strict=True):
+    for item, expected in zip(value, specs, strict=True):
         if not isinstance(item, dict) or set(item) != {"family", "locator", "revision"}:
             return False
         if item["family"] != expected["family"] or item["locator"] != expected["locator"]:
@@ -237,6 +304,9 @@ def _valid_source_status_sources(value: object) -> bool:
         revision = item["revision"]
         if expected["revision_kind"] == "commit":
             if not _is_commit(revision):
+                return False
+        elif expected["revision_kind"] == "sha256":
+            if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{64}", revision) is None:
                 return False
         elif not (
             isinstance(revision, str)
@@ -270,7 +340,12 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             or not _is_commit(value["repository_commit"])
             or not _is_commit(value["source_main_commit"])
             or value["source_repository"] != "google-deepmind/formal-conjectures"
-            or not _valid_source_status_sources(value["source_status_sources"])
+            or not _valid_source_status_sources(
+                value["source_status_sources"],
+                {item.get("source_family") if isinstance(item.get("source_family"), str) else ""
+                 for item in selected if isinstance(item, dict)}
+                if isinstance(selected, list) else set(),
+            )
             or value["screening_statement"] != SCREENING_STATEMENT
             or type(value["github_open_pr_count"]) is not int
             or value["github_open_pr_count"] <= 0
@@ -339,6 +414,39 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             or len({entry.theorem for entry in entries}) != len(entries)
         ):
             raise ValueError("selection audit entries are invalid")
+        named_entries = tuple(
+            entry for entry in entries if entry.source_family in NAMED_SOURCE_FAMILIES
+        )
+        if named_entries:
+            evidence_bytes = path.with_name("classical-status-audit.json").read_bytes()
+            evidence_hash = sha256_bytes(evidence_bytes).removeprefix("sha256:")
+            if any(
+                item["revision"] != evidence_hash
+                for item in value["source_status_sources"]
+                if item["family"] in NAMED_SOURCE_FAMILIES
+            ):
+                raise ValueError("classical status evidence digest does not match")
+            evidence = json.loads(evidence_bytes)
+            if (
+                not isinstance(evidence, dict)
+                or type(evidence.get("schema_version")) is not int
+                or evidence["schema_version"] != 1
+            ):
+                raise ValueError("classical status evidence schema is invalid")
+            candidates = evidence.get("candidates", [])
+            if not isinstance(candidates, list) or not all(
+                isinstance(item, dict) and isinstance(item.get("theorem"), str)
+                for item in candidates
+            ):
+                raise ValueError("classical status evidence candidates are invalid")
+            reviewed = {item["theorem"]: item for item in candidates}
+            if len(reviewed) != len(candidates) or any(
+                entry.theorem not in reviewed
+                or reviewed[entry.theorem].get("source_path") != entry.source_path
+                or reviewed[entry.theorem].get("disposition") != "retain_provisionally_open"
+                for entry in named_entries
+            ):
+                raise ValueError("named target lacks a matching retained status review")
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
@@ -433,9 +541,9 @@ def load_task_targets(path: Path) -> TaskTargets:
                 )
                 or (
                     value.get("policy") == DIRECT_PROPOSITION_POLICY
-                    and item["theorem"].startswith(
-                        f"{SOURCE_FAMILY_THEOREM_PREFIXES[item['source_family']]}"
-                        f"{item['source_problem_number']}."
+                    and _valid_source_identity(
+                        item["source_family"], item["source_problem_number"],
+                        item["source_path"], item["theorem"],
                     )
                 )
             )

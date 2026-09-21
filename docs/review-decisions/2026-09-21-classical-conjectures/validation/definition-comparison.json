@@ -1,0 +1,14 @@
+{
+  "new_targets_match_audited_definitions": {
+    "targets": 36,
+    "differences": [],
+    "before_sha256": "cbb6cf6b6324a4655c97bcb15a541f129ee4694b8a10d127893834535e92a8bc",
+    "after_sha256": "cbb6cf6b6324a4655c97bcb15a541f129ee4694b8a10d127893834535e92a8bc"
+  },
+  "retained_targets_preserve_definitions": {
+    "targets": 259,
+    "differences": [],
+    "before_sha256": "3f1ca812b7f9317c0eca0ed875594df36f00bc9b37e7531a05b9448a7ca8e6e5",
+    "after_sha256": "3f1ca812b7f9317c0eca0ed875594df36f00bc9b37e7531a05b9448a7ca8e6e5"
+  }
+}

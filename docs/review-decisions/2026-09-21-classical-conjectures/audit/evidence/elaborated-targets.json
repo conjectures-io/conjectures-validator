@@ -1,0 +1,328 @@
+[{"type_pretty": "∀ (n : ℕ), n.Perfect → Even n",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ (n : Nat) (hn : Nat.Perfect n), @Even.{0} Nat instAddNat n",
+  "theorem": "PerfectNumbers.odd_perfect_number_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ {p | Nat.Prime (mersenne p)}.Infinite",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True (@Set.Infinite.{0} Nat (@Set.ofPred.{0} Nat fun (p : Nat) => Nat.Prime (mersenne p)))",
+  "theorem": "Mersenne.infinitely_many_mersenne_primes",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty": "True ↔ Infinite ↑{n | Prime n.fermatNumber}",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True\n  (Infinite.{1}\n    (@Set.Elem.{0} Nat\n      (@Set.ofPred.{0} Nat fun (n : Nat) => @Prime.{0} Nat Nat.instCommMonoidWithZero (Nat.fermatNumber n))))",
+  "theorem": "Fermat.infinite_fermat_primes",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty": "True ↔ ∃ a b c, EulerBrick.IsPerfectCuboid a b c",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "Iff True\n  (@Exists.{1} PNat fun (a : PNat) =>\n    @Exists.{1} PNat fun (b : PNat) => @Exists.{1} PNat fun (c : PNat) => EulerBrick.IsPerfectCuboid a b c)",
+  "theorem": "EulerBrick.perfect_euler_brick_existence",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ Irrational Real.eulerMascheroniConstant",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical": "Iff True (Irrational Real.eulerMascheroniConstant)",
+  "theorem": "Irrational.irrational_eulerMascheroniConstant",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "True ↔ ∀ (n : ℕ), 2 < n → Even n → ∃ p q, Prime p ∧ Prime q ∧ n = p + q",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True\n  (∀ (n : Nat),\n    @LT.lt.{0} Nat instLTNat (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) n →\n      @Even.{0} Nat instAddNat n →\n        @Exists.{1} Nat fun (p : Nat) =>\n          @Exists.{1} Nat fun (q : Nat) =>\n            And (@Prime.{0} Nat Nat.instCommMonoidWithZero p)\n              (And (@Prime.{0} Nat Nat.instCommMonoidWithZero q)\n                (@Eq.{1} Nat n (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) p q))))",
+  "theorem": "GoldbachConjecture.goldbach",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty":
+  "True ↔ ∀ (n : ℕ), Idoneal.IsIdoneal n → n ∈ Idoneal.knownIdonealNumbers",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "type_canonical":
+  "Iff True\n  (∀ (n : Nat),\n    Idoneal.IsIdoneal n →\n      @Membership.mem.{0, 0} Nat (Finset.{0} Nat)\n        (@SetLike.instMembership.{0, 0} (Finset.{0} Nat) Nat (@Finset.instSetLike.{0} Nat)) Idoneal.knownIdonealNumbers\n        n)",
+  "theorem": "Idoneal.idoneal_numbers_completeness",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "True ↔ ∀ n ≥ 1, ∃ p ∈ Set.Ioo (n ^ 2) ((n + 1) ^ 2), Nat.Prime p",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True\n  (∀ (n : Nat),\n    @GE.ge.{0} Nat instLENat n (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))) →\n      @Exists.{1} Nat fun (p : Nat) =>\n        And\n          (@Membership.mem.{0, 0} Nat (Set.{0} Nat) (@Set.instMembership.{0} Nat)\n            (@Set.Ioo.{0} Nat Nat.instPreorder\n              (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n                (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid))) n\n                (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))))\n              (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n                (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid)))\n                (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n\n                  (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))))\n                (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))\n            p)\n          (Nat.Prime p))",
+  "theorem": "LegendreConjecture.legendre_conjecture",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty":
+  "{d | Squarefree d ∧ d > 1 ∧ ClassNumberProblem.IsClassNumberOne d}.Infinite",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "@Set.Infinite.{0} Int\n  (@Set.ofPred.{0} Int fun (d : Int) =>\n    And (@Squarefree.{0} Int Int.instMonoid d)\n      (And (@GT.gt.{0} Int Int.instLTInt d (@OfNat.ofNat.{0} Int (nat_lit 1) (@instOfNat (nat_lit 1))))\n        (ClassNumberProblem.IsClassNumberOne d)))",
+  "theorem": "ClassNumberProblem.class_number_problem",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ {p | Prime p ∧ Prime (p + 2)}.Infinite",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True\n  (@Set.Infinite.{0} Nat\n    (@Set.ofPred.{0} Nat fun (p : Nat) =>\n      And (@Prime.{0} Nat Nat.instCommMonoidWithZero p)\n        (@Prime.{0} Nat Nat.instCommMonoidWithZero\n          (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) p\n            (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))))",
+  "theorem": "TwinPrimes.twin_primes",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty":
+  "∀ (p : ℕ+), p.Prime → ¬↑p ∣ NumberField.classNumber ↥(NumberField.maximalRealSubfield (CyclotomicField ↑p ℚ))",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ (p : PNat) (hp : PNat.Prime p),\n  Not\n    (@Dvd.dvd.{0} Nat Nat.instDvd (PNat.val p)\n      (@NumberField.classNumber.{0}\n        (@Subtype.{1} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n          fun (x : @CyclotomicField.{0} (PNat.val p) Rat Rat.instField) =>\n          @Membership.mem.{0, 0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n            (@Subfield.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n              (@Field.toDivisionRing.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n                (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField)))\n            (@SetLike.instMembership.{0, 0}\n              (@Subfield.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n                (@Field.toDivisionRing.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n                  (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField)))\n              (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n              (@Subfield.instSetLike.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n                (@Field.toDivisionRing.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n                  (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField))))\n            (@NumberField.maximalRealSubfield.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n              (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField))\n            x)\n        (@Subfield.toField.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n          (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField)\n          (@NumberField.maximalRealSubfield.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n            (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField)))\n        (@NumberField.of_subfield.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n          (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField)\n          (@CyclotomicField.instNumberField.{0} (PNat.val p) Rat Rat.instField Rat.numberField)\n          (@NumberField.maximalRealSubfield.{0} (@CyclotomicField.{0} (PNat.val p) Rat Rat.instField)\n            (@CyclotomicField.instField.{0} (PNat.val p) Rat Rat.instField)))))",
+  "theorem": "KummerVandiver.kummer_vandiver",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "RegularPrimes.RegularPrimeConjecture",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical": "RegularPrimes.RegularPrimeConjecture",
+  "theorem": "RegularPrimes.regularprime_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ (N : ℕ), ∃ f, N = ∑ i, PollocksConjecture.tetrahedral (f i)",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "type_canonical":
+  "∀ (N : Nat),\n  @Exists.{1} (Fin (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5))) → Nat)\n    fun (f : Fin (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5))) → Nat) =>\n    @Eq.{1} Nat N\n      (@Finset.sum.{0, 0} (Fin (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5)))) Nat Nat.instAddCommMonoid\n        (@Finset.univ.{0} (Fin (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5))))\n          (Fin.fintype (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5)))))\n        fun (i : Fin (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5)))) =>\n        PollocksConjecture.tetrahedral (f i))",
+  "theorem": "PollocksConjecture.pollock_tetrahedral",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ (f : Polynomial ℤ),\n  BunyakovskyCondition f ∧ SchinzelCondition {f} → Infinite ↑{n | Nat.Prime (Polynomial.eval (↑n) f).natAbs}",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ (f : @Polynomial.{0} Int Int.instSemiring),\n  And (BunyakovskyCondition f)\n      (SchinzelCondition\n        (@Singleton.singleton.{0, 0} (@Polynomial.{0} Int Int.instSemiring)\n          (Finset.{0} (@Polynomial.{0} Int Int.instSemiring))\n          (@Finset.instSingleton.{0} (@Polynomial.{0} Int Int.instSemiring)) f)) →\n    Infinite.{1}\n      (@Set.Elem.{0} Nat\n        (@Set.ofPred.{0} Nat fun (n : Nat) =>\n          Nat.Prime (Int.natAbs (@Polynomial.eval.{0} Int Int.instSemiring (@Nat.cast.{0} Int instNatCastInt n) f))))",
+  "theorem": "Bunyakovsky.bunyakovsky_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "RiemannHypothesis",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical": "RiemannHypothesis",
+  "theorem": "RiemannHypothesis.riemannHypothesis",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ Irrational catalanConstant",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical": "Iff True (Irrational catalanConstant)",
+  "theorem": "Irrational.irrational_catalanConstant",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ {n | ∃ m, n.factorial + 1 = m ^ 2} = {4, 5, 7}",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True\n  (@Eq.{1} (Set.{0} Nat)\n    (@Set.ofPred.{0} Nat fun (n : Nat) =>\n      @Exists.{1} Nat fun (m : Nat) =>\n        @Eq.{1} Nat\n          (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) (Nat.factorial n)\n            (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))))\n          (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n            (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid))) m\n            (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))\n    (@Insert.insert.{0, 0} Nat (Set.{0} Nat) (@Set.instInsert.{0} Nat)\n      (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4)))\n      (@Insert.insert.{0, 0} Nat (Set.{0} Nat) (@Set.instInsert.{0} Nat)\n        (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5)))\n        (@Singleton.singleton.{0, 0} Nat (Set.{0} Nat) (@Set.instSingletonSet.{0} Nat)\n          (@OfNat.ofNat.{0} Nat (nat_lit 7) (instOfNatNat (nat_lit 7)))))))",
+  "theorem": "Erdos398.erdos_398",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty": "True ↔ ∀ n ≥ 5, Nat.Prime (Mersenne.catalanMersenne n)",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True\n  (∀ (n : Nat),\n    @GE.ge.{0} Nat instLENat n (@OfNat.ofNat.{0} Nat (nat_lit 5) (instOfNatNat (nat_lit 5))) →\n      Nat.Prime (Mersenne.catalanMersenne n))",
+  "theorem": "Mersenne.catalans_mersenne_conjecture",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty":
+  "∀ (x : ℕ),\n  2 ≤ x → (∃ p ∈ Finset.Ioo (x * (x - 1)) (x ^ 2), Nat.Prime p) ∧ ∃ p ∈ Finset.Ioo (x ^ 2) (x * (x + 1)), Nat.Prime p",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "type_canonical":
+  "∀ (x : Nat) (hx : @LE.le.{0} Nat instLENat (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) x),\n  And\n    (@Exists.{1} Nat fun (p : Nat) =>\n      And\n        (@Membership.mem.{0, 0} Nat (Finset.{0} Nat)\n          (@SetLike.instMembership.{0, 0} (Finset.{0} Nat) Nat (@Finset.instSetLike.{0} Nat))\n          (@Finset.Ioo.{0} Nat Nat.instPreorder Nat.instLocallyFiniteOrder\n            (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat) x\n              (@HSub.hSub.{0, 0, 0} Nat Nat Nat (@instHSub.{0} Nat instSubNat) x\n                (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))))\n            (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n              (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid))) x\n              (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))\n          p)\n        (Nat.Prime p))\n    (@Exists.{1} Nat fun (p : Nat) =>\n      And\n        (@Membership.mem.{0, 0} Nat (Finset.{0} Nat)\n          (@SetLike.instMembership.{0, 0} (Finset.{0} Nat) Nat (@Finset.instSetLike.{0} Nat))\n          (@Finset.Ioo.{0} Nat Nat.instPreorder Nat.instLocallyFiniteOrder\n            (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n              (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid))) x\n              (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))))\n            (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat) x\n              (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) x\n                (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))))))\n          p)\n        (Nat.Prime p))",
+  "theorem": "Oppermann.oppermann_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ {G : Type u_1} [Fintype G] [inst : Group G], InverseGalois.IsRealizable ℚ G",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ {G : Type u_1} [Fintype.{u_1} G] [inst : Group.{u_1} G], @InverseGalois.IsRealizable.{0, u_1} Rat G Rat.instField inst",
+  "theorem": "InverseGalois.inverse_galois_problem",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "∀ (k : ℕ), ∃ M, Hadamard.IsHadamard M",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ (k : Nat),\n  @Exists.{1}\n    (Matrix.{0, 0, 0}\n      (Fin\n        (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat)\n          (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4))) k))\n      (Fin\n        (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat)\n          (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4))) k))\n      Real)\n    fun\n      (M :\n        Matrix.{0, 0, 0}\n          (Fin\n            (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat)\n              (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4))) k))\n          (Fin\n            (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat)\n              (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4))) k))\n          Real) =>\n    @Hadamard.IsHadamard\n      (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat)\n        (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4))) k)\n      M",
+  "theorem": "Hadamard.HadamardConjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ (n : ℕ), 6 < n → Odd n → ∃ p q, Nat.Prime p ∧ Nat.Prime q ∧ p + 2 * q = n",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "∀ (n : Nat) (hn : @LT.lt.{0} Nat instLTNat (@OfNat.ofNat.{0} Nat (nat_lit 6) (instOfNatNat (nat_lit 6))) n)\n  (odd : @Odd.{0} Nat Nat.instSemiring n),\n  @Exists.{1} Nat fun (p : Nat) =>\n    @Exists.{1} Nat fun (q : Nat) =>\n      And (Nat.Prime p)\n        (And (Nat.Prime q)\n          (@Eq.{1} Nat\n            (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) p\n              (@HMul.hMul.{0, 0, 0} Nat Nat Nat (@instHMul.{0} Nat instMulNat)\n                (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) q))\n            n))",
+  "theorem": "Lemoine.lemoine_conjecture",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty": "True ↔ ∀ᶠ (N : ℕ) in Filter.atTop, ¬Green72.NoKInLineFor 3 N",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "Iff True\n  (@Filter.Eventually.{0} Nat\n    (fun (N : Nat) => Not (Green72.NoKInLineFor (@OfNat.ofNat.{0} Nat (nat_lit 3) (instOfNatNat (nat_lit 3))) N))\n    (@Filter.atTop.{0} Nat Nat.instPreorder))",
+  "theorem": "Green72.green_72",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ (fs : Finset (Polynomial ℤ)),\n  (∀ f ∈ fs, f.degree = 1 ∧ BunyakovskyCondition f) →\n    SchinzelCondition fs → Infinite ↑{n | ∀ f ∈ fs, Nat.Prime (Polynomial.eval (↑n) f).natAbs}",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "type_canonical":
+  "∀ (fs : Finset.{0} (@Polynomial.{0} Int Int.instSemiring))\n  (hfs :\n    ∀ (f : @Polynomial.{0} Int Int.instSemiring),\n      @Membership.mem.{0, 0} (@Polynomial.{0} Int Int.instSemiring) (Finset.{0} (@Polynomial.{0} Int Int.instSemiring))\n          (@SetLike.instMembership.{0, 0} (Finset.{0} (@Polynomial.{0} Int Int.instSemiring))\n            (@Polynomial.{0} Int Int.instSemiring) (@Finset.instSetLike.{0} (@Polynomial.{0} Int Int.instSemiring)))\n          fs f →\n        And\n          (@Eq.{1} (WithBot.{0} Nat) (@Polynomial.degree.{0} Int Int.instSemiring f)\n            (@OfNat.ofNat.{0} (WithBot.{0} Nat) (nat_lit 1)\n              (@One.toOfNat1.{0} (WithBot.{0} Nat) (@WithBot.one.{0} Nat Nat.instOne))))\n          (BunyakovskyCondition f))\n  (hfs' : SchinzelCondition fs),\n  Infinite.{1}\n    (@Set.Elem.{0} Nat\n      (@Set.ofPred.{0} Nat fun (n : Nat) =>\n        ∀ (f : @Polynomial.{0} Int Int.instSemiring),\n          @Membership.mem.{0, 0} (@Polynomial.{0} Int Int.instSemiring)\n              (Finset.{0} (@Polynomial.{0} Int Int.instSemiring))\n              (@SetLike.instMembership.{0, 0} (Finset.{0} (@Polynomial.{0} Int Int.instSemiring))\n                (@Polynomial.{0} Int Int.instSemiring) (@Finset.instSetLike.{0} (@Polynomial.{0} Int Int.instSemiring)))\n              fs f →\n            Nat.Prime (Int.natAbs (@Polynomial.eval.{0} Int Int.instSemiring (@Nat.cast.{0} Int instNatCastInt n) f))))",
+  "theorem": "Dickson.dickson_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ (n : ℕ),\n  1 ≤ n → 4 ≤ (Finset.filter Nat.Prime (Finset.Ioo (Nat.nth Nat.Prime n ^ 2) (Nat.nth Nat.Prime (n + 1) ^ 2))).card",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "type_canonical":
+  "∀ (n : Nat) (hn : @LE.le.{0} Nat instLENat (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))) n),\n  @LE.le.{0} Nat instLENat (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4)))\n    (@Finset.card.{0} Nat\n      (@Finset.filter.{0} Nat Nat.Prime Nat.decidablePrime\n        (@Finset.Ioo.{0} Nat Nat.instPreorder Nat.instLocallyFiniteOrder\n          (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n            (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid)))\n            (Nat.nth Nat.Prime n) (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))))\n          (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n            (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid)))\n            (Nat.nth Nat.Prime\n              (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n\n                (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))))\n            (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))))",
+  "theorem": "Brocard.brocard_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "∀ ⦃n : ℕ⦄, 0 < n → CarmichaelTotient.CarmichaelTotientFor n",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ ⦃n : Nat⦄,\n  @LT.lt.{0} Nat instLTNat (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))) n →\n    CarmichaelTotient.CarmichaelTotientFor n",
+  "theorem": "CarmichaelTotient.charmichaelTotient",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "NormalNumber.IsNormalInBase 10 Real.pi",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "NormalNumber.IsNormalInBase (@OfNat.ofNat.{0} Nat (nat_lit 10) (instOfNatNat (nat_lit 10))) Real.pi",
+  "theorem": "NormalNumber.pi_normal_base_ten",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "True ↔\n  ∀ (γ : Circle → EuclideanSpace ℝ (Fin 2)),\n    Topology.IsEmbedding γ → ∃ t₁ t₂ t₃ t₄, InscribedSquare.IsRectangle (γ t₁) (γ t₂) (γ t₃) (γ t₄) 1",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "Iff True\n  (∀ (γ : Circle → EuclideanSpace.{0, 0} Real (Fin (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))\n    (hγ :\n      @Topology.IsEmbedding.{0, 0} Circle\n        (EuclideanSpace.{0, 0} Real (Fin (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))\n        instTopologicalSpaceCircle\n        (@PiLp.topologicalSpace.{0, 0}\n          (@OfNat.ofNat.{0} ENNReal (nat_lit 2)\n            (@instOfNatAtLeastTwo.{0} ENNReal (nat_lit 2)\n              (@AddMonoidWithOne.toNatCast.{0} ENNReal\n                (@AddCommMonoidWithOne.toAddMonoidWithOne.{0} ENNReal ENNReal.instAddCommMonoidWithOne))\n              PiLp.innerProductSpace._proof_1))\n          (Fin (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))))\n          (fun (x : Fin (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))) => Real)\n          fun (i : Fin (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))) =>\n          @UniformSpace.toTopologicalSpace.{0} Real (@PseudoMetricSpace.toUniformSpace.{0} Real Real.pseudoMetricSpace))\n        γ),\n    @Exists.{1} Circle fun (t₁ : Circle) =>\n      @Exists.{1} Circle fun (t₂ : Circle) =>\n        @Exists.{1} Circle fun (t₃ : Circle) =>\n          @Exists.{1} Circle fun (t₄ : Circle) =>\n            InscribedSquare.IsRectangle (γ t₁) (γ t₂) (γ t₃) (γ t₄)\n              (@OfNat.ofNat.{0} Real (nat_lit 1) (@One.toOfNat1.{0} Real Real.instOne)))",
+  "theorem": "InscribedSquare.inscribed_square_problem",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ {n | Prime (n ^ 2 + 1)}.Infinite",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext"],
+  "type_canonical":
+  "Iff True\n  (@Set.Infinite.{0} Nat\n    (@Set.ofPred.{0} Nat fun (n : Nat) =>\n      @Prime.{0} Nat Nat.instCommMonoidWithZero\n        (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat)\n          (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n            (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid))) n\n            (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))))\n          (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))))))",
+  "theorem": "PrimesAndPerfectSquares.infinite_prime_sq_add_one",
+  "declaration_axioms": ["propext", "sorryAx"]},
+ {"type_pretty":
+  "∃ o, ∃ (_ : Filter.Tendsto o Filter.atTop (nhds 0)), GaussCircleProblem.E =O[Filter.atTop] fun r => r ^ (1 / 2 + o r)",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "@Exists.{1} (Real → Real) fun (o : Real → Real) =>\n  @Exists.{0}\n    (@Filter.Tendsto.{0, 0} Real Real o (@Filter.atTop.{0} Real Real.instPreorder)\n      (@nhds.{0} Real\n        (@UniformSpace.toTopologicalSpace.{0} Real (@PseudoMetricSpace.toUniformSpace.{0} Real Real.pseudoMetricSpace))\n        (@OfNat.ofNat.{0} Real (nat_lit 0) (@Zero.toOfNat0.{0} Real Real.instZero))))\n    fun\n      (x :\n        @Filter.Tendsto.{0, 0} Real Real o (@Filter.atTop.{0} Real Real.instPreorder)\n          (@nhds.{0} Real\n            (@UniformSpace.toTopologicalSpace.{0} Real\n              (@PseudoMetricSpace.toUniformSpace.{0} Real Real.pseudoMetricSpace))\n            (@OfNat.ofNat.{0} Real (nat_lit 0) (@Zero.toOfNat0.{0} Real Real.instZero)))) =>\n    @Asymptotics.IsBigO.{0, 0, 0} Real Real Real Real.norm Real.norm (@Filter.atTop.{0} Real Real.instPreorder)\n      GaussCircleProblem.E fun (r : Real) =>\n      @HPow.hPow.{0, 0, 0} Real Real Real (@instHPow.{0, 0} Real Real Real.instPow) r\n        (@HAdd.hAdd.{0, 0, 0} Real Real Real (@instHAdd.{0} Real Real.instAdd)\n          (@HDiv.hDiv.{0, 0, 0} Real Real Real (@instHDiv.{0} Real (@DivInvMonoid.toDiv.{0} Real Real.instDivInvMonoid))\n            (@OfNat.ofNat.{0} Real (nat_lit 1) (@One.toOfNat1.{0} Real Real.instOne))\n            (@OfNat.ofNat.{0} Real (nat_lit 2)\n              (@instOfNatAtLeastTwo.{0} Real (nat_lit 2) Real.instNatCast\n                (@Nat.instAtLeastTwoHAddOfNat (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))\n                  (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))))))\n          (o r))",
+  "theorem": "GaussCircleProblem.error_isBigO",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ (N : ℕ), Goormaghtigh.IsGoormaghtighNumber N → N = 31 ∨ N = 8191",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ (N : Nat) (hN : Goormaghtigh.IsGoormaghtighNumber N),\n  Or (@Eq.{1} Nat N (@OfNat.ofNat.{0} Nat (nat_lit 31) (instOfNatNat (nat_lit 31))))\n    (@Eq.{1} Nat N (@OfNat.ofNat.{0} Nat (nat_lit 8191) (instOfNatNat (nat_lit 8191))))",
+  "theorem": "Goormaghtigh.goormaghtigh_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ {k : ℕ} (m : Fin k.succ → ℕ), HardyLittlewood.FirstHardyLittlewoodConjectureFor m",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ {k : Nat} (m : Fin (Nat.succ k) → Nat), @HardyLittlewood.FirstHardyLittlewoodConjectureFor k m",
+  "theorem": "HardyLittlewood.first_hardy_littlewood_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ {x y : ℕ}, 2 ≤ x → 2 ≤ y → HardyLittlewood.SecondHardyLittlewoodConjectureFor x y",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ {x y : Nat} (hx : @LE.le.{0} Nat instLENat (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) x)\n  (hy : @LE.le.{0} Nat instLENat (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) y),\n  HardyLittlewood.SecondHardyLittlewoodConjectureFor x y",
+  "theorem": "HardyLittlewood.second_hardy_littlewood_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ (a : ℤ), ¬IsSquare a → a ≠ -1 → ∃ x > 0, (ArtinPrimitiveRootsConjecture.S a).HasDensity x {p | Nat.Prime p}",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ (a : Int) (ha : Not (@IsSquare.{0} Int Int.instMul a))\n  (ha' : @Ne.{1} Int a (@Neg.neg.{0} Int Int.instNegInt (@OfNat.ofNat.{0} Int (nat_lit 1) (@instOfNat (nat_lit 1))))),\n  @Exists.{1} Real fun (x : Real) =>\n    And (@GT.gt.{0} Real Real.instLT x (@OfNat.ofNat.{0} Real (nat_lit 0) (@Zero.toOfNat0.{0} Real Real.instZero)))\n      (@Set.HasDensity.{0} Nat Nat.instPreorder\n        (@LocallyFiniteOrder.toLocallyFiniteOrderBot.{0} Nat Nat.instPreorder Nat.instLocallyFiniteOrder\n          Nat.instOrderBot)\n        (ArtinPrimitiveRootsConjecture.S a) x (@Set.ofPred.{0} Nat fun (p : Nat) => Nat.Prime p))",
+  "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∀ {R : Type u_1} [inst : Ring R] (I J : Ideal R), Koethe.IsNil I → Koethe.IsNil J → Koethe.IsNil (I + J)",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "∀ {R : Type u_1} [inst : Ring.{u_1} R] (I J : @Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n  (hI :\n    @Koethe.IsNil.{u_1, u_1} R inst (@Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n      (@Submodule.setLike.{u_1, u_1} R R (@Ring.toSemiring.{u_1} R inst)\n        (@Semiring.toAddCommMonoid.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n        (@Semiring.toModule.{u_1} R (@Ring.toSemiring.{u_1} R inst)))\n      I)\n  (hJ :\n    @Koethe.IsNil.{u_1, u_1} R inst (@Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n      (@Submodule.setLike.{u_1, u_1} R R (@Ring.toSemiring.{u_1} R inst)\n        (@Semiring.toAddCommMonoid.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n        (@Semiring.toModule.{u_1} R (@Ring.toSemiring.{u_1} R inst)))\n      J),\n  @Koethe.IsNil.{u_1, u_1} R inst (@Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n    (@Submodule.setLike.{u_1, u_1} R R (@Ring.toSemiring.{u_1} R inst)\n      (@Semiring.toAddCommMonoid.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n      (@Semiring.toModule.{u_1} R (@Ring.toSemiring.{u_1} R inst)))\n    (@HAdd.hAdd.{u_1, u_1, u_1} (@Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n      (@Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst)) (@Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n      (@instHAdd.{u_1} (@Ideal.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n        (@Submodule.pointwiseAdd.{u_1, u_1} R R (@Ring.toSemiring.{u_1} R inst)\n          (@Semiring.toAddCommMonoid.{u_1} R (@Ring.toSemiring.{u_1} R inst))\n          (@Semiring.toModule.{u_1} R (@Ring.toSemiring.{u_1} R inst))))\n      I J)",
+  "theorem": "Koethe.KotheConjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ ∃ n > 1, ¬Prime n ∧ n.totient ∣ n - 1",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "Iff True\n  (@Exists.{1} Nat fun (n : Nat) =>\n    And (@GT.gt.{0} Nat instLTNat n (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))))\n      (And (Not (@Prime.{0} Nat Nat.instCommMonoidWithZero n))\n        (@Dvd.dvd.{0} Nat Nat.instDvd (Nat.totient n)\n          (@HSub.hSub.{0, 0, 0} Nat Nat Nat (@instHSub.{0} Nat instSubNat) n\n            (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))))))",
+  "theorem": "LehmerTotient.lehmer_totient",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "∃ μ,\n  ∀ (f : Polynomial ℤ),\n    μ > 1 ∧ (LehmerMahlerMeasureProblem.mahlerMeasureZ f > 1 → LehmerMahlerMeasureProblem.mahlerMeasureZ f ≥ μ)",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "@Exists.{1} Real fun (μ : Real) =>\n  ∀ (f : @Polynomial.{0} Int Int.instSemiring),\n    And (@GT.gt.{0} Real Real.instLT μ (@OfNat.ofNat.{0} Real (nat_lit 1) (@One.toOfNat1.{0} Real Real.instOne)))\n      (@GT.gt.{0} Real Real.instLT (LehmerMahlerMeasureProblem.mahlerMeasureZ f)\n          (@OfNat.ofNat.{0} Real (nat_lit 1) (@One.toOfNat1.{0} Real Real.instOne)) →\n        @GE.ge.{0} Real Real.instLE (LehmerMahlerMeasureProblem.mahlerMeasureZ f) μ)",
+  "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "Borsuk.BorsukConjecture 4",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "Borsuk.BorsukConjecture (@OfNat.ofNat.{0} Nat (nat_lit 4) (instOfNatNat (nat_lit 4)))",
+  "theorem": "Borsuk.borsuk_conjecture.four",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty": "True ↔ ∀ n ≥ 3, Erdos107.f n = 2 ^ (n - 2) + 1",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "Iff True\n  (∀ (n : Nat),\n    @GE.ge.{0} Nat instLENat n (@OfNat.ofNat.{0} Nat (nat_lit 3) (instOfNatNat (nat_lit 3))) →\n      @Eq.{1} Nat (Erdos107.f n)\n        (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat)\n          (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n            (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid)))\n            (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))\n            (@HSub.hSub.{0, 0, 0} Nat Nat Nat (@instHSub.{0} Nat instSubNat) n\n              (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))\n          (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))))",
+  "theorem": "Erdos107.erdos_107",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]},
+ {"type_pretty":
+  "True ↔ ∀ (n : ℕ), 0 < n → additionChainLength (2 ^ n - 1) ≤ n - 1 + additionChainLength n",
+  "type_has_sorry": false,
+  "type_dependency_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "type_canonical":
+  "Iff True\n  (∀ (n : Nat),\n    @LT.lt.{0} Nat instLTNat (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))) n →\n      @LE.le.{0} Nat instLENat\n        (additionChainLength\n          (@HSub.hSub.{0, 0, 0} Nat Nat Nat (@instHSub.{0} Nat instSubNat)\n            (@HPow.hPow.{0, 0, 0} Nat Nat Nat\n              (@instHPow.{0, 0} Nat Nat (@NPow.toPow.{0} Nat (@Monoid.toNPow.{0} Nat Nat.instMonoid)))\n              (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) n)\n            (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))))\n        (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat)\n          (@HSub.hSub.{0, 0, 0} Nat Nat Nat (@instHSub.{0} Nat instSubNat) n\n            (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1))))\n          (additionChainLength n)))",
+  "theorem": "ScholzConjecture.scholz_conjecture",
+  "declaration_axioms":
+  ["propext", "sorryAx", "Classical.choice", "Quot.sound"]}]

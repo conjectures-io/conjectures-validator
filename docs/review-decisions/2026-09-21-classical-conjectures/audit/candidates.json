@@ -1,0 +1,1448 @@
+{
+  "checked_date": "2026-09-21",
+  "upstream_commit": "2f82a24192f64ac678557247e496b2381d3889a1",
+  "candidates": [
+    {
+      "number": 1,
+      "date_or_origin": "Ancient roots; explicit by 1638",
+      "name": "Odd perfect numbers",
+      "theorem": "PerfectNumbers.odd_perfect_number_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/PerfectNumbers.lean",
+      "line": 83,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Can an odd positive integer equal the sum of its proper divisors?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/PerfectNumbers.lean#L83",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as provisionally open. Classical research sources treat existence as unresolved. Located a 2021 nonexistence claim, but did not establish its acceptance or validate its proof; this is not a certified absence-of-proof finding.",
+      "admission_ready": false,
+      "audit_note": "Nat.Perfect excludes zero. The selected question concerns odd positive perfect numbers, not the solved classification of even perfect numbers.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://abel.math.harvard.edu/~knill/seminars/perfect/perfect.pdf",
+        "https://arxiv.org/abs/2101.07176"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "9a911f9928f92ec46b265844936a1b8150a2d8c16b44a311609e8400bcad3885",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 2,
+      "date_or_origin": "Ancient roots*",
+      "name": "Infinitely many Mersenne primes",
+      "theorem": "Mersenne.infinitely_many_mersenne_primes",
+      "source_path": "FormalConjectures/Wikipedia/Mersenne.lean",
+      "line": 135,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are infinitely many numbers 2^p−1 prime? Equivalent to infinitely many even perfect numbers.",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Mersenne.lean#L135",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as provisionally open. A 2025 preprints.org infinitude claim was found; no accepted resolution or independently checked proof was established.",
+      "admission_ready": false,
+      "audit_note": "Infinitely many exponents producing Mersenne primes is equivalent to infinitely many distinct Mersenne primes. It also duplicates infinitude of even perfect numbers, so do not reward those separately.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://durham-repository.worktribe.com/OutputFile/1495393",
+        "https://www.preprints.org/manuscript/202510.0673"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "d3e988fd5ab9e5feffaf971734d2a79a099e7dccceec531fde8e5548c2f9f1c5",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 3,
+      "date_or_origin": "1640s roots*",
+      "name": "Infinitely many Fermat primes",
+      "theorem": "Fermat.infinite_fermat_primes",
+      "source_path": "FormalConjectures/Wikipedia/Fermat.lean",
+      "line": 41,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are infinitely many numbers 2^(2^n)+1 prime?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Fermat.lean#L41",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open in the sources examined. Infinitude is a question, not the prevailing expectation; a proof of finitude would resolve it.",
+      "admission_ready": false,
+      "audit_note": "Uses the actual Fermat sequence 2^(2^n)+1. The historical date records the sequence's origins, not a verified first formulation of this infinitude question.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://math.dartmouth.edu/~carlp/PDF/paper62.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "50ae249c932fc10681acd628645e9842acbfe529eb67d4a5805d643404a89242",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 4,
+      "date_or_origin": "1700s roots*",
+      "name": "Perfect cuboid",
+      "theorem": "EulerBrick.perfect_euler_brick_existence",
+      "source_path": "FormalConjectures/Wikipedia/EulerBrick.lean",
+      "line": 55,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does an integer-sided box have all face diagonals and its space diagonal integral?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/EulerBrick.lean#L55",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "HOLD: a January 2026 complete obstruction claim, revised February 9, directly addresses perfect cuboids. Acceptance and correctness were not established in this audit. Do not advertise the question as unqualifiedly open pending claim review.",
+      "admission_ready": false,
+      "audit_note": "Positive natural edges exclude zero-length degeneracies; all three face diagonals and the body diagonal are required to be integral. The 2017 error analysis concerns an older Wyss claim, not a refutation of the 2026 claim.",
+      "audit_date": "2026-09-21",
+      "disposition": "hold_recent_claim",
+      "external_sources": [
+        "https://arxiv.org/abs/2602.00239",
+        "https://arxiv.org/abs/1704.00165"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "4c99d34cf390370c51a5c51ca5cf6f018ab5228a03f6e66c5f420d2fe0bd4500",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 5,
+      "date_or_origin": "1734 constant*",
+      "name": "Euler–Mascheroni constant irrationality",
+      "theorem": "Irrational.irrational_eulerMascheroniConstant",
+      "source_path": "FormalConjectures/Wikipedia/Irrational.lean",
+      "line": 95,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is Euler's constant γ irrational?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Irrational.lean#L95",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open in the sources examined. A search hit about generalized Euler numbers is not a result on the Euler–Mascheroni constant.",
+      "admission_ready": false,
+      "audit_note": "Direct Irrational predicate on the Euler–Mascheroni constant. Distinguish gamma from Euler's number e and from generalized factorial-series constants.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://webusers.imj-prg.fr/~michel.waldschmidt/articles/pdf/EulerConstantVI.pdf",
+        "https://arxiv.org/abs/2509.13354"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "6e03b2f95e53a9fb83aa842919f13148c651ee93b7a83cfd003ec859c128a873",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 6,
+      "date_or_origin": "1742",
+      "name": "Goldbach conjecture",
+      "theorem": "GoldbachConjecture.goldbach",
+      "source_path": "FormalConjectures/Wikipedia/GoldbachConjecture.lean",
+      "line": 36,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is every even integer greater than 2 a sum of two primes?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/GoldbachConjecture.lean#L36",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. Helfgott's theorem concerns three primes and does not prove the binary conjecture selected here.",
+      "admission_ready": false,
+      "audit_note": "Every even natural number greater than two must be a sum of two primes. Repeated primes are allowed, as required for four.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://www.maths.ox.ac.uk/outreach/oxford-online-maths-club/episode-7",
+        "https://arxiv.org/abs/1501.05438"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "83f07998b02bae908bef995e48bba05d9a67330265ae8e03890f6e03172a52d8",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 7,
+      "date_or_origin": "c. 1778",
+      "name": "Euler's idoneal-number completeness",
+      "theorem": "Idoneal.idoneal_numbers_completeness",
+      "source_path": "FormalConjectures/Wikipedia/IdonealCompleteness.lean",
+      "line": 102,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are Euler's 65 known idoneal numbers the complete list?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/IdonealCompleteness.lean#L102",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open unconditionally. Kani's survey gives completeness of the known 65 under GRH and an unconditional bound of at most 67; neither is unconditional completeness.",
+      "admission_ready": false,
+      "audit_note": "The definition excluding representations ab+bc+ac with 0<a<b<c has a published equivalent characterization. The target compares the entire set with the explicit 65-element list. Finite checking of that list does not prove completeness.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://mast.queensu.ca/~kani/papers/2011K1.pdf",
+        "https://users.fmf.uni-lj.si/skreko/Old/MyPapers/01157.pdf",
+        "https://www.sciencedirect.com/science/article/pii/S0022404925001136"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "48cbceb7a586f32aa59803cc57c059ee335f67fd108f1efe45397f80949c44cf",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 8,
+      "date_or_origin": "1798",
+      "name": "Legendre conjecture",
+      "theorem": "LegendreConjecture.legendre_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/LegendreConjecture.lean",
+      "line": 38,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is there a prime strictly between n² and (n+1)² for every n≥1?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/LegendreConjecture.lean#L38",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as provisionally open. A 2026 paper explicitly studies weaker Legendre bounds. Ferreira's short-interval preprint supplies a recent claim behind neighboring eventual results; no accepted resolution of this full universal target was established.",
+      "admission_ready": false,
+      "audit_note": "Strictly between n² and (n+1)² for every n≥1. An unspecified sufficiently-large-n theorem does not discharge all small cases. Audit proof dependencies separately from nearby research-solved labels.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2602.22502",
+        "https://arxiv.org/abs/2307.08725"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "93de0ac0238a513ca404b0b21febc5f6892ddd496f57ca67b922daa83b4ad092",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 9,
+      "date_or_origin": "1801",
+      "name": "Gauss real quadratic class-number-one problem",
+      "theorem": "ClassNumberProblem.class_number_problem",
+      "source_path": "FormalConjectures/Wikipedia/ClassNumberProblem.lean",
+      "line": 41,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are infinitely many real quadratic fields of class number one?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/ClassNumberProblem.lean#L41",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. A 2026 University of Padua research abstract still identifies infinitude of real quadratic fields of class number one as unresolved.",
+      "admission_ready": false,
+      "audit_note": "Squarefree integers d>1 parameterize real quadratic fields. AdjoinRoot uses an explicit irreducibility witness. The target concerns the ordinary class number of the full ring of integers, not the narrow class number or imaginary fields.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://www.math.unipd.it/news/simultaneous-divisibility-of-class-numbers-of-quadratic-fields/"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "98c66b2bb37e1a4229329597e20d087cc93672e49f111bc39b776d88f66c4f15",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 10,
+      "date_or_origin": "1849",
+      "name": "Twin prime conjecture",
+      "theorem": "TwinPrimes.twin_primes",
+      "source_path": "FormalConjectures/Wikipedia/TwinPrimes.lean",
+      "line": 37,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are infinitely many prime pairs separated by 2?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/TwinPrimes.lean#L37",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open in the sources examined. Bounded prime gaps do not establish infinitely many gaps equal to two.",
+      "admission_ready": false,
+      "audit_note": "Infinitude of prime p with p+2 prime. Correct exact-gap target; finite searches and any larger bounded-gap theorem are insufficient.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://terrytao.wordpress.com/2014/02/07/new-equidistribution-estimates-of-zhang-type-and-bounded-gaps-between-primes-and-a-retrospective/"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "94582a3f2be3f426198e93e8e48137ea262a1b03ce5cb1c0598ab3b94fa7a9ad",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 11,
+      "date_or_origin": "1849",
+      "name": "Kummer–Vandiver conjecture",
+      "theorem": "KummerVandiver.kummer_vandiver",
+      "source_path": "FormalConjectures/Wikipedia/KummerVandiver.lean",
+      "line": 39,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does p never divide the class number of the maximal real subfield of the p-th cyclotomic field?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/KummerVandiver.lean#L39",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The 2026 partial-regularity result does not establish the full Kummer–Vandiver conjecture.",
+      "admission_ready": false,
+      "audit_note": "For prime positive p, p does not divide the class number of the maximal real subfield of the p-th cyclotomic field. This is distinct from regularity of p itself.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2602.05090"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "193ebc1ec3168ffb9441315f835f119904e4b3cf47dce75eb88e5b427c0efd62",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 12,
+      "date_or_origin": "c. 1850 roots*",
+      "name": "Infinitely many regular primes",
+      "theorem": "RegularPrimes.regularprime_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/RegularPrimes.lean",
+      "line": 79,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are there infinitely many regular primes in Kummer's sense?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/RegularPrimes.lean#L79",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The 2026 density-one partial-regularity result controls only a restricted range of Bernoulli indices and does not prove infinitely many fully regular primes.",
+      "admission_ready": false,
+      "audit_note": "Main definition uses coprimality with cyclotomic class-group cardinality. Upstream issue 5711 corrected even Bernoulli indices in an auxiliary characterization; the selected main definition avoids that former indexing error.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2602.05090",
+        "https://oeis.org/A000928/internal"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "7c6adcd3b9ba27a8970b596734bb96848d635f80c1041394f071d63390511892",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 13,
+      "date_or_origin": "1850",
+      "name": "Pollock's tetrahedral-number conjecture",
+      "theorem": "PollocksConjecture.pollock_tetrahedral",
+      "source_path": "FormalConjectures/Wikipedia/PollocksConjecture.lean",
+      "line": 59,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is every nonnegative integer a sum of at most five tetrahedral numbers?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/PollocksConjecture.lean#L59",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The research paper on sums of two generalized tetrahedral numbers treats a different problem; allowing negative indices changes the set of summands.",
+      "admission_ready": false,
+      "audit_note": "Five ordinary tetrahedral numbers with natural indices. Zero is allowed, making exactly five slots equivalent to at most five summands. Natural division by six is exact for n(n+1)(n+2).",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://vadim.sdsu.edu/lp2.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "61ec4af7e047e04a571776253b6c36761864ec83cc60aedc720981492ea263ca",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 14,
+      "date_or_origin": "1857",
+      "name": "Bunyakovsky conjecture",
+      "theorem": "Bunyakovsky.bunyakovsky_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/Bunyakovsky.lean",
+      "line": 37,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does every suitable irreducible integer polynomial take infinitely many prime values?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Bunyakovsky.lean#L37",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open; the 2025 research lectures formulate the polynomial-prime conjecture with its necessary conditions.",
+      "admission_ready": false,
+      "audit_note": "Shared helpers require nonconstant irreducible integer polynomial, positive leading coefficient, and no fixed prime divisor. Using natAbs for prime values is harmless for infinitude because the polynomial is eventually positive.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://stnb.cat/media/publicacions/publicacions/AFBoix_STNB2025_Lectures_on_schinzel_for_polynomials_summarybis.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "405a8db17efbc6f513acc1f7f7cdf6776481dc8a3fddb07c1bc7947db0363efd",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 15,
+      "date_or_origin": "1859",
+      "name": "Riemann hypothesis",
+      "theorem": "RiemannHypothesis.riemannHypothesis",
+      "source_path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
+      "line": 61,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Do all nontrivial zeta zeros have real part 1/2?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Millennium/RiemannHypothesis.lean#L61",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The Clay Mathematics Institute's current page explicitly lists the Riemann hypothesis as unsolved.",
+      "admission_ready": false,
+      "audit_note": "Direct use of Mathlib's RiemannHypothesis. It is not the defective naive Dedekind-zeta-series extension discussed in upstream issue 3931. Preserve this exact target.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://www.claymath.org/millennium/riemann-hypothesis/"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "7024d428ede1c873b201a0801e42593ab9afd4e632c16c492678886797602547",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 16,
+      "date_or_origin": "1865 constant*",
+      "name": "Catalan's constant irrationality",
+      "theorem": "Irrational.irrational_catalanConstant",
+      "source_path": "FormalConjectures/Wikipedia/Irrational.lean",
+      "line": 103,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is Catalan's constant G irrational?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Irrational.lean#L103",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "HOLD: Zhi-Wei Sun's September 3, 2026 preprint claims a complete proof of irrationality. This audit did not establish acceptance or independently validate the full argument; public objections are not themselves a certified disproof.",
+      "admission_ready": false,
+      "audit_note": "Direct Irrational predicate on Catalan's constant, so the new claim addresses the selected mathematical problem exactly. The formal statement itself showed no identified mismatch.",
+      "audit_date": "2026-09-21",
+      "disposition": "hold_recent_claim",
+      "external_sources": [
+        "https://arxiv.org/abs/2609.04176"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "46e35026e0554bbff3072d116d6fb385634d63b046898ec76597e677f0375b75",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 17,
+      "date_or_origin": "1876",
+      "name": "Brocard–Ramanujan factorial problem",
+      "theorem": "Erdos398.erdos_398",
+      "source_path": "FormalConjectures/ErdosProblems/398.lean",
+      "line": 39,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are n=4,5,7 the only solutions of n!+1=m²?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/ErdosProblems/398.lean#L39",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The live Erdős Problems entry marks the exact factorial equation problem open; conditional finiteness is weaker than determining every solution.",
+      "admission_ready": false,
+      "audit_note": "The formal proposition says that the n-values are exactly {4,5,7}. Its prose asks whether there are other solutions, reversing the yes/no polarity. Fix the displayed question: True for this formal target means there are NO other solutions.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://www.erdosproblems.com/398"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "625f63e369e6c4697c228934754212c72817c9ab105c8e274e5b95c005559721",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 18,
+      "date_or_origin": "1876 sequence*",
+      "name": "Catalan–Mersenne primality question",
+      "theorem": "Mersenne.catalans_mersenne_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/Mersenne.lean",
+      "line": 145,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Starting at 2 and iterating x↦2^x−1, are all subsequent terms prime?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Mersenne.lean#L145",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as unresolved with historical-attribution caution. The sequence reference does not determine primality of every iterate; Catalan's original bounded wording is not the modern all-terms statement.",
+      "admission_ready": false,
+      "audit_note": "Starts at two and iterates x↦2^x−1; selected target requires all terms prime. Do not call the exact all-terms proposition a verbatim 1876 formulation or confuse it with ordinary Mersenne-prime infinitude.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://oeis.org/A007013"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "7a98af0b3698553b18b97671059691324a76ae10b958d03e766375afb58c1a85",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 19,
+      "date_or_origin": "1882",
+      "name": "Oppermann conjecture",
+      "theorem": "Oppermann.oppermann_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/Oppermann.lean",
+      "line": 57,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is there a prime in each of (n(n−1),n²) and (n²,n(n+1)) for n≥2?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Oppermann.lean#L57",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as provisionally open. Strong-Andrica implications and finite verification do not settle the universal statement. The Ferreira preprint behind neighboring eventual variants requires separate claim review.",
+      "admission_ready": false,
+      "audit_note": "Requires a prime in each of the two strict intervals around n², with n≥2. The n=1 failure is correctly excluded. An eventual variant is not the selected full statement.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/1812.02762",
+        "https://arxiv.org/abs/2307.08725"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "baf8b4f544f5f2fc62d24ee3bbda21c6aca04a0d15041a811986f695a8cd77b0",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 20,
+      "date_or_origin": "19th century; Hilbert 1892",
+      "name": "Inverse Galois problem",
+      "theorem": "InverseGalois.inverse_galois_problem",
+      "source_path": "FormalConjectures/Wikipedia/InverseGalois.lean",
+      "line": 53,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does every finite group occur as a Galois group over the rationals?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/InverseGalois.lean#L53",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. Recent solvable-group/Grunwald progress does not realize every finite group over the rationals.",
+      "admission_ready": false,
+      "audit_note": "GaloisRealization omits an explicit FiniteDimensional field, but it follows from IsGalois and finiteness of the automorphism group. This implication was kernel-checked in evidence/Bridges.lean with only standard axioms; this omission is not a loophole.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2302.13719",
+        "https://arxiv.org/abs/2604.18099"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "171b4b9d43090a1691e8cb41611b9ea3744ebfdc359fbc7ad14c0fd0a50a46e6",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 21,
+      "date_or_origin": "1893 / 1933",
+      "name": "Hadamard matrix existence",
+      "theorem": "Hadamard.HadamardConjecture",
+      "source_path": "FormalConjectures/Wikipedia/Hadamard.lean",
+      "line": 90,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does a Hadamard matrix exist in every order divisible by 4?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Hadamard.lean#L90",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open in the sources examined. New matrix orders, including any reported construction at a previously missing order, do not establish existence at every multiple of four.",
+      "admission_ready": false,
+      "audit_note": "The determinant-extremal ±1-matrix formulation is equivalent to orthogonal Hadamard rows. The order-zero case is the legitimate empty matrix. Do not conflate a solved finite order with the universal conjecture.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2605.16722"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "da7c7bc9ce250caaadadf060da63648fcc3e3226167d34b2464602b462b1a1a7",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 22,
+      "date_or_origin": "c. 1895",
+      "name": "Lemoine conjecture",
+      "theorem": "Lemoine.lemoine_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/Lemoine.lean",
+      "line": 39,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is every odd integer at least 7 equal to p+2q for primes p,q?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Lemoine.lean#L39",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as provisionally open. Computational verification is finite; located asymptotic claims do not by themselves certify the universal statement.",
+      "admission_ready": false,
+      "audit_note": "Odd n>6 must equal p+2q with both p and q prime. Repeated primes are permitted. Correct ordinary Lemoine formulation.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2304.00024",
+        "https://arxiv.org/abs/1709.05335",
+        "https://arxiv.org/abs/2012.01329"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "f0a370194368308ca651e367c573ecb477efc19a97f07a009462a463f6542ad1",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 23,
+      "date_or_origin": "1900 / 1917 roots*",
+      "name": "No-three-in-line problem",
+      "theorem": "Green72.green_72",
+      "source_path": "FormalConjectures/GreensOpenProblems/72.lean",
+      "line": 103,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "For all sufficiently large N, is it impossible to place 2N grid points with no three collinear?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/GreensOpenProblems/72.lean#L103",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The 2026 no-(k+1)-in-line result addresses k≥3, excluding this no-three-in-line case; newer heuristic corrections are not a resolution.",
+      "admission_ready": false,
+      "audit_note": "Green 72 asks eventual NONattainment of 2N points, not existence of 2N for every N. The finite grid bounds the supremum. Neighboring eventual-attainment conjectures are not the logical negation. Its 1900/1917 dates belong to the source puzzle.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+        "https://arxiv.org/abs/2607.05255",
+        "https://arxiv.org/abs/2603.00215"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "e6b04eee284c3216131d5ba288db950f6771661c14169e5d982fe2f38f1e57cb",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 24,
+      "date_or_origin": "1904",
+      "name": "Dickson conjecture",
+      "theorem": "Dickson.dickson_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/Dickson.lean",
+      "line": 43,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Do admissible families of linear forms simultaneously take prime values infinitely often?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Dickson.lean#L43",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open; current research exposition treats simultaneous prime values of admissible linear forms as conjectural.",
+      "admission_ready": false,
+      "audit_note": "Degree-one, positive-leading-coefficient forms and the shared admissibility predicate match Dickson. Upstream issue 4997 concerns a neighboring Polignac variant, not this selected target.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://stnb.cat/media/publicacions/publicacions/AFBoix_STNB2025_Lectures_on_schinzel_for_polynomials_summarybis.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "85bb5f6cf6b2866d5d92d2df032efcf05f0f07d868aa84a5428b270fae394fe5",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 25,
+      "date_or_origin": "1904",
+      "name": "Brocard's prime-square conjecture",
+      "theorem": "Brocard.brocard_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/BrocardConjecture.lean",
+      "line": 40,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are at least four primes between squares of consecutive primes starting with 3 and 5?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/BrocardConjecture.lean#L40",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as provisionally open. Conditional implications and finite verification do not settle every consecutive-prime pair; eventual short-interval claims require separate checking.",
+      "admission_ready": false,
+      "audit_note": "At least four primes between consecutive prime squares. Nat.nth uses zero-based indexing, so n≥1 correctly starts at primes 3 and 5 rather than the exceptional pair 2 and 3.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/1812.02762",
+        "https://arxiv.org/abs/2307.08725"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "dcc7fc3cac806ed512680696935cb1fc9acee63ce6650b8cac1122366ad1cf8d",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 26,
+      "date_or_origin": "1907 / 1922",
+      "name": "Carmichael totient conjecture",
+      "theorem": "CarmichaelTotient.charmichaelTotient",
+      "source_path": "FormalConjectures/Wikipedia/CarmichaelTotient.lean",
+      "line": 59,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does every positive integer have a different integer with the same totient?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/CarmichaelTotient.lean#L59",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open in the sources examined. Evidence here is older research literature; no accepted resolution was located, which is weaker than a fresh authoritative status confirmation.",
+      "admission_ready": false,
+      "audit_note": "Every positive n has a different natural m with the same totient. Since totient(n)>0 for n>0, allowing m=0 does not create a spurious witness. Preserve the actual source identifier charmichaelTotient.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://math.dartmouth.edu/~carlp/PDF/carmichaelconjecture.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "ce0b6cb4bab0f65c2fa5e6fac111bc88c2d023a976728ecdf33236ba9de4dae3",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 27,
+      "date_or_origin": "1909 concept*",
+      "name": "Normality of π in base 10",
+      "theorem": "NormalNumber.pi_normal_base_ten",
+      "source_path": "FormalConjectures/Wikipedia/NormalityOfPi.lean",
+      "line": 43,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does every k-digit block occur in π with limiting frequency 10^(−k)?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/NormalityOfPi.lean#L43",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. Empirical digit-frequency tests do not establish limiting frequencies for every block length.",
+      "admission_ready": false,
+      "audit_note": "NEW snapshot checks all finite digit blocks with limiting frequency 10^(-k). The verifier's pinned helper only checks individual digits (simple normality): a confirmed weaker formulation. Import the corrected helper, not only the unchanged-looking theorem name. Upstream issue 5710.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://www.davidhbailey.com/dhbpapers/normality-digits-pi.pdf",
+        "https://webusers.imj-prg.fr/~michel.waldschmidt/articles/pdf/AWSLecture5.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "3a5f3ecae95dad9555c249cd8724523d67aca60cb32ff6881d83c2da07a1c781",
+      "requires_source_pin_fix": true
+    },
+    {
+      "number": 28,
+      "date_or_origin": "1911",
+      "name": "Inscribed square problem",
+      "theorem": "InscribedSquare.inscribed_square_problem",
+      "source_path": "FormalConjectures/Wikipedia/InscribedSquare.lean",
+      "line": 57,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does every Jordan curve contain the four vertices of a square?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/InscribedSquare.lean#L57",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open for arbitrary Jordan curves. The June 2026 peer-reviewed result for curves between two graphs does not cover every continuous embedded circle.",
+      "admission_ready": false,
+      "audit_note": "Embedding of Circle into the Euclidean plane enforces a Jordan curve. Midpoint/diagonal conditions and side inequalities specify a nondegenerate rectangle, with ratio one giving a square. The selected statement imposes no smoothness shortcut.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://ems.press/journals/cmh/articles/14299791"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "3e16bf2d986cb4f6262cbc3bfafd7c29a9c4d481d05978f239b62b6bb1e888e6",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 29,
+      "date_or_origin": "1912 Landau list; older roots",
+      "name": "Infinitely many primes n²+1",
+      "theorem": "PrimesAndPerfectSquares.infinite_prime_sq_add_one",
+      "source_path": "FormalConjectures/Wikipedia/PrimesAndPerfectSquares.lean",
+      "line": 35,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are infinitely many values n²+1 prime?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/PrimesAndPerfectSquares.lean#L35",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. Large-prime-factor results for n²+h do not show that n²+1 itself is prime infinitely often.",
+      "admission_ready": false,
+      "audit_note": "Infinitely many natural n with n²+1 prime, equivalent to infinitely many distinct such prime values. This is Landau's polynomial-prime problem, not a bounded or almost-prime variant.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2505.00493",
+        "https://dms.umontreal.ca/~andrew/PDF/ItalySurvey.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "elaborated_type_pretty_sha256": "e8a0e39747aa04e86b39dcffd8017c767dca18f0bdc7905d92a9cbcf3599f9e2",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 30,
+      "date_or_origin": "c. 1915 sharp-bound formulation",
+      "name": "Gauss circle error bound",
+      "theorem": "GaussCircleProblem.error_isBigO",
+      "source_path": "FormalConjectures/Wikipedia/GaussCircleProblem.lean",
+      "line": 92,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is the lattice-point counting error O(r^(1/2+o(1)))?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/GaussCircleProblem.lean#L92",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. A September 2026 research preprint explicitly describes the sharp Gauss-circle bound as unresolved and reports numerical experiments.",
+      "admission_ready": false,
+      "audit_note": "Counts integer lattice points in a closed radius-r disk and subtracts πr². Existence of an o(1) exponent is mathematically equivalent to O(r^(1/2+ε)) for every ε>0 by a diagonal-threshold argument. This bridge was reasoned manually, not formalized here.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2609.04725"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "b674ebcaedb1cea71e4721be50e8a4cb5821725e936ad7c1d61a922788814600",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 31,
+      "date_or_origin": "1917",
+      "name": "Goormaghtigh conjecture",
+      "theorem": "Goormaghtigh.goormaghtigh_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/Goormaghtigh.lean",
+      "line": 50,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Are 31 and 8191 the only repunits of at least three digits in two distinct bases?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Goormaghtigh.lean#L50",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The large finite bound for Goormaghtigh primes concerns prime common repunit values and does not classify all composite values or the unbounded problem.",
+      "admission_ready": false,
+      "audit_note": "Bases are distinct and at least two; both repunit lengths are at least three. The selected statement classifies common values as 31 and 8191, including composite values in its quantification.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2410.03677",
+        "https://arxiv.org/abs/2505.08160"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "b97523becd252a734ef2fe4b9e6f7ee40ad0eb61f6b22aad5533aee0968d0a4f",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 32,
+      "date_or_origin": "1923",
+      "name": "First Hardy–Littlewood conjecture",
+      "theorem": "HardyLittlewood.first_hardy_littlewood_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/HardyLittlewood.lean",
+      "line": 94,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does the predicted asymptotic formula count admissible prime constellations?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/HardyLittlewood.lean#L94",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. This is the full prime-tuples asymptotic, not a bounded-gap theorem. An open upstream product-convergence complaint was examined but is not substantiated for the current distinct-offset formulation; see the detailed analysis in AUDIT.md.",
+      "admission_ready": false,
+      "audit_note": "NEW snapshot uses asymptotic equivalence and injective offsets. The verifier pin instead uses big-O and permits duplicate offsets: confirmed misformalization. For distinct r offsets, large-prime factors are 1+O(1/q²), so the alleged general conditional-product problem does not apply automatically.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://terrytao.wordpress.com/2014/02/07/new-equidistribution-estimates-of-zhang-type-and-bounded-gaps-between-primes-and-a-retrospective/",
+        "https://github.com/google-deepmind/formal-conjectures/issues/5907",
+        "https://github.com/google-deepmind/formal-conjectures/issues/4996"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "b05c34560e0b7ab4ea4ac8d8e3b718835929d9a01c7c3eb7061876606ee8ca57",
+      "requires_source_pin_fix": true
+    },
+    {
+      "number": 33,
+      "date_or_origin": "1923",
+      "name": "Second Hardy–Littlewood conjecture",
+      "theorem": "HardyLittlewood.second_hardy_littlewood_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/HardyLittlewood.lean",
+      "line": 112,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does π(x+y)≤π(x)+π(y) hold for integers x,y≥2?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/HardyLittlewood.lean#L112",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as unresolved. A 2026 Acta Arithmetica paper proves restricted ranges, not the full inequality. Expected falsity is compatible with open status.",
+      "admission_ready": false,
+      "audit_note": "π(x+y)≤π(x)+π(y) for natural x,y≥2. This conjecture is incompatible with Hardy–Littlewood I; do not assume both as trusted lemmas or present both as necessarily true.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2503.02766",
+        "https://www.impan.pl/en/publishing-house/journals-and-series/acta-arithmetica/online/116375/on-the-second-hardy-littlewood-conjecture"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "ffac7a3499bf29f0a7241981cf6aa8af380a16a939b95f5af53f900984bd3385",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 34,
+      "date_or_origin": "1927",
+      "name": "Artin primitive-root conjecture",
+      "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i",
+      "source_path": "FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean",
+      "line": 120,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Does every eligible integer generate the multiplicative group modulo a positive proportion of primes?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean#L120",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open unconditionally. Conditional proofs and density formulae under suitable GRH hypotheses do not prove the selected unconditional statement.",
+      "admission_ready": false,
+      "audit_note": "Eligible integer a is neither a square nor -1. The target asks positive RELATIVE density among primes, not positive density among all integers. orderOf in ZMod expresses primitive roots. A repaired neighboring GRH formulation is not an assumption of this selected theorem.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://guests.mpim-bonn.mpg.de/moree/artinsurveysmallfont.pdf",
+        "https://arxiv.org/abs/1112.4816"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "6ebe23f328e7b55d96d42614319f6588a10b3854627b9eab29e408185ae3974d",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 35,
+      "date_or_origin": "1930",
+      "name": "Köthe conjecture",
+      "theorem": "Koethe.KotheConjecture",
+      "source_path": "FormalConjectures/Wikipedia/Koethe.lean",
+      "line": 53,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is the sum of two nil left ideals always nil?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/Koethe.lean#L53",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "REMOVE from an open-problem list: September 2026 counterexample papers refute Köthe, with a public Lean disproof of the equivalent matrix formulation. Strong corroboration exceeds a lone proof claim, but this audit did not independently replay that external proof repository.",
+      "admission_ready": false,
+      "audit_note": "The sum of two nil LEFT ideals in an arbitrary unital ring is the intended statement. The matrix counterexample bridges to it using two column left ideals. The source research-open label is stale; no formalization defect is needed to explain the resolution.",
+      "audit_date": "2026-09-21",
+      "disposition": "remove_resolved",
+      "external_sources": [
+        "https://arxiv.org/abs/2609.07996",
+        "https://arxiv.org/abs/2609.15080",
+        "https://github.com/tadamcz/koethe"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "93841caba772e2256556fc7fcb4f4508f27ab73d2da1e11e92c15c4c75f96686",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 36,
+      "date_or_origin": "1932",
+      "name": "Lehmer totient problem",
+      "theorem": "LehmerTotient.lehmer_totient",
+      "source_path": "FormalConjectures/Wikipedia/LehmerTotient.lean",
+      "line": 35,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Can a composite n satisfy φ(n) dividing n−1?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/LehmerTotient.lean#L35",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The January 2026 purported short proof is explicitly withdrawn; a February 2026 INTEGERS paper still investigates the unresolved problem.",
+      "admission_ready": false,
+      "audit_note": "Asks whether there exists composite n>1 with φ(n) dividing n−1. True means a counterexample to the usual nonexistence conjecture. Label the yes/no task by existence rather than reversing its expected answer.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://www.preprints.org/manuscript/202601.1141",
+        "https://math.colgate.edu/~integers/aa33/aa33.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "9eb6bce27c3bbabf2b11f54af876c26facb3d521e5fee3335e6208e16666e3ee",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 37,
+      "date_or_origin": "1933",
+      "name": "Lehmer Mahler-measure problem",
+      "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem",
+      "source_path": "FormalConjectures/Wikipedia/LehmerMahlerMeasureProblem.lean",
+      "line": 47,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is there a uniform gap above 1 for Mahler measures of integer polynomials?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/LehmerMahlerMeasureProblem.lean#L47",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open in the sources examined. The status basis includes an older specialist survey; no established resolution was located in the current search.",
+      "admission_ready": false,
+      "audit_note": "Mahler measure uses complex roots with multiplicity and the leading-coefficient norm. The selected problem is existence of a uniform gap above one for integer polynomials, not the stronger claim that Lehmer's specific polynomial attains the optimum.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/math/0701397",
+        "https://www.maths.ed.ac.uk/~chris/papers/Smyth240707.pdf"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "629f0783dbe9165bda32bb6fcc8d64b1e9044392644dce081f8796709b91f68c",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 38,
+      "date_or_origin": "1933",
+      "name": "Borsuk problem in dimension four",
+      "theorem": "Borsuk.borsuk_conjecture.four",
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "line": 111,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Can every bounded nontrivial set in R⁴ be partitioned into five sets of smaller diameter?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/BorsukConjecture.lean#L111",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain the dimension-four case as open. A May 2026 preprint improves an upper bound to eight; the selected target asks five. High-dimensional counterexamples do not settle dimension four.",
+      "admission_ready": false,
+      "audit_note": "NEW Borsuk definition requires a bounded nontrivial set and uses extended diameter. This avoids the old Metric.diam convention assigning zero to unbounded sets. Cover by at most five smaller sets converts to a partition by intersections and differences; old Erdős 505 code is not a safe substitute.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://arxiv.org/abs/2605.19068"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "cb72989c98ce9d1c39ee8b5d9b4541a3e13360fb3a0e68831013dd0f5e91290a",
+      "requires_source_pin_fix": true
+    },
+    {
+      "number": 39,
+      "date_or_origin": "1935",
+      "name": "Erdős–Szekeres convex-polygon conjecture",
+      "theorem": "Erdos107.erdos_107",
+      "source_path": "FormalConjectures/ErdosProblems/107.lean",
+      "line": 50,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is the exact threshold for forcing a convex n-gon 2^(n−2)+1?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/ErdosProblems/107.lean#L50",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "Retain as open. The current Erdős Problems entry distinguishes the exact 2^(n−2)+1 threshold from known asymptotic results.",
+      "admission_ready": false,
+      "audit_note": "No-three-collinear general position and convex-independent subsets express the intended planar problem. n≥3 is correct. Natural sInf is meaningful using the classical existence of a finite Erdős–Szekeres threshold; that existence bridge was not re-proved here.",
+      "audit_date": "2026-09-21",
+      "disposition": "retain_provisionally_open",
+      "external_sources": [
+        "https://www.erdosproblems.com/107"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "9e833f62767145db1b273d12dccbdd31849ea25fd1477ef5078336dd4da2278f",
+      "requires_source_pin_fix": false
+    },
+    {
+      "number": 40,
+      "date_or_origin": "1937",
+      "name": "Scholz addition-chain conjecture",
+      "theorem": "ScholzConjecture.scholz_conjecture",
+      "source_path": "FormalConjectures/Wikipedia/ScholzConjecture.lean",
+      "line": 44,
+      "upstream_status": "research open",
+      "in_local_allowlist": false,
+      "summary": "Is ℓ(2^n−1)≤n−1+ℓ(n) for every positive n?",
+      "url": "https://github.com/google-deepmind/formal-conjectures/blob/2f82a24192f64ac678557247e496b2381d3889a1/FormalConjectures/Wikipedia/ScholzConjecture.lean#L44",
+      "formalization_review": "audited upstream: compile pass; statement axiom closure clean; semantic review with noted limits",
+      "independent_status_review": "HOLD: an August 17, 2026 author-uploaded paper claims the full Scholz inequality. Earlier infinite-subfamily results do not settle it. This audit did not establish acceptance or validate the complete new proof.",
+      "admission_ready": false,
+      "audit_note": "Addition chains begin at one and increase strictly. Summands are drawn from the list, but positivity forces both to precede the element they sum to. Positive n avoids the zero edge case; chains exist via 1,2,…,n, justifying the minimum-length interpretation.",
+      "audit_date": "2026-09-21",
+      "disposition": "hold_recent_claim",
+      "external_sources": [
+        "https://www.researchgate.net/publication/412298449_THE_SCHOLZ_CONJECTURE_VIA_A_MULTI-STEP_OPTIMIZATION",
+        "https://arxiv.org/abs/2210.13812",
+        "https://arxiv.org/abs/2302.02143"
+      ],
+      "source_compile_pass": true,
+      "statement_has_sorry": false,
+      "statement_dependency_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "declaration_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "elaborated_type_pretty_sha256": "5c8edc02c9264975a4c0127349cd6d36e518cb1dbf9ec4c14bab189aba9f3ef3",
+      "requires_source_pin_fix": false
+    }
+  ],
+  "audit_summary": {
+    "retain_provisionally_open": 36,
+    "hold_recent_claim": 3,
+    "remove_resolved": 1,
+    "compiled_targets": 40,
+    "statement_axiom_checks_passed": 40,
+    "lean_version": "4.33.1",
+    "admission_ready": 0
+  }
+}

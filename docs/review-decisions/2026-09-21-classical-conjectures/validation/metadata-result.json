@@ -1,0 +1,19 @@
+{
+  "added": 36,
+  "base_tasks_commit": "0a60fecdc7d11f1a69ef959f49ec5d5de54c7bc3",
+  "explicit_reinstatements": [
+    "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i",
+    "Green72.green_72",
+    "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem",
+    "LehmerTotient.lehmer_totient"
+  ],
+  "removed_matching_retired_hashes": [
+    "sha256:4132f953e67a7f0de1ba99a104fece5768ddbba1b27cbb37024a6817dfae8d6a",
+    "sha256:5784c5c1703d408b6beb12e56a186128c52c7f74d3d7d4102502dfd3d38bab7a",
+    "sha256:ab0bc423aa29d33304fa2763ce2a3f9f1390e9dd3c0aaf99580f19a9b14f52bf"
+  ],
+  "source_commit": "6a786f997e18e8f095762a2830d191b7e25e505e",
+  "source_paths": 257,
+  "status_audit_sha256": "d7f480071236d1688547a9c9e3201ccd6b8bc1962735f6f6358024d0908489ec",
+  "targets": 295
+}

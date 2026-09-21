@@ -1,0 +1,58 @@
+{
+  "checked_date": "2026-09-21",
+  "open_pr_count": 482,
+  "reviews": [
+    {
+      "number": 6435,
+      "url": "https://github.com/google-deepmind/formal-conjectures/pull/6435",
+      "title": "fix(hardy-littlewood): replace \u220f' with conditional convergent product using primesBelow",
+      "head": "5be868d4469d62e9bb8312810a81b435fe9101fb",
+      "paths": [
+        "FormalConjectures/Wikipedia/HardyLittlewood.lean"
+      ],
+      "decision": "Obsolete-base proposal: diff still starts from the old big-O formulation, without the distinct-offset fix. The conditional-convergence premise is inapplicable to current distinct linear offsets (tail 1+O(q^-2)); proposed replacement is not adopted. Reviewed mathematical objection resolved in the preceding audit; this is not evidence of a solution or a remaining confirmed defect."
+    },
+    {
+      "number": 4900,
+      "url": "https://github.com/google-deepmind/formal-conjectures/pull/4900",
+      "title": "feat: formalise construction of the 668 Hadamard matrix example",
+      "head": "1721605c41f1bad11f592c2606618c539c43dc1f",
+      "paths": [
+        "FormalConjectures/Wikipedia/Hadamard.lean"
+      ],
+      "decision": "Construction of order 668 only; universal Hadamard target unchanged."
+    },
+    {
+      "number": 4833,
+      "url": "https://github.com/google-deepmind/formal-conjectures/pull/4833",
+      "title": "feat(Wikipedia/Hadamard): prove isHadamard_H12",
+      "head": "0a74cc834431bb8c034dc627c52819a8bb2fd13a",
+      "paths": [
+        "FormalConjectures/Wikipedia/Hadamard.lean"
+      ],
+      "decision": "Proof of the order-12 test only; universal Hadamard target unchanged."
+    },
+    {
+      "number": 4198,
+      "url": "https://github.com/google-deepmind/formal-conjectures/pull/4198",
+      "title": "Update 35.lean",
+      "head": "1cda50fe1496260c6fe6177543542dcc7acca1fb",
+      "paths": [
+        "FormalConjectures/ErdosProblems/107.lean"
+      ],
+      "decision": "Reference changes; selected Erdos107 exact target unchanged."
+    },
+    {
+      "number": 4002,
+      "url": "https://github.com/google-deepmind/formal-conjectures/pull/4002",
+      "title": "chore(Wikipedia): harmonize module docstrings",
+      "head": "9dd267bc2bb65ef024c218ecd56dcd629c585171",
+      "paths": [
+        "FormalConjectures/Wikipedia/Hadamard.lean",
+        "FormalConjectures/Wikipedia/InscribedSquare.lean",
+        "FormalConjectures/Wikipedia/NormalityOfPi.lean"
+      ],
+      "decision": "Module docstrings and links; selected propositions unchanged."
+    }
+  ]
+}
