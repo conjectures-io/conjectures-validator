@@ -1,0 +1,9 @@
+{
+  "targets": 295,
+  "bundles": 590,
+  "independently_compiled_and_inspected": 590,
+  "retained_type_drift": 0,
+  "existing_reward_identities_preserved": 259,
+  "source_revision": "6a786f997e18e8f095762a2830d191b7e25e505e",
+  "lean_toolchain": "leanprover/lean4:v4.33.1"
+}

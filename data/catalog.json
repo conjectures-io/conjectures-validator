@@ -1717,7 +1717,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "**Artin's Conjecture on Primitive Roots**, first half, conditional on GRH.\n",
+      "docstring": "**Artin's Conjecture on Primitive Roots**, first half, conditional on the Riemann hypothesis\nfor the Dedekind zeta functions of the fields $\\mathbb{Q}(\\zeta_k, a^{1/k})$, $k$ squarefree\n[Ho67].\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -1743,8 +1743,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c5ea1049ace83ca5ef83f8a8fe0f9c087b13dea03d495e1ecee2ea15ffd6e71b",
-      "type_pretty": "∀ (a : ℤ),\n  ¬IsSquare a →\n    a ≠ -1 →\n      (∀ (q : ℕ) [inst : NeZero q] (χ : DirichletCharacter ℂ q),\n          χ.IsPrimitive →\n            ∀ (s : ℂ), DirichletCharacter.LFunction χ s = 0 → s ∉ Int.cast '' GRH.trivialZeros χ → s.re = 1 / 2) →\n        ∃ x > 0, (ArtinPrimitiveRootsConjecture.S a).HasDensity x {p | Nat.Prime p}"
+      "type_hash": "sha256:d798f67d47c4c0b366c6c4749bda44f3c454901c2cc768e2d0ddc5a3b9d3ddd9",
+      "type_pretty": "∀ (a : ℤ),\n  ¬IsSquare a →\n    a ≠ -1 →\n      ArtinPrimitiveRootsConjecture.HooleyHypothesis a →\n        ∃ x > 0, (ArtinPrimitiveRootsConjecture.S a).HasDensity x {p | Nat.Prime p}"
     },
     {
       "ams_subjects": [
@@ -1758,7 +1758,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "**Artin's Conjecture on Primitive Roots**, second half, conditional on GRH.\n",
+      "docstring": "**Artin's Conjecture on Primitive Roots**, second half, conditional on the Riemann hypothesis\nfor the Dedekind zeta functions of the fields $\\mathbb{Q}(\\zeta_k, a^{1/k})$, $k$ squarefree\n[Ho67].\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -1784,8 +1784,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2bddfdfff25281a7f732c2bc831c4f5bd065df2e45d87edfbf9278e5269dd19f",
-      "type_pretty": "∀ (a a_0 b : ℤ),\n  a = a_0 * b ^ 2 →\n    (∀ (n : ℤ) (m : ℕ), m ≠ 1 → a ≠ n ^ m) →\n      Squarefree a_0 →\n        ¬a_0 ≡ 1 [ZMOD 4] →\n          (∀ (q : ℕ) [inst : NeZero q] (χ : DirichletCharacter ℂ q),\n              χ.IsPrimitive →\n                ∀ (s : ℂ), DirichletCharacter.LFunction χ s = 0 → s ∉ Int.cast '' GRH.trivialZeros χ → s.re = 1 / 2) →\n            (ArtinPrimitiveRootsConjecture.S a).HasDensity ArtinPrimitiveRootsConjecture.ArtinConstant {p | Nat.Prime p}"
+      "type_hash": "sha256:11572f16ec27f1d6da558ab3cee0b18b032141581e7c263c932591a91b71e9ef",
+      "type_pretty": "∀ (a a_0 b : ℤ),\n  a = a_0 * b ^ 2 →\n    (∀ (n : ℤ) (m : ℕ), m ≠ 1 → a ≠ n ^ m) →\n      Squarefree a_0 →\n        ¬a_0 ≡ 1 [ZMOD 4] →\n          ArtinPrimitiveRootsConjecture.HooleyHypothesis a →\n            (ArtinPrimitiveRootsConjecture.S a).HasDensity ArtinPrimitiveRootsConjecture.ArtinConstant {p | Nat.Prime p}"
     },
     {
       "ams_subjects": [
@@ -1799,7 +1799,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "**Artin's Conjecture on Primitive Roots**, second half, power version, conditional on GRH.\n",
+      "docstring": "**Artin's Conjecture on Primitive Roots**, second half, power version, conditional on the\nRiemann hypothesis for the Dedekind zeta functions of the fields $\\mathbb{Q}(\\zeta_k, a^{1/k})$,\n$k$ squarefree [Ho67].\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -1825,8 +1825,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:65a4959728d4ad9796adfa3993f3eba6bc82782953c4cee1eae475e7c3708554",
-      "type_pretty": "∀ (a m b : ℕ),\n  a = b ^ m →\n    (∀ (u v : ℕ), 1 < u → b ≠ v ^ u) →\n      1 < m →\n        Odd m →\n          b.squarefreePart ≡ 1 [MOD 4] →\n            (∀ (q : ℕ) [inst : NeZero q] (χ : DirichletCharacter ℂ q),\n                χ.IsPrimitive →\n                  ∀ (s : ℂ), DirichletCharacter.LFunction χ s = 0 → s ∉ Int.cast '' GRH.trivialZeros χ → s.re = 1 / 2) →\n              (ArtinPrimitiveRootsConjecture.S ↑a).HasDensity\n                (ArtinPrimitiveRootsConjecture.ArtinConstant * ArtinPrimitiveRootsConjecture.powCorrectionFactor m *\n                  ArtinPrimitiveRootsConjecture.entanglementFactor b m)\n                {p | Nat.Prime p}"
+      "type_hash": "sha256:5506353cf5d67af41ee812960016a7a6538108ae748ba9871f9a6d7fefa132fa",
+      "type_pretty": "∀ (a m b : ℕ),\n  a = b ^ m →\n    (∀ (u v : ℕ), 1 < u → b ≠ v ^ u) →\n      1 < m →\n        Odd m →\n          b.squarefreePart ≡ 1 [MOD 4] →\n            ArtinPrimitiveRootsConjecture.HooleyHypothesis ↑a →\n              (ArtinPrimitiveRootsConjecture.S ↑a).HasDensity\n                (ArtinPrimitiveRootsConjecture.ArtinConstant * ArtinPrimitiveRootsConjecture.powCorrectionFactor m *\n                  ArtinPrimitiveRootsConjecture.entanglementFactor b m)\n                {p | Nat.Prime p}"
     },
     {
       "ams_subjects": [
@@ -1840,7 +1840,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "**Artin's Conjecture on Primitive Roots**, second half, power version, conditional on GRH\n",
+      "docstring": "**Artin's Conjecture on Primitive Roots**, second half, power version, conditional on the\nRiemann hypothesis for the Dedekind zeta functions of the fields $\\mathbb{Q}(\\zeta_k, a^{1/k})$,\n$k$ squarefree [Ho67].\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -1866,8 +1866,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:dbd4d951dfd5e5fd2bdd9527098cb08a071afe3525f15f954e026cedbef0250a",
-      "type_pretty": "∀ (a m b : ℕ),\n  a = b ^ m →\n    (∀ (u v : ℕ), 1 < u → b ≠ v ^ u) →\n      1 < m →\n        Odd m →\n          ¬b.squarefreePart ≡ 1 [MOD 4] →\n            (∀ (q : ℕ) [inst : NeZero q] (χ : DirichletCharacter ℂ q),\n                χ.IsPrimitive →\n                  ∀ (s : ℂ), DirichletCharacter.LFunction χ s = 0 → s ∉ Int.cast '' GRH.trivialZeros χ → s.re = 1 / 2) →\n              (ArtinPrimitiveRootsConjecture.S ↑a).HasDensity\n                (ArtinPrimitiveRootsConjecture.ArtinConstant * ArtinPrimitiveRootsConjecture.powCorrectionFactor m)\n                {p | Nat.Prime p}"
+      "type_hash": "sha256:3aeb4d06f430927a139df5471ff8e21d2bf9298b2ccf3ab4310a71c95ed5c22b",
+      "type_pretty": "∀ (a m b : ℕ),\n  a = b ^ m →\n    (∀ (u v : ℕ), 1 < u → b ≠ v ^ u) →\n      1 < m →\n        Odd m →\n          ¬b.squarefreePart ≡ 1 [MOD 4] →\n            ArtinPrimitiveRootsConjecture.HooleyHypothesis ↑a →\n              (ArtinPrimitiveRootsConjecture.S ↑a).HasDensity\n                (ArtinPrimitiveRootsConjecture.ArtinConstant * ArtinPrimitiveRootsConjecture.powCorrectionFactor m)\n                {p | Nat.Prime p}"
     },
     {
       "ams_subjects": [
@@ -8516,6 +8516,606 @@
       ],
       "type_hash": "sha256:a740ec127bbe818b37d80e5cdaf1a2226a589bbbcecb2e4434e171f3c75dce1b",
       "type_pretty": "∀ (f : ℂ → ℂ), 0 ≤ Bloch.blochRadius f"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture**, open range: every bounded subset of $\\mathbb{R}^n$ with at least two\npoints can be partitioned into $n + 1$ sets of strictly smaller diameter, for\n$4 \\leq n \\leq 62$.\n\nThe conjecture is known to be true for $n \\leq 3$ and false for $n \\geq 63$.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:9615ade7d21b4f702a21e436c39739f4ce792907fb573c5c972a46a4f01ec12d",
+      "type_pretty": "∀ (n : ℕ), 4 ≤ n → n ≤ 62 → Borsuk.BorsukConjecture n"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** in dimension $4$, the smallest open case. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.four",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:3558aafae07a382562db9bac4925f374da941567000294ce420fe959e009b993",
+      "type_pretty": "Borsuk.BorsukConjecture 4"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Partial result in dimension $4$**: every bounded subset of $\\mathbb{R}^4$ with at least two\npoints can be partitioned into $8$ sets of strictly smaller diameter. Claimed by Tolmachev and\nVoronov [TV26] via computer-assisted partitions of a truncated Lassak cover, with floating-point\nverification; the preprint is not yet refereed.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.four.eight_parts",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:b13f60fa9a498494f265dd0cbba0c4f7b01eb4345dacebbd4e1d1c28bd24f4c4",
+      "type_pretty": "∀ (s : Set (EuclideanSpace ℝ (Fin 4))), Bornology.IsBounded s → s.Nontrivial → Borsuk.HasBorsukCover 8 s"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Partial result in dimension $4$**: every bounded subset of $\\mathbb{R}^4$ with at least two\npoints can be partitioned into $9$ sets of strictly smaller diameter. Proved by Lassak [La82],\nwho showed more generally that $2^{n-1} + 1$ parts suffice in $\\mathbb{R}^n$.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.four.nine_parts",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:9cee7f64940e4509baf0c9eafe4a666007d226527ff976bb6b1dc975bbf1c1c6",
+      "type_pretty": "∀ (s : Set (EuclideanSpace ℝ (Fin 4))), Bornology.IsBounded s → s.Nontrivial → Borsuk.HasBorsukCover 9 s"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** is false in general: Kahn and Kalai [KK93] gave counterexamples in\ndimension $1325$ and in every dimension $n > 2014$.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L144",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.not_forall",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:ab0b65a65f700290a490bcfe84a97599145b51a73b06b38923cf17c05c82cf29",
+      "type_pretty": "¬∀ (n : ℕ), Borsuk.BorsukConjecture n"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** fails in dimension $65$, by Bondarenko [Bo14]. ",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L149",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.not_sixty_five",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:3950f9dea6c13da0244b7eae66cb746deb0013b398dcb53466ce50f5e4bd7e37",
+      "type_pretty": "¬Borsuk.BorsukConjecture 65"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** fails in dimension $64$, by Jenrich and Brouwer [JB14]. This is the\nsmallest dimension with a refereed counterexample.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L157",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.not_sixty_four",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:1d407e1728a2feb961694709984b60d63ca0c12936c387abf16490e557ee6b63",
+      "type_pretty": "¬Borsuk.BorsukConjecture 64"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** fails in dimension $63$, by a 321-point configuration found in 2026\nby Grinsztajn [Gr26] and independently by Konz and Ji [Ji26]. This is the smallest dimension\nin which the conjecture is currently known to be false.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L166",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.not_sixty_three",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:294b04266857ff5a86f3d382ef981cbdf0ac31f82f00b33b94312b19d9aef050",
+      "type_pretty": "¬Borsuk.BorsukConjecture 63"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "textbook",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** in dimension $1$: a bounded set of reals with at least two points\nsplits at the midpoint of its smallest enclosing interval into two parts of smaller diameter.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L126",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.one",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:4f25624ecf8c48ba574e1d10b1258a4c9f6f157362400aa59997968f92551f02",
+      "type_pretty": "Borsuk.BorsukConjecture 1"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** in dimension $3$, proved by Perkal [Pe47] and Eggleston [Eg55]. ",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L136",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.three",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:271180369a9dea90892959e64b4b379b9cc6446bd8dfe7c3f359fa46c941f21c",
+      "type_pretty": "Borsuk.BorsukConjecture 3"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** in the plane, proved by Borsuk [Bo33]. ",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L131",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.two",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:6dcdab947af2ece0be0251a74b6d084592619f544bd3e7fa17fee291220e1a3e",
+      "type_pretty": "Borsuk.BorsukConjecture 2"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "test",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Borsuk's conjecture** holds vacuously in dimension $0$: the space is a single point. ",
+      "finite_constructors": [],
+      "formal_proof_kind": "formal_conjectures",
+      "formal_proof_link": "https://github.com/mo271/formal-conjectures/blob/07a6d25f07ba0e16a916be14e9830c36cfcb9777/FormalConjectures/Wikipedia/BorsukConjecture.lean#L118",
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Borsuk%27s_conjecture)",
+        "[Bo33] Borsuk, K. (1933). *Drei Sätze über die n-dimensionale euklidische Sphäre*. Fundamenta Mathematicae 20, 177–190. https://doi.org/10.4064/fm-20-1-177-190",
+        "[Pe47] Perkal, J. (1947). *Sur la subdivision des ensembles en parties de diamètre inférieur*. Colloquium Mathematicum 2, 45.",
+        "[Eg55] Eggleston, H. G. (1955). *Covering a three-dimensional set with sets of smaller diameter*. Journal of the London Mathematical Society 30, 11–24. https://doi.org/10.1112/jlms/s1-30.1.11",
+        "[La82] Lassak, M. (1982). *An estimate concerning Borsuk partition problem*. Bulletin of the Polish Academy of Sciences, Mathematics 30(9–10), 449–451.",
+        "[KK93] Kahn, J., Kalai, G. (1993). *A counterexample to Borsuk's conjecture*. Bulletin of the American Mathematical Society 29(1), 60–62. https://arxiv.org/abs/math/9307229",
+        "[Bo14] Bondarenko, A. (2014). *On Borsuk's conjecture for two-distance sets*. Discrete & Computational Geometry 51(3), 509–515. https://doi.org/10.1007/s00454-014-9579-4",
+        "[JB14] Jenrich, T., Brouwer, A. E. (2014). *A 64-dimensional counterexample to Borsuk's conjecture*. Electronic Journal of Combinatorics 21(4), P4.29. https://doi.org/10.37236/4069",
+        "[Gr26] Grinsztajn, M. (2026). *A 63-dimensional counterexample to Borsuk's conjecture*. Proof note and verification script, https://github.com/maaxgrin/borsuk-63-counterexample",
+        "[Ji26] Ji, Y. (2026). *An AI generated counterexample to Borsuk problem in dimension 63*. https://arxiv.org/abs/2608.12561 (withdrawn as a duplicate of [Gr26])",
+        "[TV26] Tolmachev, A., Voronov, V. (2026). *Reducing the upper bound for the Borsuk number in $\\mathbb{R}^4$ to 8*. https://arxiv.org/abs/2605.19068",
+        "[OP28a] Tao, T. et al., *Optimization problems*, constant 28a (smallest Borsuk counterexample dimension). https://teorth.github.io/optimizationproblems/constants/28a.html",
+        "[Ka15] Kalai, G. (2015). *Some old and new problems in combinatorial geometry I: Around Borsuk's problem*. https://arxiv.org/abs/1505.04952"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Borsuk.borsuk_conjecture.zero",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:24824edb41093ea785dcdaec698992426ba3ae6d765566cdea3b69e2fdc45393",
+      "type_pretty": "Borsuk.BorsukConjecture 0"
     },
     {
       "ams_subjects": [
@@ -57074,7 +57674,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "**Brocard's Problem**\nDoes $n! + 1 = m^2$ have integer solutions other than $n = 4, 5, 7$?\n",
+      "docstring": "**Brocard's Problem**\nAre $n = 4, 5, 7$ the only natural numbers for which $n! + 1 = m^2$ has a natural-number solution?\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -94169,17 +94769,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -94197,7 +94791,10 @@
         "[RaSh73](https://eudml.org/doc/urn:eudml:doc:205214) Ramachandra, K. and Shorey, T. N., On gaps between numbers with a large prime factor. Acta Arith. (1973), 99--111."
       ],
       "source_path": "FormalConjectures/ErdosProblems/961.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Erdos961.erdos_961",
       "transitive_axioms": [
         "propext",
@@ -94205,8 +94802,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4e7677a316b71ff9940d6f575668aeb1ca426329c9c30ca366e014fd5cdfdaee",
-      "type_pretty": "sorry ↔ ∃ C, ∀ᶠ (k : ℕ) in Filter.atTop, ↑(Erdos961.f k) < Real.log ↑k ^ C"
+      "type_hash": "sha256:99edd0cf3789ff84b3539a98fa9eb100019860ed05a54c63a0075ca13bef1fea",
+      "type_pretty": "True ↔ ∃ C, ∀ᶠ (k : ℕ) in Filter.atTop, ↑(Erdos961.f k) < Real.log ↑k ^ C"
     },
     {
       "ams_subjects": [
@@ -98242,7 +98839,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "Are all Fermat numbers are square-free?\n",
+      "docstring": "Does a Fermat number exist that is not square-free?\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -98258,13 +98855,13 @@
         "formalized",
         "counterexample"
       ],
-      "theorem": "Fermat.all_fermat_squarefree",
+      "theorem": "Fermat.exists_fermat_not_squarefree",
       "transitive_axioms": [
         "propext",
         "sorryAx"
       ],
-      "type_hash": "sha256:36d162e2e2c272e0283fe438ee3945cc18469ed5ff0f14e02793e1fbba347238",
-      "type_pretty": "True ↔ ∀ (n : ℕ), Squarefree n.fermatNumber"
+      "type_hash": "sha256:f917ae211438a370aaa5b71b976191fc95e5c40b7aa4987e237d5d610710d6bc",
+      "type_pretty": "True ↔ ∃ n, ¬Squarefree n.fermatNumber"
     },
     {
       "ams_subjects": [
@@ -99296,7 +99893,7 @@
       "formal_proof_link": null,
       "has_parameters": true,
       "is_prop": true,
-      "module": "FormalConjectures.Millenium.RiemannHypothesis",
+      "module": "FormalConjectures.Millennium.RiemannHypothesis",
       "pointer_target": null,
       "references": [
         "[The Clay Institute](https://www.claymath.org/wp-content/uploads/2022/05/riemann.pdf)",
@@ -99306,7 +99903,7 @@
         "J. Neukirch, *Algebraic Number Theory*, Springer (Grundlehren 322), 1999, Chapter VII, §5.",
         "D. A. Marcus, *Number Fields*, Springer (GTM 81), 1977, Chapter VII."
       ],
-      "source_path": "FormalConjectures/Millenium/RiemannHypothesis.lean",
+      "source_path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
       "supported_modes": [
         "formalized",
         "counterexample"
@@ -99339,7 +99936,7 @@
       "formal_proof_link": null,
       "has_parameters": false,
       "is_prop": true,
-      "module": "FormalConjectures.Millenium.RiemannHypothesis",
+      "module": "FormalConjectures.Millennium.RiemannHypothesis",
       "pointer_target": null,
       "references": [
         "[The Clay Institute](https://www.claymath.org/wp-content/uploads/2022/05/riemann.pdf)",
@@ -99349,7 +99946,7 @@
         "J. Neukirch, *Algebraic Number Theory*, Springer (Grundlehren 322), 1999, Chapter VII, §5.",
         "D. A. Marcus, *Number Fields*, Springer (GTM 81), 1977, Chapter VII."
       ],
-      "source_path": "FormalConjectures/Millenium/RiemannHypothesis.lean",
+      "source_path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
       "supported_modes": [
         "formalized",
         "counterexample"
@@ -104651,17 +105248,11 @@
       "ams_subjects": [
         60
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -104679,7 +105270,10 @@
         "[MathStackexchange/3325163](https://math.stackexchange.com/questions/3325163/) asked by user [Emmanuel Amiot](https://math.stackexchange.com/users/403309/emmanuel-amiot)"
       ],
       "source_path": "FormalConjectures/GreensOpenProblems/28.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Green28.green_28",
       "transitive_axioms": [
         "propext",
@@ -104687,8 +105281,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:18699324e191e627538a0c95915e6548198057f3692d26b9d9723961b7ef858b",
-      "type_pretty": "sorry ↔\n  ∀ (X Y : PMF ℤ),\n    X.support.Finite ∧ Y.support.Finite ∧ Green28.IsUniformOnSupport (Green28.indepSum X Y) →\n      Green28.IsUniformOnSupport X ∧ Green28.IsUniformOnSupport Y"
+      "type_hash": "sha256:4ca7bfe3ba9f2d9713b3f9f971438e0dc36a5c45b5a70c7c9461212a25fc0a3b",
+      "type_pretty": "True ↔\n  ∀ (X Y : PMF ℤ),\n    X.support.Finite ∧ Y.support.Finite ∧ Green28.IsUniformOnSupport (Green28.indepSum X Y) →\n      Green28.IsUniformOnSupport X ∧ Green28.IsUniformOnSupport Y"
     },
     {
       "ams_subjects": [
@@ -109688,19 +110282,25 @@
         5,
         52
       ],
-      "answer_occurrences": [],
+      "answer_occurrences": [
+        {
+          "expression_pretty": "sorry",
+          "kind": "value",
+          "type_pretty": "Set ℕ"
+        }
+      ],
       "category": "research open",
-      "classification": "DIRECT_PROP",
-      "contains_answer_annotation": false,
-      "contains_sorry_in_type": false,
+      "classification": "GENERAL_VALUE_ANSWER",
+      "contains_answer_annotation": true,
+      "contains_sorry_in_type": true,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "The **no-k-in-line problem**:\nFor $N \\geq k$ and $k > 2$, the AllowedSetSize is $(k - 1) N$, i. e. on an $N \\times N$ subset,\nthere is a set of $(k - 1) N$ points for which no $k$ lie on a line (and not such a set of bigger size).\n",
+      "docstring": "The **no-k-in-line problem**:\nFor which $k > 2$ does every $N \\times N$ grid with $N \\geq k$ contain a set of $(k - 1) N$ points\nwith no $k$ on a line, so that `AllowedSetSize k N` is the pigeonhole bound $(k - 1) N$?\n\n[GK2025] proves that every $k > 10^{37}$ has this property, which is `no_k_in_line_big` below,\nand does not optimise this constant. At $k = 3$ it is the property that Green expects to fail\nfor large $N$, see `green_72`.\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
-      "has_parameters": true,
+      "has_parameters": false,
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«72»",
       "pointer_target": null,
@@ -109710,10 +110310,7 @@
         "[GK2025] Grebennikov, A. Kwan, M. No $(k + 1)$-in-line problem for large constant $k$. https://arxiv.org/abs/2510.17743"
       ],
       "source_path": "FormalConjectures/GreensOpenProblems/72.lean",
-      "supported_modes": [
-        "formalized",
-        "counterexample"
-      ],
+      "supported_modes": [],
       "theorem": "Green72.NoKInLine",
       "transitive_axioms": [
         "propext",
@@ -109721,8 +110318,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:dd4b672413ddb0c1768f069d56eeec1a12462f6a890c198157df8836073e6d58",
-      "type_pretty": "∀ {k N : ℕ}, 2 < k → k ≤ N → Green72.NoKInLineFor k N"
+      "type_hash": "sha256:d7a0b81973d0f6bd249b2acaf3b8f9b4de9c70073923af16360fe827817ee5cd",
+      "type_pretty": "sorry = {k | 2 < k ∧ ∀ (N : ℕ), k ≤ N → Green72.NoKInLineFor k N}"
     },
     {
       "ams_subjects": [
@@ -109777,11 +110374,11 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "**Green's Open Problem 72 / No-three-in-line problem**:\nThe no-k-in-line conjecture holds for $k = 3$. ",
+      "docstring": "**Green's Open Problem 72 / No-three-in-line problem**:\nFor $N$ sufficiently large, is it impossible to have $2N$ points in $[N]^2$ with no three in a\nline? Green suspects the answer is yes, and that $(3/2 + o(1))N$ is optimal. ",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
-      "has_parameters": true,
+      "has_parameters": false,
       "is_prop": true,
       "module": "FormalConjectures.GreensOpenProblems.«72»",
       "pointer_target": null,
@@ -109802,29 +110399,23 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:89e65e952fc8e9f8c7344e71a61043775a01fbe01bc01c718c389ecc2775f101",
-      "type_pretty": "∀ {N : ℕ}, 3 ≤ N → Green72.NoKInLineFor 3 N"
+      "type_hash": "sha256:503f9794910c3d10f95c16081b68a51ea4766b04c9f13c13526eba93ea4f18eb",
+      "type_pretty": "True ↔ ∀ᶠ (N : ℕ) in Filter.atTop, ¬Green72.NoKInLineFor 3 N"
     },
     {
       "ams_subjects": [
         5,
         52
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "Does the no-three-in-line problem hold when $N$ is big enough? ",
+      "docstring": "Is $2N$ attained for all sufficiently large $N$?\n\nThis is not the negation of `green_72`. Negating that one gives $\\exists^f N$ where this asks\n$\\forall^f N$, so both can be answered `False` if the behaviour oscillates. Green asks his\nquestion in the `green_72` form. ",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -109838,7 +110429,10 @@
         "[GK2025] Grebennikov, A. Kwan, M. No $(k + 1)$-in-line problem for large constant $k$. https://arxiv.org/abs/2510.17743"
       ],
       "source_path": "FormalConjectures/GreensOpenProblems/72.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Green72.green_72.variants.eventually",
       "transitive_axioms": [
         "propext",
@@ -109846,8 +110440,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c6fad2c549528ba9f8e00d8eb51264a5d75ccf722eeeeb64d6a28e5f4e4f6af9",
-      "type_pretty": "sorry ↔ ∀ᶠ (N : ℕ) in Filter.atTop, Green72.NoKInLineFor 3 N"
+      "type_hash": "sha256:c98a1112ee147264a36f3bce6443afbafd6a7dd0759d02a61a781de94d8e215c",
+      "type_pretty": "True ↔ ∀ᶠ (N : ℕ) in Filter.atTop, Green72.NoKInLineFor 3 N"
     },
     {
       "ams_subjects": [
@@ -109862,7 +110456,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "In [GK2025] Grebennikov and Kwan prove the no-k-in-line conjecture for $k > 10 ^ 37$\nand $N \\geq k$. ",
+      "docstring": "In [GK2025] Grebennikov and Kwan prove that the pigeonhole bound $(k - 1) N$ is attained\nfor $k > 10 ^ {37}$ and $N \\geq k$. ",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -110569,7 +111163,7 @@
       "contains_sorry_in_type": false,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
-      "depends_on_sorry": true,
+      "depends_on_sorry": false,
       "docstring": "which satisfies the condition.\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
@@ -110590,7 +111184,6 @@
       "theorem": "Hadamard.isHadamard_H12",
       "transitive_axioms": [
         "propext",
-        "sorryAx",
         "Classical.choice",
         "Quot.sound"
       ],
@@ -110803,7 +111396,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "Let $P = (m_1, \\dots, m_k)$ be a tuple of positive even integers. Let\n$\\pi_P(n)$ denote the number of primes $p\\leq n$ such that $(p, p + m_1, \\dots, p + m_k)$\nforms an admissible prime constellation. Let $w(q; m_1, \\dots, m_k)$ denote the\nnumber of distinct residues of $0, m_1, \\dots, m_k$ modulo $q$, and let\n$$\n  C_P = 2 ^ k\\prod_{\\substack{q\\ \\text{prime} \\\\ q\\geq 3}}\n    \\frac{1 - \\frac{w(q; m_1, \\dots, m_k)}{q}}{\\left(1 - \\frac{1}{q}\\right)^{k+1}}.\n$$\nThen\n$$\n  \\pi_P(n)\\sim C_P\\int_2^n\\frac{dt}{\\log^{k+1}t}.\n$$\n",
+      "docstring": "Let $P = (m_1, \\dots, m_k)$ be a tuple of distinct positive even integers. Let\n$\\pi_P(n)$ denote the number of primes $p\\leq n$ such that $(p, p + m_1, \\dots, p + m_k)$\nforms an admissible prime constellation. Let $w(q; m_1, \\dots, m_k)$ denote the\nnumber of distinct residues of $0, m_1, \\dots, m_k$ modulo $q$, and let\n$$\n  C_P = 2 ^ k\\prod_{\\substack{q\\ \\text{prime} \\\\ q\\geq 3}}\n    \\frac{1 - \\frac{w(q; m_1, \\dots, m_k)}{q}}{\\left(1 - \\frac{1}{q}\\right)^{k+1}}.\n$$\nThen\n$$\n  \\pi_P(n)\\sim C_P\\int_2^n\\frac{dt}{\\log^{k+1}t}.\n$$\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -111773,71 +112366,71 @@
         "propext",
         "Classical.choice",
         "Quot.sound",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_1",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_10",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_11",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_12",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_13",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_14",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_15",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_16",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_17",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_18",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_19",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_2",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_20",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_21",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_22",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_23",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_24",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_25",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_26",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_27",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_28",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_29",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_3",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_30",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_31",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_32",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_33",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_34",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_35",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_36",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_37",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_38",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_39",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_4",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_40",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_41",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_42",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_43",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_44",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_45",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_46",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_47",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_48",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_49",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_5",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_50",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_51",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_52",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_53",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_54",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_55",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_56",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_57",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_58",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_59",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_6",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_60",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_61",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_62",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_63",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_64",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_65",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_7",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_8",
-        "Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_9"
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_1",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_10",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_11",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_12",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_13",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_14",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_15",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_16",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_17",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_18",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_19",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_2",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_20",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_21",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_22",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_23",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_24",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_25",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_26",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_27",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_28",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_29",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_3",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_30",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_31",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_32",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_33",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_34",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_35",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_36",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_37",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_38",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_39",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_4",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_40",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_41",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_42",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_43",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_44",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_45",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_46",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_47",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_48",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_49",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_5",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_50",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_51",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_52",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_53",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_54",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_55",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_56",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_57",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_58",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_59",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_6",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_60",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_61",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_62",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_63",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_64",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_65",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_7",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_8",
+        "_private.FormalConjectures.Wikipedia.IdonealCompleteness.0.Idoneal.knownIdonealNumbers_are_idoneal._native.native_decide.ax_1_9"
       ],
       "type_hash": "sha256:f00273afda4c9bd8c8d8ea87af38aafcf18828fd93a82eb0702584a3d4de6aeb",
       "type_pretty": "∀ n ∈ Idoneal.knownIdonealNumbers, Idoneal.IsIdoneal n"
@@ -111894,7 +112487,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "It is known that every *smooth* Jordan curve admits inscribed rectangles of all aspect ratios.\n",
+      "docstring": "It is known that every *smooth* Jordan curve admits inscribed rectangles of all aspect ratios.\nHere a smooth Jordan curve is a smooth embedding of the circle into the plane, i.e. a smooth\nsimple closed curve with nowhere vanishing velocity.\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -111919,8 +112512,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:511c9fbbd048a28e8eeb5608b41f4886b13f68762a8a41901a1638771bb8cdbd",
-      "type_pretty": "∀ (γ : Circle → EuclideanSpace ℝ (Fin 2)),\n  Topology.IsEmbedding γ →\n    ContMDiff (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 1))) (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 2)))\n        (↑⊤) γ →\n      ∀ r > 0, ∃ t₁ t₂ t₃ t₄, InscribedSquare.IsRectangle (γ t₁) (γ t₂) (γ t₃) (γ t₄) r"
+      "type_hash": "sha256:e9d012de7bf4af5ab2d36001d1cf785779b0e873c337506fb46895af82b8b445",
+      "type_pretty": "∀ (γ : Circle → EuclideanSpace ℝ (Fin 2)),\n  Manifold.IsSmoothEmbedding (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 1)))\n      (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 2))) (↑⊤) γ →\n    ∀ r > 0, ∃ t₁ t₂ t₃ t₄, InscribedSquare.IsRectangle (γ t₁) (γ t₂) (γ t₃) (γ t₄) r"
     },
     {
       "ams_subjects": [
@@ -111934,7 +112527,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "It is also known that every $C^2$ Jordan curve admits an inscribed square.\n",
+      "docstring": "It is also known that every $C^2$ Jordan curve admits an inscribed square.\nHere a $C^2$ Jordan curve is a $C^2$ embedding of the circle into the plane, i.e. a $C^2$\nsimple closed curve with nowhere vanishing velocity.\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -111959,8 +112552,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:ff70e167e42652811337084ce0834489a9aa476b973d2186548aa45955331d97",
-      "type_pretty": "∀ (γ : Circle → EuclideanSpace ℝ (Fin 2)),\n  Topology.IsEmbedding γ →\n    ContMDiff (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 1))) (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 2))) 2\n        γ →\n      ∃ t₁ t₂ t₃ t₄, InscribedSquare.IsRectangle (γ t₁) (γ t₂) (γ t₃) (γ t₄) 1"
+      "type_hash": "sha256:a46087b9a2cc7421ab12d10c6ca8955c4a155bbc96c7392008c1ebd85b48a0a3",
+      "type_pretty": "∀ (γ : Circle → EuclideanSpace ℝ (Fin 2)),\n  Manifold.IsSmoothEmbedding (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 1)))\n      (modelWithCornersSelf ℝ (EuclideanSpace ℝ (Fin 2))) 2 γ →\n    ∃ t₁ t₂ t₃ t₄, InscribedSquare.IsRectangle (γ t₁) (γ t₂) (γ t₃) (γ t₄) 1"
     },
     {
       "ams_subjects": [
@@ -112356,7 +112949,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "Every finite group is realisable over the field of rational functions\nwith coefficients `K`, where `K` is any field of characteristic 0.\n",
+      "docstring": "Every finite group is realisable over the field of rational functions\nwith coefficients `K`, where `K` is any algebraically closed field of characteristic 0.\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -112379,8 +112972,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:3f44af3a0d212b4616bc219e03a03ef86b9cc46e02eeb0821a35d413954bec71",
-      "type_pretty": "∀ {G : Type u_1} {K : Type u_2} [inst : Field K] [CharZero K] [Fintype G] [inst_3 : Group G],\n  InverseGalois.IsRealizable (RatFunc K) G"
+      "type_hash": "sha256:ef70a97ab2f940506624cb43d39e841badaf25af9f114a175fe8b6df6e680ab1",
+      "type_pretty": "∀ {G : Type u_1} {K : Type u_2} [inst : Field K] [IsAlgClosed K] [CharZero K] [Fintype G] [inst_4 : Group G],\n  InverseGalois.IsRealizable (RatFunc K) G"
     },
     {
       "ams_subjects": [
@@ -113068,17 +113661,11 @@
       "ams_subjects": [
         14
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -113094,7 +113681,10 @@
         "[Wikipedia](https://en.wikipedia.org/wiki/Jacobian_conjecture)"
       ],
       "source_path": "FormalConjectures/Wikipedia/JacobianConjecture.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "JacobianConjecture.jacobian_conjecture_two_variables",
       "transitive_axioms": [
         "propext",
@@ -113102,8 +113692,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:80aa0600cfac6493b23b77497b55e008b8a48474c2f37690c9f4d10c009395b5",
-      "type_pretty": "sorry ↔ ∀ {k : Type} [inst : Field k] [CharZero k], JacobianConjecture.JacobianConjectureProp k (Fin 2)"
+      "type_hash": "sha256:114ecbcc287c2773db62acade8c3db788295d15fe7dc649fe9790f79891f0dea",
+      "type_pretty": "True ↔ ∀ {k : Type} [inst : Field k] [CharZero k], JacobianConjecture.JacobianConjectureProp k (Fin 2)"
     },
     {
       "ams_subjects": [
@@ -115571,17 +116161,11 @@
       "ams_subjects": [
         11
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "research open",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -115599,14 +116183,17 @@
         "[Luan Alberto Ferreira, *Real exponential sums over primes and prime gaps*](https://arxiv.org/abs/2307.08725)"
       ],
       "source_path": "FormalConjectures/Wikipedia/LegendreConjecture.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "LegendreConjecture.legendre_conjecture",
       "transitive_axioms": [
         "propext",
         "sorryAx"
       ],
-      "type_hash": "sha256:b280d35bbd4a0dd28b91d433f9f5a59d5627114e4d7245c86ac565b4f5cdaf1f",
-      "type_pretty": "sorry ↔ ∀ n ≥ 1, ∃ p ∈ Set.Ioo (n ^ 2) ((n + 1) ^ 2), Nat.Prime p"
+      "type_hash": "sha256:9b35ae2fb71f2c60f3815a062057b780d848c7e77751753be7afb5ab6f79c15d",
+      "type_pretty": "True ↔ ∀ n ≥ 1, ∃ p ∈ Set.Ioo (n ^ 2) ((n + 1) ^ 2), Nat.Prime p"
     },
     {
       "ams_subjects": [
@@ -115735,7 +116322,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "If $f$ is not reciprocal and $M(f) > 1$ then $M(f) \\ge M(X^3 - X - 1)$.\n",
+      "docstring": "If $f$ is irreducible and not reciprocal and $M(f) > 1$ then $M(f) \\ge M(X^3 - X - 1)$.\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -115758,8 +116345,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:23e4252d7d38db874f2dff8e23da8aa2666a995fa3d392c2aa59e133a30f9115",
-      "type_pretty": "∀ (f : Polynomial ℤ),\n  LehmerMahlerMeasureProblem.mahlerMeasureZ f > 1 →\n    f.reverse ≠ f →\n      LehmerMahlerMeasureProblem.mahlerMeasureZ f ≥\n        LehmerMahlerMeasureProblem.mahlerMeasureZ (Polynomial.X ^ 3 - Polynomial.X - 1)"
+      "type_hash": "sha256:a39a3c3fa608699403b24984387691c8c7a58bd5bf59c000d6cf9ff08e78abbd",
+      "type_pretty": "∀ (f : Polynomial ℤ),\n  Irreducible f →\n    LehmerMahlerMeasureProblem.mahlerMeasureZ f > 1 →\n      f.reverse ≠ f →\n        LehmerMahlerMeasureProblem.mahlerMeasureZ f ≥\n          LehmerMahlerMeasureProblem.mahlerMeasureZ (Polynomial.X ^ 3 - Polynomial.X - 1)"
     },
     {
       "ams_subjects": [
@@ -115773,7 +116360,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "If all the coefficients of $f$ are odd and $M(f) > 1$, then $M(f) \\ge M(X^2 - X - 1)$.\n",
+      "docstring": "If $f$ is not reciprocal, all the coefficients of $f$ are odd and $M(f) > 1$, then\n$M(f) \\ge M(X^2 - X - 1)$.\n",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -115796,8 +116383,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:b1709a65c532fe0399a9f3164fb518beb4c5e49c9db37d6d917c467deb7139a2",
-      "type_pretty": "∀ (f : Polynomial ℤ),\n  LehmerMahlerMeasureProblem.mahlerMeasureZ f > 1 →\n    LehmerMahlerMeasureProblem.Polynomial.HasOddCoeffs f →\n      LehmerMahlerMeasureProblem.mahlerMeasureZ f ≥\n        LehmerMahlerMeasureProblem.mahlerMeasureZ (Polynomial.X ^ 2 - Polynomial.X - 1)"
+      "type_hash": "sha256:63cd2560772259a6cc10a393289e10f5b32d313cdfd6b55f7be2f6abf919ccc4",
+      "type_pretty": "∀ (f : Polynomial ℤ),\n  LehmerMahlerMeasureProblem.mahlerMeasureZ f > 1 →\n    f.reverse ≠ f →\n      LehmerMahlerMeasureProblem.Polynomial.HasOddCoeffs f →\n        LehmerMahlerMeasureProblem.mahlerMeasureZ f ≥\n          LehmerMahlerMeasureProblem.mahlerMeasureZ (Polynomial.X ^ 2 - Polynomial.X - 1)"
     },
     {
       "ams_subjects": [
@@ -118608,17 +119195,11 @@
       "ams_subjects": [
         60
       ],
-      "answer_occurrences": [
-        {
-          "expression_pretty": "sorry",
-          "kind": "Prop",
-          "type_pretty": "Prop"
-        }
-      ],
+      "answer_occurrences": [],
       "category": "textbook",
-      "classification": "PROP_ANSWER_WRAPPER",
-      "contains_answer_annotation": true,
-      "contains_sorry_in_type": true,
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
@@ -118634,7 +119215,10 @@
         "[mathoverflow/339137](https://mathoverflow.net/questions/339137)"
       ],
       "source_path": "FormalConjectures/Mathoverflow/339137.lean",
-      "supported_modes": [],
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
       "theorem": "Mathoverflow339137.mathoverflow_339137_probabilistic",
       "transitive_axioms": [
         "propext",
@@ -118642,8 +119226,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:245bcedc462ca1fcb66fd2c09dc49c3042afcbf10c348c7c86be34f2b0e2c31f",
-      "type_pretty": "(∀ (P Q R : Polynomial ℝ),\n    P.Monic →\n      Q.Monic →\n        (∀ c ∈ P.coeffs, 0 ≤ c) →\n          (∀ c ∈ Q.coeffs, 0 ≤ c) →\n            R = P * Q →\n              Mathoverflow339137.IsZeroOne R → Mathoverflow339137.IsZeroOne P ∧ Mathoverflow339137.IsZeroOne Q) ↔\n  (sorry ↔\n    ∀ (X Y : PMF ℤ),\n      X.support.Finite ∧ Y.support.Finite ∧ Green28.IsUniformOnSupport (Green28.indepSum X Y) →\n        Green28.IsUniformOnSupport X ∧ Green28.IsUniformOnSupport Y)"
+      "type_hash": "sha256:a85955bba56de78672aa97527a9356f8a679a3d5dcd74e977a4a596ed6f50606",
+      "type_pretty": "(∀ (P Q R : Polynomial ℝ),\n    P.Monic →\n      Q.Monic →\n        (∀ c ∈ P.coeffs, 0 ≤ c) →\n          (∀ c ∈ Q.coeffs, 0 ≤ c) →\n            R = P * Q →\n              Mathoverflow339137.IsZeroOne R → Mathoverflow339137.IsZeroOne P ∧ Mathoverflow339137.IsZeroOne Q) ↔\n  (True ↔\n    ∀ (X Y : PMF ℤ),\n      X.support.Finite ∧ Y.support.Finite ∧ Green28.IsUniformOnSupport (Green28.indepSum X Y) →\n        Green28.IsUniformOnSupport X ∧ Green28.IsUniformOnSupport Y)"
     },
     {
       "ams_subjects": [
@@ -120288,7 +120872,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": false,
-      "docstring": "It suffices to check this conjecture for primes ",
+      "docstring": "It suffices to check this conjecture for odd primes. The statement fails at `p = 2`:\n`mersenne 2 = 3` is prime and `2 = 2 ^ 0 + 1`, but `2` gives no Wagstaff prime. ",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -120312,8 +120896,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:aa0c9bf22f2f23967e4cb8ee967f99ed781b75acca305c4fd723eef5e3c2bf42",
-      "type_pretty": "(∀ (p : ℕ), Nat.Prime p → Mersenne.NewMersenneConjectureStatement p) →\n  ∀ (p : ℕ), Odd p → Mersenne.NewMersenneConjectureStatement p"
+      "type_hash": "sha256:8e59b0852207551804083fb711f16bb0ff92b703d124692baa48a2902522a302",
+      "type_pretty": "(∀ (p : ℕ), Nat.Prime p → Odd p → Mersenne.NewMersenneConjectureStatement p) →\n  ∀ (p : ℕ), Odd p → Mersenne.NewMersenneConjectureStatement p"
     },
     {
       "ams_subjects": [
@@ -188585,7 +189169,7 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
-      "docstring": "An equivalent definition of a regular prime `p` is that it does not divide the numerator of the\nfirst `p-3` Bernoulli numbers. Not in Mathlib. ",
+      "docstring": "**Kummer's criterion.** An equivalent definition of a regular prime `p` is that it does not\ndivide the numerator of any of the Bernoulli numbers $B_k$ for $k = 2, 4, 6, \\dots, p - 3$.\nNot in Mathlib. ",
       "finite_constructors": [],
       "formal_proof_kind": null,
       "formal_proof_link": null,
@@ -188608,8 +189192,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:247c416efbc1873dfb8963969e877f596e0469dc77d166d59680543cf4613473",
-      "type_pretty": "∀ (p : ℕ) [inst : Fact (Nat.Prime p)],\n  RegularPrimes.IsRegularPrime p ↔ ∀ k ∈ Finset.Icc 2 (p - 3), ¬↑p ∣ (bernoulli' k).num"
+      "type_hash": "sha256:8ff143d494708163e40d4c2c0e7e1fe44d8b5cd31dec86c4ae5182761673181f",
+      "type_pretty": "∀ (p : ℕ) [inst : Fact (Nat.Prime p)],\n  RegularPrimes.IsRegularPrime p ↔ ∀ k ∈ Finset.Icc 2 (p - 3), Even k → ¬↑p ∣ (bernoulli' k).num"
     },
     {
       "ams_subjects": [
@@ -188639,52 +189223,14 @@
         "formalized",
         "counterexample"
       ],
-      "theorem": "RegularPrimes.not_isRegularPrime_37_first",
+      "theorem": "RegularPrimes.not_isRegularPrime_37",
       "transitive_axioms": [
         "propext",
         "sorryAx",
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:95fa1f3b6d3e2c707647dd36828bcd0f2cb5af17b61a06748058910ba1e318bb",
-      "type_pretty": "¬RegularPrimes.IsRegularPrime 37"
-    },
-    {
-      "ams_subjects": [
-        11
-      ],
-      "answer_occurrences": [],
-      "category": "textbook",
-      "classification": "DIRECT_PROP",
-      "contains_answer_annotation": false,
-      "contains_sorry_in_type": false,
-      "contains_sorry_in_value": false,
-      "declaration_kind": "theorem",
-      "depends_on_sorry": true,
-      "docstring": "The prime 37 is not a regular prime. ",
-      "finite_constructors": [],
-      "formal_proof_kind": null,
-      "formal_proof_link": null,
-      "has_parameters": false,
-      "is_prop": true,
-      "module": "FormalConjectures.Wikipedia.RegularPrimes",
-      "pointer_target": null,
-      "references": [
-        "[Wikipedia](https://en.wikipedia.org/wiki/Regular_prime)"
-      ],
-      "source_path": "FormalConjectures/Wikipedia/RegularPrimes.lean",
-      "supported_modes": [
-        "formalized",
-        "counterexample"
-      ],
-      "theorem": "RegularPrimes.not_isRegularPrime_37_second",
-      "transitive_axioms": [
-        "propext",
-        "sorryAx",
-        "Classical.choice",
-        "Quot.sound"
-      ],
-      "type_hash": "sha256:95fa1f3b6d3e2c707647dd36828bcd0f2cb5af17b61a06748058910ba1e318bb",
+      "type_hash": "sha256:e3f9bea2b63a89fa02fc9eb918c34331aa396a41ec4a32bb32224543470bc2cd",
       "type_pretty": "¬RegularPrimes.IsRegularPrime 37"
     },
     {
@@ -188781,7 +189327,7 @@
       "formal_proof_link": null,
       "has_parameters": false,
       "is_prop": true,
-      "module": "FormalConjectures.Millenium.RiemannHypothesis",
+      "module": "FormalConjectures.Millennium.RiemannHypothesis",
       "pointer_target": null,
       "references": [
         "[The Clay Institute](https://www.claymath.org/wp-content/uploads/2022/05/riemann.pdf)",
@@ -188791,7 +189337,7 @@
         "J. Neukirch, *Algebraic Number Theory*, Springer (Grundlehren 322), 1999, Chapter VII, §5.",
         "D. A. Marcus, *Number Fields*, Springer (GTM 81), 1977, Chapter VII."
       ],
-      "source_path": "FormalConjectures/Millenium/RiemannHypothesis.lean",
+      "source_path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
       "supported_modes": [
         "formalized",
         "counterexample"
@@ -203891,10 +204437,10 @@
       "type_pretty": "3 ∉ additionChainSteps 7"
     }
   ],
-  "extraction_duration_ms": 32213,
+  "extraction_duration_ms": 45550,
   "generated_by": "lean/CatalogExtractor.lean",
   "lean_toolchain": "leanprover/lean4:v4.33.1",
   "mathlib_commit": "0df444a360eaa60ab8c11dca51a86af692955474",
-  "repository_commit": "8432eac998110a563e03df65a28c117e97c8c142",
+  "repository_commit": "6a786f997e18e8f095762a2830d191b7e25e505e",
   "schema_version": 1
 }

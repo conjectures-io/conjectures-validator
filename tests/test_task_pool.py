@@ -47,6 +47,29 @@ TIER_METADATA = TASKS_ROOT / "tiers/tier-1"
 
 
 @pytest.mark.needs_checkouts
+def test_classical_admissions_match_review_and_exclude_held_or_resolved_targets():
+    review = json.loads((TIER_METADATA / "classical-status-audit.json").read_text())
+    admitted = {row["theorem"] for row in review["candidates"]}
+    assert len(admitted) == 36
+    assert all(
+        row["disposition"] == "retain_provisionally_open" for row in review["candidates"]
+    )
+    policy = json.loads((TASKS_ROOT / "allowlist.json").read_text())
+    tasks = policy["allowed_task_bundles"]
+    for theorem in admitted:
+        paired = [row for row in tasks if theorem in row["theorems"]]
+        assert len(paired) == 2
+        assert {row["mode"] for row in paired} == set(PRODUCTION_TASK_MODES)
+    excluded = {
+        "Koethe.KotheConjecture",
+        "EulerBrick.perfect_euler_brick_existence",
+        "Irrational.irrational_catalanConstant",
+        "ScholzConjecture.scholz_conjecture",
+    }
+    assert not excluded & {name for row in tasks for name in row["theorems"]}
+
+
+@pytest.mark.needs_checkouts
 def test_reinstated_erdos96_preserves_reward_identity_and_both_modes():
     theorem = "Erdos96.erdos_96"
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text())
@@ -90,7 +113,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
-    ) == DEFAULT_TIER_SIZE - MINIMUM_ERDOS_TASKS
+    ) == 24
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -98,7 +121,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 223
+    assert len({item.source_path for item in selected}) == 257
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -144,7 +167,7 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     assert tier_policy["selection_audit_sha256"] == audit.sha256
     assert tier_policy["task_targets_sha256"] == targets.sha256
     assert tier_policy["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
-    assert tier_policy["source_families"] == ["erdos", "greens-open-problems"]
+    assert tier_policy["source_families"] == ["erdos", "greens-open-problems", "millennium", "wikipedia"]
     assert tier_policy["task_scope"] == TASK_POOL_TASK_SCOPE
     assert tier_policy["multi_target_tasks"] == 0
     assert tier_policy["excluded_source_prefixes"] == list(EXCLUDED_SOURCE_PREFIXES)

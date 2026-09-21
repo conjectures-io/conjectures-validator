@@ -1,0 +1,524 @@
+[
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.MvPolynomial.RegularFunction",
+    "exit_code": 0,
+    "seconds": 1.68,
+    "log": "evidence/build/FormalConjecturesForMathlib/Algebra/MvPolynomial/RegularFunction.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.AlgebraicGeometry.EllipticCurve.GlobalPeriod",
+    "exit_code": 0,
+    "seconds": 2.24,
+    "log": "evidence/build/FormalConjecturesForMathlib/AlgebraicGeometry/EllipticCurve/GlobalPeriod.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.AlgebraicGeometry.EllipticCurve.MinimalDiscriminant",
+    "exit_code": 0,
+    "seconds": 2.45,
+    "log": "evidence/build/FormalConjecturesForMathlib/AlgebraicGeometry/EllipticCurve/MinimalDiscriminant.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.Fourier.SpectralSets",
+    "exit_code": 0,
+    "seconds": 2.9,
+    "log": "evidence/build/FormalConjecturesForMathlib/Analysis/Fourier/SpectralSets.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.SpecialFunctions.Log.Basic",
+    "exit_code": 0,
+    "seconds": 2.9,
+    "log": "evidence/build/FormalConjecturesForMathlib/Analysis/SpecialFunctions/Log/Basic.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.Coset",
+    "exit_code": 0,
+    "seconds": 5.37,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/Additive/Coset.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.VCDim",
+    "exit_code": 0,
+    "seconds": 3.28,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/Additive/VCDim.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Circumference",
+    "exit_code": 0,
+    "seconds": 1.2,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Circumference.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Coloring.Vertex",
+    "exit_code": 0,
+    "seconds": 2.73,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Coloring/Vertex.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Decomposition",
+    "exit_code": 0,
+    "seconds": 1.19,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Decomposition.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Degeneracy",
+    "exit_code": 0,
+    "seconds": 1.2,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Degeneracy.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.DiamExtra",
+    "exit_code": 0,
+    "seconds": 1.25,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/DiamExtra.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.VertexDistance",
+    "exit_code": 0,
+    "seconds": 2.26,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/VertexDistance.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Eccentricity",
+    "exit_code": 0,
+    "seconds": 1.88,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Eccentricity.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.HarmonicIndex",
+    "exit_code": 0,
+    "seconds": 1.19,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/HarmonicIndex.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Independence",
+    "exit_code": 0,
+    "seconds": 1.44,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Independence.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.LovaszTheta",
+    "exit_code": 0,
+    "seconds": 2.7,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/LovaszTheta.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Matching",
+    "exit_code": 0,
+    "seconds": 1.72,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Matching.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Prod",
+    "exit_code": 0,
+    "seconds": 1.26,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Prod.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Ramsey",
+    "exit_code": 0,
+    "seconds": 1.3,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Ramsey.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Saturation",
+    "exit_code": 0,
+    "seconds": 1.68,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Saturation.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.SizeRamsey",
+    "exit_code": 0,
+    "seconds": 1.25,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/SizeRamsey.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.SzegedIndex",
+    "exit_code": 0,
+    "seconds": 1.87,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/SzegedIndex.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.WienerIndex",
+    "exit_code": 0,
+    "seconds": 2.04,
+    "log": "evidence/build/FormalConjecturesForMathlib/Combinatorics/SimpleGraph/WienerIndex.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.Complexity",
+    "exit_code": 0,
+    "seconds": 1.42,
+    "log": "evidence/build/FormalConjecturesForMathlib/Computability/Complexity.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.Primrec",
+    "exit_code": 0,
+    "seconds": 1.19,
+    "log": "evidence/build/FormalConjecturesForMathlib/Computability/Primrec.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.TuringMachine.Notation",
+    "exit_code": 0,
+    "seconds": 2.66,
+    "log": "evidence/build/FormalConjecturesForMathlib/Computability/TuringMachine/Notation.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Finset.Powerset",
+    "exit_code": 0,
+    "seconds": 1.23,
+    "log": "evidence/build/FormalConjecturesForMathlib/Data/Finset/Powerset.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Geometry.Manifold.LieGroupPresentation",
+    "exit_code": 0,
+    "seconds": 2.44,
+    "log": "evidence/build/FormalConjecturesForMathlib/Geometry/Manifold/LieGroupPresentation.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Geometry.Metric",
+    "exit_code": 0,
+    "seconds": 1.67,
+    "log": "evidence/build/FormalConjecturesForMathlib/Geometry/Metric.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.GroupTheory.Torsion",
+    "exit_code": 0,
+    "seconds": 1.49,
+    "log": "evidence/build/FormalConjecturesForMathlib/GroupTheory/Torsion.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AdditivelyComplete",
+    "exit_code": 0,
+    "seconds": 1.84,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/AdditivelyComplete.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.Amicable",
+    "exit_code": 0,
+    "seconds": 1.44,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/Amicable.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet.LieDeriv",
+    "exit_code": 0,
+    "seconds": 5.69,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet/LieDeriv.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet.CenterAction",
+    "exit_code": 0,
+    "seconds": 14.61,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet/CenterAction.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet.Subgroups",
+    "exit_code": 0,
+    "seconds": 4.25,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet/Subgroups.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet",
+    "exit_code": 0,
+    "seconds": 4.73,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.NormalNumber",
+    "exit_code": 0,
+    "seconds": 1.49,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/NormalNumber.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.PracticalNumbers",
+    "exit_code": 0,
+    "seconds": 1.18,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/PracticalNumbers.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.WallSunSunPrimes",
+    "exit_code": 0,
+    "seconds": 2.48,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/WallSunSunPrimes.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.WieferichPrime",
+    "exit_code": 0,
+    "seconds": 1.2,
+    "log": "evidence/build/FormalConjecturesForMathlib/NumberTheory/WieferichPrime.log"
+  },
+  {
+    "module": "FormalConjecturesForMathlib",
+    "exit_code": 0,
+    "seconds": 4.27,
+    "log": "evidence/build/FormalConjecturesForMathlib.log"
+  },
+  {
+    "module": "FormalConjecturesUtil.Attributes.Basic",
+    "exit_code": 0,
+    "seconds": 2.68,
+    "log": "evidence/build/FormalConjecturesUtil/Attributes/Basic.log"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.AMSLinter",
+    "exit_code": 0,
+    "seconds": 1.8,
+    "log": "evidence/build/FormalConjecturesUtil/Linters/AMSLinter.log"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.AnswerLinter",
+    "exit_code": 0,
+    "seconds": 1.49,
+    "log": "evidence/build/FormalConjecturesUtil/Linters/AnswerLinter.log"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.CategoryAnswerLinter",
+    "exit_code": 0,
+    "seconds": 1.32,
+    "log": "evidence/build/FormalConjecturesUtil/Linters/CategoryAnswerLinter.log"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.CategoryDocstringLinter",
+    "exit_code": 0,
+    "seconds": 1.31,
+    "log": "evidence/build/FormalConjecturesUtil/Linters/CategoryDocstringLinter.log"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.CategoryLinter",
+    "exit_code": 0,
+    "seconds": 1.68,
+    "log": "evidence/build/FormalConjecturesUtil/Linters/CategoryLinter.log"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.FormalProofLinter",
+    "exit_code": 0,
+    "seconds": 1.64,
+    "log": "evidence/build/FormalConjecturesUtil/Linters/FormalProofLinter.log"
+  },
+  {
+    "module": "FormalConjecturesUtil",
+    "exit_code": 0,
+    "seconds": 4.82,
+    "log": "evidence/build/FormalConjecturesUtil.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.PerfectNumbers",
+    "exit_code": 0,
+    "seconds": 5.24,
+    "log": "evidence/build/FormalConjectures/Wikipedia/PerfectNumbers.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Mersenne",
+    "exit_code": 0,
+    "seconds": 6.33,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Mersenne.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Fermat",
+    "exit_code": 0,
+    "seconds": 5.24,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Fermat.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.EulerBrick",
+    "exit_code": 0,
+    "seconds": 10.65,
+    "log": "evidence/build/FormalConjectures/Wikipedia/EulerBrick.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Irrational",
+    "exit_code": 0,
+    "seconds": 5.24,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Irrational.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.GoldbachConjecture",
+    "exit_code": 0,
+    "seconds": 5.09,
+    "log": "evidence/build/FormalConjectures/Wikipedia/GoldbachConjecture.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.IdonealCompleteness",
+    "exit_code": 0,
+    "seconds": 17.98,
+    "log": "evidence/build/FormalConjectures/Wikipedia/IdonealCompleteness.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.LegendreConjecture",
+    "exit_code": 0,
+    "seconds": 5.18,
+    "log": "evidence/build/FormalConjectures/Wikipedia/LegendreConjecture.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.ClassNumberProblem",
+    "exit_code": 0,
+    "seconds": 5.2,
+    "log": "evidence/build/FormalConjectures/Wikipedia/ClassNumberProblem.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.TwinPrimes",
+    "exit_code": 0,
+    "seconds": 5.04,
+    "log": "evidence/build/FormalConjectures/Wikipedia/TwinPrimes.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.KummerVandiver",
+    "exit_code": 0,
+    "seconds": 5.11,
+    "log": "evidence/build/FormalConjectures/Wikipedia/KummerVandiver.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.RegularPrimes",
+    "exit_code": 0,
+    "seconds": 5.05,
+    "log": "evidence/build/FormalConjectures/Wikipedia/RegularPrimes.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.PollocksConjecture",
+    "exit_code": 0,
+    "seconds": 5.15,
+    "log": "evidence/build/FormalConjectures/Wikipedia/PollocksConjecture.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Bunyakovsky",
+    "exit_code": 0,
+    "seconds": 5.06,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Bunyakovsky.log"
+  },
+  {
+    "module": "FormalConjectures.Millennium.RiemannHypothesis",
+    "exit_code": 0,
+    "seconds": 6.46,
+    "log": "evidence/build/FormalConjectures/Millennium/RiemannHypothesis.log"
+  },
+  {
+    "module": "FormalConjectures.ErdosProblems.398",
+    "exit_code": 0,
+    "seconds": 5.09,
+    "log": "evidence/build/FormalConjectures/ErdosProblems/398.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Oppermann",
+    "exit_code": 0,
+    "seconds": 13.3,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Oppermann.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.InverseGalois",
+    "exit_code": 0,
+    "seconds": 5.12,
+    "log": "evidence/build/FormalConjectures/Wikipedia/InverseGalois.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Hadamard",
+    "exit_code": 0,
+    "seconds": 20.22,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Hadamard.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Lemoine",
+    "exit_code": 0,
+    "seconds": 5.06,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Lemoine.log"
+  },
+  {
+    "module": "FormalConjectures.GreensOpenProblems.72",
+    "exit_code": 0,
+    "seconds": 5.2,
+    "log": "evidence/build/FormalConjectures/GreensOpenProblems/72.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Dickson",
+    "exit_code": 0,
+    "seconds": 5.0,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Dickson.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.BrocardConjecture",
+    "exit_code": 0,
+    "seconds": 5.12,
+    "log": "evidence/build/FormalConjectures/Wikipedia/BrocardConjecture.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.CarmichaelTotient",
+    "exit_code": 0,
+    "seconds": 5.01,
+    "log": "evidence/build/FormalConjectures/Wikipedia/CarmichaelTotient.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.NormalityOfPi",
+    "exit_code": 0,
+    "seconds": 4.99,
+    "log": "evidence/build/FormalConjectures/Wikipedia/NormalityOfPi.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.InscribedSquare",
+    "exit_code": 0,
+    "seconds": 5.25,
+    "log": "evidence/build/FormalConjectures/Wikipedia/InscribedSquare.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.PrimesAndPerfectSquares",
+    "exit_code": 0,
+    "seconds": 4.99,
+    "log": "evidence/build/FormalConjectures/Wikipedia/PrimesAndPerfectSquares.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.GaussCircleProblem",
+    "exit_code": 0,
+    "seconds": 5.13,
+    "log": "evidence/build/FormalConjectures/Wikipedia/GaussCircleProblem.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Goormaghtigh",
+    "exit_code": 0,
+    "seconds": 5.07,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Goormaghtigh.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.HardyLittlewood",
+    "exit_code": 0,
+    "seconds": 5.12,
+    "log": "evidence/build/FormalConjectures/Wikipedia/HardyLittlewood.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.ArtinPrimitiveRootsConjecture",
+    "exit_code": 0,
+    "seconds": 5.38,
+    "log": "evidence/build/FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Koethe",
+    "exit_code": 0,
+    "seconds": 5.24,
+    "log": "evidence/build/FormalConjectures/Wikipedia/Koethe.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.LehmerTotient",
+    "exit_code": 0,
+    "seconds": 5.03,
+    "log": "evidence/build/FormalConjectures/Wikipedia/LehmerTotient.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.LehmerMahlerMeasureProblem",
+    "exit_code": 0,
+    "seconds": 5.21,
+    "log": "evidence/build/FormalConjectures/Wikipedia/LehmerMahlerMeasureProblem.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+    "exit_code": 0,
+    "seconds": 5.09,
+    "log": "evidence/build/FormalConjectures/Wikipedia/BorsukConjecture.log"
+  },
+  {
+    "module": "FormalConjectures.ErdosProblems.107",
+    "exit_code": 0,
+    "seconds": 6.58,
+    "log": "evidence/build/FormalConjectures/ErdosProblems/107.log"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.ScholzConjecture",
+    "exit_code": 0,
+    "seconds": 7.77,
+    "log": "evidence/build/FormalConjectures/Wikipedia/ScholzConjecture.log"
+  }
+]
