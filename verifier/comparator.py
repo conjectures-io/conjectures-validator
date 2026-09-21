@@ -13,7 +13,7 @@ from verifier.models import ProcessResult, TaskManifest
 from verifier.process import run_process
 from verifier.workspace import WorkspacePaths
 
-COMPARATOR_MEMORY_BYTES = 64 * 1024 * 1024 * 1024
+COMPARATOR_MEMORY_BYTES = 96 * 1024 * 1024 * 1024
 RESOURCE_FAILURE_MARKERS = (
     "resource exhausted",
     "resource temporarily unavailable",
