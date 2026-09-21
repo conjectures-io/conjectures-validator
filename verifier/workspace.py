@@ -41,6 +41,8 @@ def _lakefile(project_root: Path) -> str:
         '[lean_lib.leanOptions]\nweak.google.answer = "always_true"\n\n'
         '[[lean_lib]]\nname = "Solution"\n'
         '[lean_lib.leanOptions]\nweak.google.answer = "always_true"\n'
+        # Preserve production's serial elaboration policy for large proof files.
+        'Elab.async = false\n'
     )
 
 
