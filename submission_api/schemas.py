@@ -138,3 +138,6 @@ class Readiness(Model):
     database: bool
     task_pool: bool
     tasks: int
+    # None when this deployment serves no competitions, which is not a degraded state but an
+    # absent surface -- distinct from False, which means "configured and unreachable".
+    competition_database: bool | None = None

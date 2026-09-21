@@ -27,7 +27,7 @@ from submission_api import sessions as session_layer
 from submission_api.auth import Authenticator
 from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
-from submission_api.errors import Forbidden, Unauthorized
+from submission_api.errors import Forbidden, ServiceUnavailable, Unauthorized
 from submission_api.github import (
     ContributionMirror,
     UnavailableContributionMirror,
@@ -78,6 +78,17 @@ class Services:
     mail: MailSender
     packages: tuple[CreditPackage, ...]
     terms: SubmissionTerms
+    # The competition database: a second engine, because it is a second database. `None` when
+    # the deployment did not configure one, which is the fail-closed default in the same sense
+    # as everything else in this block -- a service graph that never opted in answers 503 on
+    # that surface rather than reaching for a connection it does not have. Crucially it does
+    # not fall back to `engine`: that would write competition rows into the database Flyway
+    # owns, which is the one outcome the two-database split exists to prevent.
+    #
+    # No unit of work may span the two. PostgreSQL has no cross-database transaction, so a
+    # handler touching both is two units of work and has to be written as such.
+    competition_engine: AsyncEngine | None = None
+    competition_sessions: async_sessionmaker | None = None
     # Fail closed for manually assembled service graphs that do not opt in to Google. Production
     # construction always replaces this with the client-ID-bound verifier.
     google: GoogleCredentialVerifier = field(
@@ -171,6 +182,34 @@ async def get_session(services: ServicesDep) -> AsyncIterator[AsyncSession]:
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+async def get_competition_session(services: ServicesDep) -> AsyncIterator[AsyncSession]:
+    """One competition-database session per request, always closed.
+
+    Refuses rather than falling back when the deployment configured no competition database.
+    A handler that reached `get_session` instead would be writing competition rows into the
+    proofs database, which is the one outcome the two-database split exists to prevent, so
+    the absence is an outage of this surface and not a reason to improvise.
+
+    Spelled as its own dependency rather than a parameter on `get_session` so a handler's
+    signature says which database it touches. That matters here more than it usually would:
+    there is no transaction spanning both, so "this handler uses both" is a fact a reviewer
+    needs to see without reading the body.
+    """
+    if services.competition_sessions is None:
+        raise ServiceUnavailable(
+            "competitions are not configured on this deployment",
+            reason_code="COMPETITIONS_UNAVAILABLE",
+        )
+    async with services.competition_sessions() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+CompetitionSessionDep = Annotated[AsyncSession, Depends(get_competition_session)]
 
 
 # --- The signed-in principal --------------------------------------------------------------

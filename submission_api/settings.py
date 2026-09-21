@@ -15,8 +15,13 @@ origin, refuses to disable rate limiting, and requires a real `PUBLIC_CURSOR_SEC
 salt would make the pseudonyms in `/v1/catalog/conjectures/{slug}/activity` reversible by
 anyone who read this file.
 
-The API configures no database of its own; `conjectures_subnet.db.database_url()` resolves
-`DATABASE_URL` or the `POSTGRES_*` variables that `.env.example` already defines.
+The API configures no proofs database of its own; `conjectures_subnet.db.database_url()`
+resolves `DATABASE_URL` or the `POSTGRES_*` variables that `.env.example` already defines.
+It does configure one thing: the competition database, which is a *second* database in the
+same cluster and therefore cannot be resolved from the same variables. Production refuses to
+enable the competition surface without an explicit `COMPETITION_DATABASE_URL`, for the same
+reason the verification worker refuses an implicit `DATABASE_URL` -- the fallback is a guess,
+and a guess about which database to write to is not one worth shipping.
 """
 
 from __future__ import annotations
@@ -709,6 +714,14 @@ class Settings:
     # Empty means "whatever conjectures_subnet.db resolves". The API does not own the
     # database; it reuses the validator's shared store.
     database_url: str
+    # The proof-gated competitions, which live in a second database. Off by default, so a
+    # deployment that has not been given one refuses `/v1/competitions/*` with a 503 rather
+    # than reaching for a database it was never configured with.
+    competitions_enabled: bool
+    # Empty means "whatever conjectures_subnet.db.competition_database_url() resolves", which
+    # is the POSTGRES_* credentials with COMPETITION_POSTGRES_DB. Production requires it
+    # explicitly; see from_env.
+    competition_database_url: str
     task_allowlist_path: Path
     task_pool_root: Path
     verifier_project_root: Path
@@ -1496,9 +1509,21 @@ class Settings:
                 )
 
         tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
+        competitions_enabled = _flag(env, "COMPETITIONS_ENABLED", False)
+        competition_database_url = env.get("COMPETITION_DATABASE_URL", "").strip()
+        if production and competitions_enabled and not competition_database_url:
+            raise SettingsError(
+                "COMPETITION_DATABASE_URL is required in production when "
+                "COMPETITIONS_ENABLED is set: the fallback assembles a URL from the "
+                "POSTGRES_* variables, and which database the competition writes to is not "
+                "something to leave to a default"
+            )
+
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
+            competitions_enabled=competitions_enabled,
+            competition_database_url=competition_database_url,
             # Renamed with the pool itself: neither gold/allowlist.json nor a gold pool exists
             # any more, so the old names could only ever have resolved to nothing.
             task_allowlist_path=_directory(
