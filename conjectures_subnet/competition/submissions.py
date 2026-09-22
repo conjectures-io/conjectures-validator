@@ -7,7 +7,7 @@ import logging
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, select, update
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker, undefer
 
 from . import _statements as q
 from . import clock, models
@@ -84,6 +84,15 @@ class SubmissionsDb:
         with session_scope(self._sessions) as session:
             row = session.execute(
                 select(models.Submission)
+                # The two files are deferred on the model, because every other read of a
+                # submission is a listing that would carry megabytes it never looks at.
+                # This is the one caller that needs them -- and it needs them loaded now,
+                # not lazily, because the row is expunged below and the worker reads them
+                # after the session has closed.
+                .options(
+                    undefer(models.Submission.parse_source),
+                    undefer(models.Submission.proof_source),
+                )
                 .where(models.Submission.state == SubmissionState.QUEUED.value)
                 .order_by(models.Submission.submitted_at, models.Submission.id)
                 .limit(1)
@@ -213,17 +222,15 @@ class SubmissionsDb:
     def leaderboard(self) -> list[models.Submission]:
         """Every hotkey's best accepted submission, fewest bytes first.
 
-        DISTINCT ON picks each hotkey's best row; the final ordering is applied after,
-        because Postgres requires DISTINCT ON's leading ORDER BY term to be the
-        distinct key. Ties go to the earlier submission, then the lower id -- the order
-        the competition has always ranked by, and the one the rules promise.
+        The whole board in one read, which is what a worker and the operator tooling want;
+        the API pages the same statement. Ties go to the earlier submission, then the lower
+        id -- the order the competition has always ranked by, and the one the rules promise.
         """
         with session_scope(self._sessions) as session:
-            rows = session.execute(q.leaderboard()).scalars().all()
-            ordered = q.order_leaderboard(list(rows))
-            for row in ordered:
+            rows = list(session.execute(q.leaderboard()).scalars().all())
+            for row in rows:
                 session.expunge(row)
-            return ordered
+            return rows
 
     def latest_incumbent_bytes(self) -> int | None:
         # The incumbent's total as the most recent report measured it. It moves when the

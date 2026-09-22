@@ -739,6 +739,13 @@ class Settings:
     # How far a submission's signed timestamp may sit from this clock. A captured request is
     # useless once it falls outside, which is what stops a recorded upload being replayed.
     competition_signature_window_seconds: int
+    # After how long a claim held by a gate worker is presumed dead, for the operator queue
+    # at /v1/admin/competitions. Advisory only: it decides what an operator is *shown*, not
+    # what gets requeued -- the worker's own COMPETITION_STALE_CLAIM_SECONDS does that, and
+    # the API cannot read the worker's environment. Defaulted to the same number so the two
+    # agree out of the box; set both if you change either, or the queue will list rows the
+    # worker's sweep is about to reclaim by itself.
+    competition_stale_claim_seconds: int
     task_allowlist_path: Path
     task_pool_root: Path
     verifier_project_root: Path
@@ -1556,6 +1563,13 @@ class Settings:
                 "COMPETITION_SIGNATURE_WINDOW_SECONDS",
                 300,
                 minimum=1,
+                maximum=86_400,
+            ),
+            competition_stale_claim_seconds=_bounded_int(
+                env,
+                "COMPETITION_STALE_CLAIM_SECONDS",
+                7_200,
+                minimum=60,
                 maximum=86_400,
             ),
             # Renamed with the pool itself: neither gold/allowlist.json nor a gold pool exists

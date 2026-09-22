@@ -88,6 +88,7 @@ from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
 from submission_api.routers import competitions as competitions_router
+from submission_api.routers import competitions_admin as competitions_admin_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
@@ -497,4 +498,9 @@ def create_app(
     application.include_router(invitations.admin_router)
     application.include_router(admin.router)
     application.include_router(reviews.router)
+    # The competition queue an operator acts on. Under /v1/admin like the two above, and no
+    # ordering question with them: `admin` owns /accounts, `reviews` owns /reviews, this owns
+    # /competitions, and none is a prefix of another. It reads the competition database, so a
+    # deployment without one answers 503 here exactly as it does on the public routes.
+    application.include_router(competitions_admin_router.router)
     return application

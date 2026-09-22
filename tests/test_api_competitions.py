@@ -285,6 +285,9 @@ def test_the_public_surface_reads_without_a_credential():
                 "incumbent_bytes": None,
                 "speed_floor": 8.0,
                 "ranking": [],
+                # Null on an empty board, as on an exhausted one: a client loops until this
+                # is null rather than comparing counts.
+                "next_cursor": None,
             }
         finally:
             await kit.teardown()
@@ -799,7 +802,7 @@ def test_an_account_sees_its_own_submissions_and_not_a_signed_one():
                 mine = await http.get("/v1/me/competitions/submissions")
             assert through_session.status_code == 201
             assert mine.status_code == 200
-            ids = [row["id"] for row in mine.json()["submissions"]]
+            ids = [row["id"] for row in mine.json()["items"]]
             assert ids == [through_session.json()["submission"]]
         finally:
             await kit.teardown()
@@ -819,5 +822,523 @@ def test_the_account_listing_needs_a_credential():
         finally:
             await kit.teardown()
             await engine.dispose()
+
+    run(scenario())
+
+
+# ── the read surface a website is built from ───────────────────────────────
+
+
+async def _accepted(engine, rows):
+    """Insert accepted, scored submissions directly.
+
+    Through the database rather than through the gate, because these tests are about what
+    the read endpoints do with accepted rows, and producing a real one costs forty-five
+    minutes of Lean and cargo.
+    """
+    from sqlalchemy import text
+
+    async with engine.begin() as conn:
+        for index, (hotkey, size) in enumerate(rows):
+            await conn.execute(
+                text(
+                    "INSERT INTO submissions "
+                    "(hotkey, digest, state, bytes, raw_bytes, incumbent_bytes, "
+                    " time_ratio, parse_source, proof_source, submitted_at) "
+                    "VALUES (:hot, :digest, 'accepted', :size, 4000000, 2153387, 1.5, "
+                    "        :rust, :lean, now() + make_interval(secs => :offset))"
+                ),
+                {
+                    "hot": hotkey,
+                    "digest": f"{index:064x}",
+                    "size": size,
+                    "rust": RUST,
+                    "lean": LEAN,
+                    "offset": index,
+                },
+            )
+
+
+@competition_only
+def test_the_leaderboard_pages_and_keeps_ranks_absolute():
+    """Page two continues page one's numbering rather than restarting at 1.
+
+    The rank a client renders has to be the competitor's rank in the competition, not their
+    offset within whichever slice arrived -- so this asserts across a page boundary, which is
+    the only place the two can differ.
+    """
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        await _accepted(
+            engine, [(f"5Hot{i}", 2_200_000 - i * 1_000) for i in range(5)]
+        )
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await _client(kit) as client:
+                first = await client.get(
+                    "/v1/competitions/miniz-oxide/leaderboard?limit=2"
+                )
+                cursor = first.json()["next_cursor"]
+                second = await client.get(
+                    f"/v1/competitions/miniz-oxide/leaderboard?limit=2&cursor={cursor}"
+                )
+                last = await client.get(
+                    "/v1/competitions/miniz-oxide/leaderboard?limit=2&cursor="
+                    + second.json()["next_cursor"]
+                )
+            assert [r["rank"] for r in first.json()["ranking"]] == [1, 2]
+            assert [r["rank"] for r in second.json()["ranking"]] == [3, 4]
+            assert [r["rank"] for r in last.json()["ranking"]] == [5]
+            # Null on the page that exhausts the board, so a client loops until null rather
+            # than making one wasted request to discover the end.
+            assert last.json()["next_cursor"] is None
+            # Fewest bytes first, and the ranks follow the ordering rather than the insert
+            # order: the last row inserted holds the record.
+            assert first.json()["ranking"][0]["hotkey"] == "5Hot4"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_a_leaderboard_cursor_is_refused_by_the_submission_feed():
+    """Both feeds page the same table, and a cursor for one must not parse for the other.
+
+    Each is signed by this deployment, so the signature check passes; it is the version tag
+    that keeps them apart. Without it the three-part rank cursor would decode into the
+    two-part feed cursor's arguments and answer with a coherent-looking wrong page.
+    """
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        await _accepted(engine, [("5HotA", 2_100_000), ("5HotB", 2_000_000)])
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await _client(kit) as client:
+                board = await client.get(
+                    "/v1/competitions/miniz-oxide/leaderboard?limit=1"
+                )
+                stolen = board.json()["next_cursor"]
+                crossed = await client.get(
+                    f"/v1/competitions/miniz-oxide/submissions?cursor={stolen}"
+                )
+            assert stolen
+            assert crossed.status_code == 400
+            assert crossed.json()["reason_code"] == "INVALID_CURSOR"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_the_submission_feed_filters_by_hotkey_and_by_state():
+    """The endpoint a miner who lost their submission id uses.
+
+    A signed submit sets no `account_id`, so `/v1/me/competitions/submissions` can never
+    show them; the hotkey is the only handle those rows carry.
+    """
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        await _accepted(engine, [("5HotA", 2_100_000), ("5HotB", 2_000_000)])
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await _client(kit) as client:
+                everything = await client.get("/v1/competitions/miniz-oxide/submissions")
+                mine = await client.get(
+                    "/v1/competitions/miniz-oxide/submissions?hotkey=5HotA"
+                )
+                queued = await client.get(
+                    "/v1/competitions/miniz-oxide/submissions?state=queued"
+                )
+                nonsense = await client.get(
+                    "/v1/competitions/miniz-oxide/submissions?state=probably"
+                )
+            assert len(everything.json()["items"]) == 2
+            assert [r["hotkey"] for r in mine.json()["items"]] == ["5HotA"]
+            # An accepted row is not queued, so the filter returns nothing rather than
+            # falling back to everything.
+            assert queued.json()["items"] == []
+            assert nonsense.status_code == 400
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_stats_report_every_state_including_the_ones_nobody_reached():
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        await _accepted(engine, [("5HotA", 2_100_000)])
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await _client(kit) as client:
+                stats = await client.get("/v1/competitions/miniz-oxide/stats")
+            body = stats.json()
+            # A fixed set of counters, so a dashboard renders the same rows before and after
+            # the first rejection rather than discovering which keys exist today.
+            assert set(body["submissions"]) == {
+                "queued",
+                "verifying",
+                "accepted",
+                "rejected",
+                "error",
+            }
+            assert body["submissions"]["accepted"] == 1
+            assert body["submissions"]["rejected"] == 0
+            assert body["total_submissions"] == 1
+            assert body["competitors"] == 1
+            assert body["best_bytes"] == 2_100_000
+            assert body["last_accepted_at"].endswith("Z")
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_a_competitor_can_read_their_slots_before_spending_one():
+    """The fact the entitlement rule turns on, available without making a submission.
+
+    Two registrations and one queued submission leaves one slot, and `pending` says why --
+    which is the whole answer a miner needs before uploading.
+    """
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        keypair = _keypair()
+        await _fresh(engine, hotkey=keypair.ss58_address, coldkey=MINER_COLDKEY, slots=2)
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await _client(kit) as client:
+                before = await client.get(
+                    f"/v1/competitions/miniz-oxide/competitors/{keypair.ss58_address}"
+                )
+                await client.post(
+                    "/v1/competitions/miniz-oxide/submissions",
+                    files=_files(),
+                    headers=_signed(
+                        keypair, digest=competition_sig.digest_of(RUST, LEAN)
+                    ),
+                )
+                after = await client.get(
+                    f"/v1/competitions/miniz-oxide/competitors/{keypair.ss58_address}"
+                )
+                stranger = await client.get(
+                    "/v1/competitions/miniz-oxide/competitors/5NeverRegistered"
+                )
+            assert before.json()["registered"] is True
+            assert before.json()["slots_remaining"] == 2
+            assert before.json()["pending"] == 0
+            assert after.json()["slots_remaining"] == 1
+            assert after.json()["pending"] == 1
+            assert after.json()["submissions"] == 1
+            # Nothing accepted yet, so no board row and nothing spent.
+            assert after.json()["accepted"] == 0
+            assert after.json()["best"] is None
+            assert stranger.json()["registered"] is False
+            assert stranger.json()["slots_remaining"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_only_an_accepted_submission_publishes_its_source():
+    """A rejected submission is the miner's unproven work; an accepted one is the record.
+
+    Both answer 404 for the not-accepted case rather than 403, matching how the proofs
+    results feed answers for an unpublished result: the state is already public on the
+    submission endpoint, so nothing is concealed by using one answer for "not here".
+    """
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        keypair = _keypair()
+        await _fresh(engine, hotkey=keypair.ss58_address, coldkey=MINER_COLDKEY, slots=1)
+        await _accepted(engine, [("5HotA", 2_100_000)])
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await _client(kit) as client:
+                board = await client.get("/v1/competitions/miniz-oxide/leaderboard")
+                winner = board.json()["ranking"][0]["submission"]
+                published = await client.get(
+                    f"/v1/competitions/miniz-oxide/submissions/{winner}/source"
+                )
+                queued_response = await client.post(
+                    "/v1/competitions/miniz-oxide/submissions",
+                    files=_files(rust=b"a different parser"),
+                    headers=_signed(
+                        keypair,
+                        digest=competition_sig.digest_of(b"a different parser", LEAN),
+                    ),
+                )
+                pending = await client.get(
+                    "/v1/competitions/miniz-oxide/submissions/"
+                    f"{queued_response.json()['submission']}/source"
+                )
+            assert published.status_code == 200
+            assert published.json()["parse_rs"] == RUST.decode()
+            assert published.json()["proof_lean"] == LEAN.decode()
+            assert pending.status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# ── the pause switch ───────────────────────────────────────────────────────
+
+
+@competition_only
+def test_a_pause_stops_the_competition_taking_submissions():
+    """`SUBMISSIONS_PAUSED` reaches both write paths, and the surface says so.
+
+    The flag is what `/v1/system/status` publishes as `submissions_open`, and the weekly
+    pin-rotation drain depends on every intake path honouring it. A competition that kept
+    accepting through a pause would leave the queue never draining and would make the status
+    endpoint a thing clients should not believe.
+    """
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        keypair = _keypair()
+        await _fresh(engine, hotkey=keypair.ss58_address, coldkey=MINER_COLDKEY, slots=1)
+        kit = await harness(
+            competition_engine=engine,
+            COMPETITIONS_ENABLED="1",
+            SUBMISSIONS_PAUSED="1",
+        ).setup()
+        try:
+            async with await client(kit) as http:
+                detail = await http.get("/v1/competitions/miniz-oxide")
+                signed = await http.post(
+                    "/v1/competitions/miniz-oxide/submissions",
+                    files=_files(),
+                    headers=_signed(
+                        keypair, digest=competition_sig.digest_of(RUST, LEAN)
+                    ),
+                )
+                account = await sign_in_by_email(kit, http)
+                await _set_submission_coldkey(
+                    kit, uuid.UUID(account["id"]), MINER_COLDKEY
+                )
+                browser = await http.post(
+                    "/v1/competitions/miniz-oxide/submissions/session",
+                    files=_files(),
+                    headers={
+                        **same_origin(http),
+                        "X-Conjectures-Hotkey": keypair.ss58_address,
+                    },
+                )
+            # What the surface reports and what it does agree.
+            assert detail.json()["submissions_open"] is False
+            for response in (signed, browser):
+                assert response.status_code == 503
+                assert response.json()["reason_code"] == "SUBMISSIONS_PAUSED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_an_open_competition_reports_itself_open():
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await _client(kit) as client:
+                detail = await client.get("/v1/competitions/miniz-oxide")
+            assert detail.json()["submissions_open"] is True
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# ── the operator surface ───────────────────────────────────────────────────
+#
+# `competition_worker` writes "an operator has been asked to look" into the report of every
+# submission it abandons. These are the tests that there is somewhere to look.
+
+
+async def _abandoned(engine, *, hotkey: str = "5HotStuck", attempts: int = 3) -> int:
+    """A submission the gate gave up on, as the worker leaves it."""
+    from sqlalchemy import text
+
+    async with engine.begin() as conn:
+        return int(
+            (
+                await conn.execute(
+                    text(
+                        "INSERT INTO submissions "
+                        "(hotkey, digest, state, attempts, exit_code, worker_id, "
+                        " claimed_at, finished_at, report, parse_source, proof_source) "
+                        "VALUES (:hot, :digest, 'error', :attempts, 2, 'gate-1', "
+                        "        now(), now(), :report, :rust, :lean) RETURNING id"
+                    ),
+                    {
+                        "hot": hotkey,
+                        "digest": f"{attempts:064x}",
+                        "attempts": attempts,
+                        "report": (
+                            f"\nERROR: the gate failed to produce a verdict on {attempts} "
+                            "attempts; an operator has been asked to look.\n"
+                        ),
+                        "rust": RUST,
+                        "lean": LEAN,
+                    },
+                )
+            ).scalar_one()
+        )
+
+
+async def _admin(kit, http):
+    """Sign in and grant ADMIN out of band, the way the first admin is bootstrapped."""
+    from test_api_cli_sessions import grant_role
+
+    from conjectures_subnet.db.models import ADMIN_ROLE
+
+    account = await sign_in_by_email(kit, http)
+    await grant_role(kit, account["id"], ADMIN_ROLE)
+    return account
+
+
+@competition_only
+def test_an_abandoned_submission_is_visible_to_an_operator_and_can_be_requeued():
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        stuck = await _abandoned(engine)
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await client(kit) as http:
+                await _admin(kit, http)
+                queue = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+                detail = await http.get(
+                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}"
+                )
+                done = await http.post(
+                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}/requeue"
+                    "?reason=gate+host+rebuilt",
+                    headers=same_origin(http),
+                )
+                after = await http.get(
+                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}"
+                )
+            assert [row["id"] for row in queue.json()["items"]] == [stuck]
+            # The bookkeeping the public view omits, which is the point of the endpoint.
+            assert detail.json()["attempts"] == 3
+            assert detail.json()["worker_id"] == "gate-1"
+            assert detail.json()["has_sources"] is True
+            assert "an operator has been asked to look" in detail.json()["report"]
+            assert done.json() == {
+                "competition": "miniz-oxide",
+                "id": stuck,
+                "requeued": True,
+                "state": "queued",
+            }
+            # Reset to zero, or the cap that forced the operator to look would be tripped
+            # again on the very next claim.
+            assert after.json()["attempts"] == 0
+            assert after.json()["worker_id"] is None
+            assert after.json()["claimed_at"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_a_requeued_submission_leaves_the_operator_queue():
+    """The queue is what still needs a decision, so a handled row drops out of it."""
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        stuck = await _abandoned(engine)
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await client(kit) as http:
+                await _admin(kit, http)
+                await http.post(
+                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}/requeue",
+                    headers=same_origin(http),
+                )
+                queue = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+            assert queue.json()["items"] == []
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_a_verdict_cannot_be_undone_by_a_requeue():
+    """An accept has spent a registration and a reject is a verdict the miner has seen.
+
+    Re-running either would double-spend a slot or quietly replace an answer someone has
+    already acted on, so the state predicate in the statement refuses both. `requeued: false`
+    rather than a 409: the caller asked whether it is queued now, and the answer is no.
+    """
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        await _accepted(engine, [("5HotA", 2_100_000)])
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await client(kit) as http:
+                await _admin(kit, http)
+                board = await http.get("/v1/competitions/miniz-oxide/leaderboard")
+                winner = board.json()["ranking"][0]["submission"]
+                refused = await http.post(
+                    f"/v1/admin/competitions/miniz-oxide/submissions/{winner}/requeue",
+                    headers=same_origin(http),
+                )
+            assert refused.status_code == 200
+            assert refused.json()["requeued"] is False
+            assert refused.json()["state"] == "accepted"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@competition_only
+def test_the_operator_queue_is_closed_without_the_admin_role():
+    """A signed-in miner is not an operator, and the queue is not a public feed."""
+
+    async def scenario():
+        engine = create_async_db_engine(competition_dsn())
+        await _fresh(engine)
+        stuck = await _abandoned(engine)
+        kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
+        try:
+            async with await client(kit) as http:
+                anonymous = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+                await sign_in_by_email(kit, http)
+                as_miner = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+                write = await http.post(
+                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}/requeue",
+                    headers=same_origin(http),
+                )
+            assert anonymous.status_code == 401
+            assert as_miner.status_code == 403
+            assert as_miner.json()["reason_code"] == "ROLE_REQUIRED"
+            assert write.status_code == 403
+        finally:
+            await kit.teardown()
 
     run(scenario())

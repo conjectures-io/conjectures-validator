@@ -184,6 +184,12 @@ EventType: TypeAlias = Literal[
     "unclassified_reason_code",
     # Our failure rather than the miner's: no verdict written, the row goes back.
     "verification_operator_failure",
+    # --- competitions -----------------------------------------------------------------------
+    # An operator putting a submission the gate gave up on back in the queue.
+    # `submissions.state` is overwritten in place and carries no history, so this event is
+    # the only record that it happened at all -- the same reason `roles_changed` is here.
+    # Carries both identities: the submission's hotkey and the account that acted.
+    "submission_requeued",
     # --- deposit watcher --------------------------------------------------------------------
     "cursor_opened",
     "blocks_scanned",

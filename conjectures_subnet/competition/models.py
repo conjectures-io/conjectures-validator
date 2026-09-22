@@ -113,8 +113,23 @@ class Submission(Base):
     # nullable is spelled out because SQLAlchemy does not infer it from `bytes | None` the
     # way it does from `str | None` or `uuid.UUID | None` -- left implicit these come out
     # NOT NULL, which would refuse every row written before this revision.
-    parse_source: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    proof_source: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    #
+    # `deferred` because exactly one caller wants these and every other read of a submission
+    # does not. The leaderboard, the public feed, the account's own listing and the operator
+    # queue all select whole `Submission` rows; without this, a 25-row page would pull up to
+    # 25 MB out of Postgres and throw all of it away. The gate worker, which does want them,
+    # asks for them with `undefer` on the claim -- one explicit load on a path that is about
+    # to spend forty-five minutes, instead of an implicit one on every page view.
+    #
+    # A read that forgets fails loudly rather than quietly: on the async engine a lazy load
+    # raises `MissingGreenlet`, and on an expunged row a `DetachedInstanceError`. Neither is
+    # a silent megabyte.
+    parse_source: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, deferred=True
+    )
+    proof_source: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, deferred=True
+    )
 
     # --- the score, as the harness measured it -------------------------------
     # Uncompressed corpus size. Needed for the Pareto frontier's ratio axis, which is
