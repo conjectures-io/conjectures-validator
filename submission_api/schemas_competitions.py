@@ -91,6 +91,28 @@ class Leaderboard(Model):
     ranking: list[Ranking]
 
 
+class WeightVector(Model):
+    """The competition's per-hotkey scores, as the emissions worker reads them.
+
+    Scores, not final weights: they are proportional to each other and say nothing about
+    this competition's share of the subnet. That share is a code constant in
+    `emissions_worker/allocation.py`, and keeping it out of this payload is what stops a
+    competition deciding how much of the subnet it is worth.
+
+    `computed_at` is load-bearing rather than informational. A scorer that died an hour ago
+    leaves this endpoint answering with a leaderboard that has moved, and paying that is
+    worse than paying nothing because it looks like it worked -- so the reader checks the
+    age and falls back to the treasury.
+    """
+
+    competition: str
+    computed_at: str
+    # hotkey -> score. Empty when nothing is scorable yet, which the reader treats as
+    # "pay the treasury" rather than as an error.
+    weights: dict[str, float]
+    scored_submissions: int
+
+
 class AccountSubmissions(Model):
     """One account's own submissions, across the competition surface.
 

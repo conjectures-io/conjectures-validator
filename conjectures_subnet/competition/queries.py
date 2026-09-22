@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import _statements as q
 from . import clock, models
+from .scoring import ScoredSubmission
 from .ratelimit import window_start
 
 
@@ -107,6 +108,53 @@ async def submissions_for_account(
 ) -> list[models.Submission]:
     rows = (await session.execute(q.submissions_for_account(account_id))).scalars().all()
     return list(rows)
+
+
+async def scorable_best_per_hotkey(session: AsyncSession) -> list[ScoredSubmission]:
+    """Each hotkey's best scorable accepted submission -- one competitor, one point.
+
+    Shares `_scorable` and `_to_scored` with the sync repository, so what the API scores
+    and what the operator's tooling scores cannot come from two different filters.
+    """
+    from sqlalchemy import select
+
+    from .scoring import _scorable, _to_scored
+
+    rows = (
+        await session.execute(
+            _scorable(
+                select(models.Submission)
+                .distinct(models.Submission.hotkey)
+                .order_by(
+                    models.Submission.hotkey,
+                    models.Submission.bytes,
+                    models.Submission.submitted_at,
+                    models.Submission.id,
+                )
+            )
+        )
+    ).scalars().all()
+    return [_to_scored(row) for row in rows]
+
+
+async def scorable_history(session: AsyncSession) -> list[ScoredSubmission]:
+    """Every scorable accepted submission, oldest first.
+
+    The improvement component walks this in order to find which submissions actually moved
+    the record, so the ordering is part of the result rather than a display choice.
+    """
+    from sqlalchemy import select
+
+    from .scoring import _scorable, _to_scored
+
+    rows = (
+        await session.execute(
+            _scorable(select(models.Submission)).order_by(
+                models.Submission.submitted_at, models.Submission.id
+            )
+        )
+    ).scalars().all()
+    return [_to_scored(row) for row in rows]
 
 
 async def leaderboard(session: AsyncSession) -> list[models.Submission]:

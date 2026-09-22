@@ -27,9 +27,11 @@ write.
 from __future__ import annotations
 
 import time
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Header, Path, Request
 
+from conjectures_subnet import scoring
 from conjectures_subnet.competition import iso, queries
 from conjectures_subnet.competition import models as competition_models
 from submission_api import competition_sig, schemas_competitions as schemas
@@ -199,6 +201,39 @@ async def report(
         state=row.state,
         exit_code=row.exit_code,
         report=row.report,
+    )
+
+
+@router.get(
+    "/{slug}/weights/current",
+    response_model=schemas.WeightVector,
+    summary="Current per-hotkey scores",
+)
+async def weights(
+    services: ServicesDep, session: CompetitionSessionDep, slug: str = SlugPath
+) -> schemas.WeightVector:
+    """What this competition would pay, as scores rather than as a weight vector.
+
+    Read by `emissions_worker` over HTTP rather than from the database, because that
+    process holds the only key on the subnet that can set weights and deliberately has no
+    database credential at all -- see `docker-compose.emissions.yml`. Giving it one to save
+    this call would trade a real isolation property for a convenience.
+
+    Public, like the leaderboard it restates: it is derived entirely from accepted
+    submissions that are already public, and a subnet whose payout reasoning is secret is
+    one nobody can check.
+    """
+    competition = _competition(services, slug)
+    best = await queries.scorable_best_per_hotkey(session)
+    history = await queries.scorable_history(session)
+    result = scoring.score(best, history, scoring.ScoringConfig.from_env())
+    return schemas.WeightVector(
+        competition=competition.slug,
+        computed_at=iso(datetime.now(UTC)),
+        # `Scoring.weights` already drops the zeros, so a hotkey that scored nothing does
+        # not travel as an explicit zero the reader would have to filter again.
+        weights=result.weights,
+        scored_submissions=len(best),
     )
 
 

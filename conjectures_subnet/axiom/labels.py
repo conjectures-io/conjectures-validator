@@ -234,6 +234,13 @@ EventType: TypeAlias = Literal[
     "epoch_observed",
     "weights_set",
     "weights_failed",
+    # This epoch paid no competitor: the score vector could not be read, could not be
+    # parsed, or described a leaderboard too old to pay. Each is an `error` rather than a
+    # warning -- the epoch is safe, because the share falls back to the treasury, but a run
+    # of them means a competition is earning nothing while appearing to run.
+    "competition_vector_unavailable",
+    "competition_vector_malformed",
+    "competition_vector_stale",
     # --- catch-alls -------------------------------------------------------------------------
     # A stdlib `logging` record forwarded by `AxiomLogHandler`. Everything the codebase already
     # logged arrives under this type, carrying its logger name and severity.
