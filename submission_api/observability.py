@@ -72,6 +72,9 @@ _AREAS: Final[tuple[tuple[str, Source], ...]] = (
     ("/v1/auth", "api-auth"),
     ("/v1/me", "api-me"),
     ("/v1/catalog", "api-catalog"),
+    # The whole competition surface, operator and account routes included. One entry because
+    # it is one prefix: nothing of the competition is addressed under /v1/me or /v1/admin.
+    ("/v1/competitions", "api-competitions"),
     ("/v1/contributions", "api-contributions"),
     ("/v1/results", "api-results"),
     ("/v1/tasks", "api-tasks"),

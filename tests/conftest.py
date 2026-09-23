@@ -54,6 +54,42 @@ DATABASE_SKIP_REASON = (
     "no database: run `docker compose -f docker-compose.pytest-db.yml up -d`"
 )
 
+# Competitions live in databases of their own. The tests give them one on the same pytest
+# server -- same credentials, a sibling database -- created on first use, so no compose change
+# and no CI step is needed for it. It holds only the slice of each competition's schema its
+# adapter maps (see `submission_api/competitions/*/tables.py`); the real schema is checked
+# separately by tests/test_competition_contract.py.
+PYTEST_COMPETITION_DATABASE = "conjectures-pytest-competition"
+
+
+@cache
+def competition_dsn() -> str | None:
+    """A throwaway competition database's DSN, or None to skip."""
+    explicit = os.environ.get("FC_COMPETITION_POSTGRES_DSN", "").strip()
+    if explicit:
+        return explicit
+    proofs = postgres_dsn()
+    if proofs is None:
+        return None
+    import psycopg
+
+    libpq = proofs.replace("postgresql+psycopg://", "postgresql://", 1)
+    try:
+        with psycopg.connect(libpq, connect_timeout=2, autocommit=True) as conn:
+            exists = conn.execute(
+                "SELECT 1 FROM pg_database WHERE datname = %s", (PYTEST_COMPETITION_DATABASE,)
+            ).fetchone()
+            if exists is None:
+                conn.execute(f'CREATE DATABASE "{PYTEST_COMPETITION_DATABASE}"')
+    except psycopg.Error:
+        return None
+    return f"{proofs.rsplit('/', 1)[0]}/{PYTEST_COMPETITION_DATABASE}"
+
+
+COMPETITION_SKIP_REASON = (
+    "no competition database: the pytest server is down or refused CREATE DATABASE"
+)
+
 
 def declaration(
     *,

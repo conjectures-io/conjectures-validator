@@ -47,6 +47,7 @@ from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import Base
 from submission_api.app import create_app
+from submission_api.competitions import CompetitionRegistry
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
@@ -311,6 +312,7 @@ class Harness:
 
     async def teardown(self) -> None:
         await self.engine.dispose()
+        await self.services.competitions.dispose()
 
     def session(self):
         return self.services.sessions()
@@ -328,6 +330,7 @@ def harness(
     tmc_pay=None,
     tao_usd=None,
     contributions=None,
+    competitions=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -353,6 +356,9 @@ def harness(
     mirror, which is what keeps the suite off the network — the real one polls github.com — and
     what makes every test that does not name it prove `/v1/contributions` refuses rather than
     serving an empty corpus as if it had read one.
+
+    `competitions` injects a `CompetitionRegistry`. Empty by default, so every test that does not
+    name it proves each competition slug is a 404 rather than a database reached by accident.
     """
     settings = build_settings(**overrides)
     verifier = payments or build_payment_verifier(settings)
@@ -368,6 +374,7 @@ def harness(
         settings=settings,
         engine=engine,
         sessions=async_session_factory(engine),
+        competitions=competitions or CompetitionRegistry.empty(),
         catalog=catalog,
         authenticator=build_authenticator(settings),
         payments=verifier,

@@ -371,6 +371,15 @@ status semantics, and the over/under/late-payment rules.
 Note that the commission is the validator's cost: at 0.5 TAO a credit, what reaches the treasury is
 0.5 TAO minus TMC PAY's fee. Raise `CREDIT_PRICE_RAO` if the full amount has to net.
 
+## Competitions
+
+Proof-gated competitions are served under `/v1/competitions/{slug}` from this API, each from its
+own database owned by the competition's repository. The API holds one engine per competition and
+one adapter each; the router, the schemas and the proofs database are shared and unchanged by
+adding or removing one. Configure with `COMPETITIONS` and `COMPETITION_<SLUG>_DATABASE_URL`.
+See [docs/COMPETITIONS.md](docs/COMPETITIONS.md) for the surface, the signed-submit contract and
+how to add a competition.
+
 ## Treasury emissions
 
 [`emissions_worker/`](emissions_worker/) observes each Subnet 66 epoch and submits one weight:

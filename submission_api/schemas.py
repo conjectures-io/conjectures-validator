@@ -138,3 +138,5 @@ class Readiness(Model):
     database: bool
     task_pool: bool
     tasks: int
+    # Each served competition's database, reachable or not. Informational: see `readyz`.
+    competitions: dict[str, bool] = {}

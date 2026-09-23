@@ -65,6 +65,10 @@ Source: TypeAlias = Literal[
     # `api-me`, because "how many invitations were redeemed this week" is an operator question
     # about a campaign, not about one account's traffic.
     "api-invitations",
+    # Every competition under /v1/competitions, operator routes included. One source for all of
+    # them: which competition is a field (`competition`) on every event, not a label, so adding
+    # one needs no change here.
+    "api-competitions",
     # The cross-cutting ASGI layers — rate limiting, CORS, the write guard, security headers.
     "api-middleware",
     # Outbound side effects the API owns, worth separating because they fail for reasons that
@@ -225,6 +229,13 @@ EventType: TypeAlias = Literal[
     "invitation_issued",
     "invitation_revoked",
     "invitation_redeemed",
+    # --- competitions -----------------------------------------------------------------------
+    "competition_submission_queued",
+    # An operator put a stuck competition submission back in its queue.
+    "competition_submission_requeued",
+    # A competition's own database refused a connection. Its routes answer 503; nothing else is
+    # affected, which is why this is not `readiness_degraded`.
+    "competition_database_unreachable",
     # --- emissions worker -------------------------------------------------------------------
     "epoch_observed",
     "weights_set",

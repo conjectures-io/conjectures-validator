@@ -25,6 +25,7 @@ from conjectures_subnet.db.models import MINER_ROLE, AccountSessionKind
 from submission_api import origin_policy, security
 from submission_api import sessions as session_layer
 from submission_api.auth import Authenticator
+from submission_api.competitions import CompetitionRegistry
 from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
 from submission_api.errors import Forbidden, Unauthorized
@@ -58,6 +59,8 @@ from submission_api.verification import VerificationDispatcher
 # does. Eviction drops the coldest entries, which hands back a full budget; that is the correct
 # direction to fail, because the cap exists so the ceiling cannot itself become the outage.
 PASSWORD_FAILURE_KEYS = 50_000
+# Distinct (competition, hotkey) pairs tracked by the submit limiter. Subnet 66 has 256 uids.
+COMPETITION_SUBMIT_KEYS = 10_000
 
 
 @dataclass(frozen=True)
@@ -78,6 +81,12 @@ class Services:
     mail: MailSender
     packages: tuple[CreditPackage, ...]
     terms: SubmissionTerms
+    # The competitions served here, each with its own engine on its own database -- never
+    # `engine`, which is the proofs database's. Empty by default, so a service graph that did
+    # not opt in, including every test that does not name it, 404s every competition slug
+    # rather than reaching for a database it was never given. See
+    # `submission_api/competitions/registry.py`.
+    competitions: CompetitionRegistry = field(default_factory=CompetitionRegistry.empty)
     # Fail closed for manually assembled service graphs that do not opt in to Google. Production
     # construction always replaces this with the client-ID-bound verifier.
     google: GoogleCredentialVerifier = field(
@@ -127,6 +136,11 @@ class Services:
     # account at all, which is what keeps a refusal from disclosing that an account exists. See
     # `password_login` in `submission_api/routers/auth.py`.
     password_failures: SlidingWindowLimiter = field(init=False)
+    # Signed competition submits, per competition and hotkey. Derived for the same reason, and
+    # in-process with the same limitation: it bounds how fast one hotkey can make this process
+    # verify signatures, while the competition's own entitlement rule is what bounds its claim
+    # on gate time.
+    competition_submits: SlidingWindowLimiter = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -139,6 +153,15 @@ class Services:
                 limit=self.settings.password_attempts,
                 window_seconds=self.settings.password_throttle_minutes * 60,
                 max_clients=PASSWORD_FAILURE_KEYS,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "competition_submits",
+            SlidingWindowLimiter(
+                limit=self.settings.competition_rate_per_minute,
+                window_seconds=60,
+                max_clients=COMPETITION_SUBMIT_KEYS,
             ),
         )
 

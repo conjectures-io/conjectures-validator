@@ -1029,6 +1029,7 @@ def test_health_and_readiness():
                 "database": True,
                 "task_pool": True,
                 "tasks": 1,
+                "competitions": {},
             }
         finally:
             await kit.teardown()

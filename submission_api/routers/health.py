@@ -12,6 +12,8 @@ traceback this handler deliberately swallows.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter
 from sqlalchemy import text
 
@@ -42,12 +44,17 @@ async def readyz(services: ServicesDep, session: SessionDep) -> schemas.Readines
         # unauthenticated endpoint does not describe the database it could not reach.
         database_error = f"{type(exc).__name__}: {exc}"
     tasks = len(services.catalog.entries)
+    competitions = await _competition_databases(services)
+    # Competition databases are reported, never required. Every replica reads the same ones, so
+    # gating readiness on them would take the whole proofs platform out of rotation because one
+    # competition's database is down -- a failure its own routes already answer with a 503.
     ready = database and tasks > 0
     payload = schemas.Readiness(
         status="ok" if ready else "unavailable",
         database=database,
         task_pool=tasks > 0,
         tasks=tasks,
+        competitions=competitions,
     )
     if not ready:
         # `error`: this replica is out of service. Emitted on every failing probe rather than only
@@ -63,3 +70,30 @@ async def readyz(services: ServicesDep, session: SessionDep) -> schemas.Readines
         )
         raise ServiceUnavailable("service is not ready", extra=payload.model_dump())
     return payload
+
+
+# A probe that waits on a hung competition database would time the whole readiness check out
+# and take the replica out of rotation after all, which is the thing reporting-not-requiring
+# exists to avoid. So each competition gets a short, independent budget.
+COMPETITION_PROBE_SECONDS = 2.0
+
+
+async def _competition_databases(services: ServicesDep) -> dict[str, bool]:
+    results: dict[str, bool] = {}
+    for competition in services.competitions:
+        error: str | None = None
+        try:
+            results[competition.slug] = await asyncio.wait_for(
+                competition.ping(), COMPETITION_PROBE_SECONDS
+            )
+        except Exception as exc:  # noqa: BLE001 - readiness must not raise
+            results[competition.slug] = False
+            error = f"{type(exc).__name__}: {exc}"
+        if not results[competition.slug]:
+            get_axiom().warn(
+                source="api-health",
+                event_type="competition_database_unreachable",
+                competition=competition.slug,
+                database_error=error,
+            )
+    return results

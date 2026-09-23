@@ -60,6 +60,9 @@ services:
       BOUNTY_AGE_PERIOD_SECONDS: ${BOUNTY_AGE_PERIOD_SECONDS:-86400}
       BOUNTY_BALANCE_CACHE_SECONDS: ${BOUNTY_BALANCE_CACHE_SECONDS:-60}
       BITTENSOR_NETWORK: ${BITTENSOR_NETWORK:-finney}
+      # Competitions come from .env (env_file above): COMPETITIONS lists the slugs and each
+      # has its own COMPETITION_<SLUG>_DATABASE_URL, a database this stack does not run. The
+      # names depend on the slugs, so they are not repeated here. See .env.example.
 
       # --- Paths inside the container ---------------------------------------
       # Both are read-only mounts below, so a pin rotation is a restart against

@@ -15,8 +15,13 @@ origin, refuses to disable rate limiting, and requires a real `PUBLIC_CURSOR_SEC
 salt would make the pseudonyms in `/v1/catalog/conjectures/{slug}/activity` reversible by
 anyone who read this file.
 
-The API configures no database of its own; `conjectures_subnet.db.database_url()` resolves
-`DATABASE_URL` or the `POSTGRES_*` variables that `.env.example` already defines.
+The API configures no proofs database of its own; `conjectures_subnet.db.database_url()`
+resolves `DATABASE_URL` or the `POSTGRES_*` variables that `.env.example` already defines.
+Competitions are the exception: each one served lives in its own database, owned and migrated
+by the competition's repository, so each needs its URL named explicitly -- `COMPETITIONS`
+lists the slugs and `COMPETITION_<SLUG>_DATABASE_URL` locates each. There is no fallback,
+because a guess about which database to write a competition's submissions into is not one
+worth shipping. See `submission_api/competitions/registry.py`.
 """
 
 from __future__ import annotations
@@ -28,6 +33,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
+
+from submission_api.competitions.registry import (
+    CompetitionConfig,
+    CompetitionConfigError,
+    database_url_variable,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TASKS_ROOT = PROJECT_ROOT.parent / "conjectures-tasks"
@@ -584,6 +595,29 @@ def _csv(environ: Mapping[str, str], key: str) -> tuple[str, ...]:
     )
 
 
+def _competitions(environ: Mapping[str, str]) -> tuple[CompetitionConfig, ...]:
+    """`COMPETITIONS` and each listed slug's `COMPETITION_<SLUG>_DATABASE_URL`.
+
+    Whether an adapter exists for each slug is checked when the engines are built, against
+    `competitions.catalog.ADAPTERS`; here only the shape is, so a typo fails at startup with
+    the variable's name in the message.
+    """
+    configs = []
+    for slug in _csv(environ, "COMPETITIONS"):
+        try:
+            configs.append(
+                CompetitionConfig(
+                    slug=slug,
+                    database_url=environ.get(database_url_variable(slug), "").strip(),
+                )
+            )
+        except CompetitionConfigError as exc:
+            raise SettingsError(str(exc)) from exc
+    if len({c.slug for c in configs}) != len(configs):
+        raise SettingsError("COMPETITIONS lists a competition twice")
+    return tuple(configs)
+
+
 def _payable_pairs(
     environ: Mapping[str, str], key: str
 ) -> tuple[tuple[str, str | None], ...]:
@@ -709,6 +743,20 @@ class Settings:
     # Empty means "whatever conjectures_subnet.db resolves". The API does not own the
     # database; it reuses the validator's shared store.
     database_url: str
+    # The competitions this deployment serves, each with its own database. Empty by default,
+    # so a deployment that has not been given one 404s every competition slug.
+    competitions: tuple[CompetitionConfig, ...]
+    # Signed competition submissions allowed per hotkey per minute. In-process, like the
+    # per-IP limiter it sits behind: the competition's own entitlement check is what bounds a
+    # hotkey's claim on gate time, and this only bounds how fast it can ask.
+    competition_rate_per_minute: int
+    # How far a signed submission's timestamp may sit from this clock. A captured request is
+    # useless once it falls outside, which is what stops a recorded upload being replayed.
+    competition_signature_window_seconds: int
+    # After how long a gate claim is presumed dead, for the operator queue. Advisory: it
+    # decides what an operator is shown, not what gets requeued -- each competition's own
+    # worker sweeps its stale claims. Defaulted to miniz's SERVICE_STALE_CLAIM_SECONDS.
+    competition_stale_claim_seconds: int
     task_allowlist_path: Path
     task_pool_root: Path
     verifier_project_root: Path
@@ -1499,6 +1547,16 @@ class Settings:
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
+            competitions=_competitions(env),
+            competition_rate_per_minute=_bounded_int(
+                env, "COMPETITION_RATE_PER_MINUTE", 10, minimum=1, maximum=10_000
+            ),
+            competition_signature_window_seconds=_bounded_int(
+                env, "COMPETITION_SIGNATURE_WINDOW_SECONDS", 300, minimum=1, maximum=86_400
+            ),
+            competition_stale_claim_seconds=_bounded_int(
+                env, "COMPETITION_STALE_CLAIM_SECONDS", 7_200, minimum=60, maximum=86_400
+            ),
             # Renamed with the pool itself: neither gold/allowlist.json nor a gold pool exists
             # any more, so the old names could only ever have resolved to nothing.
             task_allowlist_path=_directory(

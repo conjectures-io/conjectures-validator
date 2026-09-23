@@ -59,6 +59,8 @@ from conjectures_subnet.db import (
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
+from submission_api.competitions import build_registry
+from submission_api.competitions.catalog import ADAPTERS
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.dependencies import Services
 from submission_api.github import (
@@ -84,6 +86,8 @@ from submission_api.pins import PinSet, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
+from submission_api.routers import competitions as competitions_router
+from submission_api.routers import competitions_admin as competitions_admin_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
@@ -156,6 +160,15 @@ def build_services(
     # The URL comes from conjectures_subnet.db, so the API, the workers and Flyway can never
     # disagree about which database they are talking to.
     engine = create_async_db_engine(settings.database_url or database_url())
+    # One more engine per competition, each on the competition's own database. Built here,
+    # beside the proofs engine, so the same lifespan disposes of all of them.
+    competitions = build_registry(
+        settings.competitions,
+        proofs_database_url=settings.database_url or database_url(),
+        adapters=ADAPTERS,
+        create_engine=create_async_db_engine,
+        session_factory=async_session_factory,
+    )
     balance_reader = (
         BittensorBalanceReader(
             network=settings.bittensor_network,
@@ -174,6 +187,7 @@ def build_services(
         settings=settings,
         engine=engine,
         sessions=async_session_factory(engine),
+        competitions=competitions,
         catalog=resolved_catalog,
         retired=resolved_retired,
         authenticator=build_authenticator(settings),
@@ -282,6 +296,7 @@ def create_app(
             rate_limit_enabled=resolved_settings.rate_limit_enabled,
             submissions_paused=resolved_settings.submissions_paused,
             tmc_pay_enabled=resolved_settings.tmc_pay_enabled,
+            competitions=[c.slug for c in application.state.services.competitions],
         )
         # Started after the service graph exists and before the first request is served. Not
         # awaited: its first poll is a network round trip, and blocking readiness on a third
@@ -304,6 +319,7 @@ def create_app(
             if services is None:
                 built = application.state.services
                 await built.engine.dispose()
+                await built.competitions.dispose()
                 # The chain payment verifier holds a websocket open between requests — see
                 # SubtensorTransferReader on why it is not opened per submission. Released here.
                 reader = getattr(built.payments, "reader", None)
@@ -422,6 +438,15 @@ def create_app(
     # /web is a fixed segment like /preflight and /intents, so it cannot collide with the
     # UUID-typed /{submission_id} either.
     application.include_router(web_submissions.router)
+    # Every competition, under one prefix and through one pair of routers: the public surface
+    # and the operator's. A competition is an adapter and a database, not a router of its own,
+    # so adding or removing one changes nothing here. Nothing of it is grafted onto /v1/me or
+    # /v1/admin, which stay the proofs platform's.
+    #
+    # No ordering question between the two: every operator route has the literal segment
+    # /admin where a public route has /submissions, /competitors or /me.
+    application.include_router(competitions_router.router)
+    application.include_router(competitions_admin_router.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
     # advisory record behind it). Both are role-gated at every route, and gated again on the

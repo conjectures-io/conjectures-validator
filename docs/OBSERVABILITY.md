@@ -92,6 +92,7 @@ start with a path filter.
 | `api-submissions` `api-intents` | Paid intake: the extrinsic path and the credit-intent path |
 | `api-catalog` `api-results` `api-tasks` `api-system` | The unauthenticated public read surface |
 | `api-contributions` | The mirrored contribution corpus, and the GitHub poll that fills it |
+| `api-competitions` | Every competition under `/v1/competitions`; the competition is the `competition` field |
 | `api-health` | `/healthz`, `/readyz` |
 | `api-middleware` | Rate limiting, CORS, the cross-site write guard, security headers |
 | `api-mail` `api-payments` | Outbound side effects the API owns |
@@ -117,6 +118,8 @@ Grouped by the area that raises them. `labels.py` is the source of truth.
   `transfer_ignored`, `transfer_conflict`
 - **Payouts** — `payout_confirmed`, `payout_reorged`, `payout_unmatched`
 - **Emissions** — `epoch_observed`, `weights_set`, `weights_failed`
+- **Competitions** — `competition_submission_queued`, `competition_submission_requeued`,
+  `competition_database_unreachable`
 - **Contributions** — `contributions_refreshed`, `contributions_refresh_failed`,
   `contributions_rate_limited`
 - **Catch-alls** — `log_record`, `unexpected_error`

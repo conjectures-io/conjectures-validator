@@ -44,6 +44,7 @@ RUN pip install --constraint requirements-service.lock \
       SQLAlchemy \
       greenlet \
       "psycopg[binary]" \
+      python-multipart \
       bittensor
 
 # Then the project itself. `--no-deps`: every dependency is already installed at its pinned
