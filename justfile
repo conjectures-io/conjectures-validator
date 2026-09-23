@@ -5,7 +5,8 @@
 #   just up-worker     # ... and the development verification worker
 #   just up-watcher    # ... and the deposit watcher
 #   just up-emissions  # ... and the Subnet 66 epoch weight setter
-#   just up-all        # ... and all four workers
+#   just up-registrations # ... and the watcher that lets miners submit to competitions
+#   just up-all        # ... and every worker
 #   just logs api
 #   just reset         # destroy the database and start clean
 #   just env-sync      # add new settings from .env.example without touching your values
@@ -33,6 +34,7 @@ compose := "docker compose -f docker-compose.api.yml"
 compose_worker := compose + " -f docker-compose.worker.yml"
 compose_watcher := compose + " -f docker-compose.watcher.yml"
 compose_emissions := compose + " -f docker-compose.emissions.yml"
+compose_registrations := compose + " -f docker-compose.registrations.yml"
 compose_notifier := compose
 
 # Every overlay at once. `down`, `ps`, `logs` and `reset` use this so a container
@@ -40,7 +42,7 @@ compose_notifier := compose
 # them. An overlay Compose does not know about is a container `down` leaves
 # running against a database it has just deleted the volume of.
 
-compose_all := compose_worker + " -f docker-compose.watcher.yml -f docker-compose.emissions.yml"
+compose_all := compose_worker + " -f docker-compose.watcher.yml -f docker-compose.emissions.yml -f docker-compose.registrations.yml"
 project := "conjectures-api"
 legacy := "conjectures-db"
 
@@ -82,6 +84,17 @@ up-watcher: _preflight _check-watch
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_watcher }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_watcher }} ps
 
+# The competition API admits a hotkey only if the competition database has a registration
+# row for it, and this watcher is the only thing that writes one: without it every signed
+# competition submit is refused NOT_REGISTERED. Read-only on the chain, no wallet, and no
+# .env values of its own to require -- the subnet is a code constant.
+
+# Build and start the whole stack including the registration watcher.
+up-registrations: _preflight
+    @echo "==> starting: db -> migrate -> api -> registration watcher"
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_registrations }} up -d --build
+    @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_registrations }} ps
+
 # Build and start the epoch worker that sends all Subnet 66 weight to treasury UID 121.
 up-emissions: _preflight _check-emissions
     @echo "==> starting: db -> migrate -> api -> emissions (as {{ uid }}:{{ gid }})"
@@ -98,7 +111,7 @@ up-payout-notifier: _preflight _check-notifier
 # Build and start the complete development stack, including emissions. This is not a production
 # launcher because its verification worker intentionally uses the insecure in-process sandbox path.
 up-all: _preflight _check-watch _check-emissions _check-notifier
-    @echo "==> starting: db -> migrate -> api -> worker -> watcher -> emissions -> payout notifier (as {{ uid }}:{{ gid }})"
+    @echo "==> starting: db -> migrate -> api -> worker -> watcher -> emissions -> registrations -> payout notifier (as {{ uid }}:{{ gid }})"
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} ps
 

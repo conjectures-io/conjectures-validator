@@ -98,6 +98,7 @@ start with a path filter.
 | `verification-worker` | Claiming, verifying, recording verdicts |
 | `deposit-watcher` | Reading finalized blocks, attributing arrivals, crediting |
 | `payout-watcher` | Projecting best/finalized stake payout events into Paying/Paid |
+| `registration-watcher` | Recording Subnet 66 registrations, which decide who may submit to a competition |
 | `emissions-worker` | Setting the treasury weight each epoch |
 | `subnet-chain` `database` `verifier` | Shared infrastructure |
 

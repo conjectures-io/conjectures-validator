@@ -131,6 +131,18 @@ class RegistrationsDb:
             )
             return len(rows)
 
+    def latest_keys(self) -> dict[int, tuple[str, str]]:
+        """Each uid's most recently recorded (hot, cold) pair, in its own read.
+
+        For a caller that has to know which rows a snapshot will change *before* handing it
+        to `publish_snapshot` -- the registration watcher, whose archive lookups are async and
+        so cannot run inside the synchronous `block_time` callback. `publish_snapshot` still
+        re-diffs inside its own transaction, so this read is a prefetch hint, never the source
+        of truth for what gets written.
+        """
+        with session_scope(self._sessions) as session:
+            return self._latest_keys(session)
+
     @staticmethod
     def _latest_keys(session: Session) -> dict[int, tuple[str, str]]:
         # Each uid's most recently recorded (hot, cold) pair: DISTINCT ON by descending

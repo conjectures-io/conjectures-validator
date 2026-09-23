@@ -80,6 +80,10 @@ Source: TypeAlias = Literal[
     "verification-worker",
     "deposit-watcher",
     "payout-watcher",
+    # Records Subnet 66 registrations into the competition database. Its own source rather
+    # than `deposit-watcher`'s, although both read the chain: this one decides who may
+    # submit to a competition, and a stall here reads as every miner refused NOT_REGISTERED.
+    "registration-watcher",
     "emissions-worker",
     "autoreview",
     # Sweeps the TMC PAY orders no webhook resolved. Separate from `deposit-watcher` because it
@@ -190,6 +194,10 @@ EventType: TypeAlias = Literal[
     # the only record that it happened at all -- the same reason `roles_changed` is here.
     # Carries both identities: the submission's hotkey and the account that acted.
     "submission_requeued",
+    # Registration rows written for a pass. `initial_load` separates the first pass on an
+    # empty table, which records the whole subnet, from a real registration event -- the
+    # thing an operator asks about when a miner says they registered and still cannot submit.
+    "registrations_recorded",
     # --- deposit watcher --------------------------------------------------------------------
     "cursor_opened",
     "blocks_scanned",
