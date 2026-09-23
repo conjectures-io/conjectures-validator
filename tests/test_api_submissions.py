@@ -1029,6 +1029,10 @@ def test_health_and_readiness():
                 "database": True,
                 "task_pool": True,
                 "tasks": 1,
+                # None, not False: this harness configures no competition database, and an
+                # absent surface must not make a deployment permanently unready. The
+                # configured-but-unreachable case is in test_api_competitions.py.
+                "competition_database": None,
             }
         finally:
             await kit.teardown()

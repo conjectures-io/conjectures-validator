@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import base64
 import hmac
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -87,6 +88,62 @@ def decode_cursor(secret: str, value: str) -> Cursor:
         raise _invalid() from exc
 
 
+# --- Cursors over keys that are not (timestamp, UUID) --------------------------------------
+#
+# The pair above is the proofs schema's key everywhere: every public row there has a
+# `created_at` and a UUID id. The competition schema does not — its submissions have a BIGINT
+# id, and its leaderboard is ranked by `(bytes, submitted_at, id)` rather than by arrival. Two
+# more dataclasses beside `Cursor` would be two more copies of the signing, the base64 and the
+# five ways a cursor can be malformed, which is the part worth having exactly once.
+#
+# So the signing is shared and the *shape* is the caller's. `version` is what keeps the shapes
+# apart: a cursor issued for one feed fails the version check on another rather than being
+# parsed into the wrong number of parts, so a client cannot page a leaderboard with a cursor
+# from a submission feed and get a coherent-looking answer.
+
+# Parts travel unescaped in a `.`-joined payload, so they may not contain the separator. Every
+# caller passes an integer or a UUID; the check is here so a future one that passes free text
+# fails at the point of encoding rather than at the point of decoding, in someone else's page.
+_PART = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def encode_parts(secret: str, *, version: str, parts: tuple[str, ...]) -> str:
+    """Sign an ordered tuple of scalars as an opaque cursor."""
+    if not _PART.match(version):
+        raise ValueError(f"not a cursor version: {version!r}")
+    for part in parts:
+        if not _PART.match(part):
+            raise ValueError(f"not a cursor part: {part!r}")
+    payload = ".".join((version, *parts))
+    return f"{_b64encode(payload.encode())}.{_sign(payload, secret)}"
+
+
+def decode_parts(secret: str, value: str, *, version: str, count: int) -> tuple[str, ...]:
+    """Parse a cursor this deployment issued for `version`, or raise `BadRequest`.
+
+    Every failure is the same rejection `decode_cursor` uses, for the same reason: a client
+    has nothing to learn from being told which of the checks it failed.
+    """
+    if not value or len(value) > MAX_CURSOR_LENGTH:
+        raise _invalid()
+    payload_b64, _, signature = value.partition(".")
+    if not signature:
+        raise _invalid()
+    try:
+        payload = _b64decode(payload_b64).decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise _invalid() from exc
+    # Signature first: nothing below this line parses a value that was not signed here.
+    if not hmac.compare_digest(signature, _sign(payload, secret)):
+        raise _invalid()
+    fields = payload.split(".")
+    # The version is checked against what this feed issues, so a validly signed cursor from
+    # another feed is refused rather than reinterpreted.
+    if len(fields) != count + 1 or fields[0] != version:
+        raise _invalid()
+    return tuple(fields[1:])
+
+
 def _invalid() -> BadRequest:
     return BadRequest("cursor is not one this API issued", reason_code=REASON_INVALID_CURSOR)
 
@@ -111,5 +168,7 @@ __all__ = [
     "REASON_INVALID_CURSOR",
     "Cursor",
     "decode_cursor",
+    "decode_parts",
     "encode_cursor",
+    "encode_parts",
 ]

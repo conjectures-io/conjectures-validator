@@ -21,6 +21,22 @@ services:
       EMISSIONS_RETRY_SECONDS: ${EMISSIONS_RETRY_SECONDS:-30}
       HOME: /tmp
 
+      # --- Competition weights ----------------------------------------------
+      # Read over HTTP from the platform's own API, deliberately: this container
+      # holds the only key on the subnet that can set weights, and has no
+      # database credential at all. Giving it one to save a call would trade a
+      # real isolation property for a convenience.
+      #
+      # Unset means no competition is paid and the treasury takes everything,
+      # which is exactly what this worker did before competitions existed.
+      # Every failure -- unreachable, malformed, or older than the max age --
+      # resolves to that same vector rather than to a skipped epoch, because an
+      # epoch's emissions cannot be set retroactively.
+      EMISSIONS_COMPETITION_WEIGHTS_URL: ${EMISSIONS_COMPETITION_WEIGHTS_URL:-}
+      EMISSIONS_COMPETITION_SLUG: ${EMISSIONS_COMPETITION_SLUG:-miniz-oxide}
+      EMISSIONS_COMPETITION_TOKEN: ${EMISSIONS_COMPETITION_TOKEN:-}
+      EMISSIONS_VECTOR_MAX_AGE_SECONDS: ${EMISSIONS_VECTOR_MAX_AGE_SECONDS:-1200}
+
       # --- Observability ----------------------------------------------------
       # Optional: unset means the sink is a no-op and stderr logging is
       # unchanged. Same variables in every service, so all four cannot end up

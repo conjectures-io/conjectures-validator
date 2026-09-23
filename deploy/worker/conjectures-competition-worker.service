@@ -1,0 +1,85 @@
+[Unit]
+Description=Conjectures competition gate worker
+Documentation=file:/opt/conjectures-validator/current/deploy/worker/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=conjectures-gate
+Group=conjectures-gate
+WorkingDirectory=/opt/conjectures-validator/current
+EnvironmentFile=/etc/conjectures/competition-worker.env
+Environment=HOME=/var/lib/conjectures-gate
+Environment=TMPDIR=/var/lib/conjectures-gate
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONNOUSERSITE=1
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Verifies every gate this host serves -- pinned commit, clean tree, matching PINS.json --
+# and the database, without claiming a submission.
+ExecStartPre=/opt/conjectures-validator/current/.venv/bin/python -m competition_worker --check
+ExecStart=/opt/conjectures-validator/current/.venv/bin/python -m competition_worker --log-level INFO
+
+# Exit 2 is a deliberate configuration refusal: an unsandboxed gate, a missing database URL,
+# or a checkout that is not the reviewed one. Keep it dead and visible rather than hiding the
+# error in a restart loop.
+Restart=on-failure
+RestartPreventExitStatus=2
+RestartSec=10s
+# Longer than the gate's own cap, so a stop during a verification is not a kill.
+TimeoutStopSec=50min
+KillMode=mixed
+UMask=0077
+
+# Unlike the verification worker, this one runs its gate as a subprocess on this host rather
+# than in a container: the gate needs bubblewrap, elan/Lean, Charon/Aeneas and cargo, and
+# cannot be containerized. The boundary is drawn with credentials instead -- this process
+# holds COMPETITION_DATABASE_URL and the gate subprocess is handed an environment allowlist
+# that does not include it (see competition_worker/runner.py) -- and with the gate's own
+# bubblewrap sandbox around the compile and proof stages.
+#
+# Hence the differences from the verification worker's unit below: user namespaces must stay
+# available for bubblewrap, the toolchain and gate checkouts need to be readable and the
+# build needs somewhere to write, and the memory and task ceilings are a Lean build's rather
+# than an orchestrator's.
+StateDirectory=conjectures-gate
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/conjectures-gate
+ReadOnlyPaths=/srv/gates
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateDevices=true
+PrivateIPC=true
+ProtectProc=invisible
+ProcSubset=pid
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+# NOT RestrictNamespaces=true: bubblewrap needs CLONE_NEWUSER and CLONE_NEWNS to build the
+# sandbox the gate runs miner code inside. Removing the sandbox to tighten this line would
+# trade a real boundary for a nominal one.
+RestrictNamespaces=~CLONE_NEWCGROUP CLONE_NEWNET
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# The gate itself needs no network -- every dependency is pinned and vendored by setup.sh --
+# and this process needs only PostgreSQL. A compromised gate cannot reach the Internet.
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+IPAddressAllow=::1/128
+LimitNOFILE=8192
+# A Lean build and a cargo build, not an orchestrator awaiting a container.
+TasksMax=2048
+MemoryMax=24G
+
+[Install]
+WantedBy=multi-user.target

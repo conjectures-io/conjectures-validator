@@ -48,6 +48,44 @@ def database_url() -> str:
     return f"{DRIVER}://{user}:{password}@{host}:{port}/{database}"
 
 
+COMPETITION_DATABASE = "conjectures_competition"
+
+
+def competition_database_url() -> str:
+    """The SQLAlchemy URL for the competition database.
+
+    A second database in the same cluster, not a second cluster and not a second schema.
+    The competition schema is owned by Alembic while this one is owned by Flyway, and two
+    migration tools sharing a database would each see the other's objects as drift; separate
+    databases give each tool a history table it alone writes.
+
+    The separation is also what makes the two key models coexist. V035 retired the miner
+    hotkey here and enforces it with triggers, while a competition entitlement is inherently
+    per-hotkey — one subnet registration buys one accepted submission. Those triggers do not
+    reach across a database boundary, so neither model has to bend to the other.
+
+    The cost is that nothing links the two: PostgreSQL has no cross-database foreign key and
+    no cross-database transaction. A competition row names an account by a plain `account_id`
+    that this process is responsible for, and no write may assume both databases moved
+    together.
+
+    Prefers `COMPETITION_DATABASE_URL`; otherwise assembles it from the same `POSTGRES_*`
+    credentials as `database_url`, differing only in `COMPETITION_POSTGRES_DB`. Deliberately
+    not derived from `DATABASE_URL`: that variable names one database, and rewriting its path
+    component to reach another is the kind of guess that silently points a migration at
+    production.
+    """
+    url = os.getenv("COMPETITION_DATABASE_URL", "").strip()
+    if url:
+        return url
+    user = os.getenv("POSTGRES_USER", "conjectures")
+    password = os.getenv("POSTGRES_PASSWORD", "conjectures")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    database = os.getenv("COMPETITION_POSTGRES_DB", COMPETITION_DATABASE)
+    return f"{DRIVER}://{user}:{password}@{host}:{port}/{database}"
+
+
 def create_db_engine(url: str | None = None, *, echo: bool = False) -> Engine:
     """A sync Engine with a pre-ping pool, for workers and operator tooling."""
     return create_engine(

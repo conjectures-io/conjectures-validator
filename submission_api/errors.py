@@ -58,6 +58,10 @@ _REASON_STATUS: Mapping[ReasonCode, int] = {
 REASON_MALFORMED_REQUEST = "MALFORMED_REQUEST"
 REASON_TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED"
 REASON_INTERNAL = "INTERNAL_ERROR"
+# One operator switch, honoured by every intake path on the API -- the proofs submission
+# routes and the competition ones alike. Defined here rather than in either router so that
+# neither has to import the other to agree on the string a client switches on.
+REASON_SUBMISSIONS_PAUSED = "SUBMISSIONS_PAUSED"
 
 # The two request-scoped facts these handlers and `AxiomRequestMiddleware` pass to each other. The
 # scope is the one object both hold a reference to, and both keys are namespaced so they cannot

@@ -355,6 +355,51 @@ def test_the_shared_resolver_supplies_the_url(monkeypatch):
     assert database_url() == "postgresql+psycopg://explicit/x"
 
 
+def test_the_competition_resolver_names_a_different_database(monkeypatch):
+    # The competition schema is owned by Alembic while the main one is owned by Flyway, so
+    # the two must never resolve to the same database. Same credentials, different name.
+    from conjectures_subnet.db import competition_database_url, database_url
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("COMPETITION_DATABASE_URL", raising=False)
+    monkeypatch.delenv("COMPETITION_POSTGRES_DB", raising=False)
+    monkeypatch.setenv("POSTGRES_USER", "someone")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "secret")
+    monkeypatch.setenv("POSTGRES_HOST", "db")
+    monkeypatch.setenv("POSTGRES_PORT", "5432")
+    monkeypatch.setenv("POSTGRES_DB", "conjectures")
+
+    assert (
+        competition_database_url()
+        == "postgresql+psycopg://someone:secret@db:5432/conjectures_competition"
+    )
+    assert competition_database_url() != database_url()
+
+    monkeypatch.setenv("COMPETITION_POSTGRES_DB", "elsewhere")
+    assert competition_database_url().endswith("/elsewhere")
+
+    monkeypatch.setenv("COMPETITION_DATABASE_URL", "postgresql+psycopg://explicit/y")
+    assert competition_database_url() == "postgresql+psycopg://explicit/y"
+
+
+def test_database_url_does_not_leak_into_the_competition_resolver(monkeypatch):
+    # DATABASE_URL names ONE database. Deriving the competition URL from it by rewriting the
+    # path component is the guess that points a migration at production, so it is not done:
+    # with only DATABASE_URL set, the competition URL still comes from POSTGRES_*.
+    from conjectures_subnet.db import competition_database_url
+
+    monkeypatch.delenv("COMPETITION_DATABASE_URL", raising=False)
+    monkeypatch.delenv("COMPETITION_POSTGRES_DB", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pw@prod-host:5432/conjectures")
+    monkeypatch.setenv("POSTGRES_USER", "someone")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "secret")
+    monkeypatch.setenv("POSTGRES_HOST", "db")
+    monkeypatch.setenv("POSTGRES_PORT", "5432")
+
+    assert "prod-host" not in competition_database_url()
+    assert competition_database_url().endswith("/conjectures_competition")
+
+
 @pytest.mark.parametrize(
     "override,message",
     [

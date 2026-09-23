@@ -43,6 +43,7 @@ from datetime import date
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from conjectures_subnet.axiom import attach_axiom_handler, get_axiom
 from conjectures_subnet.bounty import (
@@ -53,12 +54,14 @@ from conjectures_subnet.bounty import (
 )
 from conjectures_subnet.db import (
     async_session_factory,
+    competition_database_url,
     create_async_db_engine,
     database_url,
 )
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
+from submission_api.competitions import Competition, CompetitionRegistry
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.dependencies import Services
 from submission_api.github import (
@@ -84,6 +87,8 @@ from submission_api.pins import PinSet, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
+from submission_api.routers import competitions as competitions_router
+from submission_api.routers import competitions_admin as competitions_admin_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
@@ -100,7 +105,7 @@ from submission_api.routers import (
     tasks,
     web_submissions,
 )
-from submission_api.settings import Settings
+from submission_api.settings import Settings, SettingsError
 from submission_api.taskpool import TaskCatalog
 from submission_api.rates import build_tao_usd_reader
 from submission_api.taostats import (
@@ -122,6 +127,28 @@ The catalog, results and status endpoints are unauthenticated and world-readable
 conjecture statements, the Lean challenge each solver compiles against, and verified results
 attributed to conjectures.io — never a miner identity, proof bytes, or verifier output.
 """.strip()
+
+
+def competition_url(settings: Settings) -> str:
+    """The competition database's URL, refusing to be the proofs database's.
+
+    The guard keeps the two-database split true at runtime rather than by convention. Both
+    resolvers default to different database names, so it fires only where someone has pointed
+    them at the same place by hand -- `COMPETITION_POSTGRES_DB` set to the proofs database,
+    say -- and what that would do is put Alembic's schema into the database Flyway owns.
+
+    It lives here rather than in `Settings.from_env` because only here are both URLs fully
+    resolved. Comparing the raw environment variables would miss exactly the case worth
+    catching: one set and the other left to its default.
+    """
+    resolved = settings.competition_database_url or competition_database_url()
+    if resolved == (settings.database_url or database_url()):
+        raise SettingsError(
+            "the competition database must not be the proofs database: "
+            "COMPETITION_DATABASE_URL and DATABASE_URL resolve to the same URL, which would "
+            "put Alembic's schema into the database Flyway owns"
+        )
+    return resolved
 
 
 def build_services(
@@ -156,6 +183,20 @@ def build_services(
     # The URL comes from conjectures_subnet.db, so the API, the workers and Flyway can never
     # disagree about which database they are talking to.
     engine = create_async_db_engine(settings.database_url or database_url())
+    # The competition database, when this deployment has one. Two engines because two
+    # databases: Alembic owns that schema and Flyway owns this one, and nothing joins across
+    # them. Built here, beside the other, so both are disposed by the same lifespan.
+    competition_engine: AsyncEngine | None = None
+    competitions = CompetitionRegistry.empty()
+    if settings.competitions_enabled:
+        competition_engine = create_async_db_engine(competition_url(settings))
+        competitions = CompetitionRegistry.of(
+            Competition(
+                slug=settings.competition_slug,
+                name=settings.competition_name,
+                speed_floor=settings.competition_speed_floor,
+            )
+        )
     balance_reader = (
         BittensorBalanceReader(
             network=settings.bittensor_network,
@@ -174,6 +215,13 @@ def build_services(
         settings=settings,
         engine=engine,
         sessions=async_session_factory(engine),
+        competition_engine=competition_engine,
+        competition_sessions=(
+            async_session_factory(competition_engine)
+            if competition_engine is not None
+            else None
+        ),
+        competitions=competitions,
         catalog=resolved_catalog,
         retired=resolved_retired,
         authenticator=build_authenticator(settings),
@@ -304,6 +352,8 @@ def create_app(
             if services is None:
                 built = application.state.services
                 await built.engine.dispose()
+                if built.competition_engine is not None:
+                    await built.competition_engine.dispose()
                 # The chain payment verifier holds a websocket open between requests — see
                 # SubtensorTransferReader on why it is not opened per submission. Released here.
                 reader = getattr(built.payments, "reader", None)
@@ -422,6 +472,17 @@ def create_app(
     # /web is a fixed segment like /preflight and /intents, so it cannot collide with the
     # UUID-typed /{submission_id} either.
     application.include_router(web_submissions.router)
+    # The competition surface, entirely under /v1/competitions: the public reads, both write
+    # paths, the signed-in account's own submissions and the operator queue. Nothing of it is
+    # grafted onto /v1/me or /v1/admin, which stay the proofs platform's -- so the competition
+    # is one prefix to reason about, route, observe and, if it came to it, remove.
+    #
+    # Two routers on one prefix, and no ordering question between them: every operator route
+    # has the literal segment /admin where a public route has /submissions, /competitors or
+    # /me, so neither can match the other's paths. Public first only because that is the order
+    # they are documented in.
+    application.include_router(competitions_router.router)
+    application.include_router(competitions_admin_router.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
     # advisory record behind it). Both are role-gated at every route, and gated again on the

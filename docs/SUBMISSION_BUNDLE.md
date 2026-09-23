@@ -78,7 +78,7 @@ default for newly generated tasks; older tasks retain their published limit), an
 that scanner immediately so a policy violation is reported at submission time rather than
 after verification.
 
-The separate 200,000-token, line-length, nesting, and compression-ratio limits still
+The separate 1,000,000-token, line-length, nesting, and compression-ratio limits still
 apply. A file within the byte limit is not necessarily admissible or verifiable
 within the task's time and memory budgets.
 

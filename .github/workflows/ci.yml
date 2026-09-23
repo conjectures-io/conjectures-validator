@@ -82,6 +82,10 @@ jobs:
       # laptop and dangerous here: unset, this job would pass having exercised almost nothing.
       # The next step turns that skip into a failure.
       FC_POSTGRES_DSN: postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw@127.0.0.1:5440/conjectures-pytest
+      # The competition schema lives in a second database in the SAME server, as it does in
+      # the deployment and in docker-compose.pytest-db.yml. Created by a step below, because
+      # a `services:` container takes only one POSTGRES_DB and mounts no init script.
+      FC_COMPETITION_POSTGRES_DSN: postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw@127.0.0.1:5440/conjectures-pytest-competition
 
     steps:
       - uses: actions/checkout@v4
@@ -102,8 +106,30 @@ jobs:
           python -m pip install --disable-pip-version-check --upgrade pip
           python -m pip install \
             --constraint requirements-service.lock \
-            -e '.[dev,service,subnet,db]'
+            -e '.[dev,service,subnet,db,competition]'
           python -m pip check
+
+      # deploy/db/01_competition.sh does this in a real deployment; a `services:` container
+      # runs no init script, so it is done here instead. Idempotent for the same reason the
+      # script is: this job may be re-run against a warm cache.
+      - name: Create the competition database
+        run: |
+          psql -h 127.0.0.1 -p 5440 -U conjectures-pytest \
+            -d conjectures-pytest -v ON_ERROR_STOP=1 -tAc \
+            "SELECT 'CREATE DATABASE \"conjectures-pytest-competition\"'
+             WHERE NOT EXISTS (
+               SELECT FROM pg_database WHERE datname = 'conjectures-pytest-competition')" \
+          | psql -h 127.0.0.1 -p 5440 -U conjectures-pytest -d conjectures-pytest -v ON_ERROR_STOP=1
+        env:
+          PGPASSWORD: conjectures-pytest-pw
+
+      # docker-compose.pytest-db.yml's migrate-competition service does this locally. The API
+      # and worker tests clear these tables rather than build them, so an unmigrated database
+      # fails every one of them with UndefinedTable.
+      - name: Migrate the competition database
+        run: alembic -c deploy/migrate/competition/alembic.ini upgrade head
+        env:
+          COMPETITION_DATABASE_URL: ${{ env.FC_COMPETITION_POSTGRES_DSN }}
 
       - name: Prove the harness can see the database
         run: |
@@ -117,6 +143,14 @@ jobs:
                   "would have skipped and this job would have passed on nothing"
               )
           print("database reachable:", postgres_dsn().rsplit("@", 1)[-1])
+
+          from conftest import competition_dsn
+          if competition_dsn() is None:
+              sys.exit(
+                  "the test harness found no reachable competition database, so the schema "
+                  "drift tests would have skipped and this job would not have checked them"
+              )
+          print("competition database reachable:", competition_dsn().rsplit("@", 1)[-1])
           PY
 
       # Three markers, for three inputs this job does not provision: the pinned Lean toolchain

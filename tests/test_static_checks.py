@@ -2,7 +2,21 @@ from verifier.static_checks import check_submission, lean_tokens
 
 from dataclasses import replace
 
+import pytest
+
 from conftest import manifest
+
+
+@pytest.mark.parametrize("token_count", [300_000, 1_000_000])
+def test_large_proof_passes_token_policy(token_count):
+    # Newlines keep the independent line-length limit out of this boundary check.
+    assert check_submission("x\n" * token_count, manifest()).valid
+
+
+def test_proof_above_one_million_tokens_is_rejected():
+    result = check_submission("x\n" * 1_000_001, manifest())
+    assert not result.valid
+    assert result.violations == ("submission exceeds the 1000000-token policy limit",)
 
 
 def test_token_overflow_stops_scanning_and_rejects(monkeypatch):

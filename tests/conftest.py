@@ -54,6 +54,35 @@ DATABASE_SKIP_REASON = (
     "no database: run `docker compose -f docker-compose.pytest-db.yml up -d`"
 )
 
+# The competition schema lives in a second database in the SAME pytest cluster -- same host,
+# same port, same credentials, different database. One container, two databases, because that
+# is also how the deployment is shaped: `deploy/db/01_competition.sh` creates it beside the
+# proofs one rather than standing up a second server.
+PYTEST_COMPETITION_DSN = (
+    "postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw"
+    "@127.0.0.1:5440/conjectures-pytest-competition"
+)
+
+
+@cache
+def competition_dsn() -> str | None:
+    """The competition tests' DSN, or None to skip them.
+
+    Separate from `postgres_dsn` and probed separately: a cluster created before the
+    competition work has the proofs database but not this one, and the honest outcome there is
+    to skip these tests rather than to fail every one of them with the same connection error.
+    """
+    explicit = os.environ.get("FC_COMPETITION_POSTGRES_DSN", "").strip()
+    if explicit:
+        return explicit
+    return PYTEST_COMPETITION_DSN if _reachable(PYTEST_COMPETITION_DSN) else None
+
+
+COMPETITION_SKIP_REASON = (
+    "no competition database: run `docker compose -f docker-compose.pytest-db.yml up -d` "
+    "(recreate the volume if it predates deploy/db/01_competition.sh)"
+)
+
 
 def declaration(
     *,
