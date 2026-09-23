@@ -56,6 +56,7 @@ from submission_api.auth import (
 )
 from submission_api.dependencies import Services, ServicesDep, SessionDep
 from submission_api.errors import (
+    REASON_SUBMISSIONS_PAUSED,
     REASON_TASK_NOT_ALLOWED,
     ApiError,
     BadRequest,
@@ -78,7 +79,6 @@ router = APIRouter(prefix="/v1/submissions", tags=["submissions"])
 PAYMENT_REFERENCE = re.compile(r"^[A-Za-z0-9:_.#-]{4,128}$")
 TASK_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,254}$")
 
-REASON_SUBMISSIONS_PAUSED = "SUBMISSIONS_PAUSED"
 REASON_BOUNTY_CLOSED = "BOUNTY_CLOSED"
 REASON_BOUNTY_UNFUNDED = "BOUNTY_UNFUNDED"
 

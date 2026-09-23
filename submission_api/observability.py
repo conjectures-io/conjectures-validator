@@ -70,16 +70,10 @@ _AREAS: Final[tuple[tuple[str, Source], ...]] = (
     ("/v1/submissions/web", "api-intents"),
     ("/v1/submissions", "api-submissions"),
     ("/v1/auth", "api-auth"),
-    # Before any broader /v1/admin entry, and for the same reason as the /v1/me one below:
-    # the operator's competition queue reads the competition database, so its failures belong
-    # to that area rather than to the account surface it is addressed under.
-    ("/v1/admin/competitions", "api-competitions"),
-    # Before `/v1/me`, which is a prefix of it. The account's competition listing reads the
-    # competition database, so its failures belong to that area rather than to the account
-    # surface it is addressed under.
-    ("/v1/me/competitions", "api-competitions"),
     ("/v1/me", "api-me"),
     ("/v1/catalog", "api-catalog"),
+    # The whole competition surface, operator and account routes included. One entry because
+    # it is one prefix: nothing of the competition is addressed under /v1/me or /v1/admin.
     ("/v1/competitions", "api-competitions"),
     ("/v1/contributions", "api-contributions"),
     ("/v1/results", "api-results"),

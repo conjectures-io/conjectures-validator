@@ -26,15 +26,16 @@ theorem and measuring a corpus, and an operator who could set `state = 'accepted
 could spend a registration and move the leaderboard without any of that having happened.
 The one intervention offered is the one that cannot forge anything: run it again.
 
-Separate from `routers/admin.py`, which is the account/IAM surface over the proofs database,
-because this reads the other database entirely -- and separate from `routers/competitions.py`
-so that nothing public and nothing role-gated shares a module and an import list.
+Addressed at `/v1/competitions/{slug}/admin/...`, not under `/v1/admin`. That prefix is the
+proofs platform's operator surface -- accounts, reviews, invitations -- over the other
+database; this is the competition's, and the whole competition lives under one prefix. A
+separate module from `routers/competitions.py` all the same, so nothing public and nothing
+role-gated shares an import list.
 
 ADMIN rather than REVIEWER: a reviewer's judgement is about mathematics, and there is none
 to exercise here. Requeuing is an operational act on the validator's own queue, which is the
-line `routers/admin.py` already draws. And as everywhere under `/v1/admin`,
-`require_role_writer` refuses a bearer token, so this cannot be driven from a token read off
-a mining rig.
+line `routers/admin.py` already draws. And as on every role-gated route, `require_role_writer`
+refuses a bearer token, so this cannot be driven from a token read off a mining rig.
 """
 
 from __future__ import annotations
@@ -56,18 +57,26 @@ from submission_api.dependencies import (
     require_role_writer,
 )
 from submission_api.errors import NotFound
-from submission_api.routers.competitions import (
+from submission_api.competition_pagination import (
     CursorQuery,
     LimitQuery,
     feed_after,
     feed_cursor,
-    resolve_competition,
     split_page,
 )
+from submission_api.routers.competitions import resolve_competition
 from submission_api.sessions import Principal
 from submission_api.settings import DEFAULT_PAGE_SIZE
 
-router = APIRouter(prefix="/v1/admin/competitions", tags=["competitions", "admin"])
+# Under the competition's own prefix, not `/v1/admin`. `/v1/admin` is the proofs platform's
+# operator surface -- accounts, reviews, invitations -- and nothing there reads this
+# database. Putting the competition's queue beside them would make `/v1/admin` two products'
+# operator surfaces sharing a prefix and nothing else, while splitting the competition across
+# two prefixes. The protection does not live in the prefix anyway: every route here takes
+# `require_role` or `require_role_writer`, and nothing in the proxy, the CORS layer or the
+# write guard keys on `/v1/admin` -- CORS is scoped to all of `/v1`, and the write guard
+# applies to every state-changing request wherever it is addressed.
+router = APIRouter(prefix="/v1/competitions", tags=["competitions", "admin"])
 
 SlugPath = Path(description="The competition's slug", max_length=64)
 
@@ -108,7 +117,7 @@ def _operator_view(
 
 
 @router.get(
-    "/{slug}/queue",
+    "/{slug}/admin/queue",
     response_model=schemas.OperatorSubmissionPage,
     summary="Submissions an operator has been asked to look at",
 )
@@ -130,7 +139,7 @@ async def queue(
     lingers here means no worker is running at all, which is the more urgent reading.
 
     Deliberately not "every submission": that feed is public at
-    `/v1/competitions/{slug}/submissions` and an operator surface which duplicates a public
+    `/v1/competitions/{slug}/submissions`, and an operator surface which duplicates a public
     one is a second thing to maintain and a larger credential to steal. This is the subset
     that needs a decision.
     """
@@ -155,7 +164,7 @@ async def queue(
 
 
 @router.get(
-    "/{slug}/submissions/{submission_id}",
+    "/{slug}/admin/submissions/{submission_id}",
     response_model=schemas.OperatorSubmission,
     summary="One submission, with its queue bookkeeping",
 )
@@ -183,7 +192,7 @@ async def read_submission(
 
 
 @router.post(
-    "/{slug}/submissions/{submission_id}/requeue",
+    "/{slug}/admin/submissions/{submission_id}/requeue",
     response_model=schemas.Requeued,
     summary="Put a stuck submission back in the queue",
 )

@@ -467,19 +467,22 @@ def create_app(
     # /{submission_id}, which is typed as a UUID.
     application.include_router(auth.router)
     application.include_router(me.router)
-    # The account's own competition submissions. Its path is under /v1/me, its code is with
-    # the rest of the competition handlers; `me.router` declares no /competitions segment,
-    # so the two cannot collide.
-    application.include_router(competitions_router.me_router)
     application.include_router(intents.router)
     # The one-call website path. Shares the /v1/submissions prefix with both of the above, and
     # /web is a fixed segment like /preflight and /intents, so it cannot collide with the
     # UUID-typed /{submission_id} either.
     application.include_router(web_submissions.router)
-    # After the `/v1/submissions` family and before `/v1/admin`, matching the order the
-    # surfaces are documented in. Its own prefix, so no fixed-segment-before-typed-path
-    # question arises with any of them.
+    # The competition surface, entirely under /v1/competitions: the public reads, both write
+    # paths, the signed-in account's own submissions and the operator queue. Nothing of it is
+    # grafted onto /v1/me or /v1/admin, which stay the proofs platform's -- so the competition
+    # is one prefix to reason about, route, observe and, if it came to it, remove.
+    #
+    # Two routers on one prefix, and no ordering question between them: every operator route
+    # has the literal segment /admin where a public route has /submissions, /competitors or
+    # /me, so neither can match the other's paths. Public first only because that is the order
+    # they are documented in.
     application.include_router(competitions_router.router)
+    application.include_router(competitions_admin_router.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
     # advisory record behind it). Both are role-gated at every route, and gated again on the
@@ -498,9 +501,4 @@ def create_app(
     application.include_router(invitations.admin_router)
     application.include_router(admin.router)
     application.include_router(reviews.router)
-    # The competition queue an operator acts on. Under /v1/admin like the two above, and no
-    # ordering question with them: `admin` owns /accounts, `reviews` owns /reviews, this owns
-    # /competitions, and none is a prefix of another. It reads the competition database, so a
-    # deployment without one answers 503 here exactly as it does on the public routes.
-    application.include_router(competitions_admin_router.router)
     return application

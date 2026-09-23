@@ -47,6 +47,15 @@ from conjectures_subnet.competition import iso, queries
 from conjectures_subnet.competition import models as competition_models
 from conjectures_subnet.competition.status import STATE_VALUES, SubmissionState
 from submission_api import competition_sig, schemas_competitions as schemas
+from submission_api.competition_pagination import (
+    CursorQuery,
+    LimitQuery,
+    feed_after,
+    feed_cursor,
+    rank_after,
+    rank_cursor,
+    split_page,
+)
 from submission_api.competitions import Competition, UnknownCompetition
 from submission_api.dependencies import (
     CompetitionSessionDep,
@@ -55,6 +64,7 @@ from submission_api.dependencies import (
     ServicesDep,
 )
 from submission_api.errors import (
+    REASON_SUBMISSIONS_PAUSED,
     BadRequest,
     Conflict,
     Forbidden,
@@ -66,13 +76,7 @@ from submission_api.errors import (
     Unauthorized,
 )
 from submission_api.login import verify_signature
-from submission_api.pagination import decode_parts, encode_parts
-from submission_api.routers.submissions import REASON_SUBMISSIONS_PAUSED
-from submission_api.settings import (
-    DEFAULT_PAGE_SIZE,
-    MAX_COMPETITION_FILE_BYTES,
-    MAX_PAGE_SIZE,
-)
+from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_COMPETITION_FILE_BYTES
 
 router = APIRouter(prefix="/v1/competitions", tags=["competitions"])
 
@@ -81,65 +85,6 @@ SlugPath = Path(description="The competition's slug", max_length=64)
 # is only ever used as an equality predicate and a pattern here would be a second, weaker copy
 # of the check `verify_signature` already makes on the addresses that matter.
 HotkeyPath = Path(description="A subnet hotkey (ss58)", min_length=2, max_length=64)
-
-LimitQuery = Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)]
-CursorQuery = Annotated[str | None, Query(max_length=256)]
-
-# Two cursor shapes, because these feeds are ordered by two different keys, and one version
-# string each so a cursor from one is refused by the other rather than reinterpreted into a
-# coherent-looking wrong answer. Neither is the platform's `(created_at, uuid)` pair: a
-# competition submission's id is a BIGINT.
-CURSOR_FEED = "cs1"  # (submitted_at, id), newest first
-CURSOR_RANK = "cr1"  # (bytes, submitted_at, id), best first
-
-
-def _micros(moment: datetime) -> str:
-    """A timestamp as an integer, so a cursor never depends on how a fraction is formatted."""
-    return str(int(moment.astimezone(UTC).timestamp() * 1_000_000))
-
-
-def _from_micros(value: str) -> datetime:
-    return datetime.fromtimestamp(int(value) / 1_000_000, tz=UTC)
-
-
-def feed_cursor(secret: str, row: competition_models.Submission) -> str:
-    return encode_parts(
-        secret, version=CURSOR_FEED, parts=(_micros(row.submitted_at), str(row.id))
-    )
-
-
-def feed_after(secret: str, cursor: str | None) -> tuple[datetime, int] | None:
-    if not cursor:
-        return None
-    moment, sub_id = decode_parts(secret, cursor, version=CURSOR_FEED, count=2)
-    return _from_micros(moment), int(sub_id)
-
-
-def _rank_cursor(secret: str, row: competition_models.Submission) -> str:
-    return encode_parts(
-        secret,
-        version=CURSOR_RANK,
-        parts=(str(row.bytes), _micros(row.submitted_at), str(row.id)),
-    )
-
-
-def _rank_after(secret: str, cursor: str | None) -> tuple[int, datetime, int] | None:
-    if not cursor:
-        return None
-    size, moment, sub_id = decode_parts(secret, cursor, version=CURSOR_RANK, count=3)
-    return int(size), _from_micros(moment), int(sub_id)
-
-
-def split_page(rows: list, limit: int) -> tuple[list, bool]:
-    """One page, and whether another follows.
-
-    The handlers read `limit + 1` rows and discard the extra. That is what makes
-    `next_cursor` null exactly when the feed is exhausted, rather than handing back a cursor
-    that turns out to address an empty page -- the same reasoning as `routers/results.py`,
-    and the reason a client can loop until null instead of comparing counts.
-    """
-    return rows[:limit], len(rows) > limit
-
 
 def resolve_competition(services: ServicesDep, slug: str) -> Competition:
     """Resolve a slug, or 404.
@@ -267,7 +212,7 @@ async def leaderboard(
     """
     competition = resolve_competition(services, slug)
     secret = services.settings.cursor_secret
-    after = _rank_after(secret, cursor)
+    after = rank_after(secret, cursor)
     rows = await queries.leaderboard(session, after=after, limit=limit + 1)
     page, more = split_page(rows, limit)
     incumbent = await queries.latest_incumbent_bytes(session)
@@ -282,7 +227,7 @@ async def leaderboard(
             _ranking(offset + position, row)
             for position, row in enumerate(page, start=1)
         ],
-        next_cursor=_rank_cursor(secret, page[-1]) if more and page else None,
+        next_cursor=rank_cursor(secret, page[-1]) if more and page else None,
     )
 
 
@@ -344,7 +289,7 @@ async def submissions(
 
     `hotkey` is the filter that does real work. A submission id is the only handle a miner
     receives, and until this existed a miner who lost one had no way to find their own
-    submission again; the signed submit path sets no `account_id`, so `/v1/me/competitions`
+    submission again; the signed submit path sets no `account_id`, so `/{slug}/me/submissions`
     could not help them either.
     """
     competition = resolve_competition(services, slug)
@@ -811,14 +756,9 @@ async def submit_as_account(
 
 # ── the account's own ──────────────────────────────────────────────────────
 
-# A second router rather than routes on `me.router`, so every competition handler stays in
-# one module: the path belongs under `/v1/me` (everything the signed-in account owns lives
-# there) but the code belongs here. Registered next to `me.router` in `create_app`.
-me_router = APIRouter(prefix="/v1/me/competitions", tags=["competitions"])
 
-
-@me_router.get(
-    "/submissions",
+@router.get(
+    "/{slug}/me/submissions",
     response_model=schemas.SubmissionPage,
     summary="Submissions made through this account",
 )
@@ -826,23 +766,30 @@ async def my_submissions(
     services: ServicesDep,
     session: CompetitionSessionDep,
     principal: PrincipalDep,
+    slug: str = SlugPath,
     limit: LimitQuery = DEFAULT_PAGE_SIZE,
     cursor: CursorQuery = None,
 ) -> schemas.SubmissionPage:
-    """This account's own submissions, newest first.
+    """This account's own submissions in this competition, newest first.
 
-    Only the ones made through a signed-in session: a hotkey-signed submit sets no
+    Under the competition's prefix rather than `/v1/me`, which stays the proofs platform's
+    account surface. That is a correctness property as much as a tidy one: the competition
+    this lists comes from the slug in the path, so a second competition needs no change
+    here, where a path under `/v1/me` would name no competition at all and leave the
+    handler to guess which one was meant.
+
+    Only submissions made through a signed-in session: a hotkey-signed submit sets no
     `account_id`, so it never appears here even when the same person made it. That is the
     honest reading of the column -- it records which account authorised the write, and
     nothing about a signature says an account was involved at all. A miner looking for a
     hotkey's submissions wants `/v1/competitions/{slug}/submissions?hotkey=...`, which is
     keyed on the thing that actually signed them.
 
-    Paged like every other feed, and with the same cursor shape as the public one: the rows
-    are the same rows in the same order, and issuing a different cursor for them would be a
-    second thing to keep in step for no gain.
+    Paged with the same cursor shape as the public feed: the rows are the same rows in the
+    same order, and issuing a different cursor for them would be a second thing to keep in
+    step for no gain.
     """
-    competition = services.competitions.only()
+    competition = resolve_competition(services, slug)
     secret = services.settings.cursor_secret
     rows = await queries.submissions_for_account(
         session,
@@ -857,17 +804,11 @@ async def my_submissions(
     )
 
 
-# The operator router in `competitions_admin` shares the slug resolution and the cursor
-# codec. Named here rather than duplicated there: two modules that page the same table must
-# issue the same cursors, or an operator's page two would be a different page two.
+# The operator router in `competitions_admin` shares the slug resolution and the pause
+# policy. Named here rather than duplicated there, because both are the competition's rules
+# rather than either router's: which slugs exist, and when intake is closed.
 __all__ = [
-    "CursorQuery",
-    "LimitQuery",
-    "feed_after",
-    "feed_cursor",
-    "me_router",
     "refuse_if_paused",
     "resolve_competition",
     "router",
-    "split_page",
 ]

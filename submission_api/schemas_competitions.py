@@ -11,8 +11,11 @@ returned. Miners parse these, so it is a wire format rather than a display choic
 
 from __future__ import annotations
 
+from typing import Generic, TypeVar
+
 from submission_api.schemas import Model
-from submission_api.schemas_public import CursorPage
+
+ItemT = TypeVar("ItemT")
 
 
 class CompetitionSummary(Model):
@@ -132,14 +135,31 @@ class WeightVector(Model):
 
 
 # --- Feeds -----------------------------------------------------------------------------
-#
-# `CursorPage` is the platform's, imported rather than redefined. The envelope is the one
-# thing every feed on this API should agree about: a client that has learned to loop until
-# `next_cursor` is null should not have to learn a second way to do it because the rows came
-# from the other database.
+
+
+class CursorPage(Model, Generic[ItemT]):
+    """One page of a competition feed.
+
+    The competition's own rather than `schemas_public.CursorPage`, for the reason this
+    module gives for existing at all: the proofs platform's public contract and this one
+    have different audiences, and importing that envelope would let a field added there for
+    the proofs feeds -- a total, a filter echo -- appear on every competition feed without
+    anyone here deciding it should.
+
+    Identical in shape on the wire, deliberately, so a client that loops until `next_cursor`
+    is null pages both surfaces the same way. Same shape, separately owned.
+
+    `next_cursor` is opaque and signed; see `submission_api/competition_pagination.py`.
+    There is no total, for the same reason the proofs feeds have none: counting a growing
+    feed on every page read is a table scan an anonymous caller should not be able to ask
+    for.
+    """
+
+    items: tuple[ItemT, ...]
+    next_cursor: str | None = None
+
 
 SubmissionPage = CursorPage[SubmissionView]
-RankingPage = CursorPage[Ranking]
 
 
 class CompetitionStats(Model):

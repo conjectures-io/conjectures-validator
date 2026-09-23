@@ -740,7 +740,7 @@ class Settings:
     # useless once it falls outside, which is what stops a recorded upload being replayed.
     competition_signature_window_seconds: int
     # After how long a claim held by a gate worker is presumed dead, for the operator queue
-    # at /v1/admin/competitions. Advisory only: it decides what an operator is *shown*, not
+    # at /v1/competitions/{slug}/admin/queue. Advisory only: it decides what an operator is *shown*, not
     # what gets requeued -- the worker's own COMPETITION_STALE_CLAIM_SECONDS does that, and
     # the API cannot read the worker's environment. Defaulted to the same number so the two
     # agree out of the box; set both if you change either, or the queue will list rows the

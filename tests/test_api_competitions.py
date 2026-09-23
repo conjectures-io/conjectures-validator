@@ -115,6 +115,24 @@ def test_a_distinct_competition_url_is_returned_unchanged():
     assert competition_url(settings).endswith("/conjectures_competition")
 
 
+def test_a_second_competition_is_refused_at_startup():
+    """Two competitions would share every table, so the registry will not hold them.
+
+    Every handler resolves its competition from the slug in the path, so nothing at request
+    time would notice: both slugs would resolve and both would read and write the same rows,
+    because the competition schema has no slug column to tell them apart. The guard is on
+    construction so it holds for every route at once, rather than for whichever handler
+    remembered to check.
+    """
+    from submission_api.competitions import Competition, CompetitionRegistry
+
+    one = Competition(slug="miniz-oxide", name="miniz", speed_floor=8.0)
+    two = Competition(slug="rust-competition", name="rust", speed_floor=8.0)
+    assert len(CompetitionRegistry.of(one)) == 1
+    with pytest.raises(ValueError, match="no slug column"):
+        CompetitionRegistry((one, two))
+
+
 # ── the dependency ─────────────────────────────────────────────────────────
 
 
@@ -799,7 +817,7 @@ def test_an_account_sees_its_own_submissions_and_not_a_signed_one():
                         keypair, digest=competition_sig.digest_of(other, LEAN)
                     ),
                 )
-                mine = await http.get("/v1/me/competitions/submissions")
+                mine = await http.get("/v1/competitions/miniz-oxide/me/submissions")
             assert through_session.status_code == 201
             assert mine.status_code == 200
             ids = [row["id"] for row in mine.json()["items"]]
@@ -818,7 +836,7 @@ def test_the_account_listing_needs_a_credential():
         kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
         try:
             async with await _client(kit) as http:
-                assert (await http.get("/v1/me/competitions/submissions")).status_code == 401
+                assert (await http.get("/v1/competitions/miniz-oxide/me/submissions")).status_code == 401
         finally:
             await kit.teardown()
             await engine.dispose()
@@ -939,7 +957,7 @@ def test_a_leaderboard_cursor_is_refused_by_the_submission_feed():
 def test_the_submission_feed_filters_by_hotkey_and_by_state():
     """The endpoint a miner who lost their submission id uses.
 
-    A signed submit sets no `account_id`, so `/v1/me/competitions/submissions` can never
+    A signed submit sets no `account_id`, so `/v1/competitions/{slug}/me/submissions` can never
     show them; the hotkey is the only handle those rows carry.
     """
 
@@ -1225,17 +1243,17 @@ def test_an_abandoned_submission_is_visible_to_an_operator_and_can_be_requeued()
         try:
             async with await client(kit) as http:
                 await _admin(kit, http)
-                queue = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+                queue = await http.get("/v1/competitions/miniz-oxide/admin/queue")
                 detail = await http.get(
-                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}"
+                    f"/v1/competitions/miniz-oxide/admin/submissions/{stuck}"
                 )
                 done = await http.post(
-                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}/requeue"
+                    f"/v1/competitions/miniz-oxide/admin/submissions/{stuck}/requeue"
                     "?reason=gate+host+rebuilt",
                     headers=same_origin(http),
                 )
                 after = await http.get(
-                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}"
+                    f"/v1/competitions/miniz-oxide/admin/submissions/{stuck}"
                 )
             assert [row["id"] for row in queue.json()["items"]] == [stuck]
             # The bookkeeping the public view omits, which is the point of the endpoint.
@@ -1273,10 +1291,10 @@ def test_a_requeued_submission_leaves_the_operator_queue():
             async with await client(kit) as http:
                 await _admin(kit, http)
                 await http.post(
-                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}/requeue",
+                    f"/v1/competitions/miniz-oxide/admin/submissions/{stuck}/requeue",
                     headers=same_origin(http),
                 )
-                queue = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+                queue = await http.get("/v1/competitions/miniz-oxide/admin/queue")
             assert queue.json()["items"] == []
         finally:
             await kit.teardown()
@@ -1304,7 +1322,7 @@ def test_a_verdict_cannot_be_undone_by_a_requeue():
                 board = await http.get("/v1/competitions/miniz-oxide/leaderboard")
                 winner = board.json()["ranking"][0]["submission"]
                 refused = await http.post(
-                    f"/v1/admin/competitions/miniz-oxide/submissions/{winner}/requeue",
+                    f"/v1/competitions/miniz-oxide/admin/submissions/{winner}/requeue",
                     headers=same_origin(http),
                 )
             assert refused.status_code == 200
@@ -1327,11 +1345,11 @@ def test_the_operator_queue_is_closed_without_the_admin_role():
         kit = await harness(competition_engine=engine, COMPETITIONS_ENABLED="1").setup()
         try:
             async with await client(kit) as http:
-                anonymous = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+                anonymous = await http.get("/v1/competitions/miniz-oxide/admin/queue")
                 await sign_in_by_email(kit, http)
-                as_miner = await http.get("/v1/admin/competitions/miniz-oxide/queue")
+                as_miner = await http.get("/v1/competitions/miniz-oxide/admin/queue")
                 write = await http.post(
-                    f"/v1/admin/competitions/miniz-oxide/submissions/{stuck}/requeue",
+                    f"/v1/competitions/miniz-oxide/admin/submissions/{stuck}/requeue",
                     headers=same_origin(http),
                 )
             assert anonymous.status_code == 401
@@ -1340,5 +1358,46 @@ def test_the_operator_queue_is_closed_without_the_admin_role():
             assert write.status_code == 403
         finally:
             await kit.teardown()
+
+    run(scenario())
+
+
+# ── the surface's boundary ─────────────────────────────────────────────────
+
+
+def test_the_competition_surface_lives_under_one_prefix_and_no_other():
+    """Every competition route is under /v1/competitions, and none is grafted elsewhere.
+
+    The competition is a separate product from the proofs platform, over a separate
+    database, and its routes say so by sharing no prefix with the platform's: nothing under
+    /v1/me (the platform's account surface) and nothing under /v1/admin (its operator
+    surface). This pins that, so a convenience route added under either of those later fails
+    here rather than quietly re-coupling the two.
+
+    Read from the OpenAPI document rather than from the router objects, because that is the
+    surface a client actually sees, and it is flat in a way this FastAPI version's nested
+    included routers are not.
+    """
+
+    async def scenario():
+        kit = await harness(COMPETITIONS_ENABLED="1").setup()
+        try:
+            spec = kit.app.openapi()
+        finally:
+            await kit.teardown()
+        tagged = {
+            path
+            for path, operations in spec["paths"].items()
+            for operation in operations.values()
+            if "competitions" in operation.get("tags", ())
+        }
+        assert tagged, "no competition routes registered"
+        assert all(path.startswith("/v1/competitions") for path in tagged), sorted(tagged)
+        grafted = [
+            path
+            for path in spec["paths"]
+            if path.startswith(("/v1/me", "/v1/admin")) and "competition" in path
+        ]
+        assert grafted == []
 
     run(scenario())
