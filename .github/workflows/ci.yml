@@ -123,6 +123,14 @@ jobs:
         env:
           PGPASSWORD: conjectures-pytest-pw
 
+      # docker-compose.pytest-db.yml's migrate-competition service does this locally. The API
+      # and worker tests clear these tables rather than build them, so an unmigrated database
+      # fails every one of them with UndefinedTable.
+      - name: Migrate the competition database
+        run: alembic -c deploy/migrate/competition/alembic.ini upgrade head
+        env:
+          COMPETITION_DATABASE_URL: ${{ env.FC_COMPETITION_POSTGRES_DSN }}
+
       - name: Prove the harness can see the database
         run: |
           python - <<'PY'
