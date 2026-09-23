@@ -196,11 +196,16 @@ class MinizOxide(CompetitionAdapter):
 
     async def headline(self, session: AsyncSession) -> Mapping[str, MetricValue]:
         # The incumbent moves when the operator promotes a new one, so the newest measurement
-        # of it is the bar -- the same number the competition's own /health reports.
+        # of it is the bar -- the same number the competition's own /health reports. Ownerless
+        # rows (no hotkey, no baseline key) are the operator's diagnostic test runs and do not
+        # count, as the competition's own query excludes them.
         incumbent = (
             await session.execute(
                 select(_s.c.incumbent_bytes)
-                .where(_s.c.incumbent_bytes.is_not(None))
+                .where(
+                    _s.c.incumbent_bytes.is_not(None),
+                    or_(_s.c.hotkey.is_not(None), _s.c.baseline_key.is_not(None)),
+                )
                 .order_by(_s.c.id.desc())
                 .limit(1)
             )

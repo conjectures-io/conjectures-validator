@@ -367,6 +367,22 @@ def test_each_competition_describes_itself_well_enough_to_render_and_submit_to()
 
 
 @needs_competition_db
+def test_an_operators_test_run_neither_competes_nor_moves_the_incumbent():
+    async def scenario():
+        async with Kit() as kit:
+            await kit.submission(None, baseline_key="incumbent", incumbent_bytes=2_153_387)
+            # Ownerless: the competition's diagnostic run, no hotkey and no baseline key.
+            await kit.submission(None, baseline_key=None, incumbent_bytes=1, bytes=1)
+            async with await _http(kit) as http:
+                detail = (await http.get(f"/v1/competitions/{SLUG}")).json()
+                feed = (await http.get(f"/v1/competitions/{SLUG}/submissions")).json()
+            assert detail["headline"]["incumbent_bytes"] == 2_153_387
+            assert feed["items"] == []
+
+    run(scenario())
+
+
+@needs_competition_db
 def test_the_board_ranks_each_hotkeys_best_and_pages_with_absolute_ranks():
     async def scenario():
         async with Kit() as kit:
