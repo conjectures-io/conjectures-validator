@@ -1,7 +1,7 @@
 # Observability
 
-Every process in this validator — the submission API, verification worker, deposit and payout
-watchers, and emissions worker — emits structured events to [Axiom](https://axiom.co). One dataset,
+Every process in this validator — the submission API, verification worker, and deposit and payout
+watchers — emits structured events to [Axiom](https://axiom.co). One dataset,
 one event shape, three labels that make it queryable:
 
 | Field | What it answers | Values |
@@ -99,7 +99,6 @@ start with a path filter.
 | `verification-worker` | Claiming, verifying, recording verdicts |
 | `deposit-watcher` | Reading finalized blocks, attributing arrivals, crediting |
 | `payout-watcher` | Projecting best/finalized stake payout events into Paying/Paid |
-| `emissions-worker` | Setting the treasury weight each epoch |
 | `subnet-chain` `database` `verifier` | Shared infrastructure |
 
 ## Event types
@@ -117,7 +116,6 @@ Grouped by the area that raises them. `labels.py` is the source of truth.
 - **Deposits** — `cursor_opened`, `blocks_scanned`, `transfer_credited`, `transfer_unattributed`,
   `transfer_ignored`, `transfer_conflict`
 - **Payouts** — `payout_confirmed`, `payout_reorged`, `payout_unmatched`
-- **Emissions** — `epoch_observed`, `weights_set`, `weights_failed`
 - **Competitions** — `competition_submission_queued`, `competition_submission_requeued`,
   `competition_database_unreachable`
 - **Contributions** — `contributions_refreshed`, `contributions_refresh_failed`,
@@ -137,11 +135,9 @@ Not a restatement of the log level. The choices worth knowing:
 - **`insecure_sandbox_accept` is a `warning` even though it is a configured allowance.** An accept
   that nothing isolated is a verdict whose provenance has to be findable later, and finding it
   should not depend on having grepped the right container's logs.
-- **A retryable failure is a `warning`, not an `error`.** A chain read that fails on a syncing node,
-  or a weight extrinsic rejected on a busy block, is ordinary and the loop does not give up. What is
-  an error is a streak, which is a rate over these events rather than a severity on one of them.
-  `weights_failed` at `error` means something different: the *epoch watch* failed, and an epoch's
-  emissions cannot be set retroactively.
+- **A retryable failure is a `warning`, not an `error`.** A chain read that fails on a syncing node
+  is ordinary and the loop does not give up. What is an error is a streak, which is a rate over
+  these events rather than a severity on one of them.
 - **`contributions_refresh_failed` is a `warning`, and a run of them is the incident.** One
   failed poll changes nothing a caller can see: the previous snapshot keeps serving and
   `/v1/contributions/meta` reports its age. What matters is the gap between

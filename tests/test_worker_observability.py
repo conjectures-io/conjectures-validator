@@ -21,7 +21,6 @@ import pytest
 
 from conjectures_subnet.axiom import Axiom, AxiomClientNoop
 from conjectures_subnet.db import verification as queue
-from emissions_worker.worker import NETUID, TREASURY_UID, TreasuryWeightWorker
 from verification_worker.outcomes import Outcome
 from verification_worker.worker import LEASE_LOST, VerificationWorker
 from verifier.errors import ReasonCode
@@ -85,7 +84,6 @@ def claim() -> queue.ClaimedSubmission:
 def recorder(monkeypatch) -> Recorder:
     collected = Recorder()
     monkeypatch.setattr("verification_worker.worker.get_axiom", lambda: collected)
-    monkeypatch.setattr("emissions_worker.worker.get_axiom", lambda: collected)
     return collected
 
 
@@ -124,89 +122,3 @@ def test_a_classified_reason_code_emits_nothing(recorder):
     """The ordinary path stays quiet; `verdict_recorded` is what reports it."""
     assert worker()._outcome_of(ReasonCode.VERIFIED.value) is Outcome.VERDICT
     assert recorder.events == []
-
-
-# --- the emissions worker --------------------------------------------------------------------
-
-
-class Epoch:
-    def __init__(self, block: int) -> None:
-        self.block = block
-
-
-class Result:
-    def raise_for_failure(self) -> Result:
-        return self
-
-
-class Client:
-    def __init__(self, *, failures: int = 0) -> None:
-        self.failures = failures
-        self.attempts = 0
-
-    def wait_for_epoch(self, netuid: int, *, timeout: float | None = None) -> Epoch:
-        del netuid, timeout
-        return Epoch(block=8_675_309)
-
-    def execute(self, intent: Any, wallet: Any, *, retries: int = 2) -> Result:
-        del intent, wallet, retries
-        self.attempts += 1
-        if self.failures:
-            self.failures -= 1
-            raise RuntimeError("the extrinsic was rejected")
-        return Result()
-
-
-def test_an_epoch_and_the_weight_it_set_are_two_info_events(recorder):
-    TreasuryWeightWorker(
-        client=Client(), wallet=object(), sleep=lambda _seconds: None
-    ).run_epoch()
-
-    observed = recorder.one("epoch_observed")
-    assert observed["severity"] == "info"
-    assert observed["source"] == "emissions-worker"
-    assert observed["netuid"] == NETUID
-    assert observed["block"] == 8_675_309
-    assert observed["treasury_uid"] == TREASURY_UID
-
-    was_set = recorder.one("weights_set")
-    assert was_set["severity"] == "info"
-    assert was_set["block"] == 8_675_309
-    assert was_set["attempt"] == 1
-
-
-def test_a_retried_submission_is_a_warning_and_reports_the_attempt(recorder):
-    """The loop does not give up, so a single rejection is not an error. A streak is, and that is a
-    rate over `attempt` rather than a severity on any one event."""
-    TreasuryWeightWorker(
-        client=Client(failures=2), wallet=object(), sleep=lambda _seconds: None
-    ).run_epoch()
-
-    failures = [item for item in recorder.events if item["event_type"] == "weights_failed"]
-    assert [item["severity"] for item in failures] == ["warning", "warning"]
-    assert [item["attempt"] for item in failures] == [1, 2]
-    assert "RuntimeError: the extrinsic was rejected" in failures[0]["exception"]
-    # And it still succeeded, on the third attempt.
-    assert recorder.one("weights_set")["attempt"] == 3
-
-
-def test_an_epoch_watch_failure_is_an_error_because_the_epoch_cannot_be_reset(recorder):
-    class Broken(Client):
-        def __init__(self) -> None:
-            super().__init__()
-            self.watched = 0
-
-        def wait_for_epoch(self, netuid: int, *, timeout: float | None = None) -> Epoch:
-            self.watched += 1
-            if self.watched > 1:
-                raise KeyboardInterrupt
-            raise ConnectionError("the websocket closed")
-
-    TreasuryWeightWorker(
-        client=Broken(), wallet=object(), sleep=lambda _seconds: None
-    ).run_forever()
-
-    event = recorder.one("weights_failed")
-    assert event["severity"] == "error"
-    assert event["stage"] == "epoch_watch"
-    assert "ConnectionError: the websocket closed" in event["exception"]

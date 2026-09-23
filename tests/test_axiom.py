@@ -393,7 +393,6 @@ def test_a_stdlib_level_maps_onto_a_severity():
     [
         ("verification_worker", "verification-worker"),
         ("deposit_watcher", "deposit-watcher"),
-        ("emissions_worker", "emissions-worker"),
         ("submission_api.mail", "api-mail"),
         ("submission_api.chain_payments", "api-payments"),
         ("submission_api.routers.me", "api-me"),

@@ -1,11 +1,11 @@
 # The one entrypoint for the operational stack: Postgres, Flyway, the API, and
-# optionally the verification worker, deposit watcher, emissions worker, and payout notifier.
+# optionally the verification worker, deposit watcher, and payout notifier. Subnet 66 weights
+# are set by conjectures-optimisation-miniz-oxide's weight setter, not from here.
 #
 #   just up            # db -> migrate -> api + automatic payout notifier
 #   just up-worker     # ... and the development verification worker
 #   just up-watcher    # ... and the deposit watcher
-#   just up-emissions  # ... and the Subnet 66 epoch weight setter
-#   just up-all        # ... and all four workers
+#   just up-all        # ... and all three workers
 #   just logs api
 #   just reset         # destroy the database and start clean
 #   just env-sync      # add new settings from .env.example without touching your values
@@ -32,7 +32,6 @@ set positional-arguments := true
 compose := "docker compose -f docker-compose.api.yml"
 compose_worker := compose + " -f docker-compose.worker.yml"
 compose_watcher := compose + " -f docker-compose.watcher.yml"
-compose_emissions := compose + " -f docker-compose.emissions.yml"
 compose_notifier := compose
 
 # Every overlay at once. `down`, `ps`, `logs` and `reset` use this so a container
@@ -40,7 +39,7 @@ compose_notifier := compose
 # them. An overlay Compose does not know about is a container `down` leaves
 # running against a database it has just deleted the volume of.
 
-compose_all := compose_worker + " -f docker-compose.watcher.yml -f docker-compose.emissions.yml"
+compose_all := compose_worker + " -f docker-compose.watcher.yml"
 project := "conjectures-api"
 legacy := "conjectures-db"
 
@@ -82,12 +81,6 @@ up-watcher: _preflight _check-watch
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_watcher }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_watcher }} ps
 
-# Build and start the epoch worker that sends all Subnet 66 weight to treasury UID 121.
-up-emissions: _preflight _check-emissions
-    @echo "==> starting: db -> migrate -> api -> emissions (as {{ uid }}:{{ gid }})"
-    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} up -d --build
-    @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} ps
-
 # Start payout command delivery plus the read-only chain status watcher. Neither holds signing
 # keys; the second service is what makes the site's Paying/Paid labels follow chain events.
 up-payout-notifier: _preflight _check-notifier
@@ -95,10 +88,10 @@ up-payout-notifier: _preflight _check-notifier
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_notifier }} up -d --build payout-notifier payout-watcher
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_notifier }} ps payout-notifier payout-watcher
 
-# Build and start the complete development stack, including emissions. This is not a production
-# launcher because its verification worker intentionally uses the insecure in-process sandbox path.
-up-all: _preflight _check-watch _check-emissions _check-notifier
-    @echo "==> starting: db -> migrate -> api -> worker -> watcher -> emissions -> payout notifier (as {{ uid }}:{{ gid }})"
+# Build and start the complete development stack. This is not a production launcher because its
+# verification worker intentionally uses the insecure in-process sandbox path.
+up-all: _preflight _check-watch _check-notifier
+    @echo "==> starting: db -> migrate -> api -> worker -> watcher -> payout notifier (as {{ uid }}:{{ gid }})"
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} up -d --build
     @DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_all }} ps
 
@@ -290,10 +283,6 @@ build-worker:
 # Build the deposit watcher image without starting anything.
 build-watcher:
     {{ compose_watcher }} build watcher
-
-# Build the epoch weight setter image without starting anything.
-build-emissions: _check-emissions
-    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose_emissions }} build emissions
 
 # Build both payout-operation images without starting anything.
 build-payout-notifier: _check-notifier
@@ -686,27 +675,6 @@ _check-watch:
       echo "error: CREDIT_PRICE_RAO ($price) and PAYMENT_AMOUNT_RAO ($quoted) disagree." >&2
       echo "  They are the same price seen from two sides — the API quotes it, the" >&2
       echo "  watcher credits at it. Set them equal." >&2
-      exit 1
-    fi
-
-# The only service that signs chain calls. Require one explicit host wallet and never infer it
-# from the API or watcher configuration.
-_check-emissions:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    missing=()
-    for var in EMISSIONS_WALLET_HOST_PATH EMISSIONS_WALLET_NAME EMISSIONS_WALLET_HOTKEY; do
-      grep -qE "^${var}=.+" .env || missing+=("$var")
-    done
-    if (( ${#missing[@]} )); then
-      echo "error: the emissions worker needs these in .env: ${missing[*]}" >&2
-      echo "  It signs SetWeights for Subnet 66; see .env.example under 'Treasury emissions'." >&2
-      exit 1
-    fi
-    root=$(grep -E '^EMISSIONS_WALLET_HOST_PATH=' .env | tail -1 | cut -d= -f2-)
-    name=$(grep -E '^EMISSIONS_WALLET_NAME=' .env | tail -1 | cut -d= -f2-)
-    if [[ ! -d "$root/$name" ]]; then
-      echo "error: emissions wallet directory is missing: $root/$name" >&2
       exit 1
     fi
 

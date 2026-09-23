@@ -494,7 +494,9 @@ latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.
 | Automated bounty transfer and reconciliation | **Partial.** Transfer signing remains human multisig; best/finalized event reconciliation is automatic |
 
 The payout rule is deterministic and its inputs are persisted. Subnet emissions are independent:
-`emissions_worker` sends one 100% weight to treasury UID 121 after every observed epoch. Executing
+the Subnet 66 weight vector is set by conjectures-optimisation-miniz-oxide's weight setter, which
+gives treasury UID 121 its share and the competition the rest (see that repository's
+`validator/scoring/split.py`); nothing in this repository sets weights. Executing
 the individual bounty transfer remains a human multisig operation; returning and maintaining its
 proof-of-inclusion is automatic.
 

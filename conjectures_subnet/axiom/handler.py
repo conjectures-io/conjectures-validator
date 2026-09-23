@@ -52,7 +52,6 @@ DEFAULT_LOG_FORMAT: Final = "%(asctime)s %(levelname)s %(name)s %(message)s"
 LOGGER_SOURCES: Mapping[str, Source] = {
     "verification_worker": "verification-worker",
     "deposit_watcher": "deposit-watcher",
-    "emissions_worker": "emissions-worker",
     "conjectures_subnet.transfers": "subnet-chain",
     "conjectures_subnet.chain": "subnet-chain",
     "conjectures_subnet.bounty": "subnet-chain",

@@ -380,23 +380,13 @@ adding or removing one. Configure with `COMPETITIONS` and `COMPETITION_<SLUG>_DA
 See [docs/COMPETITIONS.md](docs/COMPETITIONS.md) for the surface, the signed-submit contract and
 how to add a competition.
 
-## Treasury emissions
+## Subnet weights
 
-[`emissions_worker/`](emissions_worker/) observes each Subnet 66 epoch and submits one weight:
-treasury UID **121** receives **100%**. The netuid and destination UID are code constants on
-purpose. The only runtime choices are the Bittensor network and the validator wallet/hotkey that
-signs `SetWeights`.
-
-```bash
-just up-emissions       # api stack plus the epoch worker
-just logs emissions
-```
-
-Set `EMISSIONS_WALLET_HOST_PATH`, `EMISSIONS_WALLET_NAME`, and
-`EMISSIONS_WALLET_HOTKEY` in `.env`. Only that named wallet is mounted into the emissions
-container, read-only; the API, watcher, database, and hostile-proof verifier never receive the
-signing key. A failed chain submission is retried in the same epoch, while the next successful
-submission waits for the next epoch observed on-chain.
+Nothing in this repository sets weights. Subnet 66's vector is set by the weight setter in
+conjectures-optimisation-miniz-oxide, the validator's only `set_weights` caller: treasury UID
+**121** receives its fixed share every epoch and the competition the rest, both code constants
+there (`validator/scoring/split.py`). A scoring failure pays the treasury everything for that
+epoch rather than skipping it.
 
 Build and inspect the real full-repository catalog:
 

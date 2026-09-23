@@ -18,7 +18,8 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 - Only a proof accepted by the hardened Lean verifier may reach reward review or rewards.
 - Manual review, when enabled, gates reward eligibility after Lean succeeds.
 - Manual review cannot make a Lean-invalid proof valid.
-- Validator emissions are deliberately treasury-only: UID 121 receives 100% every epoch.
+- Validator weights are set outside this repository, by conjectures-optimisation-miniz-oxide's weight setter, the validator's only `set_weights` caller: treasury UID 121
+  receives its fixed share every epoch and the proof-gated competitions the rest.
 - Every payment, state transition, verification, review, and reward decision is durable and
   auditable.
 
@@ -51,8 +52,9 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 9. A reviewer may approve or reject a held proof for rewards. The decision, reviewer, reason,
    timestamp, and policy version are recorded as a `review_decisions` row.
 10. Approved proofs and automatically eligible proofs enter the bounty payout pipeline.
-11. Independently of individual proof results, the emissions worker observes each Subnet 66 epoch
-    and submits one weight: treasury UID 121 receives 100%.
+11. Independently of individual proof results, Subnet 66 weights are set every epoch by
+    conjectures-optimisation-miniz-oxide's weight setter: treasury UID 121 receives its fixed
+    share, and the competition the rest.
 
 ```text
                        intake (payment confirmed first, or no submission at all)
@@ -95,7 +97,7 @@ All validator source and operational configuration belongs in this repository:
 | Lean verifier | Decide whether the exact submitted proof proves the exact committed task |
 | Review service | Hold and decide Lean-valid submissions when manual review is enabled |
 | Bounty process | Pay eligible proofs from the treasury under the versioned bounty policy |
-| Emissions worker | Set 100% of Subnet 66 validator weight to treasury UID 121 every epoch |
+| Weight setter (competition repo) | Set Subnet 66 weights: treasury UID 121's share and the competition's |
 | Operator tooling | Migrations, monitoring, backups, restores, reconciliation, and incident response |
 
 These components share a repository, not a security context. Payment keys, validator wallet keys,
@@ -276,8 +278,8 @@ The repository currently includes:
 - content-addressed proof storage in the `proofs` table, and the `api_rejection_log` record of
   every refused request;
 - automatic reward eligibility and one-reward-per-theorem-target enforcement;
-- the treasury-only epoch worker in [`../emissions_worker/`](../emissions_worker/), which submits
-  100% of Subnet 66 validator weight to UID 121 after every observed epoch.
+- the competition surface under `/v1/competitions`, served from each competition's own database
+  (see [COMPETITIONS.md](COMPETITIONS.md)).
 
 The database is a component in its own right, not the API's: every process resolves one URL
 through `conjectures_subnet.db.database_url()`, and the payment, verification, review and reward
@@ -287,7 +289,8 @@ own. Adding a migration is adding a file to `deploy/migrate/sql`; see
 
 It does not yet include the payment allocation/reconciliation worker, the reviewer-facing
 decision service, or the automated proof-bounty payout processor. Subnet emissions do not depend
-on proof scoring: they are intentionally routed in full to treasury UID 121 every epoch.
+on proof scoring: the weight setter in conjectures-optimisation-miniz-oxide pays treasury UID 121
+its fixed share and the competition the rest.
 
 One open operational question the verification worker raises: whatever launches the verifier
 container needs a Docker socket, which is root-equivalent on the host. The boundary above is
@@ -324,9 +327,10 @@ and no credentials all close it.
 5. Add review authorization and the decision API/UI. The per-submission manual-review flag and
    policy version are already captured, and the gate is already applied when a verdict is
    recorded.
-6. ~~Add Subnet chain weight submission.~~ Done as the intentionally simple treasury-only policy:
-   [`../emissions_worker/`](../emissions_worker/) submits one 100% weight to UID 121 every epoch.
-   Proof-specific scoring is not part of the emissions policy; automated bounty payout remains.
+6. ~~Add Subnet chain weight submission.~~ Done, and since moved: the weight setter in
+   conjectures-optimisation-miniz-oxide sets the whole vector, treasury UID 121's share plus the
+   competition's. Proof-specific scoring is not part of the emissions policy; automated bounty
+   payout remains.
 7. Add metrics, alerts, rate limits, secret isolation, migrations in deployment, backups, restore
    drills, upgrades, rollbacks, and incident runbooks.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,

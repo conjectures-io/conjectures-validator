@@ -79,7 +79,6 @@ Source: TypeAlias = Literal[
     "verification-worker",
     "deposit-watcher",
     "payout-watcher",
-    "emissions-worker",
     "autoreview",
     # Sweeps the TMC PAY orders no webhook resolved. Separate from `deposit-watcher` because it
     # watches a payment processor rather than a chain, and its failures are HTTP ones.
@@ -236,10 +235,6 @@ EventType: TypeAlias = Literal[
     # A competition's own database refused a connection. Its routes answer 503; nothing else is
     # affected, which is why this is not `readiness_degraded`.
     "competition_database_unreachable",
-    # --- emissions worker -------------------------------------------------------------------
-    "epoch_observed",
-    "weights_set",
-    "weights_failed",
     # --- catch-alls -------------------------------------------------------------------------
     # A stdlib `logging` record forwarded by `AxiomLogHandler`. Everything the codebase already
     # logged arrives under this type, carrying its logger name and severity.
