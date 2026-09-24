@@ -56,7 +56,8 @@ from submission_api.dependencies import (
     require_role,
     require_role_writer,
 )
-from submission_api.errors import NotFound
+from submission_api.errors import NotFound, ServiceUnavailable
+from sqlalchemy import text
 from submission_api.competition_pagination import (
     CursorQuery,
     LimitQuery,
@@ -85,6 +86,18 @@ SlugPath = Path(description="The competition's slug", max_length=64)
 # a resolved dependency by function identity, so an inline factory resolves twice per request.
 AdminReader = Annotated[Principal, Depends(require_role(ADMIN_ROLE))]
 AdminWriter = Annotated[Principal, Depends(require_role_writer(ADMIN_ROLE))]
+
+
+async def require_legacy_schema(session):
+    """The old operator adapter must never mutate the new claim-token schema."""
+    modern = (await session.execute(text("""SELECT EXISTS(SELECT 1 FROM information_schema.columns
+        WHERE table_schema=current_schema() AND table_name='submissions'
+        AND column_name='verification_attempt')"""))).scalar_one()
+    if modern:
+        raise ServiceUnavailable(
+            "Use compression repository operator tools; this legacy adapter cannot manage claim tokens.",
+            reason_code="OPERATOR_ADAPTER_UNAVAILABLE",
+        )
 
 
 def _no_store(response: Response) -> None:
@@ -145,6 +158,7 @@ async def queue(
     """
     _no_store(response)
     competition = resolve_competition(services, slug)
+    await require_legacy_schema(session)
     settings = services.settings
     secret = settings.cursor_secret
     claimed_before = datetime.now(UTC) - timedelta(
@@ -184,6 +198,7 @@ async def read_submission(
     """
     _no_store(response)
     competition = resolve_competition(services, slug)
+    await require_legacy_schema(session)
     found = await queries.submission_for_operator(session, submission_id)
     if found is None:
         raise NotFound("no such submission")
@@ -224,6 +239,7 @@ async def requeue(
     """
     _no_store(response)
     competition = resolve_competition(services, slug)
+    await require_legacy_schema(session)
     row = await queries.get_submission(session, submission_id)
     if row is None:
         raise NotFound("no such submission")

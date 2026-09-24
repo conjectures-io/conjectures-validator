@@ -88,6 +88,7 @@ from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.retired import RetiredIndex
 from submission_api.routers import catalog as catalog_router
 from submission_api.routers import competitions as competitions_router
+from submission_api.routers import competition_reads
 from submission_api.routers import competitions_admin as competitions_admin_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
@@ -482,6 +483,7 @@ def create_app(
     # /me, so neither can match the other's paths. Public first only because that is the order
     # they are documented in.
     application.include_router(competitions_router.router)
+    application.include_router(competition_reads.router)
     application.include_router(competitions_admin_router.router)
     # Stage 3. Two routers share the /v1/admin prefix and neither is a prefix of the other:
     # `admin` owns /accounts (who holds which role), `reviews` owns /reviews (the queue and the
