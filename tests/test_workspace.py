@@ -104,6 +104,27 @@ def test_answer_mode_sanitizer_fails_closed_on_unknown_layout(tmp_path):
         _remove_answer_postpone_library(config)
 
 
+def test_answer_mode_sanitizer_accepts_already_sanitized_source_pin(tmp_path):
+    config = tmp_path / "lakefile.toml"
+    content = ('name = "formal_conjectures"\n[[lean_lib]]\n'
+               'name = "FormalConjectures"\nglobs = ["FormalConjectures.+"]\n')
+    config.write_text(content)
+    _remove_answer_postpone_library(config)
+    assert config.read_text() == content
+
+
+@pytest.mark.parametrize("extra", [
+    '[lean_lib.leanOptions]\nweak.google.answer = "postpone"\n',
+    '[[lean_lib]]\nname = "Other"\nglobs = ["FormalConjectures.+"]\n',
+])
+def test_answer_mode_sanitizer_rejects_unsafe_already_sanitized_layout(tmp_path, extra):
+    config = tmp_path / "lakefile.toml"
+    config.write_text('name = "formal_conjectures"\n[[lean_lib]]\n'
+                      'name = "FormalConjectures"\nglobs = ["FormalConjectures.+"]\n' + extra)
+    with pytest.raises(VerifierError, match="unexpected answer-postpone library layout"):
+        _remove_answer_postpone_library(config)
+
+
 def test_local_package_graph_rejects_path_escape(tmp_path):
     (tmp_path / "lake-manifest.json").write_text(
         json.dumps(

@@ -1,0 +1,1675 @@
+[
+  {
+    "module": "FormalConjectures.Wikipedia.PerfectNumbers",
+    "path": "FormalConjectures/Wikipedia/PerfectNumbers.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "e17a6ab61e1ca86cf5e2bb02fe766576f685c377d3bab6f7982c7507d37faa9d"
+  },
+  {
+    "module": "FormalConjecturesUtil",
+    "path": "FormalConjecturesUtil.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "975c5bd011e99eda23887285c334f8a66a91bcd30b2127314b4b5ed059c90ec3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib",
+    "path": "FormalConjecturesForMathlib.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "31703df4dcc5f6aedc54881a7c511da9b84d8c41a33e686b9ca0f328206a40d9"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.GCDMonoid.Finset",
+    "path": "FormalConjecturesForMathlib/Algebra/GCDMonoid/Finset.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "996f49245f3e5cc1d0beba2f575ebfe0e92413d826c11603575987026925e9b6"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Group.Action.Pointwise.Set.Basic",
+    "path": "FormalConjecturesForMathlib/Algebra/Group/Action/Pointwise/Set/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "bcff743a1778e3b882c8d3520df8fae6b83590c00fa0de6ce89f93866413ca8e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Group.GrowthFunction",
+    "path": "FormalConjecturesForMathlib/Algebra/Group/GrowthFunction.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "a3676a87017e9e12c51d6b7613b7588fea8d1030c934f7f64e5bdc79b5fddf58"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Order.Filter.atTopBot.Finset",
+    "path": "FormalConjecturesForMathlib/Order/Filter/atTopBot/Finset.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "26e4af1ea59d4a945e4d80e0ed72e731ccf33c3c0b5680796f5502b2ee564e91"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Group.Indicator",
+    "path": "FormalConjecturesForMathlib/Algebra/Group/Indicator.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "f675aa653ef59073ac26946b612c91fb91463c5175434f24cc342c044face2be"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.MvPolynomial.PoissonBracket",
+    "path": "FormalConjecturesForMathlib/Algebra/MvPolynomial/PoissonBracket.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "6c9210fded84616e3cb8fdef1dc727f5a7bced928e235745eae9ff0f5ee0fc41"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.MvPolynomial.RegularFunction",
+    "path": "FormalConjecturesForMathlib/Algebra/MvPolynomial/RegularFunction.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "4e28dced3a79ee5b15710f19a3e06e208ff2c8a6089f785992e64a79abbee7af"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Order.Group.Pointwise.Interval",
+    "path": "FormalConjecturesForMathlib/Algebra/Order/Group/Pointwise/Interval.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "0313d4a48ffd5a88d22586be2439c2a999d8d6795720d3696c49355f7c2a4122"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Polynomial.Algebra",
+    "path": "FormalConjecturesForMathlib/Algebra/Polynomial/Algebra.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "41f7e969035980f2ad956e76e72c1be8254d1b7a58de56fd56858b818249947d"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Polynomial.Basic",
+    "path": "FormalConjecturesForMathlib/Algebra/Polynomial/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "61860510266be969d45c52ba0c8aff5b221f14b032f2ae009c7109bc6767f071"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Polynomial.HasseDeriv",
+    "path": "FormalConjecturesForMathlib/Algebra/Polynomial/HasseDeriv.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e188b6d76bcf942569b4a5cccf051bd5ea946d36130bfa1b4b486703a6b9aee5"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.Powerfree",
+    "path": "FormalConjecturesForMathlib/Algebra/Powerfree.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "15e0601a84d156b75aa866437c46a605cb1ca44a47e2df63c540591c23e5bbfe"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Algebra.QuadraticAlgebra.Instances",
+    "path": "FormalConjecturesForMathlib/Algebra/QuadraticAlgebra/Instances.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "157d6f7d297fc54148034017080abf8e2084ac9bc52caf9407f62406e66abd12"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.AlgebraicGeometry.EllipticCurve.GlobalPeriod",
+    "path": "FormalConjecturesForMathlib/AlgebraicGeometry/EllipticCurve/GlobalPeriod.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "748a85811451bd1aa30666140de8e2ac65aee063a836903bca955819f60f22c5"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.AlgebraicGeometry.EllipticCurve.MinimalDiscriminant",
+    "path": "FormalConjecturesForMathlib/AlgebraicGeometry/EllipticCurve/MinimalDiscriminant.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "185a9b7286cd5c6207fd9c9efdd7b2df0684bbdfd71dfda7d59d3f30392b9736"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.AlgebraicGeometry.ProjectiveSpace",
+    "path": "FormalConjecturesForMathlib/AlgebraicGeometry/ProjectiveSpace.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "0fa8f5422e2a59864c6e7aefb092c70ce8435dbf6f1c6a52393cec1cf2a35559"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.AlgebraicGeometry.VectorBundle",
+    "path": "FormalConjecturesForMathlib/AlgebraicGeometry/VectorBundle.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "81d8fc07749e0fef57828b3f40adab3e2e908e28d65e5be7b18f7b5d3240b6cf"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.Asymptotics.Basic",
+    "path": "FormalConjecturesForMathlib/Analysis/Asymptotics/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "575587f1e453476ac68dd3939614f70be912084a150a3a7803089ba72dbe4c30"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.Equidistribution.ModOne",
+    "path": "FormalConjecturesForMathlib/Analysis/Equidistribution/ModOne.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e46c23754a6b12b9449008990d94e38b6111c24117925a01b6199f5138ae63e3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.Fourier.SpectralSets",
+    "path": "FormalConjecturesForMathlib/Analysis/Fourier/SpectralSets.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "1afb10b20fd411cefd9fd06b14abd18bf19a32a0614a02637b7f3267875470a8"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.HasGaps",
+    "path": "FormalConjecturesForMathlib/Analysis/HasGaps.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e22f087a0ca571e6e65a4c0bd3716c8f4f144405856c4a2bbc564a444bc8db83"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.Algebra.InfiniteSum.Group",
+    "path": "FormalConjecturesForMathlib/Topology/Algebra/InfiniteSum/Group.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "490ca98d64a935081c7b344157a3055e510195ca46e1c62f472f477b9907a48f"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.Algebra.InfiniteSum.Order",
+    "path": "FormalConjecturesForMathlib/Topology/Algebra/InfiniteSum/Order.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "fe1696e3eae6965009005020da53cc16a66d69a5f21be64003a0555b7d2a89a4"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.Matrix.Spectrum",
+    "path": "FormalConjecturesForMathlib/Analysis/Matrix/Spectrum.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "1ff81f76b2f1ca9810bfc6d0d3fd6767618f7f79c0a95edac3e56d2ed82a1bb3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.Real.Cardinality",
+    "path": "FormalConjecturesForMathlib/Analysis/Real/Cardinality.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2cbe7a7130c486516c9b8aa7ca8e62a453bc43a801cde45fdf5e833dceaecfad"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.SpecialFunctions.AdditiveCharacter",
+    "path": "FormalConjecturesForMathlib/Analysis/SpecialFunctions/AdditiveCharacter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "013ffc1b25e06980ed7303726b0e73fee1a0d0c27262597940d6bb2f6c1cf5d0"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.SpecialFunctions.Log.Basic",
+    "path": "FormalConjecturesForMathlib/Analysis/SpecialFunctions/Log/Basic.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "5f3b2cf04ae7168c38f59a9c55e14582005e2c693031d8a1f076a68e997cca77"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Analysis.SpecialFunctions.NthRoot",
+    "path": "FormalConjecturesForMathlib/Analysis/SpecialFunctions/NthRoot.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "138a0c3b7a3564284c41c948d5214607813ee0d1e6af3a78bc79ecbb08b5e799"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.AP.Basic",
+    "path": "FormalConjecturesForMathlib/Combinatorics/AP/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "62f0a0987d49c5dbfd7b4f82a4f3dd4faba7ad545c676df06d0cda009567b5c3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.Basis",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Additive/Basis.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "58782d6f4f310a40e635957726e489a5bbf1664d40162f5f188843af8caf2ca3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Order.Filter.Cofinite",
+    "path": "FormalConjecturesForMathlib/Order/Filter/Cofinite.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "617156f7f2cf11b943146f4460edc423f991906f7231a29460f5c39ab19649d4"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.Convolution",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Additive/Convolution.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c8faa99c2645b3a2abede7fb2bc354ffeb5b878c60a760e6b555cf79ba66fc65"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.Coset",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Additive/Coset.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "711dbbbf380dc98db33f598ec69e7e233d398d562ab7de668be95aea8a989737"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.DifferenceBasis",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Additive/DifferenceBasis.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "eff73033ed42ffe6c5a0dca10e1b96bce2286ce1fd42d293032bec5151920121"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.RestrictedSumset",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Additive/RestrictedSumset.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "395c4ebf6f56e58cf93cfcf95a500a1a74ce97c58ef5ac045fba4a01d8f2f2bb"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Additive.VCDim",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Additive/VCDim.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "fda09cdd396a3e55f1b7ee0f5421f75db507346f5255f607854876e6e5b658b6"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SetFamily.VCDim",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SetFamily/VCDim.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "9cf441c18ed15bce77019c91dba9a2cedaf89c039ff433fb1040a6f6dfc746df"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Basic",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "ee48ddb5f95c60d764282418ab4c9f05459f29e460797012d4a05ae6636cb1c9"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Digraph.Tournament",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Digraph/Tournament.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "ef0a1aeda5d26b33795d38adf57067cdebc316fc94b8671a063d0a2323e3bd50"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Hypergraph.ThreeUniform",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Hypergraph/ThreeUniform.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "b68617bb9621090d92a94a36d3d45d83d4c11df42bc1e1a348bfdb6a3cea3867"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.LatinSquare",
+    "path": "FormalConjecturesForMathlib/Combinatorics/LatinSquare.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "8159f7bae3ad4e19b7315550a9f13da125d552b2e108ae9af59356124436bc97"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.LimitObjects.Graphon",
+    "path": "FormalConjecturesForMathlib/Combinatorics/LimitObjects/Graphon.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c14d3baba48f07da43f65719fd4ee9385d95fd292abc5288a9fc9bfeecd90f18"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.LimitObjects.Tournamenton",
+    "path": "FormalConjecturesForMathlib/Combinatorics/LimitObjects/Tournamenton.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "44d12af6957c4f2d97b1bb9255e1bff47e30a94a44c944fa756eda315107165c"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Ramsey",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Ramsey.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "20d31726a74ec29a1dbbf1885edc7ebb5c8434023a9e357f945712a283a566f0"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.Ramsey.Diagonal",
+    "path": "FormalConjecturesForMathlib/Combinatorics/Ramsey/Diagonal.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "267f8d5930529894aee8335932111e7cddfe69c02e7a9dc701070a6d43434fe3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SetFamily.PropertyB",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SetFamily/PropertyB.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "a3ce287d6da47ccb9454ac93b4da8e74d034a572c97afeb1d462f53ae9b062f5"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SetFamily.Sunflower",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SetFamily/Sunflower.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "dfdfd880c578f4e75936080a2645042dcaf899affac1b4bc74e254a18bd733ec"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SetFamily.UnionFree",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SetFamily/UnionFree.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "ae31200190f9aa8985b35333757b1be5907b2cdddfb9512e77928c48ed9e7f03"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Set.Triplewise",
+    "path": "FormalConjecturesForMathlib/Data/Set/Triplewise.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "1a178d9e4f78193648101365c015e3c3e72491f4a34aa8080c691b5c4bd2e07e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SetTheory.PartitionRelation",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SetTheory/PartitionRelation.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "ea55d830b0411c4436ff4be4fe29e26e66a9bb14558593081887a1fc76c03337"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.AnnihilationNumber",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/AnnihilationNumber.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "a15dd8645d5bffab9bc921dec0dfec1fbc4048dc40fdb10deed65f8d52b9bd2f"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Degrees",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Degrees.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "3ff5fd37e0c492fdfc8d91d44a5b6b8ebf6529f8fc20f3eac4fe2ba3653648f7"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Balanced",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Balanced.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "9b3db6a32ffa3f1d77159b7954e6a47d5d5b4282c18aa01cea70b751f86e72d0"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Circumference",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Circumference.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "8cae7509c78e065a889f18a414d097fba51a734e4e09fe2ab10fcacb55f52ba6"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Clique",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Clique.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2773977ef2ecc759e0b5dc15c692e80de14d2f9db37ba28b8f692cc078a4dd53"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Coloring.Vertex",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Coloring/Vertex.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "c8fd859de2574369d2c43518ade29b1b730af7944fbd6a03b6e13a3d2459420c"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.CompleteGraphEdgeCount",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/CompleteGraphEdgeCount.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "bed2d1d569d2c48064bc52f68fcf21a4ffc7b310029ea5a5665e114f46f21480"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Connectivity",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Connectivity.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "187f90d068841805d03038f3bcf69b12a2fe423ab3f7865722fc0973fc762157"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Cvetkovic",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Cvetkovic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "b5de7de36857e054aa2401d8ee37d64911e35fef776b568980a76cf2c38ab06e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Cycle",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Cycle.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "cd4f4f2804113237a1cdd507eca1ae046ee9fbe865e0e4268c3c45cddd662157"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.CycleRank",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/CycleRank.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "fdfddfeeaa1b75bf63f0779ceb0dad0ceaaf39fb8a1700b79cf91710b2b8e11e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Decomposition",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Decomposition.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "86bf339ad988733c67e443e7fc922bbc278fc48871f7e9ba515f0659d8fceff2"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Degeneracy",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Degeneracy.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "3fe98c6c71e99d1264855cc8d536c6c4a40f9fad641e5b475739a0747619f1a4"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.DiamExtra",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/DiamExtra.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "282785b35a7c63399f0c591ec774e53a4a1265af641f0accf6ac7226ea70e6ef"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Domination",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Domination.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2ad9987bcfa8b190f79666879264310afdaaddeb733b84def6510f8841c8fc5f"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Eccentricity",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Eccentricity.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "4511407283fa18e5aedee6ac70549783ffa0c800b821abe2d1253a6ab75a25d6"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.VertexDistance",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/VertexDistance.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "8e407777095c38873ebd71db76b7fee3c661aa3d626202812e704f4ad16e90eb"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.EdgeColouring",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/EdgeColouring.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "3cfb94cb7964f8a6b39398e0ccd20c73eb77461f666f4e40a3c72b791669c1eb"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.FractionalAlpha",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/FractionalAlpha.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "d649aa1f9326f6c1bf80587b17cd4bdad263b2a270775508b206ac6bfb055ab6"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.HarmonicIndex",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/HarmonicIndex.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "450737ae89a71f75afce44cf0473c72902361c8343f2c9e53dc1e96bb487496f"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.HomDensity",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/HomDensity.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "582adea40b49c426f23623f50b649018294936e61c0d280af2027f288bd34330"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Hypercube",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Hypercube.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "f5a826b1071d55989fedefbd963ea76bf940eb5183c6fce268523c59a4fa0fb4"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Independence",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Independence.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "77be44c935e77acd806e0bad959cb6124a2d2529e628133c35c8e5fa834ae4f1"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Induced",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Induced.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2c515ac1926e524b2b7e28cc65481b4bf28ee274a26e29491d8cb8612cf83c7a"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Johnson",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Johnson.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "96c424d37a2a575fc083bf368dcfd4f434bebf4548b59d3a9fd8e6459452d562"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Finset.Card",
+    "path": "FormalConjecturesForMathlib/Data/Finset/Card.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "4b4a4545af9dd28605e489819a25270175162a0b791f1de077d4cd852fff624b"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.LargestInducedTree",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/LargestInducedTree.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "77046b0094f8f57c8828abc6d84a5f529f156ac046489b54c362c2c390be3023"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.LovaszTheta",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/LovaszTheta.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "4f5244902938d2022b17fd4535c887d68515db1b180b9ff572bac85091f037fb"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Matching",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Matching.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "ef93c2064d94c4d5a971a2fdf3bd6978e8b60e4c10eab47ac14679c4ff267bf3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.PathCover",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/PathCover.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "1709e89e83ca81bb9e0eee1cd829b107ff2471eab8445ae9e911de3514a4dedf"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Prod",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Prod.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "c5d90250b6961b0ce9ae3100dd176c016139277a1895e97946eca5482e49dfc3"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.QuasiLineGraph",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/QuasiLineGraph.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "09bfd4ecc2993ac5b8c7158b6352d54b20e977e7b94f09a92411b75f5af68a70"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Ramsey",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Ramsey.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "cf4249ebd77fb3cc02374391b8b6698d9d133cd910bdde9d717224c4d9492fbb"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Residue",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Residue.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c704a79fdea5d44398fed71a2adda0ce86c768fb6c2ac2847012708d624bf1f8"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Saturation",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Saturation.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "d421d6bf5eef011da1e1139d9f7a0c3b564697ddc7e31ce77b3c06f56fc20682"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.SizeRamsey",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/SizeRamsey.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "9b3aface48772e79e19dc7f0571b5d90afde22cce3499f657fae96a8f83cb984"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.SpanningTree",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/SpanningTree.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "358339430e2f0b7cb09aaa64ee2498445635823ecff23524fc9f35a3b6555b2e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.SubgraphIsomorphism",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/SubgraphIsomorphism.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "592b49a9144151c2084c685036ee8de4275ed0600e1a443ac89d91000539ebb1"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.SzegedIndex",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/SzegedIndex.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "88874992921a6c7e858a87d99ab00ec649231cd78806b982f33b455f18c3a390"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Temperature",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/Temperature.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "cf1bf2b5330ede183c034a1ceb2a405a326637e1476b4ca9a42c824f18709a4b"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.UnitDistancePlaneGraph",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/UnitDistancePlaneGraph.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "d3b322e76396433f60952c88e59c259eff5d2518efc96567ac66a48442dee1ac"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Geometry.Euclidean",
+    "path": "FormalConjecturesForMathlib/Geometry/Euclidean.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c3c0615b00271717acd12d0b294e54bd7b1b8b5b3d63b482d3822d0bdb923ed8"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.WellTotallyDominated",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/WellTotallyDominated.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c9e6c9a65beabbafbd76978b60c95910bd71bff1d867b4984db8714644836b27"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.SimpleGraph.WienerIndex",
+    "path": "FormalConjecturesForMathlib/Combinatorics/SimpleGraph/WienerIndex.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "58782aab2110106c766d272dea1701e3d9272a03a869413f3060d13a2be7d57d"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Combinatorics.YoungDiagram",
+    "path": "FormalConjecturesForMathlib/Combinatorics/YoungDiagram.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "91c7fe18522d4b67aec3d7b94f43ba02bba7dad829e70bb1db2986f9745cd48c"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.BitstringEncoding",
+    "path": "FormalConjecturesForMathlib/Computability/BitstringEncoding.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2f9fb7cb92e9b7a0fd4f16cec9f7b911d08ae28c155440b980546d10a13b8764"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.Complexity",
+    "path": "FormalConjecturesForMathlib/Computability/Complexity.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "935101acc1a435328d0aca870dd3fe24b8cd41cc5b0dd7b5ea0e175c388869ed"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.DFA",
+    "path": "FormalConjecturesForMathlib/Computability/DFA.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "09118d64cbc9431cd5b47b3c1fc95f0fc393e60f9a1c1efca1d212ae9ac20da2"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.Primrec",
+    "path": "FormalConjecturesForMathlib/Computability/Primrec.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "c5b085d09d17df3f20b061620cfbd644fdc33db8474347c33c5dedd077b5de2b"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.TuringMachine.BusyBeavers",
+    "path": "FormalConjecturesForMathlib/Computability/TuringMachine/BusyBeavers.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e097d522631d72f691f9442e51b3967d614e600805d2426020ad253f9957fb89"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.TuringMachine.PostTuringMachine",
+    "path": "FormalConjecturesForMathlib/Computability/TuringMachine/PostTuringMachine.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e5ff32ff6a3133f9b6bf539f9d12556aae014a63f0d0ffb418534ff06f8c5408"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Computability.TuringMachine.Notation",
+    "path": "FormalConjecturesForMathlib/Computability/TuringMachine/Notation.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "077ccf53d94c3eca3579954ae039198142f9ba967530be5c1c4bdd8333175186"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Bool.Basic",
+    "path": "FormalConjecturesForMathlib/Data/Bool/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "4830318154244ce3e8dd802748b6acd1421bab3c4120464aa8322f32eec5d24e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Finset.Powerset",
+    "path": "FormalConjecturesForMathlib/Data/Finset/Powerset.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "a15c74a0a4def8957043a46878dd8a056fa8a79b9900d8418b6513f156faeb83"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Finset.ReciprocalSum",
+    "path": "FormalConjecturesForMathlib/Data/Finset/ReciprocalSum.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "02d567d07cf5810dc429d8108bf8e95fec467ece4acf8cecedad6faddb7b86f5"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Int.IntermediateValue",
+    "path": "FormalConjecturesForMathlib/Data/Int/IntermediateValue.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "9fd90a1edfeef71636a7caac6f9098929ae07c2758709815ebe51ec2b82e8050"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Int.Order.Basic",
+    "path": "FormalConjecturesForMathlib/Data/Int/Order/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "48987a901d135cf31276d13bd85e40c0d5296eca2d8d88425cb56485162a2d7d"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Factorization.Basic",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Factorization/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "78f3ac75d4ba139bc44f3e1e4b7f72c7f127fe09c345d6132c3f5d7ddd23fba4"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Full",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Full.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "b91b72a3ebd38b686a0b695acd87799fa40053fc447a161e20a12de7f3b43e3f"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Init",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Init.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "6298a0db0677e70ab6ae30e773a14f99a9048bbec3dd8468dbb81c145ea921f7"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.MaxPrimeFac",
+    "path": "FormalConjecturesForMathlib/Data/Nat/MaxPrimeFac.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "9bda7e76c439c23a87826867d6fe81f5399b90b389095052cb7c26c317c07923"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.PerfectPower",
+    "path": "FormalConjecturesForMathlib/Data/Nat/PerfectPower.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "47838a638a276e9dc9d30c4b7778c744327667381f82906f7cfb24469951e94c"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Prime.Composite",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Prime/Composite.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2863dd196d1207569df4557a1f504e6bfb538a7c82b1955529b4a312f0f7106e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Prime.Defs",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Prime/Defs.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "d1c28ef3203316f8dfb1c478adb2bc0c436163bd538cf2af998281edd5e506ed"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Prime.Finset",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Prime/Finset.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e2aebf6f2be4c919d989e70934ccf3454b72d7a929c18a72bfcb748aaf316f08"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Prime.Infinite",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Prime/Infinite.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "26f12184f76b089c77b67289fa02a634f976f50ab7808350cf6986c9585e6478"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Nat.Squarefree",
+    "path": "FormalConjecturesForMathlib/Data/Nat/Squarefree.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "12e83eb3331fe4238f47caf08ec26cbac9d1a146ba290c5244d7f81ae4d00096"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Real.Constants",
+    "path": "FormalConjecturesForMathlib/Data/Real/Constants.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "244fefbd26feca7c448cd13f3798064a134bc7ffcae7266fcee87fe45da395de"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Real.NearestInt",
+    "path": "FormalConjecturesForMathlib/Data/Real/NearestInt.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "38185361085540ca27d26d49004a6a787169ed3be05a31bf0df2aacaf454cea9"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Set.Density",
+    "path": "FormalConjecturesForMathlib/Data/Set/Density.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c44ef3838254124089f55fe4652339bae76c6bb415c6a5a54ea051696dad5af4"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Set.Interval",
+    "path": "FormalConjecturesForMathlib/Data/Set/Interval.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "9aa590957e048ac10e84970f12733a155a710b5b8fccd40694edae9251da74ba"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Order.Interval.Finset.Basic",
+    "path": "FormalConjecturesForMathlib/Order/Interval/Finset/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "54d97e60dac76fa82225f887333087853480c9b33b7a9767eb886913633a02de"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Order.Interval.Finset.Nat",
+    "path": "FormalConjecturesForMathlib/Order/Interval/Finset/Nat.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c591ba3b7f2bd34a5a8bf7989a9c72471876d5d51e41ecc58d4ee15a105dde81"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.Sym.Sym2",
+    "path": "FormalConjecturesForMathlib/Data/Sym/Sym2.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "10b10705c67612109efd0533e92f5b96d0d41f84c2497bd464dc4a56d86efc63"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.ZMod.Fp",
+    "path": "FormalConjecturesForMathlib/Data/ZMod/Fp.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "036919b7bf24cc6fcad83f7ed9696635f6caa2c0e246a21b979e9e5c85bd3ea8"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Data.ZMod.PerfectDifferenceSet",
+    "path": "FormalConjecturesForMathlib/Data/ZMod/PerfectDifferenceSet.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "004071df8324a7f852960b1cd8a86bb2704c34e7a23e539bc5269da98573a686"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.FieldTheory.MvRatFunc.Defs",
+    "path": "FormalConjecturesForMathlib/FieldTheory/MvRatFunc/Defs.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "9912ca21d9e751ed3733f643e10ed004d9a401c91116716047b9a0ade18af092"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Geometry.Manifold.LieGroupPresentation",
+    "path": "FormalConjecturesForMathlib/Geometry/Manifold/LieGroupPresentation.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "4bf0b6a579c6eacc8af4ebeec1c927eccf4a5358ce069f8f1d465b8ed60c1426"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Geometry.Metric",
+    "path": "FormalConjecturesForMathlib/Geometry/Metric.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "c08edfee32880c80c6e1454b723504e48430378bb7b2d8956d8e7d9b7e57ceb7"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.GroupTheory.Torsion",
+    "path": "FormalConjecturesForMathlib/GroupTheory/Torsion.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "e60eceb43370f5396882fba09c3d143dc911eb78cd2b0da8ff07c179026c22e0"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Lean.Elab.InfoTree.Util",
+    "path": "FormalConjecturesForMathlib/Lean/Elab/InfoTree/Util.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e5504c0cfa42e1e06e08ab0c2fd5d0e1b70941195844d381432cfa4cd3183bd5"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.LinearAlgebra.AffineSpace.Simplex.Basic",
+    "path": "FormalConjecturesForMathlib/LinearAlgebra/AffineSpace/Simplex/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "7df5379ec50859d897d12ce6d9b124bf1be278d2560372a059da8d5768606f7b"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.LinearAlgebra.GeneralLinearGroup",
+    "path": "FormalConjecturesForMathlib/LinearAlgebra/GeneralLinearGroup.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "1a17f5d57545fc252246ee12e5de10a7a566f0121aa5e988443971f8d0bc6a32"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.LinearAlgebra.SpecialLinearGroup",
+    "path": "FormalConjecturesForMathlib/LinearAlgebra/SpecialLinearGroup.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "de6e86bb1ac02b88c62e3bc01e195b3a7935878d1c2460e13a0c9f6a9fcda66a"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Logic.Equiv.Fin.Rotate",
+    "path": "FormalConjecturesForMathlib/Logic/Equiv/Fin/Rotate.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e47a656f3d95587502dac7f039754cc4941fb8c54cc3d7b7c2c4f66783e88516"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AdditionChain",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AdditionChain.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "12d7724f25ec543778e472c13f90490623378ff2d9fd19fe34c7eb77ec2b5e04"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AdditiveComplement",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AdditiveComplement.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e1639e2705e269bba89b677e8232b9285c1beae1f00723468637cbf272e3496e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AdditivelyComplete",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AdditivelyComplete.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "06e522034b6d06b56ffaddbbc7251d08705884c5a2ca34e18e08ed1d3cb30fdb"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AlmostPrime",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AlmostPrime.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "3d50f196c780f59488e5eb5d7191e9eae7485a7260f4f223e167130b7e8d451c"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.Amicable",
+    "path": "FormalConjecturesForMathlib/NumberTheory/Amicable.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "2fdfb1fcb52b2b9ec11afce42f34267709b6a9b916409bb0eebc8c049dd88ef5"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "2ecb9eac83eb8e246339324cc4cd92761cc5164100ab1f169183b4fc85e2d33e"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet.CenterAction",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet/CenterAction.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "c90b518a7acaccbe9120104d228ca204f68ed0cb46fb5583789f4ddc28f2ef42"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet.LieDeriv",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet/LieDeriv.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "7b7dd594eb190f63fa63f21b86c77877b7fa03d212103736ca347463c5939281"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.AutomorphicForm.BorelJacquet.Subgroups",
+    "path": "FormalConjecturesForMathlib/NumberTheory/AutomorphicForm/BorelJacquet/Subgroups.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "8c4dfb0438b5709c99b0aa991063eff0eed3e6959ac76d42c8bd9c645663351f"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.BeurlingPrimes",
+    "path": "FormalConjecturesForMathlib/NumberTheory/BeurlingPrimes.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "5b8da7bb2043d14dd8332928a03e11035e38feefb193906959cab6f70b7bfefe"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.Carmichael",
+    "path": "FormalConjecturesForMathlib/NumberTheory/Carmichael.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "ba4b97709516e66296b989b826d1d3f4e2989ba0ebce323f25d3baefd2c0ad51"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.CoveringSystem",
+    "path": "FormalConjecturesForMathlib/NumberTheory/CoveringSystem.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "53632b1bf174607dddb33fc31a1a5693d46097c5062631353f83d10c06627288"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.DiophantineApproximation.ZNumber",
+    "path": "FormalConjecturesForMathlib/NumberTheory/DiophantineApproximation/ZNumber.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "520f8c8a942f58b9c6c40316a25569e2526e44eeb96166b6acdbea59b0b48d69"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.DirichletCharacter.Basic",
+    "path": "FormalConjecturesForMathlib/NumberTheory/DirichletCharacter/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "24bf2d92cd01f10e6d9c7eee36b14d13041b248a861a5c0c1206cf86df678432"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.Divisors",
+    "path": "FormalConjecturesForMathlib/NumberTheory/Divisors.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "f82aff9d738c247d945c440ce22b7d9e6365b79c4f575ce839a03b3912bdf0da"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.Harmonic",
+    "path": "FormalConjecturesForMathlib/NumberTheory/Harmonic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "4013f2744a92878869b6ead41efe86354d20e8ecfb25c8e3619f9365fc10f21a"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.Lacunary",
+    "path": "FormalConjecturesForMathlib/NumberTheory/Lacunary.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "998231cfefe88a270c08eaf7c16203d433f8cc6486246f64fa193bd9dbb2ca47"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.LegendreSymbol.Basic",
+    "path": "FormalConjecturesForMathlib/NumberTheory/LegendreSymbol/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "d21636c7b211bb5c80c7aed9be8f13e417cbcbe4c99d238dd7e58c987dc49241"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.NormalNumber",
+    "path": "FormalConjecturesForMathlib/NumberTheory/NormalNumber.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "914da66dccc146792cf01ee8126e2940511daeb3096256b26cc5c215ab72f750"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.NumberField.FundamentalDiscriminant",
+    "path": "FormalConjecturesForMathlib/NumberTheory/NumberField/FundamentalDiscriminant.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "9089b957f082993065af36001620601962d690dfe259eaf79ba71df83623b08f"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.NumberField.Quadratic",
+    "path": "FormalConjecturesForMathlib/NumberTheory/NumberField/Quadratic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "7e8f7ff44065a15b9020f9292fe101374ff21bba9345342d414f9ff78da12c80"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.PisotNumber",
+    "path": "FormalConjecturesForMathlib/NumberTheory/PisotNumber.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "6c053aa1edcce5debf02cf769cbd9458eeae5e6870789884f9780aa8824fe910"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.PracticalNumbers",
+    "path": "FormalConjecturesForMathlib/NumberTheory/PracticalNumbers.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "064cd856e8b92836e64c026cff28007bfb61a40b81ca2472a7827dcb2f79a404"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.PrimeGap",
+    "path": "FormalConjecturesForMathlib/NumberTheory/PrimeGap.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "d7786ac52630d6350571adfbd5b58867ceb01d6e10cac8ded6b9a62fd85dbdd1"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.Primitive",
+    "path": "FormalConjecturesForMathlib/NumberTheory/Primitive.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "67d49585e0e09935b420c124bec7ae30c02619693f66e5a0767f7373d2da7b94"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.SierpinskiNumber",
+    "path": "FormalConjecturesForMathlib/NumberTheory/SierpinskiNumber.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "3c5fab88f882907e267d568a2e7446eab3b8402c3b3b101ea2ea7d6bf4e7eda8"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.SmoothScale",
+    "path": "FormalConjecturesForMathlib/NumberTheory/SmoothScale.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "f4f4c53fe698f5096b7d32e5e1783596a76d69178d017bc01e704400e667d70d"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.WallSunSunPrimes",
+    "path": "FormalConjecturesForMathlib/NumberTheory/WallSunSunPrimes.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "7dc72f33d0b7dd56309b5be78569f5a148b607c210fedd9e82503524448069df"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.NumberTheory.WieferichPrime",
+    "path": "FormalConjecturesForMathlib/NumberTheory/WieferichPrime.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "3f611bf4bb4b42ebf813d986c4445d852a128e066da8ae1ca207136f3b7b4814"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Order.Bounds.Basic",
+    "path": "FormalConjecturesForMathlib/Order/Bounds/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "db673d2034f33392c0aa0e51ca5cd7643e811ebe707a8105a1d064f0d1e9d3f0"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Order.Nat",
+    "path": "FormalConjecturesForMathlib/Order/Nat.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "17d91ca77eaff1bcb6ed6f6dc59bb63f134cfd2a8d5995e806c86e72bea10b69"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Order.Unimodular",
+    "path": "FormalConjecturesForMathlib/Order/Unimodular.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "d4a030cd23aff515614cbf69fcda1d21e7720a9d22d1e0692e8d2bab74ea8305"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Probability.FiniteMethod",
+    "path": "FormalConjecturesForMathlib/Probability/FiniteMethod.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "91d1ef51a6fd001933f09d30e6a2a0f71aa8f5db03e2cb2820ad923dc345dfdf"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.RingTheory.Ideal.Basic",
+    "path": "FormalConjecturesForMathlib/RingTheory/Ideal/Basic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2c8c0857a40e53eee02e326531795d123ed3e31c9428cbd2fde64a0c1aa73e4b"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.RingTheory.Ideal.Defs",
+    "path": "FormalConjecturesForMathlib/RingTheory/Ideal/Defs.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "1fa4680ea74c7a27648938ce51ec452baf1b46f548e77092ddebad834dbacfc7"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.RingTheory.Ideal.Maximal",
+    "path": "FormalConjecturesForMathlib/RingTheory/Ideal/Maximal.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "553c601583b06822ba1c1a12c1859521abbf5c7f7e5f5232e29f73cba532f706"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.RingTheory.Noetherian.Defs",
+    "path": "FormalConjecturesForMathlib/RingTheory/Noetherian/Defs.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "cc0f109ca518912cd0119aa275f74814c1823e444cb3d6ba938c981f73c2d062"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.SetTheory.Cardinal.Arithmetic",
+    "path": "FormalConjecturesForMathlib/SetTheory/Cardinal/Arithmetic.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "f3490d27800555d2d0da7aac652be93a472f4003de31ce3b023116d75c1d1590"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.SetTheory.Cardinal.Continuum",
+    "path": "FormalConjecturesForMathlib/SetTheory/Cardinal/Continuum.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "127ed3f7c48cfd359f615a3ae5b1b8a3370adf7a6cd775b08b377cba8fe4b6cb"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.SetTheory.Cardinal.SimpleGraph",
+    "path": "FormalConjecturesForMathlib/SetTheory/Cardinal/SimpleGraph.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "b73bc9815de5b98d3c5d9afcab8b01f1f7eb9210cf17d4fb05fca2e26ca3b00c"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Tactic.Linter.Term",
+    "path": "FormalConjecturesForMathlib/Tactic/Linter/Term.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "76849f96d6d19399c1bbd3806e81bb5b1920048b6f4b9c47ebe3cb846fa0a7e7"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.AbsoluteNeighborhoodRetract",
+    "path": "FormalConjecturesForMathlib/Topology/AbsoluteNeighborhoodRetract.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "a9ebad2ae0be39d78b68d7135ab1535ced433525667799c81013b7da624e7ead"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.Algebra.InfiniteSum.Real",
+    "path": "FormalConjecturesForMathlib/Topology/Algebra/InfiniteSum/Real.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "4bb4da1a4b79a6d6e9e5a46d0a0ec602710b9804158a3c33c8f524282eee7add"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.Discrete",
+    "path": "FormalConjecturesForMathlib/Topology/Discrete.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "0d0187df8583d4fac35cf46bbbef6ae760b75e0b7a3cb2e7cd6f0bb5cb9e1ba2"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.GDelta",
+    "path": "FormalConjecturesForMathlib/Topology/GDelta.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "92a9e36ba871a01dbf54df6b107e59b7efe71bdfa11b16034a3f3ded99c490fd"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.Homogeneous",
+    "path": "FormalConjecturesForMathlib/Topology/Homogeneous.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "35a2b39c5a4974a602d2cde3410a6c5ad81248a02469f84e0c2d9f00a63136d7"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.LebesgueCoveringDimension",
+    "path": "FormalConjecturesForMathlib/Topology/LebesgueCoveringDimension.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "5b6f6496d6bb0b1f98f628249231f75a9bcbb264617d7f9706587640d35dd204"
+  },
+  {
+    "module": "FormalConjecturesForMathlib.Topology.MetricSpace.MetricSeparated",
+    "path": "FormalConjecturesForMathlib/Topology/MetricSpace/MetricSeparated.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "2920a3786e10a18b0a9ddc8ded12c87b94aeeab62250a6a4dca6a41235717813"
+  },
+  {
+    "module": "FormalConjecturesUtil.Answer",
+    "path": "FormalConjecturesUtil/Answer.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "c8b3b31e9bb25c511e577b1812159a210e9346720f19ec6c6b30905a0802db7a"
+  },
+  {
+    "module": "FormalConjecturesUtil.Answer.Syntax",
+    "path": "FormalConjecturesUtil/Answer/Syntax.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "4572fc294df840c091b79350951760f742eb26f890b48cd329a19995a1e2344c"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.AMSLinter",
+    "path": "FormalConjecturesUtil/Linters/AMSLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "3bd50213081f1de1188cc152c422c34a7a40520a7121fa51b9d5999f28838e26"
+  },
+  {
+    "module": "FormalConjecturesUtil.Attributes.Basic",
+    "path": "FormalConjecturesUtil/Attributes/Basic.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "181a7168432ef2c7768616117daf1b60552206caa49f6d96e2d86fb0b7e66ca3"
+  },
+  {
+    "module": "FormalConjecturesUtil.Attributes.AMS",
+    "path": "FormalConjecturesUtil/Attributes/AMS.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "e5a6b4b0cd42e1ad11e84b75bd89f78a9797a98e5b23d8b956f13190b9078d96"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.AnswerLinter",
+    "path": "FormalConjecturesUtil/Linters/AnswerLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "039aeb275dcee81fed88b2eb212082fc36a66d10322618ffbb832569433c948d"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.CategoryAnswerLinter",
+    "path": "FormalConjecturesUtil/Linters/CategoryAnswerLinter.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "e8cd0d443276d31d8412688d25c7680a4a85c4495d7a29948917d55dfb1c9ed6"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.CategoryDocstringLinter",
+    "path": "FormalConjecturesUtil/Linters/CategoryDocstringLinter.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "074a8fedde2071aec1fbc8c05240e3d8d50a81927cb8deb57dd7e21ff431d293"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.CategoryLinter",
+    "path": "FormalConjecturesUtil/Linters/CategoryLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "a851d20f694e3469d68a983e8cc73f9e0d8e34e69e31eece3b42339a55bb8e3c"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.CopyrightLinter",
+    "path": "FormalConjecturesUtil/Linters/CopyrightLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "b5654e78a75a46c4b4acf2cfd9381e6e4b1814d369b3936e6e93ec7a4b4c0d23"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.ExistsImplicationLinter",
+    "path": "FormalConjecturesUtil/Linters/ExistsImplicationLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "1cff361f1479489756fd6d9c978a6f542883ba273f8e4bd62e0a9186471d3cef"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.FormalProofLinter",
+    "path": "FormalConjecturesUtil/Linters/FormalProofLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "59c42b3def4649b81b98ea94286b1449efcf31befbd5721fb3abbfc0c1bb3396"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.ImportLinter",
+    "path": "FormalConjecturesUtil/Linters/ImportLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "0404ccd4c0b4bed94af661558b38e7a0030a08ce76ff02e8e1f73cbba0f0cc09"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.LatexDocstringLinter",
+    "path": "FormalConjecturesUtil/Linters/LatexDocstringLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "5121eb0f472af3c59dd1029f0668c5f2c2829cad66539684cebdd51d397ca806"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.ModuleDocstringLinter",
+    "path": "FormalConjecturesUtil/Linters/ModuleDocstringLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "8db2f62a69a23b4d8a88f82925cc215c2e9039b9d37089ba4306c06e0ea67612"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.NamespaceLinter",
+    "path": "FormalConjecturesUtil/Linters/NamespaceLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "3b04b8c5ecb1b02991119da6d43cc55a8023ba9659df2b4e59c0eff80063666e"
+  },
+  {
+    "module": "FormalConjecturesUtil.Linters.StubLinter",
+    "path": "FormalConjecturesUtil/Linters/StubLinter.lean",
+    "same": true,
+    "pinned_exists": true,
+    "upstream_sha256": "294be770ca5c2684192717f3e6de7b47e0afb2deb0168bfe65ec8d7042abecb7"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Mersenne",
+    "path": "FormalConjectures/Wikipedia/Mersenne.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "198478112d7df291a47ef994cf394f79b482d3df8ff353775e4f5cb36f475f85"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Fermat",
+    "path": "FormalConjectures/Wikipedia/Fermat.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "5acf5127dba4a2521bbf1b6f3c397324b4c17502575845cc52779cad360dc793"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.EulerBrick",
+    "path": "FormalConjectures/Wikipedia/EulerBrick.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "23afda8d19513af57099db50f2e1f6c20e29ac956f2a7e72b6da6e236187156c"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Irrational",
+    "path": "FormalConjectures/Wikipedia/Irrational.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "5031589bbf7545b91d5d414c56759bd5e166b86c750a4e799996a8da3ac01f6d"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.GoldbachConjecture",
+    "path": "FormalConjectures/Wikipedia/GoldbachConjecture.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "9c7e880a5aedd5de1a88ab811a66f9050ff77d3ad72eb98f83dbd0349ebb4c9b"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.IdonealCompleteness",
+    "path": "FormalConjectures/Wikipedia/IdonealCompleteness.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "bb7fb2376658a47edd84abcf85b9fdf7c9917c6ede713613927a3ddd18a46684"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.LegendreConjecture",
+    "path": "FormalConjectures/Wikipedia/LegendreConjecture.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "3391d32584df9152f64f0257d35ca52f9e2833143e79a822545e6fca1e2fa5f6"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.ClassNumberProblem",
+    "path": "FormalConjectures/Wikipedia/ClassNumberProblem.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "2372ee44f5f7d5d1f54bf2fda33d670afb49ffb93b5c8ff3d2f02ebb95cb82d1"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.TwinPrimes",
+    "path": "FormalConjectures/Wikipedia/TwinPrimes.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "6a81a5e186b61b5b16db5e088071bf41a9a9170a1742d006924ba5e530046f55"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.KummerVandiver",
+    "path": "FormalConjectures/Wikipedia/KummerVandiver.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "f37825b4fad8f79854ca06b2974b2ddcf34324ba9dba21375f75ff09ea0bcb05"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.RegularPrimes",
+    "path": "FormalConjectures/Wikipedia/RegularPrimes.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "111c5107f3f107f408446400d459e8ed9b0f9d815999674d131c4bfa8c9ba4db"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.PollocksConjecture",
+    "path": "FormalConjectures/Wikipedia/PollocksConjecture.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "11b1001a951d1f2c59bd96eac1efe518a25e6aad4fed37ead7746bdf83e31523"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Bunyakovsky",
+    "path": "FormalConjectures/Wikipedia/Bunyakovsky.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "bd6318fdfbe2edd554ff3a7f6698346e47df912e204a92887a4997481dff9565"
+  },
+  {
+    "module": "FormalConjectures.Millennium.RiemannHypothesis",
+    "path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "db04f2f25a73fb0fc473843227fb3a28bca6ef1808e222e2d365f97120c46f67"
+  },
+  {
+    "module": "FormalConjectures.ErdosProblems.398",
+    "path": "FormalConjectures/ErdosProblems/398.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "a26ca9195d3e30754e6f4be8378868f52dd8907db1c42678308f1dc1c3b47baa"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Oppermann",
+    "path": "FormalConjectures/Wikipedia/Oppermann.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "6fb0cd2d5e7d7e21783e27e2ee50f165c2773fc6c79ea5212a6b2de16122c90a"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.InverseGalois",
+    "path": "FormalConjectures/Wikipedia/InverseGalois.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "315829d3b843742974762fb5d9fed0cb6e97968eb1930899d91628557878c4e2"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Hadamard",
+    "path": "FormalConjectures/Wikipedia/Hadamard.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "c811c1cebff173987c995a76e97e6278bbce8a0f2be35742daaa36496b087392"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Lemoine",
+    "path": "FormalConjectures/Wikipedia/Lemoine.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "ffac7656ef6d23ac5112ca8b4e671f2fb3608df4fc5b27f775e7b06e4e5238dd"
+  },
+  {
+    "module": "FormalConjectures.GreensOpenProblems.72",
+    "path": "FormalConjectures/GreensOpenProblems/72.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "3ad66eadbf1e1ce2fd985c75b6bd00d9577ade543cba07d8af4140ac2b56dc3e"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Dickson",
+    "path": "FormalConjectures/Wikipedia/Dickson.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "b4b59de67fad53cc7ed46b1e8e850cc5f55181e01ba1e374cb46f797350715d6"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.BrocardConjecture",
+    "path": "FormalConjectures/Wikipedia/BrocardConjecture.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "62d420bffcc2db570512eb93e0dd307035c697f5184348b1a8ac1c7c96c78bac"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.CarmichaelTotient",
+    "path": "FormalConjectures/Wikipedia/CarmichaelTotient.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "d821ac4fd6dd735edd31a0d020161b9ab795a843043905c50ff765b6f430160b"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.NormalityOfPi",
+    "path": "FormalConjectures/Wikipedia/NormalityOfPi.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "eb8ab170e74b5d4cf5ff59a87aae3391ed569560edf24e611e297b5e21ecc4b8"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.InscribedSquare",
+    "path": "FormalConjectures/Wikipedia/InscribedSquare.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "edc30a9870030cffe472b3883087f42466e8a20824dee9e32548a566945b9d67"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.PrimesAndPerfectSquares",
+    "path": "FormalConjectures/Wikipedia/PrimesAndPerfectSquares.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "1311e1bb4c1c6fd7d4fc75af555f4dc9fec5ee558f858835b4352a0cf6a74938"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.GaussCircleProblem",
+    "path": "FormalConjectures/Wikipedia/GaussCircleProblem.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "bf125c74acec8a505c2a2d270787c454157d7996a3ac22f6e228e18528cf5f2d"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Goormaghtigh",
+    "path": "FormalConjectures/Wikipedia/Goormaghtigh.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "c3e57800fee3b13789cd6e27925c13798ce83456492cd28fcebf9ef34af54fd7"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.HardyLittlewood",
+    "path": "FormalConjectures/Wikipedia/HardyLittlewood.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "e97c8b5ca748d6ce8a284fc9586dcce3e743e47e6836ffe7c6633e7b50ecfc87"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.ArtinPrimitiveRootsConjecture",
+    "path": "FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "383d2b5b5687406696e1c7d91c14f2eb1c0a7377b4915a12db3c3cadf06b5b07"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.Koethe",
+    "path": "FormalConjectures/Wikipedia/Koethe.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "2661180d28ad2cc74e3de0185c12ac2f9e30949ac9482c294fa4e18bc7e6622c"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.LehmerTotient",
+    "path": "FormalConjectures/Wikipedia/LehmerTotient.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "50a2faad06e50f15cb8289d1e2bdf03fca0d52648c722ccfe10db58ada4bab5e"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.LehmerMahlerMeasureProblem",
+    "path": "FormalConjectures/Wikipedia/LehmerMahlerMeasureProblem.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "9c0d4cba5440d3c211c8fe32d452dfe293998b425919b390ecba2f9b0112fc57"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.BorsukConjecture",
+    "path": "FormalConjectures/Wikipedia/BorsukConjecture.lean",
+    "same": false,
+    "pinned_exists": false,
+    "upstream_sha256": "f8035190f40b43ec8786af07c65cdd386e795cb746201bc70d678e0aff017326"
+  },
+  {
+    "module": "FormalConjectures.ErdosProblems.107",
+    "path": "FormalConjectures/ErdosProblems/107.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "1edd21128ca6c83b4c7127961117420cfb627aa97c11d2b043d68bb724bf961d"
+  },
+  {
+    "module": "FormalConjectures.Wikipedia.ScholzConjecture",
+    "path": "FormalConjectures/Wikipedia/ScholzConjecture.lean",
+    "same": false,
+    "pinned_exists": true,
+    "upstream_sha256": "481c5b695e031d9c4447d82b84b22a4a333d484946957b49697433c832452825"
+  }
+]

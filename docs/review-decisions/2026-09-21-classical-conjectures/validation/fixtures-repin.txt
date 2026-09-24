@@ -1,0 +1,4 @@
+  repinned    fixtures/counterexample/task-counterexample -> fc-6a786f99-verifiercounterexamplefixtures-falseuniversal-f629ef3dea-counterexample-v1
+  repinned    fixtures/formalized/task-formalized -> fc-6a786f99-verifierfixtures-direct-7cc943507f-formalized-v1
+  repinned    fixtures/numeric-answer/task-answer -> fc-6a786f99-verifierfixtures-natanswer-442d742e0b-answer-v1
+repinned 3 fixture(s) to 6a786f997e18e8f095762a2830d191b7e25e505e

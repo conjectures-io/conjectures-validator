@@ -1,0 +1,7 @@
+{
+  "base": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
+  "tree": "a474d2e684b8ba1174064714669776bde578edce",
+  "reproduced_commit": "6a786f997e18e8f095762a2830d191b7e25e505e",
+  "patch_sha256": "82b0f491dd18c331f12efa722761e46b728e9bb8d643466e9ef8b40dde903023",
+  "status": "passed"
+}

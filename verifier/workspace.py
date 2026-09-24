@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping
@@ -228,6 +229,30 @@ def _remove_answer_postpone_library(config_path: Path) -> None:
     marker = '\n[[lean_lib]]\nname = "FormalConjecturesAnswerPostpone"\n'
     next_section = "\n\n[[lean_exe]]\n"
     config = config_path.read_text(encoding="utf-8")
+    if "FormalConjecturesAnswerPostpone" not in config:
+        # New source pins remove the overlapping library before the trusted
+        # build. Accept that already-sanitized layout without changing its bytes.
+        try:
+            parsed = tomllib.loads(config)
+            libraries = parsed.get("lean_lib", [])
+            owners = [
+                library for library in libraries
+                if any(glob.startswith("FormalConjectures.") for glob in library.get("globs", []))
+            ]
+            if (
+                len(owners) == 1
+                and owners[0].get("name") == "FormalConjectures"
+                and owners[0].get("globs") == ["FormalConjectures.+"]
+                and all(
+                    options.get("google", {}).get("answer", "always_true") == "always_true"
+                    and options.get("weak", {}).get("google", {}).get("answer", "always_true")
+                    == "always_true"
+                    for options in (parsed.get("leanOptions", {}), owners[0].get("leanOptions", {}))
+                )
+            ):
+                return
+        except (tomllib.TOMLDecodeError, AttributeError, TypeError):
+            pass
     if config.count(marker) != 1:
         raise VerifierError(
             ReasonCode.WORKSPACE_ERROR,

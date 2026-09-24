@@ -1,0 +1,296 @@
+{
+  "active_targets": 295,
+  "retired_targets": 21,
+  "bundles": 590,
+  "fixtures_repinned_and_loaded": 3,
+  "new_public_entries": [
+    {
+      "theorem": "PerfectNumbers.odd_perfect_number_conjecture",
+      "slug": "perfectnumbers-odd-perfect-number-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Mersenne.infinitely_many_mersenne_primes",
+      "slug": "mersenne-infinitely-many-mersenne-primes",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Fermat.infinite_fermat_primes",
+      "slug": "fermat-infinite-fermat-primes",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Irrational.irrational_eulerMascheroniConstant",
+      "slug": "irrational-irrational-eulermascheroniconstant",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "GoldbachConjecture.goldbach",
+      "slug": "goldbachconjecture-goldbach",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Idoneal.idoneal_numbers_completeness",
+      "slug": "idoneal-idoneal-numbers-completeness",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "LegendreConjecture.legendre_conjecture",
+      "slug": "legendreconjecture-legendre-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "ClassNumberProblem.class_number_problem",
+      "slug": "classnumberproblem-class-number-problem",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "TwinPrimes.twin_primes",
+      "slug": "twinprimes-twin-primes",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "KummerVandiver.kummer_vandiver",
+      "slug": "kummervandiver-kummer-vandiver",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "RegularPrimes.regularprime_conjecture",
+      "slug": "regularprimes-regularprime-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "PollocksConjecture.pollock_tetrahedral",
+      "slug": "pollocksconjecture-pollock-tetrahedral",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Bunyakovsky.bunyakovsky_conjecture",
+      "slug": "bunyakovsky-bunyakovsky-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "RiemannHypothesis.riemannHypothesis",
+      "slug": "riemannhypothesis-riemannhypothesis",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Erdos398.erdos_398",
+      "slug": "erdos398-erdos-398",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Mersenne.catalans_mersenne_conjecture",
+      "slug": "mersenne-catalans-mersenne-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Oppermann.oppermann_conjecture",
+      "slug": "oppermann-oppermann-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "InverseGalois.inverse_galois_problem",
+      "slug": "inversegalois-inverse-galois-problem",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Hadamard.HadamardConjecture",
+      "slug": "hadamard-hadamardconjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Lemoine.lemoine_conjecture",
+      "slug": "lemoine-lemoine-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Green72.green_72",
+      "slug": "green72-green-72",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Dickson.dickson_conjecture",
+      "slug": "dickson-dickson-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Brocard.brocard_conjecture",
+      "slug": "brocard-brocard-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "CarmichaelTotient.charmichaelTotient",
+      "slug": "carmichaeltotient-charmichaeltotient",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "NormalNumber.pi_normal_base_ten",
+      "slug": "normalnumber-pi-normal-base-ten",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "InscribedSquare.inscribed_square_problem",
+      "slug": "inscribedsquare-inscribed-square-problem",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "PrimesAndPerfectSquares.infinite_prime_sq_add_one",
+      "slug": "primesandperfectsquares-infinite-prime-sq-add-one",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "GaussCircleProblem.error_isBigO",
+      "slug": "gausscircleproblem-error-isbigo",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Goormaghtigh.goormaghtigh_conjecture",
+      "slug": "goormaghtigh-goormaghtigh-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "HardyLittlewood.first_hardy_littlewood_conjecture",
+      "slug": "hardylittlewood-first-hardy-littlewood-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "HardyLittlewood.second_hardy_littlewood_conjecture",
+      "slug": "hardylittlewood-second-hardy-littlewood-conjecture",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i",
+      "slug": "artinprimitiverootsconjecture-artin-primitive-roots-parts-i",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "LehmerTotient.lehmer_totient",
+      "slug": "lehmertotient-lehmer-totient",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem",
+      "slug": "lehmermahlermeasureproblem-lehmer-mahler-measure-problem",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Borsuk.borsuk_conjecture.four",
+      "slug": "borsuk-borsuk-conjecture-four",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "Erdos107.erdos_107",
+      "slug": "erdos107-erdos-107",
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    }
+  ]
+}

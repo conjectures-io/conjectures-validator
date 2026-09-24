@@ -1,0 +1,4722 @@
+[
+  {
+    "theorem": "Erdos1004.erdos_1004",
+    "mode": "formalized",
+    "directory": "erdos-1004-formalized",
+    "sha256": "sha256:1c1b5373bcd457f86633fd5280f24bc0ae27b24b325f278de9be5af7c6e0a49f",
+    "seconds": 32.65,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1003.erdos_1003",
+    "mode": "formalized",
+    "directory": "erdos-1003-formalized",
+    "sha256": "sha256:81dba280c03649f572c018d1babc79d51b81117ca0d364d5ae42823845a598c3",
+    "seconds": 34.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i",
+    "mode": "formalized",
+    "directory": "wikipedia-artinprimitiverootsconjecture-artin-primitive-roots-parts-i-formalized",
+    "sha256": "sha256:41db7443cb9a3eced54bde47dddc58eb5dd947b9ca09e3181a8d5b2fa8e29f88",
+    "seconds": 35.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "ClassNumberProblem.class_number_problem",
+    "mode": "formalized",
+    "directory": "wikipedia-classnumberproblem-class-number-problem-formalized",
+    "sha256": "sha256:10368ed4535e2db63126b521e0ba86fa50f46d5a075c0b0a39cf9f06de7bf002",
+    "seconds": 35.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1049.erdos_1049",
+    "mode": "formalized",
+    "directory": "erdos-1049-formalized",
+    "sha256": "sha256:e937265b4d3a2ca1e01db03b871e4bdabd7fd72e5faa02f1dcdde171bb9a9beb",
+    "seconds": 34.18,
+    "status": "passed"
+  },
+  {
+    "theorem": "Brocard.brocard_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-brocardconjecture-brocard-conjecture-counterexample",
+    "sha256": "sha256:0841c1e7c23e3503aec7d77fdb7cdd4f30d25896824785e566b7720f87f9bdb6",
+    "seconds": 34.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "CarmichaelTotient.charmichaelTotient",
+    "mode": "counterexample",
+    "directory": "wikipedia-carmichaeltotient-charmichaeltotient-counterexample",
+    "sha256": "sha256:fab52e6527d8d9477cc79e831ca482ac7f02a812a1623904614016a254ea66ce",
+    "seconds": 35.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos10.erdos_10",
+    "mode": "formalized",
+    "directory": "erdos-10-formalized",
+    "sha256": "sha256:598a61ff07e6f82389557669d6055067580455caa8f32d834b3ac9e22594661d",
+    "seconds": 33.99,
+    "status": "passed"
+  },
+  {
+    "theorem": "Bunyakovsky.bunyakovsky_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-bunyakovsky-bunyakovsky-conjecture-formalized",
+    "sha256": "sha256:de4f2a9fe8dfac81248efc97b492240a31f1017001dc490aff71d0e998af55bb",
+    "seconds": 34.7,
+    "status": "passed"
+  },
+  {
+    "theorem": "Dickson.dickson_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-dickson-dickson-conjecture-formalized",
+    "sha256": "sha256:cb7c4b8da1a98df553e7c6b7adf6211f180025bf2087a42c0d4c8e80ff228a59",
+    "seconds": 32.92,
+    "status": "passed"
+  },
+  {
+    "theorem": "Dickson.dickson_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-dickson-dickson-conjecture-counterexample",
+    "sha256": "sha256:69172c3f49b9a66797841fbf2249b01baddae5e6f77c563302af7f97bc51d4df",
+    "seconds": 34.08,
+    "status": "passed"
+  },
+  {
+    "theorem": "Borsuk.borsuk_conjecture.four",
+    "mode": "formalized",
+    "directory": "wikipedia-borsukconjecture-borsuk-conjecture-four-formalized",
+    "sha256": "sha256:386efc34e116051a41ea5cd9ea40d0394cd0cee0c716e8cde9e38b229e08ee5e",
+    "seconds": 35.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "CarmichaelTotient.charmichaelTotient",
+    "mode": "formalized",
+    "directory": "wikipedia-carmichaeltotient-charmichaeltotient-formalized",
+    "sha256": "sha256:4278db72d06c6b45391d0cf7fa6377a02b9ce82de68d04818498815728d77311",
+    "seconds": 34.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos100.erdos_100",
+    "mode": "counterexample",
+    "directory": "erdos-100-counterexample",
+    "sha256": "sha256:91f71b607de3fccbf7e177eee84e64dfc1aa3ca68882171884490bd04eae86c8",
+    "seconds": 34.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "ClassNumberProblem.class_number_problem",
+    "mode": "counterexample",
+    "directory": "wikipedia-classnumberproblem-class-number-problem-counterexample",
+    "sha256": "sha256:355048790246fe42b12634dd8e85b08c7e4f90dc2e76cfd0741a1ea4dd41dd8c",
+    "seconds": 34.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Brocard.brocard_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-brocardconjecture-brocard-conjecture-formalized",
+    "sha256": "sha256:5745d1fe9c4069e5c12153cb1327f1c224e49e652c43075d9278430f8a28a7fe",
+    "seconds": 34.79,
+    "status": "passed"
+  },
+  {
+    "theorem": "ArtinPrimitiveRootsConjecture.artin_primitive_roots.parts.i",
+    "mode": "counterexample",
+    "directory": "wikipedia-artinprimitiverootsconjecture-artin-primitive-roots-parts-i-counterexample",
+    "sha256": "sha256:6623eab3efdb3d4cda744a5fd622b94e3748cb0946a20c8635c81a2efaab8765",
+    "seconds": 35.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1003.erdos_1003",
+    "mode": "counterexample",
+    "directory": "erdos-1003-counterexample",
+    "sha256": "sha256:4f61400e91f6dada164816116d778676f76ab031f28416e51c38572806f971fa",
+    "seconds": 34.08,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos10.erdos_10",
+    "mode": "counterexample",
+    "directory": "erdos-10-counterexample",
+    "sha256": "sha256:abae0f66cd28e02951cf22479a8350353d2efb6cd6ba8906e815ae7c156f6c66",
+    "seconds": 34.25,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos100.erdos_100",
+    "mode": "formalized",
+    "directory": "erdos-100-formalized",
+    "sha256": "sha256:943f212d2cc7baf449a2c5eb5de03abb840cee8eb53cebfc8e13ee420dff99c7",
+    "seconds": 34.84,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1004.erdos_1004",
+    "mode": "counterexample",
+    "directory": "erdos-1004-counterexample",
+    "sha256": "sha256:8c6d865f171db1901a55c15cc7b2f5aebbad76b22d53e3230dc3376d38131fa4",
+    "seconds": 34.3,
+    "status": "passed"
+  },
+  {
+    "theorem": "Borsuk.borsuk_conjecture.four",
+    "mode": "counterexample",
+    "directory": "wikipedia-borsukconjecture-borsuk-conjecture-four-counterexample",
+    "sha256": "sha256:c0a5d794057f296319b3db47bb3416eb396d051b50389fc623d4869413567b05",
+    "seconds": 34.83,
+    "status": "passed"
+  },
+  {
+    "theorem": "Bunyakovsky.bunyakovsky_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-bunyakovsky-bunyakovsky-conjecture-counterexample",
+    "sha256": "sha256:7d6185f283779cd810f3513990c437fc32dae3761455dcefcefc3b2a5eeb4be7",
+    "seconds": 34.64,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1049.erdos_1049",
+    "mode": "counterexample",
+    "directory": "erdos-1049-counterexample",
+    "sha256": "sha256:0ccb42c831989f880fdbbb66ae1cbd0a8c76500c71f1ad5ab638ffccc371358c",
+    "seconds": 34.63,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1074.erdos_1074.variants.EHSNumbers_one_half",
+    "mode": "formalized",
+    "directory": "erdos-1074-variants-ehsnumbers-one-half-formalized",
+    "sha256": "sha256:de72a18404d12daed9b3a2d09b2b076543fafee2fd5475da63b8bfc25eba3fad",
+    "seconds": 55.18,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1072.erdos_1072.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-1072-parts-ii-counterexample",
+    "sha256": "sha256:ec3503a2cdb433d0df2905c22661e8083668a8f0050fdd8ba6d47a10b700b6d3",
+    "seconds": 55.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1094.erdos_1094",
+    "mode": "counterexample",
+    "directory": "erdos-1094-counterexample",
+    "sha256": "sha256:264e45401f89f242f56c42e818d2900bb29eba1b5a3a7fb5a704bdf6377cd425",
+    "seconds": 55.4,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1095.erdos_1095.variants.log_isTheta",
+    "mode": "formalized",
+    "directory": "erdos-1095-variants-log-istheta-formalized",
+    "sha256": "sha256:f63a852ebce8c891e9c528cbceb973799eac72fa8b8875d1b1663262c279ad71",
+    "seconds": 55.46,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1085.erdos_1085.variants.upper_d3",
+    "mode": "formalized",
+    "directory": "erdos-1085-variants-upper-d3-formalized",
+    "sha256": "sha256:c0a12402402bba192c312db6fed99c7de3ff6a4b93abda100ccacf50fe5c309f",
+    "seconds": 57.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1057.erdos_1057",
+    "mode": "counterexample",
+    "directory": "erdos-1057-counterexample",
+    "sha256": "sha256:7d7940be99458d0d6f994b7e76cc66ce08d3f0d7f75bc32091e6c2a4ca26eb54",
+    "seconds": 57.77,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1101.erdos_1101.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-1101-parts-i-formalized",
+    "sha256": "sha256:8fa3310bf32a363176c17666e177dad6feab8fd6a6e261ac911957a4f6a433a0",
+    "seconds": 57.77,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1082.erdos_1082.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-1082-parts-i-formalized",
+    "sha256": "sha256:00a4b40b1a4105de8dfae659e5e209c861f860243988039a8798a9c289a9536d",
+    "seconds": 58.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1072.erdos_1072.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-1072-parts-ii-formalized",
+    "sha256": "sha256:7beec96023e24d8a492b482f8527f7a9fe29ffeda23a9628ed7eb3d9304293dd",
+    "seconds": 58.21,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos108.erdos_108",
+    "mode": "counterexample",
+    "directory": "erdos-108-counterexample",
+    "sha256": "sha256:85a8e58aaed0baa58573f1a4d54cfc038fa4e19762a238a9067b0352e8a19f08",
+    "seconds": 58.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1062.erdos_1062.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-1062-parts-ii-counterexample",
+    "sha256": "sha256:7d4fe8d1729de2428fe854dcf1074d3d18065eec2d284655d290a86a29a66276",
+    "seconds": 58.35,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1085.erdos_1085.variants.upper_d3",
+    "mode": "counterexample",
+    "directory": "erdos-1085-variants-upper-d3-counterexample",
+    "sha256": "sha256:23966d421c14344ef31f764e17deecc6980dbc1a83e04edb5c1d55c044f97782",
+    "seconds": 58.34,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1094.erdos_1094",
+    "mode": "formalized",
+    "directory": "erdos-1094-formalized",
+    "sha256": "sha256:874c7292e803008985979a154d2adc4254f6f3746c6d42e35b91b464764f753e",
+    "seconds": 58.94,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1068.erdos_1068",
+    "mode": "counterexample",
+    "directory": "erdos-1068-counterexample",
+    "sha256": "sha256:c351bd6fd53183b819ba8e6d06bcb1d04195259ba01551dfd735bfff3b7d06a1",
+    "seconds": 58.97,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1056.erdos_1056",
+    "mode": "formalized",
+    "directory": "erdos-1056-formalized",
+    "sha256": "sha256:19ff6c677e36bcf614cdd279dad00f4d782123f24d9e408dac9390102af1312c",
+    "seconds": 59.04,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1072.erdos_1072.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-1072-parts-i-counterexample",
+    "sha256": "sha256:fe316c3bd1311d0e34cab937607c8c6e7a1c6167ed90ba848bb08fcf1b51edf3",
+    "seconds": 59.02,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1068.erdos_1068",
+    "mode": "formalized",
+    "directory": "erdos-1068-formalized",
+    "sha256": "sha256:9ca3137a2fc40a4fad9288a7314507fe31703fda3dc4dec2900c4916c7b6b70a",
+    "seconds": 59.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1062.erdos_1062.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-1062-parts-ii-formalized",
+    "sha256": "sha256:e805f8a8ecf48f821b388b2540e9620c0b51aa08688b8a8d67a21c46b7c2a2ec",
+    "seconds": 59.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1056.erdos_1056",
+    "mode": "counterexample",
+    "directory": "erdos-1056-counterexample",
+    "sha256": "sha256:bfc12047794a787295f35ef812d6cddaf3fb6b5a2719c60af3f12bef61e6521c",
+    "seconds": 59.45,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1057.erdos_1057",
+    "mode": "formalized",
+    "directory": "erdos-1057-formalized",
+    "sha256": "sha256:521cf012b3a03c1f07d97909afaa1f9012e1024a988cd1debb7c37d7bbde127a",
+    "seconds": 59.62,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1060.erdos_1060.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-1060-parts-ii-counterexample",
+    "sha256": "sha256:211d295f363a8cf15cf4d327ea2787ea7479e1a07d6ccc03d4ca4158000465cf",
+    "seconds": 59.72,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos107.erdos_107",
+    "mode": "counterexample",
+    "directory": "erdos-107-counterexample",
+    "sha256": "sha256:2d0fca636d942e5d63850bd948893a5498ecd2d64cf06c4b2281974f16be9d85",
+    "seconds": 59.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1082.erdos_1082.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-1082-parts-i-counterexample",
+    "sha256": "sha256:0aedf33d543b189718b7366c11d0418c63ae05629b0af436531a5115625304b3",
+    "seconds": 59.78,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1073.erdos_1073",
+    "mode": "formalized",
+    "directory": "erdos-1073-formalized",
+    "sha256": "sha256:c5111feda4fa5bfd511a7b90bc4ce2e28d509f06af1f088e26071fb5ab3a3a3f",
+    "seconds": 59.88,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos11.erdos_11",
+    "mode": "counterexample",
+    "directory": "erdos-11-counterexample",
+    "sha256": "sha256:2e4050ab97b7426717c82ab07f5c2820e9d03c4c9ff493a8ec5490f6460dbcc9",
+    "seconds": 60.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos107.erdos_107",
+    "mode": "formalized",
+    "directory": "erdos-107-formalized",
+    "sha256": "sha256:47e6acd7d7885de6ccb0e15fc86902bd063ce9ca57038a260f3568f35bcf5b3a",
+    "seconds": 60.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1095.erdos_1095.variants.lower_conjecture",
+    "mode": "formalized",
+    "directory": "erdos-1095-variants-lower-conjecture-formalized",
+    "sha256": "sha256:6f45a530e5f43fa1124d26d406f0593ee8c3580600e0a2404143042e1237591f",
+    "seconds": 60.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos108.erdos_108",
+    "mode": "formalized",
+    "directory": "erdos-108-formalized",
+    "sha256": "sha256:310f3930fca255d15694bd01014bb1650a68afe22d6c8ea69b846c7af77b5d97",
+    "seconds": 60.27,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1060.erdos_1060.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-1060-parts-ii-formalized",
+    "sha256": "sha256:1bff22ef869cd9eb326ade6be522114ebba673a1a62c28ca43db7b50a2f7fd0d",
+    "seconds": 60.36,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1073.erdos_1073",
+    "mode": "counterexample",
+    "directory": "erdos-1073-counterexample",
+    "sha256": "sha256:463d8d35aba9d10bb61b264915c7a0db1a514b68a538a2a0a4bcbb20af6a8d9d",
+    "seconds": 60.34,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1072.erdos_1072.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-1072-parts-i-formalized",
+    "sha256": "sha256:29d8021f6f3021d573aeed0a627736a5082ae0f6cb545fa6d37d7328c87210a6",
+    "seconds": 60.43,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1101.erdos_1101.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-1101-parts-i-counterexample",
+    "sha256": "sha256:b69f0f2185940106db97c0e3907a15830ef86a4eacfeb8cf9c898d5f8c71f757",
+    "seconds": 60.4,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1095.erdos_1095.variants.log_isTheta",
+    "mode": "counterexample",
+    "directory": "erdos-1095-variants-log-istheta-counterexample",
+    "sha256": "sha256:72b10cbb1d33734b59be11ff8a8698dfbdade581ad9c4292856e0e35407284e3",
+    "seconds": 60.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1095.erdos_1095.variants.lower_conjecture",
+    "mode": "counterexample",
+    "directory": "erdos-1095-variants-lower-conjecture-counterexample",
+    "sha256": "sha256:fb233da6eb13ccefa1d53a8a037009a8182aedd2be572d57b96ea778c4c36085",
+    "seconds": 60.66,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1074.erdos_1074.variants.EHSNumbers_one_half",
+    "mode": "counterexample",
+    "directory": "erdos-1074-variants-ehsnumbers-one-half-counterexample",
+    "sha256": "sha256:c38477e6fd5ced63e3bc1c1084574b16088842cb5d8a0f90e441f4563c2aabb3",
+    "seconds": 60.79,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos11.erdos_11",
+    "mode": "formalized",
+    "directory": "erdos-11-formalized",
+    "sha256": "sha256:726b1233635e917922ebf332be5190fc114258be60cbf4ea15018bd07dd1a766",
+    "seconds": 61.05,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1107.erdos_1107",
+    "mode": "formalized",
+    "directory": "erdos-1107-formalized",
+    "sha256": "sha256:ea4d7ce797ab2417b2d19f2f961572a5f6b4ed2216f6e88ec3b8594c287184cc",
+    "seconds": 40.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1135.erdos_1135",
+    "mode": "formalized",
+    "directory": "erdos-1135-formalized",
+    "sha256": "sha256:e857efdf83967823dcfba3c66f81534745ae2f6162959ca28216497baa8139f4",
+    "seconds": 38.98,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1107.erdos_1107",
+    "mode": "counterexample",
+    "directory": "erdos-1107-counterexample",
+    "sha256": "sha256:ceb6c039fa21a4e86f8c5d0c97075d44f3617eaba1fb4425aa772b797c7b95b3",
+    "seconds": 42.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1106.erdos_1106.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-1106-parts-ii-counterexample",
+    "sha256": "sha256:5fc5586eddf1986fa458c0c1a5c6a431ddc76787389bf27ffd5f0fb3c286cf9d",
+    "seconds": 42.92,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek",
+    "mode": "formalized",
+    "directory": "erdos-1113-variants-filaseta-finch-kozek-formalized",
+    "sha256": "sha256:04e77b2b2133a47be633d2c45278b38484eedd560f7bffe8f64213b5a609282f",
+    "seconds": 40.45,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1106.erdos_1106.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-1106-parts-ii-formalized",
+    "sha256": "sha256:6aabf6974e9771048177978b644f498d70a1426773a1150562dcf38ca2629f8f",
+    "seconds": 43.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1108.erdos_1108.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-1108-parts-i-counterexample",
+    "sha256": "sha256:152bad2e7bd73e045b30c6a7eb97f7486db3ecfb00b11d919d6ec541b3b41f02",
+    "seconds": 40.58,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1108.erdos_1108.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-1108-parts-i-formalized",
+    "sha256": "sha256:f28af6c8166de108ab4a1509c7fa7587c368ec08568470b8b6f332e3107b958e",
+    "seconds": 41.04,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1113.erdos_1113.variants.filaseta_finch_kozek",
+    "mode": "counterexample",
+    "directory": "erdos-1113-variants-filaseta-finch-kozek-counterexample",
+    "sha256": "sha256:409f4c79ce2b372ef1aae54866cbc02aa6b48905120f11ed6a896cf0f5988ae8",
+    "seconds": 41.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1135.erdos_1135",
+    "mode": "counterexample",
+    "directory": "erdos-1135-counterexample",
+    "sha256": "sha256:bf9fb70b477dfb22bf5d86f789f3ffe22335f167120762f43e9b95f51c24ea14",
+    "seconds": 41.23,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1175.erdos_1175",
+    "mode": "counterexample",
+    "directory": "erdos-1175-counterexample",
+    "sha256": "sha256:fc9208ac5451ba1f2b5350cf2fe42cb2903e9ff172808396bb189787c5d06378",
+    "seconds": 42.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos128.erdos_128",
+    "mode": "formalized",
+    "directory": "erdos-128-formalized",
+    "sha256": "sha256:7ecdcbee38d607802a3c83257d34b13def0b180706aae04501abc53aa53fa10c",
+    "seconds": 41.06,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1175.erdos_1175",
+    "mode": "formalized",
+    "directory": "erdos-1175-formalized",
+    "sha256": "sha256:8c9a15c1a97d7f026a54883365560a199ad4e400f75974c48bc922acc6bec6fe",
+    "seconds": 42.57,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1137.erdos_1137",
+    "mode": "formalized",
+    "directory": "erdos-1137-formalized",
+    "sha256": "sha256:93234419e4f623a504ecb03aa6eba3190ef52b01fdc63d882f188d2fffe86847",
+    "seconds": 43.44,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1203.erdos_1203",
+    "mode": "formalized",
+    "directory": "erdos-1203-formalized",
+    "sha256": "sha256:1b16580b9162c61a6e73c204b2ddb0bab2837ac156a477b3000969e08ea1e397",
+    "seconds": 42.28,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos120.erdos_120",
+    "mode": "counterexample",
+    "directory": "erdos-120-counterexample",
+    "sha256": "sha256:bcadb3c5c04cd82927002baa7a223f42b0d373ddc82ce5f335fcee5f4e18790e",
+    "seconds": 42.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1142.erdos_1142",
+    "mode": "counterexample",
+    "directory": "erdos-1142-counterexample",
+    "sha256": "sha256:f17045860b4633e744548f3702ec993c83605a50c29e32cd54963622a62c5fb3",
+    "seconds": 43.29,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos137.erdos_137.variants.multiple_powerful_factors",
+    "mode": "formalized",
+    "directory": "erdos-137-variants-multiple-powerful-factors-formalized",
+    "sha256": "sha256:19fdd81e90d4b063e94570e6ee176eef75100bcdb7f2098d34e401631ace4d2e",
+    "seconds": 41.84,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1203.erdos_1203",
+    "mode": "counterexample",
+    "directory": "erdos-1203-counterexample",
+    "sha256": "sha256:77e5114fe1d8ccbf1489618d35f89b604034206bb34365aac1b5a717814869d2",
+    "seconds": 42.57,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1137.erdos_1137",
+    "mode": "counterexample",
+    "directory": "erdos-1137-counterexample",
+    "sha256": "sha256:663c6ef32842e8564b63f158ecbdf876f617d4739d1a91f048cf218b40b745f6",
+    "seconds": 44.08,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos126.erdos_126.variants.isLittleO",
+    "mode": "formalized",
+    "directory": "erdos-126-variants-islittleo-formalized",
+    "sha256": "sha256:6a36376bcbb1022b69c0e8f48184dab5b24a5b32db67305902a563af8cf3ee16",
+    "seconds": 42.33,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos138.erdos_138",
+    "mode": "formalized",
+    "directory": "erdos-138-formalized",
+    "sha256": "sha256:caf8d2ff33806dee54aeddd39e78669c95e62d085495d7ff4d9d144dad744df4",
+    "seconds": 41.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1192.erdos_1192",
+    "mode": "formalized",
+    "directory": "erdos-1192-formalized",
+    "sha256": "sha256:fff4816cf0026f4922eff908f4abf146dcc6962f3363f31505ecf1fcb98b9d52",
+    "seconds": 43.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos14.erdos_14.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-14-parts-i-formalized",
+    "sha256": "sha256:4d37f133aae6839de07abefbe0b6c5664ee3c80de680ba32cb2ff9b8e981244d",
+    "seconds": 42.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1192.erdos_1192",
+    "mode": "counterexample",
+    "directory": "erdos-1192-counterexample",
+    "sha256": "sha256:08a61f8dda71f423c85c1487df12c4b99a4356be356bba46124aa07c47e36bf3",
+    "seconds": 43.62,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1142.erdos_1142",
+    "mode": "formalized",
+    "directory": "erdos-1142-formalized",
+    "sha256": "sha256:e5a0e8aec576159e7563e569fb912108f3234dfa6005906efb7e0a1a8cfb3456",
+    "seconds": 44.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1209.erdos_1209.parts.iii.d",
+    "mode": "counterexample",
+    "directory": "erdos-1209-parts-iii-d-counterexample",
+    "sha256": "sha256:2ab80062157198202c28b58a333c83f80b5583bfaf40ff16f8e3e67acfd1f4dc",
+    "seconds": 43.33,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos124.erdos124.ne_zero",
+    "mode": "counterexample",
+    "directory": "erdos-124-erdos124-ne-zero-counterexample",
+    "sha256": "sha256:6d2ccb3534380bf2c26fc80fb2da6023d8f0941b2598850c32ec531612604fe7",
+    "seconds": 43.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos120.erdos_120",
+    "mode": "formalized",
+    "directory": "erdos-120-formalized",
+    "sha256": "sha256:37163befe87849f944b3f602beb928ce723a9625d306eb33d0f933efec3d1a80",
+    "seconds": 43.84,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos124.erdos124.ne_zero",
+    "mode": "formalized",
+    "directory": "erdos-124-erdos124-ne-zero-formalized",
+    "sha256": "sha256:2ee5b015bf0415651330c9a2107739e18bfe94a81cb0df52fb6332d5dcdc0a60",
+    "seconds": 43.34,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos14.erdos_14.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-14-parts-i-counterexample",
+    "sha256": "sha256:70c95b55aa2455d7e811994f4ffc914870d18fb3610bc93adf9ab56f91a2502f",
+    "seconds": 42.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos1209.erdos_1209.parts.iii.d",
+    "mode": "formalized",
+    "directory": "erdos-1209-parts-iii-d-formalized",
+    "sha256": "sha256:3be1c6a2ea9160cd48045a3d6570d4b784c0cb5510bea17771caddd72e853adb",
+    "seconds": 43.92,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos137.erdos_137.variants.multiple_powerful_factors",
+    "mode": "counterexample",
+    "directory": "erdos-137-variants-multiple-powerful-factors-counterexample",
+    "sha256": "sha256:008f5cbb45b872b7bbc0ca01e8041d152b8927fea3b854c40a15b6a4c43390ed",
+    "seconds": 43.32,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos128.erdos_128",
+    "mode": "counterexample",
+    "directory": "erdos-128-counterexample",
+    "sha256": "sha256:48a10d79e86e9558f8c02cf6bb183679d1c782a42dd7debae99d89320bfa1d41",
+    "seconds": 43.83,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos138.erdos_138",
+    "mode": "counterexample",
+    "directory": "erdos-138-counterexample",
+    "sha256": "sha256:6a00a0cd865f4e657c384a61ed7da725ab831f75163b3e908d4ea9038f49812c",
+    "seconds": 43.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos126.erdos_126.variants.isLittleO",
+    "mode": "counterexample",
+    "directory": "erdos-126-variants-islittleo-counterexample",
+    "sha256": "sha256:ee14094b377a532caca0483d3fc1439cd3f8d40b09de1fe33127cc34f9fc945d",
+    "seconds": 44.07,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos14.erdos_14.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-14-parts-ii-formalized",
+    "sha256": "sha256:cd8b53a5ebb25c69161947ee61a57754d53e9505576ee4f98c72b760795f716c",
+    "seconds": 39.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos14.erdos_14.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-14-parts-ii-counterexample",
+    "sha256": "sha256:0e30b4426f75115be6a880673de412bf44582cdb0bf53ca23b7cf7603a9bfb00",
+    "seconds": 39.43,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos143.erdos_143.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-143-parts-ii-formalized",
+    "sha256": "sha256:f21b505a8d74f72d512cf67dfe35c24af1f18cb80178c25a3c3a6c1231a13c28",
+    "seconds": 39.21,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos145.erdos_145",
+    "mode": "counterexample",
+    "directory": "erdos-145-counterexample",
+    "sha256": "sha256:7a8bfea1a3f8696eb6b4882611f392087fb70e4d070211f4ce27a25001d16650",
+    "seconds": 39.05,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos141.erdos_141.variants.eleven",
+    "mode": "formalized",
+    "directory": "erdos-141-variants-eleven-formalized",
+    "sha256": "sha256:970e57cc6958fe96c26d34d3ed4c946c72d67f667f90cbd0a65b78b7aef2822b",
+    "seconds": 40.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos142.erdos_142.variants.lower",
+    "mode": "formalized",
+    "directory": "erdos-142-variants-lower-formalized",
+    "sha256": "sha256:a544c4519f9ac5fea0abe56ad300c09f4e37f29c444343906bfb3e14c3953df9",
+    "seconds": 40.66,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos141.erdos_141.variants.eleven",
+    "mode": "counterexample",
+    "directory": "erdos-141-variants-eleven-counterexample",
+    "sha256": "sha256:b116ff29ddc812f727e54262c65692a9356f572d35abc605ea6564cfb689eba0",
+    "seconds": 40.89,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos143.erdos_143.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-143-parts-ii-counterexample",
+    "sha256": "sha256:36077c561ead9ed0ff99c1968f45928f8d2d9721d500af3ee56436d2d24da624",
+    "seconds": 40.36,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos145.erdos_145",
+    "mode": "formalized",
+    "directory": "erdos-145-formalized",
+    "sha256": "sha256:35f53269bfd2f11c51e60934e73cd5379a8d76d837a07bbf0ef377a3beb1e2d5",
+    "seconds": 40.89,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos142.erdos_142.variants.lower",
+    "mode": "counterexample",
+    "directory": "erdos-142-variants-lower-counterexample",
+    "sha256": "sha256:eab5238c75ba6fa72082ac0461e921f1716191214ac06efcce0568d704acd140",
+    "seconds": 42.06,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos153.erdos_153",
+    "mode": "formalized",
+    "directory": "erdos-153-formalized",
+    "sha256": "sha256:27538820f3d70876a72e898f3be5611f2e9837883f6a7f217ab5c1d8ee764ac3",
+    "seconds": 40.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos153.erdos_153",
+    "mode": "counterexample",
+    "directory": "erdos-153-counterexample",
+    "sha256": "sha256:1b61697cd3c6d8e4ae264e24f3d9fea4d02efe98cc81a3d918b8d93eac22db1a",
+    "seconds": 40.4,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos156.erdos_156",
+    "mode": "formalized",
+    "directory": "erdos-156-formalized",
+    "sha256": "sha256:3c045d21f12154a26cca8db1ca9a88d14188cd3c5af8eefb4f641717dd4b7e61",
+    "seconds": 39.87,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos155.erdos_155",
+    "mode": "formalized",
+    "directory": "erdos-155-formalized",
+    "sha256": "sha256:66fd2348163edaa1bed21e084b2f69220329198a6cf50604d787c1b94e527230",
+    "seconds": 40.36,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos172.erdos_172",
+    "mode": "counterexample",
+    "directory": "erdos-172-counterexample",
+    "sha256": "sha256:d027f65a02cb2683e68079e5098f9fca6a4a99b3dd50a7a9c359ff02dc545fc7",
+    "seconds": 39.35,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos156.erdos_156",
+    "mode": "counterexample",
+    "directory": "erdos-156-counterexample",
+    "sha256": "sha256:300dd4889acc8480988e1787c416e9feb3d85147994dd04534b7671df7e073cc",
+    "seconds": 40.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos17.erdos_17",
+    "mode": "formalized",
+    "directory": "erdos-17-formalized",
+    "sha256": "sha256:db82060a84b19c88cb8b4a7e4cd7927f84a6f29eba91c6ea1609da4ccfbd9742",
+    "seconds": 40.51,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos168.erdos_168.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-168-parts-ii-formalized",
+    "sha256": "sha256:05588a45c8581154dcf8e64812ee23e3e596722511519c47d2ad44fceac895a3",
+    "seconds": 40.73,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos184.erdos_184",
+    "mode": "counterexample",
+    "directory": "erdos-184-counterexample",
+    "sha256": "sha256:4a80dd9d9c898e5c1eb24583bbc83d02da5728c3e87bff28ca32ee987ab1c409",
+    "seconds": 40.39,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos168.erdos_168.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-168-parts-ii-counterexample",
+    "sha256": "sha256:9cbcf3c3da2d95d3749eed234d434f4ec513a82a414dee8c70ac3a15576ec712",
+    "seconds": 41.77,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos208.erdos_208.variants.log_bound",
+    "mode": "counterexample",
+    "directory": "erdos-208-variants-log-bound-counterexample",
+    "sha256": "sha256:423cd8245a01a9f53473ecfbd706486762a2c55e9c1f90c7b911a71fcf119f9d",
+    "seconds": 40.1,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos158.erdos_158",
+    "mode": "formalized",
+    "directory": "erdos-158-formalized",
+    "sha256": "sha256:5f4e3d74d96c939429e8de928addf3f0e8f46849b90c1090f755fb818529b77e",
+    "seconds": 42.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos155.erdos_155",
+    "mode": "counterexample",
+    "directory": "erdos-155-counterexample",
+    "sha256": "sha256:93d5d4023347b2789b4e783f989931a68a0998795207a1ceda00a1cbca2ba717",
+    "seconds": 42.81,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos172.erdos_172",
+    "mode": "formalized",
+    "directory": "erdos-172-formalized",
+    "sha256": "sha256:b430559f73608ea4f0b22476de5b49f53412eff87c624b4e014d20529c681457",
+    "seconds": 42.06,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos17.erdos_17",
+    "mode": "counterexample",
+    "directory": "erdos-17-counterexample",
+    "sha256": "sha256:0d93659d397720321d75549db2c94b4d7cd3d78fe5b59bd6f7558111ff1c4bd5",
+    "seconds": 42.36,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos212.erdos_212",
+    "mode": "counterexample",
+    "directory": "erdos-212-counterexample",
+    "sha256": "sha256:07a6961fb79d1e6e29b4d2ebbfe62b16a64f356fc3430bdd95975ad6e374a508",
+    "seconds": 40.65,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos196.erdos_196",
+    "mode": "counterexample",
+    "directory": "erdos-196-counterexample",
+    "sha256": "sha256:ca99accde3d724fe1b1c241c85b52fc54c09be36d91772d4bafeb25e64d04473",
+    "seconds": 41.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos196.erdos_196",
+    "mode": "formalized",
+    "directory": "erdos-196-formalized",
+    "sha256": "sha256:94f062403147645715c93b49848682f3155ebc6c33770235b70c020aee75f0e2",
+    "seconds": 41.86,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos200.erdos_200",
+    "mode": "counterexample",
+    "directory": "erdos-200-counterexample",
+    "sha256": "sha256:8cd0cee498606e6021069862dc5b052e2bb0b8e01da2e69d2ccfc8481d38cf69",
+    "seconds": 41.62,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos18.erdos_18b",
+    "mode": "counterexample",
+    "directory": "erdos-18-b-counterexample",
+    "sha256": "sha256:81f371f53dafad9bff580d2fb571e31582425990ecb4f3e81ea1582561d1dc3d",
+    "seconds": 42.33,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos184.erdos_184",
+    "mode": "formalized",
+    "directory": "erdos-184-formalized",
+    "sha256": "sha256:3d2eebe3989376050495b9483ea0ef486a6c42b8d86a15f68e641c6b289d6e5c",
+    "seconds": 42.66,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos158.erdos_158",
+    "mode": "counterexample",
+    "directory": "erdos-158-counterexample",
+    "sha256": "sha256:7fcf836ed859d1376445f1b57828eea5bf99a48c15ee74fbb245f6f14f67477c",
+    "seconds": 43.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos208.erdos_208.variants.log_bound",
+    "mode": "formalized",
+    "directory": "erdos-208-variants-log-bound-formalized",
+    "sha256": "sha256:e64d8d5732f822f5cec7cc4dbd3a1d4539c30ffc3b7c72feec6e81d7782c29be",
+    "seconds": 42.3,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos18.erdos_18b",
+    "mode": "formalized",
+    "directory": "erdos-18-b-formalized",
+    "sha256": "sha256:6a31e8bdaa236ba65f91b5b5001769833816f2677222b1da9c6825017d818e0e",
+    "seconds": 43.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos212.erdos_212",
+    "mode": "formalized",
+    "directory": "erdos-212-formalized",
+    "sha256": "sha256:7d9d5954be244aac6fb8c2c90338231aaaf64b82eebf3dc8d5045079ea984d42",
+    "seconds": 42.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos200.erdos_200",
+    "mode": "formalized",
+    "directory": "erdos-200-formalized",
+    "sha256": "sha256:39eda06c811acda2af0d05be98756c05a1eacd789844b3e2d9f6b0bb993ee767",
+    "seconds": 42.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos213.erdos_213",
+    "mode": "formalized",
+    "directory": "erdos-213-formalized",
+    "sha256": "sha256:1962e0b800bd18f1171aa2b2037d587fb2fbe83da0037b86e2ea221d6eea4217",
+    "seconds": 39.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos213.erdos_213",
+    "mode": "counterexample",
+    "directory": "erdos-213-counterexample",
+    "sha256": "sha256:9e23379a3eab9677860ec13aac2c2f353e24d93caac3abfcb4557d462c3fd18d",
+    "seconds": 39.21,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos218.erdos_218.variants.ge",
+    "mode": "formalized",
+    "directory": "erdos-218-variants-ge-formalized",
+    "sha256": "sha256:64db82832d91477a538bb79c328ad707a1dc8daff37b8bd5d35218e0e25eccb5",
+    "seconds": 39.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos218.erdos_218.variants.infinite_equal_prime_gap",
+    "mode": "counterexample",
+    "directory": "erdos-218-variants-infinite-equal-prime-gap-counterexample",
+    "sha256": "sha256:5a45cd91556dae01063507f4bb417d97fed1fd93d1db6d709b5a9c355f0e8819",
+    "seconds": 38.37,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos218.erdos_218.variants.infinite_equal_prime_gap",
+    "mode": "formalized",
+    "directory": "erdos-218-variants-infinite-equal-prime-gap-formalized",
+    "sha256": "sha256:11bc3739ec892e2c052a07a1d37b2b03eb5f992efefc7ae0ea4e6a706de5d301",
+    "seconds": 39.43,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos218.erdos_218.variants.ge",
+    "mode": "counterexample",
+    "directory": "erdos-218-variants-ge-counterexample",
+    "sha256": "sha256:656ef918d734fe2379b772e267de203d6149a18ebf6d496ebdfe5b419bc8bce4",
+    "seconds": 39.58,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos218.erdos_218.variants.le",
+    "mode": "counterexample",
+    "directory": "erdos-218-variants-le-counterexample",
+    "sha256": "sha256:6be0069173647de775f63d99945ac2ec73c1f76123b5d643bc4d943e4075c370",
+    "seconds": 39.26,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos218.erdos_218.variants.le",
+    "mode": "formalized",
+    "directory": "erdos-218-variants-le-formalized",
+    "sha256": "sha256:eda6d8fcd1b1509a91fc0d665bfdee67fdb89913d1c5f2abfaf963b7ebf2f537",
+    "seconds": 39.53,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos23.erdos_23",
+    "mode": "counterexample",
+    "directory": "erdos-23-counterexample",
+    "sha256": "sha256:e8a2d4f01d0f8ad174d83fe716a6a8d9fb5fa3ed46567cee9ffcdac2241589a6",
+    "seconds": 39.88,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos233.erdos_233",
+    "mode": "counterexample",
+    "directory": "erdos-233-counterexample",
+    "sha256": "sha256:dd84b484db3de87d2fb9db24a0420e8c38d2873873300805e8d5304ededd7478",
+    "seconds": 40.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos23.erdos_23",
+    "mode": "formalized",
+    "directory": "erdos-23-formalized",
+    "sha256": "sha256:0398f48a1e5afe767202df1c40363681fea5a76520325a95c782482efb8ff597",
+    "seconds": 41.8,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos236.erdos_236",
+    "mode": "formalized",
+    "directory": "erdos-236-formalized",
+    "sha256": "sha256:948b392b6977cda114ecd31cc137b407183028c9fcf2166f29d7a137417cb3a4",
+    "seconds": 40.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos233.erdos_233",
+    "mode": "formalized",
+    "directory": "erdos-233-formalized",
+    "sha256": "sha256:bb3905cf496cdf376b27629752c7af3f71635dacebe3b2f84112b080ffa5e20b",
+    "seconds": 41.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos234.erdos_234",
+    "mode": "counterexample",
+    "directory": "erdos-234-counterexample",
+    "sha256": "sha256:1bd358d5d1a7d6f80bfd16dfc60a009a330865a3bad0af928d09e4bf8844d87e",
+    "seconds": 41.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos236.erdos_236",
+    "mode": "counterexample",
+    "directory": "erdos-236-counterexample",
+    "sha256": "sha256:93efbf1b7a23199a7d04b705d7bbeff6f6735f93e8f952c227e92d390cfb9ff4",
+    "seconds": 40.24,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos238.erdos_238",
+    "mode": "formalized",
+    "directory": "erdos-238-formalized",
+    "sha256": "sha256:015b3a04447c71a4b81cff76254d7ebbab3a5689e8bc7b5ccb309022588cb4fd",
+    "seconds": 40.24,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos238.erdos_238",
+    "mode": "counterexample",
+    "directory": "erdos-238-counterexample",
+    "sha256": "sha256:2ae607f1a95a3e37ba748303d5a36ef1b5dfdde6fecc40eba7944d4c75b8ca4b",
+    "seconds": 40.35,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos244.erdos_244",
+    "mode": "counterexample",
+    "directory": "erdos-244-counterexample",
+    "sha256": "sha256:b2bb62b6302638f7d5c13861247b22dc45896748fd583dbd83713723a69099dd",
+    "seconds": 38.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos241.erdos_241.variants.generalization",
+    "mode": "counterexample",
+    "directory": "erdos-241-variants-generalization-counterexample",
+    "sha256": "sha256:2588aab58ab814e4ea3cfc1e9b9674e2dcba2a24a63762614c92bef7e1f7465b",
+    "seconds": 39.37,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos234.erdos_234",
+    "mode": "formalized",
+    "directory": "erdos-234-formalized",
+    "sha256": "sha256:4242daf8a3032643e8bcc171dfaa9dc447421c8482fb968be0a00bab7250a2ec",
+    "seconds": 42.33,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos241.erdos_241.variants.generalization",
+    "mode": "formalized",
+    "directory": "erdos-241-variants-generalization-formalized",
+    "sha256": "sha256:6f6a644a9c3cd4d8e722cd2a9b478417d8641e1f515a77fa4b6eedf3af5cda64",
+    "seconds": 40.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos249.erdos_249",
+    "mode": "formalized",
+    "directory": "erdos-249-formalized",
+    "sha256": "sha256:7a316b0dd48983c00f37341624bcfe62b8c28647d3eb7c3aeb514fe8970094c5",
+    "seconds": 38.92,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos242.erdos_242.variants.schinzel_generalization",
+    "mode": "counterexample",
+    "directory": "erdos-242-variants-schinzel-generalization-counterexample",
+    "sha256": "sha256:4e33dbb4677508c8e4af8f805f8da0e840948f885803bfea5a695e5ad630e297",
+    "seconds": 40.64,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos243.erdos_243",
+    "mode": "counterexample",
+    "directory": "erdos-243-counterexample",
+    "sha256": "sha256:601800799156ffffa8fba2a245ed17c239b876afbb37b59b27642a8aeb2e3f24",
+    "seconds": 40.99,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos244.erdos_244",
+    "mode": "formalized",
+    "directory": "erdos-244-formalized",
+    "sha256": "sha256:29cb33af981e143792a05f623f9ba40cd731d941bd6ca9f6f43abbe4e1eca7e6",
+    "seconds": 40.99,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos242.erdos_242.variants.schinzel_generalization",
+    "mode": "formalized",
+    "directory": "erdos-242-variants-schinzel-generalization-formalized",
+    "sha256": "sha256:8e6326d4dfda68d1d78344fd40c46694f71f6cfff71b1a51985ea6e9ccb36693",
+    "seconds": 41.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos243.erdos_243",
+    "mode": "formalized",
+    "directory": "erdos-243-formalized",
+    "sha256": "sha256:0835aa21856730d50726e76e9298f57f472b9c462bb5db6adecaed8cf3f92fa0",
+    "seconds": 41.47,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos247.erdos_247",
+    "mode": "counterexample",
+    "directory": "erdos-247-counterexample",
+    "sha256": "sha256:ad29d192ee7979ae52c0cc6790202ec873f950b6326100830c0b3497bba17cfc",
+    "seconds": 40.94,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos247.erdos_247",
+    "mode": "formalized",
+    "directory": "erdos-247-formalized",
+    "sha256": "sha256:9acfa42ace03ec36524c5f072e50da0112ddf3086f9f2963509b835283e838ce",
+    "seconds": 41.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos25.erdos_25",
+    "mode": "formalized",
+    "directory": "erdos-25-formalized",
+    "sha256": "sha256:0bef236ebca78d8ce2651004a5ec08b4e69a90df7b67dbb0a49c0c1fc87c7a17",
+    "seconds": 40.61,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos251.erdos_251",
+    "mode": "formalized",
+    "directory": "erdos-251-formalized",
+    "sha256": "sha256:d1a6110f643aed028bf4ff1bd90190a9ef5aee6bf7b9c1cc00433cb2b343c9d2",
+    "seconds": 40.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos249.erdos_249",
+    "mode": "counterexample",
+    "directory": "erdos-249-counterexample",
+    "sha256": "sha256:ee1595023a859da0affe4d69362e851c737becca345100621abf480d0de809d9",
+    "seconds": 41.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos251.erdos_251",
+    "mode": "counterexample",
+    "directory": "erdos-251-counterexample",
+    "sha256": "sha256:c2ce6e89905693f110f23defac85f5a0d46194d26bd3511e5394ceb68e0b16ef",
+    "seconds": 41.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos252.erdos_252",
+    "mode": "formalized",
+    "directory": "erdos-252-formalized",
+    "sha256": "sha256:57985c599321a7affa2a9f81fcefbc7998f66058fd3381bb80b89ef5949520cc",
+    "seconds": 41.21,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos252.erdos_252",
+    "mode": "counterexample",
+    "directory": "erdos-252-counterexample",
+    "sha256": "sha256:4d4d20c868f2e42e176492d34d784018ba3756638181b607ebbf5ab95c6fb723",
+    "seconds": 41.42,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos25.erdos_25",
+    "mode": "counterexample",
+    "directory": "erdos-25-counterexample",
+    "sha256": "sha256:0f21360c9c63d20bb18e39e07ff73620be14ad4586046e4fb6237d4b3d626c3d",
+    "seconds": 42.0,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos257.erdos_257",
+    "mode": "formalized",
+    "directory": "erdos-257-formalized",
+    "sha256": "sha256:6418f2fea24566c67d8d871b3b5a411d18923fca7d32afebf0690b309b125971",
+    "seconds": 39.5,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos257.erdos_257",
+    "mode": "counterexample",
+    "directory": "erdos-257-counterexample",
+    "sha256": "sha256:01a3ec35b7d86fd963751a1d41d1108e85dbc681cd792621d7c70691d27129f4",
+    "seconds": 38.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos263.erdos_263.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-263-parts-i-formalized",
+    "sha256": "sha256:a3bb8549f3aab77c23365d327a090c3758bf84817553e6442fc3f9331c0402d6",
+    "seconds": 39.54,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos263.erdos_263.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-263-parts-i-counterexample",
+    "sha256": "sha256:a2c2f95935bd83ac8f3c78591a6c9653711c45e00c3630199296ecb493bb47ec",
+    "seconds": 38.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos264.erdos_264.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-264-parts-ii-formalized",
+    "sha256": "sha256:ccd73fb9d7e2f49f42fe982159080290d57b437e1ae2cb2000932ff9d0071085",
+    "seconds": 39.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos264.erdos_264.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-264-parts-ii-counterexample",
+    "sha256": "sha256:e026ead6b5a79854681ee368a40528faa30402628fafc0d8edea30760e816c66",
+    "seconds": 39.35,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos269.erdos_269.variants.irrational",
+    "mode": "counterexample",
+    "directory": "erdos-269-variants-irrational-counterexample",
+    "sha256": "sha256:a0fd99a6731e6a1b19a7fc608617902b9160b9873407ddb3deca237f8f0b846d",
+    "seconds": 39.04,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos269.erdos_269.variants.irrational",
+    "mode": "formalized",
+    "directory": "erdos-269-variants-irrational-formalized",
+    "sha256": "sha256:60c25892be8fb682f3f2f0bb73cc4387fb3684a13a24bae7b9ff76e1bddae953",
+    "seconds": 40.11,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos272.erdos_272.variants.szabo_strong",
+    "mode": "counterexample",
+    "directory": "erdos-272-variants-szabo-strong-counterexample",
+    "sha256": "sha256:584b62620f32fae423430147ab8639cc7c1a0ad6af61666be076bbbdf4a29bf3",
+    "seconds": 38.0,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos272.erdos_272.variants.szabo_strong",
+    "mode": "formalized",
+    "directory": "erdos-272-variants-szabo-strong-formalized",
+    "sha256": "sha256:228308722d7a997dae3ed1a5e392364a1c27f0b721f69f4a9d06ae5d48eab674",
+    "seconds": 40.43,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos291.erdos_291.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-291-parts-i-formalized",
+    "sha256": "sha256:9f56fa440c36e9fe8cb89c534c0f1f4925237b86a33300abda77e7bcd1d3220f",
+    "seconds": 38.28,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos282.erdos_282",
+    "mode": "formalized",
+    "directory": "erdos-282-formalized",
+    "sha256": "sha256:703b3732ee49cf9bb4018ba21b9a869e817f7480af322d38c3b0a83d465c3d4d",
+    "seconds": 38.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos28.erdos_28",
+    "mode": "counterexample",
+    "directory": "erdos-28-counterexample",
+    "sha256": "sha256:c5a6779168d920155178c26d23ad5e93c78fc9a22ea757d99f30df648b1ea88c",
+    "seconds": 39.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos274.herzog_schonheim",
+    "mode": "formalized",
+    "directory": "erdos-274-herzog-schonheim-formalized",
+    "sha256": "sha256:c6bdaf21c99f3a4a744f744443c3038076a8b8f6b8276c4e407d253bdff20341",
+    "seconds": 40.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos274.herzog_schonheim",
+    "mode": "counterexample",
+    "directory": "erdos-274-herzog-schonheim-counterexample",
+    "sha256": "sha256:3abfb0b67877f5bfec679a09127925a24eddd6738a32c101930c053239c31f31",
+    "seconds": 39.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos282.erdos_282",
+    "mode": "counterexample",
+    "directory": "erdos-282-counterexample",
+    "sha256": "sha256:f6a20e3e80aa8f7dfec4f084e000294fc5994bb8b7b098829f2db72c069006e2",
+    "seconds": 39.3,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos287.erdos_287",
+    "mode": "formalized",
+    "directory": "erdos-287-formalized",
+    "sha256": "sha256:beb6ad61f1fb4f8d3324310af064e7c314177f5c4aac57aadb223fbe426ad277",
+    "seconds": 39.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos28.erdos_28",
+    "mode": "formalized",
+    "directory": "erdos-28-formalized",
+    "sha256": "sha256:1886b3c907e7d45cd120b182c94d600d3a2ba4ba9d74775b5686387bb071e8da",
+    "seconds": 41.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero",
+    "mode": "counterexample",
+    "directory": "erdos-291-variants-shiu-heuristic-density-zero-counterexample",
+    "sha256": "sha256:bfaa54acb5079c4148fdfc9f9c3e4c64a9c654c0e06d9157ef2705dc9dcedf6a",
+    "seconds": 39.97,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos291.erdos_291.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-291-parts-i-counterexample",
+    "sha256": "sha256:2c62de42324ca616e7af41fc8107e4d1470e5315b8bd8dc8db77583c7f73392e",
+    "seconds": 40.06,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos287.erdos_287",
+    "mode": "counterexample",
+    "directory": "erdos-287-counterexample",
+    "sha256": "sha256:fb3dbc7cd37d53bebba471c777981ea210f4328500d6f1c70ce4ac0dd0d8b49a",
+    "seconds": 41.07,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos291.erdos_291.variants.shiu_heuristic_density_zero",
+    "mode": "formalized",
+    "directory": "erdos-291-variants-shiu-heuristic-density-zero-formalized",
+    "sha256": "sha256:86e13dcf3ad9810dbdab58dd6fc51c2c6ddf2f0e33cdec2bc76b10d6856c0129",
+    "seconds": 41.08,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos307.erdos_307",
+    "mode": "formalized",
+    "directory": "erdos-307-formalized",
+    "sha256": "sha256:c5841767f7e8e611a7fdf61f8bd6f8d86b56881c8118c12333eed3d093b5ff69",
+    "seconds": 39.52,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos3.erdos_3",
+    "mode": "counterexample",
+    "directory": "erdos-3-counterexample",
+    "sha256": "sha256:0cf2fc86b94789d3d45f421df6fef98a597044918e7c25024e502874c1f0659c",
+    "seconds": 40.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos3.erdos_3",
+    "mode": "formalized",
+    "directory": "erdos-3-formalized",
+    "sha256": "sha256:47b8451dd025f39e2a68629f1c32f4e38f1ea5ea51923938c29a8aa9c2c82cb6",
+    "seconds": 40.73,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos313.erdos_313.variants.primary_pseudoperfect_are_infinite",
+    "mode": "counterexample",
+    "directory": "erdos-313-variants-primary-pseudoperfect-are-infinite-counterexample",
+    "sha256": "sha256:32f2d29e73052c293874216bcfd99e3b037c10102a88d7c559e60d67ebb2fcd5",
+    "seconds": 39.2,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos304.upper_bound",
+    "mode": "counterexample",
+    "directory": "erdos-304-upper-bound-counterexample",
+    "sha256": "sha256:442c1e3297e79f425c8d2b41f6d6f2dfbf49fe6b9b1ee73984621f5d04aa6a6a",
+    "seconds": 40.06,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos307.erdos_307",
+    "mode": "counterexample",
+    "directory": "erdos-307-counterexample",
+    "sha256": "sha256:8302c8c25358585e0bccbf19e0209d1bb4d2c0fb49f7ae18a6be780f332864ee",
+    "seconds": 39.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos30.erdos_30",
+    "mode": "formalized",
+    "directory": "erdos-30-formalized",
+    "sha256": "sha256:812a70ffef568803087be18f6e38f82327edf0d3af8b8614168f79743e1abf41",
+    "seconds": 40.44,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos317.erdos_317.variants.claim2",
+    "mode": "formalized",
+    "directory": "erdos-317-variants-claim2-formalized",
+    "sha256": "sha256:d9f706084cdda8903bb670ad1fcf3d47ad806f8b8c401d3c4b899421fb3ec301",
+    "seconds": 39.45,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos313.erdos_313.variants.primary_pseudoperfect_are_infinite",
+    "mode": "formalized",
+    "directory": "erdos-313-variants-primary-pseudoperfect-are-infinite-formalized",
+    "sha256": "sha256:6a90b8669c386452ec1ceb0dd6e52ee8489f6ac8de21c47ca344e4f62a5e41a8",
+    "seconds": 40.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos304.upper_bound",
+    "mode": "formalized",
+    "directory": "erdos-304-upper-bound-formalized",
+    "sha256": "sha256:3d28ef441e37d75924772fe12e7732f4fd92457e3dc77fe840b6daeb87cd1041",
+    "seconds": 40.88,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos30.erdos_30",
+    "mode": "counterexample",
+    "directory": "erdos-30-counterexample",
+    "sha256": "sha256:7943e5ebd21af578b5562456893adbc293bccbdf1d2c80265847b9a382c8d3f5",
+    "seconds": 41.5,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos32.erdos_32",
+    "mode": "formalized",
+    "directory": "erdos-32-formalized",
+    "sha256": "sha256:fc37c36fc1df14e61b9c7a72402252891e3783741177bce1cd69d79c95deae62",
+    "seconds": 39.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos317.erdos_317.variants.claim2",
+    "mode": "counterexample",
+    "directory": "erdos-317-variants-claim2-counterexample",
+    "sha256": "sha256:0f32318247c034829c8af7ac77c5246dc99a1fcb2665f44136e764d2f74b8694",
+    "seconds": 40.8,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos32.erdos_32",
+    "mode": "counterexample",
+    "directory": "erdos-32-counterexample",
+    "sha256": "sha256:5c4803a418e021903e4d4c1074c2afb418f0115057e8dc18cce6e91ef8936160",
+    "seconds": 40.83,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos323.erdos_323.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-323-parts-ii-counterexample",
+    "sha256": "sha256:3ea1ad4a68e4a670a178ea12be3b780fd33322b244beabe781853c5324795013",
+    "seconds": 38.04,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos323.erdos_323.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-323-parts-i-counterexample",
+    "sha256": "sha256:bcd64256091f172cd9d48242da841a36fbb6d82bacb60bbe5929a240ec011801",
+    "seconds": 39.94,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos323.erdos_323.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-323-parts-i-formalized",
+    "sha256": "sha256:9a78091785d3eaff3362e78398082dccf6dc3b0be0d72f26f0cc9bdca85e0875",
+    "seconds": 40.54,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos323.erdos_323.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-323-parts-ii-formalized",
+    "sha256": "sha256:cd1fe60a462032f6da969f59048c3c5b67d376cd22eb07612c80cb9262a20ed1",
+    "seconds": 39.42,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos324.erdos_324.variants.quintic",
+    "mode": "formalized",
+    "directory": "erdos-324-variants-quintic-formalized",
+    "sha256": "sha256:ab20cf3394365b7103d5e8a3e81b1d066c497cd055ff4a8d034c4b7136a5dc9e",
+    "seconds": 38.61,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos323.erdos_323.variants.k_gt_2",
+    "mode": "formalized",
+    "directory": "erdos-323-variants-k-gt-2-formalized",
+    "sha256": "sha256:e0d864615bfb2901a8f8b4cef1ee4bb2d7e2063171c94e65e80f15ecbb6f1635",
+    "seconds": 39.05,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos324.erdos_324.variants.quintic",
+    "mode": "counterexample",
+    "directory": "erdos-324-variants-quintic-counterexample",
+    "sha256": "sha256:61b9479d312236cfb00ff02a232ea2eed496ea761459b038a825286333d936ec",
+    "seconds": 38.51,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos323.erdos_323.variants.k_gt_2",
+    "mode": "counterexample",
+    "directory": "erdos-323-variants-k-gt-2-counterexample",
+    "sha256": "sha256:65c4f52a6ca2252397fe770a9e7f405d4e33fce23f2ef2349f835423082fcfdd",
+    "seconds": 39.65,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos325.erdos_325",
+    "mode": "formalized",
+    "directory": "erdos-325-formalized",
+    "sha256": "sha256:5c6fbe4b59cb415b0032ca202d4b3760319d54efb7b74394303194484bd97e77",
+    "seconds": 39.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos325.erdos_325",
+    "mode": "counterexample",
+    "directory": "erdos-325-counterexample",
+    "sha256": "sha256:bbacb779991a958cf83ce5c53365c1688596ccbd3429b68504ae935d6434f68c",
+    "seconds": 38.64,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos340.erdos_340.variants.sub_hasPosDensity",
+    "mode": "counterexample",
+    "directory": "erdos-340-variants-sub-hasposdensity-counterexample",
+    "sha256": "sha256:f872ef9db0638522404837f5654d8ec78bfeba61a3970a33ee618a17bd5d11b6",
+    "seconds": 38.2,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos340.erdos_340",
+    "mode": "formalized",
+    "directory": "erdos-340-formalized",
+    "sha256": "sha256:e8eaa0b2081b055ccc926480159fbfaf8a482e6ca1f8ba2abe93be8ef52b849a",
+    "seconds": 39.42,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos340.erdos_340.variants.sub_hasPosDensity",
+    "mode": "formalized",
+    "directory": "erdos-340-variants-sub-hasposdensity-formalized",
+    "sha256": "sha256:d9276ab030afb566d3252608fe71c09742a1907392577a20db93dc93d3d4d3e2",
+    "seconds": 39.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos354.erdos_354.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-354-parts-i-formalized",
+    "sha256": "sha256:712dd718002d79fdc0243729ef4db8b4f1a8c52e969fb03937a842e87badd14b",
+    "seconds": 38.91,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos354.erdos_354.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-354-parts-i-counterexample",
+    "sha256": "sha256:77c27e2240f8192d365e29a6476ba854e1a205e56683c690b58b73d791347a69",
+    "seconds": 39.27,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos340.erdos_340",
+    "mode": "counterexample",
+    "directory": "erdos-340-counterexample",
+    "sha256": "sha256:885052263e1afbbd0f978940cc4eea272fe037cb2ca5921bf6986cd4c8f2b879",
+    "seconds": 40.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-357-parts-i-formalized",
+    "sha256": "sha256:ba00b18d53bb7f204c6820d588b25fd8f7dc49291f53f1cbd54fb61aa14bc0dc",
+    "seconds": 40.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.variants.infinite_set_density",
+    "mode": "counterexample",
+    "directory": "erdos-357-variants-infinite-set-density-counterexample",
+    "sha256": "sha256:a26246bb8e6267aa719b042ed8d959fb9e60e7f781329862965f838a13807f4e",
+    "seconds": 39.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-357-parts-i-counterexample",
+    "sha256": "sha256:6fb992ef339192091ea49f11e91048f75f9521f215bd7e794f8cf139ec0a5bda",
+    "seconds": 40.24,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.variants.infinite_set_density",
+    "mode": "formalized",
+    "directory": "erdos-357-variants-infinite-set-density-formalized",
+    "sha256": "sha256:1681f769d64f98ea766c4a4318db1186736a29e6f206e5075d715bc332b9fed1",
+    "seconds": 40.58,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos359.erdos_359.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-359-parts-i-counterexample",
+    "sha256": "sha256:84072d7dbf773421be099802ef9ebc19d6a326efe52849bf973e13f6e79db359",
+    "seconds": 39.08,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.variants.infinite_set_sum",
+    "mode": "formalized",
+    "directory": "erdos-357-variants-infinite-set-sum-formalized",
+    "sha256": "sha256:a8116dedf5ece4ebf299edbabf7192428a5a88992e4ccfaf28782e3dafa43cb9",
+    "seconds": 40.57,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos359.erdos_359.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-359-parts-ii-formalized",
+    "sha256": "sha256:239be37f4ace3d886594a24de23bf7489b94da841e5f2f52c6c686298616ab60",
+    "seconds": 39.23,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.variants.infinite_set_sum",
+    "mode": "counterexample",
+    "directory": "erdos-357-variants-infinite-set-sum-counterexample",
+    "sha256": "sha256:dac20af5834e88f5361e3edf5884bfd2009fe1d381801fb5f4d0ce4d0d45ed10",
+    "seconds": 40.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos359.erdos_359.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-359-parts-i-formalized",
+    "sha256": "sha256:584f04b5f9f1ab2765dd812c5a4199736a8fee24ed9ba60afd62bf645e90dc50",
+    "seconds": 39.88,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.variants.monotone.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-357-variants-monotone-parts-i-counterexample",
+    "sha256": "sha256:b2dac142456b7255da8bea803e9a547d369eaf3efacf1fa9cd73eded3a4dcb70",
+    "seconds": 40.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos364.erdos_364",
+    "mode": "formalized",
+    "directory": "erdos-364-formalized",
+    "sha256": "sha256:95c43b88b7653f4956fcd21ccb4819dd7bd548b408a8eb3746e2d876bd314711",
+    "seconds": 39.76,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos359.erdos_359.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-359-parts-ii-counterexample",
+    "sha256": "sha256:2bc75e06f845cfbb466db0dd783a1f3fbe40e2a7dc3595e232d0e4bbce26e4b1",
+    "seconds": 40.63,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos359.erdos_359.variants.isGoodFor_1_asymptotic",
+    "mode": "counterexample",
+    "directory": "erdos-359-variants-isgoodfor-1-asymptotic-counterexample",
+    "sha256": "sha256:fcf6500568871b86544376f3e7c94c4939387e53faacd317a7da4169cd28e8cc",
+    "seconds": 40.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos366.erdos_366",
+    "mode": "formalized",
+    "directory": "erdos-366-formalized",
+    "sha256": "sha256:31d62f82777eaa641f6d1f5cf55d86f74738097a5bca0f700da92c7651ebe85e",
+    "seconds": 38.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos359.erdos_359.variants.isGoodFor_1_asymptotic",
+    "mode": "formalized",
+    "directory": "erdos-359-variants-isgoodfor-1-asymptotic-formalized",
+    "sha256": "sha256:c617e4fc1463a3f024950d4e6bef387db150757d85743a6d9f7339ceb202b4d6",
+    "seconds": 40.7,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos357.erdos_357.variants.monotone.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-357-variants-monotone-parts-i-formalized",
+    "sha256": "sha256:8ed9a4f6ce75e60ba853cdeb6d3ba021662d5094e232c3628ef3c962f1477302",
+    "seconds": 41.44,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos364.erdos_364.variants.strong",
+    "mode": "formalized",
+    "directory": "erdos-364-variants-strong-formalized",
+    "sha256": "sha256:030a1c35985d430817fccb4f703fd830f9d6e5d7c3cb36ff96aa49cf2ab97fb1",
+    "seconds": 40.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos364.erdos_364",
+    "mode": "counterexample",
+    "directory": "erdos-364-counterexample",
+    "sha256": "sha256:0e9c14763c2f59aeae2ffb7e3f3cedf56469ae2f1c2595dbf860041a5f572970",
+    "seconds": 41.26,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos366.erdos_366",
+    "mode": "counterexample",
+    "directory": "erdos-366-counterexample",
+    "sha256": "sha256:f0ba39db08727917097e4bd8f3accf456d84bab276c3f28417fdaf7941530059",
+    "seconds": 39.5,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos364.erdos_364.variants.strong",
+    "mode": "counterexample",
+    "directory": "erdos-364-variants-strong-counterexample",
+    "sha256": "sha256:325f92b88a67080974f92421e55bfbe6a71ebfef602b7242697b1b0381784cdf",
+    "seconds": 41.04,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos371.erdos_371",
+    "mode": "formalized",
+    "directory": "erdos-371-formalized",
+    "sha256": "sha256:d5a22bb9b94337725e2100fa3c2da18c1a9469ca4076644cfd1e8bdd37b9c27d",
+    "seconds": 39.65,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos371.erdos_371",
+    "mode": "counterexample",
+    "directory": "erdos-371-counterexample",
+    "sha256": "sha256:966591a131c8b502ce697426de249815eb67d2b178060cc3ed155a95a06a5836",
+    "seconds": 39.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos373.erdos_373",
+    "mode": "formalized",
+    "directory": "erdos-373-formalized",
+    "sha256": "sha256:f1484bb71267528731e30376ab252472e0bb864293fa649291f2b8caea25f9c7",
+    "seconds": 39.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos373.erdos_373",
+    "mode": "counterexample",
+    "directory": "erdos-373-counterexample",
+    "sha256": "sha256:01c39a16fe0f93f745bd58e76e503c169ebe3691a7716b419975bd28b83b503e",
+    "seconds": 39.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos373.erdos_373.variants.maximal_solution",
+    "mode": "counterexample",
+    "directory": "erdos-373-variants-maximal-solution-counterexample",
+    "sha256": "sha256:91a612d09f48415b97d39b9ee8dfcd7a7f64610e965cb0536bacd7da2022d4df",
+    "seconds": 39.26,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos373.erdos_373.variants.suranyi",
+    "mode": "counterexample",
+    "directory": "erdos-373-variants-suranyi-counterexample",
+    "sha256": "sha256:36c9deeb978ef51734dbf610f18ef4726b0da8ef721639e7feb9fe9f448c98be",
+    "seconds": 39.18,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos373.erdos_373.variants.suranyi",
+    "mode": "formalized",
+    "directory": "erdos-373-variants-suranyi-formalized",
+    "sha256": "sha256:d159049f86ac140fe8d3ad5fc857479f6f62cc04af6b4ea74684a6468827eeb7",
+    "seconds": 39.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos373.erdos_373.variants.maximal_solution",
+    "mode": "formalized",
+    "directory": "erdos-373-variants-maximal-solution-formalized",
+    "sha256": "sha256:5d0b88f4b18e57d9b93bb8ccb866f41016d5f60492c03e98854bb10449afede1",
+    "seconds": 40.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos375.erdos_375",
+    "mode": "counterexample",
+    "directory": "erdos-375-counterexample",
+    "sha256": "sha256:27047cce17d2839fcb2d8ac1072ad65e687c9143f8816384ca4727deb4139475",
+    "seconds": 38.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos375.erdos_375",
+    "mode": "formalized",
+    "directory": "erdos-375-formalized",
+    "sha256": "sha256:fe0a63eb33b0e8a19c6ca05093a70f874f0d0913f843e8ebd667905da5adc00f",
+    "seconds": 40.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos376.erdos_376",
+    "mode": "formalized",
+    "directory": "erdos-376-formalized",
+    "sha256": "sha256:3c462312565bfe7f00174bef7b592586aa579a168cdf92fad9eae8f8154aa8ca",
+    "seconds": 39.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos376.erdos_376",
+    "mode": "counterexample",
+    "directory": "erdos-376-counterexample",
+    "sha256": "sha256:a42f896e40f9cf3224e880c76043d78e703cf543dad49f9033602e3f6727a82c",
+    "seconds": 39.32,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos385.erdos_385.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-385-parts-i-formalized",
+    "sha256": "sha256:bc8f46a0088aa9ece0a78ebcbe92a475f6f9ee61b2e1d1478736d1ffce4b4279",
+    "seconds": 38.96,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos383.erdos_383",
+    "mode": "formalized",
+    "directory": "erdos-383-formalized",
+    "sha256": "sha256:102b3fcb893314ce8da85adabea552008616ff17790b9b437fbccd6e4e653da1",
+    "seconds": 39.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos383.erdos_383",
+    "mode": "counterexample",
+    "directory": "erdos-383-counterexample",
+    "sha256": "sha256:5a8f097e9a484b2efba05ff1c670eb5c82e5f2130b22f86226dcaa3744955e81",
+    "seconds": 39.61,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos385.erdos_385.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-385-parts-i-counterexample",
+    "sha256": "sha256:84888fb4a5b2801d08cdf03913e4e848290865eb5f51b7d528a7b71243b0df30",
+    "seconds": 39.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos386.erdos_386.variants.two",
+    "mode": "counterexample",
+    "directory": "erdos-386-variants-two-counterexample",
+    "sha256": "sha256:98653f0d4868c313f3fcf9202028b8c03f68b4536f3043ef2fe6a41fd9c839f5",
+    "seconds": 38.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos386.erdos_386.variants.two",
+    "mode": "formalized",
+    "directory": "erdos-386-variants-two-formalized",
+    "sha256": "sha256:8c6191f0dbb77296f221556675659f383e3c6b8335691d4e0ff9e4942b9803fe",
+    "seconds": 39.73,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos396.erdos_396",
+    "mode": "counterexample",
+    "directory": "erdos-396-counterexample",
+    "sha256": "sha256:9c1687ca16d931e3e3196a9d950c67c7d7a06c801048dfa5f66e03320be8a16e",
+    "seconds": 38.0,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos396.erdos_396",
+    "mode": "formalized",
+    "directory": "erdos-396-formalized",
+    "sha256": "sha256:aabe735ed626456e8d27aba07f646e70e96ff92c9c2bed1929f57704e6127dda",
+    "seconds": 39.84,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos398.erdos_398",
+    "mode": "formalized",
+    "directory": "erdos-398-formalized",
+    "sha256": "sha256:23694a1364b958d418a2d790bb9a9f5ef07e06a15800078b83b10f1cbdec4f55",
+    "seconds": 39.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos39.erdos_39",
+    "mode": "formalized",
+    "directory": "erdos-39-formalized",
+    "sha256": "sha256:f409b6371bbc685facefa040018a4718e326a42b86d91665e9f31c8e2fcf2441",
+    "seconds": 41.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos400.erdos_400.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-400-parts-i-counterexample",
+    "sha256": "sha256:64913b2c5c6c4ea4685dd89039a4d7be310941c9d0a6105ffeb606d94ece2475",
+    "seconds": 39.58,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos406.erdos_406.variants.one_two",
+    "mode": "formalized",
+    "directory": "erdos-406-variants-one-two-formalized",
+    "sha256": "sha256:e0adc1bf1f49f7f7bc63ed7345f775bbe8e48708ff85310273fb29b3cd51d443",
+    "seconds": 39.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos39.erdos_39",
+    "mode": "counterexample",
+    "directory": "erdos-39-counterexample",
+    "sha256": "sha256:12277ac1917e654571973de581e961f89dda2309596f7e5b4c15f1c7153002e9",
+    "seconds": 41.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos409.erdos_409.variants.sigma_termination",
+    "mode": "formalized",
+    "directory": "erdos-409-variants-sigma-termination-formalized",
+    "sha256": "sha256:788816cfc8d3362db2f54963c0c8243cfd998127aab3fb6be1ae06870f2106ca",
+    "seconds": 39.5,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos406.erdos_406.variants.one_two",
+    "mode": "counterexample",
+    "directory": "erdos-406-variants-one-two-counterexample",
+    "sha256": "sha256:b227116f452bb9c811bf5b0347415515bbeed3e1084a896fb1b5f8d970c574f0",
+    "seconds": 39.77,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos398.erdos_398",
+    "mode": "counterexample",
+    "directory": "erdos-398-counterexample",
+    "sha256": "sha256:6b7e342c50413e2bf038050daa22bab9e8c95b5b841d32b364b2b9cd63dc530f",
+    "seconds": 41.02,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos400.erdos_400.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-400-parts-i-formalized",
+    "sha256": "sha256:0f31f241b8b69f48341c8b6181e66e409ff3f4d09b63ce3e4dc89d7e97bf4d68",
+    "seconds": 41.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos41.erdos_41",
+    "mode": "formalized",
+    "directory": "erdos-41-formalized",
+    "sha256": "sha256:24f2324a8317d39365508f5c0c1fd2008cac68c95a411a619cde0fbd156a1cc4",
+    "seconds": 40.25,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos41.erdos_41",
+    "mode": "counterexample",
+    "directory": "erdos-41-counterexample",
+    "sha256": "sha256:6e8709da532a2c87489c88070177b82c5ce6837d608584faa33e3bdfbdb8bfee",
+    "seconds": 40.18,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos410.erdos_410",
+    "mode": "formalized",
+    "directory": "erdos-410-formalized",
+    "sha256": "sha256:44de2b92187e4d77136d19869312d4849164858c55949d63109b16ddf53c6a82",
+    "seconds": 39.39,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos409.erdos_409.variants.sigma_termination",
+    "mode": "counterexample",
+    "directory": "erdos-409-variants-sigma-termination-counterexample",
+    "sha256": "sha256:e02ce1b13d1dd1f15deb18dfe53c11fd178fa7e3a0f5fd108d70ca9664bebcbd",
+    "seconds": 40.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos410.erdos_410",
+    "mode": "counterexample",
+    "directory": "erdos-410-counterexample",
+    "sha256": "sha256:ff70587096bc53e7748751c114ffcd0410140c1545521e059f3f14a31790b7f4",
+    "seconds": 39.91,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos412.erdos_412",
+    "mode": "counterexample",
+    "directory": "erdos-412-counterexample",
+    "sha256": "sha256:5af46a7a280c516f1e26f3e52da29ae3426a39c2ca1d37fd06191b512312c0c3",
+    "seconds": 40.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos412.erdos_412",
+    "mode": "formalized",
+    "directory": "erdos-412-formalized",
+    "sha256": "sha256:b919dafe2f1b544a7d81854cbaaa014a74b94c30b1542a299f162b0ba14da680",
+    "seconds": 41.32,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos413.erdos_413.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-413-parts-i-formalized",
+    "sha256": "sha256:7f1f78c4427c54d0d17255336d95e48f467bb24dbe283c52a6e81749dda4b563",
+    "seconds": 39.58,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos413.erdos_413.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-413-parts-i-counterexample",
+    "sha256": "sha256:7b25e47016a643159fa875181bb3eb40e97bb7e9a31e6d01db9a252f0261561b",
+    "seconds": 39.87,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos414.erdos_414",
+    "mode": "counterexample",
+    "directory": "erdos-414-counterexample",
+    "sha256": "sha256:6c39932b6593bac80fc9c2fff3f052366835824432405c23c9302b22b70f58ad",
+    "seconds": 40.42,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos414.erdos_414",
+    "mode": "formalized",
+    "directory": "erdos-414-formalized",
+    "sha256": "sha256:69821bf94c8139a36e6816d5c52ec7cb011b4c6519374cd89848b65d2a4b7d98",
+    "seconds": 40.88,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos428.erdos_428",
+    "mode": "formalized",
+    "directory": "erdos-428-formalized",
+    "sha256": "sha256:03fb8d3d87cadebe8fc8377da7b7ebf035d77090bfbefae8981788db51839fb8",
+    "seconds": 39.1,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos416.erdos_416.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-416-parts-i-formalized",
+    "sha256": "sha256:58119880377047af8dd8916c78801b2211e1a1f967b9cde24f20243cd7b9fb37",
+    "seconds": 40.0,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos416.erdos_416.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-416-parts-i-counterexample",
+    "sha256": "sha256:6fa9df056f24f38e45867ca045667a8b16b360f5f262a0685f4249cc70d71be5",
+    "seconds": 39.49,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos428.erdos_428",
+    "mode": "counterexample",
+    "directory": "erdos-428-counterexample",
+    "sha256": "sha256:7c808ad2f6125cb00f712d37e5c18aa778192ca57f1b3bdf623332d80a4a2a8c",
+    "seconds": 40.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos44.erdos_44",
+    "mode": "formalized",
+    "directory": "erdos-44-formalized",
+    "sha256": "sha256:a7f1cd9f1fab107b02e695bfcd8fd7b4e03a36f07c55d0b62caeffb2be117a85",
+    "seconds": 39.97,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos445.erdos_445",
+    "mode": "formalized",
+    "directory": "erdos-445-formalized",
+    "sha256": "sha256:0f213c5314e9e246c3a6a8be5fad6b850b4f7de316301c504e65d2c9fe547568",
+    "seconds": 38.52,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos44.erdos_44",
+    "mode": "counterexample",
+    "directory": "erdos-44-counterexample",
+    "sha256": "sha256:0f36dcf8b4c4ce824937759409181aa438b044dd8131a4bec0f6645ea39b1cb8",
+    "seconds": 40.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos454.erdos_454",
+    "mode": "counterexample",
+    "directory": "erdos-454-counterexample",
+    "sha256": "sha256:81a9628df664c8fb7a8bca6308684ac3306c7f06d8e7aadc1f985602c81bdaa4",
+    "seconds": 39.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos454.erdos_454",
+    "mode": "formalized",
+    "directory": "erdos-454-formalized",
+    "sha256": "sha256:0ee0a570333abe84379112ac1a2e601ca149735c3381d42962b3efc2e8213612",
+    "seconds": 39.33,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos445.erdos_445",
+    "mode": "counterexample",
+    "directory": "erdos-445-counterexample",
+    "sha256": "sha256:fa028fdca5b37dac7ce9226dc122f166668bb7a62d8ba30a703583126b4f05c9",
+    "seconds": 39.67,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos455.erdos_455",
+    "mode": "counterexample",
+    "directory": "erdos-455-counterexample",
+    "sha256": "sha256:755606a815839ff3ce78327509613b1001bccd7740bc79ca7bc71e52ce89639b",
+    "seconds": 38.73,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos455.erdos_455",
+    "mode": "formalized",
+    "directory": "erdos-455-formalized",
+    "sha256": "sha256:e0d65f449f51ca87680faf6ce38663ae6b2770d7f7b882df9bd7b6408f7d3004",
+    "seconds": 39.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos456.erdos_456.parts.iii",
+    "mode": "formalized",
+    "directory": "erdos-456-parts-iii-formalized",
+    "sha256": "sha256:65817339f21b6955cee4de8a9d5d408868fc1204ad7172a3f1119d0d2aa954ee",
+    "seconds": 39.01,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos458.erdos_458",
+    "mode": "formalized",
+    "directory": "erdos-458-formalized",
+    "sha256": "sha256:336daa70f9c36b769697306acca28c7e0c2b416f6c36b0c7bbc5439e18aaf8d9",
+    "seconds": 39.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos456.erdos_456.parts.iii",
+    "mode": "counterexample",
+    "directory": "erdos-456-parts-iii-counterexample",
+    "sha256": "sha256:e593da8cb8349219dfaaf987ce070949dfcc3d9c5501b0070866dd93543f0dcd",
+    "seconds": 40.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos463.erdos_463",
+    "mode": "counterexample",
+    "directory": "erdos-463-counterexample",
+    "sha256": "sha256:499e0961227b4cd8c7d80f331fb5e97fd20feca47e493631863a01aca866787d",
+    "seconds": 38.81,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos495.erdos_495",
+    "mode": "formalized",
+    "directory": "erdos-495-formalized",
+    "sha256": "sha256:f7f7f1f0e2a3233728c5493e081fd998a59403df18ccac82bc8c76c18efd8b25",
+    "seconds": 38.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos479.erdos_479",
+    "mode": "formalized",
+    "directory": "erdos-479-formalized",
+    "sha256": "sha256:e29dfb55192d3b85b7353c4f53d4f7ce81fe616aba9a2ad0e102d20039b999bb",
+    "seconds": 39.56,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos463.erdos_463",
+    "mode": "formalized",
+    "directory": "erdos-463-formalized",
+    "sha256": "sha256:1ff9022b85f2871492f57a9011100591281baff24667c5423efc68a007c195f6",
+    "seconds": 40.62,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos495.erdos_495",
+    "mode": "counterexample",
+    "directory": "erdos-495-counterexample",
+    "sha256": "sha256:b3467661ffac1448b2baab885b017cdf6c3caf935a05c24fb6a216f14f23893a",
+    "seconds": 39.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos50.erdos_50",
+    "mode": "counterexample",
+    "directory": "erdos-50-counterexample",
+    "sha256": "sha256:08fc3d6e3793cee6dbb3e37637c43637bd21522024fac63ff1b081f8b712aa08",
+    "seconds": 39.24,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos517.erdos_517",
+    "mode": "counterexample",
+    "directory": "erdos-517-counterexample",
+    "sha256": "sha256:31f6e458daf1d55b5eab2ea2d33e1eab264c754d1002559c7eb01c876c919084",
+    "seconds": 38.67,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos458.erdos_458",
+    "mode": "counterexample",
+    "directory": "erdos-458-counterexample",
+    "sha256": "sha256:9d3395a04f5b5a1e29296843f47da07e6a9bcc68527f52e2cd226aa0908ade41",
+    "seconds": 41.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos479.erdos_479",
+    "mode": "counterexample",
+    "directory": "erdos-479-counterexample",
+    "sha256": "sha256:db93142533c3c4faacf478df6cefec28d0b245c56ac26ddcf46e6f3b74feafcc",
+    "seconds": 40.56,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos51.erdos_51",
+    "mode": "counterexample",
+    "directory": "erdos-51-counterexample",
+    "sha256": "sha256:347e0b399afbf36d649468602f9a38e1740a34e69af1f7fbb50154638bd99bc0",
+    "seconds": 39.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos51.erdos_51",
+    "mode": "formalized",
+    "directory": "erdos-51-formalized",
+    "sha256": "sha256:c183f69df24e1f679a58960c7d3b4d28f9ed4f97857e768067f3aa667016d144",
+    "seconds": 40.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos52.erdos_52",
+    "mode": "formalized",
+    "directory": "erdos-52-formalized",
+    "sha256": "sha256:3d5ed2ae25e2339d52f7172c18d1b8bfae7a8bf370a96921c87a98a47e831535",
+    "seconds": 39.72,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos50.erdos_50",
+    "mode": "formalized",
+    "directory": "erdos-50-formalized",
+    "sha256": "sha256:a5aab00d702476dd4191d075dc3844e8919b5dd7b22229e1f9e6d7567328415d",
+    "seconds": 40.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos517.erdos_517",
+    "mode": "formalized",
+    "directory": "erdos-517-formalized",
+    "sha256": "sha256:1e8d961bdbb8c97e5adef2b0857b65deb95a93ef2935a7c0868aceb6d1373e14",
+    "seconds": 40.7,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos52.erdos_52",
+    "mode": "counterexample",
+    "directory": "erdos-52-counterexample",
+    "sha256": "sha256:7822a5efebcf7e3240ac65dd94b82d716732df40d7251f4cf45ddf55607ba01f",
+    "seconds": 40.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos535.erdos_535",
+    "mode": "formalized",
+    "directory": "erdos-535-formalized",
+    "sha256": "sha256:057de682a28de6825cb09db8548c7615f6b94b78ddfc7fde5ad372be0bdba425",
+    "seconds": 39.92,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos535.erdos_535",
+    "mode": "counterexample",
+    "directory": "erdos-535-counterexample",
+    "sha256": "sha256:dd1de6ccf18b355e58b0ad39596ffd380092bf658408a306ab3d6061a831e7d2",
+    "seconds": 39.54,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos535.erdos_535.variants.first_open_case",
+    "mode": "formalized",
+    "directory": "erdos-535-variants-first-open-case-formalized",
+    "sha256": "sha256:c8e9c4d8f4281ba56a985f60c398ab57078e1d72993c77af0d00c32cfe2283a5",
+    "seconds": 38.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos564.erdos_564",
+    "mode": "counterexample",
+    "directory": "erdos-564-counterexample",
+    "sha256": "sha256:0336dfd35d54f8838fff455c7804ae40fac0a61a7216c9f77315956c1ecf2bac",
+    "seconds": 38.57,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos535.erdos_535.variants.first_open_case",
+    "mode": "counterexample",
+    "directory": "erdos-535-variants-first-open-case-counterexample",
+    "sha256": "sha256:3dd21e1763c38b4ff68a2a0b11e1061cf66c960fd97d18dc40b38b0162f6a0b8",
+    "seconds": 39.95,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos564.erdos_564",
+    "mode": "formalized",
+    "directory": "erdos-564-formalized",
+    "sha256": "sha256:5ef1d5a6fd6c1eb380584db655cae42658846d5b07116b6a09e2f772dc5b3bf7",
+    "seconds": 39.34,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos600.erdos_600.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-600-parts-i-formalized",
+    "sha256": "sha256:3175fcc59508578aa6bcf07f86e2af438d58cdeb12a137b0e2ebb5a61eb422c2",
+    "seconds": 39.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos579.erdos_579",
+    "mode": "formalized",
+    "directory": "erdos-579-formalized",
+    "sha256": "sha256:47489149c150ad66b65d537a7d9d3ceba97427f9042d5fcf49633761f45cc3f7",
+    "seconds": 39.84,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos579.erdos_579",
+    "mode": "counterexample",
+    "directory": "erdos-579-counterexample",
+    "sha256": "sha256:82dd7f020861a65aea4022ac054bab4c1f67a8b56ecc7b8ca42c4ed006d413e3",
+    "seconds": 40.01,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos600.erdos_600.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-600-parts-i-counterexample",
+    "sha256": "sha256:b0a8a812b74216b30244bfbb8d40c65cd5898f2bfb1938a7d05d1827754f0614",
+    "seconds": 39.47,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos61.erdos_61",
+    "mode": "formalized",
+    "directory": "erdos-61-formalized",
+    "sha256": "sha256:5c31f8e1d15bcb8d7b59480b5d36eaef7d1ca02f024adab044fefe89c00b12f3",
+    "seconds": 40.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos61.erdos_61",
+    "mode": "counterexample",
+    "directory": "erdos-61-counterexample",
+    "sha256": "sha256:245fe1ce4854dc4fc48ea2e4026619b489ed1e4c65b76e6a84a9ed86fdb95b30",
+    "seconds": 39.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos653.erdos_653",
+    "mode": "formalized",
+    "directory": "erdos-653-formalized",
+    "sha256": "sha256:e99fa34cbab58da823d0277bdaec2c6aeb489fb86637bf9620526a1b17dab763",
+    "seconds": 37.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos647.erdos_647",
+    "mode": "counterexample",
+    "directory": "erdos-647-counterexample",
+    "sha256": "sha256:2024d2310ad2bbb50b1240b830af12a4f58d88c44eab78ace8990139539bf9f1",
+    "seconds": 38.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos617.erdos_617",
+    "mode": "counterexample",
+    "directory": "erdos-617-counterexample",
+    "sha256": "sha256:ebeae98431358241ff5bb79cae8c8a12d786ced527bbc1aad9a88dccc061da24",
+    "seconds": 39.64,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos624.erdos_624",
+    "mode": "formalized",
+    "directory": "erdos-624-formalized",
+    "sha256": "sha256:358b36515ad5a90957b9ba219f4148fec18e843e1fed114c7a05a5500308808a",
+    "seconds": 39.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos617.erdos_617",
+    "mode": "formalized",
+    "directory": "erdos-617-formalized",
+    "sha256": "sha256:aca11db6c856afe58274fbeb7d7ec137c28f4eb6bf32215a66c0207f3ea6a4d8",
+    "seconds": 40.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos624.erdos_624",
+    "mode": "counterexample",
+    "directory": "erdos-624-counterexample",
+    "sha256": "sha256:b63ce60c5645026a84b096b9e4b411e216a352b805145f28f2f986039b2eafa5",
+    "seconds": 40.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos647.erdos_647",
+    "mode": "formalized",
+    "directory": "erdos-647-formalized",
+    "sha256": "sha256:20326267cf545a7ac1980656eb81fa1a3137a3b42dfb69eb1390e05fe3ee71b6",
+    "seconds": 40.21,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos672.erdos_672",
+    "mode": "formalized",
+    "directory": "erdos-672-formalized",
+    "sha256": "sha256:fbdba66d8c89445fe8f94b58528da92b4ef8cfc8214894a6b67ef8df12fbea97",
+    "seconds": 38.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos653.erdos_653",
+    "mode": "counterexample",
+    "directory": "erdos-653-counterexample",
+    "sha256": "sha256:e2e2ec0e2a8c322a1e051feebf6693eeec31af3ffab481743dd2d512fc992b7d",
+    "seconds": 40.05,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos66.erdos_66",
+    "mode": "formalized",
+    "directory": "erdos-66-formalized",
+    "sha256": "sha256:b633b4f57bee7cdd39c41e08e68559d762fc697a471ef5dd9ef0aef92545060f",
+    "seconds": 40.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos672.erdos_672",
+    "mode": "counterexample",
+    "directory": "erdos-672-counterexample",
+    "sha256": "sha256:9004c32381d662002386b108cbf8ac36844d6fe74b1436c580e265ce8193837e",
+    "seconds": 39.28,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos677.erdos_677",
+    "mode": "formalized",
+    "directory": "erdos-677-formalized",
+    "sha256": "sha256:c6ea40980af190558feea94f050e5070459fecc7b42257ab841c545690f587ee",
+    "seconds": 39.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos68.erdos_68",
+    "mode": "formalized",
+    "directory": "erdos-68-formalized",
+    "sha256": "sha256:cbbc6e4eff6417ca476087271f25cb510e5f9319b1a9cb43129c3e982ebf0110",
+    "seconds": 39.77,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos66.erdos_66",
+    "mode": "counterexample",
+    "directory": "erdos-66-counterexample",
+    "sha256": "sha256:193176e7af700712fffc2e7496d976671ed5e42d7cc703abff67eb4a30163470",
+    "seconds": 41.49,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos681.erdos_681",
+    "mode": "formalized",
+    "directory": "erdos-681-formalized",
+    "sha256": "sha256:a455ee2aac7379c4b27af89e87956f673787bc84451d289687d53d4737e6f0c0",
+    "seconds": 38.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos680.erdos_680.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-680-parts-i-formalized",
+    "sha256": "sha256:ffea72c3bc350235c2a7c6aa26c70976e19a1c3966b4ca384fb4747fdc34dbe1",
+    "seconds": 39.91,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos680.erdos_680.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-680-parts-i-counterexample",
+    "sha256": "sha256:4f75d930d07e3c1301dd49b26a952c5ee0500ae41d49ddf0b7aaaefd9ef90dc7",
+    "seconds": 39.95,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos677.erdos_677",
+    "mode": "counterexample",
+    "directory": "erdos-677-counterexample",
+    "sha256": "sha256:0892e4811501e503712455aaafaa619330ab8e78384de58727362225c8efb0c6",
+    "seconds": 40.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos680.erdos_680.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-680-parts-ii-formalized",
+    "sha256": "sha256:49eaafd3e5b6f50427a17a6bd2fe2d16ad31949bdc228b1ad34cd75123b5884b",
+    "seconds": 39.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos68.erdos_68",
+    "mode": "counterexample",
+    "directory": "erdos-68-counterexample",
+    "sha256": "sha256:6052a95fbd7edb8e402ef6ce4d05d2d5ebf5119d9f949c819d9d8a3768582ff6",
+    "seconds": 40.69,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos680.erdos_680.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-680-parts-ii-counterexample",
+    "sha256": "sha256:427a0e0e00f57887b534f757ebb974120169f28cfd873380db032c49ee9b944b",
+    "seconds": 40.57,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos686.erdos_686.variants.twenty_five",
+    "mode": "formalized",
+    "directory": "erdos-686-variants-twenty-five-formalized",
+    "sha256": "sha256:76335fbacb0bf7be173ed9da2f82124415b713693744d05b6b866d4c32d9683f",
+    "seconds": 39.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos681.erdos_681",
+    "mode": "counterexample",
+    "directory": "erdos-681-counterexample",
+    "sha256": "sha256:35cc5450a4a67b216a2e503cf86f4ce757eeee469708394fc4b4fe593b611f2d",
+    "seconds": 40.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos686.erdos_686.variants.four",
+    "mode": "formalized",
+    "directory": "erdos-686-variants-four-formalized",
+    "sha256": "sha256:d2b5875f5fccfb71b45caa9cc1e32590e13ec9a34b7f2dcb035226a5bf64619e",
+    "seconds": 40.42,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos686.erdos_686.variants.four",
+    "mode": "counterexample",
+    "directory": "erdos-686-variants-four-counterexample",
+    "sha256": "sha256:fd4a43d522db76dd4332f5ac6205cc04c6d1c85e136d63bde9a2e05df053269a",
+    "seconds": 40.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos686.erdos_686.variants.twenty_five",
+    "mode": "counterexample",
+    "directory": "erdos-686-variants-twenty-five-counterexample",
+    "sha256": "sha256:8cb63d9caa562251786ee6d3844bf38844c8f7eda39b63e59ade6d9a38a7f013",
+    "seconds": 40.81,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos695.erdos_695",
+    "mode": "formalized",
+    "directory": "erdos-695-formalized",
+    "sha256": "sha256:a4b5e18cc7f0db00f3938de1bbf27d2259adbd6f0c9f52554e8331daf3e6b773",
+    "seconds": 38.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos688.erdos_688.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-688-parts-ii-formalized",
+    "sha256": "sha256:2da4989c117b2c0ae2e99aad99784d703e0685f157fc06807fea919a288b5780",
+    "seconds": 40.54,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos688.erdos_688.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-688-parts-ii-counterexample",
+    "sha256": "sha256:1500b9ce52331350fbbca07c48c4dfb9b0b9eca8529a1d38c6808a6b0a3247e9",
+    "seconds": 39.26,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos695.erdos_695",
+    "mode": "counterexample",
+    "directory": "erdos-695-counterexample",
+    "sha256": "sha256:c558b9878089ab803aa22a2f9003e87f796e2bb59591cbe662f36d5bef5ddafc",
+    "seconds": 39.29,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos699.erdos_699",
+    "mode": "formalized",
+    "directory": "erdos-699-formalized",
+    "sha256": "sha256:e91ec4c694ab1fc1678cdf4884520bd90db0f1833b8b1e884bfe24b1f7715d0f",
+    "seconds": 39.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos695.erdos_695.variants.upperBound",
+    "mode": "counterexample",
+    "directory": "erdos-695-variants-upperbound-counterexample",
+    "sha256": "sha256:eb8e9f4faf3c338325a42c544a5b64f5cd909be4238208e6f9e7d0a3d3d570f7",
+    "seconds": 39.67,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos695.erdos_695.variants.upperBound",
+    "mode": "formalized",
+    "directory": "erdos-695-variants-upperbound-formalized",
+    "sha256": "sha256:a5d964651bcbc0d49d1ab90a765862e4778551c3540452108bac1180e8b4c8aa",
+    "seconds": 40.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos699.erdos_699",
+    "mode": "counterexample",
+    "directory": "erdos-699-counterexample",
+    "sha256": "sha256:bfa0f973d305e06b22c1ce56e2be9973142ce71aba9ed6851451acc582691d86",
+    "seconds": 39.93,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos70.erdos_70.variants.omega_times_two_four",
+    "mode": "counterexample",
+    "directory": "erdos-70-variants-omega-times-two-four-counterexample",
+    "sha256": "sha256:8bbf4cd56b78a6a6cf8b25fc52dfc04abe26f129846399dfda69017cff8a01bf",
+    "seconds": 39.01,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos70.erdos_70.variants.omega_times_two_four",
+    "mode": "formalized",
+    "directory": "erdos-70-variants-omega-times-two-four-formalized",
+    "sha256": "sha256:89a9664a7e355009a693117c51eaac8223b8d2004bfa49127244df10fa7c6dbb",
+    "seconds": 39.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos701.erdos_701",
+    "mode": "formalized",
+    "directory": "erdos-701-formalized",
+    "sha256": "sha256:23babed48cd514be93812602fa03c3142c76b04f038faa1f1112a2d0cef3523c",
+    "seconds": 39.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos701.erdos_701",
+    "mode": "counterexample",
+    "directory": "erdos-701-counterexample",
+    "sha256": "sha256:fbbf02aab3c1ee1103b6401d18de498f7e45d1bb76bd404e23c1d124c0533fa1",
+    "seconds": 39.64,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos726.erdos_726",
+    "mode": "formalized",
+    "directory": "erdos-726-formalized",
+    "sha256": "sha256:acc0e2ce5b40b524e0cdac5e4498142997dc04b7003cec3255d66f7bae52f0c2",
+    "seconds": 39.44,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos723.erdos_723.variants.eq_12",
+    "mode": "counterexample",
+    "directory": "erdos-723-variants-eq-12-counterexample",
+    "sha256": "sha256:f4f5061bf24f33b7c57e98a82357a1cdfa53d63cd1415d85a1d37ed573a519df",
+    "seconds": 40.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos723.erdos_723.variants.eq_12",
+    "mode": "formalized",
+    "directory": "erdos-723-variants-eq-12-formalized",
+    "sha256": "sha256:28de771327a88ee1b594ef7eb1499f312ed4c93629cb61f6a786f95a514fe527",
+    "seconds": 40.37,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos749.erdos_749",
+    "mode": "formalized",
+    "directory": "erdos-749-formalized",
+    "sha256": "sha256:3f79e1778eb458cc0fa2ab4986bef9468bfb10e96800f2cb45ec5e49824cf78a",
+    "seconds": 39.54,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos726.erdos_726",
+    "mode": "counterexample",
+    "directory": "erdos-726-counterexample",
+    "sha256": "sha256:937b2caa7c0ddbd801e04a1743068ea698fe7551285cfaea7157d263a177f707",
+    "seconds": 40.18,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos770.erdos_770.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-770-parts-i-formalized",
+    "sha256": "sha256:db6d673393ae066042ba8a165337339b7486bc10fdd13c6a409ac7d40fa37441",
+    "seconds": 38.86,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos749.erdos_749",
+    "mode": "counterexample",
+    "directory": "erdos-749-counterexample",
+    "sha256": "sha256:ce9edf4b3b470991eaab7d7de2e79d42574960361e86f03d58889aac52433a89",
+    "seconds": 39.51,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos770.erdos_770.variants.three",
+    "mode": "counterexample",
+    "directory": "erdos-770-variants-three-counterexample",
+    "sha256": "sha256:7295103c301ec82c164148684dcba83be04036880559226bb47981c2e60313a1",
+    "seconds": 38.24,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos770.erdos_770.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-770-parts-i-counterexample",
+    "sha256": "sha256:7b74e08ea24e6eff97937863c3e0beb017f047602794d91f8dedfea699a3ce81",
+    "seconds": 40.1,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos770.erdos_770.variants.three",
+    "mode": "formalized",
+    "directory": "erdos-770-variants-three-formalized",
+    "sha256": "sha256:4417aeb7bdfb1f78d1e60d9dffaa1208830380487659b89623af09a3a485daae",
+    "seconds": 40.26,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos774.erdos_774",
+    "mode": "counterexample",
+    "directory": "erdos-774-counterexample",
+    "sha256": "sha256:cfca20554623b9be2e1756f5644cc565ba97fbb236a67db7ebf8b34f10bd5b5a",
+    "seconds": 38.97,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos779.erdos_779",
+    "mode": "formalized",
+    "directory": "erdos-779-formalized",
+    "sha256": "sha256:04f950e40bc38795e583e051227e932ebff3500d9aa7066b98f41efd60c235ac",
+    "seconds": 39.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos779.erdos_779",
+    "mode": "counterexample",
+    "directory": "erdos-779-counterexample",
+    "sha256": "sha256:6654d907f24a2398813037bebc2384d1cc6752c11113ff72a0ad98a6af2f75cd",
+    "seconds": 39.02,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos774.erdos_774",
+    "mode": "formalized",
+    "directory": "erdos-774-formalized",
+    "sha256": "sha256:10c54a61bfc9e053ca78fcf5c1789ed2be74c505ab4455725ddd1ed1002016c9",
+    "seconds": 39.98,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos789.erdos_789.variants.sq",
+    "mode": "counterexample",
+    "directory": "erdos-789-variants-sq-counterexample",
+    "sha256": "sha256:5ace2625afc97622d91d4545a278bdc5877b710537c8799a5f0d91d40dbdd519",
+    "seconds": 39.51,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos789.erdos_789.variants.sq",
+    "mode": "formalized",
+    "directory": "erdos-789-variants-sq-formalized",
+    "sha256": "sha256:2041e3473de56db67d05a8ec0ce96bbfb718b3ff30988f699f6a57993dcde2a4",
+    "seconds": 40.61,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos812.erdos_812.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-812-parts-i-formalized",
+    "sha256": "sha256:7da35a85f88da3703cd54c3ad50a3ca1800accfda28c20e680da4158c0fc40e2",
+    "seconds": 40.73,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos82.erdos_82",
+    "mode": "formalized",
+    "directory": "erdos-82-formalized",
+    "sha256": "sha256:4d4e7f24d53d1baede1b7ee4a7c567ff6a8dbe66ee8537243d50f9570597c9ad",
+    "seconds": 39.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos82.erdos_82",
+    "mode": "counterexample",
+    "directory": "erdos-82-counterexample",
+    "sha256": "sha256:dfe510e0912d999b736d50520cb03a9c8148980f9246f639d4ab06423697f1b7",
+    "seconds": 39.57,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos812.erdos_812.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-812-parts-i-counterexample",
+    "sha256": "sha256:02b9ea3b1baff580564229aac69a6160d784dd9d683d1c5067723af5e6d5291e",
+    "seconds": 41.53,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos821.erdos_821",
+    "mode": "formalized",
+    "directory": "erdos-821-formalized",
+    "sha256": "sha256:b88ecbd93e17c91f00925ba2ebff04859ba13a2e019a2ed5488412d69b00c34f",
+    "seconds": 40.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos828.erdos_828",
+    "mode": "formalized",
+    "directory": "erdos-828-formalized",
+    "sha256": "sha256:78c9eda63483382317a9cb0d009fa546f2c1c6050643ee85f3d3e000237de5d1",
+    "seconds": 40.04,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos821.erdos_821",
+    "mode": "counterexample",
+    "directory": "erdos-821-counterexample",
+    "sha256": "sha256:3b47a37e9890580d523bf8850b327d88e66b0b9da14ba5f8a683076933c9b293",
+    "seconds": 40.76,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos828.erdos_828",
+    "mode": "counterexample",
+    "directory": "erdos-828-counterexample",
+    "sha256": "sha256:8fb5d6af4b921a1a1b58f1527763133223e556d52004a35407c811f55c816def",
+    "seconds": 40.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos828.erdos_828.variants.lehmer_conjecture",
+    "mode": "counterexample",
+    "directory": "erdos-828-variants-lehmer-conjecture-counterexample",
+    "sha256": "sha256:9e1b0eebb78f6367414948758d63b33ba7e07a24646e635ab4d7e56b7d3f7dac",
+    "seconds": 40.49,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos828.erdos_828.variants.lehmer_conjecture",
+    "mode": "formalized",
+    "directory": "erdos-828-variants-lehmer-conjecture-formalized",
+    "sha256": "sha256:c0256ba45378e6315fe29f22f065e45a32d47bd1f094b2facea1f9c19273b93b",
+    "seconds": 40.64,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos829.erdos_829",
+    "mode": "formalized",
+    "directory": "erdos-829-formalized",
+    "sha256": "sha256:2d419293e8485d3827fec286e6697133baea39968ce76d1a1f239abc488c519b",
+    "seconds": 40.5,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos829.erdos_829",
+    "mode": "counterexample",
+    "directory": "erdos-829-counterexample",
+    "sha256": "sha256:1da5cf23d6908b657c08fdc2ef7eb8efa69cdfb35c1bd5f398e95d27ae08706f",
+    "seconds": 40.35,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos849.erdos_849",
+    "mode": "formalized",
+    "directory": "erdos-849-formalized",
+    "sha256": "sha256:26a67288cedd7699a4bda92134afef81ad4815e44b36e46d6e8690a12acf9cc5",
+    "seconds": 39.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos835.erdos_835",
+    "mode": "counterexample",
+    "directory": "erdos-835-counterexample",
+    "sha256": "sha256:5b1f1a901af2645366bcb3e8fcbad19947b539c8f8d9147af7ffadea109123e9",
+    "seconds": 39.49,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos85.erdos_85",
+    "mode": "formalized",
+    "directory": "erdos-85-formalized",
+    "sha256": "sha256:39cfd0434fd88b44054616cff7021d4214ef44196063d1bffbb388efd1346ea8",
+    "seconds": 38.4,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos835.erdos_835",
+    "mode": "formalized",
+    "directory": "erdos-835-formalized",
+    "sha256": "sha256:3d1fb1a14b54fe164e1d101de1b80e782fbfe03172e0e6cb5e209604a8a63081",
+    "seconds": 40.3,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos85.erdos_85",
+    "mode": "counterexample",
+    "directory": "erdos-85-counterexample",
+    "sha256": "sha256:06d38ff4e229e5ae2dd5b8c421e0ececbc2f3d14403f8d7ed38bee3a18dbed1e",
+    "seconds": 38.79,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos853.erdos_853.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-853-parts-i-formalized",
+    "sha256": "sha256:746fd934dfe88cbf0eda8766fdfee7e0c60b7a66fbd7b9487f453fad6b5bea19",
+    "seconds": 38.35,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos849.erdos_849",
+    "mode": "counterexample",
+    "directory": "erdos-849-counterexample",
+    "sha256": "sha256:b65bc6ec9c30149f402d8e469d923cae5a597f701a1c6f229e37dbd1dbe3a971",
+    "seconds": 39.95,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos853.erdos_853.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-853-parts-ii-formalized",
+    "sha256": "sha256:4b23701c7c003ae618e595a911f4e616cf6752895c58c2b32849074cd4328301",
+    "seconds": 39.25,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos853.erdos_853.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-853-parts-i-counterexample",
+    "sha256": "sha256:e1ad449b9f060afc8395015925d431958a5e7d248817a4d5c6abcb1afb3d5d77",
+    "seconds": 39.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos853.erdos_853.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-853-parts-ii-counterexample",
+    "sha256": "sha256:4e5e1979e797fd16cbeceac9505fa1d0f0aea50f1c44522bd27abc9c6131a93f",
+    "seconds": 39.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos859.erdos_859",
+    "mode": "formalized",
+    "directory": "erdos-859-formalized",
+    "sha256": "sha256:2054964cb4a039de0f16c77fda01414ece8eb2cae6ea63d5ca3325b82dd67f1d",
+    "seconds": 39.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos873.erdos_873",
+    "mode": "formalized",
+    "directory": "erdos-873-formalized",
+    "sha256": "sha256:b8643709a74bf0a45ab40d89ae8bdd5e358d8a5d1743789c34ef31070c92e412",
+    "seconds": 40.06,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos859.erdos_859",
+    "mode": "counterexample",
+    "directory": "erdos-859-counterexample",
+    "sha256": "sha256:107473b4c482f581571820568e3dd9beb7f0588b498149f1f65df183fb034857",
+    "seconds": 40.65,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos873.erdos_873",
+    "mode": "counterexample",
+    "directory": "erdos-873-counterexample",
+    "sha256": "sha256:3ecb042b7211ddef4fb8dca39f87598be1152b1844e923ea010eec2e1a33642e",
+    "seconds": 39.52,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos885.erdos_885",
+    "mode": "formalized",
+    "directory": "erdos-885-formalized",
+    "sha256": "sha256:2811c71aee7ac2b91b690f93317e31a1bf0973faca589ebfba6aca09d8719c29",
+    "seconds": 39.61,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos886.erdos_886",
+    "mode": "counterexample",
+    "directory": "erdos-886-counterexample",
+    "sha256": "sha256:40625a5cefab7d7947f7e7c1f654db2f91043474edf18fe260a24ed2d6243e6f",
+    "seconds": 38.1,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos885.erdos_885",
+    "mode": "counterexample",
+    "directory": "erdos-885-counterexample",
+    "sha256": "sha256:1bb7083ea16698b47500c064f62971cce39a3b2214efba0a3619532c9c4698aa",
+    "seconds": 39.96,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos886.erdos_886",
+    "mode": "formalized",
+    "directory": "erdos-886-formalized",
+    "sha256": "sha256:f5fa38f62e9213609b44c71db24fe739fefe695fb4fbe005ea814dd7088e55f3",
+    "seconds": 39.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos889.erdos_889",
+    "mode": "counterexample",
+    "directory": "erdos-889-counterexample",
+    "sha256": "sha256:e01e94db12c88acab222f467e382ea8f7a25eab10ee7045121778202a36896b8",
+    "seconds": 38.51,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos887.erdos_887.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-887-parts-ii-formalized",
+    "sha256": "sha256:137688c6299522c829934bbe018fd4e560a45ece6c5d76b8a0b8fbbd9835a49a",
+    "seconds": 39.53,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos887.erdos_887.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-887-parts-ii-counterexample",
+    "sha256": "sha256:20d3dda97a26b1fa3449202171fb758c4d9e48fa8ed7bfbdbdac449fa570584d",
+    "seconds": 39.26,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos889.erdos_889",
+    "mode": "formalized",
+    "directory": "erdos-889-formalized",
+    "sha256": "sha256:1b9c9a81d32287e7b3853850db3a1461a8a3691eef5957c1e3dd4d5eceadf385",
+    "seconds": 39.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos889.erdos_889.variants.general",
+    "mode": "formalized",
+    "directory": "erdos-889-variants-general-formalized",
+    "sha256": "sha256:35aa1d59c1a580e8f9f9d2b892a82e7a5130e12d9c4008e3f24495cab47b0964",
+    "seconds": 39.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos889.erdos_889.variants.general",
+    "mode": "counterexample",
+    "directory": "erdos-889-variants-general-counterexample",
+    "sha256": "sha256:2e270f92eeaa81a2b11359aa363a5d8f202d533a2a450ba0a2ba64e7174d6d2c",
+    "seconds": 38.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos89.erdos_89",
+    "mode": "formalized",
+    "directory": "erdos-89-formalized",
+    "sha256": "sha256:5a5a824a92d8373afb218815e92c472249047fe1e1303929bec88cbef35faf3a",
+    "seconds": 39.99,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos89.erdos_89",
+    "mode": "counterexample",
+    "directory": "erdos-89-counterexample",
+    "sha256": "sha256:d34073d0af73df5c89298b5fd99ea9e582cd83d2a597c8006e69df4dcc137c10",
+    "seconds": 40.06,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos890.erdos_890.parts.a",
+    "mode": "formalized",
+    "directory": "erdos-890-parts-a-formalized",
+    "sha256": "sha256:3c32d4622350b4fb2c645ed5582559be7509ac4657c9fb1637149128e1c46904",
+    "seconds": 40.05,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos890.erdos_890.parts.a",
+    "mode": "counterexample",
+    "directory": "erdos-890-parts-a-counterexample",
+    "sha256": "sha256:63073ced4cce65807965957dbd5679c370131058643c59f659f884d98b4416ba",
+    "seconds": 39.36,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos890.erdos_890.parts.b",
+    "mode": "formalized",
+    "directory": "erdos-890-parts-b-formalized",
+    "sha256": "sha256:33ef2ebc6a22d9dbf104836d005a8953533e6846dc1df6982f87d2ec108b66c9",
+    "seconds": 40.77,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos891.erdos_891",
+    "mode": "formalized",
+    "directory": "erdos-891-formalized",
+    "sha256": "sha256:920dc96df29ebc67c30f741b3fd03f62feb72c2f14be2960b0f13c232a3ebbb2",
+    "seconds": 40.58,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos891.erdos_891",
+    "mode": "counterexample",
+    "directory": "erdos-891-counterexample",
+    "sha256": "sha256:93c4ae3f199def9484e614bfca7daaa9a5cf70368a9f09f0c176cb4888882964",
+    "seconds": 39.57,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos890.erdos_890.parts.b",
+    "mode": "counterexample",
+    "directory": "erdos-890-parts-b-counterexample",
+    "sha256": "sha256:1b967e9aa1a01ba30234f580f07bb5ec0f573db6f447c3d5995760fc357616e6",
+    "seconds": 41.62,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos893.erdos_893",
+    "mode": "formalized",
+    "directory": "erdos-893-formalized",
+    "sha256": "sha256:1404c44a90846ded201883d5247f73f590f366994467571513931e10ba2bab8e",
+    "seconds": 38.73,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos893.erdos_893",
+    "mode": "counterexample",
+    "directory": "erdos-893-counterexample",
+    "sha256": "sha256:ed633f3463266c049fd2132e2fb86743c2b955c9808c852ba76c9447c1d06cde",
+    "seconds": 38.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos9.erdos_9",
+    "mode": "formalized",
+    "directory": "erdos-9-formalized",
+    "sha256": "sha256:606388ddc258e0ffe6b8daea82e511ae131929b5741a0bd0c3b88720d50ff2a9",
+    "seconds": 38.8,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos91.erdos_91",
+    "mode": "counterexample",
+    "directory": "erdos-91-counterexample",
+    "sha256": "sha256:6b4a009bf775f06015debfb721d8a76bc7ce0f0ce58afb71a430d885fe94cacd",
+    "seconds": 38.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos9.erdos_9",
+    "mode": "counterexample",
+    "directory": "erdos-9-counterexample",
+    "sha256": "sha256:4fb08b0cc2b20cb90e391d150b4e2ade6a679186c9881677b1558eeacb8c2619",
+    "seconds": 40.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos91.erdos_91",
+    "mode": "formalized",
+    "directory": "erdos-91-formalized",
+    "sha256": "sha256:ccd2c80186e203e907be88e1cbf93faa08f98e7eadfff8ec2c5dd1c457b0316b",
+    "seconds": 40.65,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos912.erdos_912",
+    "mode": "formalized",
+    "directory": "erdos-912-formalized",
+    "sha256": "sha256:fe379dd5df1e6017eef541f5dc785d427276f1f2db328768bfd534c103ca09cd",
+    "seconds": 40.01,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos912.erdos_912.variants.tao",
+    "mode": "formalized",
+    "directory": "erdos-912-variants-tao-formalized",
+    "sha256": "sha256:81f657529e6b83b9b68d9063ef8c38c4c00e200f6f860a5928a021d728704bcb",
+    "seconds": 39.67,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos912.erdos_912.variants.tao",
+    "mode": "counterexample",
+    "directory": "erdos-912-variants-tao-counterexample",
+    "sha256": "sha256:fc647094d3ac66236b9be11f845ef06a9262bced8dab2d64a4c4bd8e90264ce1",
+    "seconds": 39.33,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos912.erdos_912",
+    "mode": "counterexample",
+    "directory": "erdos-912-counterexample",
+    "sha256": "sha256:a83e234554c94cb709359f8133df6fe057400bfac536426813e08b1a2f0fbdff",
+    "seconds": 40.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos913.erdos_913.variants.infinite_many_8p_sq_sub_one_primes",
+    "mode": "formalized",
+    "directory": "erdos-913-variants-infinite-many-8p-sq-sub-one-primes-formalized",
+    "sha256": "sha256:9eba1d1819fe58dbe17582319a4c4feef858f768a528b53307f3e6e9caf068b9",
+    "seconds": 39.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos913.erdos_913.variants.infinite_many_8p_sq_sub_one_primes",
+    "mode": "counterexample",
+    "directory": "erdos-913-variants-infinite-many-8p-sq-sub-one-primes-counterexample",
+    "sha256": "sha256:2b24e259d75874c0a20d82f3b192d7fcd2056ebc07c4766aca36a9dc689eab30",
+    "seconds": 38.42,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos930.erdos_930",
+    "mode": "formalized",
+    "directory": "erdos-930-formalized",
+    "sha256": "sha256:8158f5827f58f3f3b1ac30a124b731ad3b2d461e226963859151006220510f92",
+    "seconds": 39.82,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos930.erdos_930",
+    "mode": "counterexample",
+    "directory": "erdos-930-counterexample",
+    "sha256": "sha256:5ef62b34fa269c0bef7d36622470751e2256b6833942e265fbe9ca5da76e9793",
+    "seconds": 39.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos931.erdos_931",
+    "mode": "formalized",
+    "directory": "erdos-931-formalized",
+    "sha256": "sha256:33b11b6341b55c20e4605d718fac51f6ec2b26f93b0a2fe946c09a276fe4930f",
+    "seconds": 39.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos932.erdos_932",
+    "mode": "formalized",
+    "directory": "erdos-932-formalized",
+    "sha256": "sha256:338f8ef58bb9eccaa5cf103bada5f517c557f3340775eb13a3886b2dd4532717",
+    "seconds": 39.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos932.erdos_932",
+    "mode": "counterexample",
+    "directory": "erdos-932-counterexample",
+    "sha256": "sha256:1c6dbea89f1449b908e3ec7b2c7dc531c6f536348acffcfa8be728e129d2b1bb",
+    "seconds": 38.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos931.erdos_931",
+    "mode": "counterexample",
+    "directory": "erdos-931-counterexample",
+    "sha256": "sha256:f70d43ff674b6be6848c0f3dc252c34e312ed4f0cb86f95acc53f6bc57056ce4",
+    "seconds": 39.92,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos933.erdos_933",
+    "mode": "formalized",
+    "directory": "erdos-933-formalized",
+    "sha256": "sha256:a3851fb253012fff9b42bfe4d416ae07859c6a5a39ccf5861747496164a99e8c",
+    "seconds": 39.71,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos933.erdos_933",
+    "mode": "counterexample",
+    "directory": "erdos-933-counterexample",
+    "sha256": "sha256:3d3996b09044aaa1f33dd7d248d8b32a1c2d1483def70cd046882f5c7592a213",
+    "seconds": 39.24,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.factorial_add_one",
+    "mode": "formalized",
+    "directory": "erdos-936-variants-factorial-add-one-formalized",
+    "sha256": "sha256:054c0eb5718b00c76c01c3f1a116acc1ac627b53af202dc8b2968a1125708299",
+    "seconds": 39.46,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.two_pow_add_one",
+    "mode": "formalized",
+    "directory": "erdos-936-variants-two-pow-add-one-formalized",
+    "sha256": "sha256:7f7f8be418b8af632c475cc205218c70e57bda5ed57f0c726c51b2f9940c4d40",
+    "seconds": 39.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.factorial_add_one",
+    "mode": "counterexample",
+    "directory": "erdos-936-variants-factorial-add-one-counterexample",
+    "sha256": "sha256:6c30b485150dbd109d650a0c9fe0030643b6f4a647b9d71a7959188c6840962d",
+    "seconds": 39.83,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.two_pow_sub_one",
+    "mode": "formalized",
+    "directory": "erdos-936-variants-two-pow-sub-one-formalized",
+    "sha256": "sha256:79602d4e5049399ed8d4652b6a96fe315604979e0bdce0cf121e1b6ceacbb51a",
+    "seconds": 39.04,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.two_pow_add_one",
+    "mode": "counterexample",
+    "directory": "erdos-936-variants-two-pow-add-one-counterexample",
+    "sha256": "sha256:a2843899583dfcfc856d49679713ef3456dc97851cb3c97dffab9e5ceae4c4e7",
+    "seconds": 39.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.factorial_sub_one",
+    "mode": "counterexample",
+    "directory": "erdos-936-variants-factorial-sub-one-counterexample",
+    "sha256": "sha256:b0ca72b7ea7e1049695ad6321993093d01d82dab899b69862663f3d70bfdb2b9",
+    "seconds": 40.8,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.factorial_sub_one",
+    "mode": "formalized",
+    "directory": "erdos-936-variants-factorial-sub-one-formalized",
+    "sha256": "sha256:fecf22cdd8aa1b327f65d0b85662a565be7011126fb88b06e5d99cbbaa3c9091",
+    "seconds": 40.97,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos936.erdos_936.variants.two_pow_sub_one",
+    "mode": "counterexample",
+    "directory": "erdos-936-variants-two-pow-sub-one-counterexample",
+    "sha256": "sha256:33b06441e92bb1598fd0aa0d2be942b44ca81fd90debf5f75ac90a3a02e06120",
+    "seconds": 40.22,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos943.erdos_943",
+    "mode": "formalized",
+    "directory": "erdos-943-formalized",
+    "sha256": "sha256:c840c1e7644927c80c82ed25e6249829b12e59d2c1ea4f7d5cb5ed90a93ca4aa",
+    "seconds": 39.02,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos942.erdos_942",
+    "mode": "counterexample",
+    "directory": "erdos-942-counterexample",
+    "sha256": "sha256:f92a7b1bfde9b40a3208406ad23caf5be1e18b2720b43edd4faf70159e98b398",
+    "seconds": 39.89,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos942.erdos_942",
+    "mode": "formalized",
+    "directory": "erdos-942-formalized",
+    "sha256": "sha256:c4a5479ad6e972a35c9b026888dabc40fd7652496edadf665fb25bb18c07e033",
+    "seconds": 40.23,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos943.erdos_943",
+    "mode": "counterexample",
+    "directory": "erdos-943-counterexample",
+    "sha256": "sha256:03f1efc71d65576bdd188871f9b654ea2e652f8387f74aa1b2974769a74b1e1c",
+    "seconds": 40.01,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos944.erdos_944",
+    "mode": "formalized",
+    "directory": "erdos-944-formalized",
+    "sha256": "sha256:d50152f494d1bd03b7e85f8f0dbc22c1a714ac671f33f05412e7b9d24b35006f",
+    "seconds": 39.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos944.erdos_944",
+    "mode": "counterexample",
+    "directory": "erdos-944-counterexample",
+    "sha256": "sha256:afb8c5f65f20eb654e8f040d920b2d198396496ce887084cb6ae800b581dce34",
+    "seconds": 39.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos945.erdos_945",
+    "mode": "counterexample",
+    "directory": "erdos-945-counterexample",
+    "sha256": "sha256:7a26ad89232332b2b448ed133553e0218eb4f66b8b9f2ebf0b10036838c75d5f",
+    "seconds": 39.86,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos945.erdos_945",
+    "mode": "formalized",
+    "directory": "erdos-945-formalized",
+    "sha256": "sha256:234500e2517831f7be6b26ed392c1f0f2873de175c5a0d32823f7ca0cd88d7ca",
+    "seconds": 40.29,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos949.erdos_949",
+    "mode": "formalized",
+    "directory": "erdos-949-formalized",
+    "sha256": "sha256:473bd8112dcaa75f33ae4fa92667dbc9b6a714e9f29efd4612e8d3987a591aa5",
+    "seconds": 39.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos949.erdos_949",
+    "mode": "counterexample",
+    "directory": "erdos-949-counterexample",
+    "sha256": "sha256:facd4ae4bdf6dbd35473a1e0b0009576449ff22d2724e804b4682afe5f0a4358",
+    "seconds": 39.18,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos950.erdos_950.parts.i",
+    "mode": "formalized",
+    "directory": "erdos-950-parts-i-formalized",
+    "sha256": "sha256:046e360b97ea0624b19d5bb485e45df6724c9fb915e1ad524b241b13be926c3e",
+    "seconds": 39.25,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos950.erdos_950.parts.i",
+    "mode": "counterexample",
+    "directory": "erdos-950-parts-i-counterexample",
+    "sha256": "sha256:72230fa076b35143d4d3d1e8dc3c94283bf3a9d9c95cc55c7c0c6f8b94894c90",
+    "seconds": 39.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos950.erdos_950.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-950-parts-ii-formalized",
+    "sha256": "sha256:545748f18c3c56bb347c1037a8f3f96846e3c5001fd44fc9a8fd2b7356d8e579",
+    "seconds": 39.88,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos950.erdos_950.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-950-parts-ii-counterexample",
+    "sha256": "sha256:6d3fd3755ecdc848a71ed673b1a7ff97cf8527e7a2f54a9b8c095412fe9846cb",
+    "seconds": 39.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos951.erdos_951",
+    "mode": "counterexample",
+    "directory": "erdos-951-counterexample",
+    "sha256": "sha256:a23fcccd2ef61a471c51afe43d92cc2998a94d2fce9b5069e50f934d49d17f4f",
+    "seconds": 39.48,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos951.erdos_951",
+    "mode": "formalized",
+    "directory": "erdos-951-formalized",
+    "sha256": "sha256:bdaad48180adba0254f76af47ae10694f11159f45dc0ca773b95655dda0950e4",
+    "seconds": 39.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos950.erdos_950.parts.iii",
+    "mode": "formalized",
+    "directory": "erdos-950-parts-iii-formalized",
+    "sha256": "sha256:243a7c54e22337d03d7cbfe5e173826e2f64a0ca48941903536396b4e9e6ddaa",
+    "seconds": 40.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos950.erdos_950.parts.iii",
+    "mode": "counterexample",
+    "directory": "erdos-950-parts-iii-counterexample",
+    "sha256": "sha256:4455d710243d2f6a064a30bd2a12044e91753d81d18514208e43a114a58e2475",
+    "seconds": 40.81,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos952.erdos_952",
+    "mode": "formalized",
+    "directory": "erdos-952-formalized",
+    "sha256": "sha256:a64a9ce3c5f7818bc326df2f33617741eab17c3df66c6c4bf17fdcec6947afb8",
+    "seconds": 40.25,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos952.erdos_952",
+    "mode": "counterexample",
+    "directory": "erdos-952-counterexample",
+    "sha256": "sha256:6d6749851decad74d6fdefefcdaea5deee7dfc2c42f27aa1fd95f9bdcc4ee225",
+    "seconds": 39.8,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos96.erdos_96",
+    "mode": "formalized",
+    "directory": "erdos-96-formalized",
+    "sha256": "sha256:a861becf199e79bbd761df79355feb79660273d22b776a164d21c4559330d9c6",
+    "seconds": 38.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos962.erdos_962",
+    "mode": "formalized",
+    "directory": "erdos-962-formalized",
+    "sha256": "sha256:6e9208bb5f96223539df85a079b2886017d753dfeca22bde582738bcf4036801",
+    "seconds": 37.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos96.erdos_96",
+    "mode": "counterexample",
+    "directory": "erdos-96-counterexample",
+    "sha256": "sha256:744e083623088ef0b730a2d02b25ab8f9d16953e44d82fc2a159fdf934368810",
+    "seconds": 39.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos972.erdos_972",
+    "mode": "formalized",
+    "directory": "erdos-972-formalized",
+    "sha256": "sha256:ebb4cca9b57df3f47e3875b9bd0f07fdd85f5a69bb5ecedd57eede42bc03eb69",
+    "seconds": 39.01,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos975.erdos_975",
+    "mode": "formalized",
+    "directory": "erdos-975-formalized",
+    "sha256": "sha256:7caa53278614d571fb890d2d77372f2c5ba44c458add2f8bab844f63370fed2b",
+    "seconds": 38.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos972.erdos_972",
+    "mode": "counterexample",
+    "directory": "erdos-972-counterexample",
+    "sha256": "sha256:d1d878e7029fbd4914f9549ea6b5def65205a966c887d08a9ac3da02150cb682",
+    "seconds": 40.05,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos962.erdos_962",
+    "mode": "counterexample",
+    "directory": "erdos-962-counterexample",
+    "sha256": "sha256:3ffdcf9f17c43c5567646646e2f97189dc7dfaf4dff299071f1c7350a5d38195",
+    "seconds": 40.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos975.erdos_975",
+    "mode": "counterexample",
+    "directory": "erdos-975-counterexample",
+    "sha256": "sha256:03cde29fa157627930efd3584f72d0aed9f1b55659718d15cbd1e8acb0937718",
+    "seconds": 39.1,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos978.erdos_978.parts.ii",
+    "mode": "formalized",
+    "directory": "erdos-978-parts-ii-formalized",
+    "sha256": "sha256:d94f66daebb9504fb9a3a391d21c855ba3e6e07f9f389bead42c394b911ca8f9",
+    "seconds": 39.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos978.erdos_978.parts.ii",
+    "mode": "counterexample",
+    "directory": "erdos-978-parts-ii-counterexample",
+    "sha256": "sha256:49368f0c540674d908124ee94d5deb24b268ae0dc8d1510e4f2cf35027bdc032",
+    "seconds": 38.78,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos978.erdos_978.parts.iii",
+    "mode": "counterexample",
+    "directory": "erdos-978-parts-iii-counterexample",
+    "sha256": "sha256:9ae266618b93bb830db4b6f6e1a8f491b25848bffda87f1c1e0058cfc3e8c0a8",
+    "seconds": 39.66,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos978.erdos_978.parts.iii",
+    "mode": "formalized",
+    "directory": "erdos-978-parts-iii-formalized",
+    "sha256": "sha256:5f673ffacf4560c9c6739a18090a3c38471ba13d94bcb883d1c5702db6864863",
+    "seconds": 40.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos979.erdos_979",
+    "mode": "formalized",
+    "directory": "erdos-979-formalized",
+    "sha256": "sha256:a9d11b6c1894d1616e62fdc4d20de541091acd80101169623fe5643c9462fe1e",
+    "seconds": 39.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos979.erdos_979",
+    "mode": "counterexample",
+    "directory": "erdos-979-counterexample",
+    "sha256": "sha256:1afae220f376741be4daef852cc28532e9263cc9360dc094e572fc1367cd5a06",
+    "seconds": 39.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos98.erdos_98",
+    "mode": "formalized",
+    "directory": "erdos-98-formalized",
+    "sha256": "sha256:40a3d8dcb7b46a8ae601fedd17040c24ada887c591dd022d6b6e0a9b90096820",
+    "seconds": 39.95,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos982.erdos_982",
+    "mode": "formalized",
+    "directory": "erdos-982-formalized",
+    "sha256": "sha256:047d1ea5a521c41ad6cbcb8afeecaf866fa8a445a2d8e0216ef7988c27cfb429",
+    "seconds": 39.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos98.erdos_98",
+    "mode": "counterexample",
+    "directory": "erdos-98-counterexample",
+    "sha256": "sha256:056b15815034832ebd0bda9889cbbccde10ea57dac0719bce07cf052fcce0f82",
+    "seconds": 40.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos985.erdos_985",
+    "mode": "counterexample",
+    "directory": "erdos-985-counterexample",
+    "sha256": "sha256:8693d72410f3a1fb06070f22912073527f77457138b97fdb4b0a490d4a3cc9b5",
+    "seconds": 38.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos982.erdos_982",
+    "mode": "counterexample",
+    "directory": "erdos-982-counterexample",
+    "sha256": "sha256:2308c9c446fc21327d2486ab27b81daed3f04d8231194e2b01aa6e9c46f78dae",
+    "seconds": 40.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos985.erdos_985",
+    "mode": "formalized",
+    "directory": "erdos-985-formalized",
+    "sha256": "sha256:efd4466fb837786b26488f13d3164554a6652e1149c6db65082481c5f6a6885f",
+    "seconds": 40.61,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos99.erdos_99",
+    "mode": "formalized",
+    "directory": "erdos-99-formalized",
+    "sha256": "sha256:68a23e267973a1a50930abec87de40e02f27f13ab8e6503ed98730306cd40c32",
+    "seconds": 39.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Erdos99.erdos_99",
+    "mode": "counterexample",
+    "directory": "erdos-99-counterexample",
+    "sha256": "sha256:fe1ad116e2ee4517273e9f52923bd265749d4da440d8ec05bbfb16fdde9ce0bd",
+    "seconds": 40.07,
+    "status": "passed"
+  },
+  {
+    "theorem": "Fermat.infinite_fermat_primes",
+    "mode": "formalized",
+    "directory": "wikipedia-fermat-infinite-fermat-primes-formalized",
+    "sha256": "sha256:47a4627d010b1ceb03eadc294afba853372471c4b2057bc67296df2dba6a3502",
+    "seconds": 39.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "Fermat.infinite_fermat_primes",
+    "mode": "counterexample",
+    "directory": "wikipedia-fermat-infinite-fermat-primes-counterexample",
+    "sha256": "sha256:76975ecb2eb813942d8852046aa455501c404eb008ecf2fa735508224696fe92",
+    "seconds": 40.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "GaussCircleProblem.error_isBigO",
+    "mode": "formalized",
+    "directory": "wikipedia-gausscircleproblem-error-isbigo-formalized",
+    "sha256": "sha256:31d483987ed39b030207875fe6b065c41cc56ad9011c2bdadac44b9d09cccc9c",
+    "seconds": 38.76,
+    "status": "passed"
+  },
+  {
+    "theorem": "GaussCircleProblem.error_isBigO",
+    "mode": "counterexample",
+    "directory": "wikipedia-gausscircleproblem-error-isbigo-counterexample",
+    "sha256": "sha256:06eccc0eeae03df5cbfff6be1431e1455dcb30f0456af18b8d853bd577b95109",
+    "seconds": 38.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "GoldbachConjecture.goldbach",
+    "mode": "formalized",
+    "directory": "wikipedia-goldbachconjecture-goldbach-formalized",
+    "sha256": "sha256:dc8bee2024d9dd21b833cd6eb26fb39d1c27c7bc00ed8c7154912cebf7736e2f",
+    "seconds": 39.94,
+    "status": "passed"
+  },
+  {
+    "theorem": "GoldbachConjecture.goldbach",
+    "mode": "counterexample",
+    "directory": "wikipedia-goldbachconjecture-goldbach-counterexample",
+    "sha256": "sha256:b6792c46dc9061e6e57d92a2d5a7bd0441e8aa0cb791b75bb23e17dd715d50ed",
+    "seconds": 38.79,
+    "status": "passed"
+  },
+  {
+    "theorem": "Goormaghtigh.goormaghtigh_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-goormaghtigh-goormaghtigh-conjecture-formalized",
+    "sha256": "sha256:80ce67c81f60995fc0a479df05e66be1eff27372508dd6c746664479495af8c9",
+    "seconds": 39.45,
+    "status": "passed"
+  },
+  {
+    "theorem": "Goormaghtigh.goormaghtigh_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-goormaghtigh-goormaghtigh-conjecture-counterexample",
+    "sha256": "sha256:6b58f28f20feb6ccda544d63c8f9a80f49d47318999e4878ef661a4f289ce56c",
+    "seconds": 39.95,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green12.green_12",
+    "mode": "counterexample",
+    "directory": "green-12-counterexample",
+    "sha256": "sha256:f989f4d1d9f4d8b6ae8ae78c0af968e175e1c8deb3d40c36ea93e48e9e2cf4d2",
+    "seconds": 39.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green12.green_12",
+    "mode": "formalized",
+    "directory": "green-12-formalized",
+    "sha256": "sha256:743727b8be0aa1acf180fb01d7208c253a6fbf3f2dcb66891386c615c64f873f",
+    "seconds": 39.73,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green15.green_15",
+    "mode": "formalized",
+    "directory": "green-15-formalized",
+    "sha256": "sha256:ec8f77413e37005b65c3286cc76637a4434aaa8b781ed5f5633f28ab177359b9",
+    "seconds": 39.27,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green2.green_2",
+    "mode": "formalized",
+    "directory": "green-2-formalized",
+    "sha256": "sha256:bcdd4623b0a627b01479de5e7150466a1b2f46f464532cf60d1ab8c43d1e2ffb",
+    "seconds": 38.78,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green15.green_15",
+    "mode": "counterexample",
+    "directory": "green-15-counterexample",
+    "sha256": "sha256:2dae1c2fb5293c333c2fbe0e23e18a618863cd371cb3260fd941821b5a40385c",
+    "seconds": 40.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green18.green_18",
+    "mode": "formalized",
+    "directory": "green-18-formalized",
+    "sha256": "sha256:4a45e59bbd9ac66c67725d33467ce9f159e360405900297ba79f393297e02128",
+    "seconds": 40.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green24.variants.conjecture",
+    "mode": "formalized",
+    "directory": "green-24-variants-conjecture-formalized",
+    "sha256": "sha256:42f60c97f2bf3d1199499b620bee54b53d594348b450ad2e92af4ed2e9d376af",
+    "seconds": 38.53,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green2.green_2",
+    "mode": "counterexample",
+    "directory": "green-2-counterexample",
+    "sha256": "sha256:a0697f3022d6c4f82b5a2f2d4255a340845e8feaf4f8aa9ee764c85d813e6c03",
+    "seconds": 39.5,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green18.green_18",
+    "mode": "counterexample",
+    "directory": "green-18-counterexample",
+    "sha256": "sha256:e5e0433ac320a38ee4723ac627cd0d5e0f2ea98409fe821a3c874a2fac6262a1",
+    "seconds": 40.86,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green32.green_32",
+    "mode": "formalized",
+    "directory": "green-32-formalized",
+    "sha256": "sha256:9f18e02ff9e991d47bcbb5e6744549305a36f6b0001a82fdda30e2d757eed902",
+    "seconds": 38.54,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green24.variants.conjecture",
+    "mode": "counterexample",
+    "directory": "green-24-variants-conjecture-counterexample",
+    "sha256": "sha256:347dc7321a048390a6297b2dff42189c6c738fd4aa0e31237a7d7ee766aa2085",
+    "seconds": 40.0,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green33.green_33",
+    "mode": "counterexample",
+    "directory": "green-33-counterexample",
+    "sha256": "sha256:812b0b38851292b7a7b4468c84a14584c72980b1326d58ba10432a767ad06935",
+    "seconds": 39.09,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green32.green_32",
+    "mode": "counterexample",
+    "directory": "green-32-counterexample",
+    "sha256": "sha256:dee499c27fffb423eaae8803d0159e615f9d0e37df077b9f389f34acab5b73a3",
+    "seconds": 39.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green33.green_33",
+    "mode": "formalized",
+    "directory": "green-33-formalized",
+    "sha256": "sha256:277efbd960d46f741152286b4adb0fec006657ed88db49bb1cb8d21cd965f93d",
+    "seconds": 39.78,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green36.green_36.variants.cks05",
+    "mode": "formalized",
+    "directory": "green-36-variants-cks05-formalized",
+    "sha256": "sha256:86c39ff6b3bb309dba26ee4485688ea7bd1b8d7a9ca932fa6c105a6d015ce9c0",
+    "seconds": 39.18,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green36.green_36.variants.cks05",
+    "mode": "counterexample",
+    "directory": "green-36-variants-cks05-counterexample",
+    "sha256": "sha256:9b02af735a76f88472b00d3076697581fedb8639cfec62dc56642ed8beb3cb44",
+    "seconds": 39.16,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green39.green_39",
+    "mode": "counterexample",
+    "directory": "green-39-counterexample",
+    "sha256": "sha256:9ee2848557c25861fd522d95bf99460f1ea8bb63db0cf3f330b980cec3aa0fac",
+    "seconds": 39.28,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green39.green_39",
+    "mode": "formalized",
+    "directory": "green-39-formalized",
+    "sha256": "sha256:7c79f31f6d74f2084b20dfe71badf5bdd3cd5a66ecc20b4cc92161a081be5861",
+    "seconds": 40.29,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green40.green_40",
+    "mode": "formalized",
+    "directory": "green-40-formalized",
+    "sha256": "sha256:be1182aed0a96413436f1f6697311ffac957ac58acc4c893666904288a6dad84",
+    "seconds": 40.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green40.green_40.f_two_eq_one",
+    "mode": "counterexample",
+    "directory": "green-40-f-two-eq-one-counterexample",
+    "sha256": "sha256:d420149c39ff4d476cda6eb7f73483cd3fd8081d51b4eb07dd6d8a94cd786ae6",
+    "seconds": 38.8,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green40.green_40",
+    "mode": "counterexample",
+    "directory": "green-40-counterexample",
+    "sha256": "sha256:07308d6d533e247533f0a381b8d7f9e4bc6e2872b68c8985c5f31fed579fffb4",
+    "seconds": 40.5,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green40.green_40.f_two_eq_one",
+    "mode": "formalized",
+    "directory": "green-40-f-two-eq-one-formalized",
+    "sha256": "sha256:5dc6524eb46e3d7e69b9186ca7c8e3bf38e1cd644808f7060bdb8db41124004a",
+    "seconds": 39.64,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green40.green_40.variants.arbitrary_subsets",
+    "mode": "formalized",
+    "directory": "green-40-variants-arbitrary-subsets-formalized",
+    "sha256": "sha256:be22f9d772465bba912e70faf7638295d6e2a1f71bc298eb5743a2dc7b91679b",
+    "seconds": 40.03,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green40.green_40.variants.arbitrary_subsets",
+    "mode": "counterexample",
+    "directory": "green-40-variants-arbitrary-subsets-counterexample",
+    "sha256": "sha256:7d4cc6d45aa49cbcbfcaa1e4d3a00870b7dd9de58c80d9bb0292a8140e0b4fb2",
+    "seconds": 39.94,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green41.green_41.variants.polynomial_bound",
+    "mode": "formalized",
+    "directory": "green-41-variants-polynomial-bound-formalized",
+    "sha256": "sha256:e343e9e80db45779e04ad0d540730a65c95912710bda69196ddda8aa09dce052",
+    "seconds": 40.08,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green41.green_41.variants.polynomial_bound",
+    "mode": "counterexample",
+    "directory": "green-41-variants-polynomial-bound-counterexample",
+    "sha256": "sha256:5e23bf4835f3bd8f9ea14f4d6ab57f2f3a2eda862a2b9abfe13278e40ad58336",
+    "seconds": 40.11,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green47.green_47",
+    "mode": "formalized",
+    "directory": "green-47-formalized",
+    "sha256": "sha256:7fe416f501a25241c2ce560e113436232912f4cc274f17d82a220f7a1eba2b06",
+    "seconds": 39.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green47.green_47",
+    "mode": "counterexample",
+    "directory": "green-47-counterexample",
+    "sha256": "sha256:11d11e7b047c132322945c202bf32d9e854f90011a691a89fcbaff5c340fd61f",
+    "seconds": 40.42,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green50.green_50",
+    "mode": "counterexample",
+    "directory": "green-50-counterexample",
+    "sha256": "sha256:3ecb768423c393a7a55694d6fa8ceb3741721c20f65ddacbe46f330c6f52d1e7",
+    "seconds": 40.32,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green50.green_50",
+    "mode": "formalized",
+    "directory": "green-50-formalized",
+    "sha256": "sha256:d93463313e9fb9e2502ca6bf57b3b689031fd251ddb3b9afddd57b550632062e",
+    "seconds": 40.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green51.green_51.one_half",
+    "mode": "counterexample",
+    "directory": "green-51-one-half-counterexample",
+    "sha256": "sha256:de9c29ae9a45fae346765ec64685c052ed39b8fafdd96aa3c991a5837f513e70",
+    "seconds": 39.14,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green51.green_51.one_half",
+    "mode": "formalized",
+    "directory": "green-51-one-half-formalized",
+    "sha256": "sha256:a64fa4eb683799838ea84ef56add6319a9fb4e1ab11e7db92d91a1480fc36011",
+    "seconds": 39.84,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green58.green_58",
+    "mode": "counterexample",
+    "directory": "green-58-counterexample",
+    "sha256": "sha256:906b309b94b2baf05ef6555f9f2460910d7af1d2e9d549b671807d5f8b528dc2",
+    "seconds": 39.68,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green58.green_58",
+    "mode": "formalized",
+    "directory": "green-58-formalized",
+    "sha256": "sha256:dc8781ffe5d2452549eee799e4565721aa84eab398411d1c6109bad189eaacb3",
+    "seconds": 40.47,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green60.green_60",
+    "mode": "formalized",
+    "directory": "green-60-formalized",
+    "sha256": "sha256:102848a02c34177b28a4560c2dc819f1006e4b9e8e64a4e4a6c595f487af956d",
+    "seconds": 38.55,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green62.green_62",
+    "mode": "counterexample",
+    "directory": "green-62-counterexample",
+    "sha256": "sha256:a830fb094354da8212a0f481b9078bb39c981b883395b4648315e5d4dcc33e72",
+    "seconds": 39.45,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green7.green_7.variants.positive_density",
+    "mode": "formalized",
+    "directory": "green-7-variants-positive-density-formalized",
+    "sha256": "sha256:481a10b78d345a1b2fdde8e47b42c421e65d96c92b35e24fd6275c9b1b709b79",
+    "seconds": 38.81,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green66.green_66",
+    "mode": "formalized",
+    "directory": "green-66-formalized",
+    "sha256": "sha256:5bc7175fab0739574435c3808f8659906247baf6f2b238896e3d8cd524d1cd74",
+    "seconds": 39.85,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green62.green_62",
+    "mode": "formalized",
+    "directory": "green-62-formalized",
+    "sha256": "sha256:edda0abfb873174af2b524e9dca3666e1301079c832f6c75d134bf2ccdaf9fbd",
+    "seconds": 40.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green60.green_60",
+    "mode": "counterexample",
+    "directory": "green-60-counterexample",
+    "sha256": "sha256:1d004c9378a3a0801d4790eb27902118727cee4ec00b53a0b3233dd5f81c76ab",
+    "seconds": 40.89,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green72.green_72",
+    "mode": "formalized",
+    "directory": "green-72-formalized",
+    "sha256": "sha256:601da6ed279515c1b1ad21b570b9ba8520717f4f0b293c392db0ba1481783f73",
+    "seconds": 39.53,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green7.green_7.variants.positive_density",
+    "mode": "counterexample",
+    "directory": "green-7-variants-positive-density-counterexample",
+    "sha256": "sha256:fea5d5a618a25e4af908d955e10cfec9cabe6520252adbe8210b96f50c1858bb",
+    "seconds": 40.36,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green66.green_66",
+    "mode": "counterexample",
+    "directory": "green-66-counterexample",
+    "sha256": "sha256:621d46f73b48b10726118de1836ae4fa4ac42c6f0d5488c046c76ebf5f3f31f1",
+    "seconds": 40.9,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green9.green_9_ii",
+    "mode": "formalized",
+    "directory": "green-9-ii-formalized",
+    "sha256": "sha256:aad2bc170eb310b4668d1049252e8ae6d06c7ad76379cc3cf7cfa30fbb2dd938",
+    "seconds": 39.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green72.green_72",
+    "mode": "counterexample",
+    "directory": "green-72-counterexample",
+    "sha256": "sha256:7ee6d9297a9e19cc2e0102db02ca8d8f545037478a49af209a57748e36dbf2d4",
+    "seconds": 39.98,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green9.green_9_ii",
+    "mode": "counterexample",
+    "directory": "green-9-ii-counterexample",
+    "sha256": "sha256:e8ad10c203aeb0b1aacdd018ea19912e39c8659a390224a722eb8921c2f3a2bb",
+    "seconds": 39.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "Hadamard.HadamardConjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-hadamard-hadamardconjecture-counterexample",
+    "sha256": "sha256:952103bc5543bbf7fe7c0cdb34ca69425264ed1019118c7b934b44d8640767e3",
+    "seconds": 38.8,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green9.green_9_iii",
+    "mode": "formalized",
+    "directory": "green-9-iii-formalized",
+    "sha256": "sha256:6cec1ba9173fa61b1e2f64ebf85e5969f3d4617b05006b914409c716129ca14d",
+    "seconds": 40.28,
+    "status": "passed"
+  },
+  {
+    "theorem": "Green9.green_9_iii",
+    "mode": "counterexample",
+    "directory": "green-9-iii-counterexample",
+    "sha256": "sha256:38cab05fb2c0b281b4f297324db754777d17c4d3605dad302b95b6db77b66559",
+    "seconds": 39.58,
+    "status": "passed"
+  },
+  {
+    "theorem": "Hadamard.HadamardConjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-hadamard-hadamardconjecture-formalized",
+    "sha256": "sha256:2ffed8d73d499a82931c4e81c7a76854705b6b74a3202c3f21c8618362e75097",
+    "seconds": 40.15,
+    "status": "passed"
+  },
+  {
+    "theorem": "HardyLittlewood.first_hardy_littlewood_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-hardylittlewood-first-hardy-littlewood-conjecture-counterexample",
+    "sha256": "sha256:b793a896dbd265bd4e1fadac71a411b33cbfc6a274afc50e247d97cb7f7dac5d",
+    "seconds": 39.45,
+    "status": "passed"
+  },
+  {
+    "theorem": "HardyLittlewood.first_hardy_littlewood_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-hardylittlewood-first-hardy-littlewood-conjecture-formalized",
+    "sha256": "sha256:01c34dff2b869a49867d8c6c45fab763b0c6b1c4dd128e9ad92551beba3735e7",
+    "seconds": 40.11,
+    "status": "passed"
+  },
+  {
+    "theorem": "HardyLittlewood.second_hardy_littlewood_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-hardylittlewood-second-hardy-littlewood-conjecture-formalized",
+    "sha256": "sha256:920c51718502abb9b2b534ef8aae6c134526bbde7f2ed7c489770ab00c6ce155",
+    "seconds": 38.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "HardyLittlewood.second_hardy_littlewood_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-hardylittlewood-second-hardy-littlewood-conjecture-counterexample",
+    "sha256": "sha256:a57e471294dea97a474f8c1ce08e7a7770275a2855fb8a453f28f1e7f01c8fb5",
+    "seconds": 38.99,
+    "status": "passed"
+  },
+  {
+    "theorem": "InscribedSquare.inscribed_square_problem",
+    "mode": "counterexample",
+    "directory": "wikipedia-inscribedsquare-inscribed-square-problem-counterexample",
+    "sha256": "sha256:a616de7efceb262b21619e8828102d4d7cbc0c138f704bf0401cc2d595aa538d",
+    "seconds": 38.39,
+    "status": "passed"
+  },
+  {
+    "theorem": "Idoneal.idoneal_numbers_completeness",
+    "mode": "formalized",
+    "directory": "wikipedia-idonealcompleteness-idoneal-numbers-completeness-formalized",
+    "sha256": "sha256:554237d701c8203c5501e4d4d6a0f28ef02e1e4f6c38c597bf873f1558c661b8",
+    "seconds": 38.88,
+    "status": "passed"
+  },
+  {
+    "theorem": "InscribedSquare.inscribed_square_problem",
+    "mode": "formalized",
+    "directory": "wikipedia-inscribedsquare-inscribed-square-problem-formalized",
+    "sha256": "sha256:6cbaa6a682c82a14a6e69ac9ce50040558b325357dc01127b10676bf4524f86c",
+    "seconds": 39.59,
+    "status": "passed"
+  },
+  {
+    "theorem": "Idoneal.idoneal_numbers_completeness",
+    "mode": "counterexample",
+    "directory": "wikipedia-idonealcompleteness-idoneal-numbers-completeness-counterexample",
+    "sha256": "sha256:cfc2c7f055505019526958eee96cf542c7c72a623ad342b35db0a3d197486b76",
+    "seconds": 40.08,
+    "status": "passed"
+  },
+  {
+    "theorem": "InverseGalois.inverse_galois_problem",
+    "mode": "counterexample",
+    "directory": "wikipedia-inversegalois-inverse-galois-problem-counterexample",
+    "sha256": "sha256:4dbab6a5c8de2b0db8ac2f9315b6b08fe5c9a59aa9249de2d09039ab6dda06a9",
+    "seconds": 40.74,
+    "status": "passed"
+  },
+  {
+    "theorem": "InverseGalois.inverse_galois_problem",
+    "mode": "formalized",
+    "directory": "wikipedia-inversegalois-inverse-galois-problem-formalized",
+    "sha256": "sha256:1b7d7900370cb3093c56f0d22d6ea544a36782c4c3bac53bf27aa31d5c0e55ff",
+    "seconds": 40.94,
+    "status": "passed"
+  },
+  {
+    "theorem": "Irrational.irrational_eulerMascheroniConstant",
+    "mode": "counterexample",
+    "directory": "wikipedia-irrational-irrational-eulermascheroniconstant-counterexample",
+    "sha256": "sha256:03d43287ea24282e1a5ba7f1ca150ae4df634ab0fe4c9e68c45a8977f9490ce3",
+    "seconds": 39.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "Irrational.irrational_eulerMascheroniConstant",
+    "mode": "formalized",
+    "directory": "wikipedia-irrational-irrational-eulermascheroniconstant-formalized",
+    "sha256": "sha256:6f9d884d667629e7c57b0feb44263717ac2d5e21c66fc7dbd25c529e728a729e",
+    "seconds": 40.54,
+    "status": "passed"
+  },
+  {
+    "theorem": "KummerVandiver.kummer_vandiver",
+    "mode": "formalized",
+    "directory": "wikipedia-kummervandiver-kummer-vandiver-formalized",
+    "sha256": "sha256:2e377f00bec4425a363113eaf7de603035539b4902daaeac4d93151951e67de0",
+    "seconds": 39.98,
+    "status": "passed"
+  },
+  {
+    "theorem": "KummerVandiver.kummer_vandiver",
+    "mode": "counterexample",
+    "directory": "wikipedia-kummervandiver-kummer-vandiver-counterexample",
+    "sha256": "sha256:2df7fdc9d26a8fd33f5c7a484ec311c7195388146bb97b95776e88ace18e8a9d",
+    "seconds": 39.35,
+    "status": "passed"
+  },
+  {
+    "theorem": "LegendreConjecture.legendre_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-legendreconjecture-legendre-conjecture-counterexample",
+    "sha256": "sha256:989dc4c4aa4bc7a8e263c993c656567cb80f8ef93670d42d9481711e1bddab6c",
+    "seconds": 39.13,
+    "status": "passed"
+  },
+  {
+    "theorem": "LegendreConjecture.legendre_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-legendreconjecture-legendre-conjecture-formalized",
+    "sha256": "sha256:5e610fb28cadc6b0bbe03a0d38e840cc0e7c9d7331aead366ddee79516c6ede7",
+    "seconds": 39.39,
+    "status": "passed"
+  },
+  {
+    "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem",
+    "mode": "counterexample",
+    "directory": "wikipedia-lehmermahlermeasureproblem-lehmer-mahler-measure-problem-counterexample",
+    "sha256": "sha256:bddfda61bd73972085426cd84734d0b5e4a17e20ab71938a8311915dd03ced38",
+    "seconds": 36.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "LehmerMahlerMeasureProblem.lehmer_mahler_measure_problem",
+    "mode": "formalized",
+    "directory": "wikipedia-lehmermahlermeasureproblem-lehmer-mahler-measure-problem-formalized",
+    "sha256": "sha256:dc0e29e598af7c7e5c754dda9f04465f0dd7a92e799b6137e853d45b6b6ea40d",
+    "seconds": 37.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "LehmerTotient.lehmer_totient",
+    "mode": "formalized",
+    "directory": "wikipedia-lehmertotient-lehmer-totient-formalized",
+    "sha256": "sha256:2d5005c882a90f4816e733de0cdb3b58b671ae22fcc6c28f8541c6b15d6839e5",
+    "seconds": 36.19,
+    "status": "passed"
+  },
+  {
+    "theorem": "Lemoine.lemoine_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-lemoine-lemoine-conjecture-formalized",
+    "sha256": "sha256:7c35670f0bcecaf89d6ded6bde4baf635fc67e152ca4169f777b8edd275366b7",
+    "seconds": 36.12,
+    "status": "passed"
+  },
+  {
+    "theorem": "LehmerTotient.lehmer_totient",
+    "mode": "counterexample",
+    "directory": "wikipedia-lehmertotient-lehmer-totient-counterexample",
+    "sha256": "sha256:18bfc14e66de3f125f7118f373b462ce60383e72db670ff42bcec417307ff11c",
+    "seconds": 36.51,
+    "status": "passed"
+  },
+  {
+    "theorem": "Lemoine.lemoine_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-lemoine-lemoine-conjecture-counterexample",
+    "sha256": "sha256:87665c21b137e5c3af42de731b54a87a13f574c839044dcef27d508358bddc32",
+    "seconds": 35.45,
+    "status": "passed"
+  },
+  {
+    "theorem": "Mersenne.catalans_mersenne_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-mersenne-catalans-mersenne-conjecture-counterexample",
+    "sha256": "sha256:ab90f14e35653c498cae75c4cf9878485381d5d77bf993b6611cb48f025cdfc2",
+    "seconds": 35.41,
+    "status": "passed"
+  },
+  {
+    "theorem": "Mersenne.catalans_mersenne_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-mersenne-catalans-mersenne-conjecture-formalized",
+    "sha256": "sha256:1232d08dd4ac092a189cff932a3eb7fddd2ccb72fcbc85f9c3474039b65905fe",
+    "seconds": 35.7,
+    "status": "passed"
+  },
+  {
+    "theorem": "Mersenne.infinitely_many_mersenne_primes",
+    "mode": "counterexample",
+    "directory": "wikipedia-mersenne-infinitely-many-mersenne-primes-counterexample",
+    "sha256": "sha256:bca6ce3b91ff4985343bcf03563a3562f791c217a898e445cc91ebed93f9d531",
+    "seconds": 35.39,
+    "status": "passed"
+  },
+  {
+    "theorem": "Mersenne.infinitely_many_mersenne_primes",
+    "mode": "formalized",
+    "directory": "wikipedia-mersenne-infinitely-many-mersenne-primes-formalized",
+    "sha256": "sha256:a4565e0982d2113ba7faec42b38e85e63fd210968c51bb5cb1eb7ea698bbe9fc",
+    "seconds": 35.75,
+    "status": "passed"
+  },
+  {
+    "theorem": "NormalNumber.pi_normal_base_ten",
+    "mode": "formalized",
+    "directory": "wikipedia-normalityofpi-pi-normal-base-ten-formalized",
+    "sha256": "sha256:a9145d9b469c13ac7cbfb343e689a7c9e443ac6b15b99b13a78dca5f26b424dc",
+    "seconds": 35.33,
+    "status": "passed"
+  },
+  {
+    "theorem": "NormalNumber.pi_normal_base_ten",
+    "mode": "counterexample",
+    "directory": "wikipedia-normalityofpi-pi-normal-base-ten-counterexample",
+    "sha256": "sha256:61fea33ac4ae33a1f37cc347d264cc0f84b4858efce9b367b94c88681387e862",
+    "seconds": 35.11,
+    "status": "passed"
+  },
+  {
+    "theorem": "Oppermann.oppermann_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-oppermann-oppermann-conjecture-formalized",
+    "sha256": "sha256:25d98841ef3ab029dffa271a25e8305ca06a88d8c046e0bc9cd476969a9d75b0",
+    "seconds": 35.25,
+    "status": "passed"
+  },
+  {
+    "theorem": "PerfectNumbers.odd_perfect_number_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-perfectnumbers-odd-perfect-number-conjecture-formalized",
+    "sha256": "sha256:03dce569e6ac537596b6fd53d1a3d18a7509dba423ec0c88b043297cf4796446",
+    "seconds": 35.44,
+    "status": "passed"
+  },
+  {
+    "theorem": "PerfectNumbers.odd_perfect_number_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-perfectnumbers-odd-perfect-number-conjecture-counterexample",
+    "sha256": "sha256:a5923846340069c1152a7525d6ea78629b242ad29e00409bbb825541cc02dacf",
+    "seconds": 34.66,
+    "status": "passed"
+  },
+  {
+    "theorem": "Oppermann.oppermann_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-oppermann-oppermann-conjecture-counterexample",
+    "sha256": "sha256:83470453548b35b15283b0b631f2c5111f58d23edf30e517925883e57ce750fe",
+    "seconds": 35.63,
+    "status": "passed"
+  },
+  {
+    "theorem": "PollocksConjecture.pollock_tetrahedral",
+    "mode": "formalized",
+    "directory": "wikipedia-pollocksconjecture-pollock-tetrahedral-formalized",
+    "sha256": "sha256:640cbeff946c9343c29ffc6b049b3c11a8f6a28ed96c6c9b4505942c9ec64e91",
+    "seconds": 34.6,
+    "status": "passed"
+  },
+  {
+    "theorem": "PollocksConjecture.pollock_tetrahedral",
+    "mode": "counterexample",
+    "directory": "wikipedia-pollocksconjecture-pollock-tetrahedral-counterexample",
+    "sha256": "sha256:f188517ccf1b73e11bfa445ba3004ede888ac198e39688d2532570e49a4602c7",
+    "seconds": 34.46,
+    "status": "passed"
+  },
+  {
+    "theorem": "PrimesAndPerfectSquares.infinite_prime_sq_add_one",
+    "mode": "formalized",
+    "directory": "wikipedia-primesandperfectsquares-infinite-prime-sq-add-one-formalized",
+    "sha256": "sha256:3fc07ce136a5e103b7aa8a3e46ff79111978079b99abac7fe57b881d87cccc60",
+    "seconds": 34.65,
+    "status": "passed"
+  },
+  {
+    "theorem": "PrimesAndPerfectSquares.infinite_prime_sq_add_one",
+    "mode": "counterexample",
+    "directory": "wikipedia-primesandperfectsquares-infinite-prime-sq-add-one-counterexample",
+    "sha256": "sha256:f2b125ae3733d62adac76be9e978bbfc2221b39154d1e6d51e8ae58242edff25",
+    "seconds": 34.23,
+    "status": "passed"
+  },
+  {
+    "theorem": "RegularPrimes.regularprime_conjecture",
+    "mode": "formalized",
+    "directory": "wikipedia-regularprimes-regularprime-conjecture-formalized",
+    "sha256": "sha256:8554a2021e8d530c1743cc135e6736690de1074ac9dc25987fdbf8b46d09880f",
+    "seconds": 34.17,
+    "status": "passed"
+  },
+  {
+    "theorem": "RegularPrimes.regularprime_conjecture",
+    "mode": "counterexample",
+    "directory": "wikipedia-regularprimes-regularprime-conjecture-counterexample",
+    "sha256": "sha256:ac702c5483d36c5fa93a71272784e5736353a5cee0e7f20042e193976aa27105",
+    "seconds": 34.31,
+    "status": "passed"
+  },
+  {
+    "theorem": "RiemannHypothesis.riemannHypothesis",
+    "mode": "formalized",
+    "directory": "millennium-riemannhypothesis-riemannhypothesis-formalized",
+    "sha256": "sha256:387d53fe64f3af4d6fb1b328196c1634c862734a148497fb3dbbe2ca010ab2a3",
+    "seconds": 33.83,
+    "status": "passed"
+  },
+  {
+    "theorem": "RiemannHypothesis.riemannHypothesis",
+    "mode": "counterexample",
+    "directory": "millennium-riemannhypothesis-riemannhypothesis-counterexample",
+    "sha256": "sha256:23b1f16fc9a01100f6b201794e73376b3cd319a32bf4d44109bccc9fee8ceb38",
+    "seconds": 33.38,
+    "status": "passed"
+  },
+  {
+    "theorem": "TwinPrimes.twin_primes",
+    "mode": "counterexample",
+    "directory": "wikipedia-twinprimes-twin-primes-counterexample",
+    "sha256": "sha256:a58864ee9f90399d2c7824a30b82377793055bdda23d7f96f6f09ef8041b19c4",
+    "seconds": 33.47,
+    "status": "passed"
+  },
+  {
+    "theorem": "TwinPrimes.twin_primes",
+    "mode": "formalized",
+    "directory": "wikipedia-twinprimes-twin-primes-formalized",
+    "sha256": "sha256:af273760612e188771479de9fa49b9590a8f4a67df7900b784b727e806e10766",
+    "seconds": 33.94,
+    "status": "passed"
+  }
+]
