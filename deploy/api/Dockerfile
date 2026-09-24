@@ -37,6 +37,7 @@ WORKDIR /src
 COPY requirements-service.lock ./
 RUN pip install --constraint requirements-service.lock \
       fastapi \
+      python-multipart \
       uvicorn \
       httpx \
       google-auth \
