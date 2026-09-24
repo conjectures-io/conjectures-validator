@@ -116,8 +116,8 @@ Grouped by the area that raises them. `labels.py` is the source of truth.
 - **Deposits** — `cursor_opened`, `blocks_scanned`, `transfer_credited`, `transfer_unattributed`,
   `transfer_ignored`, `transfer_conflict`
 - **Payouts** — `payout_confirmed`, `payout_reorged`, `payout_unmatched`
-- **Competitions** — `competition_submission_queued`, `competition_submission_requeued`,
-  `competition_database_unreachable`
+- **Competitions** — `competition_submission_queued`, `competition_submission_refused`,
+  `competition_submission_requeued`, `competition_database_unreachable`
 - **Contributions** — `contributions_refreshed`, `contributions_refresh_failed`,
   `contributions_rate_limited`
 - **Catch-alls** — `log_record`, `unexpected_error`

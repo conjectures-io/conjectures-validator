@@ -230,6 +230,12 @@ EventType: TypeAlias = Literal[
     "invitation_redeemed",
     # --- competitions -----------------------------------------------------------------------
     "competition_submission_queued",
+    # A submit the API refused, from either write path: the pause, the rate limit, a stale or
+    # bad signature, the files, the coldkey or entitlement checks, a database that failed
+    # mid-request. `reason_code` and `status_code` are the response's; `competition` and
+    # `hotkey` are what `request_completed` lacks, and what a miner's "why can I not submit"
+    # is asked with. `warning`, like `submission_rejected`.
+    "competition_submission_refused",
     # An operator put a stuck competition submission back in its queue.
     "competition_submission_requeued",
     # A competition's own database refused a connection. Its routes answer 503; nothing else is

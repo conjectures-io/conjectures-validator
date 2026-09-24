@@ -27,7 +27,8 @@ the signature, then the competition's own entitlement rule.
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Iterator, Mapping
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -50,6 +51,7 @@ from submission_api.competitions.signature import submit_message
 from submission_api.dependencies import CookieWriterDep, PrincipalDep, ServicesDep
 from submission_api.errors import (
     REASON_SUBMISSIONS_PAUSED,
+    ApiError,
     BadRequest,
     Conflict,
     Forbidden,
@@ -589,6 +591,59 @@ async def _queue(
     )
 
 
+@contextmanager
+def _recording_refusals(
+    competition: Competition, *, hotkey: str, account_id: str | None = None
+) -> Iterator[None]:
+    """Emit `competition_submission_refused` for a refusal raised inside a submit handler.
+
+    `request_completed` already has the status and reason code, but not which competition or
+    which hotkey, and "why can this miner not submit" is asked with a hotkey in hand. Records and
+    re-raises, never swallows: the response is still shaped by the exception handlers.
+
+    Covers what the handler body raises: the pause, the rate limit, freshness, the files, the
+    signature, the coldkey and entitlement checks, and a competition database that fails
+    mid-request (answered 503 `COMPETITION_UNAVAILABLE` by `get_competition_session`, which
+    emits its own `competition_database_unreachable` too). A refusal FastAPI raises while it
+    resolves dependencies, before the body runs, is `request_completed`'s alone: a missing
+    header, an unknown slug, a session path without a session cookie.
+
+    On the signed path `hotkey` is the header's claim, and for a refusal raised before the
+    signature check nothing has proved the caller holds it. It is recorded anyway, since the
+    miner asking is the one who sent it.
+    """
+    try:
+        yield
+    except ApiError as exc:
+        _refused(competition, exc.reason_code, exc.status_code, hotkey, account_id)
+        raise
+    except (OperationalError, InterfaceError):
+        _refused(competition, "COMPETITION_UNAVAILABLE", 503, hotkey, account_id)
+        raise
+
+
+def _refused(
+    competition: Competition,
+    reason_code: str,
+    status_code: int,
+    hotkey: str,
+    account_id: str | None,
+) -> None:
+    # `warning` whatever the status, like `submission_rejected`: a refused submit is usually the
+    # miner's to fix, and the one that is the operator's, an unreachable database, already has
+    # an `error` of its own.
+    get_axiom().warn(
+        source="api-competitions",
+        event_type="competition_submission_refused",
+        competition=competition.slug,
+        reason_code=reason_code,
+        http_status=status_code,
+        hotkey=hotkey,
+        account_id=account_id or "",
+        path="session" if account_id else "signed",
+    )
+
+
 def _signature_bytes(value: str) -> bytes:
     candidate = value.removeprefix("0x")
     try:
@@ -618,39 +673,42 @@ async def submit(
     The signed message is `competitions.signature.submit_message` over the adapter's digest of
     the files. Submitting the same files again returns the same submission.
     """
-    refuse_if_paused(services)
-    settings = services.settings
-    decision = services.competition_submits.check(f"{competition.slug}:{hotkey}", time.monotonic())
-    if not decision.allowed:
-        raise TooManyRequests(
-            f"more than {settings.competition_rate_per_minute} submissions a minute "
-            "from this hotkey",
-            reason_code="RATE_LIMITED",
+    with _recording_refusals(competition, hotkey=hotkey):
+        refuse_if_paused(services)
+        settings = services.settings
+        decision = services.competition_submits.check(
+            f"{competition.slug}:{hotkey}", time.monotonic()
         )
-    # Freshness before the body and the signature: a stale request costs neither.
-    if abs(int(time.time()) - timestamp) > settings.competition_signature_window_seconds:
-        raise Unauthorized(
-            "the signed timestamp is outside the freshness window",
-            reason_code="SIGNATURE_EXPIRED",
+        if not decision.allowed:
+            raise TooManyRequests(
+                f"more than {settings.competition_rate_per_minute} submissions a minute "
+                "from this hotkey",
+                reason_code="RATE_LIMITED",
+            )
+        # Freshness before the body and the signature: a stale request costs neither.
+        if abs(int(time.time()) - timestamp) > settings.competition_signature_window_seconds:
+            raise Unauthorized(
+                "the signed timestamp is outside the freshness window",
+                reason_code="SIGNATURE_EXPIRED",
+            )
+        files = await _read_files(request, competition)
+        digest = competition.adapter.digest(files)
+        # Rebuilt from the bytes read and the slug resolved, never from what the request claimed.
+        verify_signature(
+            address=hotkey,
+            message=submit_message(
+                competition=competition.slug, digest=digest, hotkey=hotkey, timestamp=timestamp
+            ),
+            signature=_signature_bytes(signature),
         )
-    files = await _read_files(request, competition)
-    digest = competition.adapter.digest(files)
-    # Rebuilt from the bytes read and the slug resolved, never from what the request claimed.
-    verify_signature(
-        address=hotkey,
-        message=submit_message(
-            competition=competition.slug, digest=digest, hotkey=hotkey, timestamp=timestamp
-        ),
-        signature=_signature_bytes(signature),
-    )
-    return await _queue(
-        services=services,
-        competition=competition,
-        session=session,
-        hotkey=hotkey,
-        files=files,
-        digest=digest,
-    )
+        return await _queue(
+            services=services,
+            competition=competition,
+            session=session,
+            hotkey=hotkey,
+            files=files,
+            digest=digest,
+        )
 
 
 @router.post(
@@ -673,30 +731,32 @@ async def submit_as_account(
     asked to sign with the hotkey; entitlement runs the other way round, through the coldkey the
     account proved it controls and the registration that coldkey made.
     """
-    refuse_if_paused(services)
-    coldkey = principal.account.submission_coldkey
-    if not coldkey:
-        raise PaymentRequired(
-            "this account has no submission coldkey: link one before submitting",
-            reason_code="NO_SUBMISSION_COLDKEY",
+    account_id = str(principal.account.id)
+    with _recording_refusals(competition, hotkey=hotkey, account_id=account_id):
+        refuse_if_paused(services)
+        coldkey = principal.account.submission_coldkey
+        if not coldkey:
+            raise PaymentRequired(
+                "this account has no submission coldkey: link one before submitting",
+                reason_code="NO_SUBMISSION_COLDKEY",
+            )
+        if not await competition.adapter.registered_by(session, hotkey=hotkey, coldkey=coldkey):
+            # Not "that hotkey is someone else's": the account learns only that its own coldkey
+            # did not register it, which is the fact it can act on.
+            raise Forbidden(
+                "this account's submission coldkey did not register that hotkey",
+                reason_code="HOTKEY_NOT_YOURS",
+            )
+        files = await _read_files(request, competition)
+        return await _queue(
+            services=services,
+            competition=competition,
+            session=session,
+            hotkey=hotkey,
+            files=files,
+            digest=competition.adapter.digest(files),
+            account_id=account_id,
         )
-    if not await competition.adapter.registered_by(session, hotkey=hotkey, coldkey=coldkey):
-        # Not "that hotkey is someone else's": the account learns only that its own coldkey did
-        # not register it, which is the fact it can act on.
-        raise Forbidden(
-            "this account's submission coldkey did not register that hotkey",
-            reason_code="HOTKEY_NOT_YOURS",
-        )
-    files = await _read_files(request, competition)
-    return await _queue(
-        services=services,
-        competition=competition,
-        session=session,
-        hotkey=hotkey,
-        files=files,
-        digest=competition.adapter.digest(files),
-        account_id=str(principal.account.id),
-    )
 
 
 # ── the account's own ─────────────────────────────────────────────────────────────────────

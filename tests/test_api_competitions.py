@@ -25,7 +25,9 @@ from conftest import COMPETITION_SKIP_REASON, competition_dsn
 from conftest_api import OTHER_MINER_COLDKEY, build_settings, harness, postgres_dsn
 from test_api_accounts import client, grant_role, same_origin, sign_in_by_email
 from test_api_auth import MINER_COLDKEY, production_env
+from test_api_observability import Recorder
 
+from conjectures_subnet.axiom import EVENT_TYPES
 from conjectures_subnet.db import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import ADMIN_ROLE
 from submission_api.competitions import (
@@ -811,6 +813,151 @@ def test_the_account_listing_includes_hotkey_signed_submissions_from_its_hotkeys
                 anonymous = await (await client(kit.api)).get(f"/v1/competitions/{SLUG}/me/submissions")
             assert [row["id"] for row in listed["items"]] == [str(signed)]
             assert anonymous.status_code == 401
+
+    run(scenario())
+
+
+# ── refusals, as Axiom sees them ──────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def refusals(monkeypatch) -> Recorder:
+    recorder = Recorder()
+    monkeypatch.setattr("submission_api.routers.competitions.get_axiom", lambda: recorder)
+    return recorder
+
+
+def _refused(recorder: Recorder) -> list[tuple[str, int, str, str]]:
+    return [
+        (e["reason_code"], e["http_status"], e["hotkey"], e["path"])
+        for e in recorder.of_type("competition_submission_refused")
+    ]
+
+
+def test_the_refusal_event_is_a_declared_one():
+    assert "competition_submission_refused" in EVENT_TYPES
+
+
+@needs_competition_db
+def test_each_refused_signed_submit_is_one_event_naming_the_competition_and_hotkey(refusals):
+    async def scenario():
+        keypair = _keypair()
+        hotkey = keypair.ss58_address
+        path = f"/v1/competitions/{SLUG}/submissions"
+        async with Kit() as kit:
+            async with await _http(kit) as http:
+                await http.post(path, files=_files(), headers=_signed(keypair, digest=_digest()))
+                await http.post(
+                    path,
+                    files=_files(),
+                    headers=_signed(keypair, digest=_digest(), timestamp=int(time.time()) - 3_600),
+                )
+                await http.post(
+                    path,
+                    files=_files(),
+                    headers={**_signed(keypair, digest=_digest()), "X-Conjectures-Signature": "00"},
+                )
+                await http.post(
+                    path,
+                    files=_files(rust=b"x" * (512 * 1024 + 1)),
+                    headers=_signed(keypair, digest="x"),
+                )
+                await kit.register(hotkey)
+                accepted = await http.post(
+                    path, files=_files(), headers=_signed(keypair, digest=_digest())
+                )
+            assert accepted.status_code == 201, accepted.text
+        assert _refused(refusals) == [
+            ("NOT_REGISTERED", 402, hotkey, "signed"),
+            ("SIGNATURE_EXPIRED", 401, hotkey, "signed"),
+            ("SIGNATURE_INVALID", 401, hotkey, "signed"),
+            ("BUNDLE_TOO_LARGE", 413, hotkey, "signed"),
+        ]
+        (event,) = refusals.of_type("competition_submission_refused")[:1]
+        assert (event["severity"], event["source"], event["competition"]) == (
+            "warning",
+            "api-competitions",
+            SLUG,
+        )
+        # The accepted submit is queued, not refused.
+        assert len(refusals.of_type("competition_submission_queued")) == 1
+
+    run(scenario())
+
+
+@needs_competition_db
+def test_a_paused_or_rate_limited_submit_is_recorded_as_refused(refusals):
+    async def scenario():
+        headers = {
+            "X-Conjectures-Hotkey": "5Junk",
+            "X-Conjectures-Timestamp": "0",
+            "X-Conjectures-Signature": "junk",
+        }
+        path = f"/v1/competitions/{SLUG}/submissions"
+        async with Kit(SUBMISSIONS_PAUSED="1") as kit:
+            async with await _http(kit) as http:
+                await http.post(path, files=_files(), headers=headers)
+        async with Kit(COMPETITION_RATE_PER_MINUTE="1") as kit:
+            async with await _http(kit) as http:
+                await http.post(path, files=_files(), headers=headers)
+                limited = await http.post(path, files=_files(), headers=headers)
+            assert limited.status_code == 429
+        assert _refused(refusals) == [
+            ("SUBMISSIONS_PAUSED", 503, "5Junk", "signed"),
+            # The first of the two gets as far as freshness.
+            ("SIGNATURE_EXPIRED", 401, "5Junk", "signed"),
+            ("RATE_LIMITED", 429, "5Junk", "signed"),
+        ]
+
+    run(scenario())
+
+
+@needs_competition_db
+def test_a_refused_session_submit_names_the_account(refusals):
+    async def scenario():
+        async with Kit() as kit:
+            await kit.register("5TheirsHot", coldkey=OTHER_MINER_COLDKEY)
+            async with await _http(kit) as http:
+                account = await sign_in_by_email(kit.api, http)
+                await _link_submission_coldkey(kit, account["id"], MINER_COLDKEY)
+                theirs = await http.post(
+                    f"/v1/competitions/{SLUG}/submissions/session",
+                    files=_files(),
+                    headers={**same_origin(http), "X-Conjectures-Hotkey": "5TheirsHot"},
+                )
+            assert theirs.status_code == 403
+        (event,) = refusals.of_type("competition_submission_refused")
+        assert (event["reason_code"], event["http_status"]) == ("HOTKEY_NOT_YOURS", 403)
+        assert (event["hotkey"], event["path"]) == ("5TheirsHot", "session")
+        assert event["account_id"] == account["id"]
+
+    run(scenario())
+
+
+@needs_competition_db
+def test_a_submit_to_an_unreachable_competition_is_refused_as_unavailable(refusals):
+    async def scenario():
+        keypair = _keypair()
+        dead = create_async_db_engine("postgresql+psycopg://nobody:nothing@127.0.0.1:1/absent")
+        registry = CompetitionRegistry(
+            [Competition(adapter=MinizOxide(), engine=dead, sessions=async_session_factory(dead))]
+        )
+        kit = await harness(competitions=registry).setup()
+        try:
+            async with await client(kit) as http:
+                refused = await http.post(
+                    f"/v1/competitions/{SLUG}/submissions",
+                    files=_files(),
+                    headers=_signed(keypair, digest=_digest()),
+                )
+            assert refused.status_code == 503
+            assert refused.json()["reason_code"] == "COMPETITION_UNAVAILABLE"
+        finally:
+            await kit.teardown()
+        assert _refused(refusals) == [
+            ("COMPETITION_UNAVAILABLE", 503, keypair.ss58_address, "signed")
+        ]
+        assert len(refusals.of_type("competition_database_unreachable")) == 1
 
     run(scenario())
 
