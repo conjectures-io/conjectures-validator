@@ -334,7 +334,8 @@ and no credentials all close it.
 7. Add metrics, alerts, rate limits, secret isolation, migrations in deployment, backups, restore
    drills, upgrades, rollbacks, and incident runbooks.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,
-   bounty payout, treasury weight submission, and chain reconciliation.
+   bounty payout, and chain reconciliation. Weight setting is exercised in
+   conjectures-optimisation-miniz-oxide, which owns it.
 
 ## Decisions taken
 

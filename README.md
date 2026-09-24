@@ -47,7 +47,7 @@ verification core.
 | Automatic reward eligibility and one-reward-per-theorem-target constraint | Implemented |
 | DB-driven Discord payout command notifications | Implemented |
 | Best/finalized chain reconciliation for Paying/Paid payout status | Implemented |
-| Subnet 66 treasury weight setter (100% to UID 121 every epoch) | Implemented |
+| Subnet 66 weights: set by conjectures-optimisation-miniz-oxide's weight setter (80% to treasury UID 121, 20% to the competition by score), not by this repository | Moved out |
 | Proof-specific scoring and automated bounty payout | To build |
 | Production launch and operating runbooks | To build |
 
@@ -384,8 +384,8 @@ how to add a competition.
 
 Nothing in this repository sets weights. Subnet 66's vector is set by the weight setter in
 conjectures-optimisation-miniz-oxide, the validator's only `set_weights` caller: treasury UID
-**121** receives its fixed share every epoch and the competition the rest, both code constants
-there (`validator/scoring/split.py`). A scoring failure pays the treasury everything for that
+**121** receives a fixed 80% every epoch and the competition the other 20%, divided by score. Both
+shares are code constants there (`validator/scoring/split.py`). A scoring failure pays the treasury everything for that
 epoch rather than skipping it.
 
 Build and inspect the real full-repository catalog:

@@ -21,7 +21,7 @@ flowchart TD
         WORK["verification worker<br/>SPEC"]
         REV["reward gating<br/>optional manual review<br/>SPEC"]
         RE["reward_events<br/>SPEC"]
-        WB["epoch worker<br/>UID 121 = 100%<br/>BUILT"]
+        WB["weight setter<br/>conjectures-optimisation-miniz-oxide<br/>UID 121 80% · competition 20%<br/>EXTERNAL"]
         CHAIN["Subnet 66<br/>epochs + SetWeights"]
     end
 
@@ -54,12 +54,12 @@ flowchart TD
     REP -->|"report bytes"| OBJ
     REP -->|"verdict + reason_code"| DB
     DB --> REV --> RE
-    CHAIN -->|"epoch"| WB -->|"100% treasury weight"| CHAIN
+    CHAIN -->|"epoch"| WB -->|"80% treasury · 20% competition by score"| CHAIN
 
     classDef built fill:#0f5132,stroke:#0f5132,color:#fff
     classDef spec fill:#664d03,stroke:#664d03,color:#fff
     classDef open fill:#842029,stroke:#842029,color:#fff
     classDef ext fill:#41464b,stroke:#41464b,color:#fff
-    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP,WB built
+    class FC,EX,CAT,POL,AUD,PICK,SEL,GT,VAL,BUN,ALLOW,LOAD,SUB,STAT,BC,CMP,REP built
     class API,PAY,OBJ,DB,WORK,REV,RE spec
-    class MINER,CHAIN ext
+    class MINER,CHAIN,WB ext
