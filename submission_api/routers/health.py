@@ -49,7 +49,9 @@ async def readyz(services: ServicesDep, session: SessionDep) -> schemas.Readines
     if services.competition_engine is not None:
         try:
             async with services.competition_engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
+                from submission_api.compression_store import compatible
+
+                await compatible(conn)
             competition_database = True
         except Exception as exc:  # noqa: BLE001 - readiness must not raise
             competition_database = False
