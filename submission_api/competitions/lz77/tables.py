@@ -1,6 +1,6 @@
-"""The slice of the miniz_oxide competition's schema this API reads and writes.
+"""The slice of the lz77 competition's schema this API reads and writes.
 
-The schema is not ours. It lives, and migrates, in conjectures-optimisation-miniz-oxide
+The schema is not ours. It lives, and migrates, in conjectures-optimisation-lz77
 (`validator/db/models.py`, Alembic under `deploy/migrate/alembic/`), and that repository's
 gate worker, chain watcher and weight setter write most of it. These are SQLAlchemy Core
 tables naming only the columns this adapter touches -- not models, and never used to create
@@ -11,7 +11,7 @@ Two things keep this slice honest:
 * `tests/test_competition_contract.py` reflects a database migrated by the competition's own
   Alembic head and checks every table and column here exists with a compatible type, and that
   every NOT NULL column without a default in a table this adapter inserts into is one it
-  names. Run it with `FC_MINIZ_SCHEMA_DSN` pointing at such a database.
+  names. Run it with `FC_LZ77_SCHEMA_DSN` pointing at such a database.
 * The API's test suite creates exactly these tables in its own throwaway database, so a column
   used by a query but missing here fails the suite rather than production.
 """

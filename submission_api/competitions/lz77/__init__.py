@@ -1,4 +1,4 @@
-"""The miniz_oxide DEFLATE competition: a proven LZ77 parser, scored on bytes and speed.
+"""The LZ77 parsing competition: a proven LZ77 parser, scored on bytes and speed.
 
 A submission is `parse.rs` and a Lean proof, `Parse.lean`, that it meets the specification.
 The competition's gate worker runs `verify.py` over it; its chain watcher records Subnet 66
@@ -45,9 +45,9 @@ from submission_api.competitions.base import (
     Submission,
     SubmissionState,
 )
-from submission_api.competitions.miniz_oxide import tables as t
+from submission_api.competitions.lz77 import tables as t
 
-SLUG = "miniz-oxide"
+SLUG = "lz77"
 # Each file. The largest reference submission is under 20 KB; the competition's own service
 # enforces the same cap (`MAX_FILE_BYTES`).
 MAX_FILE_BYTES = 512 * 1024
@@ -59,7 +59,7 @@ PENDING = (SubmissionState.QUEUED.value, SubmissionState.VERIFYING.value)
 
 INFO = CompetitionInfo(
     slug=SLUG,
-    name="miniz_oxide DEFLATE",
+    name="LZ77 parsing",
     description=(
         "Write a faster or smaller LZ77 parser for miniz_oxide's DEFLATE encoder and prove it "
         "correct in Lean. Accepted parsers are measured on a benchmark corpus."
@@ -183,7 +183,7 @@ def _unclaimed(hotkey: str):
     )
 
 
-class MinizOxide(CompetitionAdapter):
+class Lz77(CompetitionAdapter):
     info = INFO
 
     def parse_id(self, raw: str) -> str | None:
@@ -597,4 +597,4 @@ class MinizOxide(CompetitionAdapter):
         )
 
 
-__all__ = ["INFO", "MAX_FILE_BYTES", "SLUG", "SPEED_FLOOR", "MinizOxide"]
+__all__ = ["INFO", "MAX_FILE_BYTES", "SLUG", "SPEED_FLOOR", "Lz77"]

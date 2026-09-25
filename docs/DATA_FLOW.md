@@ -64,7 +64,7 @@ flowchart TD
         WORK["verification worker<br/>SPEC"]
         REV["reward gating<br/>optional manual review<br/>SPEC"]
         RE["reward_events<br/>SPEC"]
-        WB["weight setter<br/>conjectures-optimisation-miniz-oxide<br/>UID 121 80% · competition 20%<br/>EXTERNAL"]
+        WB["weight setter<br/>conjectures-optimisation-lz77<br/>UID 121 80% · competition 20%<br/>EXTERNAL"]
         CHAIN["Subnet 66<br/>epochs + SetWeights"]
     end
 
@@ -494,7 +494,7 @@ latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.
 | Automated bounty transfer and reconciliation | **Partial.** Transfer signing remains human multisig; best/finalized event reconciliation is automatic |
 
 The payout rule is deterministic and its inputs are persisted. Subnet emissions are independent:
-the Subnet 66 weight vector is set by conjectures-optimisation-miniz-oxide's weight setter, which
+the Subnet 66 weight vector is set by conjectures-optimisation-lz77's weight setter, which
 gives treasury UID 121 its share and the competition the rest (see that repository's
 `validator/scoring/split.py`); nothing in this repository sets weights. Executing
 the individual bounty transfer remains a human multisig operation; returning and maintaining its

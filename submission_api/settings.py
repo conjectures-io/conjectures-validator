@@ -755,7 +755,7 @@ class Settings:
     competition_signature_window_seconds: int
     # After how long a gate claim is presumed dead, for the operator queue. Advisory: it
     # decides what an operator is shown, not what gets requeued -- each competition's own
-    # worker sweeps its stale claims. Defaulted to miniz's SERVICE_STALE_CLAIM_SECONDS.
+    # worker sweeps its stale claims. Defaulted to the lz77 competition's SERVICE_STALE_CLAIM_SECONDS.
     competition_stale_claim_seconds: int
     task_allowlist_path: Path
     task_pool_root: Path

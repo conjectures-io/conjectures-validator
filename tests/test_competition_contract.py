@@ -9,7 +9,7 @@ migrated by the competition's own Alembic head and checks the slice against it:
 * every table and column the adapter names exists, with a compatible type and nullability;
 * every NOT NULL column without a default, in a table the adapter inserts into, is one it names.
 
-It needs such a database, so it is skipped unless `FC_MINIZ_SCHEMA_DSN` points at one. See
+It needs such a database, so it is skipped unless `FC_LZ77_SCHEMA_DSN` points at one. See
 docs/COMPETITIONS.md for how to make one. Run it whenever either side's schema changes.
 """
 
@@ -33,11 +33,12 @@ from sqlalchemy.types import (
     Text,
 )
 
-from submission_api.competitions.miniz_oxide import tables as miniz
+from submission_api.competitions.lz77 import tables as lz77
 
-DSN = os.environ.get("FC_MINIZ_SCHEMA_DSN", "").strip()
+DSN = os.environ.get("FC_LZ77_SCHEMA_DSN", "").strip()
 pytestmark = pytest.mark.skipif(
-    not DSN, reason="set FC_MINIZ_SCHEMA_DSN to a database migrated by the miniz Alembic head"
+    not DSN,
+    reason="set FC_LZ77_SCHEMA_DSN to a database migrated by the lz77 competition's Alembic head",
 )
 
 # Which reflected Postgres type satisfies which declared one. Broad families, not exact names:
@@ -75,7 +76,7 @@ def schema():
         engine.dispose()
 
 
-@pytest.mark.parametrize("table", miniz.metadata.sorted_tables, ids=lambda t: t.name)
+@pytest.mark.parametrize("table", lz77.metadata.sorted_tables, ids=lambda t: t.name)
 def test_every_mapped_column_exists_with_a_compatible_type(schema, table):
     assert table.name in schema, f"{table.name} is not in the competition's schema"
     real = schema[table.name]
@@ -92,7 +93,7 @@ def test_every_mapped_column_exists_with_a_compatible_type(schema, table):
             )
 
 
-@pytest.mark.parametrize("table", miniz.WRITTEN, ids=lambda t: t.name)
+@pytest.mark.parametrize("table", lz77.WRITTEN, ids=lambda t: t.name)
 def test_an_insert_sets_every_column_the_schema_requires(schema, table):
     required = {
         name
