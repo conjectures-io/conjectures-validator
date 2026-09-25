@@ -35,7 +35,7 @@ from submission_api.routers import competitions, competition_reads
 
 REPO = Path(__file__).resolve().parents[1]
 COMPRESSION = Path(
-    os.environ.get("COMPRESSION_REPO", str(REPO.parent / "conjectures-optimisation-miniz-oxide"))
+    os.environ.get("COMPRESSION_REPO", str(REPO.parent / "conjectures-optimisation-lz77"))
 )
 BASE = "/v1/competitions/lz77"
 
