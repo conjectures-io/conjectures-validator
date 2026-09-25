@@ -344,11 +344,15 @@ def rankings(snap):
                 improvement_weight=0.0,
                 combined_weight=0.0,
                 payable_weight=0.0,
+                bounty_earned_alpha=None,
             ),
         )
         row["submission_ids"].append(str(score["submission_id"]))
         for field in ("pareto_weight", "improvement_weight", "combined_weight", "payable_weight"):
             row[field] += score[field]
+        earned = view.alpha(score.get("bounty_rao"))
+        if earned is not None:
+            row["bounty_earned_alpha"] = (row["bounty_earned_alpha"] or 0.0) + earned
     rows = sorted(result.values(), key=lambda row: (-row["payable_weight"], row["hotkey"]))
     for index, row in enumerate(rows, 1):
         row["rank"] = index
@@ -368,8 +372,10 @@ async def leaderboard(
     sid, offset = page_state(services, cursor, "rank", [slug], snapshot_id)
     snap = await selected_snapshot(session, sid)
     rows = rankings(snap)
+    bounty = (snap["api_snapshot"].get("bounty") or {}) if snap else {}
     return s.Leaderboard(
         context=context(snap),
+        bounty_limit_alpha=bounty.get("limit_alpha"),
         ranking=rows[offset : offset + limit],
         next_cursor=next_page(
             services,

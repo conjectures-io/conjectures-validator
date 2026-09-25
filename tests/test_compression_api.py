@@ -90,10 +90,13 @@ def setup(monkeypatch):
     }
     state = {"snap": snap, "latest": 42}
 
+    real_with_bounty = store.with_bounty
+
     async def snapshot(session, sid=None):
         if sid is not None and sid != 42:
             return None
-        return deepcopy(state["snap"])
+        snap = deepcopy(state["snap"])
+        return real_with_bounty(snap) if snap is not None else None
 
     async def compatible(session):
         pass
@@ -356,3 +359,38 @@ def test_withhold_frontier_miners_only(baseline_key, on_frontier, withheld):
 
 def test_unscored_baseline_source_stays_public():
     reads.withhold({"id": 3, "baseline_key": "lazy"}, None)
+
+
+def test_bounty_totals_show_on_submissions_pareto_and_leaderboard(setup):
+    client, state, _ = setup
+    state["snap"]["scores"][1] = score(2, "b", 0.3, "bounty-cap")
+    state["snap"]["api_snapshot"]["bounty"] = {
+        "limit_alpha": 3600.0,
+        "limit_rao": 3_600_000_000_000,
+        "submissions": [
+            {"submission_id": 1, "hotkey": "a", "earned_rao": 12_500_000_000, "capped": False},
+            {"submission_id": 2, "hotkey": "b", "earned_rao": 3_590_000_000_000, "capped": True},
+        ],
+    }
+    board = client.get(BASE + "/leaderboard").json()
+    assert board["bounty_limit_alpha"] == 3600.0
+    assert {r["hotkey"]: r["bounty_earned_alpha"] for r in board["ranking"]} == {
+        "a": 12.5,
+        "b": 3590.0,
+    }
+    first = client.get(BASE + "/submissions/1").json()["submission"]["score"]
+    assert first["bounty_earned_alpha"] == 12.5 and first["bounty_capped"] is False
+    capped = client.get(BASE + "/submissions/2").json()["submission"]["score"]
+    assert capped["bounty_capped"] is True and capped["unpaid_reason"] == "bounty-cap"
+    assert capped["payment_eligible"] is False and capped["payable_weight"] == 0
+    points = client.get(BASE + "/pareto").json()["items"]
+    assert [p["score"]["bounty_earned_alpha"] for p in points] == [12.5, 3590.0, None]
+
+
+def test_a_pass_without_bounty_records_leaves_totals_unknown(setup):
+    client, _, _ = setup
+    board = client.get(BASE + "/leaderboard").json()
+    assert board["bounty_limit_alpha"] is None
+    assert all(r["bounty_earned_alpha"] is None for r in board["ranking"])
+    first = client.get(BASE + "/submissions/1").json()["submission"]["score"]
+    assert first["bounty_earned_alpha"] is None and first["bounty_capped"] is None

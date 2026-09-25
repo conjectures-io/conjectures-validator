@@ -1033,7 +1033,7 @@ Every response model referenced above, field by field. "Required" means always p
 | `description` | string | yes |  |
 | `files` | array of object | yes | Each `{name: string, max_bytes: integer}`: `parse.rs` and `Parse.lean`, 524288 bytes each |
 | `metric_definitions` | array of object | yes | Each `{key, label, unit, better}` (all strings): `balanced_time_ratio` (ratio) and `mean_file_compression_pct` (percent), both `better: "lower"` |
-| `policy` | object \| null | yes | The snapshot's scoring policy: `method`, `version`, `speed_floor`, `max_balanced_time_ratio`, `max_mean_file_compression_pct`, `max_ratio_pct`, `pareto_share`, `improvement_share`, `improvement_window`, `improvement_threshold`, `improvement_decay`, `competition_share`, `required_corpora` (array of string), `bootstrap_draws`, `confidence_level`, `admission_policy_version`. Null before the first snapshot |
+| `policy` | object \| null | yes | The snapshot's scoring policy: `method`, `version`, `speed_floor`, `max_balanced_time_ratio`, `max_mean_file_compression_pct`, `max_ratio_pct`, `pareto_share`, `improvement_share`, `improvement_window`, `improvement_threshold`, `improvement_decay`, `competition_share`, `alpha_total_submission_bounty`, `required_corpora` (array of string), `bootstrap_draws`, `confidence_level`, `admission_policy_version`. Null before the first snapshot |
 | `policy_status` | string | yes | `"ready"` once a snapshot has published a policy |
 | `execution_limits` | object | yes | `{benchmark_timeout_seconds, gate_timeout_seconds}`, both integer or null (null today) |
 | `context` | [Context](#schema-context) | yes |  |
@@ -1107,6 +1107,7 @@ Every response model referenced above, field by field. "Required" means always p
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `context` | [Context](#schema-context) | yes |  |
+| `bounty_limit_alpha` | number \| null | no | The most alpha any one (hotkey, submission) pair is paid over its lifetime; null before the competition recorded bounties |
 | `ranking` | array of [Ranking](#schema-ranking) | yes |  |
 | `next_cursor` | string \| null | no |  |
 
@@ -1294,6 +1295,7 @@ What a requeue did. `requeued` is false when the row was not one to requeue.
 | `improvement_weight` | number | yes |  |
 | `combined_weight` | number | yes |  |
 | `payable_weight` | number | yes | Summed over the hotkey's submissions |
+| `bounty_earned_alpha` | number \| null | no | Sum of `bounty_earned_alpha` over the hotkey's submissions; each submission is capped separately |
 
 <a id="schema-metrics"></a>
 
@@ -1320,7 +1322,9 @@ What a requeue did. `requeued` is false when the row was not one to requeue.
 | `combined_weight` | number | yes |  |
 | `payable_weight` | number | yes | Fraction of the competition share this submission is paid |
 | `payment_eligible` | boolean | yes |  |
-| `unpaid_reason` | string \| null | no | Why a scored point is not paid, e.g. outside scoring bounds |
+| `unpaid_reason` | string \| null | no | Why a scored point is not paid, e.g. outside scoring bounds, or `bounty-cap` once it has reached the submission bounty |
+| `bounty_earned_alpha` | number \| null | no | Alpha this submission had received when the pass ran, toward the submission bounty (`policy.alpha_total_submission_bounty`, default 3600). Null for baselines and for passes before the competition recorded bounties |
+| `bounty_capped` | boolean \| null | no | True once the submission has received, or would pass, the bounty: it is paid nothing more, permanently, and its share goes to the treasury |
 
 <a id="schema-speedtest"></a>
 
