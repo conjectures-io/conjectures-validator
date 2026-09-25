@@ -7,7 +7,7 @@ Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (d
 ## Conventions
 
 - **Base path:** `/v1/competitions`. All bodies are JSON unless noted; submits are `multipart/form-data`.
-- **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than miniz migration 0011.
+- **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than migration 0011 of conjectures-optimisation-lz77.
 - **Scoring snapshots:** score fields come from the latest scoring pass the competition's weight setter published, or from the one named by `snapshot_id`. Before the first pass, `context.status` is `"not_ready"` and rankings are empty.
 - **Paging:** paged lists take `limit` (1–100, default 25) and an opaque `cursor`; pass back `next_cursor` unchanged. A cursor is bound to the filters and snapshot it was issued for.
 - **Rate limit:** the global per-IP `/v1` limit applies (default 120 requests per 60 s), reported in `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers. The two submit routes also count, in Postgres across every replica, a per-address budget before any signature is checked and a per-hotkey budget once the hotkey is proven (see each route's refusals).
@@ -1007,7 +1007,7 @@ timestamp: <unix seconds>
 - `timestamp` is the same integer sent in `X-Conjectures-Timestamp`; it must be within 300 s of server time.
 - `X-Conjectures-Signature` is the signature as hex, with or without `0x`.
 - The server rebuilds the message from the slug in the path and the bytes it received, so any mismatch is `SIGNATURE_INVALID`.
-- Reference client: `python miner/submit.py submit <dir> --hotkey <hotkey file> --url https://<api>` in the conjectures-optimisation-miniz-oxide repository.
+- Reference client: `python miner/submit.py submit <dir> --hotkey <hotkey file> --url https://<api>` in the conjectures-optimisation-lz77 repository.
 
 ## Schemas
 
