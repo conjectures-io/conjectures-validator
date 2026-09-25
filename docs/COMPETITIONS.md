@@ -28,7 +28,7 @@ browser / miner ───► │ /v1/...               proofs routers ───�
 
 ```bash
 COMPETITIONS=lz77
-COMPETITION_LZ77_DATABASE_URL=postgresql+psycopg://api:…@conjectures_miniz_db:5432/conjectures
+COMPETITION_LZ77_DATABASE_URL=postgresql+psycopg://api:…@conjectures_lz77_db:5432/conjectures
 ```
 
 `COMPETITIONS` lists the served slugs, and each slug's URL is `COMPETITION_<SLUG>_DATABASE_URL`,
