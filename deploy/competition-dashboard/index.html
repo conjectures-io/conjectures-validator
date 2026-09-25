@@ -156,6 +156,10 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const short = (k) => (k ? k.slice(0, 6) + "…" + k.slice(-4) : "—");
 const fmt = (v, d = 2) => (v == null || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
+// Alpha received toward the per-submission bounty; "capped" once it is paid no more.
+let bountyLimit = null;
+const bountyTitle = () => `Alpha received toward the per-submission bounty${bountyLimit != null ? ` (at most ${fmt(bountyLimit, 0)} α each)` : ""}`;
+const bounty = (v, capped) => v == null ? "—" : `${fmt(v, 2)} α${capped ? ' <span class="pill bad" title="Reached the bounty: paid nothing more">capped</span>' : ""}`;
 const pct = (v) => (v == null ? "—" : (v * 100).toFixed(1) + "%");
 const when = (t) => (t ? new Date(t).toLocaleString() : "—");
 
@@ -283,6 +287,7 @@ function drawPareto(items, bounds) {
       <div class="row"><span>Mean size</span><span class="num">${fmt(p.metrics.mean_file_compression_pct, 3)}%</span></div>
       <div class="row"><span>Byte-weighted size</span><span class="num">${fmt(p.metrics.byte_weighted_compression_pct, 3)}%</span></div>
       <div class="row"><span>Share of pay</span><span class="num">${pct(p.score && p.score.payable_weight)}</span></div>
+      ${p.score && p.score.bounty_earned_alpha != null ? `<div class="row"><span>Bounty earned</span><span class="num">${bounty(p.score.bounty_earned_alpha, p.score.bounty_capped)}</span></div>` : ""}
       ${p.score && p.score.unpaid_reason ? `<div class="note">${esc(p.score.unpaid_reason)}</div>` : ""}`;
     tip.hidden = false;
     const box = host.getBoundingClientRect(), r = g.getBoundingClientRect();
@@ -305,11 +310,12 @@ async function loadLeaderboard() {
   const page = await get(`/${slug}/leaderboard`, { limit: PAGE, cursor: st.stack[st.index], snapshot_id: snapshot });
   st.next = page.next_cursor;
   const rows = page.ranking;
+  bountyLimit = page.bounty_limit_alpha;
   $("lb").innerHTML = rows.length
-    ? `<table><thead><tr><th class="num">#</th><th>Hotkey</th><th>Submissions</th><th class="num" title="Fraction of the competition's 20% weight share">Share of pay</th><th class="num" title="Pareto component">Pareto</th><th class="num" title="Recent-improvement component">Impr.</th></tr></thead><tbody>${rows.map((r) => `
+    ? `<table><thead><tr><th class="num">#</th><th>Hotkey</th><th>Submissions</th><th class="num" title="Fraction of the competition's 20% weight share">Share of pay</th><th class="num" title="Pareto component">Pareto</th><th class="num" title="Recent-improvement component">Impr.</th><th class="num" title="${esc(bountyTitle())}">Bounty earned</th></tr></thead><tbody>${rows.map((r) => `
         <tr><td class="num">${r.rank}</td><td class="mono" title="${esc(r.hotkey)}">${esc(short(r.hotkey))}</td>
         <td>${r.submission_ids.map((id) => `<a href="${API}/${slug}/submissions/${id}" target="_blank" rel="noopener">#${esc(id)}</a>`).join(", ")}</td>
-        <td class="num"><b>${pct(r.payable_weight)}</b></td><td class="num">${fmt(r.pareto_weight, 2)}</td><td class="num">${fmt(r.improvement_weight, 2)}</td></tr>`).join("")}</tbody></table>`
+        <td class="num"><b>${pct(r.payable_weight)}</b></td><td class="num">${fmt(r.pareto_weight, 2)}</td><td class="num">${fmt(r.improvement_weight, 2)}</td><td class="num">${bounty(r.bounty_earned_alpha)}</td></tr>`).join("")}</tbody></table>`
     : '<div class="empty">No ranked hotkeys in this pass.</div>';
   pager("lb");
 }
@@ -324,7 +330,7 @@ async function loadSubmissions() {
   st.next = page.next_cursor;
   const rows = page.items;
   $("subs").innerHTML = rows.length
-    ? `<table><thead><tr><th class="num">Id</th><th>Who</th><th>Submitted</th><th>Gate</th><th>Admission</th><th class="num">Time ÷ inc.</th><th class="num">Mean size</th><th>Frontier</th><th class="num" title="Fraction of the competition's 20% weight share">Share of pay</th><th>Links</th></tr></thead><tbody>${rows.map((r) => {
+    ? `<table><thead><tr><th class="num">Id</th><th>Who</th><th>Submitted</th><th>Gate</th><th>Admission</th><th class="num">Time ÷ inc.</th><th class="num">Mean size</th><th>Frontier</th><th class="num" title="Fraction of the competition's 20% weight share">Share of pay</th><th class="num" title="${esc(bountyTitle())}">Bounty</th><th>Links</th></tr></thead><tbody>${rows.map((r) => {
         const m = r.metrics || {}, sc = r.score || {}, ad = r.admission || {};
         const who = r.kind === "baseline" ? `<span class="pill">baseline</span> ${esc(r.baseline_name || "")}` : `<span class="mono" title="${esc(r.hotkey)}">${esc(short(r.hotkey))}</span>`;
         const adm = ad.outcome ? `<span class="pill ${ad.admitted ? "ok" : ad.outcome === "excluded" || ad.outcome === "dominated" ? "bad" : ""}" title="${esc(ad.explanation || "")}">${esc(ad.outcome.replace("_", " "))}</span>` : `<span class="pill">${esc(ad.status || "—")}</span>`;
@@ -333,6 +339,7 @@ async function loadSubmissions() {
           <td>${pill(r.gate_status)}</td><td>${adm}</td><td class="num">${fmt(m.balanced_time_ratio)}×</td><td class="num">${fmt(m.mean_file_compression_pct, 3)}%</td>
           <td>${sc.on_frontier ? '<span class="pill ok">yes</span>' : sc.snapshot_id ? '<span class="pill">no</span>' : "—"}</td>
           <td class="num">${sc.snapshot_id ? pct(sc.payable_weight) : "—"}</td>
+          <td class="num">${bounty(sc.bounty_earned_alpha, sc.bounty_capped)}</td>
           <td><a href="${base}/report" target="_blank" rel="noopener">report</a> · ${sourceLink(r, base)}</td></tr>`;
       }).join("")}</tbody></table>`
     : '<div class="empty">No submissions match.</div>';

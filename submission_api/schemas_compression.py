@@ -51,6 +51,11 @@ class Score(BaseModel):
     payable_weight: float
     payment_eligible: bool
     unpaid_reason: str | None = None
+    # Alpha this submission had received when the pass ran, toward the submission bounty
+    # (policy.alpha_total_submission_bounty); capped once it would pass it. None before
+    # the competition recorded bounties.
+    bounty_earned_alpha: float | None = None
+    bounty_capped: bool | None = None
 
 
 class Submission(BaseModel):
@@ -113,10 +118,13 @@ class Ranking(BaseModel):
     improvement_weight: float
     combined_weight: float
     payable_weight: float
+    # Summed over the hotkey's submissions; each is capped separately.
+    bounty_earned_alpha: float | None = None
 
 
 class Leaderboard(BaseModel):
     context: Context
+    bounty_limit_alpha: float | None = None
     ranking: list[Ranking]
     next_cursor: str | None = None
 
