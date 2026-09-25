@@ -13,7 +13,7 @@ from sqlalchemy import text
 from submission_api import compression_store as store, compression_views as view
 from submission_api import schemas_compression as s
 from submission_api.dependencies import CompetitionSessionDep, ServicesDep, PrincipalDep
-from submission_api.errors import BadRequest, Conflict, NotFound
+from submission_api.errors import BadRequest, Conflict, Forbidden, NotFound
 from submission_api.pagination import decode_parts, encode_parts
 from submission_api.routers.competitions import resolve_competition
 from submission_api.settings import MAX_COMPETITION_FILE_BYTES
@@ -490,10 +490,38 @@ async def report(
     return {"submission_id": str(submission_id), "report": view.sanitized_report(report)}
 
 
+SOURCE_WITHHELD = "SOURCE_WITHHELD"
+
+
+def withhold(sub, score):
+    """Keep a miner's source private while it is, or may be, the current best.
+
+    Publishing the frontier would let anyone resubmit the leading parser under their own
+    hotkey, so a submission on the latest snapshot's Pareto frontier is withheld and is
+    published once another submission beats it. A submission the latest snapshot has not
+    scored yet is withheld too: it may be about to land on the frontier, and the next pass
+    decides. Baselines are exempt, being the public miner/examples already.
+    """
+    if sub.get("baseline_key"):
+        return
+    if score is None:
+        raise Forbidden(
+            "Source is withheld until a scoring pass has placed this submission",
+            reason_code=SOURCE_WITHHELD,
+        )
+    if score["on_frontier"]:
+        raise Forbidden(
+            "Source is withheld while this submission is on the Pareto frontier; "
+            "it is published once another submission beats it",
+            reason_code=SOURCE_WITHHELD,
+        )
+
+
 async def sources(slug, sid, services, session):
-    sub, _, _, _ = await load_submission(slug, sid, services, session)
+    sub, _, score, _ = await load_submission(slug, sid, services, session)
     if sub["state"] != "accepted":
         raise NotFound("No published source")
+    withhold(sub, score)
     rows = (
         await session.execute(
             text("SELECT name, content FROM submission_files WHERE submission_id=:id"), {"id": sid}
