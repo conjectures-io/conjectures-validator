@@ -8,8 +8,8 @@ writes a submission into the competition's -- does two units of work, and is wri
 
 Configuration is two environment variables per competition:
 
-    COMPETITIONS=miniz-oxide
-    COMPETITION_MINIZ_OXIDE_DATABASE_URL=postgresql+psycopg://...
+    COMPETITIONS=lz77
+    COMPETITION_LZ77_DATABASE_URL=postgresql+psycopg://...
 
 and the slug must name an adapter in `catalog.ADAPTERS`. Adding a competition is an adapter
 module and one line there; removing one is deleting the line. Nothing in the router, the
@@ -39,7 +39,7 @@ class CompetitionConfigError(ValueError):
 
 
 def database_url_variable(slug: str) -> str:
-    """The environment variable holding `slug`'s database URL: `miniz-oxide` -> `..._MINIZ_OXIDE_...`."""
+    """The environment variable holding `slug`'s database URL: `rust-comp` -> `..._RUST_COMP_...`."""
     return f"COMPETITION_{slug.upper().replace('-', '_')}_DATABASE_URL"
 
 

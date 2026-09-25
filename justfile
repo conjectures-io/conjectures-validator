@@ -1,6 +1,6 @@
 # The one entrypoint for the operational stack: Postgres, Flyway, the API, and
 # optionally the verification worker, deposit watcher, and payout notifier. Subnet 66 weights
-# are set by conjectures-optimisation-miniz-oxide's weight setter, not from here.
+# are set by conjectures-optimisation-lz77's weight setter, not from here.
 #
 #   just up            # db -> migrate -> api + automatic payout notifier
 #   just up-worker     # ... and the development verification worker

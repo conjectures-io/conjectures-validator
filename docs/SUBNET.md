@@ -18,7 +18,7 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
 - Only a proof accepted by the hardened Lean verifier may reach reward review or rewards.
 - Manual review, when enabled, gates reward eligibility after Lean succeeds.
 - Manual review cannot make a Lean-invalid proof valid.
-- Validator weights are set outside this repository, by conjectures-optimisation-miniz-oxide's weight setter, the validator's only `set_weights` caller: treasury UID 121
+- Validator weights are set outside this repository, by conjectures-optimisation-lz77's weight setter, the validator's only `set_weights` caller: treasury UID 121
   receives its fixed share every epoch and the proof-gated competitions the rest.
 - Every payment, state transition, verification, review, and reward decision is durable and
   auditable.
@@ -53,7 +53,7 @@ manual reward review, and sends reward-eligible results to the Subnet 66 reward 
    timestamp, and policy version are recorded as a `review_decisions` row.
 10. Approved proofs and automatically eligible proofs enter the bounty payout pipeline.
 11. Independently of individual proof results, Subnet 66 weights are set every epoch by
-    conjectures-optimisation-miniz-oxide's weight setter: treasury UID 121 receives its fixed
+    conjectures-optimisation-lz77's weight setter: treasury UID 121 receives its fixed
     share, and the competition the rest.
 
 ```text
@@ -289,7 +289,7 @@ own. Adding a migration is adding a file to `deploy/migrate/sql`; see
 
 It does not yet include the payment allocation/reconciliation worker, the reviewer-facing
 decision service, or the automated proof-bounty payout processor. Subnet emissions do not depend
-on proof scoring: the weight setter in conjectures-optimisation-miniz-oxide pays treasury UID 121
+on proof scoring: the weight setter in conjectures-optimisation-lz77 pays treasury UID 121
 its fixed share and the competition the rest.
 
 One open operational question the verification worker raises: whatever launches the verifier
@@ -328,14 +328,14 @@ and no credentials all close it.
    policy version are already captured, and the gate is already applied when a verdict is
    recorded.
 6. ~~Add Subnet chain weight submission.~~ Done, and since moved: the weight setter in
-   conjectures-optimisation-miniz-oxide sets the whole vector, treasury UID 121's share plus the
+   conjectures-optimisation-lz77 sets the whole vector, treasury UID 121's share plus the
    competition's. Proof-specific scoring is not part of the emissions policy; automated bounty
    payout remains.
 7. Add metrics, alerts, rate limits, secret isolation, migrations in deployment, backups, restore
    drills, upgrades, rollbacks, and incident runbooks.
 8. Exercise the full staging path from finalized payment to Lean verification, optional review,
    bounty payout, and chain reconciliation. Weight setting is exercised in
-   conjectures-optimisation-miniz-oxide, which owns it.
+   conjectures-optimisation-lz77, which owns it.
 
 ## Decisions taken
 
