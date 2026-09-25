@@ -190,12 +190,19 @@ def with_bounty(result):
     return result
 
 
+# A pass that stopped before scoring (a skipped epoch) stores `api_snapshot` as JSON `null`,
+# not SQL NULL: the competition's JSONB column persists Python None that way, and that model
+# is pinned by its verifier fingerprint. `IS NOT NULL` is true of JSON `null`, so it would
+# select the skip and hand every reader None. Only an object is a published snapshot.
+PUBLISHED = "jsonb_typeof(api_snapshot) = 'object'"
+
+
 async def snapshot(session, sid=None):
     if sid is None:
-        sql = "SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE api_snapshot IS NOT NULL ORDER BY id DESC LIMIT 1"
+        sql = f"SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE {PUBLISHED} ORDER BY id DESC LIMIT 1"
         params = {}
     else:
-        sql = "SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE id=:id AND api_snapshot IS NOT NULL"
+        sql = f"SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE id=:id AND {PUBLISHED}"
         params = {"id": sid}
     row = (await session.execute(text(sql), params)).mappings().first()
     if row is None:
