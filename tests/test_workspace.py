@@ -55,6 +55,7 @@ def test_workspace_is_fresh_and_packages_only_one_submission(tmp_path):
         assert not (Path(overrides["packages"][0]["dir"]) / ".work").exists()
         workspace_lakefile = (first.root / "lakefile.toml").read_text(encoding="utf-8")
         assert workspace_lakefile.count('weak.google.answer = "always_true"') == 2
+        assert 'Elab.async = false' in workspace_lakefile
         assert 'weak.google.answer = "postpone"' not in workspace_lakefile
         formal_conjectures = next(
             package for package in overrides["packages"]
