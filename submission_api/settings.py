@@ -736,6 +736,9 @@ class Settings:
     # process memory: an in-process counter is a limit per replica per uptime, and what
     # needs bounding here is a hotkey's claim on gate time across the whole deployment.
     competition_rate_per_minute: int
+    # Submits allowed per client address per minute, across both write paths, counted before
+    # anything proves the caller holds the hotkey it names. Honours TRUSTED_PROXY_HOPS.
+    competition_ip_rate_per_minute: int
     # How far a submission's signed timestamp may sit from this clock. A captured request is
     # useless once it falls outside, which is what stops a recorded upload being replayed.
     competition_signature_window_seconds: int
@@ -1557,6 +1560,9 @@ class Settings:
             ),
             competition_rate_per_minute=_bounded_int(
                 env, "COMPETITION_RATE_PER_MINUTE", 10, minimum=1, maximum=10_000
+            ),
+            competition_ip_rate_per_minute=_bounded_int(
+                env, "COMPETITION_IP_RATE_PER_MINUTE", 30, minimum=1, maximum=10_000
             ),
             competition_signature_window_seconds=_bounded_int(
                 env,

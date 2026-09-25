@@ -10,7 +10,7 @@ Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (d
 - **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than miniz migration 0011.
 - **Scoring snapshots:** score fields come from the latest scoring pass the competition's weight setter published, or from the one named by `snapshot_id`. Before the first pass, `context.status` is `"not_ready"` and rankings are empty.
 - **Paging:** paged lists take `limit` (1–100, default 25) and an opaque `cursor`; pass back `next_cursor` unchanged. A cursor is bound to the filters and snapshot it was issued for.
-- **Rate limit:** the global per-IP `/v1` limit applies (default 120 requests per 60 s), reported in `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers.
+- **Rate limit:** the global per-IP `/v1` limit applies (default 120 requests per 60 s), reported in `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers. The two submit routes also count, in Postgres across every replica, a per-address budget before any signature is checked and a per-hotkey budget once the hotkey is proven (see each route's refusals).
 - **Ids** are strings in responses (`"submission": "42"`) and integers in paths.
 - **Times** are ISO 8601 strings in UTC with an offset (`2026-09-24T14:07:50.192134+00:00`); the schema types them only as `string`.
 - **Hotkeys** are ss58 addresses.
@@ -249,11 +249,12 @@ Exactly these parts and nothing else; each file 1 byte to 512 KiB.
 **Refusals**
 
 - 503 `SUBMISSIONS_PAUSED`: submissions are paused platform-wide
-- 429 `RATE_LIMITED`: more than `COMPETITION_RATE_PER_MINUTE` (default 10) submits for this hotkey in the current minute
+- 429 `RATE_LIMITED`: more than `COMPETITION_IP_RATE_PER_MINUTE` (default 30) submits from this client address in the current minute, counted whether or not the request is signed
 - 401 `SIGNATURE_EXPIRED`: `X-Conjectures-Timestamp` is more than 300 s from server time
 - 400 `MALFORMED_REQUEST`: missing or extra form parts, an empty file, or an unparseable form
 - 413 `BUNDLE_TOO_LARGE`: a file over 512 KiB
 - 401 `SIGNATURE_INVALID`: bad address, bad hex, or the signature does not match the message
+- 429 `RATE_LIMITED`: more than `COMPETITION_RATE_PER_MINUTE` (default 10) signed submits for this hotkey in the current minute; only a valid signature spends a hotkey's budget
 - 402 `NOT_REGISTERED`: no recorded subnet registration for this hotkey
 - 402 `NO_ENTITLEMENT`: queued submissions already use every unspent registration
 - 404 `NOT_FOUND`: unknown slug
@@ -287,9 +288,10 @@ Exactly these parts and nothing else; each file 1 byte to 512 KiB.
 **Refusals**
 
 - 503 `SUBMISSIONS_PAUSED`: submissions are paused platform-wide
-- 429 `RATE_LIMITED`: more than `COMPETITION_RATE_PER_MINUTE` (default 10) submits for this hotkey in the current minute
+- 429 `RATE_LIMITED`: more than `COMPETITION_IP_RATE_PER_MINUTE` (default 30) submits from this client address in the current minute
 - 402 `NO_SUBMISSION_COLDKEY`: the account has no linked submission coldkey
 - 403 `HOTKEY_NOT_YOURS`: the hotkey was registered by a different coldkey
+- 429 `RATE_LIMITED`: more than `COMPETITION_RATE_PER_MINUTE` (default 10) submits for this hotkey in the current minute, counted only once the account is shown to own it
 - 400 `MALFORMED_REQUEST`: missing or extra form parts, an empty file, or an unparseable form
 - 413 `BUNDLE_TOO_LARGE`: a file over 512 KiB
 - 402 `NOT_REGISTERED`: no recorded subnet registration for this hotkey

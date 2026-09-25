@@ -20,6 +20,7 @@ from submission_api.errors import (
     Unauthorized,
 )
 from submission_api.login import verify_signature
+from submission_api.middleware import client_address
 from submission_api.settings import MAX_COMPETITION_FILE_BYTES
 
 router = APIRouter(prefix="/v1/competitions", tags=["competitions"])
@@ -53,7 +54,7 @@ def refuse_if_paused(services: ServicesDep) -> None:
     `intents.py`, `web_submissions.py` and `_account.py` -- and the weekly pin-rotation
     drain depends on all of them doing so.
 
-    Called first by both write handlers, before the rate limit and before anything parses a
+    Called first by both write handlers, before the rate limits and before anything parses a
     body: a paused surface takes no work at all, so refusing costs one boolean rather than a
     multipart parse and a curve operation. `web_submissions.py` places its check the same
     way, and for the same reason.
@@ -88,13 +89,47 @@ UPLOAD_SCHEMA = {
 # ── writing ────────────────────────────────────────────────────────────────
 
 
+async def _spend(session: CompetitionSessionDep, subject: str, *, limit: int, what: str) -> None:
+    """Count one hit against `subject`'s minute, or refuse with 429.
+
+    Committed at once, so a request refused later still counts: the budget bounds attempts,
+    not successes, and a flood of bad signatures has to cost its sender something.
+    """
+    allowed, _hits = await queries.hit_rate_limit(session, subject, limit=limit, window_seconds=60)
+    await session.commit()
+    if not allowed:
+        raise TooManyRequests(
+            f"more than {limit} submissions a minute from this {what}",
+            reason_code="RATE_LIMITED",
+        )
+
+
+async def _spend_ip(
+    request: Request, session: CompetitionSessionDep, services: ServicesDep
+) -> None:
+    """The caller's address budget, spent before anything proves who the caller is.
+
+    The per-hotkey limit cannot go first: the hotkey is a header anyone can write, so counting
+    it before the signature let an unsigned flood exhaust a miner's minute (and mint a
+    `rate_limit_windows` row for every address it invented). This bounds that flood by where
+    it comes from, and the hotkey's own budget is spent only once the hotkey is proven.
+    """
+    settings = services.settings
+    await _spend(
+        session,
+        "ip:" + client_address(request.scope, settings.trusted_proxy_hops),
+        limit=settings.competition_ip_rate_per_minute,
+        what="address",
+    )
+
+
 async def _read_pair(request: Request) -> tuple[bytes, bytes]:
     """The two submitted files, under a running cap.
 
     Parsed here rather than declared as `UploadFile` parameters, and that is an ordering
     property rather than a style choice. FastAPI resolves `File()` parameters during
     dependency resolution, which runs *before* the handler body -- so declaring them would
-    put a form parser over untrusted bytes ahead of the rate limit and the signature check,
+    put a form parser over untrusted bytes ahead of the address limit and the signature check,
     and would make this endpoint's documented cheapest-first order untrue. Calling it here
     means nothing parses a body until the caller has been rate limited and their timestamp
     found fresh.
@@ -242,19 +277,7 @@ async def submit(
     settings = services.settings
 
     await queries.compatible(session)
-    allowed, _hits = await queries.hit_rate_limit(
-        session,
-        f"hotkey:{hotkey}",
-        limit=settings.competition_rate_per_minute,
-        window_seconds=60,
-    )
-    await session.commit()
-    if not allowed:
-        raise TooManyRequests(
-            f"more than {settings.competition_rate_per_minute} submissions a minute "
-            "from this hotkey",
-            reason_code="RATE_LIMITED",
-        )
+    await _spend_ip(request, session, services)
 
     # Freshness before the signature: a stale request is refused without a curve operation.
     drift = abs(int(time.time()) - timestamp)
@@ -277,6 +300,10 @@ async def submit(
             timestamp=timestamp,
         ),
         signature=bytes.fromhex(signature.removeprefix("0x")) if _is_hex(signature) else b"",
+    )
+    # Only now is `hotkey` the caller's rather than a claim about someone else's.
+    await _spend(
+        session, f"hotkey:{hotkey}", limit=settings.competition_rate_per_minute, what="hotkey"
     )
     result = await _queue(
         competition=competition,
@@ -336,15 +363,7 @@ async def submit_as_account(
     refuse_if_paused(services)
     competition = resolve_competition(services, slug)
     await queries.compatible(session)
-    allowed, _ = await queries.hit_rate_limit(
-        session,
-        f"hotkey:{hotkey}",
-        limit=services.settings.competition_rate_per_minute,
-        window_seconds=60,
-    )
-    await session.commit()
-    if not allowed:
-        raise TooManyRequests("Submission rate limit exceeded", reason_code="RATE_LIMITED")
+    await _spend_ip(request, session, services)
     coldkey = principal.account.submission_coldkey
     if not coldkey:
         raise PaymentRequired(
@@ -358,6 +377,13 @@ async def submit_as_account(
             "this account's submission coldkey did not register that hotkey",
             reason_code="HOTKEY_NOT_YOURS",
         )
+    # After the ownership check, so an account can spend only its own hotkeys' budgets.
+    await _spend(
+        session,
+        f"hotkey:{hotkey}",
+        limit=services.settings.competition_rate_per_minute,
+        what="hotkey",
+    )
     rust, lean = await _read_pair(request)
     digest = competition_sig.digest_of(rust, lean)
     result = await _queue(
