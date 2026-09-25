@@ -30,8 +30,8 @@ from typing import Final
 # starting on an alphanumeric. It is also a path segment, so nothing here can escape one.
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
-DEFAULT_SLUG: Final = "miniz-oxide"
-DEFAULT_NAME: Final = "miniz_oxide DEFLATE"
+DEFAULT_SLUG: Final = "lz77"
+DEFAULT_NAME: Final = "LZ77 parsing"
 # A submission that beats the incumbent's bytes but is slower than this multiple of the
 # incumbent's time is refused by the gate, not here. The API only reports it, so a miner can
 # see the bar before spending an hour of validator time finding out.

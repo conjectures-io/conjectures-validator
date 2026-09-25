@@ -33,7 +33,7 @@ services:
       # resolves to that same vector rather than to a skipped epoch, because an
       # epoch's emissions cannot be set retroactively.
       EMISSIONS_COMPETITION_WEIGHTS_URL: ${EMISSIONS_COMPETITION_WEIGHTS_URL:-}
-      EMISSIONS_COMPETITION_SLUG: ${EMISSIONS_COMPETITION_SLUG:-miniz-oxide}
+      EMISSIONS_COMPETITION_SLUG: ${EMISSIONS_COMPETITION_SLUG:-lz77}
       EMISSIONS_COMPETITION_TOKEN: ${EMISSIONS_COMPETITION_TOKEN:-}
       EMISSIONS_VECTOR_MAX_AGE_SECONDS: ${EMISSIONS_VECTOR_MAX_AGE_SECONDS:-1200}
 

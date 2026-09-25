@@ -118,7 +118,7 @@ def test_a_second_competition_is_refused_at_startup():
     """
     from submission_api.competitions import Competition, CompetitionRegistry
 
-    one = Competition(slug="miniz-oxide", name="miniz", speed_floor=8.0)
+    one = Competition(slug="lz77", name="LZ77 parsing", speed_floor=8.0)
     two = Competition(slug="rust-competition", name="rust", speed_floor=8.0)
     assert len(CompetitionRegistry.of(one)) == 1
     with pytest.raises(ValueError, match="no slug column"):

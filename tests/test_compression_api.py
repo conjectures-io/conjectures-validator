@@ -125,7 +125,7 @@ def setup(monkeypatch):
     app.add_exception_handler(ApiError, api_error_handler)
     services = SimpleNamespace(
         settings=SimpleNamespace(cursor_secret="test-secret", submissions_paused=False),
-        competitions=CompetitionRegistry.of(Competition("miniz-oxide", "Compression", 8)),
+        competitions=CompetitionRegistry.of(Competition("lz77", "Compression", 8)),
     )
 
     async def injected_services():
@@ -150,7 +150,7 @@ def setup(monkeypatch):
     return Client(), state, services
 
 
-BASE = "/v1/competitions/miniz-oxide"
+BASE = "/v1/competitions/lz77"
 
 
 def test_weights_are_persisted_fractions_not_renormalized(setup):
@@ -296,7 +296,7 @@ def test_intake_locks_before_entitlement_and_returns_same_id(monkeypatch, setup)
     monkeypatch.setattr(store, "may_queue", entitlement)
     result = asyncio.run(
         intake._queue(
-            competition=services.competitions.get("miniz-oxide"),
+            competition=services.competitions.get("lz77"),
             session=object(),
             services=services,
             hotkey="a",
@@ -460,7 +460,7 @@ def intake_app(monkeypatch):
             competition_signature_window_seconds=300,
             trusted_proxy_hops=0,
         ),
-        competitions=CompetitionRegistry.of(Competition("miniz-oxide", "Compression", 8)),
+        competitions=CompetitionRegistry.of(Competition("lz77", "Compression", 8)),
     )
     principal = SimpleNamespace(account=SimpleNamespace(id=9, submission_coldkey="cold"))
 
@@ -488,7 +488,7 @@ def intake_app(monkeypatch):
     def signed(kp, *, signature=None):
         stamp = int(time.time())
         message = competition_sig.submit_message(
-            competition="miniz-oxide",
+            competition="lz77",
             digest=competition_sig.digest_of(b"parser", b"proof"),
             hotkey=kp.ss58_address,
             timestamp=stamp,

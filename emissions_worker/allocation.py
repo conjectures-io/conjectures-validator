@@ -28,7 +28,7 @@ TREASURY_BPS: Final = 8_000
 # this mapping is paid nothing regardless of what it scores, which is the correct direction
 # to fail: a competition that has not been given a share has not been reviewed for one.
 COMPETITION_BPS: Final[Mapping[str, int]] = {
-    "miniz-oxide": 2_000,
+    "lz77": 2_000,
 }
 
 # Checked at import, so a bad edit cannot reach an epoch. There is no runtime path that

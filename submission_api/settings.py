@@ -1551,9 +1551,9 @@ class Settings:
             database_url=env.get("DATABASE_URL", "").strip(),
             competitions_enabled=competitions_enabled,
             competition_database_url=competition_database_url,
-            competition_slug=env.get("COMPETITION_SLUG", "").strip() or "miniz-oxide",
+            competition_slug=env.get("COMPETITION_SLUG", "").strip() or "lz77",
             competition_name=(
-                env.get("COMPETITION_NAME", "").strip() or "miniz_oxide DEFLATE"
+                env.get("COMPETITION_NAME", "").strip() or "LZ77 parsing"
             ),
             competition_speed_floor=_positive_float(
                 env, "COMPETITION_SPEED_FLOOR", 8.0, maximum=1_000.0

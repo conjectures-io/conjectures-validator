@@ -1,8 +1,8 @@
 # Competition API reference
 
-The `/v1/competitions` surface of the conjectures platform API: every endpoint's inputs (name, location, type, whether required, constraints) and outputs (status and field-by-field response types). It serves one competition today, `miniz-oxide`, so `{slug}` is `miniz-oxide` in every path.
+The `/v1/competitions` surface of the conjectures platform API: every endpoint's inputs (name, location, type, whether required, constraints) and outputs (status and field-by-field response types). It serves one competition today, `lz77`, so `{slug}` is `lz77` in every path.
 
-Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (dev merged with main), the version running on DEV. Access rules, refusal codes and the three responses without a response model come from the route handlers (`submission_api/routers/competitions.py`, `competition_reads.py`, `competitions_admin.py`). Examples are real DEV responses from the same day, trimmed to one array item.
+Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (dev merged with main), the version running on DEV. Access rules, refusal codes and the three responses without a response model come from the route handlers (`submission_api/routers/competitions.py`, `competition_reads.py`, `competitions_admin.py`). Examples are real DEV responses from the same day, trimmed to one array item, with the slug and name rewritten for the competition's rename from `miniz-oxide` ("miniz_oxide DEFLATE") to `lz77` ("LZ77 parsing"). The slug is part of every path and of the signed submit message, so a client still using `miniz-oxide` gets 404 `NOT_FOUND`.
 
 ## Conventions
 
@@ -66,8 +66,8 @@ List the competitions this deployment serves. Exactly one today.
 {
   "items": [
     {
-      "slug": "miniz-oxide",
-      "name": "miniz_oxide DEFLATE",
+      "slug": "lz77",
+      "name": "LZ77 parsing",
       "submissions_open": true,
       "queue_depth": 0,
       "current_snapshot_id": "4797",
@@ -146,12 +146,12 @@ One competition: whether submissions are open, queue depth, file limits, metric 
 
 200: [Competition](#schema-competition)
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77</code> on DEV</summary>
 
 ```json
 {
-  "slug": "miniz-oxide",
-  "name": "miniz_oxide DEFLATE",
+  "slug": "lz77",
+  "name": "LZ77 parsing",
   "submissions_open": true,
   "queue_depth": 0,
   "current_snapshot_id": "4797",
@@ -324,7 +324,7 @@ Public feed of miner and baseline submissions, newest first, with gate status, m
 
 200: [SubmissionPage](#schema-submissionpage)
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide/submissions?limit=1</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77/submissions?limit=1</code> on DEV</summary>
 
 ```json
 {
@@ -433,7 +433,7 @@ One submission with its pipeline stages (static, Lean, benchmark, aggregation), 
 
 200: [Detail](#schema-detail)
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide/submissions/1</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77/submissions/1</code> on DEV</summary>
 
 ```json
 {
@@ -527,9 +527,9 @@ One submission with its pipeline stages (static, Lean, benchmark, aggregation), 
     "freshness_reason": "Recorded scoring pass; live policy changes require a new pass."
   },
   "links": {
-    "report": "/v1/competitions/miniz-oxide/submissions/1/report",
-    "source": "/v1/competitions/miniz-oxide/submissions/1/source",
-    "admission": "/v1/competitions/miniz-oxide/submissions/1/admission"
+    "report": "/v1/competitions/lz77/submissions/1/report",
+    "source": "/v1/competitions/lz77/submissions/1/source",
+    "admission": "/v1/competitions/lz77/submissions/1/admission"
   }
 }
 ```
@@ -560,7 +560,7 @@ The admission decision and, when one ran, the statistical speed test.
 
 200: [AdmissionResponse](#schema-admissionresponse)
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide/submissions/1/admission</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77/submissions/1/admission</code> on DEV</summary>
 
 ```json
 {
@@ -629,7 +629,7 @@ The gate's stage-by-stage report. URLs, absolute paths and `password=` / `token=
 | `submission_id` | string | yes | The submission id |
 | `report` | string \| null | yes | Redacted report text; null before the gate has run |
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide/submissions/1/report</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77/submissions/1/report</code> on DEV</summary>
 
 ```json
 {
@@ -717,7 +717,7 @@ Every scored point on the time × size plane from the snapshot; frontier points 
 
 200: [ParetoPage](#schema-paretopage)
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide/pareto?limit=1</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77/pareto?limit=1</code> on DEV</summary>
 
 ```json
 {
@@ -828,7 +828,7 @@ Per-hotkey ranking by summed payable weight in the snapshot.
 
 200: [Leaderboard](#schema-leaderboard)
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide/leaderboard</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77/leaderboard</code> on DEV</summary>
 
 ```json
 {
@@ -883,11 +883,11 @@ The competition's weight vector: each hotkey's payable fraction of the competiti
 
 200: [Weights](#schema-weights)
 
-<details><summary>Example: <code>GET /v1/competitions/miniz-oxide/weights/current</code> on DEV</summary>
+<details><summary>Example: <code>GET /v1/competitions/lz77/weights/current</code> on DEV</summary>
 
 ```json
 {
-  "competition": "miniz-oxide",
+  "competition": "lz77",
   "context": {
     "snapshot_id": "4797",
     "computed_at": "2026-09-25T08:06:57.900177+00:00",
@@ -1007,7 +1007,7 @@ timestamp: <unix seconds>
 - `timestamp` is the same integer sent in `X-Conjectures-Timestamp`; it must be within 300 s of server time.
 - `X-Conjectures-Signature` is the signature as hex, with or without `0x`.
 - The server rebuilds the message from the slug in the path and the bytes it received, so any mismatch is `SIGNATURE_INVALID`.
-- Reference client: `python miner/submit.py submit <dir> --hotkey <hotkey file> --url https://<api>` in the miniz-oxide repository.
+- Reference client: `python miner/submit.py submit <dir> --hotkey <hotkey file> --url https://<api>` in the conjectures-optimisation-miniz-oxide repository.
 
 ## Schemas
 
