@@ -736,6 +736,9 @@ class Settings:
     # process memory: an in-process counter is a limit per replica per uptime, and what
     # needs bounding here is a hotkey's claim on gate time across the whole deployment.
     competition_rate_per_minute: int
+    # Submits allowed per client address per minute, across both write paths, counted before
+    # anything proves the caller holds the hotkey it names. Honours TRUSTED_PROXY_HOPS.
+    competition_ip_rate_per_minute: int
     # How far a submission's signed timestamp may sit from this clock. A captured request is
     # useless once it falls outside, which is what stops a recorded upload being replayed.
     competition_signature_window_seconds: int
@@ -1548,15 +1551,18 @@ class Settings:
             database_url=env.get("DATABASE_URL", "").strip(),
             competitions_enabled=competitions_enabled,
             competition_database_url=competition_database_url,
-            competition_slug=env.get("COMPETITION_SLUG", "").strip() or "miniz-oxide",
+            competition_slug=env.get("COMPETITION_SLUG", "").strip() or "lz77",
             competition_name=(
-                env.get("COMPETITION_NAME", "").strip() or "miniz_oxide DEFLATE"
+                env.get("COMPETITION_NAME", "").strip() or "LZ77 parsing"
             ),
             competition_speed_floor=_positive_float(
                 env, "COMPETITION_SPEED_FLOOR", 8.0, maximum=1_000.0
             ),
             competition_rate_per_minute=_bounded_int(
                 env, "COMPETITION_RATE_PER_MINUTE", 10, minimum=1, maximum=10_000
+            ),
+            competition_ip_rate_per_minute=_bounded_int(
+                env, "COMPETITION_IP_RATE_PER_MINUTE", 30, minimum=1, maximum=10_000
             ),
             competition_signature_window_seconds=_bounded_int(
                 env,

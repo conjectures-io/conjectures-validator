@@ -133,7 +133,7 @@ def from_env(environ: dict[str, str]) -> VectorSource:
         return NoVectorSource()
     return HttpVectorSource(
         url=url,
-        slug=environ.get("EMISSIONS_COMPETITION_SLUG", "").strip() or "miniz-oxide",
+        slug=environ.get("EMISSIONS_COMPETITION_SLUG", "").strip() or "lz77",
         token=environ.get("EMISSIONS_COMPETITION_TOKEN", "").strip(),
         max_age_seconds=float(
             environ.get("EMISSIONS_VECTOR_MAX_AGE_SECONDS", DEFAULT_MAX_AGE_SECONDS)

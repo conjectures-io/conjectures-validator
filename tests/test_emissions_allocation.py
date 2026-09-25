@@ -57,10 +57,10 @@ def test_scores_are_normalised_before_they_are_scaled():
         metagraph_hotkeys=metagraph(**{"5Alice": 3, "5Bob": 7}),
         treasury_uid=TREASURY,
         # Deliberately not summing to 1: the scorer's scale must not matter.
-        competition_scores={"miniz-oxide": {"5Alice": 300.0, "5Bob": 100.0}},
+        competition_scores={"lz77": {"5Alice": 300.0, "5Bob": 100.0}},
     )
     by_uid = dict(zip(uids, weights, strict=True))
-    share = allocation.share("miniz-oxide")
+    share = allocation.share("lz77")
     assert by_uid[3] == pytest.approx(share * 0.75)
     assert by_uid[7] == pytest.approx(share * 0.25)
     assert by_uid[TREASURY] == pytest.approx(allocation.treasury_share())
@@ -72,10 +72,10 @@ def test_a_deregistered_hotkeys_share_goes_to_the_treasury_not_to_its_old_uid():
     uids, weights = combine(
         metagraph_hotkeys=metagraph(**{"5Alice": 3}),
         treasury_uid=TREASURY,
-        competition_scores={"miniz-oxide": {"5Alice": 1.0, "5Vanished": 1.0}},
+        competition_scores={"lz77": {"5Alice": 1.0, "5Vanished": 1.0}},
     )
     by_uid = dict(zip(uids, weights, strict=True))
-    share = allocation.share("miniz-oxide")
+    share = allocation.share("lz77")
     assert by_uid[3] == pytest.approx(share / 2)
     assert by_uid[TREASURY] == pytest.approx(allocation.treasury_share() + share / 2)
     assert sum(weights) == pytest.approx(1.0)
@@ -85,7 +85,7 @@ def test_a_competition_with_no_scores_burns_its_share_to_the_treasury():
     uids, weights = combine(
         metagraph_hotkeys=metagraph(),
         treasury_uid=TREASURY,
-        competition_scores={"miniz-oxide": {}},
+        competition_scores={"lz77": {}},
     )
     assert uids == [TREASURY]
     assert weights == [pytest.approx(1.0)]
@@ -116,10 +116,10 @@ def test_negative_and_zero_scores_are_not_paid():
     uids, weights = combine(
         metagraph_hotkeys=metagraph(**{"5Alice": 3, "5Bob": 7}),
         treasury_uid=TREASURY,
-        competition_scores={"miniz-oxide": {"5Alice": 1.0, "5Bob": 0.0, "5Eve": -5.0}},
+        competition_scores={"lz77": {"5Alice": 1.0, "5Bob": 0.0, "5Eve": -5.0}},
     )
     by_uid = dict(zip(uids, weights, strict=True))
-    assert by_uid[3] == pytest.approx(allocation.share("miniz-oxide"))
+    assert by_uid[3] == pytest.approx(allocation.share("lz77"))
     assert 7 not in by_uid
     assert sum(weights) == pytest.approx(1.0)
 
@@ -147,8 +147,8 @@ class _Response:
 
 def _source(**overrides) -> HttpVectorSource:
     return HttpVectorSource(
-        url="http://api.internal/v1/competitions/miniz-oxide/weights/current",
-        slug="miniz-oxide",
+        url="http://api.internal/v1/competitions/lz77/weights/current",
+        slug="lz77",
         **overrides,
     )
 
@@ -157,7 +157,7 @@ def _payload(*, age_seconds: float = 0.0, weights=None) -> bytes:
     stamp = dt.datetime.now(dt.UTC) - dt.timedelta(seconds=age_seconds)
     return json.dumps(
         {
-            "competition": "miniz-oxide",
+            "competition": "lz77",
             "computed_at": stamp.isoformat().replace("+00:00", "Z"),
             "weights": {"5Alice": 0.75, "5Bob": 0.25} if weights is None else weights,
             "scored_submissions": 2,
@@ -169,7 +169,7 @@ def test_a_fresh_vector_is_read(monkeypatch):
     monkeypatch.setattr(
         "urllib.request.urlopen", lambda *a, **k: _Response(_payload(age_seconds=10))
     )
-    assert _source().scores() == {"miniz-oxide": {"5Alice": 0.75, "5Bob": 0.25}}
+    assert _source().scores() == {"lz77": {"5Alice": 0.75, "5Bob": 0.25}}
 
 
 def test_a_stale_vector_is_refused(monkeypatch):
@@ -207,7 +207,7 @@ def test_non_numeric_weights_are_dropped_rather_than_coerced(monkeypatch):
             _payload(weights={"5Alice": 1.0, "5Bad": "lots", "5Worse": True})
         ),
     )
-    assert _source().scores() == {"miniz-oxide": {"5Alice": 1.0}}
+    assert _source().scores() == {"lz77": {"5Alice": 1.0}}
 
 
 def test_an_unconfigured_deployment_gets_todays_behaviour():
@@ -244,7 +244,7 @@ def test_a_worker_whose_metagraph_read_fails_pays_the_treasury():
 
     class Source:
         def scores(self):
-            return {"miniz-oxide": {"5Alice": 1.0}}
+            return {"lz77": {"5Alice": 1.0}}
 
     worker = TreasuryWeightWorker(
         client=object(), wallet=object(), source=Source(), hotkeys=broken

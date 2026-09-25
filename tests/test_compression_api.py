@@ -1,6 +1,7 @@
 """Contract tests for the read adapter, without running scoring in the API."""
 
 import asyncio
+import time
 from copy import deepcopy
 from types import SimpleNamespace
 
@@ -124,7 +125,7 @@ def setup(monkeypatch):
     app.add_exception_handler(ApiError, api_error_handler)
     services = SimpleNamespace(
         settings=SimpleNamespace(cursor_secret="test-secret", submissions_paused=False),
-        competitions=CompetitionRegistry.of(Competition("miniz-oxide", "Compression", 8)),
+        competitions=CompetitionRegistry.of(Competition("lz77", "Compression", 8)),
     )
 
     async def injected_services():
@@ -149,7 +150,7 @@ def setup(monkeypatch):
     return Client(), state, services
 
 
-BASE = "/v1/competitions/miniz-oxide"
+BASE = "/v1/competitions/lz77"
 
 
 def test_weights_are_persisted_fractions_not_renormalized(setup):
@@ -295,7 +296,7 @@ def test_intake_locks_before_entitlement_and_returns_same_id(monkeypatch, setup)
     monkeypatch.setattr(store, "may_queue", entitlement)
     result = asyncio.run(
         intake._queue(
-            competition=services.competitions.get("miniz-oxide"),
+            competition=services.competitions.get("lz77"),
             session=object(),
             services=services,
             hotkey="a",
@@ -394,3 +395,162 @@ def test_a_pass_without_bounty_records_leaves_totals_unknown(setup):
     assert all(r["bounty_earned_alpha"] is None for r in board["ranking"])
     first = client.get(BASE + "/submissions/1").json()["submission"]["score"]
     assert first["bounty_earned_alpha"] is None and first["bounty_capped"] is None
+
+
+# ── write-path rate limits ─────────────────────────────────────────────────
+
+
+class _Session:
+    async def commit(self):
+        pass
+
+
+@pytest.fixture
+def intake_app(monkeypatch):
+    """Both write routes over an in-memory store: one rate-limit counter per subject."""
+    from bittensor.sp_core import Keypair
+
+    from submission_api import competition_sig
+    from submission_api.dependencies import require_cookie_writer
+
+    hits: dict[str, int] = {}
+    queued: list[str] = []
+
+    async def hit_rate_limit(session, subject, *, limit, window_seconds):
+        hits[subject] = hits.get(subject, 0) + 1
+        return hits[subject] <= limit, hits[subject]
+
+    async def nothing(session, *args, **kwargs):
+        return None
+
+    async def yes(session, *args, **kwargs):
+        return True
+
+    async def may_queue(session, hotkey):
+        return True, 5, 0
+
+    async def add_submission(session, *, hotkey, **kwargs):
+        queued.append(hotkey)
+        return len(queued), True
+
+    async def get_submission(session, sid):
+        return {"state": "queued"}
+
+    for name, fake in {
+        "hit_rate_limit": hit_rate_limit,
+        "compatible": nothing,
+        "lock_hotkey": nothing,
+        "find_submission": nothing,
+        "is_registered": yes,
+        "registered_by": yes,
+        "may_queue": may_queue,
+        "add_submission": add_submission,
+        "get_submission": get_submission,
+    }.items():
+        monkeypatch.setattr(store, name, fake)
+
+    app = FastAPI()
+    app.include_router(intake.router)
+    app.add_exception_handler(ApiError, api_error_handler)
+    services = SimpleNamespace(
+        settings=SimpleNamespace(
+            submissions_paused=False,
+            competition_rate_per_minute=3,
+            competition_ip_rate_per_minute=5,
+            competition_signature_window_seconds=300,
+            trusted_proxy_hops=0,
+        ),
+        competitions=CompetitionRegistry.of(Competition("lz77", "Compression", 8)),
+    )
+    principal = SimpleNamespace(account=SimpleNamespace(id=9, submission_coldkey="cold"))
+
+    async def injected_services():
+        return services
+
+    async def injected_session():
+        return _Session()
+
+    async def injected_principal():
+        return principal
+
+    app.dependency_overrides[get_services] = injected_services
+    app.dependency_overrides[get_competition_session] = injected_session
+    app.dependency_overrides[require_cookie_writer] = injected_principal
+
+    def post(path, *, ip, **kwargs):
+        async def request():
+            transport = ASGITransport(app=app, client=(ip, 4711))
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                return await client.post(path, **kwargs)
+
+        return asyncio.run(request())
+
+    def signed(kp, *, signature=None):
+        stamp = int(time.time())
+        message = competition_sig.submit_message(
+            competition="lz77",
+            digest=competition_sig.digest_of(b"parser", b"proof"),
+            hotkey=kp.ss58_address,
+            timestamp=stamp,
+        )
+        return {
+            "headers": {
+                "X-Conjectures-Hotkey": kp.ss58_address,
+                "X-Conjectures-Timestamp": str(stamp),
+                "X-Conjectures-Signature": signature or kp.sign(message).hex(),
+            },
+            "files": {"parse.rs": ("parse.rs", b"parser"), "Parse.lean": ("Parse.lean", b"proof")},
+        }
+
+    return SimpleNamespace(
+        post=post, signed=signed, hits=hits, queued=queued, keypair=Keypair.create_from_uri
+    )
+
+
+def test_an_unsigned_flood_is_refused_by_address_and_spends_no_hotkey_budget(intake_app):
+    victim = intake_app.keypair("//Alice")
+    forged = intake_app.signed(victim, signature="00" * 64)
+    codes = [
+        intake_app.post(BASE + "/submissions", ip="203.0.113.9", **forged).status_code
+        for _ in range(8)
+    ]
+    assert codes == [401] * 5 + [429] * 3
+    assert f"hotkey:{victim.ss58_address}" not in intake_app.hits
+
+    # The miner the flood named still has their whole minute.
+    for _ in range(3):
+        ok = intake_app.post(BASE + "/submissions", ip="198.51.100.4", **intake_app.signed(victim))
+        assert ok.status_code == 201, ok.text
+    assert intake_app.queued == [victim.ss58_address] * 3
+
+
+def test_a_signed_submit_spends_both_budgets(intake_app):
+    miner = intake_app.keypair("//Bob")
+    codes = [
+        intake_app.post(
+            BASE + "/submissions", ip="203.0.113.9", **intake_app.signed(miner)
+        ).status_code
+        for _ in range(4)
+    ]
+    # The hotkey's 3 go first; the address still has 1 of its 5 left.
+    assert codes == [201, 201, 201, 429]
+    assert intake_app.hits == {"ip:203.0.113.9": 4, f"hotkey:{miner.ss58_address}": 4}
+
+
+def test_the_session_path_spends_a_hotkey_budget_only_for_the_accounts_own_hotkey(
+    intake_app, monkeypatch
+):
+    async def not_theirs(session, *, hotkey, coldkey):
+        return False
+
+    monkeypatch.setattr(store, "registered_by", not_theirs)
+    upload = {"parse.rs": ("parse.rs", b"parser"), "Parse.lean": ("Parse.lean", b"proof")}
+    headers = {"X-Conjectures-Hotkey": "someone-elses"}
+    codes = [
+        intake_app.post(
+            BASE + "/submissions/session", ip="203.0.113.9", headers=headers, files=upload
+        ).status_code
+        for _ in range(6)
+    ]
+    assert codes == [403] * 5 + [429]
+    assert "hotkey:someone-elses" not in intake_app.hits

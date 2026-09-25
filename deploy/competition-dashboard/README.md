@@ -1,6 +1,6 @@
 # Competition standings dashboard
 
-A single static page (`index.html`) showing the miniz-oxide competition from the public
+A single static page (`index.html`) showing the lz77 competition from the public
 `/v1/competitions` API: the Pareto chart (miners and the green reference baselines, the
 frontier line, the scoring bounds), the leaderboard, and the paged submissions feed. It
 reads one scoring pass at a time, so the three sections always agree, and refreshes every

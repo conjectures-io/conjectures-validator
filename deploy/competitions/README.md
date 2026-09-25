@@ -17,7 +17,7 @@ what is recorded here. `PINS.json` pins the gate's own files; this pins `PINS.js
 
 The values above are placeholders and will be refused. To fill them in:
 
-    cd /srv/gates/miniz-oxide
+    cd /srv/gates/lz77
     git rev-parse HEAD
     sha256sum validator/verifier/PINS.json
 

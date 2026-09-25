@@ -37,7 +37,7 @@ REPO = Path(__file__).resolve().parents[1]
 COMPRESSION = Path(
     os.environ.get("COMPRESSION_REPO", str(REPO.parent / "conjectures-optimisation-miniz-oxide"))
 )
-BASE = "/v1/competitions/miniz-oxide"
+BASE = "/v1/competitions/lz77"
 
 
 @pytest.fixture
@@ -100,9 +100,11 @@ async def app_for(url):
             cursor_secret="integration-secret",
             submissions_paused=False,
             competition_rate_per_minute=1000,
+            competition_ip_rate_per_minute=1000,
+            trusted_proxy_hops=0,
             competition_signature_window_seconds=300,
         ),
-        competitions=CompetitionRegistry.of(Competition("miniz-oxide", "Compression", 8)),
+        competitions=CompetitionRegistry.of(Competition("lz77", "Compression", 8)),
     )
 
     async def svc():
@@ -130,7 +132,7 @@ async def register(engine, kp, uid=1, slots=1):
 def signed(kp, rust=b"parser", proof=b"proof"):
     stamp = int(time.time())
     message = competition_sig.submit_message(
-        competition="miniz-oxide",
+        competition="lz77",
         digest=competition_sig.digest_of(rust, proof),
         hotkey=kp.ss58_address,
         timestamp=stamp,

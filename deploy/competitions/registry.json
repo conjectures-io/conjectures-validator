@@ -1,7 +1,7 @@
 [
   {
-    "slug": "miniz-oxide",
-    "root": "/srv/gates/miniz-oxide",
+    "slug": "lz77",
+    "root": "/srv/gates/lz77",
     "commit": "0000000000000000000000000000000000000000",
     "pins_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "timeout_seconds": 2700
