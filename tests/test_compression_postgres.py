@@ -259,9 +259,10 @@ def test_cli_queue_worker_evidence_scoring_and_reads(owned_db):
                 ).json()
                 assert chart["items"][0]["timing_interval"] is not None
                 assert chart["items"][0]["metrics"]["mean_file_compression_pct"] == 32
-                assert (
-                    await client.get(BASE + f"/submissions/{sid}/source/parse.rs")
-                ).content == b"parser"
+                # The only scored submission is the frontier, so its source stays private.
+                withheld = await client.get(BASE + f"/submissions/{sid}/source/parse.rs")
+                assert withheld.status_code == 403
+                assert withheld.json()["reason_code"] == "SOURCE_WITHHELD"
                 async with engine.begin() as conn:
                     await conn.execute(
                         sa.text("UPDATE submissions SET state='error' WHERE id=:id"),

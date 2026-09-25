@@ -313,3 +313,46 @@ def test_partial_payment_preserves_eligibility_and_unpaid_reason():
     assert result.score.payment_eligible is True
     assert result.score.payable_weight == 0.05
     assert result.score.unpaid_reason == "duplicate-hotkey"
+
+
+def test_frontier_source_is_withheld(setup):
+    # Submission 1 is on the snapshot's frontier: publishing it would let anyone copy the best.
+    client, _, _ = setup
+    for path in ("/submissions/1/source", "/submissions/1/source/parse.rs"):
+        response = client.get(BASE + path)
+        assert response.status_code == 403
+        assert response.json()["reason_code"] == "SOURCE_WITHHELD"
+
+
+def test_unscored_source_is_withheld_until_a_pass_places_it(setup):
+    # No snapshot yet: the next pass may put the submission on the frontier, so fail closed.
+    client, state, _ = setup
+    state["snap"] = None
+    response = client.get(BASE + "/submissions/2/source")
+    assert response.status_code == 403
+    assert response.json()["reason_code"] == "SOURCE_WITHHELD"
+
+
+@pytest.mark.parametrize(
+    ("baseline_key", "on_frontier", "withheld"),
+    [
+        (None, True, True),
+        (None, False, False),
+        ("optimal", True, False),
+        ("optimal", False, False),
+    ],
+)
+def test_withhold_frontier_miners_only(baseline_key, on_frontier, withheld):
+    sub = {"id": 7, "baseline_key": baseline_key}
+    score = {"on_frontier": on_frontier}
+    if withheld:
+        with pytest.raises(ApiError) as caught:
+            reads.withhold(sub, score)
+        assert caught.value.status_code == 403
+        assert caught.value.reason_code == "SOURCE_WITHHELD"
+    else:
+        reads.withhold(sub, score)
+
+
+def test_unscored_baseline_source_stays_public():
+    reads.withhold({"id": 3, "baseline_key": "lazy"}, None)
