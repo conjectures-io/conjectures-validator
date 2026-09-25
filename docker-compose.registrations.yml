@@ -1,0 +1,116 @@
+# The registration watcher, on top of the database stack.
+#
+#   just up-registrations            # db -> migrate -> api -> registration watcher
+#   just logs registration-watcher
+#
+# or, by hand and in this file order:
+#
+#   docker compose -f docker-compose.api.yml -f docker-compose.registrations.yml up -d --build
+#
+# An overlay for the same reasons docker-compose.watcher.yml is one: merged `-f` files are one
+# Compose project, so `db:5432` resolves and `depends_on` can gate on the migration in the
+# other file. Deliberately no `name:` -- see the note at the top of the justfile.
+#
+# WITHOUT THIS SERVICE NOBODY CAN SUBMIT TO A COMPETITION. The API admits a hotkey only if the
+# competition database has a registration row for it, and this is the only process that writes
+# one. It reads Subnet 66's registrations at the finalized head and appends a row whenever a
+# uid changes hands.
+#
+# IT HOLDS NO WALLET KEYS. It reads three storage maps and writes the competition database;
+# nothing below mounts a wallet, a keyfile or a `~/.bittensor` directory.
+
+services:
+  registration-watcher:
+    # The deposit watcher's image: it already carries exactly this process's dependencies --
+    # bittensor to read the chain, SQLAlchemy and psycopg to write -- and nothing else. A second
+    # image would be a second place to pin the same versions.
+    build:
+      context: .
+      dockerfile: Dockerfile.watcher
+    image: conjectures-deposit-watcher:local
+    container_name: conjectures_registration_watcher
+    command: ["python", "-m", "registration_watcher", "--log-level", "INFO"]
+    init: true
+    user: "${DOCKER_UID:-10102}:${DOCKER_GID:-10102}"
+
+    # SINGLETON. A second one is harmless -- rows conflict on (uid, block) and the insert does
+    # nothing -- but it only ever repeats the first one's reads. Do not scale this service.
+    #
+    # `unless-stopped`: a misconfigured watcher exits 2 and is left down, while a chain that
+    # briefly refuses connections is retried.
+    restart: unless-stopped
+
+    # A live PID is not evidence of recorded registrations: the probe reads the heartbeat the
+    # watcher touches after every pass that completes, so it goes unhealthy when passes stop
+    # succeeding. The first pass on an empty table resolves every uid's registration time, so
+    # the start period covers it.
+    healthcheck:
+      test: ["CMD", "python", "-m", "registration_watcher.healthcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+
+    depends_on:
+      db:
+        condition: service_healthy
+      # The competition schema, not the proofs one: a failed Alembic run means the watcher never
+      # starts against a database without a `registrations` table in it.
+      migrate-competition:
+        condition: service_completed_successfully
+
+    env_file: .env
+    environment:
+      # The competition database, never the proofs one. Same URL migrate-competition uses.
+      COMPETITION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${COMPETITION_POSTGRES_DB:-conjectures_competition}
+      APP_MODE: ${APP_MODE:-DEV}
+
+      # --- Chain ------------------------------------------------------------
+      # `finney` is mainnet. Registration heights are usually older than a lite node's pruned
+      # window, so their timestamps come from the archive endpoint when one is set; Finney's
+      # default endpoint answered for them when this was written.
+      BITTENSOR_NETWORK: ${BITTENSOR_NETWORK:-finney}
+      BITTENSOR_ARCHIVE_NETWORK: ${BITTENSOR_ARCHIVE_NETWORK:-}
+      # One block. The subnet is a code constant (registration_watcher/settings.py), because it
+      # must be the subnet the emissions worker pays.
+      REGISTRATION_WATCH_POLL_SECONDS: ${REGISTRATION_WATCH_POLL_SECONDS:-12}
+      REGISTRATION_WATCHER_ID: compose-registration-watcher-1
+
+      # The overridden uid may have no passwd entry, so point HOME at the one writable mount,
+      # for bittensor's config.
+      HOME: /tmp
+
+      # --- Observability ----------------------------------------------------
+      AXIOM_TOKEN: ${AXIOM_TOKEN:-}
+      AXIOM_DATASET: ${AXIOM_DATASET:-}
+      AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
+
+    volumes:
+      # Read-only, and only what this process imports: its own package, and conjectures_subnet
+      # for the chain connection and the competition store.
+      - ./registration_watcher:/srv/app/registration_watcher:ro
+      - ./conjectures_subnet:/srv/app/conjectures_subnet:ro
+
+    # The heartbeat and bittensor's config are the only writes, and both go to /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # Nothing to publish: it reads the chain and writes the database, and serves no traffic.
+
+    # Three storage reads per block, and one archive read per registration it has not seen.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+          pids: 256
+        reservations:
+          cpus: "0.1"
+          memory: 128M

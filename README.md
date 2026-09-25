@@ -389,6 +389,24 @@ container, read-only; the API, watcher, database, and hostile-proof verifier nev
 signing key. A failed chain submission is retried in the same epoch, while the next successful
 submission waits for the next epoch observed on-chain.
 
+## Competition registrations
+
+[`registration_watcher/`](registration_watcher/) records who holds each Subnet 66 uid into the
+competition database. A competition submission is paid for with a subnet registration -- one
+registration buys one accepted submission -- and the API checks that against these rows, so
+**without this watcher every signed competition submit is refused `NOT_REGISTERED`**.
+
+```bash
+just up-registrations       # api stack plus the registration watcher
+just logs registration-watcher
+```
+
+It holds no wallet. Each pass reads three storage maps at the *finalized* head -- a registration
+on a block later reorganised away would otherwise buy a slot that does not exist -- and appends a
+row only when a uid changes hands, so a quiet subnet writes nothing. The first pass on an empty
+table records the whole subnet (256 uids, about a minute against Finney). The subnet is a code
+constant, pinned by a test to the one the emissions worker pays.
+
 Build and inspect the real full-repository catalog:
 
 ```bash

@@ -49,6 +49,7 @@ from types import ModuleType
 from conjectures_subnet.db.engine import (
     async_session_factory,
     async_session_scope,
+    competition_database_url,
     create_async_db_engine,
     create_db_engine,
     database_url,
@@ -110,6 +111,7 @@ __all__ = [
     "async_session_factory",
     "async_session_scope",
     "autoreview_models",
+    "competition_database_url",
     "create_async_db_engine",
     "create_db_engine",
     "credits",

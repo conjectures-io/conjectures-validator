@@ -47,6 +47,7 @@ from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.models import Base
 from submission_api.app import create_app
+from submission_api.competitions import Competition, CompetitionRegistry
 from submission_api.auth import build_authenticator, development_signature
 from submission_api.dependencies import Services
 from submission_api.credits import SubmissionTerms, parse_packages
@@ -328,6 +329,7 @@ def harness(
     tmc_pay=None,
     tao_usd=None,
     contributions=None,
+    competition_engine=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -353,6 +355,12 @@ def harness(
     mirror, which is what keeps the suite off the network — the real one polls github.com — and
     what makes every test that does not name it prove `/v1/contributions` refuses rather than
     serving an empty corpus as if it had read one.
+
+    `competition_engine` injects an engine on the *second* database. `None` by default, for the
+    same reason as the two above: every test that does not name it then proves the competition
+    surface answers 503 rather than reaching a database, and — more to the point — proves it
+    cannot fall through to the proofs engine, which is the one mistake the split exists to
+    prevent. A test that wants the surface passes an engine built on the competition DSN.
     """
     settings = build_settings(**overrides)
     verifier = payments or build_payment_verifier(settings)
@@ -368,6 +376,26 @@ def harness(
         settings=settings,
         engine=engine,
         sessions=async_session_factory(engine),
+        competition_engine=competition_engine,
+        competition_sessions=(
+            async_session_factory(competition_engine)
+            if competition_engine is not None
+            else None
+        ),
+        # Mirrors build_services: the registry is populated exactly when there is a
+        # database to serve it from, so a test cannot reach a competition whose rows have
+        # nowhere to live.
+        competitions=(
+            CompetitionRegistry.of(
+                Competition(
+                    slug=settings.competition_slug,
+                    name=settings.competition_name,
+                    speed_floor=settings.competition_speed_floor,
+                )
+            )
+            if competition_engine is not None
+            else CompetitionRegistry.empty()
+        ),
         catalog=catalog,
         authenticator=build_authenticator(settings),
         payments=verifier,

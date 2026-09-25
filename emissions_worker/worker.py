@@ -2,18 +2,22 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
 import bittensor as bt
 
 from conjectures_subnet.axiom import Severity, get_axiom
+from emissions_worker import vector
+from emissions_worker.source import NoVectorSource, VectorSource
 
 
 logger = logging.getLogger("emissions_worker")
 
 # Intentional policy constants. Changing where emissions go requires a reviewed code change,
-# not an environment edit on a running validator.
+# not an environment edit on a running validator. The split between the treasury and the
+# competitions is the same kind of constant and lives in `allocation.py`.
 NETUID = 66
 TREASURY_UID = 121
 
@@ -36,14 +40,52 @@ class TreasuryWeightWorker:
     wallet: Any
     retry_seconds: float = 30
     sleep: Callable[[float], None] = time.sleep
+    # Where the competition scores come from. The default preserves this worker's original
+    # behaviour exactly: no source means no competition weights means 100% treasury, which
+    # is the vector it set before competitions existed.
+    source: VectorSource = field(default_factory=NoVectorSource)
+    # Reads the metagraph's hotkeys, so a competition's per-hotkey scores can become
+    # per-uid weights. Optional: without it there is nothing to map scores onto, and the
+    # worker falls back to the treasury rather than guessing at uids.
+    hotkeys: Callable[[], Sequence[str]] | None = None
 
-    def submit(self) -> ExtrinsicResult:
-        """Submit the one-weight treasury vector and require chain success."""
+    def plan(self) -> tuple[list[int], list[float]]:
+        """The vector to submit this epoch.
+
+        Every failure resolves to the treasury rather than to a skipped epoch: emissions
+        cannot be set retroactively, so declining to submit is a decision to pay nobody.
+        """
+        if self.hotkeys is None:
+            return vector.treasury_only(TREASURY_UID)
+        try:
+            scores = self.source.scores()
+            if not scores:
+                return vector.treasury_only(TREASURY_UID)
+            return vector.combine(
+                metagraph_hotkeys=self.hotkeys(),
+                treasury_uid=TREASURY_UID,
+                competition_scores=scores,
+            )
+        except Exception:
+            # Reading the metagraph or the vector must not cost an epoch. Logged loudly and
+            # paid to the treasury, which is where an unallocated share goes anyway.
+            logger.exception("could not build the competition vector; paying the treasury")
+            get_axiom().exception(
+                source="emissions-worker",
+                event_type="competition_vector_unavailable",
+                severity=Severity.ERROR,
+                netuid=NETUID,
+            )
+            return vector.treasury_only(TREASURY_UID)
+
+    def submit(self, plan: tuple[list[int], list[float]] | None = None) -> ExtrinsicResult:
+        """Submit this epoch's weight vector and require chain success."""
+        uids, weights = plan if plan is not None else self.plan()
         result = self.client.execute(
             bt.SetWeights(
                 netuid=NETUID,
-                uids=[TREASURY_UID],
-                weights=[1.0],
+                uids=uids,
+                weights=weights,
             ),
             self.wallet,
             retries=2,
@@ -68,15 +110,26 @@ class TreasuryWeightWorker:
             block=block,
             treasury_uid=TREASURY_UID,
         )
+        # Built once, before the retry loop: a vector that could not be fetched is a
+        # decision about this epoch, not something to re-attempt against a chain that is
+        # perfectly willing to accept it. Retrying here would spend the budget meant for
+        # rejected extrinsics on a fetch that will fail the same way each time.
+        uids, weights = self.plan()
+        treasury_weight = next(
+            (w for uid, w in zip(uids, weights, strict=True) if uid == TREASURY_UID), 0.0
+        )
+        competitors = sum(1 for uid in uids if uid != TREASURY_UID)
         attempt = 0
         while True:
             attempt += 1
             try:
-                result = self.submit()
+                result = self.submit((uids, weights))
                 logger.info(
-                    "Subnet %s weights set: treasury UID %s = 100%%",
+                    "Subnet %s weights set: treasury UID %s = %.1f%%, %d competitor(s)",
                     NETUID,
                     TREASURY_UID,
+                    treasury_weight * 100,
+                    competitors,
                 )
                 get_axiom().info(
                     source="emissions-worker",
@@ -85,6 +138,8 @@ class TreasuryWeightWorker:
                     block=block,
                     treasury_uid=TREASURY_UID,
                     attempt=attempt,
+                    treasury_weight=treasury_weight,
+                    competitors_paid=competitors,
                 )
                 return epoch, result
             except KeyboardInterrupt:

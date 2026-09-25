@@ -50,6 +50,11 @@ Source: TypeAlias = Literal[
     "api-admin",
     "api-auth",
     "api-catalog",
+    # The proof-gated competitions. Its own source because its failure modes belong to a
+    # different machine: the gate runs on bare metal with Lean and cargo, against a second
+    # database, and "the competition queue is not draining" is an incident about that host
+    # rather than about the API serving this label's requests.
+    "api-competitions",
     "api-health",
     "api-intents",
     "api-me",
@@ -75,6 +80,10 @@ Source: TypeAlias = Literal[
     "verification-worker",
     "deposit-watcher",
     "payout-watcher",
+    # Records Subnet 66 registrations into the competition database. Its own source rather
+    # than `deposit-watcher`'s, although both read the chain: this one decides who may
+    # submit to a competition, and a stall here reads as every miner refused NOT_REGISTERED.
+    "registration-watcher",
     "emissions-worker",
     "autoreview",
     # Sweeps the TMC PAY orders no webhook resolved. Separate from `deposit-watcher` because it
@@ -179,6 +188,16 @@ EventType: TypeAlias = Literal[
     "unclassified_reason_code",
     # Our failure rather than the miner's: no verdict written, the row goes back.
     "verification_operator_failure",
+    # --- competitions -----------------------------------------------------------------------
+    # An operator putting a submission the gate gave up on back in the queue.
+    # `submissions.state` is overwritten in place and carries no history, so this event is
+    # the only record that it happened at all -- the same reason `roles_changed` is here.
+    # Carries both identities: the submission's hotkey and the account that acted.
+    "submission_requeued",
+    # Registration rows written for a pass. `initial_load` separates the first pass on an
+    # empty table, which records the whole subnet, from a real registration event -- the
+    # thing an operator asks about when a miner says they registered and still cannot submit.
+    "registrations_recorded",
     # --- deposit watcher --------------------------------------------------------------------
     "cursor_opened",
     "blocks_scanned",
@@ -229,6 +248,13 @@ EventType: TypeAlias = Literal[
     "epoch_observed",
     "weights_set",
     "weights_failed",
+    # This epoch paid no competitor: the score vector could not be read, could not be
+    # parsed, or described a leaderboard too old to pay. Each is an `error` rather than a
+    # warning -- the epoch is safe, because the share falls back to the treasury, but a run
+    # of them means a competition is earning nothing while appearing to run.
+    "competition_vector_unavailable",
+    "competition_vector_malformed",
+    "competition_vector_stale",
     # --- catch-alls -------------------------------------------------------------------------
     # A stdlib `logging` record forwarded by `AxiomLogHandler`. Everything the codebase already
     # logged arrives under this type, carrying its logger name and severity.

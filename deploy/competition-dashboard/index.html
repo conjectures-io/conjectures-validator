@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LZ77 parsing standings</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --surface: #fcfcfb;
+  --text: #0f1115;
+  --text-2: #4d525c;
+  --text-3: #7a7f89;
+  --rule: #dfe2e7;
+  --grid: #eceef1;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --ok: #1f7a3f;
+  --ok-bg: #e3f3e8;
+  --bad: #b3261e;
+  --bad-bg: #fbe7e5;
+  --warn: #8a5a00;
+  --warn-bg: #fbf0d9;
+  --neutral-bg: #eceef1;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #111317;
+    --surface: #1a1a19;
+    --text: #f3f4f6;
+    --text-2: #c3c2b7;
+    --text-3: #8d9099;
+    --rule: #2c2f36;
+    --grid: #24272d;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --ok: #6fd08f;
+    --ok-bg: #173323;
+    --bad: #f0928a;
+    --bad-bg: #3a1c1a;
+    --warn: #e5b45c;
+    --warn-bg: #352a14;
+    --neutral-bg: #262a31;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 0 16px; }
+.page { max-width: 1180px; margin: 0 auto; padding-block: 24px 48px; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 22px; font-weight: 650; }
+h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.sub { color: var(--text-2); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12.5px; }
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button, select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button:hover:not(:disabled), select:hover { border-color: var(--text-3); }
+button:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; align-content: start; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--text-2); font-size: 12.5px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.line-key { width: 16px; height: 2px; background: var(--text-2); display: inline-block; border-radius: 1px; }
+.dot.hollow { background: transparent !important; border: 2px solid var(--series-2); }
+.plot { position: relative; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.12); min-width: 200px; z-index: 2; }
+.tip b { font-weight: 650; }
+.tip .row { display: flex; justify-content: space-between; gap: 16px; }
+.tip .row span:first-child { color: var(--text-2); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--rule); text-align: left; white-space: nowrap; }
+th { color: var(--text-2); font-weight: 600; font-size: 12px; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--grid); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--neutral-bg); color: var(--text-2); }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; color: var(--text-3); font-size: 12.5px; }
+.empty, .error { color: var(--text-2); padding: 18px 4px; }
+.error { color: var(--bad); }
+a { color: var(--series-1); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.note { color: var(--text-3); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <h1 id="title">LZ77 parsing standings</h1>
+      <div class="sub" id="meta">Loading…</div>
+    </div>
+    <div class="controls">
+      <label class="note"><input type="checkbox" id="auto" checked> refresh every 60 s</label>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div class="grid2">
+    <section class="card" aria-labelledby="pareto-h">
+      <div class="card-head">
+        <h2 id="pareto-h">Pareto: time vs size</h2>
+        <div class="legend">
+          <span><i class="line-key"></i>Frontier</span><span><i class="dot" style="background:var(--series-1)"></i>Miner on frontier</span>
+          <span><i class="dot" style="background:var(--series-2)"></i>Miner off frontier</span>
+          <span><i class="dot hollow"></i>Outside scoring bounds</span>
+          <span><i class="dot" style="background:var(--series-3)"></i>Baseline (never paid)</span>
+        </div>
+      </div>
+      <div class="plot" id="plot"><div class="empty">Loading…</div></div>
+      <div class="note">x: mean per-file time ÷ incumbent (lower is faster). y: mean per-file compressed size, % of original (lower is smaller). Dashed lines are the scoring bounds; points past them are not paid.</div>
+    </section>
+
+    <section class="card" aria-labelledby="lb-h">
+      <div class="card-head"><h2 id="lb-h">Leaderboard</h2></div>
+      <div class="scroll" id="lb"><div class="empty">Loading…</div></div>
+      <div class="pager"><span id="lb-page">page 1</span><button id="lb-prev" type="button" disabled>Previous</button><button id="lb-next" type="button" disabled>Next</button></div>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="sub-h">
+    <div class="card-head">
+      <h2 id="sub-h">Submissions</h2>
+      <div class="controls">
+        <select id="f-kind" aria-label="Kind"><option value="">All kinds</option><option value="miner">Miners</option><option value="baseline">Baselines</option></select>
+        <select id="f-gate" aria-label="Gate status"><option value="">Any gate status</option><option>queued</option><option>running</option><option>passed</option><option>failed</option><option>error</option></select>
+      </div>
+    </div>
+    <div class="scroll" id="subs"><div class="empty">Loading…</div></div>
+    <div class="pager"><span id="sub-page">page 1</span><button id="sub-prev" type="button" disabled>Previous</button><button id="sub-next" type="button" disabled>Next</button></div>
+  </section>
+</div>
+
+<script>
+const API = "/v1/competitions";
+const PAGE = 15;
+let slug = null;
+let snapshot = null;
+const pages = {
+  lb: { stack: [null], index: 0, next: null },
+  sub: { stack: [null], index: 0, next: null },
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const short = (k) => (k ? k.slice(0, 6) + "…" + k.slice(-4) : "—");
+const fmt = (v, d = 2) => (v == null || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
+// Alpha received toward the per-submission bounty; "capped" once it is paid no more.
+let bountyLimit = null;
+const bountyTitle = () => `Alpha received toward the per-submission bounty${bountyLimit != null ? ` (at most ${fmt(bountyLimit, 0)} α each)` : ""}`;
+const bounty = (v, capped) => v == null ? "—" : `${fmt(v, 2)} α${capped ? ' <span class="pill bad" title="Reached the bounty: paid nothing more">capped</span>' : ""}`;
+const pct = (v) => (v == null ? "—" : (v * 100).toFixed(1) + "%");
+const when = (t) => (t ? new Date(t).toLocaleString() : "—");
+
+async function get(path, params = {}) {
+  const url = new URL(API + path, location.origin);
+  for (const [k, v] of Object.entries(params)) if (v != null && v !== "") url.searchParams.set(k, v);
+  const res = await fetch(url);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || body.title || `HTTP ${res.status}`);
+  return body;
+}
+
+function pill(status) {
+  const cls = { passed: "ok", failed: "bad", error: "bad", queued: "warn", running: "warn" }[status] || "";
+  return `<span class="pill ${cls}">${esc(status)}</span>`;
+}
+
+async function loadMeta() {
+  const index = await get("");
+  const comp = index.items[0];
+  slug = comp.slug;
+  $("title").textContent = `${comp.name} standings`;
+  const c = comp.context || {};
+  snapshot = c.snapshot_id || null;
+  $("meta").innerHTML = [
+    `Scoring pass <span class="mono">${esc(c.snapshot_id || "none yet")}</span> · ${esc(when(c.computed_at))}`,
+    `Status ${pill(c.status || "unknown")}`,
+    `Submissions ${comp.submissions_open ? '<span class="pill ok">open</span>' : '<span class="pill bad">paused</span>'}`,
+    `Queue ${esc(comp.queue_depth)}`,
+    `Updated ${esc(new Date().toLocaleTimeString())}`,
+  ].map((x) => `<span>${x}</span>`).join("");
+}
+
+// ---- Pareto plot -----------------------------------------------------------
+async function loadPareto() {
+  const items = [];
+  let cursor = null, bounds = null;
+  for (let i = 0; i < 20; i++) {
+    const page = await get(`/${slug}/pareto`, { limit: 100, cursor, snapshot_id: snapshot });
+    bounds = page.bounds;
+    items.push(...page.items);
+    cursor = page.next_cursor;
+    if (!cursor) break;
+  }
+  drawPareto(items, bounds || {});
+}
+
+function classify(p) {
+  if (p.kind === "baseline") return "baseline";
+  if (p.score && p.score.on_frontier) return "frontier";
+  const b = p.bounds;
+  if (b && (b.violations || []).length) return "outside";
+  if (p.score && p.score.unpaid_reason && /bound/i.test(p.score.unpaid_reason)) return "outside";
+  return "scored";
+}
+
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1;
+  const step0 = span / n;
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= n) || 10 * mag;
+  const ticks = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) ticks.push(+v.toFixed(10));
+  return ticks;
+}
+
+function drawPareto(items, bounds) {
+  const host = $("plot");
+  const scoredPts = items.filter((p) => p.metrics && p.metrics.balanced_time_ratio != null && p.metrics.mean_file_compression_pct != null);
+  if (!scoredPts.length) { host.innerHTML = '<div class="empty">No scored submissions in this pass yet.</div>'; return; }
+  // A point far past the size bound (e.g. a no-compression baseline) would flatten every real point: list it instead.
+  const sizeCap = bounds.max_mean_file_compression_pct ? bounds.max_mean_file_compression_pct * 1.1 : Infinity;
+  const pts = scoredPts.filter((p) => p.metrics.mean_file_compression_pct <= sizeCap);
+  const offChart = scoredPts.filter((p) => p.metrics.mean_file_compression_pct > sizeCap);
+  const W = 720, H = 420, m = { t: 16, r: 20, b: 46, l: 56 };
+  const xs = pts.map((p) => p.metrics.balanced_time_ratio);
+  const ys = pts.map((p) => p.metrics.mean_file_compression_pct);
+  const bx = bounds.max_balanced_time_ratio, by = bounds.max_mean_file_compression_pct;
+  let x0 = Math.min(1, ...xs), x1 = Math.max(...xs, bx || 0);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  // Show the size bound when it is near the data; skip it when it would squash the points.
+  if (by && by > y1 && by - y1 <= Math.max(1, (y1 - y0) * 0.5)) y1 = by;
+  const padX = (x1 - x0) * 0.06 || 0.5, padY = (y1 - y0) * 0.12 || 0.5;
+  x0 = Math.max(0, x0 - padX); x1 += padX; y0 -= padY; y1 += padY;
+  const X = (v) => m.l + ((v - x0) / (x1 - x0)) * (W - m.l - m.r);
+  const Y = (v) => H - m.b - ((v - y0) / (y1 - y0)) * (H - m.t - m.b);
+  const xt = niceTicks(x0, x1, 7), yt = niceTicks(y0, y1, 6);
+  const ink2 = "var(--text-2)", grid = "var(--grid)";
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Pareto plot of time ratio against compressed size">`;
+  for (const t of yt) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="${grid}" stroke-width="1"/><text x="${m.l - 8}" y="${Y(t) + 4}" text-anchor="end" font-size="11" fill="${ink2}">${fmt(t, 1)}</text>`;
+  for (const t of xt) s += `<line y1="${m.t}" y2="${H - m.b}" x1="${X(t)}" x2="${X(t)}" stroke="${grid}" stroke-width="1"/><text x="${X(t)}" y="${H - m.b + 16}" text-anchor="middle" font-size="11" fill="${ink2}">${fmt(t, 1)}×</text>`;
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="var(--rule)"/>`;
+  s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 8}" text-anchor="middle" font-size="12" fill="${ink2}">Mean per-file time ÷ incumbent</text>`;
+  s += `<text transform="translate(14 ${(m.t + H - m.b) / 2}) rotate(-90)" text-anchor="middle" font-size="12" fill="${ink2}">Mean compressed size (%)</text>`;
+  if (bx && bx >= x0 && bx <= x1) s += `<line x1="${X(bx)}" x2="${X(bx)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--text-3)" stroke-dasharray="5 4"/><text x="${X(bx) - 6}" y="${m.t + 12}" text-anchor="end" font-size="11" fill="${ink2}">max ${fmt(bx, 0)}×</text>`;
+  if (by && by >= y0 && by <= y1) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(by)}" y2="${Y(by)}" stroke="var(--text-3)" stroke-dasharray="5 4"/><text x="${W - m.r - 4}" y="${Y(by) - 6}" text-anchor="end" font-size="11" fill="${ink2}">max ${fmt(by, 0)}%</text>`;
+  const frontier = pts.filter((p) => p.score && p.score.on_frontier).sort((a, b) => a.metrics.balanced_time_ratio - b.metrics.balanced_time_ratio);
+  if (frontier.length > 1) {
+    let d = "";
+    frontier.forEach((p, i) => {
+      const x = X(p.metrics.balanced_time_ratio), y = Y(p.metrics.mean_file_compression_pct);
+      d += i === 0 ? `M${x},${y}` : ` H${x} V${y}`;
+    });
+    s += `<path d="${d}" fill="none" stroke="var(--text-2)" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/>`;
+  }
+  const order = { baseline: 0, outside: 1, scored: 2, frontier: 3 };
+  pts.sort((a, b) => order[classify(a)] - order[classify(b)]);
+  pts.forEach((p, i) => {
+    const kind = classify(p);
+    const x = X(p.metrics.balanced_time_ratio), y = Y(p.metrics.mean_file_compression_pct);
+    const fill = { frontier: "var(--series-1)", scored: "var(--series-2)", baseline: "var(--series-3)", outside: "var(--surface)" }[kind];
+    const stroke = kind === "outside" ? "var(--series-2)" : "var(--surface)";
+    s += `<g class="pt" data-i="${i}" tabindex="0"><circle cx="${x}" cy="${y}" r="14" fill="transparent"/><circle cx="${x}" cy="${y}" r="5.5" fill="${fill}" stroke="${stroke}" stroke-width="2"/></g>`;
+    if (kind === "frontier") s += `<text x="${x + 9}" y="${y - 8}" font-size="11" fill="var(--text)">#${esc(p.id)}</text>`;
+  });
+  s += "</svg><div class='tip' hidden></div>";
+  if (offChart.length) s += `<div class="note">Not shown (far outside the size bound): ${offChart.map((p) => `#${esc(p.id)} ${esc(p.baseline_name || short(p.hotkey))} at ${fmt(p.metrics.mean_file_compression_pct, 1)}%`).join(", ")}</div>`;
+  host.innerHTML = s;
+  const tip = host.querySelector(".tip");
+  const show = (g) => {
+    const p = pts[+g.dataset.i];
+    const who = p.kind === "baseline" ? `baseline ${esc(p.baseline_name || "")}` : `<span class="mono">${esc(short(p.hotkey))}</span>`;
+    tip.innerHTML = `<div><b>#${esc(p.id)}</b> · ${who}</div>
+      <div class="row"><span>Time ÷ incumbent</span><span class="num">${fmt(p.metrics.balanced_time_ratio)}×</span></div>
+      <div class="row"><span>Mean size</span><span class="num">${fmt(p.metrics.mean_file_compression_pct, 3)}%</span></div>
+      <div class="row"><span>Byte-weighted size</span><span class="num">${fmt(p.metrics.byte_weighted_compression_pct, 3)}%</span></div>
+      <div class="row"><span>Share of pay</span><span class="num">${pct(p.score && p.score.payable_weight)}</span></div>
+      ${p.score && p.score.bounty_earned_alpha != null ? `<div class="row"><span>Bounty earned</span><span class="num">${bounty(p.score.bounty_earned_alpha, p.score.bounty_capped)}</span></div>` : ""}
+      ${p.score && p.score.unpaid_reason ? `<div class="note">${esc(p.score.unpaid_reason)}</div>` : ""}`;
+    tip.hidden = false;
+    const box = host.getBoundingClientRect(), r = g.getBoundingClientRect();
+    let left = r.left - box.left + r.width / 2 + 12, top = r.top - box.top - 10;
+    if (left + tip.offsetWidth > box.width) left = r.left - box.left - tip.offsetWidth - 12;
+    tip.style.left = Math.max(0, left) + "px";
+    tip.style.top = Math.max(0, top) + "px";
+  };
+  host.querySelectorAll(".pt").forEach((g) => {
+    g.addEventListener("mouseenter", () => show(g));
+    g.addEventListener("focus", () => show(g));
+    g.addEventListener("mouseleave", () => (tip.hidden = true));
+    g.addEventListener("blur", () => (tip.hidden = true));
+  });
+}
+
+// ---- Leaderboard -------------------------------------------------------------
+async function loadLeaderboard() {
+  const st = pages.lb;
+  const page = await get(`/${slug}/leaderboard`, { limit: PAGE, cursor: st.stack[st.index], snapshot_id: snapshot });
+  st.next = page.next_cursor;
+  const rows = page.ranking;
+  bountyLimit = page.bounty_limit_alpha;
+  $("lb").innerHTML = rows.length
+    ? `<table><thead><tr><th class="num">#</th><th>Hotkey</th><th>Submissions</th><th class="num" title="Fraction of the competition's 20% weight share">Share of pay</th><th class="num" title="Pareto component">Pareto</th><th class="num" title="Recent-improvement component">Impr.</th><th class="num" title="${esc(bountyTitle())}">Bounty earned</th></tr></thead><tbody>${rows.map((r) => `
+        <tr><td class="num">${r.rank}</td><td class="mono" title="${esc(r.hotkey)}">${esc(short(r.hotkey))}</td>
+        <td>${r.submission_ids.map((id) => `<a href="${API}/${slug}/submissions/${id}" target="_blank" rel="noopener">#${esc(id)}</a>`).join(", ")}</td>
+        <td class="num"><b>${pct(r.payable_weight)}</b></td><td class="num">${fmt(r.pareto_weight, 2)}</td><td class="num">${fmt(r.improvement_weight, 2)}</td><td class="num">${bounty(r.bounty_earned_alpha)}</td></tr>`).join("")}</tbody></table>`
+    : '<div class="empty">No ranked hotkeys in this pass.</div>';
+  pager("lb");
+}
+
+// ---- Submissions ---------------------------------------------------------------
+async function loadSubmissions() {
+  const st = pages.sub;
+  const page = await get(`/${slug}/submissions`, {
+    limit: PAGE, cursor: st.stack[st.index], snapshot_id: snapshot,
+    kind: $("f-kind").value, gate_status: $("f-gate").value,
+  });
+  st.next = page.next_cursor;
+  const rows = page.items;
+  $("subs").innerHTML = rows.length
+    ? `<table><thead><tr><th class="num">Id</th><th>Who</th><th>Submitted</th><th>Gate</th><th>Admission</th><th class="num">Time ÷ inc.</th><th class="num">Mean size</th><th>Frontier</th><th class="num" title="Fraction of the competition's 20% weight share">Share of pay</th><th class="num" title="${esc(bountyTitle())}">Bounty</th><th>Links</th></tr></thead><tbody>${rows.map((r) => {
+        const m = r.metrics || {}, sc = r.score || {}, ad = r.admission || {};
+        const who = r.kind === "baseline" ? `<span class="pill">baseline</span> ${esc(r.baseline_name || "")}` : `<span class="mono" title="${esc(r.hotkey)}">${esc(short(r.hotkey))}</span>`;
+        const adm = ad.outcome ? `<span class="pill ${ad.admitted ? "ok" : ad.outcome === "excluded" || ad.outcome === "dominated" ? "bad" : ""}" title="${esc(ad.explanation || "")}">${esc(ad.outcome.replace("_", " "))}</span>` : `<span class="pill">${esc(ad.status || "—")}</span>`;
+        const base = `${API}/${slug}/submissions/${r.id}`;
+        return `<tr><td class="num"><a href="${base}" target="_blank" rel="noopener">#${esc(r.id)}</a></td><td>${who}</td><td>${esc(when(r.submitted_at))}</td>
+          <td>${pill(r.gate_status)}</td><td>${adm}</td><td class="num">${fmt(m.balanced_time_ratio)}×</td><td class="num">${fmt(m.mean_file_compression_pct, 3)}%</td>
+          <td>${sc.on_frontier ? '<span class="pill ok">yes</span>' : sc.snapshot_id ? '<span class="pill">no</span>' : "—"}</td>
+          <td class="num">${sc.snapshot_id ? pct(sc.payable_weight) : "—"}</td>
+          <td class="num">${bounty(sc.bounty_earned_alpha, sc.bounty_capped)}</td>
+          <td><a href="${base}/report" target="_blank" rel="noopener">report</a> · ${sourceLink(r, base)}</td></tr>`;
+      }).join("")}</tbody></table>`
+    : '<div class="empty">No submissions match.</div>';
+  pager("sub");
+}
+
+// The API withholds a miner's source while it is on the frontier or not yet scored.
+function sourceLink(r, base) {
+  if (r.gate_status !== "passed") return '<span class="note">no source</span>';
+  const sc = r.score || {};
+  if (r.kind === "miner" && (!sc.snapshot_id || sc.on_frontier)) {
+    return '<span class="note" title="Published once another submission beats it on the Pareto frontier">source withheld</span>';
+  }
+  return `<a href="${base}/source" target="_blank" rel="noopener">source</a>`;
+}
+
+function pager(key) {
+  const st = pages[key];
+  $(`${key}-page`).textContent = `page ${st.index + 1}`;
+  $(`${key}-prev`).disabled = st.index === 0;
+  $(`${key}-next`).disabled = !st.next;
+}
+
+function wirePager(key, load) {
+  $(`${key}-next`).addEventListener("click", () => {
+    const st = pages[key];
+    if (!st.next) return;
+    st.stack = st.stack.slice(0, st.index + 1);
+    st.stack.push(st.next);
+    st.index += 1;
+    guard(load, key);
+  });
+  $(`${key}-prev`).addEventListener("click", () => {
+    const st = pages[key];
+    if (st.index === 0) return;
+    st.index -= 1;
+    guard(load, key);
+  });
+}
+
+async function guard(fn, key) {
+  try { await fn(); }
+  catch (e) {
+    const target = { lb: "lb", sub: "subs", plot: "plot" }[key];
+    $(target).innerHTML = `<div class="error">Could not load: ${esc(e.message)}</div>`;
+  }
+}
+
+function resetPages() {
+  for (const st of Object.values(pages)) { st.stack = [null]; st.index = 0; st.next = null; }
+}
+
+async function refreshAll() {
+  $("refresh").disabled = true;
+  try {
+    const before = snapshot;
+    await loadMeta();
+    // Cursors are bound to one scoring pass: keep the reader's page only while it is current.
+    if (snapshot !== before) resetPages();
+    await Promise.all([guard(loadPareto, "plot"), guard(loadLeaderboard, "lb"), guard(loadSubmissions, "sub")]);
+  } catch (e) {
+    $("meta").innerHTML = `<span class="error">Could not reach the competition API: ${esc(e.message)}</span>`;
+  } finally {
+    $("refresh").disabled = false;
+  }
+}
+
+wirePager("lb", loadLeaderboard);
+wirePager("sub", loadSubmissions);
+for (const id of ["f-kind", "f-gate"]) $(id).addEventListener("change", () => { pages.sub.stack = [null]; pages.sub.index = 0; guard(loadSubmissions, "sub"); });
+$("refresh").addEventListener("click", refreshAll);
+setInterval(() => { if ($("auto").checked && !document.hidden) refreshAll(); }, 60000);
+refreshAll();
+</script>
+</body>
+</html>
