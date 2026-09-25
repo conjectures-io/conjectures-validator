@@ -285,6 +285,67 @@ def test_cli_queue_worker_evidence_scoring_and_reads(owned_db):
     asyncio.run(scenario())
 
 
+# The same queue and gate, then a paid vector, one epoch's emission for it, and a pass that
+# caps it: a 20 alpha bounty, 12.5 received and 12.5 more projected.
+BOUNTY_WORKER = (
+    WORKER.split("chain = FakeChain(")[0]
+    + r"""
+from chain.types import EpochEmission, NeuronEmission
+config = WeightSetterConfig(netuid=66, dry_run=False, bounty_alpha=20)
+chain = FakeChain(block=at_epoch_boundary(), hotkeys=hotkeys)
+assert step(chain, store, config, ScoringConfig(), PARAMS).action == "set"
+(hotkey,) = hotkeys
+chain.epoch = EpochEmission(chain.block + 1, chain.block + 2, 100, 0,
+    (NeuronEmission(1, hotkey, "cold", 12_500_000_000, 0.2),))
+result = step(chain, store, config, ScoringConfig(), PARAMS)
+assert result.scoring is not None and result.scoring.weights == {}
+store.close()
+"""
+)
+
+
+def test_bounty_totals_reach_the_read_endpoints(owned_db):
+    if not (COMPRESSION / "deploy/migrate/alembic/versions/0012_submission_bounty.py").exists():
+        pytest.skip("compression checkout with the bounty ledger required (migration 0012)")
+    url, env = owned_db
+
+    async def scenario():
+        app, engine, _, _ = await app_for(url)
+        kp = Keypair.create_from_uri("//Alice")
+        try:
+            await register(engine, kp)
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                sid = (await client.post(BASE + "/submissions", **signed(kp))).json()["submission"]
+                proc = await asyncio.to_thread(
+                    subprocess.run,
+                    [str(COMPRESSION / ".venv/bin/python"), "-c", BOUNTY_WORKER],
+                    cwd=COMPRESSION,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                )
+                assert proc.returncode == 0, proc.stderr
+                board = (await client.get(BASE + "/leaderboard")).json()
+                assert board["bounty_limit_alpha"] == 20
+                (row,) = board["ranking"]
+                assert row["bounty_earned_alpha"] == 12.5 and row["payable_weight"] == 0
+                score = (await client.get(BASE + f"/submissions/{sid}")).json()["submission"][
+                    "score"
+                ]
+                assert score["bounty_earned_alpha"] == 12.5 and score["bounty_capped"] is True
+                assert score["unpaid_reason"] == "bounty-cap"
+                feed = (await client.get(BASE + "/submissions")).json()["items"]
+                assert [i["score"]["bounty_earned_alpha"] for i in feed] == [12.5]
+                weights = (await client.get(BASE + "/weights/current")).json()
+                assert weights["weights"] == {}
+        finally:
+            await engine.dispose()
+
+    asyncio.run(scenario())
+
+
 def test_concurrent_entitlement_and_browser_attribution(owned_db):
     url, _ = owned_db
 

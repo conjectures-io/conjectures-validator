@@ -102,6 +102,13 @@ def admission(item, *, freshness="unknown"):
     )
 
 
+RAO_PER_ALPHA = 1_000_000_000
+
+
+def alpha(rao):
+    return rao / RAO_PER_ALPHA if rao is not None else None
+
+
 def submission(item, score=None, snapshot_id=None, *, freshness="unknown"):
     sub = item["submission"]
     allocation = None
@@ -122,6 +129,8 @@ def submission(item, score=None, snapshot_id=None, *, freshness="unknown"):
                 score.get("burn_reason") is None or score["payable_weight"] > 0
             ),
             unpaid_reason=score.get("burn_reason"),
+            bounty_earned_alpha=alpha(score.get("bounty_rao")),
+            bounty_capped=score.get("bounty_capped"),
         )
     return s.Submission(
         id=str(sub["id"]),

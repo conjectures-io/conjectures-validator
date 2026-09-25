@@ -175,6 +175,21 @@ async def hit_rate_limit(session, subject, *, limit, window_seconds):
     return count <= limit, count
 
 
+def with_bounty(result):
+    """Attach each score row's bounty total from the pass's api_snapshot (migration 0012+).
+
+    A pass from before the competition recorded bounties has no section; its totals stay
+    unknown (None) rather than zero.
+    """
+    bounty = result["api_snapshot"].get("bounty") or {}
+    earned = {str(b["submission_id"]): b for b in bounty.get("submissions", [])}
+    for score in result["scores"]:
+        entry = earned.get(str(score["submission_id"]))
+        score["bounty_rao"] = entry["earned_rao"] if entry else None
+        score["bounty_capped"] = entry["capped"] if entry else None
+    return result
+
+
 async def snapshot(session, sid=None):
     if sid is None:
         sql = "SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE api_snapshot IS NOT NULL ORDER BY id DESC LIMIT 1"
@@ -198,6 +213,7 @@ async def snapshot(session, sid=None):
             )
         ).mappings()
     ]
+    with_bounty(result)
     observed = result["api_snapshot"].get("observed_submissions")
     if observed is not None:
         live = [
