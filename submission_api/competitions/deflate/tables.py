@@ -1,6 +1,6 @@
 """The slice of the deflate competition's schema this API reads and writes.
 
-The schema is not ours. It lives, and migrates, in conjectures-optimisation-lz77
+The schema is not ours. It lives, and migrates, in conjectures-optimisation-deflate
 (`validator/db/models.py`, Alembic under `deploy/migrate/alembic/`), and that repository's
 gate worker, chain watcher and weight setter write most of it. These are SQLAlchemy Core
 tables naming only the columns this adapter touches -- not models, and never used to create

@@ -28,7 +28,7 @@ browser / miner ───► │ /v1/...               proofs routers ───�
 
 ```bash
 COMPETITIONS=deflate
-COMPETITION_DEFLATE_DATABASE_URL=postgresql+psycopg://api:…@conjectures_lz77_db:5432/conjectures
+COMPETITION_DEFLATE_DATABASE_URL=postgresql+psycopg://api:…@conjectures_deflate_db:5432/conjectures
 ```
 
 `COMPETITIONS` lists the served slugs, and each slug's URL is `COMPETITION_<SLUG>_DATABASE_URL`,
@@ -133,7 +133,7 @@ else holds a reference to it.
 ## The deflate adapter
 
 [`deflate/`](../submission_api/competitions/deflate/) reads the schema owned by
-conjectures-optimisation-lz77 (`validator/db/models.py`, Alembic under
+conjectures-optimisation-deflate (`validator/db/models.py`, Alembic under
 `deploy/migrate/alembic/`).
 
 The API writes only two things:
@@ -156,7 +156,7 @@ to the competition's Alembic head. It needs `FC_DEFLATE_SCHEMA_DSN`, so CI skips
 either side's schema changes:
 
 ```bash
-# in conjectures-optimisation-lz77, against an empty database:
+# in conjectures-optimisation-deflate, against an empty database:
 DATABASE_URL=postgresql+psycopg://…/deflate_contract just db-migrate
 # here:
 FC_DEFLATE_SCHEMA_DSN=postgresql+psycopg://…/deflate_contract pytest -q tests/test_competition_contract.py
