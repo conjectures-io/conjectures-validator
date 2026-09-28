@@ -50,7 +50,7 @@ def _gate(tmp_path: Path, body: str, *, commit: str = "0" * 40) -> Gate:
 
     digest = hashlib.sha256((verifier / "PINS.json").read_bytes()).hexdigest()
     return Gate(
-        slug="lz77",
+        slug="deflate",
         root=root,
         commit=commit,
         pins_sha256=digest,
@@ -344,9 +344,9 @@ def test_development_may_run_unsandboxed():
 
 def test_a_host_may_be_restricted_to_the_competitions_it_has_toolchains_for():
     settings = Settings.from_env(
-        {"APP_MODE": "DEV", "COMPETITION_WORKER_COMPETITIONS": "lz77, rust-comp"}
+        {"APP_MODE": "DEV", "COMPETITION_WORKER_COMPETITIONS": "deflate, rust-comp"}
     )
-    assert settings.competitions == ("lz77", "rust-comp")
+    assert settings.competitions == ("deflate", "rust-comp")
 
 
 # ── the loop, against a real queue ─────────────────────────────────────────
@@ -459,7 +459,7 @@ def test_the_backoff_expires_so_a_fixed_gate_needs_no_restart(store, tmp_path):
     sub_id = _queued(store)
     worker = _worker(store, _gate(tmp_path, BREAKS), COMPETITION_MAX_ATTEMPTS="99")
     worker.drain()
-    assert worker._backoff["lz77"] == BACKOFF_TURNS
+    assert worker._backoff["deflate"] == BACKOFF_TURNS
     assert store.submissions.get(sub_id).attempts == 1
 
     # Nothing is retried while the backoff stands.
