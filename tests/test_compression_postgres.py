@@ -35,7 +35,7 @@ from submission_api.routers import competitions, competition_reads
 
 REPO = Path(__file__).resolve().parents[1]
 COMPRESSION = Path(
-    os.environ.get("COMPRESSION_REPO", str(REPO.parent / "conjectures-optimisation-lz77"))
+    os.environ.get("COMPRESSION_REPO", str(REPO.parent / "conjectures-optimisation-deflate"))
 )
 BASE = "/v1/competitions/deflate"
 
