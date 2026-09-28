@@ -8,8 +8,8 @@ writes a submission into the competition's -- does two units of work, and is wri
 
 Configuration is two environment variables per competition:
 
-    COMPETITIONS=lz77
-    COMPETITION_LZ77_DATABASE_URL=postgresql+psycopg://...
+    COMPETITIONS=deflate
+    COMPETITION_DEFLATE_DATABASE_URL=postgresql+psycopg://...
 
 and the slug must name an adapter in `catalog.ADAPTERS`. Adding a competition is an adapter
 module and one line there; removing one is deleting the line. Nothing in the router, the

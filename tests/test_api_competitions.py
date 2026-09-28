@@ -1,6 +1,6 @@
 """The competition surface: one router, one engine per competition, an adapter each.
 
-Most of these drive the real lz77 adapter against a throwaway database holding the slice
+Most of these drive the real deflate adapter against a throwaway database holding the slice
 of that competition's schema the adapter maps. A second, in-memory adapter (`Toy`) shares the
 router with it, which is the property the design exists for: a competition with different
 files, different metrics and none of the optional capabilities is served without any change to
@@ -40,15 +40,15 @@ from submission_api.competitions import (
 )
 from submission_api.competitions import base
 from submission_api.competitions.catalog import ADAPTERS
-from submission_api.competitions.lz77 import Lz77
-from submission_api.competitions.lz77 import tables as t
+from submission_api.competitions.deflate import Deflate
+from submission_api.competitions.deflate import tables as t
 from submission_api.competitions.signature import submit_message
 from submission_api.settings import Settings, SettingsError
 
 pytestmark = pytest.mark.skipif(postgres_dsn() is None, reason="no database")
 needs_competition_db = pytest.mark.skipif(competition_dsn() is None, reason=COMPETITION_SKIP_REASON)
 
-SLUG = "lz77"
+SLUG = "deflate"
 RUST = b"fn parse(input: &[u8]) {}"
 LEAN = b"theorem holds : True := trivial"
 
@@ -65,19 +65,19 @@ def test_no_competitions_are_served_unless_listed():
 
 
 def test_each_listed_competition_needs_its_own_database_url():
-    with pytest.raises(SettingsError, match="COMPETITION_LZ77_DATABASE_URL"):
+    with pytest.raises(SettingsError, match="COMPETITION_DEFLATE_DATABASE_URL"):
         build_settings(COMPETITIONS=SLUG)
     settings = build_settings(
-        COMPETITIONS=SLUG, COMPETITION_LZ77_DATABASE_URL="postgresql+psycopg://h/lz77"
+        COMPETITIONS=SLUG, COMPETITION_DEFLATE_DATABASE_URL="postgresql+psycopg://h/deflate"
     )
-    assert settings.competitions == (CompetitionConfig(SLUG, "postgresql+psycopg://h/lz77"),)
+    assert settings.competitions == (CompetitionConfig(SLUG, "postgresql+psycopg://h/deflate"),)
 
 
 def test_production_takes_the_same_configuration():
     # No production-only fallback to refuse: there is no fallback anywhere.
     settings = Settings.from_env(
         production_env(
-            COMPETITIONS=SLUG, COMPETITION_LZ77_DATABASE_URL="postgresql+psycopg://h/m"
+            COMPETITIONS=SLUG, COMPETITION_DEFLATE_DATABASE_URL="postgresql+psycopg://h/m"
         )
     )
     assert [c.slug for c in settings.competitions] == [SLUG]
@@ -89,7 +89,7 @@ def test_a_malformed_slug_is_refused_at_startup():
 
 
 def test_the_url_variable_is_derived_from_the_slug():
-    assert database_url_variable("lz77") == "COMPETITION_LZ77_DATABASE_URL"
+    assert database_url_variable("deflate") == "COMPETITION_DEFLATE_DATABASE_URL"
     assert database_url_variable("rust-comp") == "COMPETITION_RUST_COMP_DATABASE_URL"
 
 
@@ -132,7 +132,7 @@ def test_each_competition_gets_an_engine_of_its_own():
     async def scenario():
         registry = build_registry(
             (
-                CompetitionConfig(SLUG, "postgresql+psycopg://h/lz77"),
+                CompetitionConfig(SLUG, "postgresql+psycopg://h/deflate"),
                 CompetitionConfig("toy", "postgresql+psycopg://h/toy"),
             ),
             proofs_database_url="postgresql+psycopg://h/proofs",
@@ -143,7 +143,7 @@ def test_each_competition_gets_an_engine_of_its_own():
         engines = [c.engine for c in registry]
         assert [c.slug for c in registry] == [SLUG, "toy"]
         assert engines[0] is not engines[1]
-        assert [e.url.database for e in engines] == ["lz77", "toy"]
+        assert [e.url.database for e in engines] == ["deflate", "toy"]
         await registry.dispose()
 
     run(scenario())
@@ -231,7 +231,7 @@ async def _competition_engine():
 
 
 def _registry(engine, *extra: base.CompetitionAdapter) -> CompetitionRegistry:
-    adapters = (Lz77(), *extra)
+    adapters = (Deflate(), *extra)
     return CompetitionRegistry(
         Competition(adapter=a, engine=engine, sessions=async_session_factory(engine))
         for a in adapters
@@ -239,7 +239,7 @@ def _registry(engine, *extra: base.CompetitionAdapter) -> CompetitionRegistry:
 
 
 class Kit:
-    """The API with lz77 (and optionally more) served from the competition database."""
+    """The API with deflate (and optionally more) served from the competition database."""
 
     def __init__(self, *extra: base.CompetitionAdapter, **overrides: str) -> None:
         self.extra = extra
@@ -293,7 +293,7 @@ def _keypair(uri: str = "//Alice"):
 
 
 def _digest(rust: bytes = RUST, lean: bytes = LEAN) -> str:
-    return Lz77().digest({"parse.rs": rust, "Parse.lean": lean})
+    return Deflate().digest({"parse.rs": rust, "Parse.lean": lean})
 
 
 def _signed(keypair, *, digest: str, competition: str = SLUG, timestamp: int | None = None):
@@ -356,12 +356,12 @@ def test_each_competition_describes_itself_well_enough_to_render_and_submit_to()
             await kit.submission(None, incumbent_bytes=2_153_387, bytes=2_153_387)
             async with await _http(kit) as http:
                 index = (await http.get("/v1/competitions")).json()["competitions"]
-            lz77, toy = index
-            assert lz77["slug"] == SLUG
-            assert [f["name"] for f in lz77["files"]] == ["parse.rs", "Parse.lean"]
-            assert lz77["ranked_by"] == "bytes"
-            assert lz77["headline"] == {"incumbent_bytes": 2_153_387, "speed_floor": 8.0}
-            assert lz77["submissions_open"] is True
+            deflate, toy = index
+            assert deflate["slug"] == SLUG
+            assert [f["name"] for f in deflate["files"]] == ["parse.rs", "Parse.lean"]
+            assert deflate["ranked_by"] == "bytes"
+            assert deflate["headline"] == {"incumbent_bytes": 2_153_387, "speed_floor": 8.0}
+            assert deflate["submissions_open"] is True
             assert toy["files"] == [{"name": "answer.txt", "max_bytes": 64, "description": "the answer"}]
             assert toy["metrics"][0]["better"] == "higher"
             assert toy["headline"] == {"target": 42}
@@ -941,7 +941,7 @@ def test_a_submit_to_an_unreachable_competition_is_refused_as_unavailable(refusa
         keypair = _keypair()
         dead = create_async_db_engine("postgresql+psycopg://nobody:nothing@127.0.0.1:1/absent")
         registry = CompetitionRegistry(
-            [Competition(adapter=Lz77(), engine=dead, sessions=async_session_factory(dead))]
+            [Competition(adapter=Deflate(), engine=dead, sessions=async_session_factory(dead))]
         )
         kit = await harness(competitions=registry).setup()
         try:
@@ -1008,7 +1008,7 @@ def test_an_unreachable_competition_is_a_503_for_its_routes_and_nothing_else():
     async def scenario():
         dead = create_async_db_engine("postgresql+psycopg://nobody:nothing@127.0.0.1:1/absent")
         registry = CompetitionRegistry(
-            [Competition(adapter=Lz77(), engine=dead, sessions=async_session_factory(dead))]
+            [Competition(adapter=Deflate(), engine=dead, sessions=async_session_factory(dead))]
         )
         kit = await harness(competitions=registry).setup()
         try:

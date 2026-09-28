@@ -27,8 +27,8 @@ browser / miner ───► │ /v1/...               proofs routers ───�
 ## Configuration
 
 ```bash
-COMPETITIONS=lz77
-COMPETITION_LZ77_DATABASE_URL=postgresql+psycopg://api:…@conjectures_lz77_db:5432/conjectures
+COMPETITIONS=deflate
+COMPETITION_DEFLATE_DATABASE_URL=postgresql+psycopg://api:…@conjectures_lz77_db:5432/conjectures
 ```
 
 `COMPETITIONS` lists the served slugs, and each slug's URL is `COMPETITION_<SLUG>_DATABASE_URL`,
@@ -120,7 +120,7 @@ competition's registration records.
    [`catalog.py`](../submission_api/competitions/catalog.py).
 3. **Test it.** Build it on
    [`tests/test_api_competitions.py`](../tests/test_api_competitions.py), which runs the real
-   lz77 adapter against a throwaway database holding its table slice, plus an in-memory `Toy`
+   deflate adapter against a throwaway database holding its table slice, plus an in-memory `Toy`
    adapter. Add a contract check like
    [`tests/test_competition_contract.py`](../tests/test_competition_contract.py) against a
    database migrated by the competition's own migrations.
@@ -130,9 +130,9 @@ To **remove** a competition, drop it from `COMPETITIONS`. To delete it for good,
 catalog line and adapter package. To **swap** a competition's database, change its URL; nothing
 else holds a reference to it.
 
-## The lz77 adapter
+## The deflate adapter
 
-[`lz77/`](../submission_api/competitions/lz77/) reads the schema owned by
+[`deflate/`](../submission_api/competitions/deflate/) reads the schema owned by
 conjectures-optimisation-lz77 (`validator/db/models.py`, Alembic under
 `deploy/migrate/alembic/`).
 
@@ -152,12 +152,12 @@ The adapter restates the competition's entitlement rules:
 Submits for one hotkey are serialised with a transaction-scoped advisory lock.
 
 `tests/test_competition_contract.py` checks the adapter's table slice against a database migrated
-to the competition's Alembic head. It needs `FC_LZ77_SCHEMA_DSN`, so CI skips it. Run it when
+to the competition's Alembic head. It needs `FC_DEFLATE_SCHEMA_DSN`, so CI skips it. Run it when
 either side's schema changes:
 
 ```bash
 # in conjectures-optimisation-lz77, against an empty database:
-DATABASE_URL=postgresql+psycopg://…/lz77_contract just db-migrate
+DATABASE_URL=postgresql+psycopg://…/deflate_contract just db-migrate
 # here:
-FC_LZ77_SCHEMA_DSN=postgresql+psycopg://…/lz77_contract pytest -q tests/test_competition_contract.py
+FC_DEFLATE_SCHEMA_DSN=postgresql+psycopg://…/deflate_contract pytest -q tests/test_competition_contract.py
 ```
