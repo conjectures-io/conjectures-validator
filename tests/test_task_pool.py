@@ -56,7 +56,8 @@ def test_classical_admissions_match_review_and_exclude_held_or_resolved_targets(
     )
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text())
     tasks = policy["allowed_task_bundles"]
-    for theorem in admitted:
+    withdrawn = load_retired_sources(TIER_METADATA / "retired-source-theorems.json").theorems
+    for theorem in admitted - set(withdrawn):
         paired = [row for row in tasks if theorem in row["theorems"]]
         assert len(paired) == 2
         assert {row["mode"] for row in paired} == set(PRODUCTION_TASK_MODES)
@@ -113,7 +114,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
-    ) == 24
+    ) == 6
     assert all(
         not item.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
         for item in selected
@@ -121,7 +122,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 257
+    assert len({item.source_path for item in selected}) == 242
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -314,6 +315,7 @@ def test_retired_conjectures_are_readable_but_never_admissible():
     assert retired.repository_commit == policy["repository_commit"]
     assert {entry["source"]["repository_commit"] for entry in retired.entries.values()} == {
         "379fc0298dc146df549e7061c3ede0353a5bb51f",
+        "6a786f997e18e8f095762a2830d191b7e25e505e",
         "8432eac998110a563e03df65a28c117e97c8c142",
     }
     # Each entry carries what a problem page renders, for both attack directions.
@@ -473,3 +475,34 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
         path.write_text(json.dumps({**base, **update}), encoding="utf-8")
         with pytest.raises(TaskNotAllowed):
             TaskPoolRegistry.load(path)
+
+
+@pytest.mark.needs_checkouts
+def test_green_withdrawal_preserves_solved_entries_and_closes_open_tasks():
+    from submission_api.retired import RetiredIndex
+    from submission_api.taskpool import TaskCatalog
+
+    catalog = TaskCatalog.load(
+        allowlist_path=TASKS_ROOT / "allowlist.json", pool_root=TASKS_ROOT / "pool"
+    )
+    solved = {
+        "Green15.green_15", "Green24.variants.conjecture", "Green39.green_39",
+        "Green40.green_40.f_two_eq_one", "Green47.green_47", "Green51.green_51.one_half",
+    }
+    assert {
+        entry.source.theorem for entry in catalog.entries.values()
+        if entry.source.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
+    } == solved
+    retired = RetiredIndex.load(allowlist_path=TASKS_ROOT / "allowlist.json")
+    withdrawn = [
+        item for item in retired.by_slug.values()
+        if item.retired_on == "2026-09-30" and item.reason_code == "WITHDRAWN"
+        and item.source.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
+    ]
+    assert len(withdrawn) == 18
+    for item in withdrawn:
+        assert len(item.tasks) == 2
+        for task in item.tasks:
+            with pytest.raises(TaskNotAllowed):
+                catalog.get(task.task_id)
+    assert {"green29-green-29", "green42-green-42"} <= retired.by_slug.keys()
