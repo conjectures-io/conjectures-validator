@@ -361,15 +361,21 @@ def stuck_submissions(
     the worker's `VERIFY_TOTAL_TIMEOUT` and this module does not read the worker's settings.
     """
     return _by_arrival(
-        select(models.Submission, _has_sources()).where(
-            (models.Submission.state == SubmissionState.ERROR.value)
-            | (
-                (models.Submission.state == SubmissionState.VERIFYING.value)
-                & (models.Submission.claimed_at < claimed_before)
-            )
-        ),
+        select(models.Submission, _has_sources()).where(_stuck(claimed_before)),
         after=after,
         limit=limit,
+    )
+
+
+def stuck_total(*, claimed_before: dt.datetime) -> Select[tuple[int]]:
+    """How many rows `stuck_submissions` pages through, under the same condition."""
+    return select(func.count()).select_from(models.Submission).where(_stuck(claimed_before))
+
+
+def _stuck(claimed_before: dt.datetime):  # type: ignore[no-untyped-def]
+    return (models.Submission.state == SubmissionState.ERROR.value) | (
+        (models.Submission.state == SubmissionState.VERIFYING.value)
+        & (models.Submission.claimed_at < claimed_before)
     )
 
 
