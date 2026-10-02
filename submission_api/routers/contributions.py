@@ -52,6 +52,7 @@ from submission_api.contributions import (
 )
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import NotFound, ServiceUnavailable
+from submission_api.pagination import SnapshotLimit, SnapshotOffset, window
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
 
 router = APIRouter(prefix="/v1/contributions", tags=["contributions"])
@@ -248,6 +249,8 @@ async def read_target(
     request: Request,
     response: Response,
     services: ServicesDep,
+    limit: SnapshotLimit = None,
+    offset: SnapshotOffset = 0,
 ) -> schemas.ContributionTargetDetail | Response:
     """One target by any of its four names: target slug, conjecture slug, reward target, problem id.
 
@@ -263,8 +266,12 @@ async def read_target(
     detail = schemas.ContributionTargetDetail(
         target=_target_summary(row, services.index, snapshot),
         contributions=tuple(
-            _item(item, services.index, snapshot) for item in row.contributions
+            _item(item, services.index, snapshot)
+            for item in window(row.contributions, limit=limit, offset=offset)
         ),
+        total=len(row.contributions),
+        limit=limit,
+        offset=offset,
     )
     return _answer(request, response, services.settings, detail)
 

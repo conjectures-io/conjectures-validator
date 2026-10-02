@@ -47,6 +47,11 @@ from submission_api.dependencies import (
 )
 from submission_api.errors import BadRequest, Conflict, Gone, NotFound
 from submission_api.observability import get_axiom
+from submission_api.routers._account import (
+    decode_keyset_cursor,
+    encode_keyset_cursor,
+    page_of,
+)
 from submission_api.sessions import Principal
 
 # The code is a URL path segment, so it is bounded here rather than left to whatever a caller
@@ -363,21 +368,42 @@ async def create_invitation(
 
 
 @admin_router.get(
-    "", response_model=tuple[InvitationSummary, ...], summary="List issued invitations"
+    "",
+    response_model=schemas.CursorPage[InvitationSummary],
+    summary="List issued invitations",
 )
 async def list_invitations(
     _: Annotated[Principal, Depends(require_role(ADMIN_ROLE))],
+    services: ServicesDep,
     session: SessionDep,
     response: Response,
     state: Annotated[str | None, Query(pattern="^(active|expired|revoked|exhausted)$")] = None,
     limit: Annotated[int, Query(ge=1, le=MAX_LISTING)] = 50,
-) -> tuple[InvitationSummary, ...]:
-    """Counts and state, never codes. There is nothing here that can redeem anything."""
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
+) -> schemas.CursorPage[InvitationSummary]:
+    """Counts and state, never codes. There is nothing here that can redeem anything.
+
+    Newest first. A cursor carries only a position, not the `state` filter, so a caller pages a
+    filtered listing by repeating the filter with each cursor.
+    """
+    settings = services.settings
     _no_store(response)
     rows = await invitation_store.listing(
-        session, now=_now(), state=state, limit=limit
+        session,
+        now=_now(),
+        state=state,
+        limit=limit + 1,
+        after=decode_keyset_cursor(settings, cursor),
     )
-    return tuple(_summary(row) for row in rows)
+    page, more = page_of(list(rows), limit=limit)
+    return schemas.CursorPage[InvitationSummary](
+        items=tuple(_summary(row) for row in page),
+        next_cursor=(
+            encode_keyset_cursor(settings, at=page[-1].created_at, id=page[-1].id)
+            if more and page
+            else None
+        ),
+    )
 
 
 @admin_router.get(

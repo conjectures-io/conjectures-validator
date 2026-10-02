@@ -29,6 +29,7 @@ from conftest_api import (  # noqa: E402
     OTHER_MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
+    cursor_pages,
     harness,
     postgres_dsn,
 )
@@ -945,7 +946,7 @@ def test_the_session_listing_shows_both_kinds_and_never_a_digest():
 
                 listed = await browser.get("/v1/me/sessions")
                 assert listed.status_code == 200, listed.text
-                rows = listed.json()
+                rows = listed.json()["items"]
                 kinds = sorted(row["kind"] for row in rows)
                 assert kinds == ["BEARER", "COOKIE"]
 
@@ -965,6 +966,46 @@ def test_the_session_listing_shows_both_kinds_and_never_a_digest():
     run(scenario())
 
 
+def test_the_session_listing_pages_without_repeating_or_skipping_a_session():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as browser, await client(kit) as cli:
+                await sign_in_by_email(kit, browser)
+                await link_coldkey(kit, browser)
+                await cli_login(kit, cli)
+                await cli_login(kit, cli)
+
+                whole = (await browser.get("/v1/me/sessions")).json()
+                assert whole["next_cursor"] is None
+                pages = await cursor_pages(browser, "/v1/me/sessions", limit=1)
+
+                assert [len(page) for page in pages] == [1, 1, 1]
+                # One page at a time is the same list, in the same order, as one read of it.
+                assert [row["id"] for page in pages for row in page] == [
+                    row["id"] for row in whole["items"]
+                ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_session_cursor_that_was_not_issued_here_is_refused():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as browser:
+                await sign_in_by_email(kit, browser)
+                forged = await browser.get("/v1/me/sessions", params={"cursor": "AAAA.AAAA"})
+                assert forged.status_code == 400
+                assert forged.json()["reason_code"] == "INVALID_CURSOR"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_leaked_cli_token_can_be_revoked_from_the_browser():
     async def scenario():
         kit = await harness().setup()
@@ -974,7 +1015,7 @@ def test_a_leaked_cli_token_can_be_revoked_from_the_browser():
                 await link_coldkey(kit, browser)
                 token = (await cli_login(kit, cli))["access_token"]
 
-                rows = (await browser.get("/v1/me/sessions")).json()
+                rows = (await browser.get("/v1/me/sessions")).json()["items"]
                 target = next(row for row in rows if row["kind"] == "BEARER")
                 killed = await browser.delete(
                     f"/v1/me/sessions/{target['id']}", headers=same_origin(browser)
@@ -998,7 +1039,7 @@ def test_one_account_cannot_revoke_another_accounts_session():
                 await sign_in_by_email(kit, first, EMAIL)
                 await sign_in_by_email(kit, second, OTHER_EMAIL)
 
-                victim = (await first.get("/v1/me/sessions")).json()[0]["id"]
+                victim = (await first.get("/v1/me/sessions")).json()["items"][0]["id"]
                 attacked = await second.delete(
                     f"/v1/me/sessions/{victim}", headers=same_origin(second)
                 )
@@ -1178,11 +1219,19 @@ def test_an_admin_can_cut_every_credential_an_account_holds():
 
                 listed = await admin.get(f"/v1/admin/accounts/{subject['id']}/sessions")
                 assert listed.status_code == 200, listed.text
-                assert sorted(row["kind"] for row in listed.json()) == [
+                assert sorted(row["kind"] for row in listed.json()["items"]) == [
                     "BEARER",
                     "COOKIE",
                 ]
-                assert all(row["current"] is False for row in listed.json())
+                assert all(row["current"] is False for row in listed.json()["items"])
+
+                pages = await cursor_pages(
+                    admin, f"/v1/admin/accounts/{subject['id']}/sessions", limit=1
+                )
+                assert sorted(row["kind"] for page in pages for row in page) == [
+                    "BEARER",
+                    "COOKIE",
+                ]
 
                 cut = await admin.delete(
                     f"/v1/admin/accounts/{subject['id']}/sessions", headers=same_origin(admin)

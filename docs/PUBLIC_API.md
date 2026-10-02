@@ -11,8 +11,8 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | --- | --- | --- | --- |
 | `GET` | `/v1/catalog/conjectures` | `ConjectureListResponse` | List with filters and facet counts; one entry per conjecture |
 | `GET` | `/v1/catalog/conjectures/{slug}` | `ConjectureDetail` | Statement, references, bounty, pins, and one `Challenge.lean` plus machine contract per attack direction |
-| `GET` | `/v1/catalog/conjectures/{slug}/activity` | `ConjectureActivity` | Anonymised activity stream |
-| `GET` | `/v1/catalog/index` | `ConjectureIndexResponse` | Flat table of contents; one entry per *problem*, with its variants, retired ones flagged |
+| `GET` | `/v1/catalog/conjectures/{slug}/activity` | `ConjectureActivity` | Anonymised activity stream, paged by `offset` |
+| `GET` | `/v1/catalog/index` | `ConjectureIndexResponse` | Flat table of contents; one entry per *problem*, with its variants, retired ones flagged. Whole unless `limit`/`offset` ask for a page |
 | `GET` | `/v1/catalog/meta` | `PoolMeta` | Counts, credit price, treasury, bounty model, pins |
 | `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out |
 | `GET` | `/v1/results/in-review` | `CursorPage<InReviewResult>` | Lean-verified, awaiting manual review |
@@ -25,7 +25,7 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/contributions` | `OffsetPage<ContributionItem>` | Partial work contributed to the pool, newest first, with filters |
 | `GET` | `/v1/contributions/{id}` | `ContributionItem` | One contribution, by full id or unambiguous prefix |
 | `GET` | `/v1/contributions/targets` | `OffsetPage<ContributionTargetSummary>` | One row per target, including the ones nobody has contributed to |
-| `GET` | `/v1/contributions/targets/{target}` | `ContributionTargetDetail` | Everything on one target, by any of its four names |
+| `GET` | `/v1/contributions/targets/{target}` | `ContributionTargetDetail` | Everything on one target, by any of its four names. Whole unless `limit`/`offset` ask for a page |
 | `GET` | `/v1/contributions/authors` | `OffsetPage<ContributionAuthorSummary>` | One row per author key, across every target |
 | `GET` | `/v1/contributions/pending` | `OffsetPage<PendingContributionItem>` | Open contribution pull requests: offered, not yet accepted |
 | `GET` | `/v1/contributions/meta` | `ContributionsMeta` | What corpus is served, at which commit, and how fresh |
@@ -265,10 +265,12 @@ the retired index, so a retired slug published here resolves to nothing on the g
 submission path uses — and a retired conjecture has no `MachineContract`, so there is not even a
 shape in which a submission for one could be assembled. See [`../submission_api/retired.py`](../submission_api/retired.py).
 
-The index is unpaginated, and it is the one catalog endpoint that reads no database at all — not
-even the attempt counters. It is a grouping of the startup index into a few hundred rows of
+The index is whole by default, and it is the one catalog endpoint that reads no database at all —
+not even the attempt counters. It is a grouping of the startup index into a few hundred rows of
 identifiers, with no statement, no Lean and no bounty quote, so the work is bounded by the pool
-rather than by the caller. Follow a slug to `/v1/catalog/conjectures/{slug}` for any of those.
+rather than by the caller. `limit` and `offset` cut a window from it for a client that renders it a
+screen at a time; `total` always counts the whole pool. Follow a slug to
+`/v1/catalog/conjectures/{slug}` for any of those.
 
 ### Display titles, and why `title` is not one
 
@@ -414,6 +416,21 @@ the category facet to one row and a reader could filter in but never out.
 Paging is `limit` (capped at 100) and `offset` (capped at 10000). Offset paging is safe here and
 only here: the catalog is a fixed list of a few hundred entries held in memory, so there is no scan
 to amortise and no insert to shift the window.
+
+## Paging
+
+Every endpoint that returns a list pages, in one of three ways, chosen by what is underneath:
+
+| Scheme | Parameters | Used by | Why |
+| --- | --- | --- | --- |
+| Signed keyset cursor | `limit`, `cursor` → `next_cursor` | the result feeds; every account and admin feed | A database table that grows between reads. See [Result feeds](#result-feeds) |
+| Offset over a snapshot | `limit`, `offset` → `total` | the catalog listing, the index, `/v1/tasks`, the contribution mirror, the competitions list | Immutable and in memory, so a slice is free and nothing shifts between pages |
+| Bounded offset | `limit`, `offset` → `next_offset` | conjecture activity | See [Activity](#activity) |
+
+A snapshot list that has always been served whole — the index, `/v1/tasks`, one target's
+contributions, the competitions list — still is when `limit` is omitted, so a
+client that reads it in one request is never cut short. The listings that were already paginated
+(`/v1/catalog/conjectures` and the `OffsetPage` contribution routes) keep their default page size.
 
 ## Result feeds
 
@@ -564,6 +581,14 @@ truncated to 12 hex characters. Two properties follow from where the conjecture'
   gets a different pseudonym on every conjecture and the pseudonyms cannot be joined across the
   catalog to rebuild one miner's history. Length-prefixed, so `(conjecture, key)` pairs cannot be
   chosen to collide by shifting the boundary between them.
+
+**Paged by offset, not by cursor.** The stream pages with `limit` and `offset`, newest first, and
+`next_offset` is null at the end. A keyset cursor would be the obvious choice, and it is ruled out
+by what a cursor carries: the signature stops tampering but hides nothing, so a cursor over
+`(created_at, id)` would publish each event's exact timestamp and submission id — the precision
+`occurred_at` is truncated to the hour to withhold. The offset reaches only the newest 500 events
+(`MAX_ACTIVITY_ROWS`), which keeps it from becoming a way to make the database skip an arbitrary
+number of rows; `attempts`, `solvers`, `verified` and `certified` always count the whole history.
 
 Keyed on `reward_target_id` rather than on a task id, matching the stream itself. A task-keyed MAC
 would give one miner two pseudonyms on a page that shows both attack directions — making one person

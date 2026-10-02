@@ -748,8 +748,16 @@ async def activity(
     *,
     limit: int,
     pseudonymise: Callable[[str], str],
+    offset: int = 0,
 ) -> TaskActivity:
     """The anonymised activity stream for one conjecture.
+
+    Paged by `offset` into a window of the newest `MAX_ACTIVITY_ROWS` events, and not by the
+    signed keyset cursor the other feeds use. That cursor is signed, not encrypted: it would carry
+    the exact `created_at` and the submission id of the last row served, which is the precision
+    the hour-truncated `occurred_at` below exists to withhold. An offset reveals nothing, and the
+    fixed window keeps it from becoming a way to make the database skip an arbitrary number of
+    rows.
 
     ``pseudonymise`` is required, not optional: the solver identity is read here, mapped, and
     dropped — it never lands on ``ActivityRow``.
@@ -766,7 +774,9 @@ async def activity(
     history, and from a separate aggregate when it does not, so a truncated stream never implies
     a truncated count.
     """
-    bounded = min(max(limit, 1), MAX_ACTIVITY_ROWS)
+    start = min(max(offset, 0), MAX_ACTIVITY_ROWS)
+    # Zero at the end of the window, and `LIMIT 0` is an empty page rather than an error.
+    bounded = min(max(limit, 1), MAX_ACTIVITY_ROWS - start)
     statement = (
         select(
             _SOLVER_IDENTITY.label("solver_identity"),
@@ -777,6 +787,7 @@ async def activity(
         )
         .where(Submission.reward_target_id == reward_target_id)
         .order_by(Submission.created_at.desc(), Submission.id.desc())
+        .offset(start)
         .limit(bounded)
     )
     items = tuple(

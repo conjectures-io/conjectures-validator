@@ -232,3 +232,8 @@ class Competition(BaseModel):
 
 class Index(BaseModel):
     items: list[Competition]
+    # Competitions configured here, whatever `limit` returned.
+    total: int
+    # The page size asked for, or null for every competition.
+    limit: int | None
+    offset: int

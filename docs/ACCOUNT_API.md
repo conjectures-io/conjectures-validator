@@ -23,7 +23,7 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/auth/logout` | `204` | Revoke **this** session; clear the cookies if it is one |
 | `GET` | `/v1/me` | `Account` | Profile, roles, linked keys, payout address |
 | `PATCH` | `/v1/me` | `Account` | Edit `display_name` — browser only |
-| `GET` | `/v1/me/sessions` | `SessionView[]` | Every live session, both kinds |
+| `GET` | `/v1/me/sessions` | `CursorPage<SessionView>` | Every live session, both kinds, newest first |
 | `DELETE` | `/v1/me/sessions/{id}` | `204` | Revoke one session |
 | `DELETE` | `/v1/me/sessions?kind=` | `204` | Revoke every *other* session, optionally of one kind |
 | `POST` | `/v1/me/wallets/challenge` | `{ nonce, message }` | A nonce for linking another coldkey — browser only |
@@ -38,7 +38,7 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/me/deposits/claim` | `Deposit` | Claim a transfer the reconciler missed |
 | `GET` | `/v1/me/submissions` | `CursorPage<SubmissionSummary>` | Own submissions |
 | `GET` | `/v1/me/submissions/{id}` | `SubmissionDetail` | With review decision and payout state |
-| `GET` | `/v1/me/submissions/{id}/events` | `SubmissionEvent[]` | The timeline |
+| `GET` | `/v1/me/submissions/{id}/events` | `CursorPage<SubmissionEvent>` | The timeline, oldest first |
 | `GET` | `/v1/me/submissions/{id}/report` | `OwnerVerificationReport` | The full report, nothing withheld |
 | `GET` | `/v1/me/rewards` | `CursorPage<RewardItem>` | Payouts with explorer links |
 | `POST` | `/v1/submissions/preflight` | `PreflightResult` | Free static check, no credit, no auth |
@@ -50,7 +50,7 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/submissions/session` | `{ submission, credits }` | Submit in one call with no key at all, authorised by the session — browser only |
 | `GET` | `/v1/admin/accounts/{id}` | `Account` | One account — `ADMIN`, browser only |
 | `PUT` | `/v1/admin/accounts/{id}/roles` | `Account` | Replace an account's roles — `ADMIN`, browser only |
-| `GET` | `/v1/admin/accounts/{id}/sessions` | `SessionView[]` | An account's live sessions — `ADMIN`, browser only |
+| `GET` | `/v1/admin/accounts/{id}/sessions` | `CursorPage<SessionView>` | An account's live sessions — `ADMIN`, browser only |
 | `DELETE` | `/v1/admin/accounts/{id}/sessions` | `204` | Cut every credential an account holds — `ADMIN`, browser only |
 
 Response models are in
@@ -756,7 +756,7 @@ TAO; the processor confirms it and settles to the treasury later, in batches, ne
 
 ```
 POST /v1/me/credits/tmc-pay/orders          browser session + write guard; creates an invoice
-GET  /v1/me/credits/tmc-pay/orders          this account's purchases
+GET  /v1/me/credits/tmc-pay/orders          this account's purchases, newest first, cursor-paginated
 GET  /v1/me/credits/tmc-pay/orders/{id}     poll; refreshes from TMC PAY while it is open
 POST /v1/webhooks/tmc-pay                   TMC PAY only, authenticated by HMAC
 ```
