@@ -55,7 +55,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, Text, cast, exists, func, select, tuple_
+from sqlalchemy import Select, Text, and_, cast, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.models import (
@@ -113,6 +113,15 @@ IN_REVIEW = (
 ACCEPTED = (
     Submission.verification_status == VerificationState.VERIFIED,
     Submission.manual_review_status == ManualReviewState.APPROVED,
+)
+
+# Lean-verified and decided by review, either way. The other half of the review queue: what a
+# reviewer has already ruled on, for the panel's history tab.
+DECIDED = (
+    Submission.verification_status == VerificationState.VERIFIED,
+    Submission.manual_review_status.in_(
+        (ManualReviewState.APPROVED, ManualReviewState.REJECTED)
+    ),
 )
 
 # A result record and its allowlisted verifier report become public once Lean accepts the
@@ -263,14 +272,70 @@ class QueueDepths:
 # --- Feeds ---------------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class ResultFilter:
+    """Narrowing a result feed by what is on the row. Every field set is AND-ed; none set is the
+    whole feed.
+
+    It narrows and never widens: the conditions it adds are joined to a named feed's own, so no
+    combination of them reaches a row that feed does not already publish.
+
+    The free-text half is split because the catalog lives in memory and the solver lives here.
+    The caller matches `query` against conjecture names and passes the reward targets that matched
+    as `query_targets`; this module matches the same text against who solved it. A row is a hit
+    on either.
+    """
+
+    reward_target_ids: tuple[str, ...] | None = None
+    verification_status: VerificationState | None = None
+    manual_review_status: ManualReviewState | None = None
+    reward_status: RewardState | None = None
+    query: str | None = None
+    query_targets: tuple[str, ...] = ()
+
+    def conditions(self) -> list:
+        conditions: list = []
+        if self.reward_target_ids is not None:
+            conditions.append(Submission.reward_target_id.in_(self.reward_target_ids))
+        if self.verification_status is not None:
+            conditions.append(Submission.verification_status == self.verification_status)
+        if self.manual_review_status is not None:
+            conditions.append(Submission.manual_review_status == self.manual_review_status)
+        if self.reward_status is not None:
+            conditions.append(Submission.reward_status == self.reward_status)
+        if self.query:
+            # A coldkey is matched by prefix and case-sensitively, because SS58 is; a display
+            # name anywhere and in any case, because it is prose. `autoescape` keeps a `%` or `_`
+            # in the query literal rather than a wildcard.
+            named = exists(
+                select(Account.id).where(
+                    Account.id == Submission.account_id,
+                    Account.display_name.icontains(self.query, autoescape=True),
+                )
+            ).correlate(Submission)
+            conditions.append(
+                or_(
+                    Submission.reward_target_id.in_(self.query_targets),
+                    Submission.signer_coldkey.startswith(self.query, autoescape=True),
+                    Submission.hotkey.startswith(self.query, autoescape=True),
+                    named,
+                )
+            )
+        return conditions
+
+
+EVERYTHING = ResultFilter()
+
+
 async def certified_page(
     session: AsyncSession,
     *,
     limit: int,
     after: tuple[datetime, uuid.UUID] | None = None,
+    where: ResultFilter = EVERYTHING,
 ) -> tuple[ResultRow, ...]:
     """Certified results, newest first. `after` is the keyset position, exclusive."""
-    return await _page(session, CERTIFIED, limit=limit, after=after)
+    return await _page(session, (*CERTIFIED, *where.conditions()), limit=limit, after=after)
 
 
 async def in_review_page(
@@ -278,9 +343,25 @@ async def in_review_page(
     *,
     limit: int,
     after: tuple[datetime, uuid.UUID] | None = None,
+    where: ResultFilter = EVERYTHING,
 ) -> tuple[ResultRow, ...]:
     """Lean-verified results awaiting manual review, newest first."""
-    return await _page(session, IN_REVIEW, limit=limit, after=after)
+    return await _page(session, (*IN_REVIEW, *where.conditions()), limit=limit, after=after)
+
+
+async def decided_page(
+    session: AsyncSession,
+    *,
+    limit: int,
+    after: tuple[datetime, uuid.UUID] | None = None,
+) -> tuple[ResultRow, ...]:
+    """Lean-verified results review has already approved or rejected, newest first.
+
+    Not a public feed: the reviewer panel reads it. Nothing on the row is more than
+    `in_review_page` publishes, but the set includes review rejections, which the public
+    surface reports only through `/v1/results/submissions`.
+    """
+    return await _page(session, DECIDED, limit=limit, after=after)
 
 
 async def all_results_page(
@@ -288,6 +369,7 @@ async def all_results_page(
     *,
     limit: int,
     after: tuple[datetime, uuid.UUID] | None = None,
+    where: ResultFilter = EVERYTHING,
 ) -> tuple[ResultRow, ...]:
     """Every submission in one feed, newest first, for the public dashboard.
 
@@ -316,7 +398,110 @@ async def all_results_page(
     or Lean-failed submissions. A dashboard that already holds those rows does not need to re-fetch
     them, so the asymmetry costs nothing.
     """
-    return await _page(session, [], limit=limit, after=after)
+    return await _page(session, where.conditions(), limit=limit, after=after)
+
+
+# --- Totals ------------------------------------------------------------------------------
+#
+# The feeds above publish no count on purpose, and these are the deliberate exception: one
+# aggregate per feed, over the same conditions, so a client can say "page 3 of 12". The cost is a
+# count over an indexed range of a table measured in thousands of rows, and the public responses
+# that carry it are cached for half the catalog window.
+
+
+async def certified_total(session: AsyncSession, where: ResultFilter = EVERYTHING) -> int:
+    return await _total(session, (*CERTIFIED, *where.conditions()))
+
+
+async def in_review_total(session: AsyncSession, where: ResultFilter = EVERYTHING) -> int:
+    return await _total(session, (*IN_REVIEW, *where.conditions()))
+
+
+async def decided_total(session: AsyncSession) -> int:
+    return await _total(session, DECIDED)
+
+
+async def all_results_total(session: AsyncSession, where: ResultFilter = EVERYTHING) -> int:
+    return await _total(session, where.conditions())
+
+
+async def _total(session: AsyncSession, conditions: Sequence) -> int:
+    statement = select(func.count()).select_from(Submission).where(*conditions)
+    return int((await session.execute(statement)).scalar_one())
+
+
+@dataclass(frozen=True)
+class ResultStats:
+    """The headline numbers of `/v1/results`, counted once in SQL rather than by a client paging
+    two whole feeds."""
+
+    submitted: int
+    verified: int
+    in_review: int
+    certified: int
+    # What has actually reached solvers: the latest confirmed, chain-observed payout of each
+    # certified result, which is the amount the result itself reports as paid.
+    paid_out_rao: int
+
+
+async def result_stats(
+    session: AsyncSession, *, reward_target_ids: tuple[str, ...] | None = None
+) -> ResultStats:
+    """Counts across every submission, or across one conjecture's when `reward_target_ids` is set.
+
+    `certified` is the length of `certified_page` and `in_review` of `in_review_page`: the same
+    conditions, so the headline and the feed under it cannot disagree.
+    """
+    scope = (
+        () if reward_target_ids is None
+        else (Submission.reward_target_id.in_(reward_target_ids),)
+    )
+    counts = (
+        await session.execute(
+            select(
+                func.count(),
+                func.count().filter(
+                    Submission.verification_status == VerificationState.VERIFIED
+                ),
+                func.count().filter(and_(*IN_REVIEW)),
+                func.count().filter(and_(*CERTIFIED)),
+            )
+            .select_from(Submission)
+            .where(*scope)
+        )
+    ).one()
+    # The latest confirmed payout per submission, chosen the way `_confirmed_payouts` chooses it,
+    # so the sum is of exactly the amounts the certified feed shows.
+    latest = (
+        select(RewardEvent.submission_id, RewardEvent.amount_rao)
+        .where(
+            RewardEvent.status == PayoutState.CONFIRMED,
+            RewardEvent.chain_observed.is_(True),
+            RewardEvent.confirmed_at.is_not(None),
+        )
+        .distinct(RewardEvent.submission_id)
+        .order_by(
+            RewardEvent.submission_id,
+            RewardEvent.confirmed_at.desc(),
+            RewardEvent.id.desc(),
+        )
+        .subquery()
+    )
+    paid = (
+        await session.execute(
+            select(func.coalesce(func.sum(latest.c.amount_rao), 0))
+            .select_from(latest)
+            .join(Submission, Submission.id == latest.c.submission_id)
+            .where(*CERTIFIED, *scope)
+        )
+    ).scalar_one()
+    return ResultStats(
+        submitted=counts[0],
+        verified=counts[1],
+        in_review=counts[2],
+        certified=counts[3],
+        paid_out_rao=int(paid),
+    )
 
 
 async def public_result(session: AsyncSession, result_id: uuid.UUID) -> ResultRow | None:
@@ -874,23 +1059,33 @@ async def queue_depths(session: AsyncSession) -> QueueDepths:
 __all__ = [
     "ACCEPTED",
     "CERTIFIED",
+    "DECIDED",
+    "EVERYTHING",
     "IN_REVIEW",
     "PUBLISHED",
     "MAX_ACTIVITY_ROWS",
     "ActivityRow",
     "QueueDepths",
     "ReviewRow",
+    "ResultFilter",
     "ResultRow",
+    "ResultStats",
     "TaskActivity",
     "accepted_solution",
     "activity",
     "all_results_page",
+    "all_results_total",
     "attempts_by_conjecture",
     "attempts_by_task",
     "attempts_for_conjecture",
     "certified_page",
+    "certified_total",
+    "decided_page",
+    "decided_total",
     "in_review_page",
+    "in_review_total",
     "public_report",
     "public_result",
     "queue_depths",
+    "result_stats",
 ]

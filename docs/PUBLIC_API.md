@@ -14,9 +14,10 @@ Everything here is a `GET`, needs no credential, and is safe to cache.
 | `GET` | `/v1/catalog/conjectures/{slug}/activity` | `ConjectureActivity` | Anonymised activity stream, paged by `offset` |
 | `GET` | `/v1/catalog/index` | `ConjectureIndexResponse` | Flat table of contents; one entry per *problem*, with its variants, retired ones flagged. Whole unless `limit`/`offset` ask for a page |
 | `GET` | `/v1/catalog/meta` | `PoolMeta` | Counts, credit price, treasury, bounty model, pins |
-| `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out |
-| `GET` | `/v1/results/in-review` | `CursorPage<InReviewResult>` | Lean-verified, awaiting manual review |
+| `GET` | `/v1/results/certified` | `CursorPage<PublicResult>` | Approved and paid out. Filterable by `slug` and `q` |
+| `GET` | `/v1/results/in-review` | `CursorPage<InReviewResult>` | Lean-verified, awaiting manual review. Filterable by `slug` and `q` |
 | `GET` | `/v1/results/submissions` | `CursorPage<PublicResult>` | Every submission in every state — including rejected and still-queued — newest first, for a dashboard |
+| `GET` | `/v1/results/stats` | `ResultStats` | Headline counts and the total paid out, overall or for one `slug` |
 | `GET` | `/v1/results/{id}` | `PublicResult` | One published result |
 | `GET` | `/v1/results/{id}/report` | `PublicVerificationReport` | The published subset of the verifier report |
 | `GET` | `/v1/results/{id}/solution` | `PublicSolution` | The proof itself — only once review has approved it |
@@ -423,7 +424,7 @@ Every endpoint that returns a list pages, in one of three ways, chosen by what i
 
 | Scheme | Parameters | Used by | Why |
 | --- | --- | --- | --- |
-| Signed keyset cursor | `limit`, `cursor` → `next_cursor` | the result feeds; every account and admin feed | A database table that grows between reads. See [Result feeds](#result-feeds) |
+| Signed keyset cursor | `limit`, `cursor` → `next_cursor`, `total` | the result feeds; every account and admin feed | A database table that grows between reads. See [Result feeds](#result-feeds) |
 | Offset over a snapshot | `limit`, `offset` → `total` | the catalog listing, the index, `/v1/tasks`, the contribution mirror, the competitions list | Immutable and in memory, so a slice is free and nothing shifts between pages |
 | Bounded offset | `limit`, `offset` → `next_offset` | conjecture activity | See [Activity](#activity) |
 
@@ -445,8 +446,32 @@ GET /v1/results/certified?limit=25&cursor=MS4xNzU0MjI…
 
 `next_cursor` is null exactly when the feed is exhausted — the handler reads `limit + 1` rows and
 discards the extra — so a client loops until null rather than making a wasted request to discover
-the end. There is deliberately no total: `COUNT(*)` over a growing table on every page read is a
-scan an anonymous caller should not be able to ask for.
+the end.
+
+`total` counts the whole feed under the same filters, as of the moment the page was read. It is for
+"page 3 of 12", not for deciding when to stop: a submission landing between two reads changes it,
+so loop on `next_cursor`. This was once left out on purpose, because a count on every page read is
+work an anonymous caller can ask for. It is affordable now because each feed counts over an index
+on a table of thousands of rows, and the public feeds are cached for half the catalog window.
+
+### Filters
+
+All three feeds take `slug`, for one conjecture's results (live or retired; an unknown slug is a
+`404`, not an empty page), and `q`. `q` matches the conjecture the way
+`/v1/catalog/conjectures?q=` does, the solver's coldkey by prefix, or the solver's display name;
+`%` and `_` are literal. `/v1/results/submissions` also takes `verification_status`,
+`manual_review_status` and `reward_status`, in the vocabulary its items carry. Filters narrow the
+items and `total` together, and a cursor carries only a position, so a client repeats the filters
+with every cursor.
+
+### Stats
+
+`GET /v1/results/stats` returns `submitted`, `verified`, `in_review`, `certified`, `paid_out_rao`
+and `paid_out_usd`, optionally for one `slug`. `in_review` and `certified` use the conditions of
+the feeds of the same name, so they equal those feeds' `total`. `paid_out_rao` sums the latest
+confirmed, chain-observed payout of each certified result, which is the amount each result reports.
+`paid_out_usd` is `"0.00"` when nothing has been paid, and null only when there is a payout but no
+Alpha price to convert it at.
 
 **Keyset, not `OFFSET`.** The predicate is a row-value comparison `(created_at, id) < (cursor)`
 over an index built for the feed — partial for the two narrow ones

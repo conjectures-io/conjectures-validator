@@ -978,6 +978,8 @@ def test_the_session_listing_pages_without_repeating_or_skipping_a_session():
 
                 whole = (await browser.get("/v1/me/sessions")).json()
                 assert whole["next_cursor"] is None
+                assert whole["total"] == 3
+                assert (await browser.get("/v1/me/sessions?limit=1")).json()["total"] == 3
                 pages = await cursor_pages(browser, "/v1/me/sessions", limit=1)
 
                 assert [len(page) for page in pages] == [1, 1, 1]

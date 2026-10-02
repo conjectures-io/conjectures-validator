@@ -56,6 +56,7 @@ from fastapi import APIRouter, Path, Query, Response
 from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import public as public_store
+from conjectures_subnet.db.models import ManualReviewState, RewardState, VerificationState
 from submission_api import conjectures, slugs
 from submission_api import schemas_public as public
 from submission_api.conjectures import ConjectureIndex
@@ -262,9 +263,91 @@ def _utc(value: datetime | None) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
+# --- Filters -------------------------------------------------------------------------------
+
+
+SlugQuery = Annotated[
+    str | None,
+    Query(max_length=200, description="Only results against this conjecture, by its slug"),
+]
+SearchQuery = Annotated[
+    str | None,
+    Query(
+        max_length=conjectures.MAX_QUERY_LENGTH,
+        description=(
+            "Free text. Matches the conjecture the way `/v1/catalog/conjectures?q=` does, the "
+            "solver's coldkey by prefix, or the solver's display name"
+        ),
+    ),
+]
+
+
+def target_of(index: ConjectureIndex, slug: str) -> str:
+    """The reward target a conjecture slug names, live or retired, or `404`.
+
+    A typo answers `404` rather than an empty page: an empty page reads as "nothing has been
+    submitted against this", which is a claim about the conjecture the API cannot make about a
+    slug it does not know.
+    """
+    item = index.get(slug) or index.get_retired(slug)
+    if item is None:
+        raise NotFound("no conjecture has this slug")
+    return item.reward_target_id
+
+
+def _retired_haystack(item) -> str:  # type: ignore[no-untyped-def]
+    """`conjectures.searchable` for a retired target, which has tasks rather than task ids."""
+    parts = (
+        item.slug,
+        *(task.task_id for task in item.tasks),
+        item.source.theorem,
+        item.source.module,
+        item.source.type_pretty,
+        item.source.docstring or "",
+    )
+    return " ".join(parts).casefold()
+
+
+def result_filter(
+    index: ConjectureIndex,
+    *,
+    slug: str | None = None,
+    q: str | None = None,
+    verification_status: VerificationState | None = None,
+    manual_review_status: ManualReviewState | None = None,
+    reward_status: RewardState | None = None,
+) -> public_store.ResultFilter:
+    """The store's filter for a request's query parameters.
+
+    The conjecture half of `q` is resolved here, against the index this process holds, and
+    handed to the store as reward targets: the catalog is not in the database.
+    """
+    query = conjectures.QUERY_STRIP.sub(" ", q or "").strip()
+    needle = query.casefold()
+    targets: tuple[str, ...] = ()
+    if needle:
+        targets = tuple(
+            {
+                *(item.reward_target_id for item in index.all()
+                  if needle in conjectures.searchable(item)),
+                *(item.reward_target_id for item in index.retired.all()
+                  if needle in _retired_haystack(item)),
+            }
+        )
+    return public_store.ResultFilter(
+        reward_target_ids=None if slug is None else (target_of(index, slug),),
+        verification_status=verification_status,
+        manual_review_status=manual_review_status,
+        reward_status=reward_status,
+        query=query or None,
+        query_targets=targets,
+    )
+
+
 async def _feed(
     *,
     fetch: Callable,
+    count: Callable,
     shape: Callable,
     services,
     session,
@@ -272,6 +355,7 @@ async def _feed(
     limit: int,
     cursor: str | None,
     price_bounties: bool,
+    where: public_store.ResultFilter = public_store.EVERYTHING,
 ):
     """One page of a keyset feed, and the cursor for the next.
 
@@ -285,7 +369,7 @@ async def _feed(
         position = decode_cursor(settings.cursor_secret, cursor)
         after = (position.created_at, position.id)
 
-    rows = await fetch(session, limit=limit + 1, after=after)
+    rows = await fetch(session, limit=limit + 1, after=after, where=where)
     page = rows[:limit]
     alpha_usd = (
         await services.bounty_usd.alpha_usd() if page and price_bounties else None
@@ -301,6 +385,7 @@ async def _feed(
     return {
         "items": tuple(shape(row, services.index, alpha_usd) for row in page),
         "next_cursor": next_cursor,
+        "total": await count(session, where),
     }
 
 
@@ -315,9 +400,13 @@ async def list_certified(
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
+    slug: SlugQuery = None,
+    q: SearchQuery = None,
 ) -> public.CursorPage[public.PublicResult]:
     page = await _feed(
         fetch=public_store.certified_page,
+        count=public_store.certified_total,
+        where=result_filter(services.index, slug=slug, q=q),
         shape=_result,
         services=services,
         session=session,
@@ -340,9 +429,13 @@ async def list_in_review(
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
+    slug: SlugQuery = None,
+    q: SearchQuery = None,
 ) -> public.CursorPage[public.InReviewResult]:
     page = await _feed(
         fetch=public_store.in_review_page,
+        count=public_store.in_review_total,
+        where=result_filter(services.index, slug=slug, q=q),
         shape=_in_review,
         services=services,
         session=session,
@@ -369,6 +462,11 @@ async def list_all(
     # long list, and this is the default both authors of the endpoint chose.
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 50,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
+    slug: SlugQuery = None,
+    q: SearchQuery = None,
+    verification_status: VerificationState | None = None,
+    manual_review_status: ManualReviewState | None = None,
+    reward_status: RewardState | None = None,
 ) -> public.CursorPage[public.PublicResult]:
     """Every submission, newest first, whatever state it is in.
 
@@ -387,9 +485,22 @@ async def list_all(
     Declared above `/{result_id}` because Starlette matches routes in declaration order and
     `submissions` is a valid path segment: registered after, every request to this path is parsed
     as a UUID instead and answered `400`.
+
+    Filterable without becoming a different feed: `slug` for one conjecture's results, the three
+    status axes in the vocabulary the items already carry, and `q`. Each narrows the set and the
+    `total` together. A cursor carries only a position, so a caller repeats the filters with it.
     """
     page = await _feed(
         fetch=public_store.all_results_page,
+        count=public_store.all_results_total,
+        where=result_filter(
+            services.index,
+            slug=slug,
+            q=q,
+            verification_status=verification_status,
+            manual_review_status=manual_review_status,
+            reward_status=reward_status,
+        ),
         shape=_result,
         services=services,
         session=session,
@@ -399,6 +510,44 @@ async def list_all(
         price_bounties=True,
     )
     return public.CursorPage[public.PublicResult](**page)
+
+
+@router.get(
+    "/stats",
+    response_model=public.ResultStats,
+    summary="Headline counts for the results page",
+)
+async def read_stats(
+    response: Response,
+    services: ServicesDep,
+    session: SessionDep,
+    slug: SlugQuery = None,
+) -> public.ResultStats:
+    """How many submissions there are, how many Lean verified, how many await review, how many
+    are certified, and what has been paid out — across the pool, or for one conjecture.
+
+    One aggregate instead of a client paging `/submissions` and `/certified` to the end and
+    counting: the same conditions as those feeds, so the numbers and the lists cannot disagree.
+    Declared above `/{result_id}` for the reason `/submissions` is.
+    """
+    stats = await public_store.result_stats(
+        session,
+        reward_target_ids=None if slug is None else (target_of(services.index, slug),),
+    )
+    alpha_usd = await services.bounty_usd.alpha_usd() if stats.paid_out_rao else None
+    _cache(response, services.settings)
+    return public.ResultStats(
+        submitted=stats.submitted,
+        verified=stats.verified,
+        in_review=stats.in_review,
+        certified=stats.certified,
+        paid_out_rao=stats.paid_out_rao,
+        # Nothing paid is $0.00 at any price; null is kept for "paid, but no price to convert at".
+        paid_out_usd=(
+            "0.00" if not stats.paid_out_rao
+            else amount_usd(stats.paid_out_rao, alpha_usd=alpha_usd)
+        ),
+    )
 
 
 @router.get(

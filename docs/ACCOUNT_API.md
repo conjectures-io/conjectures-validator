@@ -38,7 +38,7 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `POST` | `/v1/me/deposits/claim` | `Deposit` | Claim a transfer the reconciler missed |
 | `GET` | `/v1/me/submissions` | `CursorPage<SubmissionSummary>` | Own submissions |
 | `GET` | `/v1/me/submissions/{id}` | `SubmissionDetail` | With review decision and payout state |
-| `GET` | `/v1/me/submissions/{id}/events` | `CursorPage<SubmissionEvent>` | The timeline, oldest first |
+| `GET` | `/v1/me/submissions/{id}/events` | `CursorPage<SubmissionEvent>` | The timeline, oldest first; `order=desc` for newest first |
 | `GET` | `/v1/me/submissions/{id}/report` | `OwnerVerificationReport` | The full report, nothing withheld |
 | `GET` | `/v1/me/rewards` | `CursorPage<RewardItem>` | Payouts with explorer links |
 | `POST` | `/v1/submissions/preflight` | `PreflightResult` | Free static check, no credit, no auth |
@@ -52,6 +52,9 @@ public read surface ([PUBLIC_API.md](PUBLIC_API.md)), with a third set of rules.
 | `PUT` | `/v1/admin/accounts/{id}/roles` | `Account` | Replace an account's roles — `ADMIN`, browser only |
 | `GET` | `/v1/admin/accounts/{id}/sessions` | `CursorPage<SessionView>` | An account's live sessions — `ADMIN`, browser only |
 | `DELETE` | `/v1/admin/accounts/{id}/sessions` | `204` | Cut every credential an account holds — `ADMIN`, browser only |
+
+Every `CursorPage` here carries `total`, the number of rows the feed holds as of that read, so a
+panel can show a count and a page number. Loop on `next_cursor`, not on `total`.
 
 Response models are in
 [`../submission_api/schemas_account.py`](../submission_api/schemas_account.py) — the third of

@@ -408,6 +408,14 @@ async def orders_for(
     return list((await session.execute(statement)).scalars())
 
 
+async def orders_total(session: AsyncSession, account_id: uuid.UUID) -> int:
+    """How many orders `orders_for` pages through for this account."""
+    statement = (
+        select(func.count()).select_from(TmcPayOrder).where(TmcPayOrder.account_id == account_id)
+    )
+    return int((await session.execute(statement)).scalar_one())
+
+
 async def count_live_orders(
     session: AsyncSession, account_id: uuid.UUID, *, now: dt.datetime
 ) -> int:

@@ -596,6 +596,7 @@ def test_the_order_listing_pages_past_the_first_page():
                     assert refused.status_code == 503, refused.text
 
                 whole = (await http.get(ORDERS)).json()["items"]
+                assert (await http.get(ORDERS, params={"limit": 2})).json()["total"] == 3
                 pages = await cursor_pages(http, ORDERS, limit=2)
                 assert [len(page) for page in pages] == [2, 1]
                 assert [item["id"] for page in pages for item in page] == [

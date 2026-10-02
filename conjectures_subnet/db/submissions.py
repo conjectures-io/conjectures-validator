@@ -935,6 +935,14 @@ async def for_account(
     return list((await session.execute(statement)).scalars())
 
 
+async def account_total(session: AsyncSession, account_id: uuid.UUID) -> int:
+    """How many submissions `for_account` pages through."""
+    statement = (
+        select(func.count()).select_from(Submission).where(Submission.account_id == account_id)
+    )
+    return int((await session.execute(statement)).scalar_one())
+
+
 async def get_for_account(
     session: AsyncSession, submission_id: uuid.UUID, account_id: uuid.UUID
 ) -> SubmissionView:
@@ -1013,3 +1021,18 @@ async def rewards_for_account(
     if after_id is not None:
         statement = statement.where(RewardEvent.id < after_id)
     return [(row[0], row[1]) for row in (await session.execute(statement)).all()]
+
+
+async def rewards_total(session: AsyncSession, account_id: uuid.UUID) -> int:
+    """How many payouts `rewards_for_account` pages through, under the same conditions."""
+    statement = (
+        select(func.count())
+        .select_from(RewardEvent)
+        .join(Submission, Submission.id == RewardEvent.submission_id)
+        .where(
+            Submission.account_id == account_id,
+            RewardEvent.chain_observed.is_(True),
+            RewardEvent.status.in_((PayoutState.SUBMITTED, PayoutState.CONFIRMED)),
+        )
+    )
+    return int((await session.execute(statement)).scalar_one())

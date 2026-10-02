@@ -234,6 +234,7 @@ async def list_account_sessions(
             if more and page
             else None
         ),
+        total=await account_store.live_session_count(session, account.id, now=_now()),
     )
 
 

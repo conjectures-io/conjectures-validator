@@ -368,30 +368,45 @@ async def listing(
     keyset position of the last row already served, on the same `(created_at, id)` pair
     `invitations_created_idx` orders by.
     """
-    statement = select(Invitation).order_by(
-        Invitation.created_at.desc(), Invitation.id.desc()
+    statement = (
+        select(Invitation)
+        .where(*_in_state(state, now=now))
+        .order_by(Invitation.created_at.desc(), Invitation.id.desc())
     )
     if after is not None:
         statement = statement.where(
             tuple_(Invitation.created_at, Invitation.id) < tuple_(after[0], after[1])
         )
+    return (await session.execute(statement.limit(limit))).scalars().all()
+
+
+async def listing_total(
+    session: AsyncSession, *, now: dt.datetime, state: str | None = None
+) -> int:
+    """How many invitations `listing` would page through under the same `state`."""
+    statement = select(func.count()).select_from(Invitation).where(*_in_state(state, now=now))
+    return int((await session.execute(statement)).scalar_one())
+
+
+def _in_state(state: str | None, *, now: dt.datetime) -> tuple:
+    """The conditions for one listing state, or none for every invitation."""
     live = Invitation.revoked_at.is_(None) & (
         Invitation.expires_at.is_(None) | (Invitation.expires_at > now)
     )
     exhausted = Invitation.redeemed_count >= Invitation.max_redemptions
     if state == "revoked":
-        statement = statement.where(Invitation.revoked_at.is_not(None))
-    elif state == "expired":
-        statement = statement.where(
+        return (Invitation.revoked_at.is_not(None),)
+    if state == "expired":
+        return (
             Invitation.revoked_at.is_(None),
             Invitation.expires_at.is_not(None),
             Invitation.expires_at <= now,
         )
-    elif state == "exhausted":
-        statement = statement.where(live, exhausted)
-    elif state == "active":
-        statement = statement.where(live, ~exhausted)
-    return (await session.execute(statement.limit(limit))).scalars().all()
+    if state == "exhausted":
+        return (live, exhausted)
+    if state == "active":
+        return (live, ~exhausted)
+    return ()
 
 
 async def revoke(

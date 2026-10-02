@@ -742,25 +742,27 @@ async def live_session_count(
     session: AsyncSession,
     account_id: uuid.UUID,
     *,
-    kind: AccountSessionKind,
+    kind: AccountSessionKind | None = None,
     now: dt.datetime,
 ) -> int:
-    """How many live sessions of one kind this account holds.
+    """How many live sessions this account holds, of one kind or, with `kind` omitted, of both.
 
-    The per-account ceiling on concurrent CLI tokens. Without a ceiling, a coldkey that
-    can mint a session can mint unboundedly many, and every one of them is a durable
-    credential that has to be revoked individually to be got rid of.
+    Of one kind, the per-account ceiling on concurrent CLI tokens. Without a ceiling, a coldkey
+    that can mint a session can mint unboundedly many, and every one of them is a durable
+    credential that has to be revoked individually to be got rid of. Of both, the `total` of the
+    session listing, counted over exactly the rows `live_sessions_for` returns.
     """
     statement = (
         select(func.count())
         .select_from(AccountSession)
         .where(
             AccountSession.account_id == account_id,
-            AccountSession.kind == kind,
             AccountSession.revoked_at.is_(None),
             AccountSession.expires_at > now,
         )
     )
+    if kind is not None:
+        statement = statement.where(AccountSession.kind == kind)
     return (await session.execute(statement)).scalar_one()
 
 

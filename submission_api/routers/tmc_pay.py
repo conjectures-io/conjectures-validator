@@ -1035,6 +1035,7 @@ async def list_orders(
             if more and page
             else None
         ),
+        total=await order_store.orders_total(session, principal.account.id),
     )
 
 
