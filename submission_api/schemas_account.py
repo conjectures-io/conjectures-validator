@@ -34,10 +34,15 @@ ItemT = TypeVar("ItemT")
 
 
 class CursorPage(Model, Generic[ItemT]):
-    """One page of a keyset-paginated feed. `next_cursor` is null at the end."""
+    """One page of a keyset-paginated feed. `next_cursor` is null at the end.
+
+    `total` counts the whole feed at the moment this page was read, for showing how many there
+    are; loop on `next_cursor`, not on it, because a feed can grow between two reads.
+    """
 
     items: tuple[ItemT, ...]
     next_cursor: str | None = None
+    total: int
 
 
 # --- Account -----------------------------------------------------------------------------

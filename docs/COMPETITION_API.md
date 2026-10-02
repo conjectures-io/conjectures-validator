@@ -329,6 +329,10 @@ Public feed of miner and baseline submissions, newest first, with gate status, m
 | `admission_outcome` | query | `"passed"` \| `"not_required"` \| `"inconclusive"` \| `"dominated"` \| `"excluded"` \| null | no |  |
 | `on_frontier` | query | boolean \| null | no |  |
 | `snapshot_id` | query | integer \| null | no | ≥ 1 |
+| `sort` | query | `"submitted_at"` \| `"balanced_time_ratio"` \| `"mean_file_compression_pct"` \| `"payable_weight"` \| `"bounty_earned_alpha"` | no | default `"submitted_at"` |
+| `order` | query | `"asc"` \| `"desc"` | no | default `"desc"` |
+
+`sort` orders by a table column. `submitted_at` pages by keyset; the other four come from the scoring snapshot, so they need one (`409 SCORING_NOT_READY` otherwise) and are ordered from the snapshot the cursor pins. A submission with no value for the column (newer than the snapshot, or never scored) comes last in either direction. The cursor is bound to `sort` and `order` as well as the filters. `total` on the page counts every submission matching the filters.
 
 **Response**
 
@@ -414,6 +418,8 @@ The same feed, limited to the signed-in account's submissions. Only submissions 
 | `admission_outcome` | query | `"passed"` \| `"not_required"` \| `"inconclusive"` \| `"dominated"` \| `"excluded"` \| null | no |  |
 | `on_frontier` | query | boolean \| null | no |  |
 | `snapshot_id` | query | integer \| null | no | ≥ 1 |
+| `sort` | query | `"submitted_at"` \| `"balanced_time_ratio"` \| `"mean_file_compression_pct"` \| `"payable_weight"` \| `"bounty_earned_alpha"` | no | default `"submitted_at"` |
+| `order` | query | `"asc"` \| `"desc"` | no | default `"desc"` |
 
 **Response**
 
@@ -1076,6 +1082,7 @@ Every response model referenced above, field by field. "Required" means always p
 | `context` | [Context](#schema-context) | yes |  |
 | `items` | array of [Submission](#schema-submission) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Submissions matching the filters, when the page was read |
 
 <a id="schema-detail"></a>
 
@@ -1114,6 +1121,7 @@ Every response model referenced above, field by field. "Required" means always p
 | `bounds` | [Bounds](#schema-bounds) | yes |  |
 | `items` | array of [ParetoPoint](#schema-paretopoint) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Points in the pinned snapshot |
 
 <a id="schema-leaderboard"></a>
 
@@ -1125,6 +1133,7 @@ Every response model referenced above, field by field. "Required" means always p
 | `bounty_limit_alpha` | number \| null | no | The most alpha any one (hotkey, submission) pair is paid over its lifetime; null before the competition recorded bounties |
 | `ranking` | array of [Ranking](#schema-ranking) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Ranked hotkeys in the pinned snapshot |
 
 <a id="schema-weights"></a>
 

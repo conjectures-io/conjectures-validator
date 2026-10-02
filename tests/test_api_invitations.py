@@ -622,6 +622,10 @@ def test_the_listing_pages_newest_first_and_keeps_the_filter_across_pages():
             assert [len(page) for page in pages] == [2, 1]
             # Newest first, and the revoked one never appears on a later page.
             assert [item["id"] for page in pages for item in page] == issued[::-1]
+            # `total` counts under the same filter.
+            first = (await http.get("/v1/admin/invitations?state=active&limit=2")).json()
+            assert first["total"] == 3
+            assert (await http.get("/v1/admin/invitations")).json()["total"] == 4
 
     run(scenario())
 

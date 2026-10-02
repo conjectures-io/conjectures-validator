@@ -60,12 +60,33 @@ class CursorPage(Model, Generic[ItemT]):
 
     `next_cursor` is opaque and signed; see `submission_api/pagination.py`. It is null exactly
     when there is no further page, so a client loops until it is null rather than comparing
-    counts. There is deliberately no total: counting a growing feed on every page read is a
-    table scan an anonymous caller should not be able to ask for.
+    counts with `total`.
+
+    `total` counts the whole feed under the same filters, at the moment this page was read. It is
+    for "page 3 of 12", not for deciding when to stop: a feed that grows between two reads changes
+    it. Every feed counts over an index on a table of thousands of rows, and the public ones are
+    cached, which is what makes a count per page affordable.
     """
 
     items: tuple[ItemT, ...]
     next_cursor: str | None = None
+    total: int
+
+
+class ResultStats(Model):
+    """The headline numbers of the results page, counted once in SQL."""
+
+    submitted: int = Field(description="Every submission, in every state")
+    verified: int = Field(description="Accepted by the Lean kernel")
+    in_review: int = Field(description="Lean-verified and awaiting review; `/v1/results/in-review`")
+    certified: int = Field(description="Approved and paid out; `/v1/results/certified`")
+    paid_out_rao: int = Field(description="Sum of the confirmed payout of every certified result")
+    paid_out_usd: str | None = Field(
+        description=(
+            "`paid_out_rao` at the current Alpha price, to the cent. Null only when something "
+            "has been paid and no price is available"
+        )
+    )
 
 
 # --- Catalog -------------------------------------------------------------------------------

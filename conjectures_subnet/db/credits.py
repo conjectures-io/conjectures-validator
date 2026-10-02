@@ -168,6 +168,16 @@ async def ledger_page(
     return list((await session.execute(statement)).scalars())
 
 
+async def ledger_total(session: AsyncSession, account_id: uuid.UUID) -> int:
+    """How many entries `ledger_page` pages through for this account."""
+    statement = (
+        select(func.count())
+        .select_from(CreditLedgerEntry)
+        .where(CreditLedgerEntry.account_id == account_id)
+    )
+    return int((await session.execute(statement)).scalar_one())
+
+
 def bonus_rao_for_credits(
     *,
     paid_credits: int,

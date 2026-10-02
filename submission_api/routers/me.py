@@ -62,8 +62,14 @@ from submission_api.dependencies import (
     SessionDep,
     WriterDep,
 )
-from submission_api.errors import Conflict, NotFound, TooManyRequests, Unauthorized
-from submission_api.pagination import decode_cursor, encode_cursor
+from submission_api.errors import BadRequest, Conflict, NotFound, TooManyRequests, Unauthorized
+from submission_api.pagination import (
+    REASON_INVALID_CURSOR,
+    decode_cursor,
+    decode_parts,
+    encode_cursor,
+    encode_parts,
+)
 from submission_api.routers._account import (
     account_response,
     decode_id_cursor,
@@ -251,6 +257,9 @@ async def list_sessions(
             encode_keyset_cursor(settings, at=page[-1].issued_at, id=page[-1].id)
             if more and page
             else None
+        ),
+        total=await account_store.live_session_count(
+            session, principal.account.id, now=_now()
         ),
     )
 
@@ -755,6 +764,7 @@ async def read_ledger(
             for row in page
         ),
         next_cursor=encode_id_cursor(settings, page[-1].id) if more and page else None,
+        total=await credit_store.ledger_total(session, principal.account.id),
     )
 
 
@@ -940,6 +950,7 @@ async def list_submissions(
             if more and page
             else None
         ),
+        total=await submission_store.account_total(session, principal.account.id),
     )
 
 
@@ -974,21 +985,36 @@ async def read_events(
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
+    order: Annotated[str, Query(pattern="^(asc|desc)$")] = "asc",
 ) -> schemas.CursorPage[schemas.SubmissionEvent]:
-    """What the miner sees in the meantime, oldest first.
+    """What the miner sees in the meantime, oldest first, or newest first with `order=desc`.
 
     The status fields say where the submission is now; this says how it got there, which is the
-    question asked when nothing appears to be happening.
+    question asked when nothing appears to be happening. `order=desc` puts the latest event on
+    the first page, for a reader who wants the current state without paging to the end.
+
+    The cursor carries its direction: one issued for `asc` is refused under `desc`, rather than
+    continuing from its position the other way and silently repeating what was already read.
     """
     settings = services.settings
     view = await submission_store.get_for_account(
         session, _as_uuid(submission_id, "submission"), principal.account.id
     )
+    version = f"events-{order}"
+    after_id = None
+    if cursor:
+        (raw,) = decode_parts(settings.cursor_secret, cursor, version=version, count=1)
+        if not raw.isdecimal():
+            raise BadRequest(
+                "cursor is not one this API issued", reason_code=REASON_INVALID_CURSOR
+            )
+        after_id = int(raw)
     events = await intent_store.events_for(
         session,
         view.submission.id,
         limit=limit + 1,
-        after_id=decode_id_cursor(settings, cursor),
+        after_id=after_id,
+        newest_first=order == "desc",
     )
     page, more = page_of(list(events), limit=limit)
     _no_store(response)
@@ -1004,7 +1030,12 @@ async def read_events(
             )
             for event in page
         ),
-        next_cursor=encode_id_cursor(settings, page[-1].id) if more and page else None,
+        next_cursor=(
+            encode_parts(settings.cursor_secret, version=version, parts=(str(page[-1].id),))
+            if more and page
+            else None
+        ),
+        total=await intent_store.events_total(session, view.submission.id),
     )
 
 
@@ -1091,6 +1122,7 @@ async def list_rewards(
         next_cursor=(
             encode_id_cursor(settings, page[-1][0].id) if more and page else None
         ),
+        total=await submission_store.rewards_total(session, principal.account.id),
     )
 
 

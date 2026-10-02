@@ -403,6 +403,7 @@ async def list_invitations(
             if more and page
             else None
         ),
+        total=await invitation_store.listing_total(session, now=_now(), state=state),
     )
 
 

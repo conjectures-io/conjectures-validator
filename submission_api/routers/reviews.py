@@ -367,6 +367,13 @@ def _review(
     )
 
 
+# The two halves of the queue, each one named query in `conjectures_subnet.db.public`.
+_REVIEW_FEEDS = {
+    "pending": (public_store.in_review_page, public_store.in_review_total),
+    "decided": (public_store.decided_page, public_store.decided_total),
+}
+
+
 @router.get(
     "/reviews",
     response_model=CursorPage[admin.AdminReview],
@@ -378,8 +385,20 @@ async def list_reviews(
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
+    status: Annotated[
+        str,
+        Query(
+            pattern="^(pending|decided)$",
+            description="`pending`: no binding decision yet. `decided`: approved or rejected",
+        ),
+    ] = "pending",
 ) -> CursorPage[admin.AdminReview]:
     """Lean-verified submissions with no binding decision yet, newest first.
+
+    `status=decided` reads the other half instead: what review has approved or rejected, with
+    `manual_review_status` saying which. Pending stays the default, so the queue a reviewer opens
+    holds only what still needs them, and `total` says how much that is. A cursor carries only a
+    position, so a caller repeats `status` with it.
 
     The assessments are embedded rather than fetched per row. The panel renders a verdict cell per
     stage on the queue itself and expands the full attempt inline, so a list of submissions alone
@@ -401,7 +420,8 @@ async def list_reviews(
 
     # `limit + 1`, so `next_cursor` is null exactly when the feed is exhausted rather than
     # addressing an empty page — the same trick `results._feed` uses.
-    rows = await public_store.in_review_page(session, limit=limit + 1, after=after)
+    fetch, count = _REVIEW_FEEDS[status]
+    rows = await fetch(session, limit=limit + 1, after=after)
     page = rows[:limit]
     attempts = await autoreview_store.attempts_for(session, [row.id for row in page])
 
@@ -418,6 +438,7 @@ async def list_reviews(
             _review(row, services.index, attempts.get(row.id, ())) for row in page
         ),
         next_cursor=next_cursor,
+        total=await count(session),
     )
 
 
