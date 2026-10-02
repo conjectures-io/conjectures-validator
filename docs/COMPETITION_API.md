@@ -7,7 +7,7 @@ Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (d
 ## Conventions
 
 - **Base path:** `/v1/competitions`. All bodies are JSON unless noted; submits are `multipart/form-data`.
-- **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than migration 0011 of conjectures-optimisation-deflate.
+- **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than migration 0011 of conjectures-optimisation-deflate. When the competition database cannot be reached, every route answers **503 `COMPETITION_UNAVAILABLE`**, matching `/readyz`, rather than a `500`.
 - **Scoring snapshots:** score fields come from the latest scoring pass the competition's weight setter published, or from the one named by `snapshot_id`. Before the first pass, `context.status` is `"not_ready"` and rankings are empty.
 - **Paging:** paged lists take `limit` (1–100, default 25) and an opaque `cursor`; pass back `next_cursor` unchanged. A cursor is bound to the filters and snapshot it was issued for.
 - **Rate limit:** the global per-IP `/v1` limit applies (default 120 requests per 60 s), reported in `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers. The two submit routes also count, in Postgres across every replica, a per-address budget before any signature is checked and a per-hotkey budget once the hotkey is proven (see each route's refusals).
@@ -1159,6 +1159,7 @@ Every response model referenced above, field by field. "Required" means always p
 | --- | --- | --- | --- |
 | `items` | array of [OperatorSubmission](#schema-operatorsubmission) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Stuck submissions, when the page was read |
 
 <a id="schema-operatorsubmission"></a>
 

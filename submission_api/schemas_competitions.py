@@ -150,13 +150,14 @@ class CursorPage(Model, Generic[ItemT]):
     is null pages both surfaces the same way. Same shape, separately owned.
 
     `next_cursor` is opaque and signed; see `submission_api/competition_pagination.py`.
-    There is no total, for the same reason the proofs feeds have none: counting a growing
-    feed on every page read is a table scan an anonymous caller should not be able to ask
-    for.
+    `total` counts the whole feed at the moment the page was read, as the proofs feeds now
+    do; loop on `next_cursor`, not on it. Decided here rather than inherited: the only feed
+    left on this envelope is the operator queue, which only an admin can read.
     """
 
     items: tuple[ItemT, ...]
     next_cursor: str | None = None
+    total: int
 
 
 SubmissionPage = CursorPage[SubmissionView]

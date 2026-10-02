@@ -155,6 +155,13 @@ async def stuck_submissions(
     return [(row[0], bool(row[1])) for row in rows]
 
 
+async def stuck_total(session: AsyncSession, *, claimed_before: dt.datetime) -> int:
+    """How many submissions `stuck_submissions` would page through."""
+    return int(
+        (await session.execute(q.stuck_total(claimed_before=claimed_before))).scalar_one()
+    )
+
+
 async def submission_for_operator(
     session: AsyncSession, sub_id: int
 ) -> tuple[models.Submission, bool] | None:
