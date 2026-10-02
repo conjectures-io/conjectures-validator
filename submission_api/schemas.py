@@ -119,6 +119,9 @@ class TaskList(Model):
     submission_price_rao: int
     payment_recipient: str
     tasks: tuple[TaskSummary, ...]
+    total: int = Field(description="Submittable tasks; the length of `tasks` unless `limit` cut it")
+    limit: int | None = Field(description="The page size asked for, or null for every task")
+    offset: int
 
 
 class VerificationReportResponse(Model):

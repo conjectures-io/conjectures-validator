@@ -52,13 +52,21 @@ from conjectures_subnet.db.models import (
 )
 from submission_api import schemas_account as schemas
 from submission_api.dependencies import (
+    ServicesDep,
     SessionDep,
     require_role,
     require_role_writer,
 )
 from submission_api.errors import BadRequest, Conflict, NotFound
-from submission_api.routers._account import account_response, session_view
+from submission_api.routers._account import (
+    account_response,
+    decode_keyset_cursor,
+    encode_keyset_cursor,
+    page_of,
+    session_view,
+)
 from submission_api.sessions import Principal
+from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
@@ -191,24 +199,42 @@ async def put_roles(
 
 @router.get(
     "/accounts/{account_id}/sessions",
-    response_model=tuple[schemas.SessionView, ...],
+    response_model=schemas.CursorPage[schemas.SessionView],
     summary="An account's live sessions",
 )
 async def list_account_sessions(
     account_id: Annotated[str, Path(min_length=UUID_LENGTH, max_length=UUID_LENGTH)],
     response: Response,
     principal: AdminReader,
+    services: ServicesDep,
     session: SessionDep,
-) -> tuple[schemas.SessionView, ...]:
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
+) -> schemas.CursorPage[schemas.SessionView]:
     """What is live for an account, for answering "I think I have been compromised".
 
     `current` is always false here: the caller's own session belongs to the admin, not to the
     account being inspected, so no row in this list can be it.
     """
+    settings = services.settings
     _no_store(response)
     account = await _load(session, account_id)
-    rows = await account_store.live_sessions_for(session, account.id, now=_now())
-    return tuple(session_view(row, current_id=None) for row in rows)
+    rows = await account_store.live_sessions_for(
+        session,
+        account.id,
+        now=_now(),
+        limit=limit + 1,
+        after=decode_keyset_cursor(settings, cursor),
+    )
+    page, more = page_of(list(rows), limit=limit)
+    return schemas.CursorPage[schemas.SessionView](
+        items=tuple(session_view(row, current_id=None) for row in page),
+        next_cursor=(
+            encode_keyset_cursor(settings, at=page[-1].issued_at, id=page[-1].id)
+            if more and page
+            else None
+        ),
+    )
 
 
 @router.delete(

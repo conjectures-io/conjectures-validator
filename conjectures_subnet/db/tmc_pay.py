@@ -28,7 +28,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -384,14 +384,27 @@ async def find_by_external_id(
 
 
 async def orders_for(
-    session: AsyncSession, account_id: uuid.UUID, *, limit: int
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    *,
+    limit: int,
+    after: tuple[dt.datetime, uuid.UUID] | None = None,
 ) -> Sequence[TmcPayOrder]:
+    """One page of an account's orders, newest first, keyset-paginated on `(created_at, id)`.
+
+    `id` breaks the tie: two orders created in one transaction share `created_at`, and a cursor
+    on the timestamp alone would repeat or skip one of them.
+    """
     statement = (
         select(TmcPayOrder)
         .where(TmcPayOrder.account_id == account_id)
-        .order_by(TmcPayOrder.created_at.desc())
+        .order_by(TmcPayOrder.created_at.desc(), TmcPayOrder.id.desc())
         .limit(limit)
     )
+    if after is not None:
+        statement = statement.where(
+            tuple_(TmcPayOrder.created_at, TmcPayOrder.id) < tuple_(after[0], after[1])
+        )
     return list((await session.execute(statement)).scalars())
 
 

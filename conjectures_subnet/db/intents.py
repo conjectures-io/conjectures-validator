@@ -475,14 +475,26 @@ async def record_event(
 
 
 async def events_for(
-    session: AsyncSession, submission_id: uuid.UUID
+    session: AsyncSession,
+    submission_id: uuid.UUID,
+    *,
+    limit: int | None = None,
+    after_id: int | None = None,
 ) -> Sequence[SubmissionEvent]:
-    """The whole timeline for one submission, oldest first."""
+    """The timeline for one submission, oldest first.
+
+    Keyset-paginated on the identity column over `submission_events_submission_idx`: `id` is
+    monotonic and unique, so it is the whole cursor. Both omitted, it is the whole timeline.
+    """
     statement = (
         select(SubmissionEvent)
         .where(SubmissionEvent.submission_id == submission_id)
         .order_by(SubmissionEvent.id)
     )
+    if after_id is not None:
+        statement = statement.where(SubmissionEvent.id > after_id)
+    if limit is not None:
+        statement = statement.limit(limit)
     return list((await session.execute(statement)).scalars())
 
 

@@ -48,6 +48,7 @@ from submission_api import schemas_account as account_schemas, schemas_public as
 from submission_api.conjectures import Conjecture, ConjectureIndex
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound, ServiceUnavailable
+from submission_api.pagination import SnapshotLimit, SnapshotOffset, window
 from submission_api.pins import PinSet
 from submission_api.retired import RetiredConjecture
 # The reason codes belong to the TMC PAY surface; naming them again here would be a second
@@ -581,15 +582,19 @@ async def read_conjecture(
     summary="Every problem in the pool, with its variants, as one flat index",
 )
 async def read_index(
-    request: Request, response: Response, services: ServicesDep
+    request: Request,
+    response: Response,
+    services: ServicesDep,
+    limit: SnapshotLimit = None,
+    offset: SnapshotOffset = 0,
 ) -> public.ConjectureIndexResponse | Response:
     """A problem-level table of contents over the pool.
 
     The one endpoint here that reads nothing but the startup index — no database at all, not even
-    the attempt counters. That is what makes it safe to leave unpaginated: the work is a grouping
-    of a few hundred in-memory objects into a response of identifiers, with no statement, no Lean
-    and no bounty quote in it. A caller that wants any of those follows a slug to
-    `/v1/catalog/conjectures/{slug}`.
+    the attempt counters. That is what makes it safe to return whole by default: the work is a
+    grouping of a few hundred in-memory objects into a response of identifiers, with no statement,
+    no Lean and no bounty quote in it. A caller that wants any of those follows a slug to
+    `/v1/catalog/conjectures/{slug}`; one that wants a page passes `limit` and `offset`.
 
     It carries a strong `ETag` and honours `If-None-Match`, and this is the endpoint that argument
     fits best. The body is a pure function of the pinned pool: it holds no counter, no bounty quote
@@ -608,8 +613,12 @@ async def read_index(
     grouped = conjectures.families(services.index)
     index = public.ConjectureIndexResponse(
         total=len(grouped),
-        items=tuple(_index_entry(family) for family in grouped),
+        items=tuple(
+            _index_entry(family) for family in window(grouped, limit=limit, offset=offset)
+        ),
         repository_commit=services.index.repository_commit,
+        limit=limit,
+        offset=offset,
     )
     not_modified = _conditional(request, response, settings, index)
     return not_modified if not_modified is not None else index
@@ -723,7 +732,14 @@ async def read_activity(
     services: ServicesDep,
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=MAX_ACTIVITY_ITEMS)] = DEFAULT_ACTIVITY_ITEMS,
+    offset: Annotated[int, Query(ge=0, lt=public_store.MAX_ACTIVITY_ROWS)] = 0,
 ) -> public.ConjectureActivity | Response:
+    """The newest events first, paged by `offset` within the newest `MAX_ACTIVITY_ROWS`.
+
+    Why an offset and not a cursor is on `public_store.activity`: a cursor would publish the
+    exact timestamp this stream truncates to the hour. `next_offset` is null at the end of the
+    stream or of that window, whichever comes first; the counters always cover the whole history.
+    """
     settings = services.settings
     item = services.index.get(slug)
     if item is None:
@@ -737,9 +753,13 @@ async def read_activity(
     activity = await public_store.activity(
         session,
         target,
-        limit=limit,
+        # One extra row, so `next_offset` is null exactly at the end rather than pointing at an
+        # empty page. The store clamps it to the window, which is what ends paging there.
+        limit=limit + 1,
+        offset=offset,
         pseudonymise=lambda identity: _pseudonym(settings, target, identity),
     )
+    page = activity.items[:limit]
     _cache(response, settings)
     return public.ConjectureActivity(
         slug=item.slug,
@@ -753,8 +773,11 @@ async def read_activity(
                 occurred_at=_to_hour(item.occurred_at),
                 solver=item.solver,
             )
-            for item in activity.items
+            for item in page
         ),
+        limit=limit,
+        offset=offset,
+        next_offset=offset + limit if len(activity.items) > limit else None,
     )
 
 

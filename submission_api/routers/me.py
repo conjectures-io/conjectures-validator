@@ -67,7 +67,9 @@ from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.routers._account import (
     account_response,
     decode_id_cursor,
+    decode_keyset_cursor,
     encode_id_cursor,
+    encode_keyset_cursor,
     page_of,
     session_view,
     submission_detail,
@@ -215,12 +217,17 @@ def _as_uuid(value: str, what: str) -> uuid.UUID:
 
 @router.get(
     "/sessions",
-    response_model=tuple[schemas.SessionView, ...],
+    response_model=schemas.CursorPage[schemas.SessionView],
     summary="Every live session for this account",
 )
 async def list_sessions(
-    response: Response, principal: PrincipalDep, session: SessionDep
-) -> tuple[schemas.SessionView, ...]:
+    response: Response,
+    principal: PrincipalDep,
+    services: ServicesDep,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
+) -> schemas.CursorPage[schemas.SessionView]:
     """Both kinds, newest first, with the caller's own marked.
 
     A read, so a CLI session may list — a miner should be able to see from the machine they are
@@ -228,11 +235,24 @@ async def list_sessions(
     `session_view` names its fields one at a time precisely so that the two digest columns on
     the row cannot leak into it by accident.
     """
-    _no_store(response)
+    settings = services.settings
     rows = await account_store.live_sessions_for(
-        session, principal.account.id, now=_now()
+        session,
+        principal.account.id,
+        now=_now(),
+        limit=limit + 1,
+        after=decode_keyset_cursor(settings, cursor),
     )
-    return tuple(session_view(row, current_id=principal.session.id) for row in rows)
+    page, more = page_of(list(rows), limit=limit)
+    _no_store(response)
+    return schemas.CursorPage[schemas.SessionView](
+        items=tuple(session_view(row, current_id=principal.session.id) for row in page),
+        next_cursor=(
+            encode_keyset_cursor(settings, at=page[-1].issued_at, id=page[-1].id)
+            if more and page
+            else None
+        ),
+    )
 
 
 @router.delete(
@@ -943,35 +963,48 @@ async def read_submission(
 
 @router.get(
     "/submissions/{submission_id}/events",
-    response_model=tuple[schemas.SubmissionEvent, ...],
+    response_model=schemas.CursorPage[schemas.SubmissionEvent],
     summary="The submission timeline",
 )
 async def read_events(
     submission_id: Annotated[str, Path(min_length=UUID_LENGTH, max_length=UUID_LENGTH)],
     response: Response,
     principal: PrincipalDep,
+    services: ServicesDep,
     session: SessionDep,
-) -> tuple[schemas.SubmissionEvent, ...]:
-    """What the miner sees in the meantime.
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
+) -> schemas.CursorPage[schemas.SubmissionEvent]:
+    """What the miner sees in the meantime, oldest first.
 
     The status fields say where the submission is now; this says how it got there, which is the
     question asked when nothing appears to be happening.
     """
+    settings = services.settings
     view = await submission_store.get_for_account(
         session, _as_uuid(submission_id, "submission"), principal.account.id
     )
-    events = await intent_store.events_for(session, view.submission.id)
+    events = await intent_store.events_for(
+        session,
+        view.submission.id,
+        limit=limit + 1,
+        after_id=decode_id_cursor(settings, cursor),
+    )
+    page, more = page_of(list(events), limit=limit)
     _no_store(response)
-    return tuple(
-        schemas.SubmissionEvent(
-            id=event.id,
-            kind=event.kind,
-            detail=event.detail,
-            context=event.context,
-            actor=event.actor,
-            occurred_at=utc(event.occurred_at),
-        )
-        for event in events
+    return schemas.CursorPage[schemas.SubmissionEvent](
+        items=tuple(
+            schemas.SubmissionEvent(
+                id=event.id,
+                kind=event.kind,
+                detail=event.detail,
+                context=event.context,
+                actor=event.actor,
+                occurred_at=utc(event.occurred_at),
+            )
+            for event in page
+        ),
+        next_cursor=encode_id_cursor(settings, page[-1].id) if more and page else None,
     )
 
 

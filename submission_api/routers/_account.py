@@ -573,6 +573,20 @@ def decode_id_cursor(settings: Settings, cursor: str | None) -> int | None:
     return decode_cursor(settings.cursor_secret, cursor).id.int
 
 
+def encode_keyset_cursor(settings: Settings, *, at: dt.datetime, id: uuid.UUID) -> str:
+    """A signed cursor over a `(timestamp, UUID)` keyset, the shape most account feeds page on."""
+    return encode_cursor(settings.cursor_secret, created_at=at, id=id)
+
+
+def decode_keyset_cursor(
+    settings: Settings, cursor: str | None
+) -> tuple[dt.datetime, uuid.UUID] | None:
+    if not cursor:
+        return None
+    position = decode_cursor(settings.cursor_secret, cursor)
+    return position.created_at, position.id
+
+
 def page_of(items: list[Any], *, limit: int) -> tuple[list[Any], bool]:
     """Split a `limit + 1` read into the page and whether another exists.
 
@@ -585,7 +599,9 @@ def page_of(items: list[Any], *, limit: int) -> tuple[list[Any], bool]:
 __all__ = [
     "account_response",
     "decode_id_cursor",
+    "decode_keyset_cursor",
     "encode_id_cursor",
+    "encode_keyset_cursor",
     "funding_summary",
     "latest_review",
     "latest_reward",

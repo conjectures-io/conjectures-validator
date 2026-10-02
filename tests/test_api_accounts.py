@@ -29,6 +29,7 @@ from conftest_api import (
     OTHER_MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
+    cursor_pages,
     distinct_bundle,
     harness,
     postgres_dsn,
@@ -1894,10 +1895,17 @@ def test_the_panel_shows_only_the_accounts_own_submissions():
                 # The timeline explains what is happening in the meantime.
                 events = (
                     await mine.get(f"/v1/me/submissions/{submission_id}/events")
-                ).json()
+                ).json()["items"]
                 assert [item["kind"] for item in events] == [
                     "SUBMISSION_ACCEPTED",
                     "QUEUED_FOR_VERIFICATION",
+                ]
+                # Paged one event at a time, it is the same timeline in the same order.
+                pages = await cursor_pages(
+                    mine, f"/v1/me/submissions/{submission_id}/events", limit=1
+                )
+                assert [item["id"] for page in pages for item in page] == [
+                    item["id"] for item in events
                 ]
 
                 await sign_in_by_email(kit, theirs, email="two@example.com")

@@ -30,7 +30,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -359,15 +359,22 @@ async def listing(
     now: dt.datetime,
     state: str | None = None,
     limit: int = 50,
+    after: tuple[dt.datetime, uuid.UUID] | None = None,
 ) -> Sequence[Invitation]:
     """Newest first, optionally filtered to `active`, `expired`, `revoked` or `exhausted`.
 
     The filter is evaluated in SQL rather than by loading everything and testing in Python, so a
-    deployment that has issued thousands of links still answers from the index.
+    deployment that has issued thousands of links still answers from the index. `after` is the
+    keyset position of the last row already served, on the same `(created_at, id)` pair
+    `invitations_created_idx` orders by.
     """
     statement = select(Invitation).order_by(
         Invitation.created_at.desc(), Invitation.id.desc()
     )
+    if after is not None:
+        statement = statement.where(
+            tuple_(Invitation.created_at, Invitation.id) < tuple_(after[0], after[1])
+        )
     live = Invitation.revoked_at.is_(None) & (
         Invitation.expires_at.is_(None) | (Invitation.expires_at > now)
     )

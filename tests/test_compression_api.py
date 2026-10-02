@@ -153,6 +153,22 @@ def setup(monkeypatch):
 BASE = "/v1/competitions/deflate"
 
 
+def test_the_competition_index_is_whole_by_default_and_windowed_on_request(setup, monkeypatch):
+    client, _, _ = setup
+
+    async def queue_depth(session):
+        return 0
+
+    # The only read a competition summary makes that the shared fixture does not already fake.
+    monkeypatch.setattr(store, "queue_depth", queue_depth)
+    whole = client.get("/v1/competitions").json()
+    past_the_end = client.get("/v1/competitions?limit=1&offset=1").json()
+    assert [c["slug"] for c in whole["items"]] == ["deflate"]
+    assert (whole["total"], whole["limit"], whole["offset"]) == (1, None, 0)
+    assert past_the_end["items"] == []
+    assert past_the_end["total"] == 1
+
+
 def test_weights_are_persisted_fractions_not_renormalized(setup):
     client, _, _ = setup
     body = client.get(BASE + "/weights/current").json()

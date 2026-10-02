@@ -513,17 +513,22 @@ class ConjectureIndexEntry(Model):
 
 
 class ConjectureIndexResponse(Model):
-    """Every problem in the pool, in one response.
+    """Every problem in the pool, in one response unless a caller asks for a page.
 
-    Unpaginated on purpose. It is a few hundred rows of identifiers with no statements, no Lean
-    and no database read, and a table of contents that arrives in pages is not one — a caller
-    would have to reassemble it before it was usable. `repository_commit` names the pinned
-    revision the index describes, so a client can tell one rotation's index from the next.
+    Whole by default. It is a few hundred rows of identifiers with no statements, no Lean and no
+    database read, and a table of contents that arrives in pages is not one — most callers would
+    have to reassemble it before it was usable. `limit` and `offset` are for the caller that
+    renders it a screen at a time. `repository_commit` names the pinned revision the index
+    describes, so a client can tell one rotation's index from the next.
     """
 
-    total: int = Field(description="Problems in the pool; the length of `items`")
+    total: int = Field(
+        description="Problems in the pool; the length of `items` unless `limit` cut it"
+    )
     items: tuple[ConjectureIndexEntry, ...]
     repository_commit: str
+    limit: int | None = Field(description="The page size asked for, or null for the whole index")
+    offset: int
 
 
 class PinInfo(Model):
@@ -586,6 +591,15 @@ class ConjectureActivity(Model):
     verified: int
     certified: int
     items: tuple[PublicActivityItem, ...]
+    limit: int
+    offset: int
+    next_offset: int | None = Field(
+        default=None,
+        description=(
+            "The `offset` of the next page, or null when there is none. Paging stops at the "
+            "newest 500 events even when `attempts` is larger"
+        ),
+    )
 
 
 # --- Results -------------------------------------------------------------------------------

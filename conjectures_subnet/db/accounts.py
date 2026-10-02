@@ -28,7 +28,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -708,10 +708,16 @@ async def live_sessions_for(
     *,
     now: dt.datetime,
     kind: AccountSessionKind | None = None,
+    limit: int | None = None,
+    after: tuple[dt.datetime, uuid.UUID] | None = None,
 ) -> Sequence[AccountSession]:
     """The account's live sessions, newest first. Never the digests — the caller decides
     what is safe to serialise, and `schemas_account.SessionView` is the only shape that
-    crosses the API boundary."""
+    crosses the API boundary.
+
+    `limit` and `after` page it on `(issued_at, id)`: `issued_at` alone is not unique, and a
+    cursor on it would repeat or skip two sessions issued in the same transaction. Both omitted,
+    it is every live session, which is what revocation wants."""
     statement = (
         select(AccountSession)
         .where(
@@ -719,10 +725,16 @@ async def live_sessions_for(
             AccountSession.revoked_at.is_(None),
             AccountSession.expires_at > now,
         )
-        .order_by(AccountSession.issued_at.desc())
+        .order_by(AccountSession.issued_at.desc(), AccountSession.id.desc())
     )
     if kind is not None:
         statement = statement.where(AccountSession.kind == kind)
+    if after is not None:
+        statement = statement.where(
+            tuple_(AccountSession.issued_at, AccountSession.id) < tuple_(after[0], after[1])
+        )
+    if limit is not None:
+        statement = statement.limit(limit)
     return list((await session.execute(statement)).scalars())
 
 

@@ -14,6 +14,7 @@ from fastapi import APIRouter, Path
 from submission_api import schemas
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound
+from submission_api.pagination import SnapshotLimit, SnapshotOffset, window
 from verifier.bundle import BUNDLE_FORMAT
 from verifier.task_registry import TaskNotAllowed
 
@@ -29,7 +30,13 @@ def _summary(entry) -> schemas.TaskSummary:  # type: ignore[no-untyped-def]
 
 
 @router.get("", response_model=schemas.TaskList, summary="List submittable tasks")
-async def list_tasks(services: ServicesDep, session: SessionDep) -> schemas.TaskList:
+async def list_tasks(
+    services: ServicesDep,
+    session: SessionDep,
+    limit: SnapshotLimit = None,
+    offset: SnapshotOffset = 0,
+) -> schemas.TaskList:
+    """Every submittable task unless `limit` asks for a page; see `pagination.window`."""
     catalog = services.catalog
     settings = services.settings
     entries = catalog.summaries()
@@ -38,6 +45,10 @@ async def list_tasks(services: ServicesDep, session: SessionDep) -> schemas.Task
         reward_target_ids=tuple(entry.reward_target_id for entry in entries),
     )
     await session.commit()
+    # Filtered before it is windowed, so `total` and the offsets count only what can be submitted.
+    available = tuple(
+        entry for entry in entries if snapshot.quotes[entry.reward_target_id].available
+    )
     return schemas.TaskList(
         repository_commit=catalog.repository_commit,
         bundle_format=BUNDLE_FORMAT,
@@ -45,10 +56,11 @@ async def list_tasks(services: ServicesDep, session: SessionDep) -> schemas.Task
         submission_price_rao=settings.payment_amount_rao,
         payment_recipient=settings.payment_recipient,
         tasks=tuple(
-            _summary(entry)
-            for entry in entries
-            if snapshot.quotes[entry.reward_target_id].available
+            _summary(entry) for entry in window(available, limit=limit, offset=offset)
         ),
+        total=len(available),
+        limit=limit,
+        offset=offset,
     )
 
 

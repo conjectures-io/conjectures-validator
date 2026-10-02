@@ -56,6 +56,13 @@ List the competitions this deployment serves. Exactly one today.
 
 **Access:** Public, no authentication.
 
+**Parameters**
+
+| Name | In | Type | Required | Constraints |
+| --- | --- | --- | --- | --- |
+| `limit` | query | integer \| null | no | ≥ 1, ≤ 1000. Omit for every competition |
+| `offset` | query | integer | no | ≥ 0, ≤ 100000, default `0` |
+
 **Response**
 
 200: [Index](#schema-index)
@@ -124,7 +131,10 @@ List the competitions this deployment serves. Exactly one today.
         "freshness_reason": "Recorded scoring pass; live policy changes require a new pass."
       }
     }
-  ]
+  ],
+  "total": 1,
+  "limit": null,
+  "offset": 0
 }
 ```
 
@@ -1020,6 +1030,9 @@ Every response model referenced above, field by field. "Required" means always p
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `items` | array of [Competition](#schema-competition) | yes |  |
+| `total` | integer | yes | Competitions configured here, whatever `limit` returned |
+| `limit` | integer \| null | yes | The page size asked for, or null for every competition |
+| `offset` | integer | yes |  |
 
 <a id="schema-competition"></a>
 

@@ -26,8 +26,12 @@ import base64
 import hmac
 import re
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Annotated, TypeVar
+
+from fastapi import Query
 
 from submission_api.errors import BadRequest
 
@@ -144,6 +148,38 @@ def decode_parts(secret: str, value: str, *, version: str, count: int) -> tuple[
     return tuple(fields[1:])
 
 
+# --- Windows over in-memory snapshots ------------------------------------------------------
+#
+# Some lists are not feeds. The task pool, the catalog index, the competitions served here: each
+# is a bounded, immutable snapshot already held in memory, whose readers have always received it
+# whole. Neither argument for a cursor applies — slicing a tuple costs nothing, and a snapshot
+# does not grow under a reader between pages — so these page by `limit` and `offset`, as the
+# contribution mirror already does.
+#
+# What differs from the mirror is the default. Omitting `limit` returns the whole list, exactly
+# as before pagination existed, so no client that reads the task pool or the index in one
+# request is cut short. `total` is on every such response, so a client that does page knows when
+# it has everything.
+
+T = TypeVar("T")
+
+MAX_SNAPSHOT_PAGE = 1000
+# Not a cost bound, since the slice is O(1). It is here so an offset past any real list is a
+# `400` naming the limit rather than an empty page that reads as "nothing here".
+MAX_SNAPSHOT_OFFSET = 100_000
+
+SnapshotLimit = Annotated[
+    int | None,
+    Query(ge=1, le=MAX_SNAPSHOT_PAGE, description="Page size. Omit for the whole list."),
+]
+SnapshotOffset = Annotated[int, Query(ge=0, le=MAX_SNAPSHOT_OFFSET)]
+
+
+def window(items: Sequence[T], *, limit: int | None, offset: int) -> tuple[T, ...]:
+    """The `[offset, offset + limit)` slice of a snapshot, or everything from `offset` on."""
+    return tuple(items[offset : None if limit is None else offset + limit])
+
+
 def _invalid() -> BadRequest:
     return BadRequest("cursor is not one this API issued", reason_code=REASON_INVALID_CURSOR)
 
@@ -165,10 +201,15 @@ def _b64decode(value: str) -> bytes:
 
 __all__ = [
     "MAX_CURSOR_LENGTH",
+    "MAX_SNAPSHOT_OFFSET",
+    "MAX_SNAPSHOT_PAGE",
     "REASON_INVALID_CURSOR",
     "Cursor",
+    "SnapshotLimit",
+    "SnapshotOffset",
     "decode_cursor",
     "decode_parts",
     "encode_cursor",
     "encode_parts",
+    "window",
 ]

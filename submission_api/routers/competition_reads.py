@@ -14,7 +14,13 @@ from submission_api import compression_store as store, compression_views as view
 from submission_api import schemas_compression as s
 from submission_api.dependencies import CompetitionSessionDep, ServicesDep, PrincipalDep
 from submission_api.errors import BadRequest, Conflict, Forbidden, NotFound
-from submission_api.pagination import decode_parts, encode_parts
+from submission_api.pagination import (
+    SnapshotLimit,
+    SnapshotOffset,
+    decode_parts,
+    encode_parts,
+    window,
+)
 from submission_api.routers.competitions import resolve_competition
 from submission_api.settings import MAX_COMPETITION_FILE_BYTES
 
@@ -116,9 +122,25 @@ async def summary(competition, services, session):
 
 
 @router.get("", response_model=s.Index)
-async def index(services: ServicesDep, session: CompetitionSessionDep):
+async def index(
+    services: ServicesDep,
+    session: CompetitionSessionDep,
+    limit: SnapshotLimit = None,
+    offset: SnapshotOffset = 0,
+):
+    """Every competition served here, unless `limit` asks for a page; see `pagination.window`.
+
+    The window is cut before any competition is summarised, so a page reads only its own.
+    """
+    configured = services.competitions.competitions
     return s.Index(
-        items=[await summary(c, services, session) for c in services.competitions.competitions]
+        items=[
+            await summary(c, services, session)
+            for c in window(configured, limit=limit, offset=offset)
+        ],
+        total=len(configured),
+        limit=limit,
+        offset=offset,
     )
 
 
