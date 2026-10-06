@@ -136,6 +136,7 @@ def test_the_retirement_is_explained_and_linked():
     body = run(_get(kit(), f"/v1/catalog/conjectures/{RETIRED_SLUG}")).json()
 
     assert body["retirement"] == {
+        "pool_status": "retired",
         "retired_on": "2026-08-06",
         "reason_code": "SOLVED + NOT_OPEN",
         "reason": "SOLVED + NOT_OPEN (settled by a verified submission)",
@@ -206,6 +207,62 @@ def test_a_task_id_from_a_deleted_bundle_redirects_to_the_page():
     assert response.headers["location"] == (
         f"/v1/catalog/conjectures/{RETIRED_SLUG}"
     )
+
+
+# --- a held target reads as held, not solved and not retired ------------------------------------
+
+HELD_THEOREM = "Erdos564.erdos_564"
+HELD_SLUG = "erdos564-erdos-564"
+
+
+def held_kit():
+    item = RetiredConjecture(
+        slug=slug_for(f"fc-target:{HELD_THEOREM}"),
+        problem_id="held-problem",
+        reward_target_id=f"fc-target:{HELD_THEOREM}",
+        tier="tier-1",
+        retired_on="2026-10-06",
+        reason_code="HOLD_STATEMENT_SOURCE_DISCREPANCY",
+        reason="HOLD_STATEMENT_SOURCE_DISCREPANCY (the constant elaborates as Nat, not Real)",
+        decision_url=None,
+        recovered_from_commit="c" * 40,
+        source=declaration(theorem=HELD_THEOREM),
+        tasks=(
+            RetiredTask(
+                task_id="held-formalized",
+                task_mode="formalized",
+                task_bundle_sha256="sha256:" + "a" * 64,
+                target_type_sha256="sha256:" + "b" * 64,
+                challenge_lean=CHALLENGE,
+            ),
+        ),
+        pool_status="held",
+    )
+    index = RetiredIndex(
+        by_slug={item.slug: item},
+        slug_by_task_id={task.task_id: item.slug for task in item.tasks},
+    )
+    return harness(entries=live_entries(), retired=index)
+
+
+def test_a_held_target_is_closed_to_submission_but_not_reported_solved():
+    """A hold suspends admission pending review. It must not read as a solution or a retirement.
+
+    `is_open` still reports the upstream category, and the pool status names the hold, so a client
+    can tell "closed because held" from "closed because settled".
+    """
+    body = run(_get(held_kit(), f"/v1/catalog/conjectures/{HELD_SLUG}")).json()
+
+    assert body["retirement"]["pool_status"] == "held"
+    assert body["retirement"]["reason_code"] == "HOLD_STATEMENT_SOURCE_DISCREPANCY"
+    assert body["is_open"] is True
+    assert body["bounty"]["reason"] == "WITHDRAWN"
+    assert [task["machine_contract"] for task in body["tasks"]] == [None]
+
+    index = run(_get(held_kit(), "/v1/catalog/index")).json()
+    entry = next(item for item in index["items"] if item["slug"] == HELD_SLUG)
+    assert entry["retired"] is True
+    assert entry["pool_status"] == "held"
 
 
 # --- the live pool is untouched -----------------------------------------------------------------

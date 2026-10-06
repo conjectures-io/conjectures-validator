@@ -837,6 +837,7 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     "erdos_problem_number": None,
                     "qualifier": None,
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [],
                 },
                 {
@@ -846,22 +847,26 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     # The root itself is pooled, so nothing qualifies the entry.
                     "qualifier": None,
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [
                         {
                             "slug": "erdos1-erdos-1-variants-lb",
                             "task_mode": "formalized",
                             "retired": False,
+                            "pool_status": "live",
                         },
                         {
                             "slug": "erdos1-erdos-1-variants-lb",
                             "task_mode": "counterexample",
                             "retired": False,
+                            "pool_status": "live",
                         },
                         # Only one row: this variant has one direction issued against it.
                         {
                             "slug": "erdos1-erdos-1-variants-real",
                             "task_mode": "formalized",
                             "retired": False,
+                            "pool_status": "live",
                         },
                     ],
                 },
@@ -872,6 +877,7 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     # No root in the pool, so the variant stands in and says which one it is.
                     "qualifier": "lower_bound",
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [],
                 },
                 {
@@ -881,6 +887,7 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     # Kept whole rather than truncated at its first dot.
                     "qualifier": "monotone.parts.i",
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [],
                 },
             ]
@@ -1229,16 +1236,19 @@ def test_the_index_includes_a_retired_variant_under_its_live_problem():
                     "slug": "erdos1-erdos-1-variants-lb",
                     "task_mode": "formalized",
                     "retired": False,
+                    "pool_status": "live",
                 },
                 {
                     "slug": "erdos1-erdos-1-variants-lb",
                     "task_mode": "counterexample",
                     "retired": False,
+                    "pool_status": "live",
                 },
                 {
                     "slug": "erdos1-erdos-1-variants-real",
                     "task_mode": "formalized",
                     "retired": False,
+                    "pool_status": "live",
                 },
                 # Ordered by slug like the rest, not pushed to the end: retiring a variant must
                 # not reorder a list a reader has already seen.
@@ -1246,11 +1256,13 @@ def test_the_index_includes_a_retired_variant_under_its_live_problem():
                     "slug": "erdos1-erdos-1-variants-weaker",
                     "task_mode": "formalized",
                     "retired": True,
+                    "pool_status": "retired",
                 },
                 {
                     "slug": "erdos1-erdos-1-variants-weaker",
                     "task_mode": "counterexample",
                     "retired": True,
+                    "pool_status": "retired",
                 },
             ]
         finally:
@@ -1279,16 +1291,19 @@ def test_a_retired_root_still_heads_its_problem_and_keeps_its_live_variants():
                 "erdos_problem_number": 99,
                 "qualifier": None,
                 "retired": True,
+                "pool_status": "retired",
                 "variants": [
                     {
                         "slug": "erdos99-erdos-99-variants-weak",
                         "task_mode": "formalized",
                         "retired": False,
+                        "pool_status": "live",
                     },
                     {
                         "slug": "erdos99-erdos-99-variants-weak",
                         "task_mode": "counterexample",
                         "retired": False,
+                        "pool_status": "live",
                     },
                 ],
             }
@@ -1326,6 +1341,7 @@ def test_a_wholly_retired_problem_is_its_own_entry_and_still_readable():
                 "erdos_problem_number": None,
                 "qualifier": "grechuk",
                 "retired": True,
+                "pool_status": "retired",
                 "variants": [],
             }
 

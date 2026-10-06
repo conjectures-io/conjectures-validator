@@ -398,6 +398,7 @@ def _retired_detail(
         ),
         bounty=_withdrawn_bounty(settings),
         retirement=public.RetirementInfo(
+            pool_status=item.pool_status,
             retired_on=item.retired_on,
             reason_code=item.reason_code,
             reason=item.reason,
@@ -627,9 +628,13 @@ def _index_entry(family: conjectures.ProblemFamily) -> public.ConjectureIndexEnt
         erdos_problem_number=family.erdos_problem_number,
         qualifier=family.qualifier,
         retired=family.retired,
+        pool_status=family.pool_status,
         variants=tuple(
             public.ConjectureVariantRef(
-                slug=variant.slug, task_mode=mode, retired=variant.retired
+                slug=variant.slug,
+                task_mode=mode,
+                retired=variant.retired,
+                pool_status=variant.pool_status,
             )
             # `task_modes` is already ordered by `PRODUCTION_TASK_MODES` on both a live conjecture
             # and a retired one, so `formalized` precedes `counterexample` regardless of how the

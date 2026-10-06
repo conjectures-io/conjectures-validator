@@ -192,6 +192,12 @@ class FamilyMember:
     module: str
     task_modes: tuple[str, ...]
     retired: bool
+    # `live`, or the pool status the retired index publishes: `retired` or `held`. `retired`
+    # above stays true for both, because neither can be submitted against.
+    pool_status: str
+
+
+POOL_STATUS_LIVE = "live"
 
 
 def _member(item: Conjecture | RetiredConjecture, *, retired: bool) -> FamilyMember:
@@ -201,6 +207,7 @@ def _member(item: Conjecture | RetiredConjecture, *, retired: bool) -> FamilyMem
         module=item.source.module,
         task_modes=item.task_modes,
         retired=retired,
+        pool_status=item.pool_status if retired else POOL_STATUS_LIVE,
     )
 
 
@@ -228,6 +235,7 @@ class ProblemFamily:
     erdos_problem_number: int | None
     qualifier: str | None
     retired: bool
+    pool_status: str
     # Read from the representative's declaration, and flattened on for the reason above: an entry
     # publishes one name, and deriving it at serialisation time is how the index and the detail page
     # come to disagree about what a problem is called.
@@ -292,6 +300,7 @@ def families(index: ConjectureIndex) -> tuple[ProblemFamily, ...]:
                 erdos_problem_number=erdos_problem_number(representative.module),
                 qualifier=variant_qualifier(representative.theorem),
                 retired=representative.retired,
+                pool_status=representative.pool_status,
                 name=problem_name(
                     module=representative.module, theorem=representative.theorem
                 ),

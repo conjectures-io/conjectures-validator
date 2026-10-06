@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from verifier.catalog import load_catalog
+from verifier.errors import VerifierError
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
 from verifier.repository import tasks_repository_root
 from verifier.task_generator import problem_id
@@ -15,8 +16,13 @@ from verifier.task_pool import (
     DEFAULT_TIER_TASK_COUNT,
     ERDOS_SOURCE_PREFIX,
     EXCLUDED_SOURCE_PREFIXES,
+    EXTERNAL_SOLUTION_REASON_CODE,
     GREENS_OPEN_PROBLEMS_SOURCE_PREFIX,
+    HOLD_REASON_CODES,
     MINIMUM_ERDOS_TASKS,
+    OWNER_ACCEPTED_CLOSURE_REASON_CODE,
+    POOL_STATUS_HELD,
+    POOL_STATUS_RETIRED,
     SOURCE_FAMILY_STATUSES,
     TASK_POOL_GROUPING,
     TASK_POOL_SCHEMA_VERSION,
@@ -24,6 +30,7 @@ from verifier.task_pool import (
     TASK_POOL_TASK_SCOPE,
     REWARD_TARGET_POLICY,
     group_task_declarations,
+    load_held_sources,
     load_retired_conjectures,
     load_retired_sources,
     load_selection_audit,
@@ -90,11 +97,13 @@ def test_reinstated_erdos96_preserves_reward_identity_and_both_modes():
 def test_task_selection_is_new_and_audited_across_source_families():
     catalog = load_catalog(ROOT / "data/catalog.json")
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
+    held = load_held_sources(TIER_METADATA / "held-source-theorems.json")
     audit = load_selection_audit(TIER_METADATA / "selection-audit.json")
     targets = load_task_targets(TIER_METADATA / "task-targets.json")
     selected = select_task_declarations(
         catalog=catalog,
         retired=retired,
+        held=held,
         selection_audit=audit,
         task_targets=targets,
         pool_size=DEFAULT_TIER_SIZE,
@@ -102,6 +111,8 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert len(selected) == DEFAULT_TIER_SIZE
     assert not ({item.theorem for item in selected} & retired.theorems)
     assert not ({item.type_hash for item in selected} & retired.type_hashes)
+    assert not ({item.theorem for item in selected} & held.theorems)
+    assert not ({item.type_hash for item in selected} & held.type_hashes)
     assert len({item.type_hash for item in selected}) == len(selected)
     assert all(item.category == "research open" for item in selected)
     assert all(item.classification.value == "DIRECT_PROP" for item in selected)
@@ -122,7 +133,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 242
+    assert len({item.source_path for item in selected}) == 224
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -167,6 +178,9 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     assert tier_policy["selection"] == TASK_POOL_SELECTION
     assert tier_policy["selection_audit_sha256"] == audit.sha256
     assert tier_policy["task_targets_sha256"] == targets.sha256
+    assert tier_policy["held_source_theorems_sha256"] == load_held_sources(
+        TIER_METADATA / "held-source-theorems.json"
+    ).sha256
     assert tier_policy["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
     assert tier_policy["source_families"] == ["erdos", "greens-open-problems", "millennium", "wikipedia"]
     assert tier_policy["task_scope"] == TASK_POOL_TASK_SCOPE
@@ -287,6 +301,119 @@ def test_newly_retired_targets_are_recorded_but_not_admitted():
     assert all(f"`{theorem}`" in retirement_log for theorem in newly_retired)
 
 
+# 2026-10-06: the exits recorded by the version 1 catalog audit and the release owner's decision.
+OCTOBER_EXTERNAL_SOLUTIONS = {
+    "Erdos252.erdos_252",
+    "Erdos70.erdos_70.variants.omega_times_two_four",
+    "Erdos701.erdos_701",
+}
+OCTOBER_OWNER_CLOSURES = {
+    "Erdos3.erdos_3",
+    "Erdos138.erdos_138",
+    "Erdos142.erdos_142.variants.lower",
+    "Erdos172.erdos_172",
+    "Erdos184.erdos_184",
+    "Erdos304.upper_bound",
+    "Erdos371.erdos_371",
+    "Erdos821.erdos_821",
+    "Erdos952.erdos_952",
+    "Erdos978.erdos_978.parts.ii",
+    "Erdos978.erdos_978.parts.iii",
+}
+OCTOBER_HOLDS = {
+    "Erdos1004.erdos_1004",
+    "Erdos1074.erdos_1074.variants.EHSNumbers_one_half",
+    "Erdos282.erdos_282",
+    "Erdos564.erdos_564",
+    "Erdos887.erdos_887.parts.ii",
+}
+
+
+@pytest.mark.needs_checkouts
+def test_october_exits_leave_admission_and_their_old_tasks_stay_readable():
+    retired_now = OCTOBER_EXTERNAL_SOLUTIONS | OCTOBER_OWNER_CLOSURES
+    exits = retired_now | OCTOBER_HOLDS
+    policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
+    retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
+    held = load_held_sources(TIER_METADATA / "held-source-theorems.json")
+    targets = load_task_targets(TIER_METADATA / "task-targets.json")
+    audit = load_selection_audit(TIER_METADATA / "selection-audit.json")
+    display = load_retired_conjectures(TIER_METADATA / "retired-conjectures.json")
+    retirement_log = (TIER_METADATA / "RETIREMENTS.md").read_text(encoding="utf-8")
+    hold_log = (TIER_METADATA / "HOLDS.md").read_text(encoding="utf-8")
+
+    assert len(exits) == 19
+    assert retired_now <= retired.theorems
+    # A hold is not a retirement: the held names are refused through their own list only.
+    assert held.theorems == OCTOBER_HOLDS
+    assert held.theorems.isdisjoint(retired.theorems)
+    assert all(hold.reason_code in HOLD_REASON_CODES for hold in held.holds)
+    assert all(hold.held_on == "2026-10-06" for hold in held.holds)
+    # The canonical types the previous release published stay denied as well as the names.
+    assert {
+        "sha256:ddba7c9c27b5665f6cfd200e37ee4ad2f1fbe6e1312d346bce5a2e5344bdbb11",
+        "sha256:ca0ae541b657e550f538d41a62a6ebd5d370b8cbde8971ccc3066b1e8ff687b8",
+        "sha256:8212d9ec59d89064b56f940bf51a9af36699a95555f245f9a8360c26a3efbd1f",
+    } <= retired.type_hashes
+    assert {
+        "sha256:c5ce7570c520daced747e3045c85bdd574afe40897cce40d5a5f7d7c67d90664",
+        "sha256:c0a204ad0ab84a91a8d339a473e94935cedf04eeb35b57e802858d7479fbdb47",
+        "sha256:cd135cd026b706b808d2bc82d9a0c68331f01bdd960c495dcf9d7b8c84e5fc3d",
+        "sha256:9d83ba030098650ee699b48e716cdf5f446226673c02b02f5b9e6af5c7e5b092",
+        "sha256:869e68472c87758ed735ec9905e981c1948591269bcdf19fd92574021681991e",
+    } <= held.type_hashes
+    assert exits.isdisjoint(targets.theorems)
+    assert exits.isdisjoint(audit.theorems)
+    assert exits.isdisjoint(row["theorem"] for row in policy["allowed_source_theorems"])
+    assert all(exits.isdisjoint(row["theorems"]) for row in policy["allowed_task_bundles"])
+    for theorem in OCTOBER_EXTERNAL_SOLUTIONS:
+        assert f"`{theorem}` — 2026-10-06 — `{EXTERNAL_SOLUTION_REASON_CODE} (" in retirement_log
+    for theorem in OCTOBER_OWNER_CLOSURES:
+        assert (
+            f"`{theorem}` — 2026-10-06 — `{OWNER_ACCEPTED_CLOSURE_REASON_CODE} (" in retirement_log
+        )
+    assert all(f"`{theorem}`" in hold_log for theorem in OCTOBER_HOLDS)
+    assert all(f"`{theorem}`" not in retirement_log for theorem in OCTOBER_HOLDS)
+
+    # The display payload keeps the tasks the previous release offered for every exit, labelled
+    # with the exit's own status, at the source revision that published them.
+    for theorem in exits:
+        entry = display.entries[f"fc-target:{theorem}"]
+        expected = POOL_STATUS_HELD if theorem in OCTOBER_HOLDS else POOL_STATUS_RETIRED
+        assert entry["pool_status"] == expected, theorem
+        assert entry["source"]["repository_commit"] == "6a786f997e18e8f095762a2830d191b7e25e505e"
+        assert {task["task_mode"] for task in entry["tasks"]} == set(PRODUCTION_TASK_MODES)
+        assert all(task["task_id"].startswith("fc-6a786f99-") for task in entry["tasks"])
+    offered = {
+        task["task_id"]
+        for theorem in ("Erdos252.erdos_252", "Erdos701.erdos_701")
+        for task in display.entries[f"fc-target:{theorem}"]["tasks"]
+    }
+    assert offered == {
+        "fc-6a786f99-erdos252-erdos-252-f4e9f7503d-formalized-v1",
+        "fc-6a786f99-erdos252-erdos-252-27e45e279f-counterexample-v1",
+        "fc-6a786f99-erdos701-erdos-701-5af5e2048d-formalized-v1",
+        "fc-6a786f99-erdos701-erdos-701-41f9e00a83-counterexample-v1",
+    }
+
+
+@pytest.mark.needs_checkouts
+def test_only_the_erdos70_variant_is_denied_and_closed_history_stays_in_the_pool():
+    """The external retirement of Erdős 70 is the `omega_times_two_four` variant alone."""
+    policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
+    admitted = {row["theorem"] for row in policy["allowed_source_theorems"]}
+    retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
+
+    assert "Erdos70.erdos_70.variants.omega_times_two_four" in retired.theorems
+    assert "Erdos70.erdos_70" not in retired.theorems
+    # Historical closures stay where they were, Erdős 416(i) and the pending Green 24 included.
+    assert {
+        "Erdos416.erdos_416.parts.i",
+        "Erdos579.erdos_579",
+        "Green24.variants.conjecture",
+    } <= admitted
+
+
 @pytest.mark.needs_checkouts
 def test_retired_conjectures_are_readable_but_never_admissible():
     """The display payload must cover every retired target and admit none of them.
@@ -297,6 +424,7 @@ def test_retired_conjectures_are_readable_but_never_admissible():
     """
     retired = load_retired_conjectures(TIER_METADATA / "retired-conjectures.json")
     sources = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
+    held = load_held_sources(TIER_METADATA / "held-source-theorems.json")
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
 
     assert retired.entries
@@ -305,8 +433,19 @@ def test_retired_conjectures_are_readable_but_never_admissible():
     ] == retired.sha256
 
     theorems = {entry["theorem"] for entry in retired.entries.values()}
-    # Everything on display is genuinely retired, so a live target can never be shown as closed.
-    assert theorems <= sources.theorems
+    # Everything on display genuinely left the pool, so a live target can never be shown as
+    # closed, and each entry's status matches the admission list that refuses it.
+    by_status = {
+        status: {
+            entry["theorem"]
+            for entry in retired.entries.values()
+            if entry["pool_status"] == status
+        }
+        for status in (POOL_STATUS_RETIRED, POOL_STATUS_HELD)
+    }
+    assert by_status[POOL_STATUS_RETIRED] | by_status[POOL_STATUS_HELD] == theorems
+    assert by_status[POOL_STATUS_RETIRED] <= sources.theorems
+    assert by_status[POOL_STATUS_HELD] == held.theorems
     assert theorems.isdisjoint(row["theorem"] for row in policy["allowed_source_theorems"])
     assert all(
         theorems.isdisjoint(row["theorems"]) for row in policy["allowed_task_bundles"]
@@ -327,6 +466,67 @@ def test_retired_conjectures_are_readable_but_never_admissible():
         assert all(character in "0123456789abcdef" for character in source_commit)
         assert {task["task_mode"] for task in entry["tasks"]} == set(PRODUCTION_TASK_MODES)
         assert all(task["challenge_lean"].strip() for task in entry["tasks"])
+
+
+def _held_row(theorem: str = "Erdos564.erdos_564", **overrides) -> dict:
+    row = {
+        "audit_reference": "catalog audit v1, record fc-target:" + theorem,
+        "finding": "the constant elaborates as Nat",
+        "held_on": "2026-10-06",
+        "reason_code": "HOLD_STATEMENT_SOURCE_DISCREPANCY",
+        "required_resolution": "a corrected statement and a new admission audit",
+        "reward_target_id": "fc-target:" + theorem,
+        "source_path": "FormalConjectures/ErdosProblems/564.lean",
+        "source_type_sha256s": ["sha256:" + "a" * 64, "sha256:" + "b" * 64],
+        "theorem": theorem,
+    }
+    row.update(overrides)
+    return row
+
+
+def _write_held(tmp_path: Path, rows: list[dict], **overrides) -> Path:
+    value = {"holds": rows, "repository_commit": "c" * 40, "schema_version": 1}
+    value.update(overrides)
+    path = tmp_path / "held-source-theorems.json"
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def test_the_hold_list_loads_names_and_every_recorded_type(tmp_path):
+    held = load_held_sources(_write_held(tmp_path, [_held_row()]))
+
+    assert held.theorems == {"Erdos564.erdos_564"}
+    assert held.type_hashes == {"sha256:" + "a" * 64, "sha256:" + "b" * 64}
+    assert held.holds[0].reason_code in HOLD_REASON_CODES
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        # A retirement reason is not a hold reason; a hold must not be recorded as solved.
+        [_held_row(reason_code="SOLVED_EXTERNALLY")],
+        [_held_row(reward_target_id="fc-target:Erdos1.erdos_1")],
+        [_held_row(source_type_sha256s=[])],
+        [_held_row(source_type_sha256s=["sha256:" + "b" * 64, "sha256:" + "a" * 64])],
+        [_held_row(finding=" ")],
+        [_held_row(held_on="06/10/2026")],
+        [{**_held_row(), "pool_status": "held"}],
+        [_held_row("Erdos887.erdos_887.parts.ii"), _held_row()],
+    ],
+    ids=[
+        "retirement-reason",
+        "foreign-reward-target",
+        "no-types",
+        "unsorted-types",
+        "blank-finding",
+        "bad-date",
+        "extra-field",
+        "unsorted-theorems",
+    ],
+)
+def test_a_malformed_hold_list_is_refused(tmp_path, rows):
+    with pytest.raises(VerifierError):
+        load_held_sources(_write_held(tmp_path, rows))
 
 
 def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path):
@@ -377,6 +577,7 @@ def test_task_registry_rejects_non_deny_unknown_schema_or_tier_mismatch(tmp_path
                 "compiled_target_validation": True,
                 "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
                 "grouping": TASK_POOL_GROUPING,
+                "held_source_theorems_sha256": "sha256:" + "c" * 64,
                 "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
                 "modes": list(PRODUCTION_TASK_MODES),
                 "multi_target_tasks": 0,

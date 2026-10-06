@@ -20,16 +20,18 @@ from verifier.task_policy import (
 )
 
 
-TASK_POOL_SCHEMA_VERSION = 8
+# Version 9 adds `held_source_theorems_sha256` to every tier policy.
+TASK_POOL_SCHEMA_VERSION = 9
 SELECTION_AUDIT_SCHEMA_VERSION = 2
 TASK_GROUP_SCHEMA_VERSION = 1
 TASK_TARGET_SCHEMA_VERSION = 3
 RETIRED_CONJECTURE_SCHEMA_VERSION = 1
+HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 277
+DEFAULT_TIER_SIZE = 258
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
-MINIMUM_ERDOS_TASKS = 238
+MINIMUM_ERDOS_TASKS = 219
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
 SUBPROBLEM_POOL_SELECTION = "audited-part-or-variant-v2"
 TASK_POOL_GROUPING = "none-single-target-v1"
@@ -46,10 +48,14 @@ ERDOS_SOURCE_FAMILY = "erdos"
 GREENS_OPEN_PROBLEMS_SOURCE_FAMILY = "greens-open-problems"
 WIKIPEDIA_SOURCE_FAMILY = "wikipedia"
 MILLENNIUM_SOURCE_FAMILY = "millennium"
-NAMED_SOURCE_FAMILIES = frozenset({WIKIPEDIA_SOURCE_FAMILY, MILLENNIUM_SOURCE_FAMILY})
+RESEARCH_TARGETS_SOURCE_FAMILY = "research-targets"
+# Classical named sources share the retained-status evidence in `classical-status-audit.json`.
+CLASSICAL_SOURCE_FAMILIES = frozenset({WIKIPEDIA_SOURCE_FAMILY, MILLENNIUM_SOURCE_FAMILY})
+NAMED_SOURCE_FAMILIES = CLASSICAL_SOURCE_FAMILIES | {RESEARCH_TARGETS_SOURCE_FAMILY}
 SOURCE_FAMILY_PREFIXES = {
     WIKIPEDIA_SOURCE_FAMILY: "FormalConjectures/Wikipedia/",
     MILLENNIUM_SOURCE_FAMILY: "FormalConjectures/Millennium/",
+    RESEARCH_TARGETS_SOURCE_FAMILY: "FormalConjectures/ResearchTargets/",
     ERDOS_SOURCE_FAMILY: ERDOS_SOURCE_PREFIX,
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: GREENS_OPEN_PROBLEMS_SOURCE_PREFIX,
 }
@@ -60,12 +66,15 @@ SOURCE_FAMILY_THEOREM_PREFIXES = {
 SOURCE_FAMILY_STATUSES = {
     WIKIPEDIA_SOURCE_FAMILY: frozenset({"open"}),
     MILLENNIUM_SOURCE_FAMILY: frozenset({"open"}),
+    RESEARCH_TARGETS_SOURCE_FAMILY: frozenset({"open"}),
     ERDOS_SOURCE_FAMILY: frozenset({"decidable", "falsifiable", "open", "verifiable"}),
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: frozenset({"open"}),
 }
 # Named source identities are explicit: a similar filename or namespace is not admission.
 NAMED_SOURCE_NAMESPACES = {
     "FormalConjectures/Millennium/RiemannHypothesis.lean": "RiemannHypothesis",
+    "FormalConjectures/ResearchTargets/Math15.lean": "Math15Catalog",
+    "FormalConjectures/ResearchTargets/Math30.lean": "Math30Catalog",
     "FormalConjectures/Wikipedia/ArtinPrimitiveRootsConjecture.lean": "ArtinPrimitiveRootsConjecture",
     "FormalConjectures/Wikipedia/BorsukConjecture.lean": "Borsuk",
     "FormalConjectures/Wikipedia/BrocardConjecture.lean": "Brocard",
@@ -101,6 +110,15 @@ CLASSICAL_STATUS_LOCATOR = (
     "https://github.com/conjectures-io/conjectures-tasks/blob/main/"
     "tiers/tier-1/classical-status-audit.json"
 )
+RESEARCH_TARGET_DECISIONS_LOCATOR = (
+    "https://github.com/conjectures-io/conjectures-tasks/blob/main/"
+    "staged/research-targets/decision-matrix.json"
+)
+# Package-authored research targets are staged, never admitted by default. A theorem enters this
+# set only through a reviewed validator commit that follows an explicit activation decision; the
+# decision matrix alone cannot admit anything. Until then every selection audit, target selection
+# and allowlist that names a `research-targets` source fails closed.
+ACTIVATED_RESEARCH_TARGETS: frozenset[str] = frozenset()
 SOURCE_STATUS_SPECS = (
     {
         "family": ERDOS_SOURCE_FAMILY,
@@ -116,6 +134,13 @@ SOURCE_STATUS_SPECS = (
 SOURCE_STATUS_SPECS += tuple(
     {"family": family, "locator": CLASSICAL_STATUS_LOCATOR, "revision_kind": "sha256"}
     for family in (WIKIPEDIA_SOURCE_FAMILY, MILLENNIUM_SOURCE_FAMILY)
+)
+SOURCE_STATUS_SPECS += (
+    {
+        "family": RESEARCH_TARGETS_SOURCE_FAMILY,
+        "locator": RESEARCH_TARGET_DECISIONS_LOCATOR,
+        "revision_kind": "sha256",
+    },
 )
 EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
 FEASIBILITY_SIGNALS = frozenset(
@@ -135,6 +160,23 @@ def reward_target_identity(theorem: str) -> str:
     return REWARD_TARGET_PREFIX + theorem
 
 
+# How a target that left the pool is presented. `retired` is permanent and its reason code says
+# why (an external solution, an owner-accepted publication closure, a defect, a withdrawal).
+# `held` suspends admission pending review: the target is neither solved nor retired, and
+# re-admission needs the recorded resolution and a new audit. A hold is either a statement or
+# source discrepancy, or an unverified claim to resolve the exact target.
+POOL_STATUS_RETIRED = "retired"
+POOL_STATUS_HELD = "held"
+EXIT_POOL_STATUSES = frozenset({POOL_STATUS_RETIRED, POOL_STATUS_HELD})
+HOLD_STATEMENT_SOURCE_DISCREPANCY = "HOLD_STATEMENT_SOURCE_DISCREPANCY"
+HOLD_UNVERIFIED_RESOLUTION_CLAIM = "HOLD_UNVERIFIED_RESOLUTION_CLAIM"
+HOLD_REASON_CODES = frozenset(
+    {HOLD_STATEMENT_SOURCE_DISCREPANCY, HOLD_UNVERIFIED_RESOLUTION_CLAIM}
+)
+EXTERNAL_SOLUTION_REASON_CODE = "SOLVED_EXTERNALLY"
+OWNER_ACCEPTED_CLOSURE_REASON_CODE = "OWNER_ACCEPTED_PUBLICATION_CLOSURE"
+
+
 SCREENING_STATEMENT = (
     "Plausibly attackable solver target; this is a comparative screen, not a "
     "claim that the conjecture is easy or guaranteed solvable."
@@ -147,6 +189,41 @@ class RetiredSources:
     theorems: frozenset[str]
     type_hashes: frozenset[str]
     sha256: str
+
+
+@dataclass(frozen=True)
+class HeldSource:
+    theorem: str
+    source_path: str
+    reward_target_id: str
+    source_type_sha256s: tuple[str, ...]
+    reason_code: str
+    finding: str
+    held_on: str
+    audit_reference: str
+    required_resolution: str
+
+
+@dataclass(frozen=True)
+class HeldSources:
+    """Targets withheld from admission pending review.
+
+    An admission input like `RetiredSources`, and deliberately a separate file: a hold is not a
+    retirement and says nothing about whether the target is solved. Selection refuses a held
+    theorem by name or by any recorded canonical type, exactly as it refuses a retired one.
+    """
+
+    repository_commit: str
+    holds: tuple[HeldSource, ...]
+    sha256: str
+
+    @property
+    def theorems(self) -> frozenset[str]:
+        return frozenset(hold.theorem for hold in self.holds)
+
+    @property
+    def type_hashes(self) -> frozenset[str]:
+        return frozenset(digest for hold in self.holds for digest in hold.source_type_sha256s)
 
 
 @dataclass(frozen=True)
@@ -253,6 +330,14 @@ def source_family_from_path(source_path: object) -> str | None:
         if problem_number.isdecimal() and int(problem_number) > 0:
             return family
     return None
+
+
+def staged_research_target(theorem: object, source_path: object) -> bool:
+    """A `research-targets` source that has not passed an explicit, code-reviewed activation."""
+    return (
+        source_family_from_path(source_path) == RESEARCH_TARGETS_SOURCE_FAMILY
+        and theorem not in ACTIVATED_RESEARCH_TARGETS
+    )
 
 
 def _valid_source_identity(
@@ -414,8 +499,10 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             or len({entry.theorem for entry in entries}) != len(entries)
         ):
             raise ValueError("selection audit entries are invalid")
+        if any(staged_research_target(entry.theorem, entry.source_path) for entry in entries):
+            raise ValueError("selection audit names a staged research target without activation")
         named_entries = tuple(
-            entry for entry in entries if entry.source_family in NAMED_SOURCE_FAMILIES
+            entry for entry in entries if entry.source_family in CLASSICAL_SOURCE_FAMILIES
         )
         if named_entries:
             evidence_bytes = path.with_name("classical-status-audit.json").read_bytes()
@@ -423,7 +510,7 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             if any(
                 item["revision"] != evidence_hash
                 for item in value["source_status_sources"]
-                if item["family"] in NAMED_SOURCE_FAMILIES
+                if item["family"] in CLASSICAL_SOURCE_FAMILIES
             ):
                 raise ValueError("classical status evidence digest does not match")
             evidence = json.loads(evidence_bytes)
@@ -700,13 +787,98 @@ def load_retired_sources(path: Path) -> RetiredSources:
     )
 
 
+def load_held_sources(path: Path) -> HeldSources:
+    """Load the hold list: an admission input, validated as strictly as the retirement list."""
+    try:
+        content = path.read_bytes()
+        value = json.loads(content.decode("utf-8", errors="strict"))
+        if not isinstance(value, dict) or set(value) != {
+            "holds",
+            "repository_commit",
+            "schema_version",
+        }:
+            raise ValueError("held source field set is not exact")
+        rows = value["holds"]
+        if (
+            type(value["schema_version"]) is not int
+            or value["schema_version"] != HELD_SOURCE_SCHEMA_VERSION
+            or not _is_commit(value["repository_commit"])
+            or not isinstance(rows, list)
+        ):
+            raise ValueError("held source metadata is invalid")
+        holds = []
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != {
+                "audit_reference",
+                "finding",
+                "held_on",
+                "reason_code",
+                "required_resolution",
+                "reward_target_id",
+                "source_path",
+                "source_type_sha256s",
+                "theorem",
+            }:
+                raise ValueError("a held source entry has the wrong fields")
+            hashes = row["source_type_sha256s"]
+            if (
+                not isinstance(row["theorem"], str)
+                or not row["theorem"]
+                or source_family_from_path(row["source_path"]) is None
+                or row["reward_target_id"] != reward_target_identity(row["theorem"])
+                or row["reason_code"] not in HOLD_REASON_CODES
+                or not isinstance(row["held_on"], str)
+                or date.fromisoformat(row["held_on"]).isoformat() != row["held_on"]
+                or not all(
+                    isinstance(row[field], str) and row[field].strip()
+                    for field in ("audit_reference", "finding", "required_resolution")
+                )
+                or not isinstance(hashes, list)
+                or not hashes
+                or not all(
+                    isinstance(item, str)
+                    and re.fullmatch(r"sha256:[0-9a-f]{64}", item) is not None
+                    for item in hashes
+                )
+                or hashes != sorted(set(hashes))
+            ):
+                raise ValueError(f"held source entry is invalid: {row.get('theorem')!r}")
+            holds.append(
+                HeldSource(
+                    theorem=row["theorem"],
+                    source_path=row["source_path"],
+                    reward_target_id=row["reward_target_id"],
+                    source_type_sha256s=tuple(hashes),
+                    reason_code=row["reason_code"],
+                    finding=row["finding"],
+                    held_on=row["held_on"],
+                    audit_reference=row["audit_reference"],
+                    required_resolution=row["required_resolution"],
+                )
+            )
+        names = [hold.theorem for hold in holds]
+        if names != sorted(set(names)):
+            raise ValueError("held sources must be sorted by theorem and unique")
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            f"cannot load held task-pool sources: {exc}",
+        ) from exc
+    return HeldSources(
+        repository_commit=value["repository_commit"],
+        holds=tuple(holds),
+        sha256=sha256_bytes(content),
+    )
+
+
 def load_retired_conjectures(path: Path) -> RetiredConjectures:
-    """Load the read-only display payload for retired targets.
+    """Load the read-only display payload for targets that left the pool.
 
     Validated on the same terms as every other pinned metadata file — exact field set, one
     pinned revision, no duplicate targets — because it is published from the task repository and
     reaches the public catalog. What it is *not* is an admission input: no caller may use it to
-    decide that a task can be submitted or verified.
+    decide that a task can be submitted or verified. Each entry's `pool_status` says whether the
+    target was retired or is held; an entry without one predates holds and is a retirement.
     """
     try:
         content = path.read_bytes()
@@ -741,6 +913,7 @@ def load_retired_conjectures(path: Path) -> RetiredConjectures:
                 or not isinstance(row.get("source"), dict)
                 or not isinstance(row.get("tasks"), list)
                 or not row["tasks"]
+                or row.get("pool_status", POOL_STATUS_RETIRED) not in EXIT_POOL_STATUSES
             ):
                 raise ValueError("a retired conjecture entry is malformed")
             target = row["reward_target_id"]
@@ -765,11 +938,18 @@ def select_task_declarations(
     *,
     catalog: Catalog,
     retired: RetiredSources,
+    held: HeldSources,
     selection_audit: SelectionAudit,
     task_targets: TaskTargets | None = None,
     whole_problem_targets: TaskTargets | None = None,
     pool_size: int = DEFAULT_TIER_SIZE,
 ) -> tuple[CatalogDeclaration, ...]:
+    if held.theorems & retired.theorems:
+        raise VerifierError(
+            ReasonCode.INVALID_ARGUMENT,
+            "a theorem cannot be both held and retired: "
+            + ", ".join(sorted(held.theorems & retired.theorems)),
+        )
     targets = task_targets if task_targets is not None else whole_problem_targets
     if targets is None or (task_targets is not None and whole_problem_targets is not None):
         raise VerifierError(
@@ -778,6 +958,7 @@ def select_task_declarations(
         )
     if (
         retired.repository_commit != catalog.repository_commit
+        or held.repository_commit != catalog.repository_commit
         or selection_audit.repository_commit != catalog.repository_commit
         or targets.repository_commit != catalog.repository_commit
     ):
@@ -831,8 +1012,12 @@ def select_task_declarations(
             or declaration.source_path != entry.source_path
             or declaration.theorem in retired.theorems
             or declaration.type_hash in retired.type_hashes
+            # A hold is not a retirement, but it refuses admission on exactly the same terms.
+            or declaration.theorem in held.theorems
+            or declaration.type_hash in held.type_hashes
             or declaration.type_hash in used_types
             or declaration.source_path.startswith(EXCLUDED_SOURCE_PREFIXES)
+            or staged_research_target(declaration.theorem, declaration.source_path)
         ):
             detail = "; ".join(violations) if violations else "freshness or source policy failed"
             raise VerifierError(
@@ -917,6 +1102,7 @@ def build_task_allowlist(
     *,
     catalog: Catalog,
     retired: RetiredSources,
+    held: HeldSources,
     retired_conjectures: RetiredConjectures,
     selection_audit: SelectionAudit,
     task_targets: TaskTargets,
@@ -1050,6 +1236,7 @@ def build_task_allowlist(
                 "compiled_target_validation": True,
                 "excluded_source_prefixes": list(EXCLUDED_SOURCE_PREFIXES),
                 "grouping": TASK_POOL_GROUPING,
+                "held_source_theorems_sha256": held.sha256,
                 "minimum_erdos_tasks": MINIMUM_ERDOS_TASKS,
                 "modes": list(PRODUCTION_TASK_MODES),
                 "multi_target_tasks": sum(

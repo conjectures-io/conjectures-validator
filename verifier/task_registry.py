@@ -24,6 +24,7 @@ from verifier.task_pool import (
     TASK_POOL_SCHEMA_VERSION,
     reward_target_identity,
     source_family_from_path,
+    staged_research_target,
 )
 
 
@@ -126,6 +127,7 @@ def _valid_tier_policy(policy: object) -> bool:
         "compiled_target_validation",
         "excluded_source_prefixes",
         "grouping",
+        "held_source_theorems_sha256",
         "minimum_erdos_tasks",
         "modes",
         "multi_target_tasks",
@@ -155,6 +157,7 @@ def _valid_tier_policy(policy: object) -> bool:
         and _valid_source_prefixes(policy.get("excluded_source_prefixes"))
         and isinstance(policy.get("grouping"), str)
         and bool(policy["grouping"])
+        and is_sha256(policy.get("held_source_theorems_sha256"))
         and type(policy.get("minimum_erdos_tasks")) is int
         and policy["minimum_erdos_tasks"] >= 0
         and policy.get("modes") == list(PRODUCTION_TASK_MODES)
@@ -312,6 +315,10 @@ class TaskPoolRegistry:
                 or source_type in source_types
             ):
                 raise TaskNotAllowed("task allowlist source identity is invalid or duplicate")
+            if staged_research_target(theorem, source_path):
+                raise TaskNotAllowed(
+                    "task allowlist names a staged research target without activation"
+                )
             source_by_index[index] = (theorem, source_path, source_type, tier)
             source_theorems.add(theorem)
             source_types.add(source_type)
