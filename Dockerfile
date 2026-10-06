@@ -8,7 +8,10 @@ ARG ENABLE_NANODA=0
 ARG LEAN_BUILD_THREADS=2
 ENV LEAN_NUM_THREADS=${LEAN_BUILD_THREADS}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Reproducible signed OS archive; TLS bootstrap root is public, not a credential.
+COPY security/ubuntu-snapshot-root.crt /usr/share/keyrings/ubuntu-snapshot-root.crt
+LABEL org.conjectures.ubuntu-snapshot=20261006T000000Z
+RUN apt-get -o APT::Update::Error-Mode=any -o Acquire::https::CaInfo=/usr/share/keyrings/ubuntu-snapshot-root.crt update --snapshot 20261006T000000Z && apt-get -o Acquire::https::CaInfo=/usr/share/keyrings/ubuntu-snapshot-root.crt install --snapshot 20261006T000000Z -y --no-install-recommends \
       ca-certificates curl git build-essential zstd python3 \
       golang-go cargo pkg-config libssl-dev tini \
     && rm -rf /var/lib/apt/lists/*
