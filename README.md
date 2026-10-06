@@ -440,9 +440,9 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 258
-active audited targets across 224 source files: 219 Erdős, 6 previously solved Green, 32 Wikipedia,
-and one Millennium target. The October release retires three exact targets solved externally
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 275
+active audited targets across 226 source files: 219 Erdős, 6 previously solved Green, 32 Wikipedia,
+one Millennium target, and 17 package-authored research targets (activation pending owner approval). The October release retires three exact targets solved externally
 (Erdős 252, Erdős 701, and one Erdős 70 variant) and eleven closed on the release owner's
 instruction to accept public resolution claims, without independent proof replay. It also holds
 five targets pending review; a held target is neither solved nor retired. The earlier tasks of all
@@ -455,7 +455,7 @@ On September 30, the 18 open Green targets were withdrawn at Ben Green’s reque
 the six previously solved entries and earlier archived results remain available.
 
 All tasks use Lean 4.35.0-rc2 and the source revision in `pins.lock.json`. The audited patch
-includes corrected normality and Hardy–Littlewood definitions. The tier contains 516
+includes corrected normality and Hardy–Littlewood definitions. The tier contains 550
 immutable bundles: a `formalized` task for P and a `counterexample` task for ¬P for each
 target. Every active manifest permits a 10 MiB (10,485,760-byte) proof. The source repin
 creates fresh task IDs and commitments while preserving existing stable reward identities.
@@ -502,7 +502,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 258 active audited direct propositions, generates committed `formalized` and
+the 275 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).

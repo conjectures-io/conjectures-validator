@@ -29,7 +29,7 @@ RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 258
+DEFAULT_TIER_SIZE = 275
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = 219
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
@@ -117,8 +117,30 @@ RESEARCH_TARGET_DECISIONS_LOCATOR = (
 # Package-authored research targets are staged, never admitted by default. A theorem enters this
 # set only through a reviewed validator commit that follows an explicit activation decision; the
 # decision matrix alone cannot admit anything. Until then every selection audit, target selection
-# and allowlist that names a `research-targets` source fails closed.
-ACTIVATED_RESEARCH_TARGETS: frozenset[str] = frozenset()
+# and allowlist that names a `research-targets` source fails closed. This release
+# admits the reviewed subset below. The version-2 decision matrix must name exactly
+# these theorems, and it records whether the owner has approved the activation.
+ACTIVATED_RESEARCH_TARGETS: frozenset[str] = frozenset(
+    {
+        "Math15Catalog.source04",
+        "Math15Catalog.source05",
+        "Math15Catalog.source06",
+        "Math15Catalog.source10",
+        "Math15Catalog.source11",
+        "Math30Catalog.source16",
+        "Math30Catalog.source18",
+        "Math30Catalog.source20",
+        "Math30Catalog.source21",
+        "Math30Catalog.source22",
+        "Math30Catalog.source23",
+        "Math30Catalog.source25",
+        "Math30Catalog.source26",
+        "Math30Catalog.source27",
+        "Math30Catalog.source28",
+        "Math30Catalog.source29",
+        "Math30Catalog.source30",
+    }
+)
 SOURCE_STATUS_SPECS = (
     {
         "family": ERDOS_SOURCE_FAMILY,
@@ -534,6 +556,29 @@ def load_selection_audit(path: Path) -> SelectionAudit:
                 for entry in named_entries
             ):
                 raise ValueError("named target lacks a matching retained status review")
+        research_entries = tuple(
+            entry for entry in entries if entry.source_family == RESEARCH_TARGETS_SOURCE_FAMILY
+        )
+        if research_entries:
+            # Imported here because `research_targets` imports this module.
+            from verifier.research_targets import load_research_target_decisions
+
+            # The audit is tiers/<tier>/selection-audit.json; the matrix it commits to is
+            # staged/research-targets/decision-matrix.json in the same tasks release.
+            decisions = load_research_target_decisions(
+                path.resolve().parent.parent.parent
+                / "staged" / "research-targets" / "decision-matrix.json"
+            )
+            if any(
+                item["revision"] != decisions.sha256.removeprefix("sha256:")
+                for item in value["source_status_sources"]
+                if item["family"] == RESEARCH_TARGETS_SOURCE_FAMILY
+            ):
+                raise ValueError("research-target decision matrix digest does not match")
+            if not {entry.theorem for entry in research_entries} <= decisions.admissible:
+                raise ValueError(
+                    "selection audit names a research target the matrix does not activate"
+                )
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,

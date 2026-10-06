@@ -131,6 +131,13 @@ COLLECTION_PHRASES = {
     # it either. The lookup above is what has to match upstream, and it does.
     "Millenium": Collection("millennium", "Millennium Prize problems"),
     "Other": Collection("other", "Other"),
+    # Statements the release team packaged and reviewed, not an upstream collection.
+    # The label says so on every public page, because nothing else in the name would.
+    "ResearchTargets": Collection(
+        "research_targets",
+        "Package-authored research targets",
+        "Package-authored research target {name}",
+    ),
 }
 
 

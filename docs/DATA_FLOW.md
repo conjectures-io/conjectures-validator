@@ -48,12 +48,12 @@ flowchart TD
         CAT["data/catalog.json<br/>5190 declaration records"]
         POL["production_policy_violations<br/>10 deny-by-default rules"]
         AUD["HUMAN AUDIT<br/>one shared tier · complete statements + variants"]
-        PICK["task target policy<br/>258 active asserted picks"]
+        PICK["task target policy<br/>275 active asserted picks"]
         SEL["select_task_declarations<br/>re-verifies every pick mechanically"]
         GT["generate_task<br/>fcTypeOfName% type splice"]
         VAL["target_validator<br/>compile · isDefEq · policy recheck"]
         BUN["conjectures-tasks/pool/TIER/TASK_ID/<br/>7 frozen files"]
-        ALLOW["conjectures-tasks/allowlist.json<br/>516 bundle digests · default DENY"]
+        ALLOW["conjectures-tasks/allowlist.json<br/>550 bundle digests · default DENY"]
     end
 
     subgraph SVC["SERVICE DOMAIN — online, holds keys and money"]
@@ -186,6 +186,7 @@ the pipeline.
 | 14 | September 21: admit 36 audited classical targets | **295** targets from 257 files (238 Erdős, 24 Green, 32 Wikipedia, 1 Millennium) |
 | 15 | September 30: withdraw 18 open Green targets at author request; preserve solved entries | **277** targets from 242 files (238 Erdős, 6 Green, 32 Wikipedia, 1 Millennium) |
 | 16 | October candidate, with the Lean 4.35 repin: retire 3 externally solved targets and 11 owner-accepted publication closures; hold 5 for review | **258** targets from 224 files (219 Erdős, 6 Green, 32 Wikipedia, 1 Millennium) |
+| 17 | October candidate: admit 17 reviewed package-authored research targets (activation pending owner approval) | **275** targets from 226 files (219 Erdős, 6 Green, 32 Wikipedia, 1 Millennium, 17 research) |
 
 The remaining exact-proposition checks currently remove nothing after the category and
 classification filters. Those rules are defence in depth
@@ -212,7 +213,7 @@ type hash, exactly like a retired one, and refuses to run at all if a theorem is
 
 ### Human picks, machine proves the pick is legal
 
-The 258 active targets are explicitly recorded in one target file after source, statement,
+The 275 active targets are explicitly recorded in one target file after source, statement,
 prior-solution, and proof-claim review. The historical funnel below describes earlier snapshots;
 its counts are not current catalog statistics. `select_task_declarations` then
 refuses to accept any pick that is not simultaneously:
@@ -321,7 +322,7 @@ against a real Lean compile, not against JSON.
 `../conjectures-tasks/allowlist.json`, schema version 9, `default: "DENY"`, enforced by
 `task_registry.py` `assert_bundle`.
 
-258 `allowed_source_theorems` and 516 `allowed_task_bundles`. Each bundle entry pins `task_id`,
+275 `allowed_source_theorems` and 550 `allowed_task_bundles`. Each bundle entry pins `task_id`,
 `source_path`, `theorems`, `target_type_sha256s`, and:
 
 - `task_bundle_sha256` — the whole-bundle digest, e.g.
@@ -344,8 +345,9 @@ combined with a tampered audit file:
 
 The tier policy records its scope, exact target count, proof/refutation modes, and the
 `stable-theorem-target-v1` reward rule. The one active tier has `multi_target_tasks: 0` and contains
-all 258 active targets across the four audited source families. The `research-targets` family is
-registered but staged: no tier names it, and `ACTIVATED_RESEARCH_TARGETS` is empty.
+all 275 active targets across five source families. The `research-targets` family is admitted
+only for the 17 theorems in `ACTIVATED_RESEARCH_TARGETS`, which the version-2 decision matrix must
+name exactly; every other research target stays staged.
 
 **This file's integrity comes from being a hash-pinned file in an immutable image.** It should not
 move into the database. A row is mutable by anything holding app credentials, and the attack it
