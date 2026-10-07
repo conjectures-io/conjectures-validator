@@ -366,3 +366,52 @@ def _declarations() -> list[dict]:
     # Guard the guard: an empty sweep would make both tests above vacuous.
     assert len(declarations) > 3000, len(declarations)
     return declarations
+
+
+@pytest.mark.parametrize(
+    ("module", "theorem", "docstring", "expected"),
+    [
+        (
+            "FormalConjectures.ResearchTargets.Math15",
+            "Math15Catalog.source04",
+            "Incomplete challenge 04: Two-entry tight lonely-runner classification. "
+            "Source: https://arxiv.org/html/2608.13599v2#S9 ",
+            "Two-entry tight lonely-runner classification",
+        ),
+        (
+            "FormalConjectures.ResearchTargets.Math30",
+            "Math30Catalog.source28",
+            "Incomplete challenge 28: Every degree-at-most-four scalar real polynomial\n"
+            "minimal graph is affine, in every dimension. Source: https://arxiv.org/html/2404.00115v2",
+            "Every degree-at-most-four scalar real polynomial minimal graph is affine, in every dimension",
+        ),
+    ],
+)
+def test_research_targets_use_the_source_description(module, theorem, docstring, expected):
+    name = problem_name(module=module, theorem=theorem, docstring=docstring)
+    assert name.display_title == name.reference == expected
+    assert name.collection_label == "Package-authored research targets"
+    assert name.qualifier is None
+
+
+@pytest.mark.parametrize(
+    "docstring",
+    [
+        None,
+        "",
+        "An arbitrary theorem comment.",
+        "Incomplete challenge 05: Wrong challenge. Source: https://example.com/5",
+    ],
+)
+def test_research_title_falls_back_when_description_is_missing_or_mismatched(docstring):
+    arguments = dict(
+        module="FormalConjectures.ResearchTargets.Math15", theorem="Math15Catalog.source04"
+    )
+    assert problem_name(**arguments, docstring=docstring) == problem_name(**arguments)
+
+
+def test_other_collections_keep_their_names_even_with_a_challenge_description():
+    arguments = dict(module="FormalConjectures.ErdosProblems.«4»", theorem="Erdos4.erdos_4")
+    assert problem_name(
+        **arguments, docstring="Incomplete challenge 04: Unrelated. Source: https://example.com/4"
+    ) == problem_name(**arguments)

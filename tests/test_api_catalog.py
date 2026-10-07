@@ -1541,3 +1541,34 @@ def test_activity_for_a_conjecture_with_no_attempts_is_empty_not_missing():
             await kit.teardown()
 
     run(scenario())
+
+
+def test_research_description_names_the_index_list_detail_and_results():
+    from dataclasses import replace
+
+    from types import SimpleNamespace
+
+    from submission_api.routers.results import named_of
+
+    async def scenario():
+        source = replace(
+            declaration(theorem="Math15Catalog.source04"),
+            module="FormalConjectures.ResearchTargets.Math15",
+            docstring="Incomplete challenge 04: Two-entry tight lonely-runner classification. "
+            "Source: https://arxiv.org/html/2608.13599v2#S9 ",
+        )
+        kit = await harness(entries=(task_entry(source=source),)).setup()
+        try:
+            expected = "Two-entry tight lonely-runner classification"
+            index = (await _get(kit, "/v1/catalog/index")).json()["items"][0]
+            listing = (await _get(kit, "/v1/catalog/conjectures")).json()["items"][0]
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{listing['slug']}")).json()
+            assert index["display_title"] == listing["display_title"] == detail["display_title"] == expected
+            assert index["slug"] == listing["slug"] == "math15catalog-source04"
+            row = SimpleNamespace(reward_target_id="fc-target:Math15Catalog.source04")
+            assert named_of(kit.services.index, row).display_title == expected
+            assert detail["title"] == "Math15Catalog.source04"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
