@@ -17,6 +17,7 @@ checkout returns. Readers take no lock and write nothing. No database, no Lean.
 from __future__ import annotations
 
 import json
+import multiprocessing
 import os
 import uuid
 from dataclasses import replace
@@ -291,3 +292,33 @@ def test_readers_need_no_lock_file_and_no_write_access(checkout):
             path.chmod(mode)
     assert sorted(str(path.relative_to(checkout)) for path in checkout.rglob("*")) == before
     assert not os.path.lexists(checkout / LOCK_NAME)
+
+
+def _read_checkout(tasks_root: str, queue) -> None:
+    root = Path(tasks_root)
+    try:
+        publication.read_coherently(root, lambda snapshot: snapshot, allowlist_path=root / "allowlist.json")
+        queue.put("read")
+    except PublicationError as exc:
+        queue.put(str(exc))
+
+
+@pytest.mark.parametrize("planted", [REGISTRY_NAME, "allowlist.json"])
+def test_a_fifo_planted_as_metadata_is_refused_without_blocking(tmp_path, planted):
+    """Independent review of 5152b5f (P3): opening a FIFO that has no writer blocked the reader
+    before its regular-file check. Bounded: the reader runs in a child that is killed if it hangs."""
+    for name in (REGISTRY_NAME, "allowlist.json"):
+        if name != planted:
+            (tmp_path / name).write_bytes(b"{}")
+    os.mkfifo(tmp_path / planted)
+    context = multiprocessing.get_context("spawn")
+    queue = context.Queue()
+    reader = context.Process(target=_read_checkout, args=(str(tmp_path), queue))
+    reader.start()
+    reader.join(timeout=30)
+    if reader.is_alive():
+        reader.kill()
+        reader.join()
+        pytest.fail(f"a reader blocked on a FIFO named {planted}")
+    assert reader.exitcode == 0
+    assert queue.get(timeout=10) == f"publication: {planted} is not a regular file"

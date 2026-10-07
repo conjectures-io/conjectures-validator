@@ -103,9 +103,19 @@ class CheckoutSnapshot:
 
 
 def _read_once(path: Path) -> bytes | None:
-    """One read of a regular file through one descriptor, never following a symlink."""
+    """One read of a regular file through one descriptor, never following a symlink.
+
+    Opened non-blocking, so a FIFO planted under a metadata name is refused by the regular-file
+    check instead of blocking the reader in `open` until some writer appears.
+    """
     try:
-        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0))
+        descriptor = os.open(
+            path,
+            os.O_RDONLY
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+        )
     except FileNotFoundError:
         return None
     except OSError as exc:
