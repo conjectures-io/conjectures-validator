@@ -637,7 +637,7 @@ def test_research_targets_are_named_as_package_authored():
     name = problem_name(module="FormalConjectures.ResearchTargets.Math30", theorem=ACTIVE)
     assert name.collection == "research_targets"
     assert name.collection_label == "Package-authored research targets"
-    assert name.display_title.startswith("Package-authored research target Math30")
+    assert name.display_title.startswith("Package-authored research target Math 30")
 
 
 # --- the checked-in candidate ---------------------------------------------------------------------
