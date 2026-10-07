@@ -132,8 +132,8 @@ def test_the_list_publishes_every_conjecture_with_its_facets():
                 SOLVED_DIRECT,
                 OPEN_ANSWER,
             ]
-            assert body["items"][0]["bounty"]["amount_rao"] == 400_000_000
-            assert body["items"][0]["bounty"]["amount_usd"] == "15.00"
+            assert body["items"][0]["bounty"]["amount_rao"] == 200_000_000
+            assert body["items"][0]["bounty"]["amount_usd"] == "7.50"
 
             facets = {facet["field"]: facet["values"] for facet in body["facets"]}
             assert {item["value"]: item["count"] for item in facets["category"]} == {
@@ -644,7 +644,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
                 "open_targets": 3,
                 "total_age_weight": 3,
                 "constant_numerator": 1,
-                "constant_denominator": 10,
+                "constant_denominator": 20,
                 "ramp_seconds": 1296000,
                 "max_age_weight": 60,
                 "max_bounty_share_numerator": 1,

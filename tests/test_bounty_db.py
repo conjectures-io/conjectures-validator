@@ -27,7 +27,7 @@ def test_catalog_changes_and_repins_do_not_change_a_targets_share_or_opening_dat
             async with kit.session() as session:
                 assert (
                     await original.quote(session, reward_target_id=target)
-                ).amount_rao == 9_000_000_000
+                ).amount_rao == 4_500_000_000
                 await session.commit()
 
             later = opened + timedelta(days=5, hours=12)
@@ -39,7 +39,7 @@ def test_catalog_changes_and_repins_do_not_change_a_targets_share_or_opening_dat
             async with kit.session() as session:
                 before = await aged.quote(session, reward_target_id=target)
                 after = await expanded.quote(session, reward_target_id=target)
-                assert before.amount_rao == after.amount_rao == 9_825_000_000
+                assert before.amount_rao == after.amount_rao == 6_975_000_000
                 assert after.inputs["age_seconds"] == 475200
                 assert after.inputs["ramp_seconds"] == 1296000
                 assert before.inputs["open_targets"] != after.inputs["open_targets"]
@@ -54,11 +54,11 @@ def test_catalog_changes_and_repins_do_not_change_a_targets_share_or_opening_dat
             async with kit.session() as session:
                 assert (
                     await aged.quote(session, reward_target_id=target)
-                ).amount_rao == 9_825_000_000
+                ).amount_rao == 6_975_000_000
                 funded = replace(aged, balance_reader=StaticBalanceReader(180_000_000_000))
                 assert (
                     await funded.quote(session, reward_target_id=target)
-                ).amount_rao == 19_650_000_000
+                ).amount_rao == 13_950_000_000
                 mature = replace(aged, clock=lambda: opened + timedelta(days=15))
                 assert (
                     await mature.quote(session, reward_target_id=target)
@@ -80,7 +80,7 @@ def test_a_future_opening_date_uses_the_starting_share():
                 session.add(BountyTask(reward_target_id=target, opened_at=now + timedelta(days=1)))
                 await session.commit()
                 quote = await pricer.quote(session, reward_target_id=target)
-                assert quote.amount_rao == 400_000_000
+                assert quote.amount_rao == 200_000_000
                 assert quote.inputs["age_seconds"] == 0
         finally:
             await kit.teardown()
