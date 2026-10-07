@@ -5,7 +5,7 @@ carry a stable `reward_target_id`. Independently formalized parents, parts, and 
 different identities and therefore separate rewards. These tests cover intake, exclusivity for
 one exact target, independence between targets, and contradictory proof/refutation outcomes.
 
-Skipped unless a PostgreSQL server is reachable:
+Skipped unless a verified private test database is configured:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """

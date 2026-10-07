@@ -133,3 +133,21 @@ def test_no_test_helper_discovers_or_defaults_to_a_shared_database():
             node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str)
         ]
         assert not any("@127.0.0.1:5440" in value or "conjectures-pytest-pw" in value for value in strings), name
+
+
+def test_no_test_module_falls_back_to_the_removed_shared_dsn():
+    """A test cannot reintroduce the shared stack by importing a default the harness dropped.
+
+    `test_api_public.py` once built a production-shaped app on `postgres_dsn() or PYTEST_DSN`,
+    which reached the shared stack whenever the verified DSN was absent.
+    """
+    removed = {"PYTEST_DSN", "PYTEST_COMPETITION_DSN", "_reachable"}
+    for path in sorted(TESTS.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        imported = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        assert not removed & imported, path.name

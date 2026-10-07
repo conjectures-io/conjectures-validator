@@ -4,7 +4,7 @@ Deliberately independent of the API test harness: the verification seam is a com
 own right, and these are the properties that stop two workers paying twice for one proof or
 charging a miner for our dead container.
 
-Skipped unless a verified private test database is configured (tests/database_guard.py):
+Skipped unless a verified private test database is configured:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """

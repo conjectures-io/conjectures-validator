@@ -3,7 +3,7 @@
 Two credentials now reach the account API: the browser's HttpOnly cookie and a bearer token a
 coldkey mints for the miner CLI. Almost everything here is about the boundary between them —
 what a bearer token may do, what it must not, and the ways the two could be confused for one
-another. Needs a real PostgreSQL server:
+another. Needs a verified private PostgreSQL fixture:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 

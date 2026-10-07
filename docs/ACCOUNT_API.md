@@ -1408,7 +1408,8 @@ bound on the setting before it, raised only on development or load-testing deplo
 ## Tests
 
 ```bash
-docker compose -f docker-compose.pytest-db.yml up -d
+# database tests need a verified private fixture (tests/database_guard.py), or they skip
+FC_POSTGRES_DSN=<private fixture DSN> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its system_identifier> \
 .venv/bin/pytest tests/test_api_accounts.py tests/test_api_auth.py tests/test_api_cli_sessions.py \
     tests/test_api_tmc_pay.py tests/test_api_web_submissions.py
 ```

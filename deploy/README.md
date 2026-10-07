@@ -46,19 +46,16 @@ backoff for twenty minutes rather than fail.
 
 ## The pytest database
 
-The test suite has its own stack, on host port 5440, so a run that drops and
-recreates the schema cannot reach development data:
-
-```bash
-docker compose -f docker-compose.pytest-db.yml up -d
-```
-
-Every credential in `docker-compose.pytest-db.yml` is fixed and duplicated in
-`tests/conftest_api.py`, which probes the server and skips the database tests
-when it is not up. The tests therefore need no `.env` and no `FC_POSTGRES_DSN`;
-`FC_POSTGRES_DSN` remains an override for pointing them at another server. Do
-not parameterise those credentials — the duplication is what stops the two sides
-from drifting apart silently.
+Database tests drop and recreate schemas, so the suite no longer discovers or
+defaults to any server, including the shared stack in
+`docker-compose.pytest-db.yml` on host port 5440. They run only against a
+private fixture named explicitly for the run: `FC_POSTGRES_DSN` (and
+`FC_COMPETITION_POSTGRES_DSN` for the competition schema) together with
+`FC_TEST_DATABASE_SYSTEM_IDENTIFIER`, the fixture cluster's
+`pg_control_system().system_identifier`. `tests/database_guard.py` verifies that
+identity over a read-only connection before any test runs. Without a DSN the
+database tests skip; a DSN without the identity, a mismatched identity, or a
+DSN reaching TCP port 5432 or 5440 stops the run.
 
 ## Writing a migration
 

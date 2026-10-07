@@ -246,6 +246,7 @@ def test_a_production_configured_app_emits_hsts_and_alt_svc():
 
         settings = Settings.from_env(
             production_env(
+                # `needs_db` guarantees a verified DSN; there is no shared fallback.
                 DATABASE_URL=postgres_dsn(),
                 CORS_ALLOWED_ORIGINS=ORIGIN,
                 ALT_SVC='h3=":8443"; ma=3600',

@@ -10,7 +10,7 @@ signed message rather than finalized chain state:
 * an invoice worth less than the credits it sells is refused rather than sold;
 * another account cannot see, poll, or be credited by somebody else's order.
 
-Needs a real PostgreSQL server, like the rest of the account suite:
+Needs a verified private PostgreSQL fixture, like the rest of the account suite:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """

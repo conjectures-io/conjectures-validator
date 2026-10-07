@@ -7,7 +7,7 @@ at any state: the paying coldkey, the payment reference, the funding extrinsic, 
 stdout or stderr. The proof of a submission that is unverified, rejected, or still in review is not
 published either, and the tests below pin each of those three cases — a rejected submission is
 *listed* on the dashboard feed, which is a different thing from its artifacts being served, and the
-tests hold that line separately. Needs a real PostgreSQL server:
+tests hold that line separately. Needs a verified private PostgreSQL fixture:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """

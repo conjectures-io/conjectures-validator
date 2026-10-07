@@ -70,22 +70,19 @@ jobs:
           POSTGRES_PASSWORD: conjectures-pytest-pw
           POSTGRES_DB: conjectures-pytest
         ports:
-          - 5440:5432
+          # Container port only, so Docker maps it to a free host port for this job. The test
+          # guard (tests/database_guard.py) refuses TCP 5432 and 5440 -- production and the
+          # shared pytest stack -- so the suite may not run on either, even here.
+          - 5432
         options: >-
           --health-cmd "pg_isready -U conjectures-pytest -d conjectures-pytest"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
 
-    env:
-      # The suite skips its database tests when it cannot reach a server, which is right on a
-      # laptop and dangerous here: unset, this job would pass having exercised almost nothing.
-      # The next step turns that skip into a failure.
-      FC_POSTGRES_DSN: postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw@127.0.0.1:5440/conjectures-pytest
-      # The competition schema lives in a second database in the SAME server, as it does in
-      # the deployment and in docker-compose.pytest-db.yml. Created by a step below, because
-      # a `services:` container takes only one POSTGRES_DB and mounts no init script.
-      FC_COMPETITION_POSTGRES_DSN: postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw@127.0.0.1:5440/conjectures-pytest-competition
+    # Deliberately no database variables at job level. "Capture the service's cluster identity"
+    # exports them through GITHUB_ENV once the port and identity are known, so no step can reach
+    # a server before tests/database_guard.py has proved which one it is.
 
     steps:
       - uses: actions/checkout@v4
@@ -109,49 +106,153 @@ jobs:
             -e '.[dev,service,subnet,db,competition]'
           python -m pip check
 
-      # deploy/db/01_competition.sh does this in a real deployment; a `services:` container
-      # runs no init script, so it is done here instead. Idempotent for the same reason the
-      # script is: this job may be re-run against a warm cache.
-      - name: Create the competition database
-        run: |
-          psql -h 127.0.0.1 -p 5440 -U conjectures-pytest \
-            -d conjectures-pytest -v ON_ERROR_STOP=1 -tAc \
-            "SELECT 'CREATE DATABASE \"conjectures-pytest-competition\"'
-             WHERE NOT EXISTS (
-               SELECT FROM pg_database WHERE datname = 'conjectures-pytest-competition')" \
-          | psql -h 127.0.0.1 -p 5440 -U conjectures-pytest -d conjectures-pytest -v ON_ERROR_STOP=1
+      # The suite skips its database tests when no DSN is set, which is right on a laptop and
+      # dangerous here: unset, this job would pass having exercised almost nothing. The guard also
+      # accepts a DSN only together with the identity of the cluster it must reach. That identity
+      # is read here out of band -- from this job's own service container, over its local socket,
+      # in a read-only transaction -- never from the DSN it is about to vouch for.
+      #
+      # Expressions reach the script only through `env:`, and every value is checked before it
+      # is used or written to GITHUB_ENV: a container id is hex, a port and an identity are
+      # digits, so no value can carry a newline into the env file.
+      - name: Capture the service's cluster identity
+        shell: bash
         env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+          SERVICE_PORT: ${{ job.services.postgres.ports['5432'] }}
           PGPASSWORD: conjectures-pytest-pw
+        run: |
+          set -euo pipefail
+          if [[ ! "$SERVICE_CONTAINER" =~ ^[0-9a-f]{12,64}$ ]]; then
+            echo "the postgres service has no usable container id" >&2
+            exit 1
+          fi
+          if [[ ! "$SERVICE_PORT" =~ ^[1-9][0-9]{0,4}$ ]] || (( SERVICE_PORT > 65535 )); then
+            echo "the postgres service's mapped host port is not a TCP port number" >&2
+            exit 1
+          fi
+          if (( SERVICE_PORT == 5432 || SERVICE_PORT == 5440 )); then
+            echo "the postgres service was mapped to TCP $SERVICE_PORT, which the guard refuses" >&2
+            exit 1
+          fi
+          # The same expression the guard compares against (database_guard.IDENTITY_SQL).
+          identity="$(
+            docker exec --env PGPASSWORD --env 'PGOPTIONS=-c default_transaction_read_only=on' \
+              "$SERVICE_CONTAINER" \
+              psql -X -v ON_ERROR_STOP=1 -U conjectures-pytest -d conjectures-pytest -tAc \
+              'SELECT system_identifier::text FROM pg_control_system()'
+          )"
+          if [[ ! "$identity" =~ ^-?[0-9]{1,20}$ ]]; then
+            echo "the postgres service did not report a cluster system_identifier" >&2
+            exit 1
+          fi
+          base="postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw@127.0.0.1:$SERVICE_PORT"
+          {
+            printf 'FC_TEST_DATABASE_SYSTEM_IDENTIFIER=%s\n' "$identity"
+            printf 'FC_POSTGRES_DSN=%s/conjectures-pytest\n' "$base"
+            # The competition schema lives in a second database in the SAME server, as it does
+            # in the deployment. Created below: a `services:` container takes one POSTGRES_DB.
+            printf 'FC_COMPETITION_POSTGRES_DSN=%s/conjectures-pytest-competition\n' "$base"
+          } >> "$GITHUB_ENV"
+          echo "service cluster $identity on 127.0.0.1:$SERVICE_PORT"
 
-      # docker-compose.pytest-db.yml's migrate-competition service does this locally. The API
-      # and worker tests clear these tables rather than build them, so an unmigrated database
-      # fails every one of them with UndefinedTable.
-      - name: Migrate the competition database
-        run: alembic -c deploy/migrate/competition/alembic.ini upgrade head
-        env:
-          COMPETITION_DATABASE_URL: ${{ env.FC_COMPETITION_POSTGRES_DSN }}
-
-      - name: Prove the harness can see the database
+      # Before anything creates, migrates or drops: the harness's own guard proves the proofs DSN
+      # reaches the cluster just identified, and the expected database on it. A refused port, an
+      # unreachable server or another identity raises DatabaseGuardError and stops the job here.
+      - name: Verify the proofs database with the test guard
+        shell: bash
         run: |
           python - <<'PY'
           import sys
           sys.path.insert(0, "tests")
-          from conftest_api import postgres_dsn
-          if postgres_dsn() is None:
-              sys.exit(
-                  "the test harness found no reachable database, so every database test "
-                  "would have skipped and this job would have passed on nothing"
-              )
-          print("database reachable:", postgres_dsn().rsplit("@", 1)[-1])
+          import database_guard as guard
+          from conftest_api import postgres_dsn  # the entry point the tests themselves use
 
-          from conftest import competition_dsn
-          if competition_dsn() is None:
-              sys.exit(
-                  "the test harness found no reachable competition database, so the schema "
-                  "drift tests would have skipped and this job would not have checked them"
-              )
-          print("competition database reachable:", competition_dsn().rsplit("@", 1)[-1])
+          reached = []
+
+          def probe(dsn):
+              database, identifier = guard._probe(dsn)
+              reached.append(database)
+              return database, identifier
+
+          if guard.verified_dsn("FC_POSTGRES_DSN", probe=probe) is None or postgres_dsn() is None:
+              sys.exit("FC_POSTGRES_DSN is not set, so every database test would skip")
+          if reached != ["conjectures-pytest"]:
+              sys.exit(f"FC_POSTGRES_DSN reaches {reached}, not conjectures-pytest")
+          print("verified proofs database:", postgres_dsn().rsplit("@", 1)[-1])
           PY
+
+      # deploy/db/01_competition.sh does this in a real deployment; a `services:` container
+      # runs no init script, so it is done here instead -- inside this job's own service
+      # container, and only after checking it is still the cluster the guard just verified, so
+      # the CREATE cannot land on any other server. Idempotent for the same reason the script is.
+      - name: Create the competition database
+        shell: bash
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+          PGPASSWORD: conjectures-pytest-pw
+        run: |
+          set -euo pipefail
+          if [[ ! "$SERVICE_CONTAINER" =~ ^[0-9a-f]{12,64}$ ]]; then
+            echo "the postgres service has no usable container id" >&2
+            exit 1
+          fi
+          identity="$(
+            docker exec --env PGPASSWORD --env 'PGOPTIONS=-c default_transaction_read_only=on' \
+              "$SERVICE_CONTAINER" \
+              psql -X -v ON_ERROR_STOP=1 -U conjectures-pytest -d conjectures-pytest -tAc \
+              'SELECT system_identifier::text FROM pg_control_system()'
+          )"
+          expected="${FC_TEST_DATABASE_SYSTEM_IDENTIFIER:-}"
+          if [[ -z "$expected" || "$identity" != "$expected" ]]; then
+            echo "the service container is not the cluster the guard verified" >&2
+            exit 1
+          fi
+          service_psql() {
+            docker exec -i --env PGPASSWORD "$SERVICE_CONTAINER" \
+              psql -X -v ON_ERROR_STOP=1 -U conjectures-pytest -d conjectures-pytest "$@"
+          }
+          service_psql -tAc \
+            "SELECT 'CREATE DATABASE \"conjectures-pytest-competition\"'
+             WHERE NOT EXISTS (
+               SELECT FROM pg_database WHERE datname = 'conjectures-pytest-competition')" \
+          | service_psql
+
+      # The new database must be on that same verified cluster before Alembic writes to it.
+      - name: Verify the competition database with the test guard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "tests")
+          import database_guard as guard
+          from conftest import competition_dsn  # the entry point the tests themselves use
+
+          reached = []
+
+          def probe(dsn):
+              database, identifier = guard._probe(dsn)
+              reached.append(database)
+              return database, identifier
+
+          verified = guard.verified_dsn("FC_COMPETITION_POSTGRES_DSN", probe=probe)
+          if verified is None or competition_dsn() is None:
+              sys.exit("FC_COMPETITION_POSTGRES_DSN is not set, so the competition tests would skip")
+          if reached != ["conjectures-pytest-competition"]:
+              sys.exit(f"FC_COMPETITION_POSTGRES_DSN reaches {reached}, not conjectures-pytest-competition")
+          print("verified competition database:", competition_dsn().rsplit("@", 1)[-1])
+          PY
+
+      # docker-compose.pytest-db.yml's migrate-competition service does this locally. The API
+      # and worker tests clear these tables rather than build them, so an unmigrated database
+      # fails every one of them with UndefinedTable. The URL comes from the shell, not an
+      # expression, and an empty one stops here: `competition_database_url()` would otherwise
+      # fall back to localhost:5432.
+      - name: Migrate the competition database
+        shell: bash
+        run: |
+          COMPETITION_DATABASE_URL="${FC_COMPETITION_POSTGRES_DSN:?the competition DSN was not verified}" \
+            alembic -c deploy/migrate/competition/alembic.ini upgrade head
 
       # Three markers, for three inputs this job does not provision: the pinned Lean toolchain
       # and trusted cache, a local Subtensor chain, and the task-bundle plus vendored checkouts.

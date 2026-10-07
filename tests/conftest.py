@@ -1,22 +1,24 @@
 from __future__ import annotations
 
-from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
-
-# Database tests are destructive, so the suite never discovers a server: there is no default
-# DSN and no probe of the shared pytest stack. `tests/database_guard.py` decides, fail-closed,
-# from an explicit DSN plus the declared identity of the fixture it must reach.
-from database_guard import (  # noqa: E402 - documented above
+# Database tests are destructive, so the suite never discovers a server: there is no default DSN
+# and no probe of the shared pytest stack. `tests/database_guard.py` decides, fail-closed, from an
+# explicit DSN plus the declared identity of the fixture it must reach. `postgres_dsn` and
+# `competition_dsn` keep their names and signatures here, so every caller is unchanged.
+from database_guard import (
     IDENTITY_ENV,
     DatabaseGuardError,
     competition_dsn,
     postgres_dsn,
 )
+from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
 
 DATABASE_SKIP_REASON = (
     "no database: set FC_POSTGRES_DSN and FC_TEST_DATABASE_SYSTEM_IDENTIFIER to a private "
     "fixture (see tests/database_guard.py)"
 )
 
+# The competition schema lives in a second database in the same private fixture cluster, so the
+# one declared identity covers both DSNs.
 COMPETITION_SKIP_REASON = (
     "no competition database: set FC_COMPETITION_POSTGRES_DSN and "
     "FC_TEST_DATABASE_SYSTEM_IDENTIFIER to a private fixture (see tests/database_guard.py)"
@@ -27,7 +29,10 @@ __all__ = [
     "DATABASE_SKIP_REASON",
     "IDENTITY_ENV",
     "DatabaseGuardError",
+    "catalog",
     "competition_dsn",
+    "declaration",
+    "manifest",
     "postgres_dsn",
 ]
 

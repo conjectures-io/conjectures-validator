@@ -75,7 +75,8 @@ OPERATOR_REASONS = frozenset(
         ReasonCode.ENVIRONMENT_MISMATCH,
         ReasonCode.DEPENDENCY_IDENTITY_MISMATCH,
         # A crashed checker has not judged the proof. It is never an accept, and recording it
-        # as a rejection would charge the miner for our tool's failure.
+        # as a rejection would charge the miner for our tool's failure. The attempt cap still
+        # bounds retries, and an exhausted submission pages an operator rather than resolving.
         ReasonCode.COMPARATOR_TOOL_CRASHED,
         ReasonCode.REPOSITORY_NOT_FOUND,
         ReasonCode.TRUSTED_FILE_MODIFIED,

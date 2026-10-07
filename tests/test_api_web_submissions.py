@@ -7,7 +7,7 @@ trying to use the one path a coldkey authorises, and a retry being charged twice
 
 Signatures are real sr25519 over the exact message the server rebuilds — the fixture addresses
 are the standard development URIs — so a test that passes has proved the server reconstructed
-the same bytes the client signed. Needs a real PostgreSQL server:
+the same bytes the client signed. Needs a verified private PostgreSQL fixture:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """

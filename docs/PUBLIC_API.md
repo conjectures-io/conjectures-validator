@@ -855,7 +855,8 @@ another, so it stops the process rather than showing up as a mismatched detail p
 ## Tests
 
 ```bash
-docker compose -f docker-compose.pytest-db.yml up -d
+# database tests need a verified private fixture (tests/database_guard.py), or they skip
+FC_POSTGRES_DSN=<private fixture DSN> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its system_identifier> \
 .venv/bin/pytest tests/test_api_catalog.py tests/test_api_results.py tests/test_api_public.py
 # no database needed: the reference and display-title parsers are pure functions
 .venv/bin/pytest tests/test_naming.py tests/test_references.py

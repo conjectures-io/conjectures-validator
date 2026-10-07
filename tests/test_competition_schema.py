@@ -50,12 +50,15 @@ def migrated():
     """
     dsn = competition_dsn()
     assert dsn is not None
-    base, _ = dsn.rsplit("/", 1)
+    # Only the database name changes, so every other connection parameter -- a socket directory
+    # given as `?host=` included -- still names the fixture `tests/database_guard.py` verified.
+    # Cutting the string at its last "/" would rewrite such a host to an unverified one.
+    verified = sa.engine.make_url(dsn)
     name = f"conjectures_competition_scratch_{uuid.uuid4().hex[:8]}"
-    admin = sa.create_engine(f"{base}/postgres", isolation_level="AUTOCOMMIT")
+    admin = sa.create_engine(verified.set(database="postgres"), isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
         conn.execute(sa.text(f'CREATE DATABASE "{name}"'))
-    url = f"{base}/{name}"
+    url = verified.set(database=name).render_as_string(hide_password=False)
     # env.py reads the URL from the environment, so set the one it reads -- and only that
     # one. Leaving DATABASE_URL alone is deliberate: if env.py ever honoured it again, the
     # tests below would still be pointing somewhere harmless and would not notice.

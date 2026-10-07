@@ -7,7 +7,8 @@ partial indexes and a plpgsql trigger, so there is no portable subset to fall ba
 SQLite run would prove nothing about the database the service actually uses. They run only
 against an explicitly named private fixture whose identity the run declares and the harness
 verifies (`FC_POSTGRES_DSN` plus `FC_TEST_DATABASE_SYSTEM_IDENTIFIER`; see
-`tests/database_guard.py`). Without both they skip; with a mismatch the run stops.
+`tests/database_guard.py`). Without a DSN they skip; a DSN without a declared identity, a
+mismatched identity, or a shared/production endpoint stops the run.
 
 The schema is built with `Base.metadata.create_all`, which is the mirror rather than the source
 of truth; `scripts/check_schema_drift.py` is what proves the mirror still matches
@@ -24,6 +25,11 @@ from pathlib import Path
 
 from conftest import declaration
 from conftest import manifest as task_manifest
+
+# The API tests use the same fail-closed database decision as every other suite: an explicit DSN
+# whose server proves it is the declared fixture, or no database at all. There is deliberately no
+# default DSN and no probe of the shared pytest stack. Re-exported, so callers are unchanged.
+from database_guard import postgres_dsn
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import (
     MINER_COLDKEY,
@@ -161,11 +167,6 @@ def distinct_bundle(marker: str, *, coldkey: str = MINER_COLDKEY) -> tuple[bytes
 
 
 ROOT = Path(__file__).resolve().parents[1]
-
-# The API tests use the same fail-closed database decision as every other suite: an explicit DSN
-# whose server proves it is the declared fixture, or no database at all. There is deliberately no
-# default DSN and no probe of the shared pytest stack.
-from database_guard import postgres_dsn  # noqa: E402 - documented above
 
 
 def new_key() -> str:

@@ -10,7 +10,7 @@ proving it. These tests fix the shape of the fix:
 * activity still resolves, because that is the part worth keeping;
 * the live pool is untouched.
 
-Needs a real PostgreSQL server for the attempt counters:
+Needs a verified private PostgreSQL fixture for the attempt counters:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """

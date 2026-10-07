@@ -1,8 +1,8 @@
 """The public conjecture catalog: list, detail, meta, and anonymised activity.
 
 The database is only touched for the attempt counters, so most of this runs against a synthetic
-in-memory catalog. The tests that assert on counters need a real PostgreSQL server and are
-skipped without one:
+in-memory catalog. The tests that assert on counters need a verified private PostgreSQL fixture
+and are skipped without one:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """

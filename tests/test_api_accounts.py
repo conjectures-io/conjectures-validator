@@ -2,7 +2,7 @@
 
 Mostly about what must *not* work: a write a hostile page could have caused, a magic link used
 twice, a signature replayed from another flow, an account reading another account's rows, a
-credit spent twice. Needs a real PostgreSQL server:
+credit spent twice. Needs a verified private PostgreSQL fixture:
 
     FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 
