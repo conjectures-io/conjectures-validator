@@ -213,7 +213,14 @@ class TaskPoolRegistry:
 
     @classmethod
     def load(cls, path: Path) -> "TaskPoolRegistry":
-        value = _json_object(_read_regular(path, MAX_ALLOWLIST_BYTES))
+        return cls.from_bytes(_read_regular(path, MAX_ALLOWLIST_BYTES))
+
+    @classmethod
+    def from_bytes(cls, content: bytes) -> "TaskPoolRegistry":
+        """Parse allowlist bytes a caller has already read (and will check against nothing else)."""
+        if len(content) > MAX_ALLOWLIST_BYTES:
+            raise TaskNotAllowed("task allowlist is too large")
+        value = _json_object(content)
         expected_fields = {
             "allowed_source_theorems",
             "allowed_task_bundles",

@@ -11,10 +11,16 @@ A publication changes two files that readers use together: `task-versions.json` 
    journal (`.publication-journal.json`), which is flushed before anything visible changes.
 3. The allowlist, then the registry, are renamed into place; the journal is removed last.
 
-A crash at any point leaves either nothing visible or a journal. Readers refuse a checkout
-with a journal (`assert_no_pending_publication`) and, independently, refuse any registry
-whose current publication does not name the allowlist's exact digest. The next writer rolls a
+A crash at any point leaves either nothing visible or a journal. The next writer rolls a
 journal forward from the staged files it names, after checking their digests; it never guesses.
+
+Readers take no lock and write nothing, so they work on read-only mounts. `read_coherently`
+reads the registry and allowlist bytes once each, hands only those bytes to the caller, and
+afterwards re-checks that no journal exists and that both files still hold exactly those bytes.
+A commit that began while the reader was reading - whatever step it reached, or died at -
+leaves a journal, which is refused; one that completed in between changed the bytes, so the
+read is repeated. Independently, readers refuse any registry whose current publication does not
+name the allowlist's exact digest.
 """
 
 from __future__ import annotations
@@ -23,9 +29,12 @@ import contextlib
 import fcntl
 import json
 import os
+import stat
 import tempfile
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TypeVar
 
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import sha256_bytes
@@ -69,11 +78,86 @@ def _digest(path: Path) -> str | None:
 
 
 def assert_no_pending_publication(tasks_root: Path) -> None:
-    """Readers call this first: a journal means a commit did not finish."""
+    """A journal means a commit did not finish. Alone this proves nothing about a later read:
+    readers use `read_coherently`, which checks again after reading."""
     if os.path.lexists(tasks_root / JOURNAL_NAME):
         raise PublicationError(
             "an unfinished publication is pending in this tasks checkout; refusing to read it"
         )
+
+
+MAX_METADATA_BYTES = 256 * 1024 * 1024
+READ_ATTEMPTS = 3
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class CheckoutSnapshot:
+    """The registry and allowlist bytes of one committed state of a tasks checkout.
+
+    None means the file does not exist (a release that predates the registry has none).
+    """
+
+    registry: bytes | None
+    allowlist: bytes | None
+
+
+def _read_once(path: Path) -> bytes | None:
+    """One read of a regular file through one descriptor, never following a symlink."""
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0))
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise PublicationError(f"cannot read {path.name}: {exc}") from exc
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise PublicationError(f"{path.name} is not a regular file")
+        with os.fdopen(os.dup(descriptor), "rb") as handle:
+            content = handle.read(MAX_METADATA_BYTES + 1)
+    finally:
+        os.close(descriptor)
+    if len(content) > MAX_METADATA_BYTES:
+        raise PublicationError(f"{path.name} is too large")
+    return content
+
+
+def read_coherently(
+    tasks_root: Path,
+    use: Callable[[CheckoutSnapshot], T],
+    *,
+    allowlist_path: Path | None = None,
+) -> T:
+    """Run `use` on one committed state of the checkout, or refuse.
+
+    `use` must read the registry and allowlist only from the snapshot it is given; anything
+    else it reads (bundles) is content-addressed and checked against those bytes. A commit
+    that is pending before, during or after the read is refused; one that completed during
+    the read makes the read start over, at most `READ_ATTEMPTS` times. An error raised by `use`
+    on a snapshot that is still current is the checkout's own fault and is raised as is.
+    """
+    registry_path = tasks_root / REGISTRY_NAME
+
+    def capture() -> CheckoutSnapshot:
+        return CheckoutSnapshot(
+            _read_once(registry_path), _read_once(allowlist_path) if allowlist_path is not None else None
+        )
+
+    for _attempt in range(READ_ATTEMPTS):
+        assert_no_pending_publication(tasks_root)
+        snapshot = capture()
+        try:
+            result = use(snapshot)
+        except Exception:
+            # A failure on bytes that a commit was replacing says nothing about the checkout.
+            assert_no_pending_publication(tasks_root)
+            if capture() != snapshot:
+                continue
+            raise
+        assert_no_pending_publication(tasks_root)
+        if capture() == snapshot:
+            return result
+    raise PublicationError("the tasks checkout kept changing while it was read; refusing to use it")
 
 
 def _recover(tasks_root: Path) -> str | None:
@@ -185,8 +269,10 @@ def commit_publication(
 __all__ = [
     "JOURNAL_NAME",
     "LOCK_NAME",
+    "CheckoutSnapshot",
     "PublicationError",
     "assert_no_pending_publication",
     "checkout_writer",
     "commit_publication",
+    "read_coherently",
 ]

@@ -468,9 +468,19 @@ def assert_matches_allowlist(registry: VersionRegistry, allowlist_path: Path) ->
     """The current publication's allowlist is exactly the registry's active versions."""
     try:
         content = allowlist_path.read_bytes()
-        allowlist = json.loads(content)
-    except (OSError, json.JSONDecodeError) as exc:
+    except OSError as exc:
         raise RegistryError(f"cannot read the allowlist: {exc}") from exc
+    assert_matches_allowlist_bytes(registry, content)
+
+
+def assert_matches_allowlist_bytes(registry: VersionRegistry, content: bytes) -> None:
+    """`assert_matches_allowlist` for bytes already read: the bytes checked are the bytes used."""
+    try:
+        allowlist = json.loads(content)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RegistryError(f"cannot read the allowlist: {exc}") from exc
+    if not isinstance(allowlist, dict):
+        raise RegistryError("the allowlist is not a JSON object")
     current = registry.current
     if sha256_bytes(content) != current.allowlist_sha256:
         raise RegistryError("allowlist is not the one the current publication opened")
@@ -647,6 +657,7 @@ __all__ = [
     "VersionRegistry",
     "assert_append_only",
     "assert_matches_allowlist",
+    "assert_matches_allowlist_bytes",
     "assert_record_matches_bundle",
     "publish_legacy",
     "served_keys",

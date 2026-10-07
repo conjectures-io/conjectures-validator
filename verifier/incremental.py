@@ -352,8 +352,6 @@ def publish_tasks_checkout(
     and `allowlist.json` through `verifier.publication`: under the checkout's writer lock, from
     the registry read inside that lock, journaled so an interrupted commit is never half-visible.
     """
-    import tempfile
-
     from verifier.publication import checkout_writer, commit_publication
     from verifier.task_pool import (
         build_task_allowlist,
@@ -369,7 +367,7 @@ def publish_tasks_checkout(
     from verifier.task_policy import PRODUCTION_TASK_MODES
     from verifier.task_registry import TaskPoolRegistry
     from verifier.task_versions import derive_dependency_index
-    from verifier.version_registry import REGISTRY_NAME, assert_matches_allowlist
+    from verifier.version_registry import REGISTRY_NAME, assert_matches_allowlist_bytes
 
     root = Path(tasks_root)
     metadata = root / "tiers" / "tier-1"
@@ -420,13 +418,11 @@ def publish_tasks_checkout(
             project_root=Path(project_root),
             jobs=jobs,
         )
-        with tempfile.TemporaryDirectory(prefix=".publication-check-", dir=root) as temporary:
-            candidate = Path(temporary) / "allowlist.json"
-            candidate.write_bytes(allowlist)
-            checked = TaskPoolRegistry.load(candidate)
-            for bundle in result.bundles:
-                checked.assert_bundle(bundle)
-            assert_matches_allowlist(result.registry, candidate)
+        # The exact bytes about to be committed, checked as every reader will check them.
+        checked = TaskPoolRegistry.from_bytes(allowlist)
+        for bundle in result.bundles:
+            checked.assert_bundle(bundle)
+        assert_matches_allowlist_bytes(result.registry, allowlist)
         commit_publication(
             root,
             previous_registry_sha256=sha256_bytes(previous_bytes) if previous_bytes is not None else None,

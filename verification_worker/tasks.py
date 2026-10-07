@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from verifier.publication import assert_no_pending_publication
+from verifier.publication import CheckoutSnapshot, assert_no_pending_publication, read_coherently
 from verifier.task_loader import load_task_bundle
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
 from verifier.task_versions import LEGACY_PROVENANCE, V2_PROVENANCE
@@ -38,7 +38,7 @@ from verifier.version_registry import (
     Instance,
     RegistryError,
     VersionRegistry,
-    assert_matches_allowlist,
+    assert_matches_allowlist_bytes,
     assert_record_matches_bundle,
     served_keys,
 )
@@ -129,7 +129,10 @@ class PoolTaskResolver:
 
     @classmethod
     def load(cls, *, allowlist_path: Path, pool_root: Path) -> PoolTaskResolver:
-        registry = TaskPoolRegistry.load(allowlist_path)
+        return cls.from_allowlist(TaskPoolRegistry.load(allowlist_path), pool_root=pool_root)
+
+    @classmethod
+    def from_allowlist(cls, registry: TaskPoolRegistry, *, pool_root: Path) -> PoolTaskResolver:
         resolved: dict[str, ResolvedTask] = {}
         for tier in sorted({allowed.tier for allowed in registry.tasks.values()}):
             tier_root = pool_root / tier
@@ -219,15 +222,37 @@ class VersionedTaskResolver:
         environment: Instance,
         allowlist_path: Path | None = None,
     ) -> VersionedTaskResolver:
+        # Fails fast; `read_coherently` checks again before and after it reads.
         assert_no_pending_publication(tasks_root)
-        registry = VersionRegistry.load(tasks_root / REGISTRY_NAME)
+        return read_coherently(
+            tasks_root,
+            lambda snapshot: cls.from_snapshot(snapshot, tasks_root=tasks_root, environment=environment,
+                                               check_allowlist=allowlist_path is not None),
+            allowlist_path=allowlist_path,
+        )
+
+    @classmethod
+    def from_snapshot(
+        cls,
+        snapshot: CheckoutSnapshot,
+        *,
+        tasks_root: Path,
+        environment: Instance,
+        check_allowlist: bool,
+    ) -> VersionedTaskResolver:
+        """The resolver for one committed state; registry and allowlist come only from `snapshot`."""
+        if snapshot.registry is None:
+            raise TaskNotAllowed(f"the tasks checkout has no version registry {REGISTRY_NAME}")
+        registry = VersionRegistry.from_bytes(snapshot.registry)
         if environment not in registry.instances:
             raise TaskNotAllowed(
                 f"verification instance {environment} is not published in the version registry; "
                 "this environment is not the original environment for any paid work"
             )
-        if allowlist_path is not None and registry.current.instance == environment:
-            assert_matches_allowlist(registry, allowlist_path)
+        if check_allowlist and registry.current.instance == environment:
+            if snapshot.allowlist is None:
+                raise TaskNotAllowed("the current publication's allowlist is missing")
+            assert_matches_allowlist_bytes(registry, snapshot.allowlist)
         resolved: dict[ClaimKey, ResolvedTask] = {}
         bundles: dict[str, object] = {}
         for key in served_keys(registry, environment):
@@ -279,13 +304,24 @@ def load_task_resolver(
     pool_root: Path,
     environment: Instance,
 ) -> PoolTaskResolver | VersionedTaskResolver:
-    """The registry when the tasks release has one; otherwise its allowlist, for its own commit only."""
+    """The registry when the tasks release has one; otherwise its allowlist, for its own commit only.
+
+    Both come from one committed state of the checkout (`read_coherently`).
+    """
     assert_no_pending_publication(tasks_root)
-    if os.path.lexists(tasks_root / REGISTRY_NAME):
-        return VersionedTaskResolver.load(
-            tasks_root=tasks_root, environment=environment, allowlist_path=allowlist_path
-        )
-    resolver = PoolTaskResolver.load(allowlist_path=allowlist_path, pool_root=pool_root)
+
+    def resolve(snapshot: CheckoutSnapshot) -> PoolTaskResolver | VersionedTaskResolver:
+        if snapshot.registry is not None:
+            return VersionedTaskResolver.from_snapshot(
+                snapshot, tasks_root=tasks_root, environment=environment, check_allowlist=True
+            )
+        if snapshot.allowlist is None:
+            raise TaskNotAllowed(f"task allowlist is missing: {allowlist_path}")
+        return PoolTaskResolver.from_allowlist(TaskPoolRegistry.from_bytes(snapshot.allowlist), pool_root=pool_root)
+
+    resolver = read_coherently(tasks_root, resolve, allowlist_path=allowlist_path)
+    if isinstance(resolver, VersionedTaskResolver):
+        return resolver
     if resolver.repository_commit != environment.repository_commit:
         raise TaskNotAllowed(
             f"allowlist is for source {resolver.repository_commit} but the verifier environment runs "

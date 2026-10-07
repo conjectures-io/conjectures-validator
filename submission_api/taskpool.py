@@ -21,18 +21,17 @@ the request.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
 from verifier.models import CatalogDeclaration, TaskManifest
-from verifier.publication import assert_no_pending_publication
+from verifier.publication import CheckoutSnapshot, read_coherently
 from verifier.task_loader import TaskBundle, load_task_bundle
 from verifier.task_registry import AllowedTask, TaskNotAllowed, TaskPoolRegistry
 from verifier.task_store import TaskVersionStore
 from verifier.task_versions import is_v2_task_id
-from verifier.version_registry import REGISTRY_NAME, VersionRegistry, assert_matches_allowlist
+from verifier.version_registry import REGISTRY_NAME, VersionRegistry, assert_matches_allowlist_bytes
 
 CHALLENGE_NAME = "Challenge.lean"
 
@@ -61,16 +60,29 @@ class TaskCatalog:
 
     @classmethod
     def load(cls, *, allowlist_path: Path, pool_root: Path) -> TaskCatalog:
+        # One committed state of the checkout or nothing: a publication that is unfinished, or
+        # that lands while this reads, is never served. See `verifier.publication`.
+        return read_coherently(
+            pool_root.parent,
+            lambda snapshot: cls._from_snapshot(snapshot, allowlist_path=allowlist_path, pool_root=pool_root),
+            allowlist_path=allowlist_path,
+        )
+
+    @classmethod
+    def _from_snapshot(cls, snapshot: CheckoutSnapshot, *, allowlist_path: Path, pool_root: Path) -> TaskCatalog:
         tasks_root = pool_root.parent
-        # A half-committed publication is never served, nor even parsed: see `verifier.publication`.
-        assert_no_pending_publication(tasks_root)
-        registry = TaskPoolRegistry.load(allowlist_path)
+        if snapshot.allowlist is None:
+            raise TaskNotAllowed(f"task allowlist is missing: {allowlist_path}")
+        # The allowlist bytes parsed here are the bytes checked against the registry below.
+        registry = TaskPoolRegistry.from_bytes(snapshot.allowlist)
         entries: dict[str, TaskEntry] = {}
         # Version-2 tasks live in the immutable version store, one directory per task ID, and
         # are admitted only if the version registry's current publication says so.
         v2_ids = sorted(task_id for task_id in registry.tasks if is_v2_task_id(task_id))
-        if v2_ids or os.path.lexists(tasks_root / REGISTRY_NAME):
-            assert_matches_allowlist(VersionRegistry.load(tasks_root / REGISTRY_NAME), allowlist_path)
+        if v2_ids or snapshot.registry is not None:
+            if snapshot.registry is None:
+                raise TaskNotAllowed(f"allowlisted versions need the version registry {REGISTRY_NAME}")
+            assert_matches_allowlist_bytes(VersionRegistry.from_bytes(snapshot.registry), snapshot.allowlist)
         if v2_ids:
             store = TaskVersionStore(tasks_root / "versions")
             for task_id in v2_ids:
