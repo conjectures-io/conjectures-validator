@@ -531,6 +531,7 @@ def intake_app(monkeypatch):
             competition_ip_rate_per_minute=5,
             competition_signature_window_seconds=300,
             trusted_proxy_hops=0,
+            trusted_proxy_peers=(),
         ),
         competitions=CompetitionRegistry.of(Competition("deflate", "Compression", 8)),
     )

@@ -36,6 +36,7 @@ from conjectures_subnet.axiom import Severity, Source, get_axiom, request_id
 from conjectures_subnet.axiom.context import new_correlation_id
 from submission_api.errors import SCOPE_REASON_CODE, SCOPE_REQUEST_ID
 from submission_api.middleware import client_address
+from submission_api.settings import ProxyNetwork
 
 logger = logging.getLogger("submission_api.observability")
 
@@ -147,11 +148,13 @@ class AxiomRequestMiddleware:
         app: ASGIApp,
         *,
         trusted_proxy_hops: int = 0,
+        trusted_proxy_peers: tuple[ProxyNetwork, ...] = (),
         mode: str = REQUEST_EVENTS_ALL,
         exempt: Iterable[str] = EXEMPT_PREFIXES,
     ) -> None:
         self._app = app
         self._trusted_proxy_hops = trusted_proxy_hops
+        self._trusted_proxy_peers = trusted_proxy_peers
         self._mode = mode
         self._exempt = tuple(exempt)
 
@@ -226,7 +229,7 @@ class AxiomRequestMiddleware:
             "method": scope.get("method", ""),
             "status": status,
             "duration_ms": _elapsed_ms(started),
-            "client": client_address(scope, self._trusted_proxy_hops),
+            "client": client_address(scope, self._trusted_proxy_hops, self._trusted_proxy_peers),
             "user_agent": _header(scope, b"user-agent")[:_MAX_USER_AGENT],
         }
         # Left on the scope by the exception handlers in `errors.py`, so a refusal reports *why*

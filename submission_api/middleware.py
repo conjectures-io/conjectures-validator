@@ -33,7 +33,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from submission_api import origin_policy
 from submission_api.errors import PROBLEM_MEDIA_TYPE
 from submission_api.ratelimit import Decision, SlidingWindowLimiter
-from submission_api.settings import Settings
+from submission_api.settings import ProxyNetwork, Settings
 
 PUBLIC_PREFIX = "/v1"
 # Liveness and readiness are polled by the orchestrator on a fixed interval and must never be
@@ -55,7 +55,9 @@ API_CSP = (
 PERMISSIONS_POLICY = "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
 
 
-def client_address(scope: Scope, trusted_hops: int) -> str:
+def client_address(
+    scope: Scope, trusted_hops: int, trusted_peers: tuple[ProxyNetwork, ...] = ()
+) -> str:
     """The address to bill this request to.
 
     `X-Forwarded-For` is client-writable, so it is read only as far as the deployment says its
@@ -68,10 +70,16 @@ def client_address(scope: Scope, trusted_hops: int) -> str:
     Getting this wrong in either direction breaks the limiter: trusting an untrusted header lets
     one client mint unlimited keys, and ignoring a real one collapses every visitor behind a CDN
     onto a single budget.
+
+    `trusted_peers` narrows that trust to requests that arrive straight from those networks. An
+    API reachable both through a known proxy and directly needs it: with hops alone, a direct
+    caller can write the header itself and pick its own key.
     """
     peer = scope.get("client")
     fallback = peer[0] if peer else UNKNOWN_CLIENT
     if trusted_hops <= 0:
+        return fallback
+    if trusted_peers and not _within(fallback, trusted_peers):
         return fallback
     forwarded = _header(scope, b"x-forwarded-for")
     if not forwarded:
@@ -82,6 +90,14 @@ def client_address(scope: Scope, trusted_hops: int) -> str:
     if len(chain) < trusted_hops:
         return fallback
     return _normalised_address(chain[-trusted_hops]) or fallback
+
+
+def _within(address: str, networks: tuple[ProxyNetwork, ...]) -> bool:
+    try:
+        parsed = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    return any(parsed in network for network in networks)
 
 
 def _normalised_address(value: str) -> str | None:
@@ -182,12 +198,14 @@ class RateLimitMiddleware:
         *,
         limiter: SlidingWindowLimiter,
         trusted_proxy_hops: int,
+        trusted_proxy_peers: tuple[ProxyNetwork, ...] = (),
         prefix: str = PUBLIC_PREFIX,
         exempt: Iterable[str] = RATE_LIMIT_EXEMPT,
     ) -> None:
         self._app = app
         self._limiter = limiter
         self._trusted_proxy_hops = trusted_proxy_hops
+        self._trusted_proxy_peers = trusted_proxy_peers
         self._prefix = prefix
         self._exempt = tuple(exempt)
 
@@ -207,7 +225,8 @@ class RateLimitMiddleware:
             return
 
         decision = self._limiter.check(
-            client_address(scope, self._trusted_proxy_hops), time.monotonic()
+            client_address(scope, self._trusted_proxy_hops, self._trusted_proxy_peers),
+            time.monotonic(),
         )
         if not decision.allowed:
             await _problem_response(send, decision)

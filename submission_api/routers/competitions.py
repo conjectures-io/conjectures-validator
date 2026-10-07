@@ -117,7 +117,8 @@ async def _spend_ip(
     settings = services.settings
     await _spend(
         session,
-        "ip:" + client_address(request.scope, settings.trusted_proxy_hops),
+        "ip:"
+        + client_address(request.scope, settings.trusted_proxy_hops, settings.trusted_proxy_peers),
         limit=settings.competition_ip_rate_per_minute,
         what="address",
     )

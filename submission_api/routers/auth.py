@@ -281,7 +281,9 @@ def _client_ip(request: Request, settings: Settings) -> str | None:
     Returns None rather than a placeholder when the result is not an address: the column is
     `INET`, and `client_address` yields the string `unknown` when there is no peer at all.
     """
-    address = client_address(request.scope, settings.trusted_proxy_hops)
+    address = client_address(
+        request.scope, settings.trusted_proxy_hops, settings.trusted_proxy_peers
+    )
     try:
         return str(ipaddress.ip_address(address))
     except ValueError:
