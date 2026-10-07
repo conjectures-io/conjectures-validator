@@ -37,7 +37,9 @@ ALEMBIC_INI = "deploy/migrate/competition/alembic.ini"
 
 def _config(url: str) -> Config:
     config = Config(ALEMBIC_INI)
-    config.set_main_option("sqlalchemy.url", url)
+    # Alembic stores options through ConfigParser interpolation, so a literal "%" must be
+    # written "%%". A rendered URL percent-encodes its query, e.g. `?host=%2Ftmp%2F...`.
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     return config
 
 
