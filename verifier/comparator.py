@@ -242,20 +242,23 @@ def run_comparator(
     return result, tools
 
 
-# Comparator's own report that a child (Lake or lean4export) died, printed on a line of its own.
-# A solution cannot forge such a line: it runs no code at build time, and Lean quotes any string
-# literal it echoes inside an error message.
+# Comparator's own report that a child (Lake or lean4export) died. Comparator prints it as its
+# last word before exiting, so only the FINAL nonempty stderr line is trusted. Anything earlier
+# may be text a build echoed (a multiline diagnostic can carry arbitrary lines), and must never
+# turn a semantic rejection into a crash.
 CHILD_EXIT_LINE = re.compile(r"^uncaught exception: child exited with (\d+)$")
 # SIGKILL: the kernel's out-of-memory killer or a resource limit, not a crashed checker.
 KILLED_CHILD_EXIT = 128 + 9
 
 
 def crashed_child_exit(stderr: str) -> int | None:
-    """The signal-style exit code of a crashed Comparator child, if Comparator reported one."""
-    for line in stderr.lower().splitlines():
-        match = CHILD_EXIT_LINE.fullmatch(line.strip())
-        if match is not None and int(match.group(1)) >= 128:
-            return int(match.group(1))
+    """The signal-style exit code of a crashed Comparator child, if Comparator's final line says so."""
+    lines = [line.strip() for line in stderr.lower().splitlines() if line.strip()]
+    if not lines:
+        return None
+    match = CHILD_EXIT_LINE.fullmatch(lines[-1])
+    if match is not None and int(match.group(1)) >= 128:
+        return int(match.group(1))
     return None
 
 

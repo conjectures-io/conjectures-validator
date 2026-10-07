@@ -29,14 +29,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from verifier.publication import assert_no_pending_publication
 from verifier.task_loader import load_task_bundle
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
 from verifier.task_versions import LEGACY_PROVENANCE, V2_PROVENANCE
 from verifier.version_registry import (
     REGISTRY_NAME,
     Instance,
+    RegistryError,
     VersionRegistry,
     assert_matches_allowlist,
+    assert_record_matches_bundle,
     served_keys,
 )
 
@@ -216,6 +219,7 @@ class VersionedTaskResolver:
         environment: Instance,
         allowlist_path: Path | None = None,
     ) -> VersionedTaskResolver:
+        assert_no_pending_publication(tasks_root)
         registry = VersionRegistry.load(tasks_root / REGISTRY_NAME)
         if environment not in registry.instances:
             raise TaskNotAllowed(
@@ -230,22 +234,20 @@ class VersionedTaskResolver:
             record = registry.versions[key.task_id]
             if key.task_id not in bundles:
                 bundle = load_task_bundle(_bundle_directory(tasks_root, key.location))
+                try:
+                    # Every field that names the task, re-derived from the bundle's own bytes.
+                    assert_record_matches_bundle(record, bundle)
+                except RegistryError as exc:
+                    raise TaskNotAllowed(f"bundle at {key.location} does not match its registry record: {exc}") from exc
                 manifest = bundle.manifest
                 if (
-                    manifest.task_id != key.task_id
-                    or bundle.sha256 != key.task_bundle_sha256
-                    or manifest.provenance != record.provenance
-                    or manifest.task_mode != record.mode
-                    or (record.provenance == LEGACY_PROVENANCE and manifest.repository_commit != environment.repository_commit)
-                    or (
-                        record.provenance == V2_PROVENANCE
-                        and (
-                            manifest.environment_identity_sha256 != environment.environment_identity_sha256
-                            or manifest.dependency_identity_sha256 != record.dependency_identity_sha256
-                        )
-                    )
+                    record.provenance == LEGACY_PROVENANCE
+                    and manifest.repository_commit != environment.repository_commit
+                ) or (
+                    record.provenance == V2_PROVENANCE
+                    and manifest.environment_identity_sha256 != environment.environment_identity_sha256
                 ):
-                    raise TaskNotAllowed(f"bundle at {key.location} does not match its registry record")
+                    raise TaskNotAllowed(f"bundle at {key.location} belongs to another environment")
                 bundles[key.task_id] = bundle
             bundle = bundles[key.task_id]
             resolved[ClaimKey(key.task_id, key.task_bundle_sha256, key.problem_id)] = ResolvedTask(
@@ -278,6 +280,7 @@ def load_task_resolver(
     environment: Instance,
 ) -> PoolTaskResolver | VersionedTaskResolver:
     """The registry when the tasks release has one; otherwise its allowlist, for its own commit only."""
+    assert_no_pending_publication(tasks_root)
     if os.path.lexists(tasks_root / REGISTRY_NAME):
         return VersionedTaskResolver.load(
             tasks_root=tasks_root, environment=environment, allowlist_path=allowlist_path

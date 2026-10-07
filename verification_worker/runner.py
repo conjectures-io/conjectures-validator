@@ -548,11 +548,25 @@ def instance_from_doctor(report: object) -> Instance:
     identities reports only its source commit and can serve only legacy work of that commit."""
     if not isinstance(report, dict):
         raise RunnerFailure("verifier image doctor report is not a JSON object")
-    section = report.get("task_versions")
-    if isinstance(section, dict):
+    if "task_versions" in report:
+        # A modern image. It must have derived its identity: one that tried and failed is not a
+        # legacy image and must not be treated as one, or it would claim legacy work.
+        section = report["task_versions"]
+        if (
+            not isinstance(section, dict)
+            or set(section) != {"environment_identity_sha256", "error", "repository_commit"}
+            or section.get("error") is not None
+            or section.get("environment_identity_sha256") is None
+        ):
+            detail = section.get("error") if isinstance(section, dict) else None
+            raise RunnerFailure(
+                f"verifier image could not establish its environment identity; refusing to start: {detail}"
+            )
         commit = section.get("repository_commit")
         identity = section.get("environment_identity_sha256")
     else:
+        # Genuinely absent: an image built before environment identities, which can only be the
+        # original environment of legacy work of its own source commit.
         formal = report.get("formal_conjectures")
         commit = formal.get("actual_commit") if isinstance(formal, dict) else None
         identity = None

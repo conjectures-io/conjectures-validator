@@ -186,3 +186,64 @@ def test_an_unpublished_cache_entry_is_rebuilt_and_must_match(setting):
     release(env, decls(), store=store, previous=VersionRegistry.empty())
     again, validator, _ = release(env, decls(), store=store, previous=VersionRegistry.empty())
     assert again.counts["built"] == 6 and len(validator.builds) == 6
+
+
+# --- parallel builds run in worker processes, bounded --------------------------------------
+
+
+def parallel_release(env, store, validator, *, jobs, timeout):
+    from verifier.incremental import SelectedTarget, publish_release
+    from verifier.models import Catalog
+    from version_fixtures import MATHLIB_COMMIT, fake_allowlist, index
+
+    built = index(env, decls())
+    catalog = Catalog(1, COMMIT_A, env.toolchain, MATHLIB_COMMIT, "test", 0, tuple(decls()))
+    return publish_release(
+        catalog=catalog,
+        targets=[SelectedTarget(item, "tier-1", ("formalized", "counterexample")) for item in decls()],
+        index=built, store=store, previous=VersionRegistry.empty(),
+        instance=Instance(COMMIT_A, built.environment.sha256), allowlist_for=fake_allowlist,
+        validate_target=validator, jobs=jobs, job_timeout_seconds=timeout,
+    )
+
+
+def test_parallel_builds_run_in_separate_processes_and_publish_atomically(setting, tmp_path):
+    import os
+    import time
+
+    from version_fixtures import MarkerValidator
+
+    env, store = setting
+    markers = tmp_path / "markers"
+    markers.mkdir()
+    started = time.monotonic()
+    result, _ = parallel_release(env, store, MarkerValidator(markers), jobs=3, timeout=120)
+    assert time.monotonic() - started < 120
+    builds = MarkerValidator(markers).builds()
+    assert len(builds) == 6 and result.counts["built"] == 6
+    # Built outside this process, never in a thread of it.
+    assert str(os.getpid()) not in {name.rsplit(".", 1)[1] for name in builds}
+    sequential, _, _ = release(env, decls(), store=TaskVersionStore(_fresh(tmp_path)), previous=VersionRegistry.empty())
+    assert ids_by_key(result) == ids_by_key(sequential)
+    assert {bundle.sha256 for bundle in result.bundles} == {bundle.sha256 for bundle in sequential.bundles}
+
+
+def _fresh(tmp_path):
+    path = tmp_path / "fresh-store"
+    path.mkdir()
+    return path
+
+
+def test_a_stuck_build_is_terminated_by_the_outer_bound_and_publication_fails_closed(setting, tmp_path):
+    import time
+
+    from version_fixtures import MarkerValidator
+
+    env, store = setting
+    markers = tmp_path / "markers"
+    markers.mkdir()
+    started = time.monotonic()
+    with pytest.raises(VerifierError, match="exceeded 2s; workers terminated"):
+        parallel_release(env, store, MarkerValidator(markers, delay_seconds=600), jobs=2, timeout=2)
+    assert time.monotonic() - started < 60
+    assert [entry for entry in store.root.iterdir() if not entry.name.startswith(".")] == []

@@ -18,7 +18,7 @@ import os
 import shutil
 import stat
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -94,17 +94,37 @@ class TaskVersionStore:
             fcntl.flock(descriptor, fcntl.LOCK_UN)
             os.close(descriptor)
 
-    def publish(self, staged: Path, task_id: str) -> TaskBundle:
-        """Move a staged, validated bundle into place; idempotent for identical bytes."""
+    def publish(
+        self,
+        staged: Path,
+        task_id: str,
+        *,
+        after_step: Callable[[str], None] = lambda step: None,
+    ) -> TaskBundle:
+        """Move a staged, validated bundle into place; idempotent for identical bytes.
+
+        Durability comes before visibility: every staged file and the staged directory are
+        flushed before the rename, the store directory after it. The entry is then sealed
+        read-only. A crash between rename and seal leaves a complete, valid but unsealed entry;
+        the next publisher of that version validates it in full and seals it. An entry whose
+        bytes do not validate is never sealed, reused or replaced. `after_step` lets tests
+        interrupt publication between its steps.
+        """
         staging_root = (self.root / STAGING).resolve()
         if not _real_directory(staged) or staged.resolve().parent.parent != staging_root:
             raise VerifierError(ReasonCode.WORKSPACE_ERROR, "only bundles staged in this store can be published")
         bundle = load_task_bundle(staged)
         if bundle.manifest.task_id != task_id:
             raise VerifierError(ReasonCode.INVALID_MANIFEST, "staged bundle has a different task ID")
+        for path in sorted(staged.iterdir()):
+            _fsync_path(path)
+        _fsync_path(staged)
+        after_step("staged-synced")
         destination = self.path_for(task_id)
         with self._locked():
             if os.path.lexists(destination):
+                # A previous publication of this ID, possibly interrupted before sealing. It is
+                # accepted only if its bytes validate and equal ours; then it is (re)sealed.
                 existing = self.load(task_id)
                 assert existing is not None
                 if existing.sha256 != bundle.sha256:
@@ -112,21 +132,50 @@ class TaskVersionStore:
                         ReasonCode.TASK_COMMITMENT_MISMATCH,
                         f"store already holds different bytes for {task_id}; refusing to replace them",
                     )
+                _seal(destination)
                 shutil.rmtree(staged.parent, ignore_errors=True)
                 return existing
-            for path in staged.iterdir():
-                path.chmod(0o444)
-            staged.chmod(0o555)
+            # Rename first: moving a directory to a new parent rewrites its `..` entry, which an
+            # unprivileged process may only do while the directory is still writable.
             os.rename(staged, destination)
-            descriptor = os.open(self.root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-            try:
-                os.fsync(descriptor)
-            finally:
-                os.close(descriptor)
+            _fsync_path(self.root)
+            after_step("renamed")
+            _seal(destination)
+            after_step("sealed")
             shutil.rmtree(staged.parent, ignore_errors=True)
         published = self.load(task_id, expected_sha256=bundle.sha256)
         assert published is not None
         return published
 
 
-__all__ = ["TaskVersionStore"]
+def _fsync_path(path: Path) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    if path.is_dir():
+        flags |= getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _seal(entry: Path) -> None:
+    """Read-only files in a read-only directory, flushed. Idempotent."""
+    for path in sorted(entry.iterdir()):
+        if path.is_symlink() or not path.is_file():
+            raise VerifierError(ReasonCode.TRUSTED_FILE_MODIFIED, f"store entry contains a non-file: {path.name}")
+        if stat.S_IMODE(path.lstat().st_mode) != 0o444:
+            path.chmod(0o444)
+    if stat.S_IMODE(entry.lstat().st_mode) != 0o555:
+        entry.chmod(0o555)
+    _fsync_path(entry)
+    _fsync_path(entry.parent)
+
+
+def is_sealed(entry: Path) -> bool:
+    return stat.S_IMODE(entry.lstat().st_mode) == 0o555 and all(
+        stat.S_IMODE(path.lstat().st_mode) == 0o444 for path in entry.iterdir()
+    )
+
+
+__all__ = ["TaskVersionStore", "is_sealed"]

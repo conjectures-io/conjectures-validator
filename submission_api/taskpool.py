@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from verifier.models import CatalogDeclaration, TaskManifest
+from verifier.publication import assert_no_pending_publication
 from verifier.task_loader import TaskBundle, load_task_bundle
 from verifier.task_registry import AllowedTask, TaskNotAllowed, TaskPoolRegistry
 from verifier.task_store import TaskVersionStore
@@ -63,6 +64,8 @@ class TaskCatalog:
         registry = TaskPoolRegistry.load(allowlist_path)
         entries: dict[str, TaskEntry] = {}
         tasks_root = pool_root.parent
+        # A half-committed publication is never served: see `verifier.publication`.
+        assert_no_pending_publication(tasks_root)
         # Version-2 tasks live in the immutable version store, one directory per task ID, and
         # are admitted only if the version registry's current publication says so.
         v2_ids = sorted(task_id for task_id in registry.tasks if is_v2_task_id(task_id))

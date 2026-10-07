@@ -294,3 +294,26 @@ def release(
         validate_target=validator,
     )
     return result, validator, built
+
+
+class MarkerValidator:
+    """A picklable stand-in for the Lean build that records each build as a file.
+
+    Used where builds run in separate worker processes, whose memory the test cannot see.
+    """
+
+    def __init__(self, directory, delay_seconds: float = 0.0):
+        self.directory = str(directory)
+        self.delay_seconds = delay_seconds
+
+    def __call__(self, task_dir, declaration, generated, mode):
+        import os
+        import time
+
+        time.sleep(self.delay_seconds)
+        marker = Path(self.directory) / f"{declaration.theorem}.{mode}.{os.getpid()}"
+        marker.write_text("built\n")
+        return declaration.type_hash if mode == "formalized" else "sha256:" + "9" * 64
+
+    def builds(self) -> list[str]:
+        return sorted(path.name for path in Path(self.directory).iterdir())

@@ -47,7 +47,7 @@ import re
 import stat
 import subprocess
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -517,6 +517,9 @@ class ClosureReport:
     modules: Mapping[tuple[Any, ...], ModuleRow]
     targets: tuple[TargetClosure, ...]
     sha256: str
+    # Per-report memo of module origins and artifact digests: one report is classified against
+    # one set of trees, and every target in it shares most of its import closure.
+    memo: dict[Any, Any] = field(default_factory=dict, compare=False, repr=False)
 
 
 def _validate_content(content: object, label: str) -> Mapping[str, Any]:
@@ -639,14 +642,14 @@ def parse_closure_report(
     )
 
 
-def _within(path: Path, root: Path) -> Path | None:
-    try:
-        return path.relative_to(root)
-    except ValueError:
-        return None
-
-
 def _module_closure(report: ClosureReport, module: tuple[Any, ...]) -> tuple[tuple[Any, ...], ...]:
+    key = ("closure", module)
+    if key not in report.memo:
+        report.memo[key] = _compute_module_closure(report, module)
+    return report.memo[key]
+
+
+def _compute_module_closure(report: ClosureReport, module: tuple[Any, ...]) -> tuple[tuple[Any, ...], ...]:
     pending = [module]
     seen: set[tuple[Any, ...]] = set()
     while pending:
@@ -670,15 +673,60 @@ class ModuleOrigin:
 
 def classify_module(report: ClosureReport, trees: SourceTrees, row: ModuleRow) -> ModuleOrigin:
     """Where a loaded module really came from, checked against its `.olean`; fails closed."""
+    key = ("origin", id(trees), row.name)
+    if key not in report.memo:
+        report.memo[key] = _classify_module(report, trees, row)
+    return report.memo[key]
+
+
+def _memo_realpath(report: ClosureReport, path: str) -> str:
+    # Resolved once per report: the trees do not move while one report is classified.
+    key = ("real", path)
+    if key not in report.memo:
+        report.memo[key] = os.path.realpath(path)
+    return report.memo[key]
+
+
+def _resolved_artifact(report: ClosureReport, path: str) -> str:
+    """`realpath(path)`, resolving each directory once; a symlinked file is still followed."""
+    directory, name = os.path.split(path)
+    resolved = os.path.join(_memo_realpath(report, directory), name)
+    return os.path.realpath(resolved) if os.path.islink(resolved) else resolved
+
+
+def _under(path: str, root: str) -> str | None:
+    prefix = root.rstrip(os.sep) + os.sep
+    return path[len(prefix):] if path.startswith(prefix) else None
+
+
+def _resolved_roots(report: ClosureReport, trees: SourceTrees) -> dict[str, Any]:
+    key = ("roots", id(trees))
+    if key not in report.memo:
+        report.memo[key] = {
+            "local": [
+                (origin, source_dir, _memo_realpath(report, str(build_dir)))
+                for origin, source_dir, build_dir in trees.local_trees
+            ],
+            "toolchain": _memo_realpath(report, str(trees.toolchain_lib)),
+            "packages": [
+                (package, _memo_realpath(report, str(root / ".lake" / "build" / "lib" / "lean")))
+                for package, root in sorted(trees.packages.items())
+            ],
+        }
+    return report.memo[key]
+
+
+def _classify_module(report: ClosureReport, trees: SourceTrees, row: ModuleRow) -> ModuleOrigin:
     parts = module_parts(row.name)
-    olean = Path(os.path.realpath(row.olean))
+    olean = _resolved_artifact(report, row.olean)
+    roots = _resolved_roots(report, trees)
     root_is_local = parts[0] in report.local_roots
     if root_is_local != row.local:
         raise _dependency_mismatch(f"module locality disagrees with its root: {name_text(row.name)}")
     if row.local:
         matches = []
-        for origin, source_dir, build_dir in trees.local_trees:
-            relative = _within(olean, Path(os.path.realpath(build_dir)))
+        for origin, source_dir, build_dir in roots["local"]:
+            relative = _under(olean, build_dir)
             if relative is not None:
                 matches.append((origin, source_dir, relative))
         if len(matches) != 1:
@@ -686,20 +734,20 @@ def classify_module(report: ClosureReport, trees: SourceTrees, row: ModuleRow) -
                 f"local module was not loaded from exactly one local build: {name_text(row.name)}"
             )
         origin, source_dir, relative = matches[0]
-        if relative != Path(*parts[:-1], parts[-1] + ".olean"):
+        if relative != "/".join((*parts[:-1], parts[-1] + ".olean")):
             raise _dependency_mismatch(f"local module .olean path is unexpected: {name_text(row.name)}")
-        other_trees = [tree for tree in trees.local_trees if tree[0] != origin]
-        for _other, other_source, _build in other_trees:
-            candidate = Path(other_source, *parts[:-1], parts[-1] + ".lean")
-            if candidate.exists() or candidate.is_symlink():
+        for other, other_source, _build in trees.local_trees:
+            if other == origin:
+                continue
+            candidate = os.path.join(other_source, *parts[:-1], parts[-1] + ".lean")
+            if os.path.lexists(candidate):
                 raise _dependency_mismatch(f"local module is ambiguous between trees: {name_text(row.name)}")
         content = read_tree_file(source_dir, (*parts[:-1], parts[-1] + ".lean"), MAX_LOCAL_SOURCE_BYTES)
-        return ModuleOrigin(origin, sha256_bytes(content), olean)
-    if _within(olean, Path(os.path.realpath(trees.toolchain_lib))) is not None:
+        return ModuleOrigin(origin, sha256_bytes(content), Path(olean))
+    if _under(olean, roots["toolchain"]) is not None:
         return ModuleOrigin("lean", None)
-    for package, root in sorted(trees.packages.items()):
-        build = Path(os.path.realpath(root / ".lake" / "build" / "lib" / "lean"))
-        if _within(olean, build) is not None:
+    for package, build in roots["packages"]:
+        if _under(olean, build) is not None:
             return ModuleOrigin(f"package:{package}", None)
     raise _dependency_mismatch(
         f"external module did not come from the toolchain or a pinned package: {name_text(row.name)}"
@@ -775,6 +823,13 @@ class BuildProvenance:
 
 
 def import_graph(report: ClosureReport, trees: SourceTrees, module: tuple[Any, ...]) -> dict[str, Any]:
+    key = ("graph", id(trees), module)
+    if key not in report.memo:
+        report.memo[key] = _import_graph(report, trees, module)
+    return report.memo[key]
+
+
+def _import_graph(report: ClosureReport, trees: SourceTrees, module: tuple[Any, ...]) -> dict[str, Any]:
     """The transitive import graph of `module`, structurally: immutable task provenance.
 
     Local modules appear with their tree and direct imports; the external modules they import
@@ -877,7 +932,10 @@ def build_provenance(report: ClosureReport, trees: SourceTrees, module: tuple[An
             external.add(origin.origin)
         else:
             assert origin.olean_path is not None
-            local.append([name_json(name), origin.origin, origin.source_sha256, olean_sha256(origin.olean_path)])
+            key = ("olean", origin.olean_path)
+            if key not in report.memo:
+                report.memo[key] = olean_sha256(origin.olean_path)
+            local.append([name_json(name), origin.origin, origin.source_sha256, report.memo[key]])
     config = sha256_bytes(read_tree_file(trees.source_root, ("lakefile.toml",), 1024 * 1024))
     return BuildProvenance(
         {

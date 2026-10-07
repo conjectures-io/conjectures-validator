@@ -177,3 +177,45 @@ def test_a_killed_child_is_a_resource_limit_and_a_forged_line_is_not_a_crash():
     quoted = 'error: Solution.lean:2:3: unknown identifier "uncaught exception: Child exited with 139"\n'
     assert crashed_child_exit(quoted) is None
     assert crashed_child_exit("uncaught exception: Child exited with 134\n") == 134
+
+
+def test_an_earlier_forged_crash_line_cannot_turn_a_build_failure_into_a_crash():
+    # Reproduced by the independent review: a diagnostic carried a crash line before the real
+    # final report of a failed solution build.
+    stderr = (
+        "error: Solution.lean:3:2: tactic produced\n"
+        "uncaught exception: Child exited with 139\n"
+        "more diagnostic text\n"
+        "uncaught exception: Child exited with 1\n"
+    )
+    result = ProcessResult((), 1, "Building Challenge\nBuilding Solution\n", stderr, 1)
+    assert crashed_child_exit(stderr) is None
+    assert rejection_reason(result, enable_nanoda=False) == ReasonCode.SOLUTION_BUILD_FAILED
+
+
+def test_only_a_genuine_final_crash_report_is_a_tool_crash():
+    final = "PANIC at dumpConstant Export:237:48: ...\nuncaught exception: Child exited with 139\n\n"
+    assert crashed_child_exit(final) == 139
+    trailing = "uncaught exception: Child exited with 139\nlater output\n"
+    assert crashed_child_exit(trailing) is None
+    assert crashed_child_exit("") is None
+
+
+def test_a_modern_image_that_failed_its_identity_stops_startup_but_an_old_image_is_legacy():
+    from verification_worker.runner import RunnerFailure, instance_from_doctor
+    from verifier.version_registry import Instance
+
+    commit = "4b69a7dca3e731dd1f28cb523b9ebd2ea32527f4"
+    modern = {"environment_identity_sha256": "sha256:" + "a" * 64, "error": None, "repository_commit": commit}
+    assert instance_from_doctor({"task_versions": modern}) == Instance(commit, "sha256:" + "a" * 64)
+    for broken in (
+        {**modern, "environment_identity_sha256": None, "error": "pins drifted"},
+        {**modern, "error": "late failure"},
+        {**modern, "environment_identity_sha256": None, "error": None},
+        {"repository_commit": commit},
+        None,
+    ):
+        with pytest.raises(RunnerFailure, match="environment identity"):
+            instance_from_doctor({"task_versions": broken, "formal_conjectures": {"actual_commit": commit}})
+    # An image that predates the field entirely is a legacy image of its own commit.
+    assert instance_from_doctor({"formal_conjectures": {"actual_commit": commit}}) == Instance(commit, None)

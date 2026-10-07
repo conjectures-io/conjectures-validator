@@ -432,6 +432,38 @@ def assert_append_only(previous: VersionRegistry, current: VersionRegistry) -> N
             raise RegistryError(f"new version {task_id} claims an admission in an earlier publication")
 
 
+def assert_record_matches_bundle(record: VersionRecord, bundle: Any) -> None:
+    """A registry record must describe the bundle it points at, not merely be self-consistent.
+
+    The strict loader only checks a record's fields against each other. Here every one that
+    names the task — source theorems, reward target, mode, provenance, identities and every
+    admission's `problem_id` — is re-derived from the bundle's own bytes, so registry metadata
+    that was corrupted or assembled for another bundle cannot advertise claim keys for it.
+    """
+    manifest = bundle.manifest
+    theorems = tuple(source.theorem for source in bundle.sources)
+    if (
+        manifest.task_id != record.task_id
+        or bundle.sha256 != record.task_bundle_sha256
+        or manifest.provenance != record.provenance
+        or manifest.task_mode != record.mode
+        or theorems != record.theorems
+        or record.reward_target_id != reward_target_identity(theorems[0])
+    ):
+        raise RegistryError(f"record {record.task_id} does not describe the bundle it names")
+    for admission in record.admissions:
+        if admission.problem_id != problem_id(admission.instance.repository_commit, theorems):
+            raise RegistryError(f"record {record.task_id} admits a problem ID its bundle does not yield")
+    if record.provenance == LEGACY_PROVENANCE:
+        if any(admission.instance.repository_commit != manifest.repository_commit for admission in record.admissions):
+            raise RegistryError(f"legacy record {record.task_id} is admitted outside its bundle's source commit")
+    elif (
+        manifest.environment_identity_sha256 != record.environment_identity_sha256
+        or manifest.dependency_identity_sha256 != record.dependency_identity_sha256
+    ):
+        raise RegistryError(f"record {record.task_id} names identities its bundle does not commit to")
+
+
 def assert_matches_allowlist(registry: VersionRegistry, allowlist_path: Path) -> None:
     """The current publication's allowlist is exactly the registry's active versions."""
     try:
@@ -615,6 +647,7 @@ __all__ = [
     "VersionRegistry",
     "assert_append_only",
     "assert_matches_allowlist",
+    "assert_record_matches_bundle",
     "publish_legacy",
     "served_keys",
 ]
