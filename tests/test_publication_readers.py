@@ -47,6 +47,39 @@ SOURCES = {
 }
 
 
+# The tier-1 policy of the pinned tasks release (03d9c665, unchanged since 5c79584), so these
+# tests need no tasks checkout and run in CI. Only `pool_size`, the counts and
+# `minimum_erdos_tasks` are rewritten per publication; every other field is the release's own.
+# `test_the_policy_fixture_is_the_pinned_tasks_policy` checks it against a real checkout.
+TIER_1_POLICY = {
+    "classification": "DIRECT_PROP",
+    "compiled_target_validation": True,
+    "excluded_source_prefixes": [],
+    "grouping": "none-single-target-v1",
+    "held_source_theorems_sha256": "sha256:01c13cf0588154391a14f798b0b9509f63272be2ef6d932ba1ecd6f87044e9bb",
+    "minimum_erdos_tasks": 219,
+    "modes": ["formalized", "counterexample"],
+    "multi_target_tasks": 0,
+    "one_reward_per_problem": True,
+    "one_reward_per_reward_target": True,
+    "outcomes_per_problem": 2,
+    "pool_size": 550,
+    "retired_conjectures_sha256": "sha256:a611e72418882fa3ee71ef940ddcb052c974edd181305f988a637c6b8ce7f780",
+    "retired_source_theorems_sha256": "sha256:cf69ed257c7ab910fc2a1923ccab7b8823c315723a9dc32cecd17bf9f42552fe",
+    "reward_target_count": 275,
+    "reward_target_policy": "stable-theorem-target-v1",
+    "selection": "audited-direct-propositions-v2",
+    "selection_audit_sha256": "sha256:b08f9ab5b1e9b647aa951a0ba364be699e2654b2261efe951a2375108e2de0df",
+    "source_category": "research open",
+    "source_families": ["erdos", "greens-open-problems", "millennium", "research-targets", "wikipedia"],
+    "source_theorem_count": 275,
+    "target_relations": {"counterexample": "logical-negation", "formalized": "definitionally-equal"},
+    "task_groups_sha256": "sha256:9dc69f266ef1d3628dd08d6071763650941570be48c4f504e53794ddb8c584b6",
+    "task_scope": "direct_proposition",
+    "task_targets_sha256": "sha256:83a219de71594940715405cadd9a796884e0776f73d2f89ca9494de04c3ac199",
+}
+
+
 def decls():
     # Source paths in an allowlisted family, so the API's full allowlist validation applies.
     return [replace(declaration(theorem, module), source_path=path) for theorem, (module, path) in SOURCES.items()]
@@ -54,9 +87,7 @@ def decls():
 
 def full_allowlist(commit: str, bundles) -> bytes:
     """A complete allowlist, as the API parses it, for one publication's bundles."""
-    policy = json.loads((tasks_repository_root(Path(__file__).resolve().parents[1]) / "allowlist.json").read_text())[
-        "tier_policies"
-    ]["tier-1"]
+    policy = TIER_1_POLICY
     declarations = decls()
     index = {item.theorem: number for number, item in enumerate(declarations)}
     sources = [
@@ -322,3 +353,10 @@ def test_a_fifo_planted_as_metadata_is_refused_without_blocking(tmp_path, plante
         pytest.fail(f"a reader blocked on a FIFO named {planted}")
     assert reader.exitcode == 0
     assert queue.get(timeout=10) == f"publication: {planted} is not a regular file"
+
+
+@pytest.mark.needs_checkouts
+def test_the_policy_fixture_is_the_pinned_tasks_policy():
+    """The readers above run on a fixture policy; it must stay the pinned release's policy."""
+    allowlist = tasks_repository_root(Path(__file__).resolve().parents[1]) / "allowlist.json"
+    assert json.loads(allowlist.read_text())["tier_policies"]["tier-1"] == TIER_1_POLICY
