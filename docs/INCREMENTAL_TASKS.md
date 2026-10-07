@@ -251,6 +251,14 @@ Trust limits, stated plainly:
   `--expected-build-provenance` flag is passed for legacy work). A legacy image cannot read a v2
   bundle, and refuses it (it reports an unexpected `task-version.json`). A v1 bundle in a newer
   image is refused against that image's source commit.
+- **The pinned tasks release.** `pins.lock.json` pins tasks 03d9c665. Its `task-versions.json`
+  has two instances: the reconstructed legacy instance 8432eac9 (no environment identity, intake
+  closed, one preserved pending bundle), and 4b69a7dc at environment
+  `sha256:8e1c89cfb88c234df0b44d1a844fbafbcdc154d3a8b679eedb39dec15f2373e0`, whose 550 current
+  bundles are registered as legacy-format versions with their bytes unchanged. That identity has
+  to equal the one the release image's `doctor` derives. The identity does not include the tasks
+  commit, so pinning tasks does not change it. Because this registry has more than one
+  instance, the deployment order below applies to this pin.
 - **Deployment order.** Upgrade workers before publishing a registry with more than one
   instance. An old worker has no served-key claim filter. It would lease other environments'
   rows (and refuse to resolve them), charging attempts.
