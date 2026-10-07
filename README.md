@@ -852,12 +852,17 @@ Unit tests cover schemas, hashes, catalog statistics, adapters, deterministic sk
 behavior, answer literals, workspaces, and reports. The opt-in integration suite uses the real pinned
 catalog.
 
-Database tests **skip** when they cannot reach a server, so a green run on a laptop with no
-database has not exercised them. Bring the throwaway stack up first, or point the suite elsewhere
-with `FC_POSTGRES_DSN`:
+Database tests are destructive, so the suite never discovers a server. They **skip** unless the
+run names a private fixture explicitly, so a green run with no fixture has not exercised them.
+`tests/database_guard.py` accepts a DSN only together with the fixture cluster's declared
+`system_identifier`, verified over a read-only connection before any test runs; a missing or
+mismatched identity, or a DSN reaching TCP port 5432 or 5440, stops the run:
 
 ```bash
-docker compose -f docker-compose.pytest-db.yml up -d
+FC_POSTGRES_DSN=<private fixture DSN> \
+FC_COMPETITION_POSTGRES_DSN=<competition database on the same fixture> \
+FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<that cluster's system_identifier> \
+.venv/bin/pytest
 ```
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs three gates on every pull request:

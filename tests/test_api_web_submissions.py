@@ -7,9 +7,9 @@ trying to use the one path a coldkey authorises, and a retry being charged twice
 
 Signatures are real sr25519 over the exact message the server rebuilds — the fixture addresses
 are the standard development URIs — so a test that passes has proved the server reconstructed
-the same bytes the client signed. Needs a real PostgreSQL server:
+the same bytes the client signed. Needs a verified private PostgreSQL fixture:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ from submission_api.login import web_submission_message
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 WEB = "/v1/submissions/web"

@@ -34,7 +34,7 @@ OTHER_ORIGIN = "https://evil.example"
 
 needs_db = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 
@@ -227,7 +227,7 @@ def test_a_production_configured_app_emits_hsts_and_alt_svc():
     """
 
     async def scenario():
-        from conftest_api import PYTEST_DSN, REPOSITORY_COMMIT, pin_set, task_entry, terms
+        from conftest_api import REPOSITORY_COMMIT, pin_set, task_entry, terms
 
         from conjectures_subnet.bounty import DynamicBountyPricer, StaticBalanceReader
         from conjectures_subnet.db.engine import (
@@ -246,7 +246,8 @@ def test_a_production_configured_app_emits_hsts_and_alt_svc():
 
         settings = Settings.from_env(
             production_env(
-                DATABASE_URL=postgres_dsn() or PYTEST_DSN,
+                # `needs_db` guarantees a verified DSN; there is no shared fallback.
+                DATABASE_URL=postgres_dsn(),
                 CORS_ALLOWED_ORIGINS=ORIGIN,
                 ALT_SVC='h3=":8443"; ma=3600',
             )

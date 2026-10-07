@@ -3,10 +3,10 @@
 #
 #   docker compose -f docker-compose.pytest-db.yml up -d
 #
-# Every credential here is fixed and duplicated in tests/conftest_api.py, which probes this
-# stack and skips the database tests when it is not up. That is the point: running the tests
-# needs no FC_POSTGRES_DSN and no .env, so there is nothing to keep in sync by hand. Do not
-# parameterise these values — the tests hardcode them.
+# The test harness no longer probes or defaults to this stack. tests/database_guard.py uses a
+# database only when FC_POSTGRES_DSN and FC_TEST_DATABASE_SYSTEM_IDENTIFIER name a verified
+# private fixture, and it refuses TCP port 5440 (this stack's published port) outright, because
+# a shared stack cannot prove that a destructive run is the only thing using it.
 
 name: conjectures-db-pytest
 
@@ -21,7 +21,7 @@ services:
       POSTGRES_USER: conjectures-pytest
       POSTGRES_PASSWORD: conjectures-pytest-pw
       POSTGRES_DB: conjectures-pytest
-      # Fixed like the rest of this stack: tests/conftest_api.py hardcodes it.
+      # Fixed like the rest of this stack.
       COMPETITION_POSTGRES_DB: conjectures-pytest-competition
       POSTGRES_INITDB_ARGS: "--data-checksums"
       PGDATA: /var/lib/postgresql/data/pgdata
@@ -32,7 +32,7 @@ services:
       - config_file=/etc/postgresql/postgresql.conf
     ports:
       # Loopback only, and a different host port from docker-compose.db.yml so both stacks can
-      # run at once. Fixed rather than ${...}: the tests hardcode 5440.
+      # run at once. The test guard refuses this port; it is not a test-suite endpoint.
       - "127.0.0.1:5440:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data

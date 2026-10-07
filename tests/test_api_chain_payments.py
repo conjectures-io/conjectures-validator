@@ -9,9 +9,9 @@ The property that matters most here is the one neither funding path could enforc
 transfer buys one thing**. A miner must not be able to pay 0.5 TAO, cite it for a submission, and
 also have the deposit watcher credit it to their account.
 
-Skipped unless a PostgreSQL server is reachable:
+Skipped unless a verified private test database is configured:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations

@@ -14,9 +14,9 @@ Deliberately raw SQL. The point of the retirement is that no Python path writes 
 any more, so there is no store function to go through — and a test that went through one could
 not construct the historical rows this is about.
 
-Skipped unless a server is reachable. Start the fixed test stack:
+Skipped unless a verified private test database is configured:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations

@@ -10,9 +10,9 @@ proving it. These tests fix the shape of the fix:
 * activity still resolves, because that is the part worth keeping;
 * the live pool is untouched.
 
-Needs a real PostgreSQL server for the attempt counters:
+Needs a verified private PostgreSQL fixture for the attempt counters:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from submission_api.slugs import slug_for
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 THEOREM = "Erdos10.erdos_10.variants.grechuk"

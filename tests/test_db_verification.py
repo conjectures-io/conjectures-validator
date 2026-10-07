@@ -4,9 +4,9 @@ Deliberately independent of the API test harness: the verification seam is a com
 own right, and these are the properties that stop two workers paying twice for one proof or
 charging a miner for our dead container.
 
-Skipped unless a server is reachable. Start the fixed test stack:
+Skipped unless a verified private test database is configured:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations

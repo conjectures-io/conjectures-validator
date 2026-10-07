@@ -1,10 +1,10 @@
 """The public conjecture catalog: list, detail, meta, and anonymised activity.
 
 The database is only touched for the attempt counters, so most of this runs against a synthetic
-in-memory catalog. The tests that assert on counters need a real PostgreSQL server and are
-skipped without one:
+in-memory catalog. The tests that assert on counters need a verified private PostgreSQL fixture
+and are skipped without one:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ from verifier.task_generator import task_id as build_task_id
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 # The stable slugs of the three fixture conjectures, derived from their theorems rather than from
