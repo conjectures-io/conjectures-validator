@@ -557,6 +557,18 @@ Compose mounts the task collection read-only and only the selected submission fi
 the network, capability, UID, read-only-root, PID, memory, CPU, file-descriptor, and tmpfs limits in
 `docker-compose.yml`. Deploy a reviewed image by immutable registry digest, not by a mutable tag.
 
+### Incremental task versions
+
+A version-2 task ID (`fc-v2-…`) commits to the target's declaration-level dependency identity
+(statement, the bodies of the definitions it unfolds to, and its import graph) and to the
+verification environment's identity (toolchain, Mathlib, Comparator, exporter, generator,
+policy). It does not commit to the source commit. A repin or toolchain change therefore rebuilds
+only the targets whose closure or environment changed. `task-versions.json` in the tasks
+repository records instances, publications and per-version admissions. Workers claim only the
+paid work their own environment accepted. `verifier task publish` publishes through a locked,
+journaled commit. See [docs/INCREMENTAL_TASKS.md](docs/INCREMENTAL_TASKS.md) for the identities,
+routing, security review and migration.
+
 ## Architecture and exact target generation
 
 `lean/CatalogExtractor.lean` recursively obtains module names from the repository tree, imports every
