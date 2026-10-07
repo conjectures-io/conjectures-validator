@@ -26,6 +26,7 @@ and a guess about which database to write to is not one worth shipping.
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 from collections.abc import Mapping
@@ -583,6 +584,22 @@ def _address(environ: Mapping[str, str], key: str, value: str) -> str:
     return value
 
 
+ProxyNetwork = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+
+def _networks(environ: Mapping[str, str], key: str) -> tuple[ProxyNetwork, ...]:
+    """A comma-separated list of addresses or CIDR ranges; a bare address is a one-host range."""
+    networks: list[ProxyNetwork] = []
+    for item in _csv(environ, key):
+        try:
+            networks.append(ipaddress.ip_network(item, strict=False))
+        except ValueError as exc:
+            raise SettingsError(
+                f"{key} must list IP addresses or CIDR ranges, got {item!r}"
+            ) from exc
+    return tuple(networks)
+
+
 def _csv(environ: Mapping[str, str], key: str) -> tuple[str, ...]:
     return tuple(
         item.strip() for item in environ.get(key, "").split(",") if item.strip()
@@ -801,6 +818,9 @@ class Settings:
     # How many rightmost `X-Forwarded-For` entries this deployment put there itself. Zero means
     # the header is not trusted at all and the peer address is used.
     trusted_proxy_hops: int
+    # When set, the hops above are trusted only on requests whose direct peer is in one of these
+    # networks. Empty keeps the old behaviour of trusting them from any peer.
+    trusted_proxy_peers: tuple[ProxyNetwork, ...]
     cursor_secret: str
     activity_salt: str
     public_cache_seconds: int
@@ -1672,6 +1692,7 @@ class Settings:
             trusted_proxy_hops=_bounded_int(
                 env, "TRUSTED_PROXY_HOPS", 0, minimum=0, maximum=8
             ),
+            trusted_proxy_peers=_networks(env, "TRUSTED_PROXY_PEERS"),
             cursor_secret=_secret(
                 env,
                 "PUBLIC_CURSOR_SECRET",

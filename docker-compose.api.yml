@@ -89,6 +89,7 @@ services:
       # 0 ignores X-Forwarded-For and uses the peer address. Set this to the real
       # hop count once a reverse proxy or CDN is in front, or every visitor
       # collapses onto one rate-limit budget.
+      TRUSTED_PROXY_PEERS: ${TRUSTED_PROXY_PEERS:-}
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
       ALT_SVC: ${ALT_SVC:-}
       HSTS_MAX_AGE: ${HSTS_MAX_AGE:-31536000}

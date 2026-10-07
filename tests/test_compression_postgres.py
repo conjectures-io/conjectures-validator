@@ -102,6 +102,7 @@ async def app_for(url):
             competition_rate_per_minute=1000,
             competition_ip_rate_per_minute=1000,
             trusted_proxy_hops=0,
+            trusted_proxy_peers=(),
             competition_signature_window_seconds=300,
         ),
         competitions=CompetitionRegistry.of(Competition("deflate", "Compression", 8)),

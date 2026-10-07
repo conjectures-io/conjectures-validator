@@ -8,6 +8,7 @@ pin-rotation window and the settings guardrails are all pure and are tested dire
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 from datetime import UTC, datetime
 
 import pytest
@@ -162,6 +163,7 @@ def test_development_gets_working_defaults_without_configuration():
     assert settings.cursor_secret == DEVELOPMENT_CURSOR_SECRET
     assert settings.rate_limit_enabled is True
     assert settings.trusted_proxy_hops == 0
+    assert settings.trusted_proxy_peers == ()
     # No Alt-Svc outside production: the developer's edge speaks no HTTP/3.
     assert settings.alt_svc == ""
     assert settings.taostats_api_key == ""
@@ -623,6 +625,35 @@ def test_a_forwarded_value_that_is_not_an_address_falls_back_to_the_peer():
 def test_a_port_suffix_is_stripped_from_either_address_family():
     assert client_address(_scope("10.0.0.1", "203.0.113.9:4711"), 1) == "203.0.113.9"
     assert client_address(_scope("10.0.0.1", "[2001:db8::1]:4711"), 1) == "2001:db8::1"
+
+
+PEERS = (ipaddress.ip_network("198.51.100.20"), ipaddress.ip_network("10.0.0.0/8"))
+
+
+def test_trusted_peers_honour_the_header_only_from_those_networks():
+    """A caller that reaches the API directly cannot write its own limiter key."""
+    assert client_address(_scope("198.51.100.20", "203.0.113.9"), 1, PEERS) == "203.0.113.9"
+    assert client_address(_scope("10.4.5.6", "203.0.113.9"), 1, PEERS) == "203.0.113.9"
+    assert client_address(_scope("192.0.2.77", "203.0.113.9"), 1, PEERS) == "192.0.2.77"
+    assert client_address(_scope("2001:db8::5", "203.0.113.9"), 1, PEERS) == "2001:db8::5"
+
+
+def test_trusted_peers_do_not_turn_on_a_header_the_hop_count_leaves_off():
+    assert client_address(_scope("198.51.100.20", "203.0.113.9"), 0, PEERS) == "198.51.100.20"
+
+
+def test_trusted_peers_are_read_as_addresses_or_ranges():
+    settings = build_settings(TRUSTED_PROXY_PEERS=" 198.51.100.20, 10.0.0.0/8 ,2001:db8::/32")
+    assert settings.trusted_proxy_peers == (
+        ipaddress.ip_network("198.51.100.20"),
+        ipaddress.ip_network("10.0.0.0/8"),
+        ipaddress.ip_network("2001:db8::/32"),
+    )
+
+
+def test_a_trusted_peer_that_is_not_an_address_refuses_to_start():
+    with pytest.raises(SettingsError, match="TRUSTED_PROXY_PEERS"):
+        build_settings(TRUSTED_PROXY_PEERS="frontend.example")
 
 
 # --- pins --------------------------------------------------------------------------------
