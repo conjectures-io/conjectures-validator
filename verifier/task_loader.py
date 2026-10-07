@@ -19,10 +19,26 @@ from verifier.task_generator import (
     MAX_TIMEOUT_SECONDS,
     PERMITTED_AXIOMS,
     LEAN_MODULE_NAME,
+    V2_ID_MANIFEST_FIELDS,
+    V2_TRUSTED_NAMES,
     group_task_id,
     task_id,
+    task_slug,
+    task_version_descriptor,
     trusted_group_task_payloads,
     trusted_task_payloads,
+    trusted_task_version_payloads,
+)
+from verifier.task_versions import (
+    TASK_VERSION_NAME,
+    V2_MANIFEST_SCHEMA_VERSION,
+    V2_PROVENANCE,
+    TaskVersionDocument,
+    is_v2_task_id,
+    lean_name_parts,
+    name_from_json,
+    parse_task_version_document,
+    v2_task_id,
 )
 from verifier.task_policy import (
     COUNTEREXAMPLE_TASK_MODE,
@@ -48,6 +64,8 @@ GROUP_TASK_FILE_NAMES = GROUP_REQUIRED_TRUSTED_FILES | {
     "manifest.json",
     "trusted-hashes.json",
 }
+V2_REQUIRED_TRUSTED_FILES = frozenset(V2_TRUSTED_NAMES)
+V2_TASK_FILE_NAMES = V2_REQUIRED_TRUSTED_FILES | {"manifest.json", "trusted-hashes.json"}
 MAX_TASK_FILE_BYTES = 8 * 1024 * 1024
 MANIFEST_FIELDS = frozenset(
     {
@@ -78,6 +96,12 @@ MANIFEST_FIELDS = frozenset(
         "answer_policy",
     }
 )
+# A v2 manifest names no source commit and states its provenance and both identities.
+V2_MANIFEST_FIELDS = (MANIFEST_FIELDS - {"repository_commit"}) | {
+    "provenance",
+    "dependency_identity_sha256",
+    "environment_identity_sha256",
+}
 
 
 @dataclass(frozen=True)
@@ -87,6 +111,12 @@ class TaskBundle:
     sources: tuple[CatalogDeclaration, ...]
     files: Mapping[str, bytes]
     sha256: str
+    # The parsed task-version.json of a v2 bundle; None for a legacy one.
+    version: TaskVersionDocument | None = None
+
+    @property
+    def provenance(self) -> str:
+        return self.manifest.provenance
 
 
 def _read_regular_file(path: Path, max_bytes: int = MAX_TASK_FILE_BYTES) -> bytes:
@@ -136,9 +166,11 @@ def _json_object(content: bytes, name: str) -> Mapping[str, Any]:
 
 
 def _validate_manifest_json(value: Mapping[str, Any]) -> None:
-    if frozenset(value) != MANIFEST_FIELDS:
-        unexpected = sorted(frozenset(value) - MANIFEST_FIELDS)
-        missing = sorted(MANIFEST_FIELDS - frozenset(value))
+    v2 = value.get("schema_version") == V2_MANIFEST_SCHEMA_VERSION
+    expected_fields = V2_MANIFEST_FIELDS if v2 else MANIFEST_FIELDS
+    if frozenset(value) != expected_fields:
+        unexpected = sorted(frozenset(value) - expected_fields)
+        missing = sorted(expected_fields - frozenset(value))
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
             f"manifest field set is not exact; missing={missing}, unexpected={unexpected}",
@@ -147,7 +179,7 @@ def _validate_manifest_json(value: Mapping[str, Any]) -> None:
     boolean_fields = ("enable_nanoda", "production_eligible")
     string_fields = (
         "task_id",
-        "repository_commit",
+        *(("provenance", "dependency_identity_sha256", "environment_identity_sha256") if v2 else ("repository_commit",)),
         "source_theorem",
         "source_module",
         "source_path",
@@ -207,11 +239,28 @@ def _validate_source_json(value: Mapping[str, Any]) -> None:
         )
 
 
+def v2_manifest_inputs(manifest: TaskManifest) -> dict[str, Any]:
+    """The manifest fields a v2 task ID commits to, in their JSON form."""
+    value = manifest.to_dict()
+    return {key: value[key] for key in V2_ID_MANIFEST_FIELDS}
+
+
 def _validate_manifest(manifest: TaskManifest) -> None:
-    if manifest.schema_version not in {1, 2}:
+    if manifest.schema_version not in {1, 2, V2_MANIFEST_SCHEMA_VERSION}:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "unsupported manifest schema")
-    if len(manifest.repository_commit) != 40 or any(
-        char not in "0123456789abcdef" for char in manifest.repository_commit
+    v2 = manifest.schema_version == V2_MANIFEST_SCHEMA_VERSION
+    if v2:
+        if (
+            manifest.repository_commit is not None
+            or not is_v2_task_id(manifest.task_id)
+            or not is_sha256(manifest.dependency_identity_sha256)
+            or not is_sha256(manifest.environment_identity_sha256)
+        ):
+            raise VerifierError(ReasonCode.INVALID_MANIFEST, "v2 manifest identity is invalid")
+    elif (
+        manifest.repository_commit is None
+        or len(manifest.repository_commit) != 40
+        or any(char not in "0123456789abcdef" for char in manifest.repository_commit)
     ):
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "repository commit must be a full lowercase Git hash")
     if not 0 < manifest.timeout_seconds <= MAX_TIMEOUT_SECONDS:
@@ -238,7 +287,27 @@ def _validate_manifest(manifest: TaskManifest) -> None:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "task mode is invalid")
     if manifest.challenge_module != "Challenge" or manifest.solution_module != "Solution":
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest module or target names are inconsistent")
-    if manifest.schema_version == 1:
+    if v2:
+        if (
+            manifest.target_theorem != "Bounty.target"
+            or manifest.theorem_names != ("Bounty.target",)
+            or manifest.forbidden_dependencies != (manifest.source_theorem,)
+            or set(manifest.trusted_file_hashes) != V2_REQUIRED_TRUSTED_FILES
+        ):
+            raise VerifierError(ReasonCode.INVALID_MANIFEST, "v2 manifest targets are inconsistent")
+        expected_v2_id = v2_task_id(
+            slug=task_slug(manifest.source_theorem),
+            mode=manifest.task_mode,
+            descriptor=task_version_descriptor(
+                v2_manifest_inputs(manifest), manifest.trusted_file_hashes
+            ),
+        )
+        if manifest.task_id != expected_v2_id:
+            raise VerifierError(
+                ReasonCode.INVALID_MANIFEST,
+                "v2 task ID does not commit to this manifest and its trusted files",
+            )
+    elif manifest.schema_version == 1:
         expected_id = task_id(
             manifest.repository_commit,
             manifest.source_theorem,
@@ -273,7 +342,7 @@ def _validate_manifest(manifest: TaskManifest) -> None:
             )
     if manifest.permitted_axioms != PERMITTED_AXIOMS:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest permitted axioms differ from verifier policy")
-    if manifest.schema_version == 1:
+    if manifest.schema_version in {1, V2_MANIFEST_SCHEMA_VERSION}:
         if manifest.forbidden_dependencies != (manifest.source_theorem,):
             raise VerifierError(
                 ReasonCode.INVALID_MANIFEST,
@@ -298,11 +367,11 @@ def _validate_manifest(manifest: TaskManifest) -> None:
         if not is_sha256(digest):
             raise VerifierError(ReasonCode.INVALID_MANIFEST, f"{label} hash is not SHA-256")
     names = frozenset(manifest.trusted_file_hashes)
-    expected_trusted = (
-        REQUIRED_TRUSTED_FILES
-        if manifest.schema_version == 1
-        else GROUP_REQUIRED_TRUSTED_FILES
-    )
+    expected_trusted = {
+        1: REQUIRED_TRUSTED_FILES,
+        2: GROUP_REQUIRED_TRUSTED_FILES,
+        V2_MANIFEST_SCHEMA_VERSION: V2_REQUIRED_TRUSTED_FILES,
+    }[manifest.schema_version]
     if names != expected_trusted:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest trusted file set is incomplete or unexpected")
     if any(Path(name).name != name or Path(name).is_absolute() for name in names):
@@ -430,8 +499,8 @@ def load_task_bundle(task_dir: Path) -> TaskBundle:
             entry_names = frozenset(entry.name for entry in entries)
     except OSError as exc:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, f"cannot list task directory: {exc}") from exc
-    if entry_names not in {TASK_FILE_NAMES, GROUP_TASK_FILE_NAMES}:
-        extra = sorted(entry_names - (TASK_FILE_NAMES | GROUP_TASK_FILE_NAMES))
+    if entry_names not in {TASK_FILE_NAMES, GROUP_TASK_FILE_NAMES, V2_TASK_FILE_NAMES}:
+        extra = sorted(entry_names - (TASK_FILE_NAMES | GROUP_TASK_FILE_NAMES | V2_TASK_FILE_NAMES))
         missing = sorted(TASK_FILE_NAMES - entry_names)
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
@@ -442,11 +511,11 @@ def load_task_bundle(task_dir: Path) -> TaskBundle:
     _validate_manifest_json(manifest_json)
     manifest = TaskManifest.from_dict(manifest_json)
     _validate_manifest(manifest)
-    expected_files = (
-        TASK_FILE_NAMES
-        if manifest.schema_version == 1
-        else GROUP_TASK_FILE_NAMES
-    )
+    expected_files = {
+        1: TASK_FILE_NAMES,
+        2: GROUP_TASK_FILE_NAMES,
+        V2_MANIFEST_SCHEMA_VERSION: V2_TASK_FILE_NAMES,
+    }[manifest.schema_version]
     if entry_names != expected_files:
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
@@ -477,7 +546,18 @@ def load_task_bundle(task_dir: Path) -> TaskBundle:
     _validate_source_json(source_json)
     source = CatalogDeclaration.from_dict(source_json)
     _validate_source_metadata(manifest, source)
-    if manifest.schema_version == 1:
+    version = None
+    if manifest.schema_version == V2_MANIFEST_SCHEMA_VERSION:
+        version = _load_task_version(files, manifest, source_json)
+        sources = (source,)
+        expected_payloads = trusted_task_version_payloads(
+            source,
+            manifest.task_mode,
+            manifest.enable_nanoda,
+            manifest.adapter_version,
+            version,
+        )
+    elif manifest.schema_version == 1:
         sources = (source,)
         expected_payloads = trusted_task_payloads(
             source,
@@ -515,7 +595,37 @@ def load_task_bundle(task_dir: Path) -> TaskBundle:
         sources,
         frozen_files,
         sha256_named_bytes(frozen_files),
+        version,
     )
+
+
+def _load_task_version(
+    files: Mapping[str, bytes], manifest: TaskManifest, source_json: Mapping[str, Any]
+) -> TaskVersionDocument:
+    """A v2 bundle's identities: internally consistent, and about this exact statement.
+
+    This proves only that the bundle is self-consistent. Whether the identities still hold in
+    the environment at hand is decided where they are re-derived: by the release builder from
+    the compiled source and by the verifier from the challenge it compiles.
+    """
+    if "repository_commit" in source_json or source_json.get("adapter_version") != manifest.adapter_version:
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "v2 source metadata must name no source commit")
+    version = parse_task_version_document(files[TASK_VERSION_NAME])
+    dependency = version.dependency.document
+    if (
+        version.environment.sha256 != manifest.environment_identity_sha256
+        or version.dependency.sha256 != manifest.dependency_identity_sha256
+        or name_from_json(dependency["theorem"]) != lean_name_parts(manifest.source_theorem)
+        or name_from_json(dependency["module"]) != lean_name_parts(manifest.source_module)
+        or dependency["statement_type_sha256"] != manifest.source_type_hash
+        or (version.nanoda_commit is not None) != manifest.enable_nanoda
+        or manifest.provenance != V2_PROVENANCE
+    ):
+        raise VerifierError(
+            ReasonCode.TRUSTED_FILE_MODIFIED,
+            "task-version.json does not describe this manifest's statement and environment",
+        )
+    return version
 
 
 def load_task(task_dir: Path) -> TaskManifest:

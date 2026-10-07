@@ -70,6 +70,13 @@ OPERATOR_REASONS = frozenset(
         # cases where a refund is likely owed.
         ReasonCode.TASK_COMMITMENT_MISMATCH,
         ReasonCode.REPOSITORY_COMMIT_MISMATCH,
+        # The task version belongs to another verification environment, or its compiled
+        # statement no longer matches its commitment. Route it, never judge it here.
+        ReasonCode.ENVIRONMENT_MISMATCH,
+        ReasonCode.DEPENDENCY_IDENTITY_MISMATCH,
+        # A crashed checker has not judged the proof. It is never an accept, and recording it
+        # as a rejection would charge the miner for our tool's failure.
+        ReasonCode.COMPARATOR_TOOL_CRASHED,
         ReasonCode.REPOSITORY_NOT_FOUND,
         ReasonCode.TRUSTED_FILE_MODIFIED,
         ReasonCode.SOURCE_TYPE_CHANGED,

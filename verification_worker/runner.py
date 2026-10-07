@@ -34,6 +34,7 @@ from typing import Any, Protocol
 
 from verifier.hashing import canonical_json_bytes, is_sha256
 from verifier.models import DEFAULT_CHECKS
+from verifier.version_registry import Instance
 
 # Inside the image: WORKDIR /opt/fc-verifier, USER verifier (10001), ENTRYPOINT python3 -m
 # verifier. Mount points are ours to choose; these two are the whole input surface.
@@ -144,8 +145,13 @@ class VerifierRunner(Protocol):
         proof: bytes,
         expected_task_sha256: str,
         timeout_seconds: int,
+        expected_build_provenance_sha256: str | None = None,
     ) -> VerifierRun:
         """Verify one proof, or raise RunnerFailure."""
+        ...
+
+    def environment_instance(self) -> Instance:
+        """The verification instance (source commit, environment identity) this runner drives."""
         ...
 
 
@@ -378,6 +384,7 @@ class ContainerVerifierRunner:
         proof_path: Path,
         expected_task_sha256: str,
         name: str,
+        expected_build_provenance_sha256: str | None = None,
     ) -> tuple[str, ...]:
         base = self._base_argv(name=name)
         return (
@@ -394,7 +401,24 @@ class ContainerVerifierRunner:
             CONTAINER_PROOF_PATH,
             "--expected-task-sha256",
             expected_task_sha256,
+            *(
+                ("--expected-build-provenance", expected_build_provenance_sha256)
+                if expected_build_provenance_sha256 is not None
+                else ()
+            ),
         )
+
+    def environment_instance(self) -> Instance:
+        """Ask the image itself which verification instance it is, via its doctor report."""
+        name = f"conjectures-verifier-instance-{os.getpid()}"
+        try:
+            result = subprocess.run(
+                self.doctor_argv(name=name), capture_output=True, check=False, env=_docker_env(), timeout=300
+            )
+            report = json.loads(result.stdout)
+        except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RunnerFailure(f"cannot read the verifier image's identity: {exc}") from exc
+        return instance_from_doctor(report)
 
     def doctor_argv(self, *, name: str) -> tuple[str, ...]:
         """Run the image's live pin, toolchain, Landlock and seccomp probes."""
@@ -407,9 +431,12 @@ class ContainerVerifierRunner:
         proof: bytes,
         expected_task_sha256: str,
         timeout_seconds: int,
+        expected_build_provenance_sha256: str | None = None,
     ) -> VerifierRun:
         if not is_sha256(expected_task_sha256):
             raise RunnerFailure("expected task digest is not a sha256 commitment")
+        if expected_build_provenance_sha256 is not None and not is_sha256(expected_build_provenance_sha256):
+            raise RunnerFailure("expected build provenance is not a sha256 commitment")
         with tempfile.TemporaryDirectory(prefix="conjectures-verify-") as temporary:
             # The container runs as uid 10001 and must be able to traverse to the mount source,
             # so the directory is world-readable. It holds only bytes the miner already sent us.
@@ -425,6 +452,7 @@ class ContainerVerifierRunner:
                 proof_path=proof_path,
                 expected_task_sha256=expected_task_sha256,
                 name=name,
+                expected_build_provenance_sha256=expected_build_provenance_sha256,
             )
             stdout, stderr = await self._communicate(argv, name, timeout_seconds)
 
@@ -515,6 +543,26 @@ async def _read_bounded(
     return bytes(value), overflow
 
 
+def instance_from_doctor(report: object) -> Instance:
+    """The verification instance an image reports. An image that predates environment
+    identities reports only its source commit and can serve only legacy work of that commit."""
+    if not isinstance(report, dict):
+        raise RunnerFailure("verifier image doctor report is not a JSON object")
+    section = report.get("task_versions")
+    if isinstance(section, dict):
+        commit = section.get("repository_commit")
+        identity = section.get("environment_identity_sha256")
+    else:
+        formal = report.get("formal_conjectures")
+        commit = formal.get("actual_commit") if isinstance(formal, dict) else None
+        identity = None
+    if not isinstance(commit, str) or len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
+        raise RunnerFailure("verifier image did not report its source commit")
+    if identity is not None and not is_sha256(identity):
+        raise RunnerFailure("verifier image reported an invalid environment identity")
+    return Instance(commit, identity)
+
+
 def assert_container_ready(runner: ContainerVerifierRunner) -> None:
     """Refuse startup unless the exact hardened image passes its live production probe."""
     name = f"conjectures-verifier-doctor-{os.getpid()}"
@@ -568,6 +616,13 @@ class InProcessVerifierRunner:
     # See WorkerSettings.allow_insecure_sandbox for what it costs and where it is refused.
     allow_insecure_development: bool = False
 
+    def environment_instance(self) -> Instance:
+        from verifier.doctor import task_version_environment
+        from verifier.repository import repository_commit
+
+        commit = repository_commit(self.project_root / "vendor" / "formal-conjectures")
+        return instance_from_doctor({"task_versions": task_version_environment(self.project_root, commit)})
+
     async def run(
         self,
         *,
@@ -575,6 +630,7 @@ class InProcessVerifierRunner:
         proof: bytes,
         expected_task_sha256: str,
         timeout_seconds: int,
+        expected_build_provenance_sha256: str | None = None,
     ) -> VerifierRun:
         del timeout_seconds  # verify() enforces the manifest's own deadline
         from verifier.service_adapter import ProductionVerifierAdapter
@@ -589,6 +645,7 @@ class InProcessVerifierRunner:
                 task_dir=task_dir,
                 submission=proof,
                 expected_task_sha256=expected_task_sha256,
+                expected_build_provenance_sha256=expected_build_provenance_sha256,
             )
         except (OSError, ValueError, TypeError) as exc:
             raise RunnerFailure(f"in-process verifier failed: {exc}") from exc
@@ -649,5 +706,6 @@ __all__ = [
     "build_runner",
     "assert_container_ready",
     "assert_production_report",
+    "instance_from_doctor",
     "resolve_container_digest",
 ]

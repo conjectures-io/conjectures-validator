@@ -42,6 +42,9 @@ def test_service_adapter_passes_only_production_verifier_arguments(
             "project_root": tmp_path,
             "expected_task_sha256": TASK_DIGEST,
             "allow_insecure_development": False,
+            # A production commitment, not a development override: a v2 task needs its
+            # instance's build provenance, which the worker passes. None for a legacy task.
+            "expected_build_provenance_sha256": None,
         }
     ]
 

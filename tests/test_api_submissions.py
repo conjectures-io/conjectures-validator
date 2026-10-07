@@ -1,10 +1,9 @@
 """Intake and read behaviour against a real PostgreSQL database.
 
-Skipped unless a PostgreSQL server is reachable, because the schema is PostgreSQL-only. Start
-the fixed test stack — its credentials are hardcoded on both sides, so there is nothing to
-export:
+Skipped unless a verified private PostgreSQL fixture is configured, because the schema is
+PostgreSQL-only and these tests rebuild it:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
@@ -57,7 +56,7 @@ from verifier.hashing import sha256_bytes
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 

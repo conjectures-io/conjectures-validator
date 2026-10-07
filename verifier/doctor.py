@@ -117,6 +117,22 @@ def image_pins_satisfied(dependency_pins: Mapping[str, Mapping[str, Any]]) -> bo
     return all(status["pinned"] for status in image_pin_statuses(dependency_pins).values())
 
 
+def task_version_environment(project_root: Path, repository_commit: str | None) -> dict[str, Any]:
+    from verifier.task_versions import derive_environment_identity
+
+    try:
+        identity = derive_environment_identity(project_root).sha256
+        error = None
+    except VerifierError as exc:
+        identity = None
+        error = str(exc)
+    return {
+        "environment_identity_sha256": identity,
+        "error": error,
+        "repository_commit": repository_commit,
+    }
+
+
 def doctor_report(project_root: Path, *, insecure_development: bool = False) -> dict[str, Any]:
     """This host's readiness, judged against the isolation the caller intends to run under.
 
@@ -142,6 +158,10 @@ def doctor_report(project_root: Path, *, insecure_development: bool = False) -> 
     unprivileged = not hasattr(os, "geteuid") or os.geteuid() != 0
     trusted_cache = trusted_cache_status(project_root)
     return {
+        # Which verification environment this is, for routing paid work to it. Derived from the
+        # installed tools and checkouts; the worker claims only submissions this environment
+        # accepted itself (`verification_worker.tasks`).
+        "task_versions": task_version_environment(project_root, actual),
         "schema_version": 1,
         "python": {
             "version": platform.python_version(),

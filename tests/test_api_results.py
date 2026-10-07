@@ -9,7 +9,7 @@ published either, and the tests below pin each of those three cases — a reject
 *listed* on the dashboard feed, which is a different thing from its artifacts being served, and the
 tests hold that line separately. Needs a real PostgreSQL server:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
@@ -64,7 +64,7 @@ CONJECTURE_SLUG = "verifierfixtures-direct"
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 # A report shaped like verifier.models.VerificationReport.to_dict(), including the two fields

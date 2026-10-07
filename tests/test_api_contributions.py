@@ -39,7 +39,7 @@ from verifier.task_pool import reward_target_identity
 
 needs_db = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 pytestmark = needs_db

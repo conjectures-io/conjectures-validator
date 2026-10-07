@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from verifier.hashing import is_sha256
+from verifier.models import V2_PROVENANCE
 from verifier.task_generator import problem_id
 from verifier.task_loader import TaskBundle
 from verifier.task_policy import (
@@ -498,7 +499,13 @@ class TaskPoolRegistry:
         allowed = self.tasks.get(bundle.manifest.task_id)
         if allowed is None:
             raise TaskNotAllowed("task is not on the audited task allowlist")
-        if bundle.manifest.repository_commit != self.repository_commit:
+        # A legacy bundle names its source commit and must name this one. A v2 bundle names no
+        # commit; whether its dependency identity holds in this snapshot is recorded in the
+        # version registry, which every loader of a v2 bundle also checks.
+        if (
+            bundle.manifest.provenance != V2_PROVENANCE
+            and bundle.manifest.repository_commit != self.repository_commit
+        ):
             raise TaskNotAllowed("task repository commit does not match the allowlist")
         if bundle.sha256 != allowed.task_bundle_sha256:
             raise TaskNotAllowed("task bundle digest does not match the allowlist")

@@ -1,6 +1,7 @@
 import Lean
 import Lean.Util.CollectAxioms
 import TaskSupport
+import DependencyClosure
 import FormalConjecturesUtil.Attributes.Basic
 
 open Lean Meta FormalConjecturesVerifier ProblemAttributes
@@ -43,8 +44,17 @@ def intendedType
   throwError "unsupported inspector task mode: {mode}"
 
 unsafe def runInspector (arguments : List String) : IO Unit := do
-  let [challengeModule, targetName, sourceModule, sourceName, classification, mode] := arguments
-    | throw <| IO.userError "usage: TaskInspector CHALLENGE TARGET SOURCE_MODULE SOURCE CLASSIFICATION MODE"
+  -- The optional LOCAL_ROOTS and CLOSURE_OUTPUT derive the source statement's dependency
+  -- closure from this very environment, for version-2 task identities.
+  let (challengeModule, targetName, sourceModule, sourceName, classification, mode, closureRequest) ←
+    match arguments with
+    | [challenge, target, sourceModule, source, classification, mode] =>
+        pure (challenge, target, sourceModule, source, classification, mode, none)
+    | [challenge, target, sourceModule, source, classification, mode, roots, output] =>
+        pure (challenge, target, sourceModule, source, classification, mode, some (roots, output))
+    | _ => throw <| IO.userError <|
+        "usage: TaskInspector CHALLENGE TARGET SOURCE_MODULE SOURCE CLASSIFICATION MODE " ++
+          "[LOCAL_ROOTS CLOSURE_OUTPUT]"
   initSearchPath (← findSysroot)
   Lean.enableInitializersExecution
   let imports := #[
@@ -89,6 +99,19 @@ unsafe def runInspector (arguments : List String) : IO Unit := do
         ("source_declaration_kind", toJson declarationKind)
       ]
   let (result, _) ← Lean.Core.CoreM.toIO action context { env := environment }
+  if let some (roots, output) := closureRequest then
+    let localRoots := Dependencies.parseLocalRoots roots
+    if localRoots.isEmpty then
+      throw <| IO.userError "LOCAL_ROOTS must name at least one module root"
+    let closure ← Dependencies.closureJson environment localRoots sourceName.toName
+      sourceModule.toName
+    IO.FS.writeFile output (Json.mkObj [
+      ("schema_version", toJson (1 : Nat)),
+      ("lean_githash", Json.str Lean.githash),
+      ("local_roots", Json.arr (localRoots.map Dependencies.nameJson)),
+      ("modules", ← Dependencies.moduleTableJson environment localRoots),
+      ("targets", Json.arr #[closure])
+    ]).compress
   IO.println result.compress
 
 unsafe def main (arguments : List String) : IO Unit :=

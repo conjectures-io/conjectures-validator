@@ -6,9 +6,9 @@ The projection is advisory and rebuildable, so what the schema has to guarantee 
 exact: a skipped stage cannot look like an approval, a promoted column cannot disagree with the
 verdict it was lifted from, and two workers cannot both hold one submission.
 
-Skipped unless a server is reachable. Start the fixed test stack:
+Skipped unless a verified private test database is configured (tests/database_guard.py):
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations

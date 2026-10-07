@@ -7,7 +7,7 @@ one exact target, independence between targets, and contradictory proof/refutati
 
 Skipped unless a PostgreSQL server is reachable:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ from verifier.hashing import sha256_bytes
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 PROBLEM = "fc-e923379e-erdos11-erdos-11-problem"

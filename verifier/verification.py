@@ -28,6 +28,12 @@ from verifier.task_policy import (
     EXACT_TASK_MODE,
     is_production_task_mode,
 )
+from verifier.task_versions import (
+    V2_PROVENANCE,
+    SourceTrees,
+    check_inspected_closure,
+    derive_environment_identity,
+)
 from verifier.workspace import (
     build_challenge,
     cleanup_workspace,
@@ -79,10 +85,14 @@ def verify(
     allow_uncommitted_task: bool = False,
     allow_insecure_development: bool = False,
     allow_test_task: bool = False,
+    expected_build_provenance_sha256: str | None = None,
 ) -> VerificationReport:
     started = time.monotonic_ns()
     bundle = load_task_bundle(task_dir)
     manifest = bundle.manifest
+    v2 = manifest.provenance == V2_PROVENANCE
+    environment = None
+    environment_commit: str | None = manifest.repository_commit
     deadline = started + manifest.timeout_seconds * 1_000_000_000
     checks = updated_checks(
         {},
@@ -114,6 +124,7 @@ def verify(
     ) -> VerificationReport:
         return build_report(
             manifest=manifest,
+            repository_commit=environment_commit,
             task_bundle_sha256=bundle.sha256,
             submission_sha256=submission_hash,
             accepted=False,
@@ -155,7 +166,9 @@ def verify(
             actual_commit = repository_commit(project_root / "vendor" / "formal-conjectures")
         except VerifierError as exc:
             return rejected(exc.reason, "LOAD_TASK", stderr=str(exc))
-        if manifest.repository_commit != expected_commit or actual_commit != expected_commit:
+        if actual_commit != expected_commit or (not v2 and manifest.repository_commit != expected_commit):
+            # A legacy task is valid only in the environment built from its own source commit.
+            # A v2 task names no commit; the environment must still match its own pins.
             return rejected(
                 ReasonCode.REPOSITORY_COMMIT_MISMATCH,
                 "LOAD_TASK",
@@ -163,6 +176,33 @@ def verify(
                     f"task={manifest.repository_commit}, expected={expected_commit}, repository={actual_commit}"
                 ),
             )
+        environment_commit = actual_commit
+        if v2:
+            # Before reading the proof: a version bound to another toolchain, pin set or policy
+            # is never verified here, however similar this environment looks.
+            try:
+                environment = derive_environment_identity(project_root)
+            except VerifierError as exc:
+                return rejected(ReasonCode.ENVIRONMENT_MISMATCH, "LOAD_TASK", stderr=str(exc))
+            if environment.sha256 != manifest.environment_identity_sha256:
+                return rejected(
+                    ReasonCode.ENVIRONMENT_MISMATCH,
+                    "LOAD_TASK",
+                    stderr=(
+                        f"task environment {manifest.environment_identity_sha256}, "
+                        f"this verifier {environment.sha256}"
+                    ),
+                )
+            if (
+                manifest.production_eligible
+                and not allow_uncommitted_task
+                and expected_build_provenance_sha256 is None
+            ):
+                return rejected(
+                    ReasonCode.ENVIRONMENT_MISMATCH,
+                    "LOAD_TASK",
+                    stderr="production verification of a v2 task requires its snapshot's build provenance",
+                )
         checks = updated_checks(checks, trusted_hashes_valid=True)
 
         try:
@@ -248,7 +288,18 @@ def verify(
                         env=effective_env,
                         timeout_seconds=remaining,
                         target_theorem=target_theorem,
+                        closure_roots=SourceTrees.for_project(project_root).local_roots() if v2 else None,
                     )
+                )
+            if v2:
+                assert environment is not None
+                check_inspected_closure(
+                    inspections[0]["closure"],
+                    trees=SourceTrees.for_project(project_root),
+                    environment=environment,
+                    declaration=bundle.source,
+                    expected_dependency_sha256=str(manifest.dependency_identity_sha256),
+                    expected_build_provenance_sha256=expected_build_provenance_sha256,
                 )
         except VerifierError as exc:
             return rejected(exc.reason, "BUILD_CHALLENGE", stderr=str(exc))
@@ -335,6 +386,7 @@ def verify(
         )
         return build_report(
             manifest=manifest,
+            repository_commit=environment_commit,
             task_bundle_sha256=bundle.sha256,
             submission_sha256=submission_hash,
             accepted=True,

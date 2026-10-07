@@ -74,6 +74,9 @@ def _parser() -> argparse.ArgumentParser:
     verification.add_argument("--allow-uncommitted-task", action="store_true")
     verification.add_argument("--allow-insecure-development", action="store_true")
     verification.add_argument("--allow-test-task", action="store_true")
+    # v2 tasks: the build provenance of the snapshot whose environment this is, from the
+    # version registry. The verifier recomputes it in place and refuses on any difference.
+    verification.add_argument("--expected-build-provenance")
     return parser
 
 
@@ -187,6 +190,7 @@ def _run(args: argparse.Namespace) -> int:
             allow_uncommitted_task=args.allow_uncommitted_task,
             allow_insecure_development=args.allow_insecure_development,
             allow_test_task=args.allow_test_task,
+            expected_build_provenance_sha256=args.expected_build_provenance,
         )
         _print(report.to_dict())
         return exit_code_for(report.reason_code, report.accepted)

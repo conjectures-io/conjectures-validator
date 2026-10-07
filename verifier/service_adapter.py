@@ -29,15 +29,19 @@ class ProductionVerifierAdapter:
         task_dir: Path,
         submission_path: Path,
         expected_task_sha256: str,
+        expected_build_provenance_sha256: str | None = None,
     ) -> VerificationReport:
         if not is_sha256(expected_task_sha256):
             raise ValueError("expected task digest is not a lowercase SHA-256 commitment")
+        if expected_build_provenance_sha256 is not None and not is_sha256(expected_build_provenance_sha256):
+            raise ValueError("expected build provenance is not a lowercase SHA-256 commitment")
         return verify(
             task_dir=task_dir,
             submission_path=submission_path,
             project_root=self.project_root,
             expected_task_sha256=expected_task_sha256,
             allow_insecure_development=self.allow_insecure_development,
+            expected_build_provenance_sha256=expected_build_provenance_sha256,
         )
 
     def verify_bytes(
@@ -46,6 +50,7 @@ class ProductionVerifierAdapter:
         task_dir: Path,
         submission: bytes,
         expected_task_sha256: str,
+        expected_build_provenance_sha256: str | None = None,
     ) -> VerificationReport:
         if not isinstance(submission, bytes):
             raise TypeError("proof submission must be bytes")
@@ -69,4 +74,5 @@ class ProductionVerifierAdapter:
                 task_dir=task_dir,
                 submission_path=path,
                 expected_task_sha256=expected_task_sha256,
+                expected_build_provenance_sha256=expected_build_provenance_sha256,
             )

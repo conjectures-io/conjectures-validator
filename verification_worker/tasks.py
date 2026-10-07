@@ -1,22 +1,29 @@
-"""Which task a claimed submission is about, and where its bytes are.
+"""Which task a claimed submission is about, where its bytes are, and which ones this worker may claim.
 
-Built straight on `verifier.task_registry`, not on `submission_api.taskpool`: the worker holds
-database credentials and has no business importing the network-facing package, and the two need
-different things from the pool anyway — the API needs what to advertise, the worker needs one
-directory and one declared timeout.
+Built straight on `verifier.task_registry` and `verifier.version_registry`, not on
+`submission_api.taskpool`: the worker holds database credentials and has no business importing the
+network-facing package, and the two need different things from the pool anyway — the API needs
+what to advertise, the worker needs one directory, one declared timeout, and the exact set of
+submissions its verification environment is the original environment for.
 
-Loaded once at startup and immutable after. Every entry is checked with
-`TaskPoolRegistry.assert_bundle`, so a task directory whose bytes have drifted from the audited
-allowlist stops the worker from starting rather than being verified against quietly.
+Loaded once at startup and immutable after. Every entry is checked against the audited allowlist
+or the version registry and its bundle is re-validated, so a task directory whose bytes have
+drifted stops the worker from starting rather than being verified against quietly.
 
-`resolve` takes the digest recorded on the submission and requires it to match the published
-one. That is the fail-closed step: a task whose bundle has been regenerated since a miner paid
-must not be verified against the new bytes, because the miner proved something about the old
-ones.
+A submission is identified by three values fixed at intake: `task_id`, `task_bundle_sha256` and
+`problem_id`, the last of which commits to the source snapshot that accepted it. `served_keys` is
+exactly the set of those triples this worker's environment accepted itself, and the queue claim
+is filtered by it (`conjectures_subnet.db.verification.claim_next`). Paid work from any other
+environment — an older release, a different toolchain, the original source of a retired task — is
+never claimed here, so it is never charged an attempt and never verified against bytes or an
+environment the miner did not submit against. `resolve` requires the same exact triple: it never
+rebinds a submission to another version of the same target.
 """
 
 from __future__ import annotations
 
+import os
+import stat
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +31,23 @@ from typing import Protocol
 
 from verifier.task_loader import load_task_bundle
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
+from verifier.task_versions import LEGACY_PROVENANCE, V2_PROVENANCE
+from verifier.version_registry import (
+    REGISTRY_NAME,
+    Instance,
+    VersionRegistry,
+    assert_matches_allowlist,
+    served_keys,
+)
+
+
+@dataclass(frozen=True)
+class ClaimKey:
+    """What a worker may claim: the exact values a submission row carries."""
+
+    task_id: str
+    task_bundle_sha256: str  # sha256:<hex>
+    problem_id: str
 
 
 @dataclass(frozen=True)
@@ -34,16 +58,69 @@ class ResolvedTask:
     task_bundle_sha256: str  # sha256:<hex>, as published in the allowlist
     timeout_seconds: int  # the manifest's own deadline, which the verifier enforces
     enable_nanoda: bool = False
+    # The intake snapshot this resolution is for; None only for resolvers built in tests.
+    problem_id: str | None = None
+    provenance: str = LEGACY_PROVENANCE
+    # v2 only: the build provenance the verifier must recompute in its container.
+    expected_build_provenance_sha256: str | None = None
 
 
 class TaskResolver(Protocol):
-    def resolve(self, *, task_id: str, task_bundle_sha256: str) -> ResolvedTask:
+    def served_keys(self) -> tuple[ClaimKey, ...]:
+        """Exactly the submissions this worker's environment may claim."""
+        ...
+
+    def resolve(self, *, task_id: str, task_bundle_sha256: str, problem_id: str) -> ResolvedTask:
         """The task, or raise TaskNotAllowed."""
         ...
 
 
+def _key(task: ResolvedTask) -> ClaimKey:
+    if task.problem_id is None:
+        raise TaskNotAllowed(f"task {task.task_id} has no intake problem identity to route by")
+    return ClaimKey(task.task_id, task.task_bundle_sha256, task.problem_id)
+
+
+def _resolve_exact(
+    tasks: Mapping[ClaimKey, ResolvedTask], *, task_id: str, task_bundle_sha256: str, problem_id: str
+) -> ResolvedTask:
+    task = tasks.get(ClaimKey(task_id, task_bundle_sha256, problem_id))
+    if task is not None:
+        return task
+    if not any(key.task_id == task_id for key in tasks):
+        raise TaskNotAllowed("task is not served by this verification environment")
+    if not any(key.task_id == task_id and key.task_bundle_sha256 == task_bundle_sha256 for key in tasks):
+        raise TaskNotAllowed("task bundle digest does not match the published commitment")
+    raise TaskNotAllowed(
+        "submission was accepted by a different source snapshot; only its original "
+        "verification environment may verify it"
+    )
+
+
+def _resolve_single(
+    tasks: Mapping[str, ResolvedTask], *, task_id: str, task_bundle_sha256: str, problem_id: str
+) -> ResolvedTask:
+    task = tasks.get(task_id)
+    if task is None:
+        raise TaskNotAllowed("task is not on the audited task allowlist")
+    if task.task_bundle_sha256 != task_bundle_sha256:
+        raise TaskNotAllowed("task bundle digest does not match the published commitment")
+    if problem_id != task.problem_id:
+        raise TaskNotAllowed(
+            "submission was accepted by a different source snapshot; only its original "
+            "verification environment may verify it"
+        )
+    return task
+
+
 @dataclass(frozen=True)
 class PoolTaskResolver:
+    """The allowlist alone: for a tasks release without a version registry.
+
+    Serves exactly the current allowlist's rows, so the only submissions it claims are the ones
+    this very snapshot accepted.
+    """
+
     repository_commit: str
     tasks: Mapping[str, ResolvedTask]
 
@@ -85,6 +162,7 @@ class PoolTaskResolver:
                     task_bundle_sha256=allowed.task_bundle_sha256,
                     timeout_seconds=bundle.manifest.timeout_seconds,
                     enable_nanoda=bundle.manifest.enable_nanoda,
+                    problem_id=allowed.problem_id,
                 )
         missing = sorted(set(registry.tasks) - set(resolved))
         if missing:
@@ -95,31 +173,161 @@ class PoolTaskResolver:
             raise TaskNotAllowed("task pool is empty")
         return cls(repository_commit=registry.repository_commit, tasks=resolved)
 
-    def resolve(self, *, task_id: str, task_bundle_sha256: str) -> ResolvedTask:
-        task = self.tasks.get(task_id)
-        if task is None:
-            raise TaskNotAllowed("task is not on the audited task allowlist")
-        if task.task_bundle_sha256 != task_bundle_sha256:
+    def served_keys(self) -> tuple[ClaimKey, ...]:
+        return tuple(sorted({_key(task) for task in self.tasks.values()}, key=lambda key: (key.task_id, key.problem_id)))
+
+    def resolve(self, *, task_id: str, task_bundle_sha256: str, problem_id: str) -> ResolvedTask:
+        return _resolve_single(
+            self.tasks, task_id=task_id, task_bundle_sha256=task_bundle_sha256, problem_id=problem_id
+        )
+
+
+def _bundle_directory(tasks_root: Path, location: str) -> Path:
+    """`tasks_root/location`, refusing any symlink or escape on the way."""
+    parts = Path(location).parts
+    if not parts or Path(location).is_absolute() or any(part in {"", ".", ".."} for part in parts):
+        raise TaskNotAllowed(f"unsafe task location: {location!r}")
+    current = tasks_root
+    for part in parts:
+        current = current / part
+        try:
+            mode = current.lstat().st_mode
+        except OSError as exc:
+            raise TaskNotAllowed(f"task bytes are missing at {location}: {exc}") from exc
+        if not stat.S_ISDIR(mode):
+            raise TaskNotAllowed(f"task location is not a real directory: {location}")
+    if os.path.realpath(current) != os.path.join(os.path.realpath(tasks_root), *parts):
+        raise TaskNotAllowed(f"task location escapes the tasks checkout: {location}")
+    return current
+
+
+@dataclass(frozen=True)
+class VersionedTaskResolver:
+    """Every version this environment is the original environment for, current or historical."""
+
+    environment: Instance
+    tasks: Mapping[ClaimKey, ResolvedTask]
+
+    @classmethod
+    def load(
+        cls,
+        *,
+        tasks_root: Path,
+        environment: Instance,
+        allowlist_path: Path | None = None,
+    ) -> VersionedTaskResolver:
+        registry = VersionRegistry.load(tasks_root / REGISTRY_NAME)
+        if environment not in registry.instances:
             raise TaskNotAllowed(
-                "task bundle digest does not match the published commitment"
+                f"verification instance {environment} is not published in the version registry; "
+                "this environment is not the original environment for any paid work"
             )
-        return task
+        if allowlist_path is not None and registry.current.instance == environment:
+            assert_matches_allowlist(registry, allowlist_path)
+        resolved: dict[ClaimKey, ResolvedTask] = {}
+        bundles: dict[str, object] = {}
+        for key in served_keys(registry, environment):
+            record = registry.versions[key.task_id]
+            if key.task_id not in bundles:
+                bundle = load_task_bundle(_bundle_directory(tasks_root, key.location))
+                manifest = bundle.manifest
+                if (
+                    manifest.task_id != key.task_id
+                    or bundle.sha256 != key.task_bundle_sha256
+                    or manifest.provenance != record.provenance
+                    or manifest.task_mode != record.mode
+                    or (record.provenance == LEGACY_PROVENANCE and manifest.repository_commit != environment.repository_commit)
+                    or (
+                        record.provenance == V2_PROVENANCE
+                        and (
+                            manifest.environment_identity_sha256 != environment.environment_identity_sha256
+                            or manifest.dependency_identity_sha256 != record.dependency_identity_sha256
+                        )
+                    )
+                ):
+                    raise TaskNotAllowed(f"bundle at {key.location} does not match its registry record")
+                bundles[key.task_id] = bundle
+            bundle = bundles[key.task_id]
+            resolved[ClaimKey(key.task_id, key.task_bundle_sha256, key.problem_id)] = ResolvedTask(
+                task_id=key.task_id,
+                tier=record.tier,
+                task_dir=_bundle_directory(tasks_root, key.location),
+                task_bundle_sha256=key.task_bundle_sha256,
+                timeout_seconds=bundle.manifest.timeout_seconds,  # type: ignore[attr-defined]
+                enable_nanoda=bundle.manifest.enable_nanoda,  # type: ignore[attr-defined]
+                problem_id=key.problem_id,
+                provenance=record.provenance,
+                expected_build_provenance_sha256=key.expected_build_provenance_sha256,
+            )
+        return cls(environment=environment, tasks=resolved)
+
+    def served_keys(self) -> tuple[ClaimKey, ...]:
+        return tuple(sorted(self.tasks, key=lambda key: (key.task_id, key.problem_id)))
+
+    def resolve(self, *, task_id: str, task_bundle_sha256: str, problem_id: str) -> ResolvedTask:
+        return _resolve_exact(
+            self.tasks, task_id=task_id, task_bundle_sha256=task_bundle_sha256, problem_id=problem_id
+        )
+
+
+def load_task_resolver(
+    *,
+    tasks_root: Path,
+    allowlist_path: Path,
+    pool_root: Path,
+    environment: Instance,
+) -> PoolTaskResolver | VersionedTaskResolver:
+    """The registry when the tasks release has one; otherwise its allowlist, for its own commit only."""
+    if os.path.lexists(tasks_root / REGISTRY_NAME):
+        return VersionedTaskResolver.load(
+            tasks_root=tasks_root, environment=environment, allowlist_path=allowlist_path
+        )
+    resolver = PoolTaskResolver.load(allowlist_path=allowlist_path, pool_root=pool_root)
+    if resolver.repository_commit != environment.repository_commit:
+        raise TaskNotAllowed(
+            f"allowlist is for source {resolver.repository_commit} but the verifier environment runs "
+            f"{environment.repository_commit}; refusing to claim another environment's paid work"
+        )
+    return resolver
+
+
+@dataclass(frozen=True)
+class StaticTaskResolver:
+    """Resolver over explicit tasks. Used by tests, which need no audited pool on disk."""
+
+    repository_commit: str
+    tasks: Mapping[ClaimKey, ResolvedTask]
+
+    def served_keys(self) -> tuple[ClaimKey, ...]:
+        return tuple(sorted(self.tasks, key=lambda key: (key.task_id, key.problem_id)))
+
+    def resolve(self, *, task_id: str, task_bundle_sha256: str, problem_id: str) -> ResolvedTask:
+        return _resolve_exact(
+            self.tasks, task_id=task_id, task_bundle_sha256=task_bundle_sha256, problem_id=problem_id
+        )
 
 
 def resolver_from_tasks(
     *, repository_commit: str, tasks: tuple[ResolvedTask, ...]
-) -> PoolTaskResolver:
-    """Build a resolver directly. Used by tests, which need no audited pool on disk."""
-    return PoolTaskResolver(
+) -> StaticTaskResolver:
+    """Build a resolver directly. Used by tests, which need no audited pool on disk.
+
+    Each task must carry the `problem_id` of the submissions it serves: routing is exact.
+    """
+    return StaticTaskResolver(
         repository_commit=repository_commit,
-        tasks={task.task_id: task for task in tasks},
+        tasks={_key(task): task for task in tasks},
     )
 
 
 __all__ = [
+    "ClaimKey",
     "PoolTaskResolver",
     "ResolvedTask",
+    "StaticTaskResolver",
     "TaskNotAllowed",
     "TaskResolver",
+    "VersionedTaskResolver",
+    "load_task_resolver",
     "resolver_from_tasks",
 ]

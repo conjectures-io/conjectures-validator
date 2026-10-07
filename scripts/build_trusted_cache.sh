@@ -150,8 +150,8 @@ if [[ "$stage" = root || "$stage" = all ]]; then
   # building it compiles only the root module and its imports, and TestFixtures.lean does not import
   # Counterexample. Without it the external counterexample task fixture cannot build its challenge,
   # which tests/test_integration.py already depends on.
-  lake build VerifierLean TaskSupport TestFixtures TestFixtures.Counterexample \
-    catalog_extractor task_inspector
+  lake build VerifierLean TaskSupport DependencyClosure TestFixtures TestFixtures.Counterexample \
+    catalog_extractor task_inspector dependency_extractor
 
   if [[ "$sandbox_tools" = 1 ]]; then
     substep "build the seccomp launcher"

@@ -4,19 +4,28 @@ import os
 import re
 import shutil
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
 from verifier.adapters import GenerationContext, GeneratedLean, adapter_for
 from verifier.classification import is_adapter_required
 from verifier.errors import ReasonCode, VerifierError
-from verifier.hashing import hash_named_files, pretty_json, sha256_text
+from verifier.hashing import hash_named_files, pretty_json, sha256_bytes, sha256_text
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
 from verifier.task_policy import (
     COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
     production_eligibility,
     proved_type_collisions,
+)
+from verifier.task_versions import (
+    TASK_VERSION_NAME,
+    V2_MANIFEST_SCHEMA_VERSION,
+    DependencyIdentity,
+    EnvironmentIdentity,
+    TaskVersionDocument,
+    v2_task_id,
 )
 
 
@@ -35,6 +44,29 @@ TRUSTED_NAMES = (
 )
 GROUP_METADATA_NAME = "group-metadata.json"
 GROUP_TRUSTED_NAMES = (*TRUSTED_NAMES, GROUP_METADATA_NAME)
+V2_TRUSTED_NAMES = (*TRUSTED_NAMES, TASK_VERSION_NAME)
+# Manifest fields a v2 task ID commits to directly. Everything else in a v2 bundle is a trusted
+# file (hashed into the ID) or an output Lean computed from these inputs, pinned by the
+# published bundle digest.
+V2_ID_MANIFEST_FIELDS = (
+    "adapter_version",
+    "answer_policy",
+    "classification",
+    "definition_names",
+    "dependency_identity_sha256",
+    "enable_nanoda",
+    "environment_identity_sha256",
+    "forbidden_dependencies",
+    "max_submission_bytes",
+    "permitted_axioms",
+    "source_module",
+    "source_path",
+    "source_theorem",
+    "source_type_hash",
+    "task_mode",
+    "theorem_names",
+    "timeout_seconds",
+)
 LEAN_MODULE_NAME = re.compile(
     r"(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»)"
     r"(?:\.(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»))*"
@@ -234,6 +266,226 @@ def trusted_group_task_payloads(
         ),
     }
     return {name: content.encode("utf-8") for name, content in texts.items()}
+
+
+def trusted_task_version_payloads(
+    declaration: CatalogDeclaration,
+    mode: str,
+    enable_nanoda: bool,
+    adapter_version: int,
+    version: TaskVersionDocument,
+) -> Mapping[str, bytes]:
+    """The trusted files of a v2 task version: a pure function of its committed inputs.
+
+    No source commit appears anywhere, so the same statement, dependency identity and
+    environment regenerate byte-identical files in every snapshot that leaves them unchanged.
+    """
+    adapter = adapter_for(declaration)
+    if adapter is None or adapter.version != adapter_version:
+        raise VerifierError(
+            ReasonCode.INVALID_MANIFEST,
+            "task adapter is unavailable or has a different version",
+        )
+    generated = adapter.generate(declaration, mode, GenerationContext("", adapter_version))
+    texts = {
+        "Challenge.lean": _challenge_text(declaration, generated),
+        "SolutionHeader.lean.txt": _imports(declaration),
+        "SolutionFooter.lean.txt": "\nend Bounty\n",
+        "comparator-config.json": pretty_json(_comparator_config(generated, enable_nanoda)),
+        "source-metadata.json": pretty_json(
+            {**declaration.to_dict(), "adapter_version": adapter_version}
+        ),
+        TASK_VERSION_NAME: pretty_json(version.to_dict()),
+    }
+    return {name: content.encode("utf-8") for name, content in texts.items()}
+
+
+def task_version_descriptor(
+    manifest_fields: Mapping[str, Any], trusted_file_hashes: Mapping[str, str]
+) -> dict[str, Any]:
+    if set(trusted_file_hashes) != set(V2_TRUSTED_NAMES):
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "v2 trusted file set is incomplete")
+    return {
+        "manifest": {key: manifest_fields[key] for key in V2_ID_MANIFEST_FIELDS},
+        "trusted_file_hashes": dict(sorted(trusted_file_hashes.items())),
+    }
+
+
+@dataclass(frozen=True)
+class PlannedTaskVersion:
+    """Everything about a v2 version that is known without running Lean."""
+
+    task_id: str
+    declaration: CatalogDeclaration
+    mode: str
+    payloads: Mapping[str, bytes]
+    trusted_file_hashes: Mapping[str, str]
+    manifest_inputs: Mapping[str, Any]
+    eligible: bool
+    known_collisions: tuple[str, ...]
+    generated: GeneratedLean
+
+
+def plan_task_version(
+    *,
+    catalog: Catalog,
+    declaration: CatalogDeclaration,
+    mode: str,
+    environment: EnvironmentIdentity,
+    dependency: DependencyIdentity,
+    enable_nanoda: bool = False,
+    nanoda_commit: str | None = None,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
+    allow_non_open: bool = False,
+) -> PlannedTaskVersion:
+    """Compute a v2 version's ID and trusted bytes. Applies every check `generate_task` does."""
+    if declaration.classification == Classification.POINTER_DECLARATION:
+        raise VerifierError(
+            ReasonCode.UNSUPPORTED_DECLARATION,
+            "plan the pointer target, not the pointer declaration",
+        )
+    adapter = adapter_for(declaration)
+    if adapter is None:
+        reason = ReasonCode.ADAPTER_REQUIRED if is_adapter_required(declaration.classification) else ReasonCode.UNSUPPORTED_DECLARATION
+        raise VerifierError(reason, f"no automatic adapter for {declaration.classification.value}: {declaration.theorem}")
+    if mode not in adapter.supported_modes(declaration):
+        raise VerifierError(ReasonCode.INVALID_TASK_MODE, f"mode {mode!r} is invalid for {declaration.theorem}")
+    if not 0 < timeout_seconds <= MAX_TIMEOUT_SECONDS or not 0 < max_submission_bytes <= MAX_SUBMISSION_BYTES:
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "timeout or submission limit exceeds verifier policy")
+    if enable_nanoda != (nanoda_commit is not None):
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, "a Nanoda-enabled version must pin Nanoda")
+    if (
+        dependency.theorem != declaration.theorem
+        or dependency.document["statement_type_sha256"] != declaration.type_hash
+    ):
+        raise VerifierError(
+            ReasonCode.DEPENDENCY_IDENTITY_MISMATCH,
+            "dependency identity does not describe this cataloged statement",
+        )
+    eligible, violations, collisions = production_eligibility(catalog, declaration, mode)
+    if not eligible and not allow_non_open:
+        raise VerifierError(
+            ReasonCode.INELIGIBLE_TASK,
+            f"declaration is not production eligible: {'; '.join(violations)}",
+        )
+    version = TaskVersionDocument(environment, dependency, nanoda_commit)
+    payloads = trusted_task_version_payloads(declaration, mode, enable_nanoda, adapter.version, version)
+    hashes = {name: sha256_bytes(content) for name, content in sorted(payloads.items())}
+    generated = adapter.generate(declaration, mode, GenerationContext("", adapter.version))
+    config = _comparator_config(generated, enable_nanoda)
+    inputs = {
+        "adapter_version": adapter.version,
+        "answer_policy": dict(generated.answer_policy),
+        "classification": declaration.classification.value,
+        "definition_names": list(config["definition_names"]),
+        "dependency_identity_sha256": dependency.sha256,
+        "enable_nanoda": enable_nanoda,
+        "environment_identity_sha256": environment.sha256,
+        "forbidden_dependencies": [declaration.theorem],
+        "max_submission_bytes": max_submission_bytes,
+        "permitted_axioms": list(PERMITTED_AXIOMS),
+        "source_module": declaration.module,
+        "source_path": declaration.source_path,
+        "source_theorem": declaration.theorem,
+        "source_type_hash": declaration.type_hash,
+        "task_mode": mode,
+        "theorem_names": ["Bounty.target"],
+        "timeout_seconds": timeout_seconds,
+    }
+    _imports(declaration)
+    identifier = v2_task_id(
+        slug=task_slug(declaration.theorem),
+        mode=mode,
+        descriptor=task_version_descriptor(inputs, hashes),
+    )
+    return PlannedTaskVersion(
+        task_id=identifier,
+        declaration=declaration,
+        mode=mode,
+        payloads=payloads,
+        trusted_file_hashes=hashes,
+        manifest_inputs=inputs,
+        eligible=eligible,
+        known_collisions=tuple(collisions),
+        generated=generated,
+    )
+
+
+def build_task_version(
+    plan: PlannedTaskVersion,
+    *,
+    catalog: Catalog,
+    output: Path,
+    validate_target: Callable[[Path, CatalogDeclaration, GeneratedLean, str], str],
+    allow_non_open: bool = False,
+) -> TaskManifest:
+    """Write and Lean-validate one planned v2 version into a new directory `output`.
+
+    The validator compiles the challenge in the pinned environment and re-derives the
+    statement's dependency identity there; a mismatch with the planned identity fails closed.
+    """
+    if output.exists() or output.is_symlink():
+        raise VerifierError(ReasonCode.INVALID_ARGUMENT, f"task output already exists: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = Path(tempfile.mkdtemp(prefix=f".{plan.task_id}.", dir=output.parent))
+    try:
+        for name, content in plan.payloads.items():
+            (temporary / name).write_bytes(content)
+        declaration = plan.declaration
+        generated_hash = validate_target(temporary, declaration, plan.generated, plan.mode)
+        if plan.mode == EXACT_TASK_MODE and generated_hash != declaration.type_hash:
+            raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "formalized target is not the exact source type")
+        if plan.mode == COUNTEREXAMPLE_TASK_MODE and generated_hash == declaration.type_hash:
+            raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "counterexample target matches the source type")
+        target_collisions = proved_type_collisions(catalog, generated_hash, declaration.theorem)
+        if target_collisions and not allow_non_open:
+            raise VerifierError(
+                ReasonCode.INELIGIBLE_TASK,
+                "generated target matches proved declarations: " + ", ".join(target_collisions),
+            )
+        collisions = tuple(sorted(frozenset(plan.known_collisions) | frozenset(target_collisions)))
+        if hash_named_files(temporary, V2_TRUSTED_NAMES) != dict(plan.trusted_file_hashes):
+            raise VerifierError(ReasonCode.TRUSTED_FILE_MODIFIED, "staged trusted files changed during validation")
+        inputs = plan.manifest_inputs
+        manifest = TaskManifest(
+            schema_version=V2_MANIFEST_SCHEMA_VERSION,
+            task_id=plan.task_id,
+            repository_commit=None,
+            source_theorem=inputs["source_theorem"],
+            source_module=inputs["source_module"],
+            source_path=inputs["source_path"],
+            source_type_hash=inputs["source_type_hash"],
+            generated_target_type_hash=generated_hash,
+            classification=declaration.classification,
+            task_mode=plan.mode,
+            challenge_module="Challenge",
+            solution_module="Solution",
+            target_theorem="Bounty.target",
+            theorem_names=("Bounty.target",),
+            definition_names=tuple(inputs["definition_names"]),
+            forbidden_dependencies=(declaration.theorem,),
+            permitted_axioms=PERMITTED_AXIOMS,
+            enable_nanoda=inputs["enable_nanoda"],
+            timeout_seconds=inputs["timeout_seconds"],
+            max_submission_bytes=inputs["max_submission_bytes"],
+            adapter_version=inputs["adapter_version"],
+            trusted_file_hashes=dict(plan.trusted_file_hashes),
+            production_eligible=plan.eligible and not target_collisions,
+            known_proof_collisions=collisions,
+            answer_policy=dict(inputs["answer_policy"]),
+            dependency_identity_sha256=inputs["dependency_identity_sha256"],
+            environment_identity_sha256=inputs["environment_identity_sha256"],
+        )
+        (temporary / "manifest.json").write_text(pretty_json(manifest.to_dict()), encoding="utf-8")
+        (temporary / "trusted-hashes.json").write_text(
+            pretty_json(dict(plan.trusted_file_hashes)), encoding="utf-8"
+        )
+        os.replace(temporary, output)
+        return manifest
+    except Exception:
+        shutil.rmtree(temporary, ignore_errors=True)
+        raise
 
 
 def generate_task(

@@ -71,6 +71,19 @@ class VerificationWorker:
         self.sessions = sessions
         self.runner = runner
         self.tasks = tasks
+        # Fixed at startup with the task pool: the exact submissions this worker's verification
+        # environment accepted itself. The claim never leases anything else.
+        self.served = (
+            tuple(
+                queue.ServedSubmissionKey(key.task_id, key.task_bundle_sha256, key.problem_id)
+                for key in tasks.served_keys()
+            )
+            if tasks is not None
+            else ()
+        )
+        # Claims this process must never make again: a submission the resolver refused after a
+        # claim (which `served` should make impossible). Its attempt is refunded.
+        self._excluded: set[uuid.UUID] = set()
 
     async def process_one(self) -> Processed | None:
         """Verify at most one submission. None means the queue is empty."""
@@ -84,6 +97,8 @@ class VerificationWorker:
                 owner=self.settings.owner,
                 lease_seconds=self.settings.claim_lease_seconds,
                 max_attempts=self.settings.max_attempts,
+                served=self.served,
+                excluded=tuple(self._excluded),
             )
         if claim is None:
             return None
@@ -102,16 +117,17 @@ class VerificationWorker:
             owner=self.settings.owner,
         )
 
-        # The digest comes from the row, not the request: a task whose published bundle has
-        # since changed fails closed here rather than being verified against different bytes.
+        # Task, digest and intake problem identity all come from the row, not the request: a
+        # submission is only ever verified against the exact version, in the exact environment,
+        # it was accepted for. The claim already filtered on the same triple.
         try:
             task = self.tasks.resolve(
-                task_id=claim.task_id, task_bundle_sha256=claim.task_bundle_sha256
+                task_id=claim.task_id,
+                task_bundle_sha256=claim.task_bundle_sha256,
+                problem_id=claim.problem_id,
             )
         except TaskNotAllowed as exc:
-            return await self._operator(
-                claim, ReasonCode.TASK_COMMITMENT_MISMATCH, str(exc)
-            )
+            return await self._misrouted(claim, str(exc))
 
         task_timeout = task.timeout_seconds
         async with async_session_scope(self.sessions) as session:
@@ -141,6 +157,7 @@ class VerificationWorker:
                 proof=proof,
                 expected_task_sha256=claim.task_bundle_sha256,
                 timeout_seconds=self.settings.container_timeout(task_timeout),
+                expected_build_provenance_sha256=task.expected_build_provenance_sha256,
             )
         except RunnerFailure as exc:
             return await self._operator(claim, ReasonCode.INTERNAL_ERROR, str(exc))
@@ -330,6 +347,41 @@ class VerificationWorker:
             outcome=Outcome.OPERATOR,
             reason_code=LEASE_LOST,
             attempts=claim.attempts,
+        )
+
+    async def _misrouted(self, claim: queue.ClaimedSubmission, detail: str) -> Processed:
+        """A claim this worker should never have made. Undo it, attempt included.
+
+        `served` and the resolver come from the same records, so this means a bug or a tampered
+        pool. The submission is not ours to judge or to charge: refund the attempt, never claim
+        it again from this process, and raise the alarm.
+        """
+        async with async_session_scope(self.sessions) as session:
+            refunded = await queue.release_unconsumed(
+                session, claim.submission_id, owner=self.settings.owner
+            )
+        self._excluded.add(claim.submission_id)
+        logger.error(
+            "claimed a submission this environment does not serve submission=%s task=%s: %s",
+            claim.submission_id,
+            claim.task_id,
+            detail,
+        )
+        get_axiom().error(
+            source="verification-worker",
+            event_type="claim_routing_violation",
+            submission_id=str(claim.submission_id),
+            task_id=claim.task_id,
+            problem_id=claim.problem_id,
+            attempt_refunded=refunded,
+            detail=detail,
+            owner=self.settings.owner,
+        )
+        return Processed(
+            submission_id=claim.submission_id,
+            outcome=Outcome.OPERATOR,
+            reason_code=ReasonCode.TASK_COMMITMENT_MISMATCH.value,
+            attempts=claim.attempts - 1 if refunded else claim.attempts,
         )
 
     async def _operator(

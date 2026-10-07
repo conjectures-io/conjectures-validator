@@ -1,87 +1,35 @@
 from __future__ import annotations
 
-import os
-from functools import cache
-
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
 
-# The stack in docker-compose.pytest-db.yml, credentials and all. Duplicated there rather than
-# read from a file so neither side can drift into pointing somewhere else, and separate from the
-# development database so a suite that drops and recreates the schema cannot reach real data.
-#
-# It lives here rather than in conftest_api because more than the API tests need a database, and
-# this module has no imports that a half-finished refactor elsewhere can break.
-PYTEST_DSN = (
-    "postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw"
-    "@127.0.0.1:5440/conjectures-pytest"
+# Database tests are destructive, so the suite never discovers a server: there is no default
+# DSN and no probe of the shared pytest stack. `tests/database_guard.py` decides, fail-closed,
+# from an explicit DSN plus the declared identity of the fixture it must reach.
+from database_guard import (  # noqa: E402 - documented above
+    IDENTITY_ENV,
+    DatabaseGuardError,
+    competition_dsn,
+    postgres_dsn,
 )
-
-
-def _reachable(dsn: str) -> bool:
-    """Whether a server is actually answering on `dsn`.
-
-    Probed rather than assumed: the alternative to skipping is every database test failing with
-    a connection error, which reads like a broken suite rather than a stack that is not up.
-    """
-    try:
-        import psycopg
-    except ModuleNotFoundError:  # pragma: no cover - psycopg is a test dependency
-        return False
-    # psycopg wants a libpq DSN; the SQLAlchemy driver suffix is not part of one.
-    libpq = dsn.replace("postgresql+psycopg://", "postgresql://", 1)
-    try:
-        with psycopg.connect(libpq, connect_timeout=2):
-            return True
-    except (psycopg.Error, OSError):
-        return False
-
-
-@cache
-def postgres_dsn() -> str | None:
-    """The database tests' DSN, or None to skip them.
-
-    Cached because this opens a connection and is called once per harness. `FC_POSTGRES_DSN`
-    wins when set, so pointing the suite at another server stays possible; otherwise the fixed
-    pytest stack is used if it is up, which is what makes the tests need no configuration.
-    """
-    explicit = os.environ.get("FC_POSTGRES_DSN", "").strip()
-    if explicit:
-        return explicit
-    return PYTEST_DSN if _reachable(PYTEST_DSN) else None
-
 
 DATABASE_SKIP_REASON = (
-    "no database: run `docker compose -f docker-compose.pytest-db.yml up -d`"
+    "no database: set FC_POSTGRES_DSN and FC_TEST_DATABASE_SYSTEM_IDENTIFIER to a private "
+    "fixture (see tests/database_guard.py)"
 )
-
-# The competition schema lives in a second database in the SAME pytest cluster -- same host,
-# same port, same credentials, different database. One container, two databases, because that
-# is also how the deployment is shaped: `deploy/db/01_competition.sh` creates it beside the
-# proofs one rather than standing up a second server.
-PYTEST_COMPETITION_DSN = (
-    "postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw"
-    "@127.0.0.1:5440/conjectures-pytest-competition"
-)
-
-
-@cache
-def competition_dsn() -> str | None:
-    """The competition tests' DSN, or None to skip them.
-
-    Separate from `postgres_dsn` and probed separately: a cluster created before the
-    competition work has the proofs database but not this one, and the honest outcome there is
-    to skip these tests rather than to fail every one of them with the same connection error.
-    """
-    explicit = os.environ.get("FC_COMPETITION_POSTGRES_DSN", "").strip()
-    if explicit:
-        return explicit
-    return PYTEST_COMPETITION_DSN if _reachable(PYTEST_COMPETITION_DSN) else None
-
 
 COMPETITION_SKIP_REASON = (
-    "no competition database: run `docker compose -f docker-compose.pytest-db.yml up -d` "
-    "(recreate the volume if it predates deploy/db/01_competition.sh)"
+    "no competition database: set FC_COMPETITION_POSTGRES_DSN and "
+    "FC_TEST_DATABASE_SYSTEM_IDENTIFIER to a private fixture (see tests/database_guard.py)"
 )
+
+__all__ = [
+    "COMPETITION_SKIP_REASON",
+    "DATABASE_SKIP_REASON",
+    "IDENTITY_ENV",
+    "DatabaseGuardError",
+    "competition_dsn",
+    "postgres_dsn",
+]
 
 
 def declaration(

@@ -153,11 +153,21 @@ class Catalog:
         }
 
 
+# Schema 3 is the version-2 immutable task version: no source commit, bound instead to a
+# dependency identity and an environment identity (`verifier.task_versions`). Schemas 1 and 2
+# are legacy bundles, valid only in the environment built from their exact source commit.
+V2_TASK_MANIFEST_SCHEMA = 3
+V2_PROVENANCE = "dependency-identity-v2"
+LEGACY_PROVENANCE = "legacy-source-commit"
+
+
 @dataclass(frozen=True)
 class TaskManifest:
     schema_version: int
     task_id: str
-    repository_commit: str
+    # Legacy bundles name their source commit. A v2 bundle has none: it is valid in every
+    # snapshot where its dependency identity is re-derived unchanged.
+    repository_commit: str | None
     source_theorem: str
     source_module: str
     source_path: str
@@ -180,14 +190,22 @@ class TaskManifest:
     production_eligible: bool = False
     known_proof_collisions: tuple[str, ...] = ()
     answer_policy: Mapping[str, Any] = field(default_factory=dict)
+    dependency_identity_sha256: str | None = None
+    environment_identity_sha256: str | None = None
+
+    @property
+    def provenance(self) -> str:
+        return V2_PROVENANCE if self.schema_version == V2_TASK_MANIFEST_SCHEMA else LEGACY_PROVENANCE
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "TaskManifest":
         try:
+            schema_version = int(value["schema_version"])
+            v2 = schema_version == V2_TASK_MANIFEST_SCHEMA
             return cls(
-                schema_version=int(value["schema_version"]),
+                schema_version=schema_version,
                 task_id=str(value["task_id"]),
-                repository_commit=str(value["repository_commit"]),
+                repository_commit=None if v2 else str(value["repository_commit"]),
                 source_theorem=str(value["source_theorem"]),
                 source_module=str(value["source_module"]),
                 source_path=str(value["source_path"]),
@@ -210,12 +228,20 @@ class TaskManifest:
                 production_eligible=bool(value.get("production_eligible", False)),
                 known_proof_collisions=tuple(str(x) for x in value.get("known_proof_collisions", ())),
                 answer_policy=dict(value.get("answer_policy", {})),
+                dependency_identity_sha256=str(value["dependency_identity_sha256"]) if v2 else None,
+                environment_identity_sha256=str(value["environment_identity_sha256"]) if v2 else None,
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise VerifierError(ReasonCode.INVALID_MANIFEST, f"invalid task manifest: {exc}") from exc
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
+        if self.schema_version == V2_TASK_MANIFEST_SCHEMA:
+            del result["repository_commit"]
+            result["provenance"] = V2_PROVENANCE
+        else:
+            del result["dependency_identity_sha256"]
+            del result["environment_identity_sha256"]
         result["classification"] = self.classification.value
         for key in (
             "theorem_names",

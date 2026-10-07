@@ -181,6 +181,8 @@ EventType: TypeAlias = Literal[
     "verdict_recorded",
     # The lease expired under us, so a verdict we may have computed cannot be written.
     "lease_lost",
+    # A claim the worker's resolver refused, undone with its attempt refunded.
+    "claim_routing_violation",
     # An accept produced without the production sandbox. Loud on purpose.
     "insecure_sandbox_accept",
     # The row will not be claimed again and an operator has to decide what is owed.

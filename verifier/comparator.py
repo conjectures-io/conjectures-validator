@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import subprocess
 import tempfile
 from collections.abc import Mapping
@@ -241,6 +242,23 @@ def run_comparator(
     return result, tools
 
 
+# Comparator's own report that a child (Lake or lean4export) died, printed on a line of its own.
+# A solution cannot forge such a line: it runs no code at build time, and Lean quotes any string
+# literal it echoes inside an error message.
+CHILD_EXIT_LINE = re.compile(r"^uncaught exception: child exited with (\d+)$")
+# SIGKILL: the kernel's out-of-memory killer or a resource limit, not a crashed checker.
+KILLED_CHILD_EXIT = 128 + 9
+
+
+def crashed_child_exit(stderr: str) -> int | None:
+    """The signal-style exit code of a crashed Comparator child, if Comparator reported one."""
+    for line in stderr.lower().splitlines():
+        match = CHILD_EXIT_LINE.fullmatch(line.strip())
+        if match is not None and int(match.group(1)) >= 128:
+            return int(match.group(1))
+    return None
+
+
 def rejection_reason(result: ProcessResult, enable_nanoda: bool) -> ReasonCode:
     if result.timed_out:
         return ReasonCode.TIMEOUT
@@ -249,6 +267,13 @@ def rejection_reason(result: ProcessResult, enable_nanoda: bool) -> ReasonCode:
         return ReasonCode.INTERNAL_ERROR
     if result.signal is not None or any(marker in combined for marker in RESOURCE_FAILURE_MARKERS):
         return ReasonCode.RESOURCE_LIMIT
+    crashed = crashed_child_exit(result.stderr)
+    if crashed == KILLED_CHILD_EXIT:
+        return ReasonCode.RESOURCE_LIMIT
+    if crashed is not None:
+        # For example a lean4export PANIC followed by "Child exited with 139". The proof was not
+        # judged: this is a fail-closed tool crash, kept apart from every semantic rejection.
+        return ReasonCode.COMPARATOR_TOOL_CRASHED
     if combined.rfind("building solution") > combined.rfind("exporting"):
         return ReasonCode.SOLUTION_BUILD_FAILED
     if "illegal axiom" in combined or (

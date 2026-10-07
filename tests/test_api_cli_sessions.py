@@ -5,7 +5,7 @@ coldkey mints for the miner CLI. Almost everything here is about the boundary be
 what a bearer token may do, what it must not, and the ways the two could be confused for one
 another. Needs a real PostgreSQL server:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 
 Signatures are real sr25519 over the exact messages the server minted, using the standard
 development URIs, so a test signs as the miner it claims to be.
@@ -57,7 +57,7 @@ from submission_api.settings import CORS_REQUEST_HEADERS  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 OTHER_EMAIL = "second@example.com"
