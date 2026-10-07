@@ -450,3 +450,19 @@ def test_build_provenance_binds_compiled_artifacts_so_a_tampered_olean_is_caught
             expected_build_provenance_sha256=published.provenance["Pair.first"].sha256,
         )
     assert raised.value.reason == ReasonCode.ENVIRONMENT_MISMATCH
+
+
+def test_an_unusable_work_directory_is_an_identity_failure_not_a_crash(tmp_path):
+    """Combined-release integration finding: `doctor` run as uid 0 with capabilities dropped
+    cannot create its identity home in the 10001-owned work tmpfs. That OSError escaped the
+    identity derivation and crashed the whole doctor (INTERNAL_ERROR, no report), hiding the
+    `unprivileged: false` the release's root-user sandbox control checks. It must surface as an
+    environment-identity failure, which the doctor reports in `task_versions.error`."""
+    from verifier.task_versions import _lean_githash
+
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / ".work").write_text("not a directory")  # unwritable for any uid, root included
+    with pytest.raises(VerifierError, match="cannot ask the pinned Lean for its commit") as raised:
+        _lean_githash(project)
+    assert raised.value.reason == ReasonCode.ENVIRONMENT_MISMATCH

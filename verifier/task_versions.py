@@ -356,8 +356,11 @@ def _lean_githash(project_root: Path) -> str:
     from verifier.environment import tool_path, trusted_environment
 
     home = project_root / ".work" / "identity-home"
-    (home / ".tmp").mkdir(parents=True, exist_ok=True)
     try:
+        # Inside the try: an unwritable work directory (for example uid 0 with capabilities
+        # dropped over the 10001-owned tmpfs) is an identity failure the doctor reports, not a
+        # crash that hides the rest of its report.
+        (home / ".tmp").mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
             (str(tool_path(project_root, "lean")), "--githash"),
             capture_output=True,
