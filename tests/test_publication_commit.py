@@ -14,7 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from submission_api.taskpool import TaskCatalog
 from version_fixtures import COMMIT_A, COMMIT_B, declaration, release, standard
+from verification_worker.tasks import load_task_resolver
 from verifier.hashing import sha256_bytes
 from verifier.publication import (
     JOURNAL_NAME,
@@ -157,9 +159,16 @@ def test_a_commit_killed_between_steps_is_never_read_and_is_rolled_forward(tmp_p
     process.join(timeout=120)
     assert process.exitcode == 17
     assert os.path.lexists(checkout / JOURNAL_NAME)
-    # Every reader refuses the interrupted state, whatever subset of files changed.
+    # Every reader refuses the interrupted state, whatever subset of files changed: the check
+    # itself, the API task catalog, and the worker's resolver for either instance.
     with pytest.raises(PublicationError, match="unfinished publication"):
         assert_no_pending_publication(checkout)
+    with pytest.raises(PublicationError, match="unfinished publication"):
+        TaskCatalog.load(allowlist_path=checkout / "allowlist.json", pool_root=checkout / "tasks")
+    for instance in VersionRegistry.from_bytes(before_registry).instances:
+        with pytest.raises(PublicationError, match="unfinished publication"):
+            load_task_resolver(tasks_root=checkout, allowlist_path=checkout / "allowlist.json",
+                               pool_root=checkout / "tasks", environment=instance)
     if stop_after == "allowlist":
         assert (checkout / REGISTRY_NAME).read_bytes() == before_registry
         with pytest.raises(RegistryError):
@@ -174,6 +183,13 @@ def test_a_commit_killed_between_steps_is_never_read_and_is_rolled_forward(tmp_p
     assert_matches_allowlist(final, checkout / "allowlist.json")
     assert_no_pending_publication(checkout)
     assert not [path for path in checkout.iterdir() if path.name.startswith(".publication-")]
+    # After recovery the worker serves exactly the rolled-forward publication.
+    resolver = load_task_resolver(tasks_root=checkout, allowlist_path=checkout / "allowlist.json",
+                                  pool_root=checkout / "tasks", environment=final.current.instance)
+    assert {key.task_id for key in resolver.served_keys()} == {
+        record.task_id for record in final.versions.values()
+        if record.state == "active" and record.admission_at(final.current.instance) is not None
+    }
 
 
 def test_a_tampered_staged_file_stops_recovery(tmp_path):

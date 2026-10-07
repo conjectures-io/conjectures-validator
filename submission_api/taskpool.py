@@ -61,11 +61,11 @@ class TaskCatalog:
 
     @classmethod
     def load(cls, *, allowlist_path: Path, pool_root: Path) -> TaskCatalog:
+        tasks_root = pool_root.parent
+        # A half-committed publication is never served, nor even parsed: see `verifier.publication`.
+        assert_no_pending_publication(tasks_root)
         registry = TaskPoolRegistry.load(allowlist_path)
         entries: dict[str, TaskEntry] = {}
-        tasks_root = pool_root.parent
-        # A half-committed publication is never served: see `verifier.publication`.
-        assert_no_pending_publication(tasks_root)
         # Version-2 tasks live in the immutable version store, one directory per task ID, and
         # are admitted only if the version registry's current publication says so.
         v2_ids = sorted(task_id for task_id in registry.tasks if is_v2_task_id(task_id))
