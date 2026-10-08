@@ -132,6 +132,8 @@ def test_default_output_matches_the_two_requested_wallets():
     assert "-w conjectures-mainnet-signer-proxy-member" in output
     assert "-w 5CvtfodyyJWU2pxa25QpC2DTvnNuwQEp5HNS4ntMF8Be8BJL" not in output
     assert output.count("-n finney") == 2
+    assert output.count('"hotkey":"5DRPoRiBSPNvgSvRsehaUhtXqPgXYrds8VS42vdzT5MzcpZV"') == 2
+    assert "5Gn2SyG6PmBstAjiPD93CTuxADqYaYqf6fKeFuezKsX7Chf9" not in output
     assert '"alpha_amount":1044286814577' in output
 
 

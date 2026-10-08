@@ -19,6 +19,7 @@ from payout_notifier.discord import (
     DEFAULT_NETWORK,
     DEFAULT_ORIGIN_HOTKEY,
     DEFAULT_PROXY_FOR,
+    LEGACY_ORIGIN_HOTKEY,
 )
 
 DEFAULT_BATCH_BLOCKS = 200
@@ -72,6 +73,22 @@ class PayoutWatcherSettings:
     poll_seconds: float
     watcher_id: str
 
+    @property
+    def accepted_origin_hotkeys(self) -> tuple[str, ...]:
+        """Follow Arbos and the treasury's historical delegation without losing the cursor.
+
+        The exception is specific to this treasury, network and subnet. Other watcher
+        configurations still accept only their configured stake position.
+        """
+        if (
+            self.network == DEFAULT_NETWORK
+            and self.origin_coldkey == DEFAULT_PROXY_FOR
+            and self.origin_hotkey == DEFAULT_ORIGIN_HOTKEY
+            and self.netuid == DEFAULT_NETUID
+        ):
+            return (DEFAULT_ORIGIN_HOTKEY, LEGACY_ORIGIN_HOTKEY)
+        return (self.origin_hotkey,)
+
     @classmethod
     def from_env(
         cls, environ: Mapping[str, str] | None = None
@@ -115,4 +132,3 @@ __all__ = [
     "PayoutWatcherSettings",
     "SettingsError",
 ]
-

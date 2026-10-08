@@ -5,6 +5,8 @@ import datetime as dt
 import hashlib
 import uuid
 from dataclasses import replace
+from types import SimpleNamespace
+from dataclasses import replace
 
 import pytest
 from conftest import DATABASE_SKIP_REASON, postgres_dsn
@@ -36,6 +38,7 @@ from payout_notifier.discord import (
     DEFAULT_NETUID,
     DEFAULT_ORIGIN_HOTKEY,
     DEFAULT_PROXY_FOR,
+    LEGACY_ORIGIN_HOTKEY,
 )
 from payout_watcher.settings import PayoutWatcherSettings, SettingsError
 from payout_watcher.watcher import MAX_BACKOFF_SECONDS, PayoutWatcher
@@ -860,3 +863,35 @@ def test_rescanning_a_block_records_one_row_and_disregard_empties_the_queue():
     finally:
         asyncio.run(async_engine.dispose())
         sync_engine.dispose()
+
+
+def test_arbos_watcher_preserves_history_and_cursor_without_accepting_other_positions():
+    config = settings("postgresql+psycopg://unused")
+    watcher = PayoutWatcher(
+        settings=config, sessions=None, source=FakePayoutSource(finalized=101, best=101)
+    )
+    for hotkey in (DEFAULT_ORIGIN_HOTKEY, LEGACY_ORIGIN_HOTKEY):
+        assert watcher._ours(replace(observed_payout(), origin_hotkey=hotkey))
+        cursor = SimpleNamespace(
+            network=config.network, origin_coldkey=config.origin_coldkey,
+            origin_hotkey=hotkey, netuid=config.netuid, last_scanned_block=9118057,
+        )
+        watcher._require_same_watch(cursor)
+        assert cursor.last_scanned_block == 9118057
+
+    for field, wrong in (("network", "test"), ("origin_coldkey", "other"),
+                         ("origin_hotkey", "other"), ("netuid", 67)):
+        cursor = SimpleNamespace(
+            network=config.network, origin_coldkey=config.origin_coldkey,
+            origin_hotkey=LEGACY_ORIGIN_HOTKEY, netuid=config.netuid,
+        )
+        setattr(cursor, field, wrong)
+        with pytest.raises(SettingsError, match=field):
+            watcher._require_same_watch(cursor)
+
+    for changes in ({"origin_hotkey": "other"}, {"origin_coldkey": "other"},
+                    {"origin_netuid": 67}, {"destination_netuid": 67}):
+        assert not watcher._ours(replace(observed_payout(), **changes))
+
+    for changes in ({"network": "test"}, {"origin_coldkey": "other"}, {"netuid": 67}):
+        assert replace(config, **changes).accepted_origin_hotkeys == (DEFAULT_ORIGIN_HOTKEY,)
