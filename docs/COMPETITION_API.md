@@ -7,7 +7,7 @@ Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (d
 ## Conventions
 
 - **Base path:** `/v1/competitions`. All bodies are JSON unless noted; submits are `multipart/form-data`.
-- **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than migration 0011 of conjectures-optimisation-deflate.
+- **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than migration 0011 of conjectures-optimisation-deflate. When the competition database cannot be reached, every route answers **503 `COMPETITION_UNAVAILABLE`**, matching `/readyz`, rather than a `500`.
 - **Scoring snapshots:** score fields come from the latest scoring pass the competition's weight setter published, or from the one named by `snapshot_id`. Before the first pass, `context.status` is `"not_ready"` and rankings are empty.
 - **Paging:** paged lists take `limit` (1–100, default 25) and an opaque `cursor`; pass back `next_cursor` unchanged. A cursor is bound to the filters and snapshot it was issued for.
 - **Rate limit:** the global per-IP `/v1` limit applies (default 120 requests per 60 s), reported in `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers. The two submit routes also count, in Postgres across every replica, a per-address budget before any signature is checked and a per-hotkey budget once the hotkey is proven (see each route's refusals).
@@ -55,6 +55,13 @@ A request that fails FastAPI's own validation (wrong type, missing header) gets 
 List the competitions this deployment serves. Exactly one today.
 
 **Access:** Public, no authentication.
+
+**Parameters**
+
+| Name | In | Type | Required | Constraints |
+| --- | --- | --- | --- | --- |
+| `limit` | query | integer \| null | no | ≥ 1, ≤ 1000. Omit for every competition |
+| `offset` | query | integer | no | ≥ 0, ≤ 100000, default `0` |
 
 **Response**
 
@@ -124,7 +131,10 @@ List the competitions this deployment serves. Exactly one today.
         "freshness_reason": "Recorded scoring pass; live policy changes require a new pass."
       }
     }
-  ]
+  ],
+  "total": 1,
+  "limit": null,
+  "offset": 0
 }
 ```
 
@@ -319,6 +329,10 @@ Public feed of miner and baseline submissions, newest first, with gate status, m
 | `admission_outcome` | query | `"passed"` \| `"not_required"` \| `"inconclusive"` \| `"dominated"` \| `"excluded"` \| null | no |  |
 | `on_frontier` | query | boolean \| null | no |  |
 | `snapshot_id` | query | integer \| null | no | ≥ 1 |
+| `sort` | query | `"submitted_at"` \| `"balanced_time_ratio"` \| `"mean_file_compression_pct"` \| `"payable_weight"` \| `"bounty_earned_alpha"` | no | default `"submitted_at"` |
+| `order` | query | `"asc"` \| `"desc"` | no | default `"desc"` |
+
+`sort` orders by a table column. `submitted_at` pages by keyset; the other four come from the scoring snapshot, so they need one (`409 SCORING_NOT_READY` otherwise) and are ordered from the snapshot the cursor pins. A submission with no value for the column (newer than the snapshot, or never scored) comes last in either direction. The cursor is bound to `sort` and `order` as well as the filters. `total` on the page counts every submission matching the filters.
 
 **Response**
 
@@ -404,6 +418,8 @@ The same feed, limited to the signed-in account's submissions. Only submissions 
 | `admission_outcome` | query | `"passed"` \| `"not_required"` \| `"inconclusive"` \| `"dominated"` \| `"excluded"` \| null | no |  |
 | `on_frontier` | query | boolean \| null | no |  |
 | `snapshot_id` | query | integer \| null | no | ≥ 1 |
+| `sort` | query | `"submitted_at"` \| `"balanced_time_ratio"` \| `"mean_file_compression_pct"` \| `"payable_weight"` \| `"bounty_earned_alpha"` | no | default `"submitted_at"` |
+| `order` | query | `"asc"` \| `"desc"` | no | default `"desc"` |
 
 **Response**
 
@@ -1020,6 +1036,9 @@ Every response model referenced above, field by field. "Required" means always p
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `items` | array of [Competition](#schema-competition) | yes |  |
+| `total` | integer | yes | Competitions configured here, whatever `limit` returned |
+| `limit` | integer \| null | yes | The page size asked for, or null for every competition |
+| `offset` | integer | yes |  |
 
 <a id="schema-competition"></a>
 
@@ -1063,6 +1082,7 @@ Every response model referenced above, field by field. "Required" means always p
 | `context` | [Context](#schema-context) | yes |  |
 | `items` | array of [Submission](#schema-submission) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Submissions matching the filters, when the page was read |
 
 <a id="schema-detail"></a>
 
@@ -1101,6 +1121,7 @@ Every response model referenced above, field by field. "Required" means always p
 | `bounds` | [Bounds](#schema-bounds) | yes |  |
 | `items` | array of [ParetoPoint](#schema-paretopoint) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Points in the pinned snapshot |
 
 <a id="schema-leaderboard"></a>
 
@@ -1112,6 +1133,7 @@ Every response model referenced above, field by field. "Required" means always p
 | `bounty_limit_alpha` | number \| null | no | The most alpha any one (hotkey, submission) pair is paid over its lifetime; null before the competition recorded bounties |
 | `ranking` | array of [Ranking](#schema-ranking) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Ranked hotkeys in the pinned snapshot |
 
 <a id="schema-weights"></a>
 
@@ -1137,6 +1159,7 @@ Every response model referenced above, field by field. "Required" means always p
 | --- | --- | --- | --- |
 | `items` | array of [OperatorSubmission](#schema-operatorsubmission) | yes |  |
 | `next_cursor` | string \| null | no |  |
+| `total` | integer | yes | Stuck submissions, when the page was read |
 
 <a id="schema-operatorsubmission"></a>
 

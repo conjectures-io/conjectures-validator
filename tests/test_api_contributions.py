@@ -326,6 +326,17 @@ def test_one_target_is_reachable_under_every_name_it_has(name):
     assert len(body["contributions"]) == 2
 
 
+def test_a_targets_contributions_are_whole_by_default_and_windowed_on_request():
+    whole = get("/v1/contributions/targets/erdos-535").json()
+    page = get("/v1/contributions/targets/erdos-535?limit=1&offset=1").json()
+
+    assert (whole["total"], whole["limit"], whole["offset"]) == (2, None, 0)
+    assert page["contributions"] == whole["contributions"][1:]
+    assert (page["total"], page["limit"], page["offset"]) == (2, 1, 1)
+    # The target summary describes the target, not the window cut from it.
+    assert page["target"] == whole["target"]
+
+
 def test_a_target_the_corpus_does_not_track_is_a_404():
     assert get("/v1/contributions/targets/erdos-99999").status_code == 404
 

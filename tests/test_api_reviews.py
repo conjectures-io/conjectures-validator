@@ -443,6 +443,36 @@ def test_the_queue_lists_only_undecided_work_but_the_detail_route_serves_a_decid
     run(scenario())
 
 
+def test_the_queue_shows_decided_work_on_request_and_counts_each_half():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            pending_id = await _verified(kit, "pending")
+            decided_id = await _verified(kit, "decided-2")
+            async with kit.session() as session:
+                submission = await session.get(Submission, uuid.UUID(decided_id))
+                await store.approve_automatically(session, submission)
+                await session.commit()
+
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                pending = (await http.get("/v1/admin/reviews")).json()
+                decided = (await http.get("/v1/admin/reviews?status=decided")).json()
+                refused = await http.get("/v1/admin/reviews?status=everything")
+
+            # Pending is still the default, so the queue a reviewer opens is what needs them.
+            assert [item["submission_id"] for item in pending["items"]] == [pending_id]
+            assert pending["total"] == 1
+            assert [item["submission_id"] for item in decided["items"]] == [decided_id]
+            assert decided["items"][0]["manual_review_status"] == "APPROVED"
+            assert decided["total"] == 1
+            assert refused.status_code == 400
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_an_unverified_submission_is_absent_rather_than_forbidden():
     """Matching `GET /v1/results/{id}`: there is no advisory record for unverified work, so telling
     a caller the id exists would be the only thing a 403 achieved."""

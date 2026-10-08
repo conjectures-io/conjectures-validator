@@ -105,6 +105,7 @@ async def app_for(url):
             competition_rate_per_minute=1000,
             competition_ip_rate_per_minute=1000,
             trusted_proxy_hops=0,
+            trusted_proxy_peers=(),
             competition_signature_window_seconds=300,
         ),
         competitions=CompetitionRegistry.of(Competition("deflate", "Compression", 8)),
@@ -284,6 +285,18 @@ def test_cli_queue_worker_evidence_scoring_and_reads(owned_db):
                 feed = (await client.get(BASE + "/submissions")).json()
                 assert len(feed["items"]) == 1
                 assert feed["items"][0]["gate_status"] == "error"
+                # Counted over the same filters, so the row hidden from the public feed is not.
+                assert feed["total"] == 1
+                for params in (
+                    {"order": "asc"},
+                    {"sort": "mean_file_compression_pct", "order": "asc"},
+                    {"sort": "payable_weight"},
+                ):
+                    ordered = (await client.get(BASE + "/submissions", params=params)).json()
+                    assert [i["id"] for i in ordered["items"]] == [sid], params
+                    assert ordered["total"] == 1, params
+                assert (await client.get(BASE + "/pareto")).json()["total"] == 1
+                assert (await client.get(BASE + "/leaderboard")).json()["total"] == 1
         finally:
             await engine.dispose()
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Path, Query, Response
 from sqlalchemy import text
@@ -14,7 +14,13 @@ from submission_api import compression_store as store, compression_views as view
 from submission_api import schemas_compression as s
 from submission_api.dependencies import CompetitionSessionDep, ServicesDep, PrincipalDep
 from submission_api.errors import BadRequest, Conflict, Forbidden, NotFound
-from submission_api.pagination import decode_parts, encode_parts
+from submission_api.pagination import (
+    SnapshotLimit,
+    SnapshotOffset,
+    decode_parts,
+    encode_parts,
+    window,
+)
 from submission_api.routers.competitions import resolve_competition
 from submission_api.settings import MAX_COMPETITION_FILE_BYTES
 
@@ -116,15 +122,105 @@ async def summary(competition, services, session):
 
 
 @router.get("", response_model=s.Index)
-async def index(services: ServicesDep, session: CompetitionSessionDep):
+async def index(
+    services: ServicesDep,
+    session: CompetitionSessionDep,
+    limit: SnapshotLimit = None,
+    offset: SnapshotOffset = 0,
+):
+    """Every competition served here, unless `limit` asks for a page; see `pagination.window`.
+
+    The window is cut before any competition is summarised, so a page reads only its own.
+    """
+    configured = services.competitions.competitions
     return s.Index(
-        items=[await summary(c, services, session) for c in services.competitions.competitions]
+        items=[
+            await summary(c, services, session)
+            for c in window(configured, limit=limit, offset=offset)
+        ],
+        total=len(configured),
+        limit=limit,
+        offset=offset,
     )
 
 
 @router.get("/{slug}", response_model=s.Competition)
 async def competition_detail(slug: str, services: ServicesDep, session: CompetitionSessionDep):
     return await summary(resolve_competition(services, slug), services, session)
+
+
+# The columns the submissions table can be ordered by. `submitted_at` is a keyset over the
+# competition's own table; the other four live in the scoring snapshot rather than in a column, so
+# they are ordered from the pinned snapshot instead -- see `_ranked`.
+SORT_KEYS = (
+    "submitted_at",
+    "balanced_time_ratio",
+    "mean_file_compression_pct",
+    "payable_weight",
+    "bounty_earned_alpha",
+)
+SortQuery = Annotated[
+    Literal[
+        "submitted_at",
+        "balanced_time_ratio",
+        "mean_file_compression_pct",
+        "payable_weight",
+        "bounty_earned_alpha",
+    ],
+    Query(description="Column to order by. Every key but `submitted_at` needs a scored snapshot"),
+]
+OrderQuery = Annotated[Literal["asc", "desc"], Query()]
+
+
+def _sort_value(sort, item, score):
+    """The value a row is ordered by under `sort`, or None when the snapshot has none for it."""
+    if sort in ("balanced_time_ratio", "mean_file_compression_pct"):
+        measured = view.metrics(item.get("aggregation")) if item else None
+        return getattr(measured, sort) if measured else None
+    if score is None:
+        return None
+    if sort == "payable_weight":
+        return score.get("payable_weight")
+    return score.get("bounty_rao")
+
+
+async def _ranked(session, predicates, params, chosen, sort, order):
+    """Every matching submission id, ordered by a snapshot value, unscored rows last.
+
+    Not a keyset: the value is not a column, so there is nothing for a predicate to compare. The
+    order is instead computed whole from the snapshot the cursor pins, which is immutable, so a
+    page boundary does not move under a reader. Rows the snapshot has no value for -- submitted
+    after it, or never scored -- follow in arrival order whichever way the column is sorted,
+    because a missing value is not a small one. It reads every matching id, which is affordable
+    because a competition's submissions are counted in thousands.
+    """
+    rows = (
+        await session.execute(
+            text(
+                "SELECT id FROM submissions WHERE "
+                + " AND ".join(predicates)
+                + " ORDER BY submitted_at DESC, id DESC"
+            ),
+            params,
+        )
+    ).scalars().all()
+    valued, missing = [], []
+    for row_id in rows:
+        item, score = chosen.get(str(row_id), (None, None))
+        value = _sort_value(sort, item, score)
+        (missing if value is None else valued).append((value, row_id))
+    # Stable, including with `reverse`, so equal values keep newest-first between them.
+    valued.sort(key=lambda pair: pair[0], reverse=order == "desc")
+    return [row_id for _, row_id in valued] + [row_id for _, row_id in missing]
+
+
+async def _render(session, sub, chosen, sid):
+    item, score = chosen.get(str(sub["id"]), (None, None))
+    if item is None:
+        item = await store.evidence(session, dict(sub))
+    rendered = view.submission(item, score, sid)
+    rendered.gate_status = view.GATE.get(sub["state"], "unknown")
+    return rendered
 
 
 async def feed(
@@ -140,22 +236,25 @@ async def feed(
     on_frontier,
     snapshot_id,
     account_id=None,
+    *,
+    sort="submitted_at",
+    order="desc",
 ):
     resolve_competition(services, slug)
+    # `sort` and `order` are bound into the cursor with the filters, so a cursor read under one
+    # ordering cannot be replayed under another and land somewhere meaningless.
     filters = [slug, hotkey, kind, gate_status, admission_outcome, on_frontier, account_id]
+    if (sort, order) != ("submitted_at", "desc"):
+        filters += [sort, order]
     sid, before = page_state(services, cursor, "feed", filters, snapshot_id)
     snap = await selected_snapshot(session, sid) if not (cursor and sid is None) else None
     sid = snap["id"] if snap else None
-    if (admission_outcome is not None or on_frontier is not None) and snap is None:
+    ranked = sort != "submitted_at"
+    if (admission_outcome is not None or on_frontier is not None or ranked) and snap is None:
         raise Conflict("Scoring is not ready", reason_code="SCORING_NOT_READY")
     chosen = {str(item["submission"]["id"]): (item, score) for item, score in items(snap)}
     predicates = [store.PUBLIC]
-    params = {"limit": limit + 1}
-    if before:
-        micros, row_id = str(before).split("_")
-        predicates.append("(submitted_at,id) < (:before_time,:before_id)")
-        params["before_time"] = datetime.fromtimestamp(int(micros) / 1_000_000, UTC)
-        params["before_id"] = int(row_id)
+    params = {}
     for key, value in (("hotkey", hotkey), ("account_id", account_id)):
         if value is not None:
             predicates.append(f"{key}=:{key}")
@@ -178,6 +277,45 @@ async def feed(
         ]
         predicates.append("id = ANY(:ids)")
         params["ids"] = ids
+
+    if ranked:
+        ordered = await _ranked(session, predicates, params, chosen, sort, order)
+        offset = int(before) if before else 0
+        window_ids = ordered[offset : offset + limit]
+        fetched = {
+            row["id"]: row
+            for row in (
+                await session.execute(
+                    text("SELECT " + store.SUB_FIELDS + " FROM submissions WHERE id = ANY(:ids)"),
+                    {"ids": window_ids},
+                )
+            ).mappings()
+        }
+        result = [await _render(session, fetched[i], chosen, sid) for i in window_ids]
+        more = offset + limit < len(ordered)
+        return s.SubmissionPage(
+            context=context(snap),
+            items=result,
+            next_cursor=next_page(services, "feed", filters, sid, offset + limit, more),
+            total=len(ordered),
+        )
+
+    total = (
+        await session.execute(
+            text("SELECT count(*) FROM submissions WHERE " + " AND ".join(predicates)), params
+        )
+    ).scalar_one()
+    newest_first = order == "desc"
+    keyset = list(predicates)
+    page_params = {**params, "limit": limit + 1}
+    if before:
+        micros, row_id = str(before).split("_")
+        keyset.append(
+            "(submitted_at,id) " + ("<" if newest_first else ">") + " (:before_time,:before_id)"
+        )
+        page_params["before_time"] = datetime.fromtimestamp(int(micros) / 1_000_000, UTC)
+        page_params["before_id"] = int(row_id)
+    direction = "DESC" if newest_first else "ASC"
     rows = list(
         (
             await session.execute(
@@ -185,21 +323,14 @@ async def feed(
                     "SELECT "
                     + store.SUB_FIELDS
                     + " FROM submissions WHERE "
-                    + " AND ".join(predicates)
-                    + " ORDER BY submitted_at DESC, id DESC LIMIT :limit"
+                    + " AND ".join(keyset)
+                    + f" ORDER BY submitted_at {direction}, id {direction} LIMIT :limit"
                 ),
-                params,
+                page_params,
             )
         ).mappings()
     )
-    result = []
-    for sub in rows[:limit]:
-        item, score = chosen.get(str(sub["id"]), (None, None))
-        if item is None:
-            item = await store.evidence(session, dict(sub))
-        rendered = view.submission(item, score, sid)
-        rendered.gate_status = view.GATE.get(sub["state"], "unknown")
-        result.append(rendered)
+    result = [await _render(session, sub, chosen, sid) for sub in rows[:limit]]
     return s.SubmissionPage(
         context=context(snap),
         items=result,
@@ -215,6 +346,7 @@ async def feed(
         )
         if len(rows) > limit
         else None,
+        total=total,
     )
 
 
@@ -232,6 +364,8 @@ async def submissions(
     | None = None,
     on_frontier: bool | None = None,
     snapshot_id: int | None = Query(None, ge=1),
+    sort: SortQuery = "submitted_at",
+    order: OrderQuery = "desc",
 ):
     return await feed(
         slug,
@@ -245,6 +379,8 @@ async def submissions(
         admission_outcome,
         on_frontier,
         snapshot_id,
+        sort=sort,
+        order=order,
     )
 
 
@@ -261,6 +397,8 @@ async def mine(
     | None = None,
     on_frontier: bool | None = None,
     snapshot_id: int | None = Query(None, ge=1),
+    sort: SortQuery = "submitted_at",
+    order: OrderQuery = "desc",
 ):
     return await feed(
         slug,
@@ -275,6 +413,8 @@ async def mine(
         on_frontier,
         snapshot_id,
         str(principal.account.id),
+        sort=sort,
+        order=order,
     )
 
 
@@ -317,6 +457,7 @@ async def pareto(
             max_mean_file_compression_pct=policy.get("max_mean_file_compression_pct"),
         ),
         items=points[offset : offset + limit],
+        total=len(points),
         next_cursor=next_page(
             services,
             "pareto",
@@ -377,6 +518,7 @@ async def leaderboard(
         context=context(snap),
         bounty_limit_alpha=bounty.get("limit_alpha"),
         ranking=rows[offset : offset + limit],
+        total=len(rows),
         next_cursor=next_page(
             services,
             "rank",

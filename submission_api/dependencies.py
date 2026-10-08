@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, Request
+from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from conjectures_subnet.bounty import BountyPricer
@@ -209,6 +210,16 @@ async def get_competition_session(services: ServicesDep) -> AsyncIterator[AsyncS
     async with services.competition_sessions() as session:
         try:
             yield session
+        except (OperationalError, InterfaceError) as exc:
+            # The database could not be reached or the connection dropped: an outage of this
+            # surface, reported as one. Unhandled, it was a bare `500 INTERNAL_ERROR`, which a
+            # client cannot tell from a bug -- and on `/v1/competitions` it read as the list
+            # being broken rather than the one competition behind it being down. `/readyz`
+            # already reports the same state as `competition_database: false`.
+            raise ServiceUnavailable(
+                "the competition database is unreachable",
+                reason_code="COMPETITION_UNAVAILABLE",
+            ) from exc
         finally:
             await session.close()
 

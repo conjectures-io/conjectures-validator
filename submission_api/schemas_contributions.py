@@ -20,6 +20,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Generic, TypeVar
 
+from pydantic import Field
+
 from submission_api.schemas_public import Model
 
 ItemT = TypeVar("ItemT")
@@ -138,10 +140,13 @@ class ContributionTargetSummary(Model):
 
 
 class ContributionTargetDetail(Model):
-    """One target with every contribution on it, newest first."""
+    """One target with its contributions, newest first: all of them unless `limit` is given."""
 
     target: ContributionTargetSummary
     contributions: tuple[ContributionItem, ...]
+    total: int = Field(description="Contributions on this target, whatever `limit` returned")
+    limit: int | None = Field(description="The page size asked for, or null for all of them")
+    offset: int
 
 
 class ContributionAuthorSummary(Model):

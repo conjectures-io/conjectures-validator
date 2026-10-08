@@ -75,7 +75,12 @@ from submission_api.errors import (
     ServiceUnavailable,
     Unauthorized,
 )
-from submission_api.routers._account import utc
+from submission_api.routers._account import (
+    decode_keyset_cursor,
+    encode_keyset_cursor,
+    page_of,
+    utc,
+)
 from submission_api.settings import (
     DEFAULT_PAGE_SIZE,
     EXTERNAL_RATE_CURRENCY,
@@ -1007,13 +1012,30 @@ async def list_orders(
     services: ServicesDep,
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
 ) -> schemas.CursorPage[schemas.TmcPayOrder]:
-    """Newest first. Not paginated beyond a limit: an account has a handful of these, not a feed."""
-    rows = await order_store.orders_for(session, principal.account.id, limit=limit)
+    """Newest first, keyset-paginated like every other account feed.
+
+    An account usually has a handful of these, but "usually" is not a bound, and a limit with no
+    cursor would make every order past the first page unreachable.
+    """
+    settings = services.settings
+    rows = await order_store.orders_for(
+        session,
+        principal.account.id,
+        limit=limit + 1,
+        after=decode_keyset_cursor(settings, cursor),
+    )
+    page, more = page_of(list(rows), limit=limit)
     _no_store(response)
     return schemas.CursorPage[schemas.TmcPayOrder](
-        items=tuple(_order(row, settings=services.settings) for row in rows),
-        next_cursor=None,
+        items=tuple(_order(row, settings=settings) for row in page),
+        next_cursor=(
+            encode_keyset_cursor(settings, at=page[-1].created_at, id=page[-1].id)
+            if more and page
+            else None
+        ),
+        total=await order_store.orders_total(session, principal.account.id),
     )
 
 

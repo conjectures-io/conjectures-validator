@@ -732,6 +732,152 @@ def test_the_dashboard_feed_lists_every_submission_whatever_state_it_reached():
     run(scenario())
 
 
+async def _pipeline(kit) -> dict[str, str]:
+    """One submission in each of the four states the dashboard feed reports, oldest first.
+
+    Submitted before any verdict for the reason `test_the_dashboard_feed_lists_every_submission`
+    gives: certifying one closes the conjecture's bounty to further intake.
+    """
+    ids = {
+        "certified": await _submit(kit, "0040"),
+        "in_review": await _submit(kit, "0041"),
+        "rejected": await _submit(kit, "0042"),
+        "unverified": await _submit(kit, "0043", hotkey=OTHER_MINER_COLDKEY),
+    }
+    await _verify(kit, ids["rejected"], accepted=False)
+    await _verify(kit, ids["in_review"])
+    await _verify(kit, ids["certified"])
+    await _certify(kit, ids["certified"])
+    return ids
+
+
+def test_the_dashboard_feed_filters_by_status_and_counts_what_it_filtered():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            ids = await _pipeline(kit)
+
+            async def listed(**params) -> tuple[set[str], int]:
+                body = (await _get(kit, "/v1/results/submissions", **params)).json()
+                return {item["id"] for item in body["items"]}, body["total"]
+
+            assert await listed() == (set(ids.values()), 4)
+            assert await listed(verification_status="VERIFIED") == (
+                {ids["certified"], ids["in_review"]},
+                2,
+            )
+            assert await listed(manual_review_status="APPROVED") == ({ids["certified"]}, 1)
+            assert await listed(reward_status="REWARDED") == ({ids["certified"]}, 1)
+            # The axes combine, and a combination nothing satisfies is an empty page, not an error.
+            assert await listed(verification_status="REJECTED", reward_status="REWARDED") == (
+                set(),
+                0,
+            )
+            refused = await _get(kit, "/v1/results/submissions", verification_status="PENDING")
+            assert refused.status_code == 400
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_result_feeds_filter_by_conjecture_slug():
+    """A problem page reads its own results rather than paging the whole feed to find them."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            ids = await _pipeline(kit)
+            await _retarget(kit, ids["rejected"], UNKNOWN_TARGET)
+
+            body = (
+                await _get(kit, "/v1/results/submissions", slug=CONJECTURE_SLUG)
+            ).json()
+            assert {item["id"] for item in body["items"]} == set(ids.values()) - {ids["rejected"]}
+            assert body["total"] == 3
+            certified = (await _get(kit, "/v1/results/certified", slug=CONJECTURE_SLUG)).json()
+            assert [item["id"] for item in certified["items"]] == [ids["certified"]]
+
+            # A slug nobody knows is a 404, not an empty page that reads as "no results here".
+            missing = await _get(kit, "/v1/results/submissions", slug="no-such-conjecture")
+            assert missing.status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_result_feeds_search_the_conjecture_and_the_solver():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            ids = await _pipeline(kit)
+
+            async def found(q: str) -> set[str]:
+                body = (await _get(kit, "/v1/results/submissions", q=q)).json()
+                assert body["total"] == len(body["items"])
+                return {item["id"] for item in body["items"]}
+
+            # The conjecture, by any of the words the catalog search matches on.
+            assert await found(CONJECTURE_SLUG) == set(ids.values())
+            # The solver, by a coldkey prefix: one of the four was signed by another miner.
+            assert await found(OTHER_MINER_COLDKEY[:10]) == {ids["unverified"]}
+            assert await found("nothing-matches-this") == set()
+            # A LIKE wildcard in the query is literal text, not "match everything".
+            assert await found("%") == set()
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_results_stats_agree_with_the_feeds_they_summarise():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            ids = await _pipeline(kit)
+            stats = (await _get(kit, "/v1/results/stats")).json()
+            certified = (await _get(kit, "/v1/results/certified")).json()
+            in_review = (await _get(kit, "/v1/results/in-review")).json()
+
+            assert (stats["submitted"], stats["verified"]) == (4, 2)
+            assert stats["certified"] == certified["total"] == 1
+            assert stats["in_review"] == in_review["total"] == 1
+            # Paid out is what the certified result itself reports as paid.
+            (paid,) = certified["items"]
+            assert paid["id"] == ids["certified"]
+            assert stats["paid_out_rao"] == paid["bounty_amount_rao"] > 0
+
+            # Scoped to one conjecture, it counts that conjecture's submissions only.
+            await _retarget(kit, ids["rejected"], UNKNOWN_TARGET)
+            scoped = (await _get(kit, "/v1/results/stats", slug=CONJECTURE_SLUG)).json()
+            assert scoped["submitted"] == 3
+            assert (await _get(kit, "/v1/results/stats", slug="nope")).status_code == 404
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_stats_report_zero_dollars_paid_when_nothing_has_been_paid():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            stats = (await _get(kit, "/v1/results/stats")).json()
+            assert stats == {
+                "submitted": 0,
+                "verified": 0,
+                "in_review": 0,
+                "certified": 0,
+                "paid_out_rao": 0,
+                "paid_out_usd": "0.00",
+            }
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_the_dashboard_feed_names_no_miner_and_carries_no_proof():
     async def scenario():
         kit = await harness().setup()

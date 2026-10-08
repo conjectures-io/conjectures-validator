@@ -411,6 +411,7 @@ def create_app(
                 max_clients=resolved_settings.rate_limit_max_clients,
             ),
             trusted_proxy_hops=resolved_settings.trusted_proxy_hops,
+            trusted_proxy_peers=resolved_settings.trusted_proxy_peers,
         )
     # Between the limiter and CORS: a refused write should still carry the CORS grant so the
     # browser reports the 403 rather than an opaque CORS error.
@@ -451,6 +452,7 @@ def create_app(
     application.add_middleware(
         AxiomRequestMiddleware,
         trusted_proxy_hops=resolved_settings.trusted_proxy_hops,
+        trusted_proxy_peers=resolved_settings.trusted_proxy_peers,
         mode=request_event_mode(os.environ),
     )
 

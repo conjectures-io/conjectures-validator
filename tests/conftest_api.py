@@ -468,3 +468,25 @@ def read_headers(
         "X-Conjectures-Timestamp": str(int(time.time() * 1000)),
         "X-Conjectures-Signature": signature or development_signature(),
     }
+
+
+async def cursor_pages(
+    http, path: str, *, limit: int, params: dict[str, str] | None = None, **kwargs
+) -> list[list[dict]]:
+    """Every page of a keyset feed, followed by `next_cursor` until it is null.
+
+    Filters go in `params`, not in `path`: httpx replaces a URL's query string with `params`
+    rather than merging them. Bounded, so a feed that never stops issuing cursors fails the test
+    rather than hanging it.
+    """
+    pages: list[list[dict]] = []
+    query: dict[str, str | int] = {**(params or {}), "limit": limit}
+    for _ in range(100):
+        response = await http.get(path, params=query, **kwargs)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        pages.append(body["items"])
+        if body["next_cursor"] is None:
+            return pages
+        query = {**(params or {}), "limit": limit, "cursor": body["next_cursor"]}
+    raise AssertionError(f"{path} issued a cursor on 100 consecutive pages")

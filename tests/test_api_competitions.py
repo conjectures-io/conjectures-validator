@@ -214,6 +214,43 @@ def test_an_unreachable_competition_database_takes_the_replica_out_of_rotation()
     run(scenario())
 
 
+def test_an_unreachable_competition_database_is_a_503_on_its_routes_not_a_500():
+    """The route says what the readiness probe says, instead of `500 INTERNAL_ERROR`.
+
+    `/v1/competitions` in particular: it serves one competition, so it fails whole rather than
+    listing fewer than its `total` -- and the failure should read as that competition being down,
+    not as the API being broken.
+    """
+
+    async def scenario():
+        engine = create_async_db_engine("postgresql+psycopg://nobody:nothing@127.0.0.1:1/absent")
+        kit = await harness(competition_engine=engine).setup()
+        try:
+            async with await _client(kit) as client:
+                for path in ("/v1/competitions", "/v1/competitions/deflate/submissions"):
+                    response = await client.get(path)
+                    assert response.status_code == 503, (path, response.text)
+                    assert response.json()["reason_code"] == "COMPETITION_UNAVAILABLE"
+        finally:
+            await kit.teardown()
+            await engine.dispose()
+
+    run(scenario())
+
+
+def test_the_operator_queue_counts_exactly_the_rows_it_pages():
+    """One condition for the page and its `total`, so they cannot drift apart."""
+    import datetime as dt
+
+    from conjectures_subnet.competition import _statements as q
+
+    cutoff = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
+    page = str(q.stuck_submissions(claimed_before=cutoff).whereclause.compile())
+    count = q.stuck_total(claimed_before=cutoff)
+    assert str(count.whereclause.compile()) == page
+    assert "count(*)" in str(count.compile())
+
+
 # Public route contracts now live in test_compression_api.py and
 # test_compression_postgres.py, using the compression-owned schema. The former
 # byte-ranking/inline-source assertions no longer describe the public API.

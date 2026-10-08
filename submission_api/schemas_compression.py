@@ -75,6 +75,8 @@ class SubmissionPage(BaseModel):
     context: Context
     items: list[Submission]
     next_cursor: str | None = None
+    # Submissions matching the filters, at the moment this page was read.
+    total: int
 
 
 class TimingInterval(BaseModel):
@@ -108,6 +110,8 @@ class ParetoPage(BaseModel):
     bounds: Bounds
     items: list[ParetoPoint]
     next_cursor: str | None = None
+    # Points in the pinned snapshot.
+    total: int
 
 
 class Ranking(BaseModel):
@@ -127,6 +131,8 @@ class Leaderboard(BaseModel):
     bounty_limit_alpha: float | None = None
     ranking: list[Ranking]
     next_cursor: str | None = None
+    # Ranked hotkeys in the pinned snapshot.
+    total: int
 
 
 class Weights(BaseModel):
@@ -232,3 +238,8 @@ class Competition(BaseModel):
 
 class Index(BaseModel):
     items: list[Competition]
+    # Competitions configured here, whatever `limit` returned.
+    total: int
+    # The page size asked for, or null for every competition.
+    limit: int | None
+    offset: int

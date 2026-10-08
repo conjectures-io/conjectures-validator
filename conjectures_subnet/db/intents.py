@@ -36,7 +36,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -475,15 +475,41 @@ async def record_event(
 
 
 async def events_for(
-    session: AsyncSession, submission_id: uuid.UUID
+    session: AsyncSession,
+    submission_id: uuid.UUID,
+    *,
+    limit: int | None = None,
+    after_id: int | None = None,
+    newest_first: bool = False,
 ) -> Sequence[SubmissionEvent]:
-    """The whole timeline for one submission, oldest first."""
+    """The timeline for one submission, oldest first unless `newest_first`.
+
+    Keyset-paginated on the identity column over `submission_events_submission_idx`: `id` is
+    monotonic and unique, so it is the whole cursor. Both omitted, it is the whole timeline.
+    Newest first is for a reader who wants where the submission is now on the first page.
+    """
     statement = (
         select(SubmissionEvent)
         .where(SubmissionEvent.submission_id == submission_id)
-        .order_by(SubmissionEvent.id)
+        .order_by(SubmissionEvent.id.desc() if newest_first else SubmissionEvent.id)
     )
+    if after_id is not None:
+        statement = statement.where(
+            SubmissionEvent.id < after_id if newest_first else SubmissionEvent.id > after_id
+        )
+    if limit is not None:
+        statement = statement.limit(limit)
     return list((await session.execute(statement)).scalars())
+
+
+async def events_total(session: AsyncSession, submission_id: uuid.UUID) -> int:
+    """How many events one submission's timeline holds."""
+    statement = (
+        select(func.count())
+        .select_from(SubmissionEvent)
+        .where(SubmissionEvent.submission_id == submission_id)
+    )
+    return int((await session.execute(statement)).scalar_one())
 
 
 __all__ = [

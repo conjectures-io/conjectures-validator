@@ -16,7 +16,7 @@ import pytest
 pytest.importorskip("fastapi", reason="submission API tests need the service extra")
 pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra")
 
-from conftest_api import build_settings, harness, postgres_dsn  # noqa: E402
+from conftest_api import build_settings, cursor_pages, harness, postgres_dsn  # noqa: E402
 from conjectures_subnet.db import credits as credit_store  # noqa: E402
 from conjectures_subnet.db import invitations as invitation_store  # noqa: E402
 from conjectures_subnet.db.models import (  # noqa: E402
@@ -130,7 +130,7 @@ def test_the_code_is_returned_once_and_never_stored():
             # And no read-back route hands it out again.
             listed = await http.get("/v1/admin/invitations")
             assert listed.status_code == 200
-            assert "code" not in listed.json()[0]
+            assert "code" not in listed.json()["items"][0]
 
             detail = await http.get(f"/v1/admin/invitations/{body['id']}")
             assert detail.status_code == 200
@@ -595,13 +595,37 @@ def test_the_listing_filters_by_state_in_sql():
             )
 
             active = await http.get("/v1/admin/invitations?state=active")
-            assert [item["id"] for item in active.json()] == [live["id"]]
+            assert [item["id"] for item in active.json()["items"]] == [live["id"]]
 
             revoked = await http.get("/v1/admin/invitations?state=revoked")
-            assert [item["id"] for item in revoked.json()] == [dead["id"]]
+            assert [item["id"] for item in revoked.json()["items"]] == [dead["id"]]
 
             everything = await http.get("/v1/admin/invitations")
-            assert len(everything.json()) == 2
+            assert len(everything.json()["items"]) == 2
+
+    run(scenario())
+
+
+def test_the_listing_pages_newest_first_and_keeps_the_filter_across_pages():
+    async def scenario():
+        kit = await harness().setup()
+        async with await _client(kit) as http:
+            issued = [(await _issue(kit, http, note=f"batch {n}"))["id"] for n in range(3)]
+            dead = await _issue(kit, http, note="withdrawn")
+            await http.delete(
+                f"/v1/admin/invitations/{dead['id']}", headers=same_origin()
+            )
+
+            pages = await cursor_pages(
+                http, "/v1/admin/invitations", limit=2, params={"state": "active"}
+            )
+            assert [len(page) for page in pages] == [2, 1]
+            # Newest first, and the revoked one never appears on a later page.
+            assert [item["id"] for page in pages for item in page] == issued[::-1]
+            # `total` counts under the same filter.
+            first = (await http.get("/v1/admin/invitations?state=active&limit=2")).json()
+            assert first["total"] == 3
+            assert (await http.get("/v1/admin/invitations")).json()["total"] == 4
 
     run(scenario())
 

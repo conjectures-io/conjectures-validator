@@ -33,6 +33,7 @@ from conftest_api import (
     task_entry,
 )
 
+from conjectures_subnet.db.public import MAX_ACTIVITY_ROWS
 from submission_api.routers.catalog import PSEUDONYM_LENGTH
 from submission_api.taostats import StaticAlphaUsdPriceReader
 from verifier.models import Classification
@@ -818,6 +819,27 @@ def family_pool():
     )
 
 
+def test_the_index_is_whole_by_default_and_windowed_on_request():
+    async def scenario():
+        kit = await harness(entries=family_pool()).setup()
+        try:
+            whole = await _get(kit, "/v1/catalog/index")
+            window = await _get(kit, "/v1/catalog/index?limit=2&offset=1")
+            assert window.status_code == 200, window.text
+
+            everything, page = whole.json(), window.json()
+            assert (everything["limit"], everything["offset"]) == (None, 0)
+            assert page["items"] == everything["items"][1:3]
+            # `total` still counts the pool, so a client paging it knows when it is done.
+            assert page["total"] == everything["total"] == 4
+            # A different body is a different validator: a cached page never answers for another.
+            assert window.headers["etag"] != whole.headers["etag"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_the_index_publishes_one_entry_per_problem_with_its_variants():
     async def scenario():
         kit = await harness(entries=family_pool()).setup()
@@ -1485,6 +1507,48 @@ def test_activity_counts_attempts_and_never_names_a_solver():
     run(scenario())
 
 
+def test_activity_pages_by_offset_and_its_counters_cover_the_whole_history():
+    async def scenario():
+        kit = await harness(entries=pool()).setup()
+        try:
+            for n in range(3):
+                submitted = await _submit(
+                    kit, hotkey=MINER_COLDKEY, payment_reference=f"0xpay-000{n}"
+                )
+                assert submitted.status_code == 201, submitted.text
+            path = f"/v1/catalog/conjectures/{OPEN_DIRECT}/activity"
+
+            whole = (await _get(kit, path)).json()
+            first = (await _get(kit, f"{path}?limit=2")).json()
+            second = (await _get(kit, f"{path}?limit=2&offset={first['next_offset']}")).json()
+
+            assert (first["offset"], first["next_offset"]) == (0, 2)
+            assert (second["offset"], second["next_offset"]) == (2, None)
+            assert first["items"] + second["items"] == whole["items"]
+            # A page is a window on the stream; the counters are never a count of the window.
+            assert first["attempts"] == second["attempts"] == 3
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_activity_offers_no_cursor_and_no_offset_past_its_window():
+    """A cursor would carry the exact `created_at` that `occurred_at` truncates to the hour."""
+
+    async def scenario():
+        kit = await harness(entries=pool()).setup()
+        try:
+            path = f"/v1/catalog/conjectures/{OPEN_DIRECT}/activity"
+            body = (await _get(kit, path)).json()
+            assert "next_cursor" not in body
+            assert (await _get(kit, f"{path}?offset={MAX_ACTIVITY_ROWS}")).status_code == 400
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_solver_pseudonym_is_stable_per_conjecture_and_unlinkable_across_them():
     """Two attempts by one miner on one conjecture read as the same solver.
 
@@ -1536,6 +1600,9 @@ def test_activity_for_a_conjecture_with_no_attempts_is_empty_not_missing():
                 "verified": 0,
                 "certified": 0,
                 "items": [],
+                "limit": 50,
+                "offset": 0,
+                "next_offset": None,
             }
         finally:
             await kit.teardown()

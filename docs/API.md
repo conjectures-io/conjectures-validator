@@ -40,7 +40,7 @@ with. See
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/v1/tasks` | none | List submittable tasks, the price, and the payment address |
+| `GET` | `/v1/tasks` | none | List submittable tasks, the price, and the payment address. Whole unless `limit`/`offset` ask for a page |
 | `GET` | `/v1/tasks/{task_id}` | none | One task's published commitment |
 | `POST` | `/v1/submissions` | coldkey signature | Idempotently create one paid submission |
 | `GET` | `/v1/submissions/{id}` | coldkey signature | Verification, review, and reward state |
@@ -109,10 +109,10 @@ per caller and carry review material that is not published anywhere else.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/v1/admin/reviews` | Submissions awaiting a reward decision, each with every advisory assessment recorded against it |
+| `GET` | `/v1/admin/reviews` | Submissions awaiting a reward decision, each with every advisory assessment recorded against it. `status=decided` lists what review has already approved or rejected |
 | `GET` | `/v1/admin/reviews/{submission_id}` | One submission's full advisory record, decided or not |
 | `POST` | `/v1/admin/invitations` | Issue an invitation link. **The only response that carries the code** |
-| `GET` | `/v1/admin/invitations` | Issued invitations with their counts, filterable by `active`/`expired`/`revoked`/`exhausted` |
+| `GET` | `/v1/admin/invitations` | Issued invitations with their counts, newest first and cursor-paginated, filterable by `active`/`expired`/`revoked`/`exhausted` |
 | `GET` | `/v1/admin/invitations/{id}` | One invitation, with who redeemed it and which ledger entry each use produced |
 | `DELETE` | `/v1/admin/invitations/{id}` | Withdraw an invitation. Soft and idempotent |
 

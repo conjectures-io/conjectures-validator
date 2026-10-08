@@ -29,6 +29,7 @@ from conftest_api import (
     OTHER_MINER_COLDKEY,
     TASK_DIGEST,
     TASK_ID,
+    cursor_pages,
     distinct_bundle,
     harness,
     postgres_dsn,
@@ -1890,15 +1891,37 @@ def test_the_panel_shows_only_the_accounts_own_submissions():
 
                 listed = (await mine.get("/v1/me/submissions")).json()
                 assert [item["id"] for item in listed["items"]] == [submission_id]
+                assert listed["total"] == 1
 
                 # The timeline explains what is happening in the meantime.
                 events = (
                     await mine.get(f"/v1/me/submissions/{submission_id}/events")
-                ).json()
+                ).json()["items"]
                 assert [item["kind"] for item in events] == [
                     "SUBMISSION_ACCEPTED",
                     "QUEUED_FOR_VERIFICATION",
                 ]
+                # Paged one event at a time, it is the same timeline in the same order.
+                timeline = f"/v1/me/submissions/{submission_id}/events"
+                pages = await cursor_pages(mine, timeline, limit=1)
+                assert [item["id"] for page in pages for item in page] == [
+                    item["id"] for item in events
+                ]
+                # Newest first puts the current state on the first page, and pages the same
+                # events the other way.
+                newest = (await mine.get(timeline, params={"order": "desc", "limit": 1})).json()
+                assert newest["items"][0]["kind"] == "QUEUED_FOR_VERIFICATION"
+                assert newest["total"] == 2
+                backwards = await cursor_pages(mine, timeline, limit=1, params={"order": "desc"})
+                assert [item["id"] for page in backwards for item in page] == [
+                    item["id"] for item in reversed(events)
+                ]
+                # A cursor carries its direction; replayed the other way it is refused.
+                crossed = await mine.get(
+                    timeline, params={"order": "asc", "cursor": newest["next_cursor"]}
+                )
+                assert crossed.status_code == 400
+                assert crossed.json()["reason_code"] == "INVALID_CURSOR"
 
                 await sign_in_by_email(kit, theirs, email="two@example.com")
                 assert (await theirs.get("/v1/me/submissions")).json()["items"] == []

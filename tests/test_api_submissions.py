@@ -1001,8 +1001,13 @@ def test_task_list_publishes_the_submission_contract():
         try:
             async with await _client(kit) as client:
                 response = await client.get("/v1/tasks")
+                past_the_end = await client.get("/v1/tasks?limit=1&offset=1")
             body = response.json()
             assert response.status_code == 200
+            # Whole unless a page is asked for, which is what a miner's `curl | jq` relies on.
+            assert (body["total"], body["limit"], body["offset"]) == (1, None, 0)
+            assert past_the_end.json()["tasks"] == []
+            assert past_the_end.json()["total"] == 1
             assert body["bundle_format"] == "conjectures-submission/v1"
             assert body["submission_price_rao"] == 500_000_000
             assert body["payment_recipient"] == kit.settings.payment_recipient

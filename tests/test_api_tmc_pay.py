@@ -37,7 +37,7 @@ pytest.importorskip("sqlalchemy", reason="submission API tests need the db extra
 pytest.importorskip("httpx", reason="submission API tests need the service extra")
 pytest.importorskip("psycopg", reason="submission API tests need the db extra")
 
-from conftest_api import harness, postgres_dsn
+from conftest_api import cursor_pages, harness, postgres_dsn
 from test_api_accounts import client, same_origin, sign_in_by_email
 
 from sqlalchemy.exc import IntegrityError
@@ -571,6 +571,37 @@ def test_a_purchase_is_refused_when_every_quote_comes_back_short():
                 assert [item["status"] for item in orders] == ["FAILED"]
                 assert "below the" in orders[0]["failure_reason"]
                 assert orders[0]["deposit_address"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_order_listing_pages_past_the_first_page():
+    """A limit with no cursor used to make every order past the first page unreachable."""
+
+    async def scenario():
+        # Every quote short, so each purchase is refused but leaves a FAILED order behind — and a
+        # failed order holds no live allowance, so three of them do not hit the per-account cap.
+        gateway = FakeGateway(
+            [invoice_body(invoice_id=f"short-{n}", crypto_amount="0.4") for n in range(6)]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                for _ in range(3):
+                    refused = await http.post(
+                        ORDERS, json={"credits": 1}, headers=same_origin(http)
+                    )
+                    assert refused.status_code == 503, refused.text
+
+                whole = (await http.get(ORDERS)).json()["items"]
+                assert (await http.get(ORDERS, params={"limit": 2})).json()["total"] == 3
+                pages = await cursor_pages(http, ORDERS, limit=2)
+                assert [len(page) for page in pages] == [2, 1]
+                assert [item["id"] for page in pages for item in page] == [
+                    item["id"] for item in whole
+                ]
         finally:
             await kit.teardown()
 

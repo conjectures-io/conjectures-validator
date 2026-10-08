@@ -153,6 +153,78 @@ def setup(monkeypatch):
 BASE = "/v1/competitions/deflate"
 
 
+class _Ids:
+    """A session stub for `_ranked`, which reads one column of ids and nothing else."""
+
+    def __init__(self, ids):
+        self.ids = ids
+
+    async def execute(self, *_args, **_kwargs):
+        ids = self.ids
+
+        class Result:
+            def scalars(self):
+                return self
+
+            def all(self):
+                return list(ids)
+
+        return Result()
+
+
+def _scored(compression_pct=None, payable=None):
+    item = {"aggregation": {"statistics": {"compression": {"ratio_pct": compression_pct}}}}
+    score = None if payable is None else {"payable_weight": payable}
+    return item, score
+
+
+# Newest first, as the SQL reads them: 5 4 3 2 1. Rows 1 and 4 tie at 40; 2 is in the snapshot
+# with no value and 5 is not in it at all.
+@pytest.mark.parametrize(
+    ("order", "expected"),
+    [("asc", [3, 4, 1, 5, 2]), ("desc", [4, 1, 3, 5, 2])],
+)
+def test_a_snapshot_column_sorts_both_ways_with_unscored_rows_last(order, expected):
+    chosen = {
+        "1": _scored(compression_pct=40),
+        "3": _scored(compression_pct=30),
+        "4": _scored(compression_pct=40),
+        "2": _scored(),
+    }
+    ranked = asyncio.run(
+        reads._ranked(
+            _Ids([5, 4, 3, 2, 1]), ["true"], {}, chosen, "mean_file_compression_pct", order
+        )
+    )
+    # Ties keep newest first (4 before 1) whichever way the column runs, and a missing value is
+    # last either way, in arrival order: it is not a small value.
+    assert ranked == expected
+
+
+def test_payable_weight_sorts_from_the_score_and_an_unscored_row_has_none():
+    chosen = {"1": _scored(payable=0.5), "2": _scored(payable=0.1), "3": _scored()}
+    ranked = asyncio.run(
+        reads._ranked(_Ids([3, 2, 1]), ["true"], {}, chosen, "payable_weight", "desc")
+    )
+    assert ranked == [1, 2, 3]
+
+
+def test_the_competition_index_is_whole_by_default_and_windowed_on_request(setup, monkeypatch):
+    client, _, _ = setup
+
+    async def queue_depth(session):
+        return 0
+
+    # The only read a competition summary makes that the shared fixture does not already fake.
+    monkeypatch.setattr(store, "queue_depth", queue_depth)
+    whole = client.get("/v1/competitions").json()
+    past_the_end = client.get("/v1/competitions?limit=1&offset=1").json()
+    assert [c["slug"] for c in whole["items"]] == ["deflate"]
+    assert (whole["total"], whole["limit"], whole["offset"]) == (1, None, 0)
+    assert past_the_end["items"] == []
+    assert past_the_end["total"] == 1
+
+
 def test_weights_are_persisted_fractions_not_renormalized(setup):
     client, _, _ = setup
     body = client.get(BASE + "/weights/current").json()
@@ -459,6 +531,7 @@ def intake_app(monkeypatch):
             competition_ip_rate_per_minute=5,
             competition_signature_window_seconds=300,
             trusted_proxy_hops=0,
+            trusted_proxy_peers=(),
         ),
         competitions=CompetitionRegistry.of(Competition("deflate", "Compression", 8)),
     )

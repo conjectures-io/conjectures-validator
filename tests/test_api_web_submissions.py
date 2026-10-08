@@ -246,7 +246,7 @@ def test_the_request_digest_is_the_message_that_was_actually_signed():
                 )
                 authorised = next(
                     item
-                    for item in events.json()
+                    for item in events.json()["items"]
                     if item["kind"] == "AUTHORISED_BY_COLDKEY"
                 )
                 assert authorised["context"]["signed_message"] == message

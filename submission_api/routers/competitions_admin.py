@@ -174,6 +174,7 @@ async def queue(
     return schemas.OperatorSubmissionPage(
         items=tuple(_operator_view(competition, row, flag) for row, flag in page),
         next_cursor=feed_cursor(secret, page[-1][0]) if more and page else None,
+        total=await queries.stuck_total(session, claimed_before=claimed_before),
     )
 
 
