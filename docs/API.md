@@ -435,7 +435,7 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `BOUNTY_POOL_BALANCE_RAO` | `4000000000` in `DEV` | Development-only deterministic balance; refused in `PROD` |
 | `BOUNTY_POLICY_VERSION` | `linear-age-v3-locked` | Version written with catalog quotes and submission locks |
 | `BOUNTY_CONSTANT_NUMERATOR` | `1` | Numerator of the starting treasury share |
-| `BOUNTY_CONSTANT_DENOMINATOR` | `10` | Denominator of the starting treasury share |
+| `BOUNTY_CONSTANT_DENOMINATOR` | `20` | Denominator of the starting treasury share |
 | `BOUNTY_RAMP_SECONDS` | `1296000` | Elapsed seconds to reach the maximum share (15 days) |
 | `BOUNTY_AGE_PERIOD_SECONDS` | `86400` | Legacy descriptive age-weight period; no effect on pricing |
 | `BOUNTY_MAX_AGE_WEIGHT` | `60` | Legacy descriptive age-weight cap; no effect on pricing |

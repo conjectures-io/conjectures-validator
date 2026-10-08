@@ -1,10 +1,10 @@
 """The public conjecture catalog: list, detail, meta, and anonymised activity.
 
 The database is only touched for the attempt counters, so most of this runs against a synthetic
-in-memory catalog. The tests that assert on counters need a real PostgreSQL server and are
-skipped without one:
+in-memory catalog. The tests that assert on counters need a verified private PostgreSQL fixture
+and are skipped without one:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from verifier.task_generator import task_id as build_task_id
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 # The stable slugs of the three fixture conjectures, derived from their theorems rather than from
@@ -133,8 +133,8 @@ def test_the_list_publishes_every_conjecture_with_its_facets():
                 SOLVED_DIRECT,
                 OPEN_ANSWER,
             ]
-            assert body["items"][0]["bounty"]["amount_rao"] == 400_000_000
-            assert body["items"][0]["bounty"]["amount_usd"] == "15.00"
+            assert body["items"][0]["bounty"]["amount_rao"] == 200_000_000
+            assert body["items"][0]["bounty"]["amount_usd"] == "7.50"
 
             facets = {facet["field"]: facet["values"] for facet in body["facets"]}
             assert {item["value"]: item["count"] for item in facets["category"]} == {
@@ -645,7 +645,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
                 "open_targets": 3,
                 "total_age_weight": 3,
                 "constant_numerator": 1,
-                "constant_denominator": 10,
+                "constant_denominator": 20,
                 "ramp_seconds": 1296000,
                 "max_age_weight": 60,
                 "max_bounty_share_numerator": 1,
@@ -859,6 +859,7 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     "erdos_problem_number": None,
                     "qualifier": None,
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [],
                 },
                 {
@@ -868,22 +869,26 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     # The root itself is pooled, so nothing qualifies the entry.
                     "qualifier": None,
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [
                         {
                             "slug": "erdos1-erdos-1-variants-lb",
                             "task_mode": "formalized",
                             "retired": False,
+                            "pool_status": "live",
                         },
                         {
                             "slug": "erdos1-erdos-1-variants-lb",
                             "task_mode": "counterexample",
                             "retired": False,
+                            "pool_status": "live",
                         },
                         # Only one row: this variant has one direction issued against it.
                         {
                             "slug": "erdos1-erdos-1-variants-real",
                             "task_mode": "formalized",
                             "retired": False,
+                            "pool_status": "live",
                         },
                     ],
                 },
@@ -894,6 +899,7 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     # No root in the pool, so the variant stands in and says which one it is.
                     "qualifier": "lower_bound",
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [],
                 },
                 {
@@ -903,6 +909,7 @@ def test_the_index_publishes_one_entry_per_problem_with_its_variants():
                     # Kept whole rather than truncated at its first dot.
                     "qualifier": "monotone.parts.i",
                     "retired": False,
+                    "pool_status": "live",
                     "variants": [],
                 },
             ]
@@ -1251,16 +1258,19 @@ def test_the_index_includes_a_retired_variant_under_its_live_problem():
                     "slug": "erdos1-erdos-1-variants-lb",
                     "task_mode": "formalized",
                     "retired": False,
+                    "pool_status": "live",
                 },
                 {
                     "slug": "erdos1-erdos-1-variants-lb",
                     "task_mode": "counterexample",
                     "retired": False,
+                    "pool_status": "live",
                 },
                 {
                     "slug": "erdos1-erdos-1-variants-real",
                     "task_mode": "formalized",
                     "retired": False,
+                    "pool_status": "live",
                 },
                 # Ordered by slug like the rest, not pushed to the end: retiring a variant must
                 # not reorder a list a reader has already seen.
@@ -1268,11 +1278,13 @@ def test_the_index_includes_a_retired_variant_under_its_live_problem():
                     "slug": "erdos1-erdos-1-variants-weaker",
                     "task_mode": "formalized",
                     "retired": True,
+                    "pool_status": "retired",
                 },
                 {
                     "slug": "erdos1-erdos-1-variants-weaker",
                     "task_mode": "counterexample",
                     "retired": True,
+                    "pool_status": "retired",
                 },
             ]
         finally:
@@ -1301,16 +1313,19 @@ def test_a_retired_root_still_heads_its_problem_and_keeps_its_live_variants():
                 "erdos_problem_number": 99,
                 "qualifier": None,
                 "retired": True,
+                "pool_status": "retired",
                 "variants": [
                     {
                         "slug": "erdos99-erdos-99-variants-weak",
                         "task_mode": "formalized",
                         "retired": False,
+                        "pool_status": "live",
                     },
                     {
                         "slug": "erdos99-erdos-99-variants-weak",
                         "task_mode": "counterexample",
                         "retired": False,
+                        "pool_status": "live",
                     },
                 ],
             }
@@ -1348,6 +1363,7 @@ def test_a_wholly_retired_problem_is_its_own_entry_and_still_readable():
                 "erdos_problem_number": None,
                 "qualifier": "grechuk",
                 "retired": True,
+                "pool_status": "retired",
                 "variants": [],
             }
 
@@ -1588,6 +1604,37 @@ def test_activity_for_a_conjecture_with_no_attempts_is_empty_not_missing():
                 "offset": 0,
                 "next_offset": None,
             }
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_research_description_names_the_index_list_detail_and_results():
+    from dataclasses import replace
+
+    from types import SimpleNamespace
+
+    from submission_api.routers.results import named_of
+
+    async def scenario():
+        source = replace(
+            declaration(theorem="Math15Catalog.source04"),
+            module="FormalConjectures.ResearchTargets.Math15",
+            docstring="Incomplete challenge 04: Two-entry tight lonely-runner classification. "
+            "Source: https://arxiv.org/html/2608.13599v2#S9 ",
+        )
+        kit = await harness(entries=(task_entry(source=source),)).setup()
+        try:
+            expected = "Two-entry tight lonely-runner classification"
+            index = (await _get(kit, "/v1/catalog/index")).json()["items"][0]
+            listing = (await _get(kit, "/v1/catalog/conjectures")).json()["items"][0]
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{listing['slug']}")).json()
+            assert index["display_title"] == listing["display_title"] == detail["display_title"] == expected
+            assert index["slug"] == listing["slug"] == "math15catalog-source04"
+            row = SimpleNamespace(reward_target_id="fc-target:Math15Catalog.source04")
+            assert named_of(kit.services.index, row).display_title == expected
+            assert detail["title"] == "Math15Catalog.source04"
         finally:
             await kit.teardown()
 

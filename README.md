@@ -440,17 +440,22 @@ python -m verifier task generate \
 Use the immutable bundles in the pinned
 [`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 277
-active audited targets across 242 source files: 238 Erdős, 6 previously solved Green, 32 Wikipedia,
-and one Millennium target. The September 21 release adds 36 classical conjectures
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 275
+active audited targets across 226 source files: 219 Erdős, 6 previously solved Green, 32 Wikipedia,
+one Millennium target, and 17 package-authored research targets (activation pending owner approval). The October release retires three exact targets solved externally
+(Erdős 252, Erdős 701, and one Erdős 70 variant) and eleven closed on the release owner's
+instruction to accept public resolution claims, without independent proof replay. It also holds
+five targets pending review; a held target is neither solved nor retired. The earlier tasks of all
+nineteen stay readable in the retired index, each labelled with its pool status. The
+September 21 release adds 36 classical conjectures
 following the [status and formalization audit](docs/review-decisions/2026-09-21-classical-conjectures/REVIEW.md).
 Köthe is excluded as resolved; perfect cuboid, Catalan's constant irrationality, and
 Scholz remain held pending review of recent full-proof claims. Green 44 remains retired.
 On September 30, the 18 open Green targets were withdrawn at Ben Green’s request;
 the six previously solved entries and earlier archived results remain available.
 
-All tasks use Lean 4.33.1 and the source revision in `pins.lock.json`. The audited patch
-includes corrected normality and Hardy–Littlewood definitions. The tier contains 554
+All tasks use Lean 4.35.0-rc2 and the source revision in `pins.lock.json`. The audited patch
+includes corrected normality and Hardy–Littlewood definitions. The tier contains 550
 immutable bundles: a `formalized` task for P and a `counterexample` task for ¬P for each
 target. Every active manifest permits a 10 MiB (10,485,760-byte) proof. The source repin
 creates fresh task IDs and commitments while preserving existing stable reward identities.
@@ -460,7 +465,13 @@ Each bundle has a commit-specific `problem_id`, while each exact theorem target 
 `reward_target_id` shared by its proof/refutation pair and later source repins. Independently
 formalized parents, parts, and variants have independent rewards. Multi-target bundles and answer
 wrappers remain excluded. Previously retired source declarations and canonical types remain excluded
-unless an audited target explicitly supersedes that retirement.
+unless an audited target explicitly supersedes that retirement. Held declarations and their types are
+excluded through their own list until the recorded resolution and a new audit re-admit them.
+
+The public catalog reports why a target left the pool. A retired or held conjecture keeps its page,
+with no machine contract and a `WITHDRAWN` bounty. Its `retirement.pool_status` is `retired` or
+`held`, and the index carries the same `pool_status` (`live`, `retired`, or `held`) on every entry
+and variant. `is_open` keeps the upstream category, so a held target is never presented as solved.
 
 The pool admits only direct propositions. It does not extract one side of an answer wrapper or
 substitute a new answer. Both task variants are compiled and inspected: `formalized` must be
@@ -491,7 +502,7 @@ correct.
 The deterministic pool selection and compiled validation are implemented by
 `../conjectures-tasks/scripts/rebuild_task_pool.py`. It loads the exact audited selection and
 [`tier-1 task targets`](https://github.com/conjectures-io/conjectures-tasks/blob/main/tiers/tier-1/task-targets.json), admits exactly
-the 277 active audited direct propositions, generates committed `formalized` and
+the 275 active audited direct propositions, generates committed `formalized` and
 `counterexample` task variants, enforces the tier policy, and
 refuses to overwrite an existing pool or allowlist. The complete admission contract is in
 [`conjectures-tasks/POOL.md`](https://github.com/conjectures-io/conjectures-tasks/blob/main/POOL.md).
@@ -545,6 +556,18 @@ memory and CPU available to the builder.
 Compose mounts the task collection read-only and only the selected submission file, then applies
 the network, capability, UID, read-only-root, PID, memory, CPU, file-descriptor, and tmpfs limits in
 `docker-compose.yml`. Deploy a reviewed image by immutable registry digest, not by a mutable tag.
+
+### Incremental task versions
+
+A version-2 task ID (`fc-v2-…`) commits to the target's declaration-level dependency identity
+(statement, the bodies of the definitions it unfolds to, and its import graph) and to the
+verification environment's identity (toolchain, Mathlib, Comparator, exporter, generator,
+policy). It does not commit to the source commit. A repin or toolchain change therefore rebuilds
+only the targets whose closure or environment changed. `task-versions.json` in the tasks
+repository records instances, publications and per-version admissions. Workers claim only the
+paid work their own environment accepted. `verifier task publish` publishes through a locked,
+journaled commit. See [docs/INCREMENTAL_TASKS.md](docs/INCREMENTAL_TASKS.md) for the identities,
+routing, security review and migration.
 
 ## Architecture and exact target generation
 
@@ -607,10 +630,10 @@ For each open reward target `i`, policy `linear-age-v3-locked` publishes:
 ```text
 B = finalized treasury balance - outstanding locked exposure
 progress_i = min(max(age_i_seconds, 0), 1296000) / 1296000
-b_i = floor(B * (1/10 + (1/8 - 1/10) * progress_i))
+b_i = floor(B * (1/20 + (1/8 - 1/20) * progress_i))
 ```
 
-A target starts at 10% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
+A target starts at 5% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
 (12.5%) after 15 elapsed days. Its share then stays at 1/8; funding and commitments can still
 change the Alpha amount. Age advances within the day at the catalog's minute-resolution clock.
 Pricing uses integer arithmetic with one final floor to base units. Neither catalog size nor
@@ -638,7 +661,7 @@ Before restarting the API, update any explicit overrides in `.env`:
 ```dotenv
 BOUNTY_POLICY_VERSION=linear-age-v3-locked
 BOUNTY_CONSTANT_NUMERATOR=1
-BOUNTY_CONSTANT_DENOMINATOR=10
+BOUNTY_CONSTANT_DENOMINATOR=20
 BOUNTY_MAX_SHARE_NUMERATOR=1
 BOUNTY_MAX_SHARE_DENOMINATOR=8
 BOUNTY_RAMP_SECONDS=1296000
@@ -841,12 +864,17 @@ Unit tests cover schemas, hashes, catalog statistics, adapters, deterministic sk
 behavior, answer literals, workspaces, and reports. The opt-in integration suite uses the real pinned
 catalog.
 
-Database tests **skip** when they cannot reach a server, so a green run on a laptop with no
-database has not exercised them. Bring the throwaway stack up first, or point the suite elsewhere
-with `FC_POSTGRES_DSN`:
+Database tests are destructive, so the suite never discovers a server. They **skip** unless the
+run names a private fixture explicitly, so a green run with no fixture has not exercised them.
+`tests/database_guard.py` accepts a DSN only together with the fixture cluster's declared
+`system_identifier`, verified over a read-only connection before any test runs; a missing or
+mismatched identity, or a DSN reaching TCP port 5432 or 5440, stops the run:
 
 ```bash
-docker compose -f docker-compose.pytest-db.yml up -d
+FC_POSTGRES_DSN=<private fixture DSN> \
+FC_COMPETITION_POSTGRES_DSN=<competition database on the same fixture> \
+FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<that cluster's system_identifier> \
+.venv/bin/pytest
 ```
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs three gates on every pull request:

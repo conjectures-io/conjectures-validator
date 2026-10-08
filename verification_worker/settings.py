@@ -156,6 +156,8 @@ class WorkerSettings:
     memory: str
     cpus: str
     pids_limit: int
+    # The pinned tasks checkout; its `task-versions.json`, when present, routes historical work.
+    tasks_root: Path | None = None
 
     @property
     def production(self) -> bool:
@@ -274,6 +276,7 @@ class WorkerSettings:
             memory=env.get("VERIFIER_MEMORY", "").strip() or DEFAULT_MEMORY,
             cpus=env.get("VERIFIER_CPUS", "").strip() or DEFAULT_CPUS,
             pids_limit=_positive_int(env, "VERIFIER_PIDS_LIMIT", DEFAULT_PIDS_LIMIT),
+            tasks_root=tasks_root,
         )
 
 

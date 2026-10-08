@@ -19,6 +19,7 @@ def updated_checks(checks: Mapping[str, bool], **updates: bool) -> dict[str, boo
 def build_report(
     *,
     manifest: TaskManifest,
+    repository_commit: str | None = None,
     task_bundle_sha256: str,
     submission_sha256: str,
     accepted: bool,
@@ -32,14 +33,17 @@ def build_report(
     workspace_retained: bool = False,
     sandbox_mode: str = "not-started",
 ) -> VerificationReport:
+    # A legacy manifest names its commit. A v2 report names the commit of the environment that
+    # ran it; "" only if the verifier stopped before it could establish one.
+    commit = repository_commit or manifest.repository_commit or ""
     return VerificationReport(
         schema_version=2,
         problem_id=problem_id(
-            manifest.repository_commit,
+            commit,
             manifest.forbidden_dependencies or (manifest.source_theorem,),
         ),
         task_id=manifest.task_id,
-        repository_commit=manifest.repository_commit,
+        repository_commit=commit,
         source_theorem=manifest.source_theorem,
         task_mode=manifest.task_mode,
         task_bundle_sha256=task_bundle_sha256,

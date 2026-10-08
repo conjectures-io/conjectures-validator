@@ -907,7 +907,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2696d64fcaf90db6a362d1fb4ad144162921cd0ed9b82765863fb7a78439bf24",
+      "type_hash": "sha256:5d70c35118c49ae374877a12facb7d73e5dc74ebf02863e199390a03529e74d2",
       "type_pretty": "∀ (K : Type u_1) (L : Type u_2) [inst : Field K] [inst_1 : Field L] [inst_2 : Algebra K L]\n  [Algebra.IsQuadraticExtension K L], ∃ a b, Nonempty (L ≃ₐ[K] QuadraticAlgebra K a b)"
     },
     {
@@ -945,7 +945,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:21ae73e673cdcc16c3a8556b8594ad72777014f6242e95ff7212d50a345903ea",
+      "type_hash": "sha256:8272bdee171bdbb6c98025e4a6f1f867c89998d5f994fcfed7d8bb94b0e1d951",
       "type_pretty": "∀ {K : Type u_1} {L : Type u_2} [inst : Field K] [inst_1 : Field L] [inst_2 : Algebra K L],\n  Algebra.IsQuadraticExtension K L ↔ ∃ a b, Nonempty (L ≃ₐ[K] QuadraticAlgebra K a b)"
     },
     {
@@ -985,7 +985,7 @@
         "Quot.sound"
       ],
       "type_hash": "sha256:279728f5ff16b61248939fdf3d43c663ed7cd25ca3248af603d3e04c6f5b4957",
-      "type_pretty": "∀ (n : ℕ),\n  7 ≤ n →\n    ∀ (𝓕 : (ProjectiveSpace (Fin (n + 1)) (AlgebraicGeometry.Spec (CommRingCat.of ℂ))).VectorBundles),\n      𝓕.rank = 2 → Nonempty (𝓕.Splitting (Fin 2))"
+      "type_pretty": "∀ (n : ℕ),\n  7 ≤ n →\n    ∀ (𝓕 : (ProjectiveSpace (Fin (n + 1)) (AlgebraicGeometry.Spec ↧ℂ)).VectorBundles),\n      𝓕.rank = 2 → Nonempty (𝓕.Splitting (Fin 2))"
     },
     {
       "ams_subjects": [
@@ -1982,8 +1982,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9c77733e46859f540cbc6f11824a644555ef1379c63d7c9d5b5cf520f278e281",
-      "type_pretty": "False ↔\n  ∀ (p q : ℕ),\n    2 ≤ p →\n      2 ≤ q →\n        Arxiv.id2303_01089.MultiplicativelyIndependent p q →\n          ∀ (μ : MeasureTheory.ProbabilityMeasure 𝕋),\n            Arxiv.id2303_01089.MeasureTheory.IsAtomLess ↑μ →\n              MeasureTheory.MeasurePreserving (Arxiv.id2303_01089.Tn p) ↑μ ↑μ →\n                Filter.Tendsto (fun n => μ.map ⋯) Filter.atTop\n                  (nhds Arxiv.id2303_01089.UnitAddCircle.ProbabilityMeasure)"
+      "type_hash": "sha256:0f33dfd1987ab6bccebd18132e04c9f471e2e55a56d7fd9fa8b229ecd7dc5918",
+      "type_pretty": "False ↔\n  ∀ (p q : ℕ),\n    2 ≤ p →\n      2 ≤ q →\n        Arxiv.id2303_01089.MultiplicativelyIndependent p q →\n          ∀ (μ : MeasureTheory.ProbabilityMeasure 𝕋),\n            Arxiv.id2303_01089.MeasureTheory.IsAtomLess ↑μ →\n              MeasureTheory.MeasurePreserving (Arxiv.id2303_01089.Tn p) ↑μ ↑μ →\n                Filter.Tendsto (fun n => μ.map (Arxiv.id2303_01089.Tn (q ^ n))) Filter.atTop\n                  (nhds Arxiv.id2303_01089.UnitAddCircle.ProbabilityMeasure)"
     },
     {
       "ams_subjects": [
@@ -2020,7 +2020,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1c3986aeb4a2c4a624c33ac9006dd0bd90264acb6b1d29ecc3abb724292211cf",
+      "type_hash": "sha256:29e284acddfbe15bade97fb791fc8ecee328ccec9803cff718629257375bc7e3",
       "type_pretty": "∀ (p : ℝ) (h_p : p ∈ Set.Ioo 0 (1 / 2)) (k : ℕ),\n  0 < k →\n    ∀ (σ : ℝ),\n      σ = √(p * (1 - p)) →\n        1 - ↑(ProbabilityTheory.cdf (ProbabilityTheory.gaussianReal 0 1)) ((1 / 2 - p) * ↑(NNReal.sqrt (2 * ↑k)) / σ) +\n            1 / 2 * ↑((2 * k).choose k) * σ ^ (2 * k) ≤\n          (ProbabilityTheory.binomial (2 * k) ⟨p, ⋯⟩).real (Set.Icc k (2 * k))"
     },
     {
@@ -3583,7 +3583,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:80da69533bec2a41345a9d86e06485d721374b7a25452710479037888c20bd4f",
+      "type_hash": "sha256:0ac058dbf441544756b6e91f538ee66a005301f1a756e74a5ff8cd76a7245417",
       "type_pretty": "∀ {k : Type u_1} [inst : Field k], Arxiv.«2208.14736».IsCancellative k (Polynomial k)"
     },
     {
@@ -4114,7 +4114,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0e5ce32dcc27c9f0b0fc3dc048583cb519ebe10ff542413918a2533bddbda428",
+      "type_hash": "sha256:d0a3771a57fe71e08671fce08561ca1364e7bcda13f5ec47513935a1e7d7d88d",
       "type_pretty": "∀ {F : Type} [inst : Field F] (n : ℕ) (p q : Polynomial F),\n  Arxiv.«2602.05192».finiteAdditiveConvolution n p q = Arxiv.«2602.05192».finiteAdditiveConvolution n q p"
     },
     {
@@ -4152,7 +4152,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:32ff364774a1600b4d57dca8b02332d4543d88fa338b75f56c9b6681f04a956c",
+      "type_hash": "sha256:d1405ebc43a11be092690a42e36512d278fe1a67e831e3e5f2ca094eaa47cdbb",
       "type_pretty": "∀ (n : ℕ) (p q : Polynomial ℝ),\n  p.degree = ↑n → q.degree = ↑n → (Arxiv.«2602.05192».finiteAdditiveConvolution n p q).degree = ↑n"
     },
     {
@@ -4189,7 +4189,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:550b9ac966c5ed5020cdd6ca35b3e290220c465da8fc791b456d0b4e4f424c63",
+      "type_hash": "sha256:a155a489d6caee8d6bf1df4c18e78dae88bfb7957ed3d07f474f65a1c8d9260c",
       "type_pretty": "∀ (n : ℕ) (p q : Polynomial ℝ),\n  0 < n → p.degree = ↑n → q.degree = ↑n → p.Monic → q.Monic → (Arxiv.«2602.05192».finiteAdditiveConvolution n p q).Monic"
     },
     {
@@ -5321,7 +5321,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:b574817d1a33a53c050a75db349d221e6777f8c0fc104858baebf2f16665b7d9",
+      "type_hash": "sha256:ea24f3530b2609e6ce79794b12f27404a1c2450381f5842d6522fa7c51e50248",
       "type_pretty": "True ↔\n  ∀ (K : Set (EuclideanSpace ℝ (Fin 2))),\n    Convex ℝ K →\n      IsCompact K →\n        (interior K).Nonempty →\n          Arxiv.«2607.03582».HasCentreOfSymmetry K →\n            0 ∈ K →\n              ∀ (p q : ℝ),\n                1 < p →\n                  1 / p + 1 / q = 1 →\n                    MeasureTheory.volume (Arxiv.«2607.03582».lpSum p K (-K)) =\n                        ENNReal.ofReal (Arxiv.«2607.03582».rsConstant q) * MeasureTheory.volume K →\n                      Arxiv.«2607.03582».IsParallelogramAtOrigin K"
     },
     {
@@ -5396,7 +5396,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a78d342e18f90a490a6156b0a111317f4bb0ff5135068cc034a6f0b6d254532a",
+      "type_hash": "sha256:f61dfcf6128a32f6f8b8f8e8f5a66a30c76a80d686d3b34ae12c3e103c53f9dc",
       "type_pretty": "∀ (K : Set (EuclideanSpace ℝ (Fin 2))),\n  Arxiv.«2607.03582».IsParallelogramAtOrigin K →\n    ∀ (p q : ℝ),\n      1 < p →\n        1 / p + 1 / q = 1 →\n          MeasureTheory.volume (Arxiv.«2607.03582».lpSum p K (-K)) =\n            ENNReal.ofReal (Arxiv.«2607.03582».rsConstant q) * MeasureTheory.volume K"
     },
     {
@@ -5434,7 +5434,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8b9523cd510a6ab3b9aff6734cd6cadd57763679cc8c04f61a833ea8c8500321",
+      "type_hash": "sha256:7b9ff1a0c73bb5cc35eb0529e63009ba0cc1493e9c22738779325eaf28d3a5d7",
       "type_pretty": "∀ (K : Set (EuclideanSpace ℝ (Fin 2))),\n  Convex ℝ K →\n    IsCompact K →\n      (interior K).Nonempty →\n        Arxiv.«2607.03582».HasCentreOfSymmetry K →\n          0 ∈ K →\n            ∀ (p q : ℝ),\n              1 < p →\n                1 / p + 1 / q = 1 →\n                  MeasureTheory.volume (Arxiv.«2607.03582».lpSum p K (-K)) ≤\n                    ENNReal.ofReal (Arxiv.«2607.03582».rsConstant q) * MeasureTheory.volume K"
     },
     {
@@ -7288,7 +7288,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:80f713e23819634ee58bd173b1233e20705705ddde483a6374622e1fae24c1f8",
+      "type_hash": "sha256:b43f3436b496b30e479a0426f046681d8d0145bcc321723b797240dcd788ea8e",
       "type_pretty": "∀ (polys : Finset (Polynomial ℤ)),\n  polys.Nonempty →\n    (∀ f ∈ polys, BunyakovskyCondition f) →\n      SchinzelCondition polys →\n        Asymptotics.IsEquivalent Filter.atTop (fun x => ↑(BatemanHornConjecture.CountSimultaneousPrimes polys x))\n          fun x => BatemanHornConjecture.BatemanHornConstant polys * x / Real.log x ^ polys.card"
     },
     {
@@ -10261,7 +10261,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:fc00e4530d45bf07c38c16e676d2541b53951056662928c77dc7714efa75bd0c",
+      "type_hash": "sha256:437081319b44b8f5bcd91f186089ef4c1fbd7962d35478471576b65ac02a8a75",
       "type_pretty": "∀ (K : IntermediateField ℚ ℝ) [FiniteDimensional ℚ ↥K] {ε : ℝ},\n  0 < ε →\n    ∃ t,\n      (∀ (n : ℕ), 0 < ↑(t n)) ∧\n        (IsLacunaryReal fun k => ↑(t k)) ∧ ∀ ξ ∉ K, 1 - ε ≤ Filter.limsup (fun n => Int.fract (ξ * ↑(t n))) Filter.atTop"
     },
     {
@@ -10300,7 +10300,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:18b8f5a36e765dd87d77b198fe00683b1657348d82930db767926d9d45f02243",
+      "type_hash": "sha256:0487faf53a3253ef0316bb1ebc10ed4cffb330eb7057352787c84165b7b16507",
       "type_pretty": "∀ (K : IntermediateField ℚ ℝ) [FiniteDimensional ℚ ↥K] {ε : ℝ},\n  0 < ε →\n    ∃ t,\n      (∀ (n : ℕ), 0 < ↑(t n)) ∧\n        (IsLacunaryReal fun k => ↑(t k)) ∧\n          ∀ ξ ∉ K,\n            ∀ a ∈ Set.Icc 0 (1 - ε),\n              ∃ y ∈ Set.Icc a (a + ε), MapClusterPt y Filter.atTop fun n => Int.fract (ξ * ↑(t n))"
     },
     {
@@ -10338,7 +10338,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:025f069f0f8042db2694d5a4c53c3daee2aa13081dbb514111a6e7872c945468",
+      "type_hash": "sha256:565e6221e345d5c4e5fd7b9355c80527734e7efb1439b90bd61a831a6f83b262",
       "type_pretty": "(∀ (K : IntermediateField ℚ ℝ) [FiniteDimensional ℚ ↥K] {ε : ℝ},\n    0 < ε →\n      ∃ t,\n        (∀ (n : ℕ), 0 < ↑(t n)) ∧\n          (IsLacunaryReal fun k => ↑(t k)) ∧\n            ∀ ξ ∉ K,\n              ∀ a ∈ Set.Icc 0 (1 - ε),\n                ∃ y ∈ Set.Icc a (a + ε), MapClusterPt y Filter.atTop fun n => Int.fract (ξ * ↑(t n))) →\n  ∀ (K : IntermediateField ℚ ℝ) [FiniteDimensional ℚ ↥K] {ε : ℝ},\n    0 < ε →\n      ∃ t,\n        (∀ (n : ℕ), 0 < ↑(t n)) ∧\n          (IsLacunaryReal fun k => ↑(t k)) ∧\n            ∀ ξ ∉ K, 1 - ε ≤ Filter.limsup (fun n => Int.fract (ξ * ↑(t n))) Filter.atTop"
     },
     {
@@ -11529,7 +11529,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:25beeee3171a4a9152110d05008d0742f83cf80af07bb12265c7974749961270",
+      "type_hash": "sha256:47acca1908443055e7dd1fcef9cf365811fd490a4dfa43255960c09f8d007ab3",
       "type_pretty": "∀ {K : Type u_1} {L : Type u_2} [inst : Field K] [inst_1 : Field L] {f : K →+* L} {P : Polynomial K},\n  CasasAlvero.HasCasasAlveroProp (Polynomial.map f P) ↔ CasasAlvero.HasCasasAlveroProp P"
     },
     {
@@ -11567,7 +11567,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8db0771407ed76d57daba4d8a96bf5d6b27bd05dd7809a6d33ea19a1b6e8477a",
+      "type_hash": "sha256:a20e91c26e62d2694fb8d65771e7ff6e440222ad0a9a185a1af9466de774090f",
       "type_pretty": "∀ {K : Type u_1} [inst : Field K] {P : Polynomial K},\n  CasasAlvero.HasCasasAlveroPropᵣ P → CasasAlvero.HasCasasAlveroProp P"
     },
     {
@@ -11606,7 +11606,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:5ab58ce2ce8a8ec3e4cd0cd1a0122b61a0dea4222ad1192eb4e2c0f5319c02cf",
+      "type_hash": "sha256:2ff0fc3b7b2461dd46454f057517712564ba23de05156f5fca5c5cc0db01eaab",
       "type_pretty": "∀ {K : Type u_1} [inst : Field K] [CharZero K] (P : Polynomial K),\n  P.Monic →\n    ∀ (p k : ℕ),\n      Nat.Prime p →\n        P.natDegree = 2 * p ^ k →\n          CasasAlvero.HasCasasAlveroProp P → ∃ α, P = (Polynomial.X - Polynomial.C α) ^ P.natDegree"
     },
     {
@@ -11645,7 +11645,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:adc9b1e23c183634d539559cecaa295f8b42a99fa8b148772b81d7baa6aa0ba5",
+      "type_hash": "sha256:ab224608071d8ad5f3f0d002f433b82fdfbfe5c404139f20b17304ac7b8c40f0",
       "type_pretty": "∀ {p : ℕ},\n  Nat.Prime p →\n    ∃ K x,\n      ∃ (_ : CharP K p),\n        have P := Polynomial.X ^ (p + 1) - Polynomial.X ^ p;\n        P.Monic ∧ CasasAlvero.HasCasasAlveroProp P ∧ ¬∃ α, P = (Polynomial.X - Polynomial.C α) ^ P.natDegree"
     },
     {
@@ -11684,7 +11684,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2a954dc4465e5b1055bc5f5cf5a0290f75ae7fee8b0eb98ce03abf184c805c8b",
+      "type_hash": "sha256:49e70027e555facf1d3c42bb5d0bdf13ac9be0495244981282b05a199061f9ea",
       "type_pretty": "∀ {K : Type u_1} [inst : Field K] [CharZero K] (P : Polynomial K),\n  P.Monic →\n    ∀ (p k : ℕ),\n      Nat.Prime p →\n        P.natDegree = p ^ k → CasasAlvero.HasCasasAlveroProp P → ∃ α, P = (Polynomial.X - Polynomial.C α) ^ P.natDegree"
     },
     {
@@ -11723,7 +11723,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e80a7f23f6e0a132fc227f0b54fc0b755087d6cf2848e086f68fc38ae6b07d2c",
+      "type_hash": "sha256:c7df68ec9bf4cddea954b9df2ed5f9ec4840974892750577f26f73fcc8a1ce61",
       "type_pretty": "∀ {K : Type u_1} [inst : Field K] [CharZero K] (P : Polynomial K),\n  P.Monic → CasasAlvero.HasCasasAlveroProp P → ∃ α, P = (Polynomial.X - Polynomial.C α) ^ P.natDegree"
     },
     {
@@ -11761,7 +11761,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:7be168190c1bf4cd38dd1f4a7c5ba88adbb406ccaf1fe02e647fed0f62c36976",
+      "type_hash": "sha256:ddab130592cec3fd260eb9ca6482b9d0a94fc0aee7fba4f20ba1d35e5fdc8b81",
       "type_pretty": "(∀ {K : Type u} [inst : Field K] [CharZero K] (P : Polynomial K),\n    P.Monic → CasasAlvero.HasCasasAlveroProp P → ∃ α, P = (Polynomial.X - Polynomial.C α) ^ P.natDegree) ↔\n  ∀ {K : Type u} [inst : Field K] [CharZero K] (P : Polynomial K),\n    P.Monic → CasasAlvero.HasCasasAlveroPropᵣ P → ∃ α, P = (Polynomial.X - Polynomial.C α) ^ P.natDegree"
     },
     {
@@ -11799,7 +11799,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1130223ea888d360231f6b066758f597cc64ff2596ed055ad98ada03963130f3",
+      "type_hash": "sha256:7c2f6dc67d14d040cc3c8149c187cd9aeab290425c4600a4a1c7fe39c9c96a5d",
       "type_pretty": "∀ {K : Type u_1} [inst : Field K] {P : Polynomial K} [IsAlgClosed K],\n  CasasAlvero.HasCasasAlveroProp P ↔ CasasAlvero.HasCasasAlveroPropᵣ P"
     },
     {
@@ -19478,7 +19478,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:d0fd45937326397ef0d75237fcaee03cc9cf1d742a6e4488f6e081621ed39538",
+      "type_hash": "sha256:094d7035f3759bf67daecf3bf6f411c77d0521b65b54614905463f94890538e9",
       "type_pretty": "True ↔\n  ∃ c > 0,\n    ∀ (V : Type) [Fintype V] (G : SimpleGraph V),\n      ∃ H ≤ G, (SimpleGraph.cycleGraph 4).Free H ∧ c * ↑G.edgeSet.ncard ^ (2 / 3) ≤ ↑H.edgeSet.ncard"
     },
     {
@@ -19518,7 +19518,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c09fe4ac87cbc0e22040eeb2a05129f6701d36d8133284c3ea9ca7127d240257",
+      "type_hash": "sha256:66368ff8f1a9b054142e1f76e0b3e1922fe8bfd9c600b311eb47ada8d3e18e9e",
       "type_pretty": "∀ (n : ℕ),\n  (completeBipartiteGraph (Fin n) (Fin (n ^ 2))).edgeSet.ncard = n ^ 3 ∧\n    ∀ H ≤ completeBipartiteGraph (Fin n) (Fin (n ^ 2)),\n      n ^ 2 + n.choose 2 < H.edgeSet.ncard → (SimpleGraph.cycleGraph 4).IsContained H"
     },
     {
@@ -19558,7 +19558,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:bea0fb018c04788a26d8ac9a773e7d7dd31d64e1946c23d41576d67f9334320b",
+      "type_hash": "sha256:9c1e8c97c322e74023b0f7acda779fc28987f0091733fc788d516c141d4c7eb3",
       "type_pretty": "∃ c > 0,\n  ∀ (V : Type) [Fintype V] (G : SimpleGraph V),\n    ∃ H ≤ G, (SimpleGraph.cycleGraph 4).Free H ∧ c * ↑G.edgeSet.ncard ^ (1 / 2) ≤ ↑H.edgeSet.ncard"
     },
     {
@@ -19601,7 +19601,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9c5c6a33af7314a1784d3f2bdbf3af27ec7859f145c691bec65e1b3bc4484eed",
+      "type_hash": "sha256:78c058d2fad1b03d1ed954237c849662cc9d6c08d65b05faca8d253e93cbc6d2",
       "type_pretty": "False ↔\n  ∃ c > 0,\n    ∀ (V : Type) [Fintype V] (G : SimpleGraph V),\n      ∃ H ≤ G, (SimpleGraph.cycleGraph 4).Free H ∧ c * ↑G.edgeSet.ncard ^ (3 / 4) ≤ ↑H.edgeSet.ncard"
     },
     {
@@ -19890,7 +19890,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:14a8c200bea36426667ea4fab31af2274322f1a8b1a6a70335fe061f6b3f4f40",
+      "type_hash": "sha256:c2681cd18c6e3aab6294f354f1315973273f27fa654533dbbecd821803fda22b",
       "type_pretty": "True ↔ ∃ c, 0 < c ∧ Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos1023.F n)) fun n => c * 2 ^ n / ↑n ^ (1 / 2)"
     },
     {
@@ -19968,7 +19968,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1bf0768d3f5a8c8b19d7917e88b9b36287e66e3ad3932e371a3c5c55851412d5",
+      "type_hash": "sha256:15fb91f98f64f96656d5bdb839a9903e1c3735b141027af24b6b30724aeccd9a",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos1023.F n)) fun n => ↑(n.choose (n / 2))"
     },
     {
@@ -20595,7 +20595,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e77a353407843c94d2a22e38b524bb257129a868de26d0faea86b0f47fd5065b",
+      "type_hash": "sha256:36580a28e1949a3eb9f11bd386248e48b75fa9ef38ca4b683c79f92d717d7c9d",
       "type_pretty": "True ↔\n  ∃ c > 0,\n    ∀ (n : ℕ) (G : SimpleGraph (Fin (2 ^ n))) [inst : DecidableRel G.Adj],\n      (∀ (v : Fin (2 ^ n)), ↑(G.degree v) > (1 - c) * 2 ^ n) → (SimpleGraph.hypercube n).IsContained G"
     },
     {
@@ -21082,7 +21082,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:20a4b39053caf8147016f4b49d0adacf02d7a77594c48af453945ef0854d289b",
+      "type_hash": "sha256:0dc032123d55b3a1fa29e5f476936ed19c6ec598d9ca6e49549b18b0fb6b4912",
       "type_pretty": "False ↔\n  ∀ (f : Polynomial ℂ),\n    f.Monic →\n      f.degree ≥ 1 → ∃ u, ‖u‖ = 1 ∧ MeasureTheory.volume (⇑(ℝ ∙ u).orthogonalProjectionOnto '' Erdos1043.levelSet f) ≤ 2"
     },
     {
@@ -21124,7 +21124,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c085ade677dfe5b50373489b18f30111cc18be78928f1aad10be31b9e6703b76",
+      "type_hash": "sha256:3afa86d825452d2b804e6a771080f151a0b6aef2177b98492c685034ec3998ce",
       "type_pretty": "∀ (f : Polynomial ℂ),\n  f.Monic →\n    f.degree ≥ 1 → ∃ u, ‖u‖ = 1 ∧ MeasureTheory.volume (⇑(ℝ ∙ u).orthogonalProjectionOnto '' Erdos1043.levelSet f) ≤ 3.3"
     },
     {
@@ -21590,7 +21590,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:bda884045217152789d2285a562cc933603c2b657d55396b2cdd811e12f6db3d",
+      "type_hash": "sha256:289af55de6e92638c112b6ac4f1b42e808f1db9f7393d2b7fbd84e31f3d6eef7",
       "type_pretty": "False ↔\n  ∀ (r : ℝ) (f : Polynomial ℂ),\n    r < 2 →\n      f.Monic →\n        f.degree ≥ 1 →\n          (∀ z ∈ f.roots, ‖z‖ ≤ r) →\n            ∃ z ∈ Erdos1048.openLevelSet f,\n              ENNReal.ofReal (2 - r) < Metric.ediam (connectedComponentIn (Erdos1048.openLevelSet f) z)"
     },
     {
@@ -21630,7 +21630,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:adb35829b82930cc42d1f7034d68a95df9428e0c5da5d4f28b05ec656464f3c2",
+      "type_hash": "sha256:0d2d36f0ea633cb4b74bf27637f81ddd43a579acb0275b0e8b63272a80cb33ad",
       "type_pretty": "∀ (r : ℝ),\n  0 ≤ r →\n    r ≤ 1 / 2 →\n      ∀ (f : Polynomial ℂ),\n        f.Monic →\n          f.degree ≥ 1 → (∀ z ∈ f.roots, ‖z‖ ≤ r) → 2 ≤ Metric.ediam (connectedComponentIn (Erdos1043.levelSet f) 0)"
     },
     {
@@ -21670,7 +21670,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0f9c4ac56df656ef8bb8002530ae2b933c251e6e323899da83921c0351750236",
+      "type_hash": "sha256:bcf53d769f86eb890514a86dbbe032b56d960b7203348aed32c2b657ac05036d",
       "type_pretty": "∀ (n : ℕ), 1 ≤ n → Metric.ediam (connectedComponentIn (Erdos1043.levelSet (Polynomial.X ^ n)) 0) = 2"
     },
     {
@@ -21710,7 +21710,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4d9738953016e62450c87ef43890caeb058916578f034268a0c4296ef4589f6a",
+      "type_hash": "sha256:4f90046672ca9eacc085fa515273e8a6a26fbc32c885b5301d2ce93c8aa2bc6e",
       "type_pretty": "∀ (r : ℝ),\n  1 / 2 < r →\n    r ≤ (√5 - 1) / 2 →\n      ∀ (f : Polynomial ℂ),\n        f.Monic →\n          f.degree ≥ 1 →\n            (∀ z ∈ f.roots, ‖z‖ ≤ r) →\n              ENNReal.ofReal (1 / r) < Metric.ediam (connectedComponentIn (Erdos1043.levelSet f) 0)"
     },
     {
@@ -21750,7 +21750,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e37e9d319ac6fa9694e5905058d63ad4f753c2315c01258b9c51d8012b4add85",
+      "type_hash": "sha256:83023c331f4fccc182d18c721a54f302bef1727bb246c2b7898dbba11e1f63be",
       "type_pretty": "∀ (r : ℝ),\n  (√5 - 1) / 2 ≤ r →\n    r ≤ 1 →\n      ∀ (f : Polynomial ℂ),\n        f.Monic →\n          f.degree ≥ 1 →\n            (∀ z ∈ f.roots, ‖z‖ ≤ r) →\n              ENNReal.ofReal (2 - r ^ 2) < Metric.ediam (connectedComponentIn (Erdos1043.levelSet f) 0)"
     },
     {
@@ -21790,7 +21790,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:479581f74f81602d1d0e10527412b8af0b7b0b3e3de96c6cbd4273641e5a0eaa",
+      "type_hash": "sha256:c34d566d9207aa4c507c91236229808885c3e4748295f3f3d47290a2cf05d447",
       "type_pretty": "∀ (r : ℝ),\n  1 < r →\n    ∀ (ε : ℝ),\n      0 < ε →\n        ∀ᶠ (n : ℕ) in Filter.atTop,\n          ∀ (f : Polynomial ℂ),\n            f = Polynomial.X ^ n - Polynomial.C (↑r ^ n) →\n              ∀ z ∈ Erdos1043.levelSet f,\n                Metric.ediam (connectedComponentIn (Erdos1043.levelSet f) z) < ENNReal.ofReal ε"
     },
     {
@@ -21870,7 +21870,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e4baa0f4174c2085ecbc3dd032b53756dca5788ea333137165cf022bf81bc8d9",
+      "type_hash": "sha256:5757ffc30753f794ba8cc4d38bf33b2be88b0e5fea31f2c3331025fb47ba55a4",
       "type_pretty": "∀ (r : ℝ),\n  0 < r →\n    r ≤ 1 →\n      ∀ (f : Polynomial ℂ),\n        f.Monic →\n          f.degree ≥ 1 →\n            (∀ z ∈ f.roots, ‖z‖ ≤ r) →\n              ∃ z ∈ Erdos1048.openLevelSet f,\n                ENNReal.ofReal (2 - r) < Metric.ediam (connectedComponentIn (Erdos1048.openLevelSet f) z)"
     },
     {
@@ -22031,7 +22031,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:d94a5ebfb927411201e51b12e31ab7be2367329a009a721b36ee487a4bf14b41",
+      "type_hash": "sha256:1a64982edeb7478a0ee8fb6c5912565befa4cf304f91f43ebab02b5a72f03073",
       "type_pretty": "False ↔\n  ∀ (A B : Finset (EuclideanSpace ℝ (Fin 2))),\n    Disjoint A B → A.card = B.card + 3 → ¬Collinear ℝ ↑A → ∃ p ∈ A, ∃ q ∈ A, p ≠ q ∧ ∀ b ∈ B, b ∉ line[ℝ, p, q]"
     },
     {
@@ -22073,7 +22073,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f10dc8ccd18f7fd311ab634867ff4b3d83cb71012e140427ac72de192dc7b4ba",
+      "type_hash": "sha256:795c390e1211c1108be8e5584b21c433fc0c90e059e3aca629f57ebd451779f1",
       "type_pretty": "∃ c > 0,\n  ∀ (A B : Finset (EuclideanSpace ℝ (Fin 2))),\n    Disjoint A B → ↑B.card ≤ c * ↑A.card → ¬Collinear ℝ ↑A → ∃ p ∈ A, ∃ q ∈ A, p ≠ q ∧ ∀ b ∈ B, b ∉ line[ℝ, p, q]"
     },
     {
@@ -22115,7 +22115,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:dbd5f3d615ba4131068e19b524da142711592cf0cae811363b4636c51ff2b118",
+      "type_hash": "sha256:13bd9e15acc6b14d9b5dd393a817e158b9fa009b204b36e931b20965c86e35af",
       "type_pretty": "¬∀ (A B : Finset (EuclideanSpace ℝ (Fin 2))),\n    Disjoint A B → A.card = B.card + 2 → ¬Collinear ℝ ↑A → ∃ p ∈ A, ∃ q ∈ A, p ≠ q ∧ ∀ b ∈ B, b ∉ line[ℝ, p, q]"
     },
     {
@@ -22157,7 +22157,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e3134b8159793e441f111bbe087d2f2495dd5c4e7620b22d878e9326423ac5a5",
+      "type_hash": "sha256:e14bfe678f8e7975634948bdd79b08bba350fbc8351dc4758ae40809d1f9360b",
       "type_pretty": "True ↔\n  ∀ (A B : Finset (EuclideanSpace ℝ (Fin 2))),\n    Disjoint A B → A.card = B.card + 4 → ¬Collinear ℝ ↑A → ∃ p ∈ A, ∃ q ∈ A, p ≠ q ∧ ∀ b ∈ B, b ∉ line[ℝ, p, q]"
     },
     {
@@ -23162,6 +23162,7 @@
       "transitive_axioms": [
         "propext",
         "sorryAx",
+        "Classical.choice",
         "Quot.sound"
       ],
       "type_hash": "sha256:fddf59a0f84396d9d3026a67d6d1fc203a9f2f8c94770f1e7691674c38b1f107",
@@ -23882,7 +23883,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:6974134c2ddce1f5efc391e8d345148dcb9981d8cc32d03ff08c9fad7b4c0f1f",
+      "type_hash": "sha256:3565aa2f1c04e8e709f0f0fd069eefb70871bc724b769ba1d0160a872ae09de0",
       "type_pretty": "True ↔ ∃ c, 0 < c ∧ Asymptotics.IsEquivalent Filter.atTop Erdos1061.S fun x => c * x"
     },
     {
@@ -26332,7 +26333,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:fd99537333ea23c77bca577475b1d845476b276509a58377f54a8868684ab3c2",
+      "type_hash": "sha256:f4911ca5aee8bd4858c9465817a840d769d2a0986e57cc74fd5251bf28796273",
       "type_pretty": "True ↔\n  ∀ (k : ℕ),\n    3 ≤ k →\n      ∃ A,\n        ∀ (C : ↥A → Fin 2),\n          ∃ S,\n            ∃ (hSA : S ⊆ A),\n              Collinear ℝ ↑S ∧\n                S.card ≥ k ∧ (∀ y ∈ A, y ∈ affineSpan ℝ ↑S → y ∈ S) ∧ ∃ c, ∀ (x : Fin 2 → ℝ) (hx : x ∈ S), C ⟨x, ⋯⟩ = c"
     },
     {
@@ -28323,7 +28324,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f3a5fb4f16d59b35590a3f89f3f0b75c94ea91780a02ac08d9d76f22d9568750",
+      "type_hash": "sha256:34aa325395955a4f2245ae20efc6ece58fcef1f21e7c7b60fcdf3ea0425866e6",
       "type_pretty": "True ↔\n  ∀ (m : Cardinal.{0}),\n    Cardinal.aleph0 < m →\n      m < Cardinal.continuum →\n        ∀ (F : Set (ℂ → ℂ)),\n          (∀ f ∈ F, Differentiable ℂ f) → (∀ (z₀ : ℂ), Cardinal.mk ↑{y | ∃ f ∈ F, f z₀ = y} ≤ m) → Cardinal.mk ↑F ≤ m"
     },
     {
@@ -28365,7 +28366,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0d67e95270891471283a7bf2c5b4b2919c0cbbd421a327c361c0d13aac06f584",
+      "type_hash": "sha256:b7929bb5e4f682666da86f483bfb3802c5aca1c5e2b97f2062b802115a967902",
       "type_pretty": "∀ (m : Cardinal.{0}),\n  Cardinal.aleph0 < m →\n    (∀ f ∈ ∅, Differentiable ℂ f) ∧ (∀ (z₀ : ℂ), Cardinal.mk ↑{y | ∃ f ∈ ∅, f z₀ = y} ≤ m) ∧ Cardinal.mk ↑∅ ≤ m"
     },
     {
@@ -28408,7 +28409,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:5fd3f2f70d8e63d6bcf7f69088227e6bbcc7ce14c079932a2cc31e30656a82fe",
+      "type_hash": "sha256:16e2d072f3146c7a5c62bf43f93dc7d6f05ca8233922b5e2aa06f05d6a70bfc0",
       "type_pretty": "∀ (m : Cardinal.{0}),\n  Cardinal.aleph0 < m →\n    Order.succ m < Cardinal.continuum →\n      ∀ (F : Set (ℂ → ℂ)),\n        (∀ f ∈ F, Differentiable ℂ f) → (∀ (z₀ : ℂ), Cardinal.mk ↑{y | ∃ f ∈ F, f z₀ = y} ≤ m) → Cardinal.mk ↑F ≤ m"
     },
     {
@@ -28451,7 +28452,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e0b793572f23d46c6945eeaebd5b260472264dbb5c0482b3120611a1b66aae22",
+      "type_hash": "sha256:a90074e868d82bd6c38d76135b1e92b0cffca827ce4696830e33ed324adf9277",
       "type_pretty": "Cardinal.aleph 1 < Cardinal.continuum →\n  ∀ (F : Set (ℂ → ℂ)), (∀ f ∈ F, Differentiable ℂ f) → (∀ (z₀ : ℂ), {y | ∃ f ∈ F, f z₀ = y}.Countable) → F.Countable"
     },
     {
@@ -28494,7 +28495,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:72d200e2961e87439bc2b643ec3809f07600b724e7c02d5ad31ca64b4f1cf94b",
+      "type_hash": "sha256:a8516f0789a062205940127fd7dbea3cedf34385738c5d42d5168afba8fc3abd",
       "type_pretty": "Cardinal.continuum = Cardinal.aleph 1 →\n  ∃ F, (∀ f ∈ F, Differentiable ℂ f) ∧ (∀ (z₀ : ℂ), {y | ∃ f ∈ F, f z₀ = y}.Countable) ∧ ¬F.Countable"
     },
     {
@@ -29186,7 +29187,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:57ba8414c25ef5915b1c6c11fccaeee01f6515e07f4f8f5c6e8cfa562d9a50a0",
+      "type_hash": "sha256:3b6ec5fc7287ba1ba8e567d12589ec947e9da2d5fd5baca1b9d50f8a72e17681",
       "type_pretty": "False ↔\n  ∀ C > 1,\n    Asymptotics.IsEquivalent Erdos1138.snd_gt_half_fst (Erdos1138.primeCount_Ioc_mul_const C) fun x =>\n      match x with\n      | (x, y) => C * ↑(Erdos1138.sup_primeGap x) / Real.log y"
     },
     {
@@ -30077,7 +30078,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:66b77d949b642f8f5ebe65618468d2caf4a4cbdac389c2402b093ecf3b6a3acc",
+      "type_hash": "sha256:cbeffaa04185c38cd04c3891533fc0e6cc2567ef25c1963a97d4a1f31beb1812",
       "type_pretty": "True ↔\n  ∃ c > 0,\n    ∀ᶠ (n : ℕ) in Filter.atTop,\n      ∀ (P : Polynomial ℂ),\n        (∀ i ≤ P.natDegree, P.coeff i = -1 ∨ P.coeff i = 1) →\n          P.natDegree = n → ⨆ z, ‖Polynomial.eval (↑z) P‖ > (1 + c) * √↑n"
     },
     {
@@ -30115,7 +30116,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1a9c8ca02c603253ccb147dc82741ae575c38d8f77447748bc6017a1e2d60e94",
+      "type_hash": "sha256:bde8e63e9aef14e089e0f80a73a077d3f9ac45324638611c85974c54f0b89032",
       "type_pretty": "∀ (P : Polynomial ℂ) (n : ℕ),\n  (∀ i ≤ P.natDegree, P.coeff i = -1 ∨ P.coeff i = 1) → P.natDegree = n → ⨆ z, ‖Polynomial.eval (↑z) P‖ ≥ √(↑n + 1)"
     },
     {
@@ -38108,7 +38109,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:26817efd0adfb79238f02124b14dca780c35ad99af892706659aae0f2fcd2273",
+      "type_hash": "sha256:4d0a0d119ecdacaa4a9e7762c53e2388e95c4f7db9804a957fbe8bfac91c96a2",
       "type_pretty": "True ↔\n  ∀ (S : Set (Fin 3 → ℤ)),\n    S.Finite →\n      ∀ (a : ℕ → Fin 3 → ℤ),\n        Erdos193.IsSWalk S a →\n          (Set.range a).Infinite → Erdos193.HasCollinearTriple ℚ (Set.range fun n => Int.cast ∘ a n)"
     },
     {
@@ -38148,7 +38149,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a7f76affebf7922c78def7e4003dc8e198f218ededc21b4f01808d6b7e91a805",
+      "type_hash": "sha256:7c2a8be8bcb9c40a0f445d874d6df2a12140405c07971542d5aebbba508b6c0a",
       "type_pretty": "∀ (S : Set (Fin 2 → ℤ)),\n  S.Finite →\n    ∀ (a : ℕ → Fin 2 → ℤ),\n      Erdos193.IsSWalk S a → (Set.range a).Infinite → Erdos193.HasCollinearTriple ℚ (Set.range fun n => Int.cast ∘ a n)"
     },
     {
@@ -40458,7 +40459,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:713e2a9de01c861718b5d2e3d1068b1920b7012279a19ee2567b920b50e54a15",
+      "type_hash": "sha256:22ab6c543ffaefc30cf034f997c108f34b963b23712a6de931b60d045d2a1104",
       "type_pretty": "True ↔\n  ∃ F,\n    Differentiable ℂ F ∧\n      (∀ (x : ℝ), (F ↑x).im = 0) ∧\n        (∀ (g : ℝ →ᵃ[ℝ] ℝ), (fun x => (F ↑x).re) ≠ ⇑g) ∧ Erdos226.PreservesRationality fun x => (F ↑x).re"
     },
     {
@@ -40501,7 +40502,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8825aa2cf4007ae4c8eb8eb189bd9151c467c29d2fc4719f5f5a647e486dcdab",
+      "type_hash": "sha256:26a64962a1707b87c2f39419ba026cf1c13d1856aed1568754b701b6e3938bbb",
       "type_pretty": "True ↔\n  ∃ c₁ c₂,\n    ∀ᶠ (n : ℕ) in Filter.atTop,\n      ∃ p,\n        p.degree = ↑n ∧\n          (∀ i ≤ n, p.coeff i = 1 ∨ p.coeff i = -1) ∧\n            ∀ (z : ℂ), ‖z‖ = 1 → √↑n < c₁ * ‖Polynomial.eval z p‖ ∧ ‖Polynomial.eval z p‖ < c₂ * √↑n"
     },
     {
@@ -40544,7 +40545,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:6eea3e918b889519c5a56925a902f57b37c3e7dc329678a6aa5b97b645ecedd4",
+      "type_hash": "sha256:4577dd3bd201fea438a64948d9e743a38641ca020c2ff43482945ed60330c38e",
       "type_pretty": "True ↔\n  ∀ (S : ℕ → Set ℂ),\n    (∀ (n : ℕ), derivedSet (S n) = ∅) →\n      ∃ f, Transcendental (Polynomial ℂ) f ∧ Differentiable ℂ f ∧ ∀ n ≥ 1, ∃ k, ∀ z ∈ S n, iteratedDeriv k f z = 0"
     },
     {
@@ -40584,7 +40585,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4623513e85791d4b73a8e895c7cfa528b699a1d57aece77f2954bd42d543bc4c",
+      "type_hash": "sha256:26a9027d6bc7fd47c98752784dff294afc3d18bd1854c9941a93013885f579f4",
       "type_pretty": "∀ {S : ℕ → Set ℂ},\n  (∀ (k : ℕ), derivedSet (S k) = ∅) →\n    ∃ f n,\n      Differentiable ℂ f ∧\n        Transcendental (Polynomial ℂ) f ∧ ∀ (k : ℕ), 0 < n k ∧ ∀ {z : ℂ}, z ∈ S k → iteratedDeriv (n k) f z = 0"
     },
     {
@@ -41235,7 +41236,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:85aa666ba671c7c40a7e14c777b845c8dfd5b5d735b5f90755fcf31ff3e148c0",
+      "type_hash": "sha256:856e813bc4667cd303f0c4819d68cc3764fc1ee92459157d5c0099e547b3cdf1",
       "type_pretty": "True ↔ Asymptotics.IsEquivalent Filter.atTop (fun N => ↑(Erdos241.f N 3)) fun N => ↑N ^ (1 / 3)"
     },
     {
@@ -43664,7 +43665,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:509ee9da544a92a6cf9b4718f0641a78cdc3a949116ccf8f8255951566e38733",
+      "type_hash": "sha256:485edfe79518607d842cf9ee2ae7fb59a042ee8177df6a2a3b0e22ec872c47df",
       "type_pretty": "∀ {F : ℕ → ℕ},\n  Filter.Tendsto (fun n => ↑(F (n + 1)) / ↑(F n)) Filter.atTop Filter.atTop →\n    ∃ a, Erdos264.IsIrrationalitySequence a ∧ Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(a n)) fun n => ↑(F n)"
     },
     {
@@ -44090,7 +44091,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:b1509447bc98308190859e9a15e1e5d6077f07416c33c418425acf5aff0d8d5f",
+      "type_hash": "sha256:d544c8d0d840bfa0623e8d379c7f679d4eb8c5dd5feb1a92da019e6c1d189dda",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun N => ↑(Erdos272.maxArithInterCard N)) sorry"
     },
     {
@@ -44328,7 +44329,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e2253c80fea5657d1e2db959ae52d3c986e5b493bfc2331bfa2ea7d661435408",
+      "type_hash": "sha256:01e95526d16d2c1266b68737be864268497bc1ecbbd53322bc3234d2bc34817c",
       "type_pretty": "True ↔\n  ∀ (G : Type u_1) [inst : Group G],\n    1 < ENat.card G →\n      ∀ (ι : Type u_2) [inst_1 : Fintype ι] (P : Erdos274.Group.ExactCovering G ι),\n        1 < Fintype.card ι → ∃ i j, i ≠ j ∧ Cardinal.mk ↥(P.parts i) = Cardinal.mk ↥(P.parts j)"
     },
     {
@@ -44414,7 +44415,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a334889fc46ffbdf036146f0bc787ce44b71263ebe07971d64823f1e39cbe278",
+      "type_hash": "sha256:6e97913f0a452b5b51b26e192ba3709526e1bf4aa88cca5bf0d69d34d62cd8ca",
       "type_pretty": "∀ {G : Type u_1} [inst : Group G],\n  1 < ENat.card G →\n    ∀ {ι : Type u_2} [inst_1 : Fintype ι],\n      1 < Fintype.card ι →\n        ∀ (P : Erdos274.Group.ExactCovering G ι), ∃ i j, i ≠ j ∧ (P.parts i).index = (P.parts j).index"
     },
     {
@@ -49330,7 +49331,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2e102c66fffb7ddb86ae8b51ac3ff463bc366ed1c21c58d9bb15c1a32c5366ce",
+      "type_hash": "sha256:d8dfa1a710f48cd3dfb3bd749dbbea28a20d4aba257616a89e0376e698f8a390",
       "type_pretty": "∃ c > 0, Asymptotics.IsEquivalent Filter.atTop (fun x => ↑(Erdos323.f 2 2 x)) fun x => c * ↑x / √(Real.log ↑x)"
     },
     {
@@ -50166,7 +50167,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2b73d328a4c0fee16e23e9fc0ab9b3e7a8787d59df267b2a5da23a4853610c9f",
+      "type_hash": "sha256:0924c5f50a810fbb374c2d0d3692020030b49ab31557c035e7356282e714e2d9",
       "type_pretty": "True ↔\n  ∀ (A B : Set ℕ),\n    (∃ c_A > 0,\n        Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Nat.count (fun x => x ∈ A) n)) fun n => c_A * ↑n ^ (1 / 2)) →\n      (∃ c_B > 0,\n          Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Nat.count (fun x => x ∈ B) n)) fun n =>\n            c_B * ↑n ^ (1 / 2)) →\n        {(a₁, a₂, b₁, b₂) | a₁ ∈ A ∧ a₂ ∈ A ∧ b₁ ∈ B ∧ b₂ ∈ B ∧ a₁ ≠ a₂ ∧ a₁ + b₂ = a₂ + b₁}.Infinite"
     },
     {
@@ -51951,7 +51952,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:96566a7e6adf1e98aad57d30eb796ba4c60bcc2d659554245e9f07fc7cad16a9",
+      "type_hash": "sha256:851882c556d0660699ad468e1cf0703788415ad9f7adb794385a699a38faff18",
       "type_pretty": "{(t, α) | 0 < t ∧ 0 < α ∧ Erdos349.IsGoodPair t α} = sorry"
     },
     {
@@ -52573,7 +52574,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a660ee8101498032b0a7546f5452eca9976edee20a36876c1418a9b05e78d066",
+      "type_hash": "sha256:960cb97be723f34ad6ca7e4b21b5359b9f5c51b06a25bc2d789f1bb48d02030e",
       "type_pretty": "True ↔\n  ∃ c > 0,\n    ∀ (A : Set (EuclideanSpace ℝ (Fin 2))),\n      MeasurableSet A →\n        ↑(MeasureTheory.volume A) ≥ ↑c →\n          ∃ t,\n            (∀ (p : Fin 3), t.points p ∈ A) ∧ EuclideanGeometry.triangle_area (t.points 0) (t.points 1) (t.points 2) = 1"
     },
     {
@@ -52619,7 +52620,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:3b064bf0aee39683f61cd9acddfa05dfab7b0b73c3cea0d0a392f7249c3e4298",
+      "type_hash": "sha256:83f2facc8eb3e4cac93a3856176047f514b0b5bd07d5ed7d2ef3b56f6fe60724",
       "type_pretty": "True ↔\n  ∀ (A : Set (EuclideanSpace ℝ (Fin 2))),\n    MeasurableSet A →\n      MeasureTheory.volume A = ⊤ →\n        ∃ a ∈ A,\n          ∃ b ∈ A,\n            ∃ c ∈ A,\n              ∃ d ∈ A,\n                EuclideanGeometry.IsIsoscelesTrapezoid a b c d ∧ MeasureTheory.volume ((convexHull ℝ) {a, b, c, d}) = 1"
     },
     {
@@ -52662,7 +52663,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8d47fc7b05b0670531e1821be3b82375786e20f11dbb68a34eff271f73175c74",
+      "type_hash": "sha256:12efa294e1d6b7accf84b41a21caae82ea4fdaaf32ce344e23d831622e19d96d",
       "type_pretty": "∃ A,\n  MeasurableSet A ∧\n    MeasureTheory.volume A = ⊤ ∧\n      ∀ (n : ℕ) (v : Fin (n + 3) → EuclideanSpace ℝ (Fin 2)),\n        EuclideanGeometry.IsCcwConvexPolygon v →\n          (∀ (i : Fin (n + 3)), v i ∈ A) →\n            (∀ (i : Fin (n + 3)), dist (v i) (v (i + 1)) = dist (v 0) (v 1)) →\n              MeasureTheory.volume ((convexHull ℝ) (Set.range v)) < 1"
     },
     {
@@ -52705,7 +52706,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f97e12745eb898328c2cc5221b2f0d8326b32581e600e57098a3723d8f0dbe17",
+      "type_hash": "sha256:51eab9e0904ea8f782edf9537c8d1ee32d549e2783a6c8fbde666279a50df1a1",
       "type_pretty": "∀ (A : Set (EuclideanSpace ℝ (Fin 2))),\n  MeasurableSet A →\n    MeasureTheory.volume A = ⊤ →\n      ∃ Q ⊆ A, Q.ncard = 4 ∧ EuclideanGeometry.Cospherical Q ∧ MeasureTheory.volume ((convexHull ℝ) Q) = 1"
     },
     {
@@ -52748,7 +52749,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a10c1985efaca1a80b029162d6e7041828e80aa2a6103b4a84d9325a44641646",
+      "type_hash": "sha256:e2dd3bc7f9beb3e0abe8a63bb7847c81d04bb8c425bdb4487da8bae08320edae",
       "type_pretty": "∀ (A : Set (EuclideanSpace ℝ (Fin 2))),\n  MeasurableSet A →\n    MeasureTheory.volume A = ⊤ →\n      ∃ a ∈ A, ∃ b ∈ A, ∃ c ∈ A, IsIsosceles a b c ∧ MeasureTheory.volume ((convexHull ℝ) {a, b, c}) = 1"
     },
     {
@@ -52791,7 +52792,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c39225be0cbee485bc8682c35709561ecc24b3630fb7ac257c6319bbbd0252a2",
+      "type_hash": "sha256:2685daf5c5cbbac53d8cd09f1455212f787933775016a2fd9ea0fbc2e0d93311",
       "type_pretty": "∀ (A : Set (EuclideanSpace ℝ (Fin 2))),\n  MeasurableSet A →\n    MeasureTheory.volume A = ⊤ →\n      ∃ a ∈ A,\n        ∃ b ∈ A, ∃ c ∈ A, EuclideanGeometry.IsRightAngled a b c ∧ MeasureTheory.volume ((convexHull ℝ) {a, b, c}) = 1"
     },
     {
@@ -53945,7 +53946,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:866d9c3f216f0535dc483adb5c7dd41f57f0924003dad735fd1c04d6637d5b14",
+      "type_hash": "sha256:e8d3274560c69189522bcba232b7c4eed67b4ba51c1bfeb8843d7ee8293f764f",
       "type_pretty": "∀ (A : ℕ → ℕ),\n  Erdos359.IsGoodFor A 1 →\n    Asymptotics.IsEquivalent Filter.atTop (fun k => ↑(A k)) fun k => ↑k * Real.log ↑k / Real.log (Real.log ↑k)"
     },
     {
@@ -57060,7 +57061,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:5fa5bfdbcaa32d39ff264280177fc9a28dc9c549bf696a1a28424113c7a7fc69",
+      "type_hash": "sha256:efda31ac692e07412177dfd38fa82d98820b7a7e87c6fe90c933eeb2b168ae2f",
       "type_pretty": "True ↔ ∃ c, Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos390.f n) - 2 * ↑n) fun n => c * ↑n / Real.log ↑n"
     },
     {
@@ -58095,7 +58096,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:71d81fb5ece337687bd6c52418ef242d0b0b2c6004532cea871d437abe64b2a6",
+      "type_hash": "sha256:e4c6fb6ca753582f8289577becdfe30e226cc045915ef98ef84699ae28471d9c",
       "type_pretty": "True ↔\n  ∀ k ≥ 2,\n    ∃ c,\n      Asymptotics.IsEquivalent Filter.atTop (fun x => ∑ n ∈ Finset.Icc 1 x, ↑(Erdos400.g k n)) fun x =>\n        c * ↑x * Real.log ↑x"
     },
     {
@@ -65716,7 +65717,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e6a7b24360576c0b2a1c778c45da94547d8bac944427e1e77b12c6812a6c0ef9",
+      "type_hash": "sha256:25fc40ad191ed7730fbbc175d3d38d14ca48ce0c9e4ad985ae5aa32b005cd180",
       "type_pretty": "True ↔\n  ∀ (f : ℝ → ℝ), Erdos50.IsDistributionOfPhiRatio f → ¬∃ x ∈ Set.Icc 0 1, ∃ y > 0, HasDerivWithinAt f y (Set.Icc 0 1) x"
     },
     {
@@ -66785,7 +66786,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:b96544e1a5ea5d82ccbc6dce0e3858cc4e32caddf48ddd1d934b339099f86f64",
+      "type_hash": "sha256:4eb45165e828306249e64eb31f46f746fbe500543a031417dcb17933651685b2",
       "type_pretty": "∀ (n : ℕ),\n  4 ≤ n →\n    IsLeast {k | ∃ P, P.card = n ∧ ¬Collinear ℝ ↑P ∧ ¬EuclideanGeometry.Cospherical ↑P ∧ Erdos506.numCircles ↑P = k}\n      sorry"
     },
     {
@@ -66832,7 +66833,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4b91c53fa89208bf0af6baf95dd0b6be65c5cce0a12257e0726d9fa14c539050",
+      "type_hash": "sha256:cdf87c191ea4db2f4b44b4326b00255a8ece1c95dab6afa2c6feb7acbc308a5d",
       "type_pretty": "∀ (n : ℕ),\n  393 < n →\n    IsLeast {k | ∃ P, P.card = n ∧ ¬Collinear ℝ ↑P ∧ ¬EuclideanGeometry.Cospherical ↑P ∧ Erdos506.numCircles ↑P = k}\n      ((n - 1).choose 2 + 1 - (n - 1) / 2)"
     },
     {
@@ -66874,7 +66875,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:157ae35ed618407f3181def2625f7be23ff1b10539f1150164bd3a2078f185ed",
+      "type_hash": "sha256:28b49eb1c5a3a3a9c2f52eb8602bcd7664c50e28d95a70b99f1d0241b4057612",
       "type_pretty": "∃ P, P.card = 8 ∧ ¬Collinear ℝ ↑P ∧ ¬EuclideanGeometry.Cospherical ↑P ∧ Erdos506.numCircles ↑P < (8 - 1).choose 2"
     },
     {
@@ -66921,7 +66922,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e3e7be7964fcb2f8390f5681b314bcec84280dd3115d32336e8182679907f205",
+      "type_hash": "sha256:c394e0016ed539ecb9e21a26f7290739974e7b84af19a077f738319a06a72894",
       "type_pretty": "∀ (n : ℕ),\n  4 ≤ n →\n    n ≤ 393 →\n      IsLeast {k | ∃ P, P.card = n ∧ ¬Collinear ℝ ↑P ∧ ¬EuclideanGeometry.Cospherical ↑P ∧ Erdos506.numCircles ↑P = k}\n        sorry"
     },
     {
@@ -66966,7 +66967,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:b29f0e4b79584065747ff74c9404900a9eeffcaa376138b50328fc7bc4982bb9",
+      "type_hash": "sha256:754fd11d6bf5e6f604f0c87f745c706bead9718bf409e8f4df66eee55ac7051d",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop Erdos507.α sorry"
     },
     {
@@ -67862,7 +67863,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9b2b51bfcb34f53d3245c802222908aec4bb8e5b4094b70baf35ba2f3b877bea",
+      "type_hash": "sha256:c35a5452bb7d5a37f0bae73df0a9ad0e422f3cdc69d170d015fc126957b48f58",
       "type_pretty": "sorry = ⨆ f, Filter.liminf (fun r => Erdos513.ratio r ↑f) Filter.atTop"
     },
     {
@@ -67901,7 +67902,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:7d35f7cf4c5cb6ea5df6579c28d443cf8fb4946a6a11abc72465fef771bd91fa",
+      "type_hash": "sha256:4b0114a0f811692bc8f8477a411796ea197bf5d847be4a8118709fa7831c0cb2",
       "type_pretty": "⨆ f, Filter.liminf (fun r => Erdos513.ratio r ↑f) Filter.atTop > 1 / 2"
     },
     {
@@ -67940,7 +67941,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:fe73f66d94438f8686d82f591ea6737c874b1c38c1c0ba94b522aa9ac90b8b15",
+      "type_hash": "sha256:928f9db7e1f23c7c0d94ce92f7f0c61cce0f7fc7916bf6de44fca0e5796c0b17",
       "type_pretty": "∃ c > 0, ⨆ f, Filter.liminf (fun r => Erdos513.ratio r ↑f) Filter.atTop ≤ 2 / Real.pi - c"
     },
     {
@@ -70484,7 +70485,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f43cff368cfa4be30db0d7ec9e85fa26fd163b361528cb8db47da018f30b0b1b",
+      "type_hash": "sha256:7c135a7b5fc629dddae6e047c88f4be8c4bceca122eaf3ba6a2bcb18eac56f76",
       "type_pretty": "True ↔\n  ∀ (δ : ℝ),\n    0 < δ →\n      ∃ c,\n        0 < c ∧\n          ∀ᶠ (n : ℕ) in Filter.atTop,\n            ∀ (G : SimpleGraph (Fin n)),\n              Erdos579.octahedron.Free G → δ * ↑n ^ 2 ≤ ↑G.edgeFinset.card → c * ↑n ≤ ↑G.indepNum"
     },
     {
@@ -70523,7 +70524,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:3654d9ad3a2fe3eb85c6d224f74316658a8550a6c982bbe8644118a385c8153e",
+      "type_hash": "sha256:3c4dd8449403caf37e883d204e70d186cda5fc06c61530e03ff7e802e9763203",
       "type_pretty": "∀ (δ : ℝ),\n  1 / 8 < δ →\n    ∃ c,\n      0 < c ∧\n        ∀ᶠ (n : ℕ) in Filter.atTop,\n          ∀ (G : SimpleGraph (Fin n)),\n            Erdos579.octahedron.Free G → δ * ↑n ^ 2 ≤ ↑G.edgeFinset.card → c * ↑n ≤ ↑G.indepNum"
     },
     {
@@ -71794,7 +71795,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:d26cc1cce0e779245e330e228f1fd16bff8bce16ce5260e17f80956a81a3da07",
+      "type_hash": "sha256:601d4d39264a32b4a8557564154b06668aeb15bc0045cc5b6b249bdafda3ed86",
       "type_pretty": "(SimpleGraph.cycleGraph 4).Free ⊥"
     },
     {
@@ -75545,7 +75546,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:903fa0d8635e8a04597f8f2b7476992abaa42e81eef8b7f250534283cb8407d8",
+      "type_hash": "sha256:980e043bacfc4734e48a4dcf80b586936fea543792aaeabbff9417fb55d3d468",
       "type_pretty": "False ↔\n  ∀ (ε : ℝ),\n    0 < ε →\n      ∀ᶠ (n : ℕ) in Filter.atTop,\n        ∀ H ≤ SimpleGraph.hypercube n,\n          ε * ↑n * 2 ^ (n - 1) ≤ ↑H.edgeSet.ncard → (SimpleGraph.cycleGraph 6).IsContained H"
     },
     {
@@ -79356,7 +79357,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:822328a232d3284a02988561f550c6a7ce3dc660a574c600ae53f8e085fe2be3",
+      "type_hash": "sha256:ce45905671b87d2b8e912323952f79c5f01c9b6842424f53069d9d7cb801dac4",
       "type_pretty": "True ↔\n  Asymptotics.IsEquivalent Filter.atTop\n    (fun n => ∑ p ∈ Finset.range (n + 1) with Nat.Prime p ∧ ↑p / 2 < ↑n % ↑p, 1 / ↑p) fun n =>\n    Real.log (Real.log ↑n) / 2"
     },
     {
@@ -79395,7 +79396,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:7e06fe29a4c0dfaf98a7a120cb0989d5bc9305e0236dc82bbd89a86f8a60992c",
+      "type_hash": "sha256:22ed8bb430b1d48e63e3cd937bb00bee680ce00297ea7d14acfd060f49477465",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun n => ∑ p ∈ Finset.range (n + 1) with Nat.Prime p, 1 / ↑p) fun n =>\n  Real.log (Real.log ↑n)"
     },
     {
@@ -81039,7 +81040,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:96145d9b15db61dd82b17b029a1350e59c80500c95857bbb40e3d6afaba7b02c",
+      "type_hash": "sha256:cd4526dbbab595617e89a0d7dfe1cfe0013c28619e2162f3127cb7d9b49ae68f",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos755.TAnySize 6 n)) fun n => 1 / 27 * ↑n ^ 3"
     },
     {
@@ -81614,7 +81615,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:b3195b71ea1ce888d875535463d8125275d542c4c3059647b0ffe945d4281690",
+      "type_hash": "sha256:f559c74ebd78e2bbbff2ec6d5253f8dacb2010e649f54d569a7d58513a0e0c01",
       "type_pretty": "∀ {n : ℕ}, 2 < n → (Erdos770.h n = ↑n + 1 ↔ Nat.Prime (n + 1))"
     },
     {
@@ -84985,7 +84986,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:86ec21de0ab8a5085a6977aa918873c43afbbd62eeea60e688b9a038d6e50922",
+      "type_hash": "sha256:d9a43ff4a058465d2c7d4f38115fab41674c725607d2f7751828bbf0ec50151c",
       "type_pretty": "∀ {k : ℕ}, 3 ≤ k → k ≤ 8 → ↑k + 1 < (SimpleGraph.johnson (2 * k) k).chromaticNumber"
     },
     {
@@ -85024,7 +85025,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:73cf38f019f0c399336526476dac02abf9df81caea1859878b6de0b22497d035",
+      "type_hash": "sha256:f510d65f0c3f3449ca87398c236df7dd59dea729b6d030c4604501a6141296ea",
       "type_pretty": "∀ {k : ℕ}, 3 ≤ k → k ≤ 300 → Odd k → ↑k + 1 < (SimpleGraph.johnson (2 * k) k).chromaticNumber"
     },
     {
@@ -85063,7 +85064,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2b4eb01cf066a34491508fe2053579c56e251fceb2fc309f25e1682e322ec0dd",
+      "type_hash": "sha256:46d1b05dc9dd21e00302929ef5605474874e7076845390565e26d196ceb218de",
       "type_pretty": "∀ {n k : ℕ}, ↑⌈↑(n.choose k) / ↑(Erdos835.johnsonBound n 4 k)⌉₊ ≤ (SimpleGraph.johnson n k).chromaticNumber"
     },
     {
@@ -85141,7 +85142,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e015953eb89ad363b3c791f37082fefc29aafa2a847e2342ecb850ca1ff973e4",
+      "type_hash": "sha256:0e45bc112778f1261c125475e7f520ddd90271a2578d621c89b8e022a6f0af7c",
       "type_pretty": "(∃ l, (SimpleGraph.johnson (2 * (l + 3)) (l + 3)).chromaticNumber = ↑(l + 3) + 1) ↔ True"
     },
     {
@@ -85219,7 +85220,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:70e6adff96a35566010831af8ca9203716f9e8b9f0cfe9385c9f88499d8cb434",
+      "type_hash": "sha256:487225791bf28fe8e2180de09a00fa3232f1ebafdbea4c288d7ae7ea41812348",
       "type_pretty": "(SimpleGraph.johnson 18 9).chromaticNumber > 9 + 1"
     },
     {
@@ -85258,7 +85259,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:06b53982eaa58923c93c8a97fcaf1964af52c195b17e33c402564dfde8646a41",
+      "type_hash": "sha256:899c6117848405c7b910f438553bb0e6c14029cd2ff7ba415e3548e8a7814563",
       "type_pretty": "∀ (k : ℕ), 3 ≤ k → k ≤ 8 → (SimpleGraph.johnson (2 * k) k).chromaticNumber > ↑k + 1"
     },
     {
@@ -85296,7 +85297,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a6d5d26a73bf768d64ba9d9795dc99197336e0a2bac5c8d39f51541fc8aa1ced",
+      "type_hash": "sha256:db70c20bcfe4f4aa165074de0321e287d3f233a73c3c0ccf2f4287752058ea7b",
       "type_pretty": "(∀ (k : ℕ), 2 < k → (k + 1).Composite → ↑k + 1 < (SimpleGraph.johnson (2 * k) k).chromaticNumber) →\n  ∀ (k : ℕ), 2 < k → Odd k → ↑k + 1 < (SimpleGraph.johnson (2 * k) k).chromaticNumber"
     },
     {
@@ -85374,7 +85375,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8f9abff39602335a4c8f98cec5752b794babaa1ad41140395d499d69af77c0a6",
+      "type_hash": "sha256:b1260c2c541e143a29233da443bd9d55e42ed6ae752f1ad9e312bf960b0ebbf3",
       "type_pretty": "∀ (k : ℕ), 2 < k → (k + 1).Composite → ↑k + 1 < (SimpleGraph.johnson (2 * k) k).chromaticNumber"
     },
     {
@@ -85413,7 +85414,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8a465cf5240ae576681c4c16b38a5355c09e82fadc34b7e28685faaaef0f11ec",
+      "type_hash": "sha256:8e4b0b9f5597f7d4c43042f54e84271c03fccedb8ed435bea4f2fbd243764d15",
       "type_pretty": "∀ (k : ℕ), 2 < k → Odd k → ↑k + 1 < (SimpleGraph.johnson (2 * k) k).chromaticNumber"
     },
     {
@@ -85452,7 +85453,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:ab9aa920b58c70713635152946f2b27ffe5c6101aa152caf137c14675846dd9a",
+      "type_hash": "sha256:6956041c88fa8d29a7bbd7b9da58e1743dd3db8055271c152bee7f16c30cee60",
       "type_pretty": "∀ (k : ℕ), 0 < k → ((SimpleGraph.johnson (2 * k) k).chromaticNumber = ↑k + 1 ↔ Erdos835.Property k)"
     },
     {
@@ -86090,7 +86091,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4f4795e89af6055c399d26699442aeb7bde299f32c6aca425af593391e4cde39",
+      "type_hash": "sha256:94bbed4ba486d56dfc33c352867a9d3fa8b7ef3dfd873ab41eb9486623ead794",
       "type_pretty": "∃ c₁ > 0,\n  ∃ c₂ > 0,\n    ∃ d,\n      (∀ t > 0, (Erdos859.DivisorSumSet t).HasDensity (d t)) ∧\n        Asymptotics.IsEquivalent Filter.atTop (fun t => d t) fun t => c₁ / Real.log ↑t ^ c₂"
     },
     {
@@ -86455,7 +86456,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9099ac2b92dedbd59752d8b7b8d9f19c381e0a59230d48e7e7f0549038a17310",
+      "type_hash": "sha256:5b3e28bbd3be1b020d4fd0aea2f759246712da105b91ad0a01a17e2bd7378218",
       "type_pretty": "∀ (k : ℕ),\n  2 ≤ k →\n    Asymptotics.IsEquivalent Filter.atTop (fun N => ↑(Erdos865.f N k)) fun N =>\n      1 / 2 * (1 + ∑ r ∈ Finset.Icc 1 (k - 2), (1 / 4) ^ r) * ↑N"
     },
     {
@@ -88030,7 +88031,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e45890cd1bba741a40047c4c1afa71f06c2a4e9e51964fde9127576cde4f7481",
+      "type_hash": "sha256:10f1380742c88f22b8adebf2b64c048a4ebf88df169e7648f2ff056a6bd93cbd",
       "type_pretty": "True ↔ {n | Erdos889.V_l 1 n = 1}.Finite"
     },
     {
@@ -88106,7 +88107,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:bb8b6a1e052f81d581e6b7dc5116fa16e1588316fcd00b45714e71d0153d8ce4",
+      "type_hash": "sha256:3d18776c05350fbbb554b1852c6605731666f6fd5944ac1b13ac03b6341c3fbd",
       "type_pretty": "∀ n ∉ {0, 1, 2, 3, 4, 7, 8, 16}, 1 < Erdos889.v₀ n"
     },
     {
@@ -88144,7 +88145,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:83ceacdad67e4a3d18a30c0f642d4052bcb039067acf731f1749bf06e6a1c1a1",
+      "type_hash": "sha256:b2e2032288b0246aa8d6dc0b4b11873f98643d36ac26c4165fc2829e34567c47",
       "type_pretty": "True ↔ {n | Erdos889.v_l 1 n = 1}.Finite"
     },
     {
@@ -89420,7 +89421,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:fe67ced4514c9eb146588050346f586d2aa612ec93cae2a831caba085c5231ce",
+      "type_hash": "sha256:03a2b6a1cc78909df7f6e1e83d224b9ccb10a5c57de3f8f09c89977a74cbf79d",
       "type_pretty": "∀ (d : ℕ),\n  1 ≤ d →\n    ∀ (R : ℝ),\n      2 ≤ R →\n        ∀ (Λ : Submodule ℤ (EuclideanSpace ℝ (Fin (2 * d)))) (π : ↥Λ →+ EuclideanSpace ℝ (Fin 2)),\n          Function.Injective ⇑π →\n            ∀ (S : Finset ↥Λ),\n              (∀ v ∈ S, ‖↑v‖ ≤ 1) →\n                (∀ v ∈ S, ‖π v‖ = 1) → ∃ U, 0 < U.card ∧ (1 - 1 / R) ^ (2 * d) * ↑S.card * ↑U.card ≤ ↑(unitDistNum U)"
     },
     {
@@ -89458,7 +89459,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f0d8150a9688f97f0e8bab8d4c027d560065475e73e373b859ed4036b429102f",
+      "type_hash": "sha256:43f831b4b649ae09555b371c0de37c987bedf740655aa6d9012dba345da38e28",
       "type_pretty": "∃ rdBound Q,\n  Q.Infinite ∧\n    (∀ q ∈ Q, Nat.Prime q ∧ q % 4 = 1) ∧\n      ∀ (N : ℕ),\n        ∃ F x,\n          ∃ (x_1 : CharZero F) (x_2 : NumberField F) (_ : NumberField.IsTotallyReal F),\n            N ≤ Module.finrank ℚ F ∧\n              |↑(NumberField.discr F)| ^ (1 / ↑(Module.finrank ℚ F)) ≤ rdBound ∧\n                ∀ q ∈ Q, ∃ factors, factors.card = Module.finrank ℚ F ∧ ∀ p ∈ factors, p.IsMaximal ∧ ↑q ∈ p"
     },
     {
@@ -89618,7 +89619,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:11fc0efdc567f1da9af223792d88e7061a127cd8da5256b6c26588abe7040feb",
+      "type_hash": "sha256:3651a812102e991ad8d8a1ea822dbbfadae52398f09d2851f0a4f2230f422ba6",
       "type_pretty": "True ↔\n  ∃ f,\n    Transcendental (Polynomial ℂ) f ∧\n      Differentiable ℂ f ∧ ∀ (n : ℕ → ℕ), StrictMono n → Dense {z | ∃ k, iteratedDeriv (n k) f z = 0}"
     },
     {
@@ -90259,7 +90260,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2acf8b22045f38247564ceeca4e214935c1ecdaa5e36ef414e5c2f163361cefa",
+      "type_hash": "sha256:db634ec622da2c97ef6bccd55eebc0a3bd563529484de2686c2d9fa730bde50d",
       "type_pretty": "∃ c > 0, Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos912.h n)) fun n => c * (↑n / Real.log ↑n) ^ (1 / 2)"
     },
     {
@@ -90337,7 +90338,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:93ab51fb27ff62b321ce22ad1e5e4161c3b7230eb2a0ffe9eeb4d3e238d5ae9a",
+      "type_hash": "sha256:86a7121b84ed886e77186ebb259080e1fc8e9c8a77a4ae9f5d848c02ac9838db",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(Erdos912.h n)) fun n => √(2 * Real.pi) * (↑n / Real.log ↑n) ^ (1 / 2)"
     },
     {
@@ -93757,7 +93758,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:93a57598851f71b353c28beaa6ec42fc33116453a4d2d2d2a2d388476e6c8d39",
+      "type_hash": "sha256:e6965c2d38a2d9b9fbcae5a5e74edba294a941e3f94f292b8c49e09374e10e69",
       "type_pretty": "(Asymptotics.IsEquivalent Filter.atTop (fun x => ∑ n ∈ Finset.range x, Erdos950.f n) fun x => ↑x) ∧\n  Asymptotics.IsEquivalent Filter.atTop (fun x => ∑ n ∈ Finset.range x, Erdos950.f n ^ 2) fun x => ↑x"
     },
     {
@@ -93798,7 +93799,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:52bc04a852afaa64df74038f8e2b9c0c36eecbdc133967494e48ca97f3966a56",
+      "type_hash": "sha256:3b03d53ce34703c35cf24e195cb3150d6ede4a8ae613ab33d6254a7fa2d7a872",
       "type_pretty": "True ↔\n  Asymptotics.IsEquivalent Filter.atTop (fun x => ∑ p ∈ Finset.range x with Prime p, Erdos950.f p ^ 2) fun x =>\n    ↑x.primeCounting"
     },
     {
@@ -95262,7 +95263,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:008afaa97cfa3168dc25099a82c72a713394ab6149ec0aafc3abf4ff4aa13b02",
+      "type_hash": "sha256:feb6ff975432c45491386b04f60aa49b3bb1695cfd0412c4654f6de67ca09d99",
       "type_pretty": "True ↔\n  ∀ (k r : ℕ),\n    2 ≤ k → 2 ≤ r → ∃ A, A.IsAPOfLengthFree (↑k + 1) ∧ ∀ (coloring : ↑A → Fin r), ContainsMonoAPofLength coloring k"
     },
     {
@@ -97637,7 +97638,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1090927faf1e31e8195c72b80101dca70d1796fa3c4412a5d53e3349cbaeae3b",
+      "type_hash": "sha256:8dd304cbb6cc20bc76d6c5c00583b92db4274558bb029016ad9ba1d1cb556baa",
       "type_pretty": "False ↔\n  ∃ C,\n    ∀ (f : Polynomial ℂ),\n      f.coeff 0 ≠ 0 →\n        ∀ (α β : ℝ),\n          0 ≤ α →\n            α ≤ β →\n              β ≤ 2 * Real.pi →\n                |↑(Erdos990.rootArgCount f (Set.Icc α β)) - (β - α) / (2 * Real.pi) * ↑f.natDegree| ≤\n                  C * √(↑f.support.card * Real.log (Erdos990.M f))"
     },
     {
@@ -97679,7 +97680,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f583f4ddece4bde0554a2a90960676d78638af159b0026d588799d38e66e35a5",
+      "type_hash": "sha256:89389fa5607286bf74d5757ef6fb0d0e71e67c45b25e5850b36e3d0b14ff040f",
       "type_pretty": "∀ (n : ℕ),\n  1 ≤ n →\n    ∃ f, f.coeff 0 ≠ 0 ∧ f.support.card = n ∧ Erdos990.M f < 3 ∧ ∃ x, 0 < x ∧ Polynomial.rootMultiplicity (↑x) f = n - 1"
     },
     {
@@ -97721,7 +97722,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:cb9c657518c74a75d0ba5dfeb7188665fd0028ae7c2499b1bef09bd04c4399c5",
+      "type_hash": "sha256:1b2499d1ad3d27bc55c6c6ea365fe3e9fc7d10e30a0dba2b639b9f39b1b2512e",
       "type_pretty": "∃ C,\n  ∀ (f : Polynomial ℂ),\n    f.coeff 0 ≠ 0 →\n      ∀ (α β : ℝ),\n        0 ≤ α →\n          α ≤ β →\n            β ≤ 2 * Real.pi →\n              |↑(Erdos990.rootArgCount f (Set.Icc α β)) - (β - α) / (2 * Real.pi) * ↑f.natDegree| ≤\n                C * √(↑f.natDegree * Real.log (Erdos990.M f))"
     },
     {
@@ -97763,7 +97764,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9956c25d3be3c3ed96245e88a9e91215f09f6bd7b178b8716a25af912366c280",
+      "type_hash": "sha256:455f9812af1953927fe42f75a8c3574341cd419ef2070f24bf4455c27631b260",
       "type_pretty": "∀ (f : Polynomial ℂ),\n  f.coeff 0 ≠ 0 →\n    ∀ (α β : ℝ),\n      0 ≤ α →\n        α ≤ β →\n          β ≤ 2 * Real.pi →\n            |↑(Erdos990.rootArgCount f (Set.Icc α β)) - (β - α) / (2 * Real.pi) * ↑f.natDegree| ≤ ↑f.support.card - 1"
     },
     {
@@ -97803,7 +97804,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1d5ca8c15ebc854d3df11e02aeb3462f96e778c68cbfa8eed5be72e8afbedb5d",
+      "type_hash": "sha256:1d6bd52c8d0c13385881366a1ea187ffe17e8c0dbf34aceccf6691f4331bb05c",
       "type_pretty": "True ↔\n  ∃ C,\n    0 < C ∧\n      ∀ (f : ↥(MeasureTheory.Lp ℂ 2 AddCircle.haarAddCircle)) (n : ℕ → ℕ),\n        IsLacunary n →\n          ((fun k =>\n                (MeasureTheory.eLpNorm (↑↑f - Erdos996.fourierPartial f k) 2\n                    AddCircle.haarAddCircle).toReal) =O[Filter.atTop]\n              fun k => 1 / Real.log (Real.log (Real.log ↑k)) ^ C) →\n            ∀ᵐ (x : AddCircle 1),\n              Filter.Tendsto (fun N => (∑ k ∈ Finset.range N, ↑↑f (n k • x)) / ↑N) Filter.atTop\n                (nhds (∫ (t : AddCircle 1), ↑↑f t ∂AddCircle.haarAddCircle))"
     },
     {
@@ -97843,7 +97844,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:6a390374660f795c3fe3186b7af3f4c41cd05ecb923baa1ff98f048dfaaa29eb",
+      "type_hash": "sha256:814a201a1b1fe61c9aa60b8e683d50dfe5be17450810fdb8caec4da887d2078a",
       "type_pretty": "∀ (C : ℝ),\n  0.5 < C →\n    ∀ (f : ↥(MeasureTheory.Lp ℂ 2 AddCircle.haarAddCircle)) (n : ℕ → ℕ),\n      IsLacunary n →\n        ((fun k =>\n              (MeasureTheory.eLpNorm (↑↑f - Erdos996.fourierPartial f k) 2\n                  AddCircle.haarAddCircle).toReal) =O[Filter.atTop]\n            fun k => 1 / Real.log (Real.log ↑k) ^ C) →\n          ∀ᵐ (x : AddCircle 1),\n            Filter.Tendsto (fun N => (∑ k ∈ Finset.range N, ↑↑f (n k • x)) / ↑N) Filter.atTop\n              (nhds (∫ (t : AddCircle 1), ↑↑f t ∂AddCircle.haarAddCircle))"
     },
     {
@@ -104816,7 +104817,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:8a9831bb55d021040fe0983d0f725ba58bc35fe6d3ddab3cf43c142994cd5f02",
+      "type_hash": "sha256:a0323ad5d8acfd6f69d3261b96c8a0b438141d2138c12756a4c678a66d562985",
       "type_pretty": "∀ (n : ℕ) (A : Fin 100 → Set (𝔽₃ n)), (∀ (i : Fin 100), Green26.IsCube (A i)) → ∑ i, A i = Set.univ"
     },
     {
@@ -104859,7 +104860,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1790a25df83c7d6c74b203ef0fffc65c4643808893dfb88bd63b4601d42a9b5b",
+      "type_hash": "sha256:ea1b9f09aba7f6e4af83a3cd5a3b7b49de8e47c739b791a8ebebe21614e60ff2",
       "type_pretty": "∀ (p : ℕ) [inst : Fact (Nat.Prime p)],\n  ∃ k,\n    ((fun n => ↑(k n)) =O[Filter.atTop] fun n => Real.log ↑n) ∧\n      ∀ᶠ (n : ℕ) in Filter.atTop,\n        ∀ (A : Fin (k n) → Set (𝔽 p n)), (∀ (i : Fin (k n)), Green26.IsCube (A i)) → ∑ i, A i = Set.univ"
     },
     {
@@ -104902,7 +104903,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f792e8f1bdd92b173659a8dca9fe682e7c6650becbad10d5f675ffa51c0e379f",
+      "type_hash": "sha256:2af6aebf1ba40f509bb81aa9a7eece4c38bcb8ea68ecbef0c6ca8cd81fbf0b44",
       "type_pretty": "True ↔\n  ∀ (p : ℕ) [inst : Fact (Nat.Prime p)],\n    ∃ C, ∀ (n : ℕ) (A : Fin C → Set (𝔽 p n)), (∀ (i : Fin C), Green26.IsCube (A i)) → ∑ i, A i = Set.univ"
     },
     {
@@ -104945,7 +104946,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:12470cd1a00377b7c709d9fc0c40021e458fa656b8532add84818b640be59070",
+      "type_hash": "sha256:dacc54b410cef76540518eb0042f755a5de58368dfceb587ad7c5e8acac3f441",
       "type_pretty": "∀ (n : ℕ) (A : Fin 4 → Set (𝔽₃ n)), (∀ (i : Fin 4), Green26.IsCube (A i)) → ∑ i, A i = Set.univ"
     },
     {
@@ -104989,7 +104990,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:584cf4ac1711956bbd62bde8325dcf58a8614c141c0f5132944532d46bfa531b",
+      "type_hash": "sha256:7d7bf1897d84cd233bd37203b0a8a2ca35585a56bb531d9a6c9370fb6149ddff",
       "type_pretty": "Asymptotics.IsEquivalent Green27.primesAtTop sorry Green27.m"
     },
     {
@@ -106070,7 +106071,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:46765576cd2f6e2601f454b7b5179c820dac6edbd2b34c97a8ee9319e788c71d",
+      "type_hash": "sha256:31f8be6c32b20eddaf92e7c4e0e795ceaaeedb89d37167d615858814a434bcc6",
       "type_pretty": "True ↔ ∀ (ω : ℕ → ℝ), (Asymptotics.IsEquivalent Filter.atTop ω fun p => 10 * Real.log ↑p) → Green32.HasLargeGapDilate ω"
     },
     {
@@ -106190,7 +106191,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4a644663751a27eaca8f74761b625d4dfbb0c000654f179b1eb60091cc89bf31",
+      "type_hash": "sha256:c5f683324e4501fd7621980a9bbc81bd62c418eef6c447f62599215fb2a24aba",
       "type_pretty": "∀ (c : ℝ),\n  0 < c ∧ c < 1 → ∀ (ω : ℕ → ℝ), (Asymptotics.IsEquivalent Filter.atTop ω fun p => c * ↑p) → Green32.HasLargeGapDilate ω"
     },
     {
@@ -107797,7 +107798,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:51a78bfb8c8536e6f0fd5ce19241ad7f06da7d997e6540b339cd60d237953561",
+      "type_hash": "sha256:fbe7b040678c818920d0b19572768e7033ac0574d1087315bb2d5804770505cc",
       "type_pretty": "∀ (n : ℕ),\n  have S := sorry;\n  MaximalFor Green4.ProdFree Set.ncard (S n)"
     },
     {
@@ -107835,7 +107836,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c796e86208d5f8d95b21bcff08db5377166a456e2687838e2c023bdd59affee6",
+      "type_hash": "sha256:7cabdcdc2fac72fb8d75a087cde1a108d1e289faa27af8082d71602464a1071b",
       "type_pretty": "∀ᶠ (n : ℕ) in Filter.atTop,\n  ∀ (S : Set ↥(alternatingGroup (Fin n))),\n    MaximalFor Green4.ProdFree Set.ncard S →\n      ∃ x I, S = Green4.extremalFamily x I ∨ S = (fun x => x⁻¹) '' Green4.extremalFamily x I"
     },
     {
@@ -109012,7 +109013,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:3a652fd3a5d5e93408f9bfa830b6d2d84308c4195d9548f8931993763c60aa1a",
+      "type_hash": "sha256:675c4290dbf4df94ccc6bc130819dbdc6e85a4ba07ad31ffb020b756ff0b5f83",
       "type_pretty": "True ↔\n  ∃ C > 0,\n    ∀ (n : ℕ) (A : Finset (𝔽₂ n)),\n      A.Nonempty → ∀ K ≥ 1, ↑(A + A).card ≤ K * ↑A.card → ∃ W T, Nat.card ↥W ≤ A.card ∧ ↑T.card ≤ K ^ C ∧ ↑A ⊆ ↑T + ↑W"
     },
     {
@@ -109229,7 +109230,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e2a74d6d383d25702d29fd6118d1e59c311faae285fb810b9ef4cdb689134b26",
+      "type_hash": "sha256:6063ff8f6a98fcd0db9b6f03bbda49e2ecbfdee7815f31383281ed2f1edad8cb",
       "type_pretty": "True ↔\n  ∃ C > 0,\n    ∀ (n : ℕ) (A : Finset (𝔽₂ n)),\n      A.Nonempty →\n        have α := ↑A.dens;\n        ∃ W v, v +ᵥ ↑W ⊆ ↑(10 • A) ∧ ↑n - C * Real.logb 2 (1 / α) ≤ ↑(Module.finrank (ZMod 2) ↥W)"
     },
     {
@@ -109275,7 +109276,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:660d9aeb0ab00c1ab3a4bb1227ef03cb5731dfbba167492edc6722bf49df9b9b",
+      "type_hash": "sha256:29752e69f790a4c216ad03954cdc66073ffe8ed5f11b54dba245b7318408825c",
       "type_pretty": "sorry = Green51.guaranteedMaxCosetDim"
     },
     {
@@ -109529,7 +109530,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:d0745f0ba13e1a9640af39bb1cf630049e5cfc63cbbbcadb09388a5d48f8ab3f",
+      "type_hash": "sha256:56c3b2ed543c8cd4572c421453c94702dfa0f0543b339dc4680a77cc322c1476",
       "type_pretty": "True ↔\n  ∃ c,\n    ∀ (n K : ℕ) (A : Set (𝔽₂ n)) (S : Finset (𝔽₂ n)),\n      S.card = K → A + ↑S = Set.univ → ∃ V, ↑V ⊆ A + A ∧ n ≤ Module.finrank (ZMod 2) ↥V.direction + c K"
     },
     {
@@ -109571,7 +109572,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:bd7084e5b8d06bedd77f99a6307d543f4b278bf817b447951bc0416be52fc2f8",
+      "type_hash": "sha256:f4d93ad090ea287d85a192cd4dc669659ca1d4cf9b5818fc24e0a395bf079100",
       "type_pretty": "False ↔\n  ∃ C D,\n    ∀ (n K : ℕ) (A : Set (𝔽₂ n)) (S : Finset (𝔽₂ n)),\n      0 < K →\n        S.card = K →\n          A + ↑S = Set.univ → ∃ V, ↑V ⊆ A + A ∧ ↑n ≤ ↑(Module.finrank (ZMod 2) ↥V.direction) + C * Real.log ↑K + D"
     },
     {
@@ -109610,7 +109611,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:47b2b442e9db7d3483d1fa880fc5ea9e819426b2d2e6de032d16f74cf9847358",
+      "type_hash": "sha256:ccef7123dd86b5151dca464d29349d7a3ca7a6fd3974e4e0da3e91e5693a61c8",
       "type_pretty": "True ↔\n  ∃ c,\n    ∀ (n K : ℕ) (A : Fin K → Set (𝔽₂ n)),\n      ⋃ i, A i = Set.univ →\n        Pairwise (Function.onFun Disjoint A) → ∃ i S, ↑S ⊆ A i + A i ∧ n ≤ Module.finrank (ZMod 2) ↥S.direction + c K"
     },
     {
@@ -109776,7 +109777,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c805b659800c4e5513a78b7c2e09d3d1a004f55e7793a84dd3807ff2095af14a",
+      "type_hash": "sha256:c308cb19952df3012b64c40f61b1ddebf162a2956888552ec9f2e2e0924c3a1c",
       "type_pretty": "False ↔ Green57.Φ (ZMod 3) = Green57.Φ' (ZMod 3)"
     },
     {
@@ -109818,7 +109819,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:088fd2055e5491457455be16ff6af2e1da4f9a6403869ef3e961d7e14d8aac70",
+      "type_hash": "sha256:8eac09c67dfdbae7d2135de57d4e5a23ec04792c606d3b839ccb9479a351b574",
       "type_pretty": "have a := ![-1, -3, 3];\nTrue ↔ Green57.supportFn (ZMod 3) a (Green57.Φ' (ZMod 3)) < Green57.supportFn (ZMod 3) a (Green57.Φ (ZMod 3))"
     },
     {
@@ -112746,7 +112747,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:5b9a68c67d08a954343cf01c73bf1f52000d96c0050c30c4d0d6361035a031c0",
+      "type_hash": "sha256:fb97f4675f243e3955465e4fbe23af8b0c8f86ae6c58e69db3e05bf69d542be0",
       "type_pretty": "∃ T, IsEmpty (InvariantSubspaceProblem.ClosedInvariantSubspace T)"
     },
     {
@@ -113466,7 +113467,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:480852a6e1eab2bcdea858f16841d1d8562589dba901b45bf0fe9d4deecfd0b7",
+      "type_hash": "sha256:86e9ea267d90ce49a77bdafcdb4b739086d0a7429a792fa9db3356ec2d449d73",
       "type_pretty": "∀ (k : Type u_1) [inst : Field k] [CharZero k],\n  (JacobianConjecture.F k).aeval ![0, 0, -1 / 4] = (JacobianConjecture.F k).aeval ![1, -3 / 2, 13 / 2]"
     },
     {
@@ -113729,7 +113730,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:45df2a070cc9da61007d7ae05fb2177a8742d8e08bc383cad57c5f8a3c91a9c9",
+      "type_hash": "sha256:f73be2e685db1d6fa7685204fb12ef869fc4629505b019d154572d35261c5c4a",
       "type_pretty": "∀ {k σ : Type} [inst : Fintype σ] [inst_1 : DecidableEq σ] [inst_2 : Field k] (F : MvPolynomial.RegularFunction k σ σ),\n  IsUnit F.Jacobian.det ↔ ∃ c, c ≠ 0 ∧ F.Jacobian.det = MvPolynomial.C c"
     },
     {
@@ -114159,7 +114160,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:4d5536ef5f8097c40c85c9afb26653abc424253873ad9ad46d0f935764aedee9",
+      "type_hash": "sha256:1736fa8f1f4c6746a6c987f22df83ebb2bf67324bd65f7ae6812ff9d8579648b",
       "type_pretty": "∀ (K : Type u_1) [inst : Field K] (G : Type u_2) [inst_1 : Group G] {u : MonoidAlgebra K G},\n  Kaplansky.IsTrivialUnit u → IsUnit u"
     },
     {
@@ -114198,7 +114199,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:92fae37f21dfbbc50241b66c81ad018e1c5a4f9de4109623581810efbc556861",
+      "type_hash": "sha256:5413de95ac889be629128963518d94a91903511be7c85874a7878e4f064a0eac",
       "type_pretty": "∀ (p : ℕ) [hp : Fact (Nat.Prime p)], ∃ u, ¬Kaplansky.IsTrivialUnit ↑u"
     },
     {
@@ -114276,7 +114277,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:20b3bc7fcfc266c051964cb409ba107e822c8e42054c8503fa56ec5349e620d8",
+      "type_hash": "sha256:7ca8048d7517f436af037fbed6e060e0561c67c1ee1c3cb29d92eec1c8c61ec1",
       "type_pretty": "∃ G x,\n  ∃ (_ : IsMulTorsionFree G),\n    ∀ (p : ℕ), p = 0 ∨ Nat.Prime p → ∃ K x_3, ∃ (_ : CharP K p), ∃ u, ¬Kaplansky.IsTrivialUnit ↑u"
     },
     {
@@ -114315,7 +114316,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:76e0702ecdbd0fc55edb8ad501a4927c116f8d14c5065a95334c032a056ee7aa",
+      "type_hash": "sha256:71e09c29473ccf2a76721be1e895efc595e76d0da4b4d9e1ca45df3779810936",
       "type_pretty": "∀ (p : ℕ),\n  p = 0 ∨ Nat.Prime p → ∃ G x, ∃ (_ : IsMulTorsionFree G), ∃ K x_2, ∃ (_ : CharP K p), ∃ u, ¬Kaplansky.IsTrivialUnit ↑u"
     },
     {
@@ -114354,7 +114355,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c4614b4f73559c2c96de542a7d668f8307c17396ce21131177d1282e39933ec2",
+      "type_hash": "sha256:60b411251cae529baa22d0570484ba98d07a2eb5549451e96c8eb4da84446172",
       "type_pretty": "∀ (K : Type u_1) [inst : Field K] (G : Type u_2) [inst_1 : Group G],\n  IsMulTorsionFree G → ∀ (a : MonoidAlgebra K G), IsIdempotentElem a → a = 0 ∨ a = 1"
     },
     {
@@ -114431,7 +114432,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:41cb0a15b787b169cab4caab5a5c352227e53068d417426e9ea0dfb323ef0301",
+      "type_hash": "sha256:79d9203cce76ce440481c2993a3d982f612975a9bb9ba43968757652f9a46b78",
       "type_pretty": "∀ (K : Type u_1) [inst : Field K] (G : Type u_2) [inst_1 : Group G],\n  IsMulTorsionFree G → NoZeroDivisors (MonoidAlgebra K G)"
     },
     {
@@ -118009,7 +118010,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a81ecd92a4b06ab31d8938dcc25cf2a70c594d411b13a27a3c2d3350666a592d",
+      "type_hash": "sha256:2a449cb034b0620f1e7890317012f1133466f4937be1893bb94cb06acead896d",
       "type_pretty": "∀ {n : ℕ},\n  3 ≤ n →\n    ∀ (g : Matrix.SpecialLinearGroup (Fin n) ℝ ⧸ Subgroup.map (Matrix.SpecialLinearGroup.map (Int.castRingHom ℝ)) ⊤),\n      IsCompact (closure (MulAction.orbit (↥(Matrix.SpecialLinearGroup.diagonalSubgroup (Fin n) ℝ)) g)) →\n        IsClosed (MulAction.orbit (↥(Matrix.SpecialLinearGroup.diagonalSubgroup (Fin n) ℝ)) g)"
     },
     {
@@ -118049,8 +118050,996 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:b543f0d930cb7bf24d6c098d8d7e611e3347994e2347da0d0a753c121c0dcfeb",
+      "type_hash": "sha256:e06f2394e8c80ba727a90d724ae7519c2a3f4f9f9317a008307183a80ff55938",
       "type_pretty": "∀ (F : Type u) [inst : Field F] [Fintype F],\n  ringChar F ∈ {3, 5, 7, 11} →\n    ∃ z,\n      IsCompact\n          (closure (MulAction.orbit (↥(Matrix.SpecialLinearGroup.diagonalSubgroup (Fin 4) (LaurentSeries F))) z)) ∧\n        ¬IsClosed (MulAction.orbit (↥(Matrix.SpecialLinearGroup.diagonalSubgroup (Fin 4) (LaurentSeries F))) z)"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 01: Book Ramsey B4/B7 on 22 vertices. Source: https://www.cs.rit.edu/~spr/ElJC/sur.pdf ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source01",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:8218e8e1229a02179ed18aaf1b0c6505edf278b7e9fa0d6e86727fe629d4e3d3",
+      "type_pretty": "Math15.Ramsey.Target01"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 02: Book Ramsey B4/B9 on 27 vertices. Source: https://www.cs.rit.edu/~spr/ElJC/sur.pdf ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source02",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:839774bcd2a2b92ab1c73794763c7c7987b665d402cff4cf95b8d91b3644f64d",
+      "type_pretty": "Math15.Ramsey.Target02"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 03: Book Ramsey B7/B11 on 37 vertices. Source: https://www.cs.rit.edu/~spr/ElJC/sur.pdf ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source03",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:a5ebf2d539ce1857ed6045b9284b79be774d5b126da3f5b924b2100e992d92c0",
+      "type_pretty": "Math15.Ramsey.Target03"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 04: Two-entry tight lonely-runner classification. Source: https://arxiv.org/html/2608.13599v2#S9 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source04",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:fc9ddfec4d0d1725aa3a0a9d06329d3accbe40fc8bfcfa6480ddf9d8ba13ae22",
+      "type_pretty": "Math15.LonelyRunner.Target04"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 05: Four-speed amended lonely-runner spectrum. Source: https://www.combinatorics.org/ojs/index.php/eljc/article/view/v33i1p38 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source05",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:3055fcc5b70670e196527bd0995238dc36a4ce8a04b13b1ebec519f5c0fc258a",
+      "type_pretty": "Math15.LonelyRunner.Target05"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 06: Six-speed maximum-speed/denominator bound. Source: https://arxiv.org/html/2609.03444v2#S6.SS4 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source06",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:d5eb872f7f6ef50ae586cae91d79b03154b8b99a5e197066cf8d5584abf18fc0",
+      "type_pretty": "Math15.LonelyRunner.Target06"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 07: Height-five Frankl rho 4 proper cover. Source: https://arxiv.org/html/2608.25147v1#S8 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source07",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:5c572acff766cfb45a39ec96b8295a6deb352bba79ae958864f82c6c6748a612",
+      "type_pretty": "Math15.Frankl.Target07"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 08: Height-five Frankl rho 3 exclusion. Source: https://arxiv.org/html/2608.25147v1#S8 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source08",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:6f29db7b095c38459fd7fa5ca112cdd4c0bb467d041a3bcdb309caa753053809",
+      "type_pretty": "Math15.Frankl.Target08"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 09: Height-five Frankl rho 4 full cover. Source: https://arxiv.org/html/2608.25147v1#S8 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source09",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:ade6f91465c3fae2508fcfec765b70839c72463fa91e9f336af4a4eac7c34e48",
+      "type_pretty": "Math15.Frankl.Target09"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 10: Graceful degree-4-degree-3 trees. Source: https://onlinelibrary.wiley.com/doi/10.1155/jama/5826777 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source10",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:3571b596aa2552889a8cda8aba83f0c59593db6a0dc8553cd7879f523c4467f4",
+      "type_pretty": "Math15.Graceful.Target10"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 11: Graceful three-degree-3 trees. Source: https://onlinelibrary.wiley.com/doi/10.1155/jama/5826777 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source11",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:3b166c31578308d2f78ae6c4404be3bd49c64815d1dc066ef9bbf480ebcd917a",
+      "type_pretty": "Math15.Graceful.Target11"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 12: Graceful degree-4-degree-3 trees with two length-2 arms. Source: https://onlinelibrary.wiley.com/doi/10.1155/jama/5826777 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source12",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:aa1fbb39cec2408a5ab0bb44bb21e5ef898f338c6760e1e598cee300551ac397",
+      "type_pretty": "Math15.Graceful.Target12"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 13: Collatz density exponent 23/25. Source: https://arxiv.org/abs/math/0205002 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source13",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:50ed2ccb705adb4f316b1340200cb1d550f65362c869a15f6587be56f0df5146",
+      "type_pretty": "Math15.Collatz.Target13"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 14: Collatz exclusion of 96-local-minimum cycles. Source: https://cs.uwaterloo.ca/journals/JIS/VOL26/Hercher/hercher5.pdf ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source14",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:7a4f270a519655e268f9866f8d691e4d8e16972ecaa85fde6b84a86465d88b65",
+      "type_pretty": "Math15.Collatz.Target14"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 15: Collatz convergence below 2^72. Source: https://pcbarina.fit.vutbr.cz/ ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math15",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math15.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math15Catalog.source15",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "type_hash": "sha256:c2759c85c11d48ed0fe6405e647d1a7744585c6722fd84d7aacce14dd4cc3eb0",
+      "type_pretty": "Math15.Collatz.Target15"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 16: Complex 4x4 exact bilinear multiplication with at most 47 products. Source: https://epoch.ai/frontiermath/open-problems/matrix-multiplication ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source16",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:6851c92e1359fb8774abc091d914b3666c3a3083a97f03f1bf023df2a74dc36e",
+      "type_pretty": "Math30.MatrixBoolean.Statement16"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 17: Exact F2 bilinear rank 23 for 3x3 multiplication. Source: https://arxiv.org/html/2610.01639v1 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source17",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:a51a323eae9e4aa2ad24d1ac968b50b7f3c513234feb271326f96f05dc41011a",
+      "type_pretty": "Math30.MatrixBoolean.Statement17"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 18: Complex 3x3 border rank at least 18. Source: https://arxiv.org/abs/1911.07981 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source18",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:0b2c494c50df3cd3d4ca028724438e3576a0d1a2d0d5a56f76485db66adc011d",
+      "type_pretty": "Math30.MatrixBoolean.Statement18"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 19: Degree at most 5, total 14-variable Boolean function fully sensitive at zero. Source: https://epoch.ai/frontiermath/open-problems/degree-sensitivity-boolean ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source19",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:3eb413a7b2bf1f7273034cd7bb49570251316516cf142e7d7775e967e5025d25",
+      "type_pretty": "Math30.MatrixBoolean.Statement19"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 20: Uniform subquadratic sensitivity-versus-exact-real-degree upper bound. Source: https://arxiv.org/abs/2005.00566v2 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source20",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:98848fdf241eb10f5c9ca8576ca2084a32adb5e75a155ebbc1eb0c7bf9b22521",
+      "type_pretty": "Math30.MatrixBoolean.Statement20"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 21: Uniform cubic ordinary-sensitivity upper bound for block sensitivity. Source: https://eccc.weizmann.ac.il/report/2026/010/ ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source21",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:e4f89431c67bbaf4a2695cfe1434d57a72272336315aa5f5d55c501714f02b76",
+      "type_pretty": "Math30.MatrixBoolean.Statement21"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 22: Wilf inequality for proper numerical semigroups with embedding dimension 4. Source: https://arxiv.org/abs/1703.01761 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source22",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:7d85074569abb05c8183cef2eb968b8a53430a1cf79401790a4117c767993043",
+      "type_pretty": "Math30.Problem22"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 23: Wilf inequality for proper numerical semigroups with conductor at most four times multiplicity. Source: https://arxiv.org/abs/1703.01761 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source23",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:afce0d65814782c384aee6fa7a554af72c93d6e018348c8495ca2ad8a9213b0e",
+      "type_pretty": "Math30.Problem23"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 24: Wilf inequality for proper numerical semigroups with multiplicity at most four times embedding dimension. Source: https://arxiv.org/abs/1111.1863 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source24",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:82c0528bb0ab200f4bd235623a3c0f9ec42b3d19657e5c02437ea7c190ba591c",
+      "type_pretty": "Math30.Problem24"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 25: Third planar Dirichlet Polya inequality, area times lambda3 at least 12pi. Source: https://arxiv.org/html/2507.04307v3 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source25",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:2d762e6cba2e4fd1c52030adb6ef53a371d0437c902c222e160d21c13119fd36",
+      "type_pretty": "Math30.Polya.Target25"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 26: Fourth planar Dirichlet Polya inequality, area times lambda4 at least 16pi. Source: https://arxiv.org/html/2507.04307v3 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source26",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:76a6988ad5aa908ce2c0ebba5086943a59a333e37a2a7876f62969d05ed8e233",
+      "type_pretty": "Math30.Polya.Target26"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 27: All positive-index Dirichlet Polya inequalities on convex planar domains. Source: https://arxiv.org/html/2410.04769v2 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source27",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:161e5363b40529175fe04d51c47d4a6bad0aa52c5258fb1f5dde3e74d78fa4bb",
+      "type_pretty": "Math30.Polya.Target27"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 28: Every degree-at-most-four scalar real polynomial minimal graph is affine, in every dimension. Source: https://arxiv.org/html/2404.00115v2 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source28",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:f082d84e174b8ecf4cc34a56d92a8654913aa2180b26ed6b6ab3ae86c6635c8a",
+      "type_pretty": "Math30.Problem28"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 29: Every scalar real polynomial minimal graph in dimension eight is affine. Source: https://arxiv.org/html/2404.00115v2 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source29",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:276676286acdf2d9c580ee8489d9c9a1b83507103ce5b580f4478ee5ca1619e8",
+      "type_pretty": "Math30.Problem29"
+    },
+    {
+      "ams_subjects": [],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Incomplete challenge 30: For every dimension n>=8 there is a degree bound uniform over all scalar real polynomial minimal graphs. Source: https://arxiv.org/html/2404.00115v2 ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ResearchTargets.Math30",
+      "pointer_target": null,
+      "source_path": "FormalConjectures/ResearchTargets/Math30.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Math30Catalog.source30",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:292e1f8f1b71121db89e53999d3e2f399f850cab68800a23764a43c8e94060aa",
+      "type_pretty": "Math30.Problem30"
     },
     {
       "ams_subjects": [
@@ -118087,7 +119076,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:e6b29e570a45f630ce18d3a18d26eada6ddbb681eb65a6262f21779362ebb011",
+      "type_hash": "sha256:12bc67bdd207f1c84f86eb396e5394b1b2426f228b3d7aa4f677cffc75d376f2",
       "type_pretty": "True ↔\n  Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(MathOverflow434111.piRestricted n)) fun n => ↑n / (2 * Real.log ↑n)"
     },
     {
@@ -118125,7 +119114,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:358bf2d74bc752d49834de9c2571f8c34de382f3c41df1a8a6ed13fc6c87efad",
+      "type_hash": "sha256:51d42d2c3a3547a275abf7ec6e3a3a0b2d4ee774fb5c5e94456d26931b4b908e",
       "type_pretty": "True ↔\n  Asymptotics.IsEquivalent Filter.atTop (fun m => ↑{k ∈ Finset.Icc 1 m | Nat.Prime (MathOverflow434111.S (2 * k))}.card)\n    fun m => ↑m / Real.log ↑m"
     },
     {
@@ -118778,7 +119767,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9696535e9a4eda4a7e00d48908fc364b75284a8bcbfbafea2adc844f09656fd2",
+      "type_hash": "sha256:f6eaad263570dd0ab7f7db32c58970ba3ad51e5359fa69a91487a0904a6ffa8a",
       "type_pretty": "True ↔ ∃ atlas, IsManifold (modelWithCornersSelf ℂ (EuclideanSpace ℂ (Fin 3))) 1 ↑(Mathoverflow1973.unitSphere 6)"
     },
     {
@@ -119641,7 +120630,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:cd39411f04286ebb35f0a4975257214a4a8f7b346be6b08893b35c25d1cbca27",
+      "type_hash": "sha256:5bc4b838dc6c63da9f99c3dd464e94684ba499ad8fe0d7d73845b97e83febd8e",
       "type_pretty": "False ↔\n  ∀ n ≥ 2,\n    ∀ (f : EuclideanSpace ℝ (Fin n) → ℝ),\n      ContDiff ℝ 1 f →\n        (BddAbove (Set.range f) ↔ BddAbove (Set.range fun x => f (x + gradient f x))) ∧\n          ⨆ x, ↑(f x) = ⨆ x, ↑(f (x + gradient f x))"
     },
     {
@@ -119682,7 +120671,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a40240b3f6acfaea0c5c675adf86e3398d8a744bdd0fa4b323a4ee6b633982cb",
+      "type_hash": "sha256:86f8692063d388b8905480c8801eee3b7cfc0b494966aa1a96d7ad0c076fba85",
       "type_pretty": "False ↔\n  ∀ n ≥ 2,\n    ∀ (f : EuclideanSpace ℝ (Fin n) → ℝ),\n      ContDiff ℝ 1 f → (BddAbove (Set.range f) ↔ BddAbove (Set.range fun x => f (x + gradient f x)))"
     },
     {
@@ -119720,7 +120709,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c4baee74849512ee9629e61509de2bdb612294b0e990cd08071c7030f92bac19",
+      "type_hash": "sha256:fbd72f368a950fee8ed0d1b5972c8a873a30beb633ceba8b2dd4a639bd0785fd",
       "type_pretty": "True ↔\n  ∀ n ≥ 2,\n    ∀ (f : EuclideanSpace ℝ (Fin n) → ℝ),\n      ContDiff ℝ 1 f →\n        BddAbove (Set.range f) →\n          BddAbove (Set.range fun x => f (x + gradient f x)) → ⨆ x, f x = ⨆ x, f (x + gradient f x)"
     },
     {
@@ -121217,7 +122206,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem10_no_solution_d3_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:d7b827a65df2dc4341a0daa95fb5d80ea417e5ddafce8a9b5e209793953c06f3",
       "type_pretty": "True ↔ ¬∃ W, MonochromaticQuantumGraph.EqSystemN 10 3 W"
@@ -121289,7 +122280,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem10_no_solution_d3_trinary_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:98e005cd0df7f10b1ca9b7ed9a4ab0796e4c54881f6314b39ec5f8a0657aeda4",
       "type_pretty": "True ↔\n  ¬∃ W,\n      (∀ (e : MonochromaticQuantumGraph.EdgeN 10 3), W e = -1 ∨ W e = 0 ∨ W e = 1) ∧\n        MonochromaticQuantumGraph.EqSystemN 10 3 W"
@@ -121812,7 +122805,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem4_no_solution_ge4_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:945f5fd633ac6be0fbbb6ea36f980cbf8cb1a927d1878ffe0b0ada5052271c93",
       "type_pretty": "True ↔ ∀ D ≥ 4, ¬∃ W, MonochromaticQuantumGraph.EqSystemN 4 D W"
@@ -121890,7 +122885,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem4_no_solution_ge4_trinary_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:8268b361725580e7cc788537b828a3132ce3d238b9e38fb52fc0e648182f7251",
       "type_pretty": "True ↔\n  ∀ D ≥ 4,\n    ¬∃ W,\n        (∀ (e : MonochromaticQuantumGraph.EdgeN 4 D), W e = -1 ∨ W e = 0 ∨ W e = 1) ∧\n          MonochromaticQuantumGraph.EqSystemN 4 D W"
@@ -122035,7 +123032,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem6_no_solution_d3_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:05a1448dee30418c1d1b51221786f10903ca51d5fa802518a7ce2ef2bb21fe86",
       "type_pretty": "True ↔ ¬∃ W, MonochromaticQuantumGraph.EqSystemN 6 3 W"
@@ -122107,7 +123106,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem6_no_solution_d3_trinary_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:e815253f22e2f7a02aec6dcd28956bdb9c0cd4cfa7e332e47aefd9959bfe2cdf",
       "type_pretty": "True ↔\n  ¬∃ W,\n      (∀ (e : MonochromaticQuantumGraph.EdgeN 6 3), W e = -1 ∨ W e = 0 ∨ W e = 1) ∧\n        MonochromaticQuantumGraph.EqSystemN 6 3 W"
@@ -122216,7 +123217,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem6_no_solution_d5_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:21a8058c0a5a17f835f4b2c7e3a06455252c50d71316ff5a66caebc94f77903e",
       "type_pretty": "True ↔ ¬∃ W, MonochromaticQuantumGraph.EqSystemN 6 5 W"
@@ -122288,7 +123291,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem6_no_solution_d5_trinary_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:3a48a59d7afc88d6778f70b95b972b13d78b346f6310a54f59751fbf891a5db8",
       "type_pretty": "True ↔\n  ¬∃ W,\n      (∀ (e : MonochromaticQuantumGraph.EdgeN 6 5), W e = -1 ∨ W e = 0 ∨ W e = 1) ∧\n        MonochromaticQuantumGraph.EqSystemN 6 5 W"
@@ -122400,7 +123405,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem6_no_solution_ge3_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:8ce05018fd5ccec4d01fd7b258de6a240acd0ca44e5b60d3725d47f7f2d50101",
       "type_pretty": "True ↔ ∀ D ≥ 3, ¬∃ W, MonochromaticQuantumGraph.EqSystemN 6 D W"
@@ -122472,7 +123479,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem6_no_solution_ge3_trinary_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:aff381a2a348fd514a79cbd2be35f9dd922a1473822b5dcb1b1c1ff69597680a",
       "type_pretty": "True ↔\n  ∀ D ≥ 3,\n    ¬∃ W,\n        (∀ (e : MonochromaticQuantumGraph.EdgeN 6 D), W e = -1 ∨ W e = 0 ∨ W e = 1) ∧\n          MonochromaticQuantumGraph.EqSystemN 6 D W"
@@ -122584,7 +123593,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem8_no_solution_d3_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:3d50146781b726b0545dcaa41f75089e1921d1b676fe9c50adaab3161ed92910",
       "type_pretty": "True ↔ ¬∃ W, MonochromaticQuantumGraph.EqSystemN 8 3 W"
@@ -122656,7 +123667,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem8_no_solution_d3_trinary_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:b2fce09c86021fc88fd11ac105edf7dab87ca8a7829d02c48c919e512202e98c",
       "type_pretty": "True ↔\n  ¬∃ W,\n      (∀ (e : MonochromaticQuantumGraph.EdgeN 8 3), W e = -1 ∨ W e = 0 ∨ W e = 1) ∧\n        MonochromaticQuantumGraph.EqSystemN 8 3 W"
@@ -122768,7 +123781,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem_no_solution_ge6_ge3_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:e01a83d14fec9310615f2f281a1763ceb2a83ab649654b691fa3a6e6cdf5838b",
       "type_pretty": "True ↔ ∀ (N D : ℕ), N ≥ 6 → Even N → D ≥ 3 → ¬∃ W, MonochromaticQuantumGraph.EqSystemN N D W"
@@ -122840,7 +123855,9 @@
       "theorem": "MonochromaticQuantumGraph.eqSystem_no_solution_ge6_ge3_trinary_int",
       "transitive_axioms": [
         "propext",
-        "sorryAx"
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
       ],
       "type_hash": "sha256:521655c107b91298226bb15904a58469772653cc3ea8be680d5c3afce60913c1",
       "type_pretty": "True ↔\n  ∀ (N D : ℕ),\n    N ≥ 6 →\n      Even N →\n        D ≥ 3 →\n          ¬∃ W,\n              (∀ (e : MonochromaticQuantumGraph.EdgeN N D), W e = -1 ∨ W e = 0 ∨ W e = 1) ∧\n                MonochromaticQuantumGraph.EqSystemN N D W"
@@ -122920,7 +123937,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0d922ce0fca9a5a2b7fc0961c5b520cb60b49fbb5a7830a7cec9510f2fe386ec",
+      "type_hash": "sha256:d91a3d683d76825d913f4fef7009d7aa64e558a979b3955909f94f8d98e9b777",
       "type_pretty": "IsGLB {v | ∃ X ∈ MoserWorm.WormCovers, Convex ℝ X ∧ MeasureTheory.volume X = v} sorry"
     },
     {
@@ -122958,7 +123975,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:27ea8836c54224f0e563dee0cbfd7475a352cfbeb20d1966c40fa7451fb47a47",
+      "type_hash": "sha256:908d418a8ade8853ab0f81e7b396ea64cf6ebe05d5bbc453e34908cb738918de",
       "type_pretty": "∃ bound, IsLeast {v | ∃ X ∈ MoserWorm.WormCovers, Convex ℝ X ∧ MeasureTheory.volume X = v} bound"
     },
     {
@@ -122996,7 +124013,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:aa39898fae8df0166b6e3f6c5a7a3c0a3d96b828a2c6ad87af92e0bbf0008c04",
+      "type_hash": "sha256:cdda0edc45071156052a54594b3d4435ff4738ce3ee192c5525075fbf94662a2",
       "type_pretty": "0.232239 ∈ lowerBounds {v | ∃ X ∈ MoserWorm.WormCovers, Convex ℝ X ∧ MeasureTheory.volume X = v}"
     },
     {
@@ -123034,7 +124051,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:66729dc243d747658b47fd05393aaeda64df98734ce2a249b9d69bf12d798b62",
+      "type_hash": "sha256:2fe9d496ac7f002923d1ae5fc0fe837e5b52cb9144e1d309c2a87f2f954c3b98",
       "type_pretty": "∃ X,\n  MeasurableSet X ∧\n    Convex ℝ X ∧\n      MeasureTheory.volume X = 0.270911861 ∧\n        ∀ w ∈ MoserWorm.Worms, ∃ e v, LinearEquiv.det e.toLinearEquiv = 1 ∧ w ⊆ (fun x => e x + v) '' X"
     },
     {
@@ -123112,7 +124129,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:3deb6aefeb04986d0c709fb52a063b1cc61b6a49ae2ec803a98289a9f4c6b4c9",
+      "type_hash": "sha256:72788f37d47ba44ad98c2acefed08878cc23073c066d1fe7c7164a76e3cf5145",
       "type_pretty": "IsGLB {v | ∃ X ∈ MoserWorm.WormCovers, MeasureTheory.volume X = v} sorry"
     },
     {
@@ -123150,7 +124167,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:d3a069c24996358d2cad4bb8e2c7a49ae51ee6a5a677862f92749b975f3ebfb0",
+      "type_hash": "sha256:25f06415cb62452e5d3105b334d7049bfc7db2c2d003dacdf840e875e6eb2344",
       "type_pretty": "∃ X ∈ MoserWorm.WormCovers, MeasureTheory.volume X = 0.260437"
     },
     {
@@ -123315,7 +124332,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:95055dea66606edeba62e8cebe867eb0fa92a089b82972754860fbba1c1eb503",
+      "type_hash": "sha256:374766d65c2b2f0271414ae55f4fc5f696dbebd95e792db1ce47a33adce2c007",
       "type_pretty": "MovingSofa.sofaConstant = MeasureTheory.volume MovingSofa.gerversSofa"
     },
     {
@@ -123356,7 +124373,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:95055dea66606edeba62e8cebe867eb0fa92a089b82972754860fbba1c1eb503",
+      "type_hash": "sha256:374766d65c2b2f0271414ae55f4fc5f696dbebd95e792db1ce47a33adce2c007",
       "type_pretty": "MovingSofa.sofaConstant = MeasureTheory.volume MovingSofa.gerversSofa"
     },
     {
@@ -123397,7 +124414,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9cfc88d7c3f7cc859401881115710ff4100e6032f726f2e5865fd815fa49c306",
+      "type_hash": "sha256:63b25ffbbfe9b2985af0c60fa8f49ef7cae4a671c452116663670b165bd74c6f",
       "type_pretty": "∀ (s : Set (EuclideanSpace ℝ (Fin 2))),\n  (∃ m, MovingSofa.IsMovingSofa s m) →\n    (MeasureTheory.volume s = MovingSofa.sofaConstant ↔ ∃ g, s = ⇑g '' MovingSofa.gerversSofa)"
     },
     {
@@ -123431,7 +124448,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:5cead03285fa28a5e18dffecc2fa48109d35cf2e7120ab8dae29b9fca83b2778",
+      "type_hash": "sha256:c5faf8c1207b239978590b32c2deeeb60860afa2bc3d61ed336d708f019d30ca",
       "type_pretty": "∀ {n : ℕ} {v w : EuclideanSpace ℝ (Fin n) → EuclideanSpace ℝ (Fin n)} {x : EuclideanSpace ℝ (Fin n)},\n  DifferentiableAt ℝ v x → DifferentiableAt ℝ w x → ∇⬝ (fun y => v y + w y) x = ∇⬝ v x + ∇⬝ w x"
     },
     {
@@ -123499,7 +124516,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f8633b19981f0b084301e5ed445842423e55a1c381678dc85252a596f553bdd6",
+      "type_hash": "sha256:ab6be586b2ac544d46b59cfb17744ba1d039327f629d25c9a8e64062ad65be83",
       "type_pretty": "∀ {n : ℕ} {v : EuclideanSpace ℝ (Fin n) → EuclideanSpace ℝ (Fin n)} {x : EuclideanSpace ℝ (Fin n)},\n  ¬DifferentiableAt ℝ v x → ∇⬝ v x = 0"
     },
     {
@@ -123533,7 +124550,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:f0a71d2590ecce3f6bd41058669ceab8d212001f0cb28eb9fb1fad427aa18989",
+      "type_hash": "sha256:a61982e8675af36d37de1e148586d2419730240e819983c24d614d08c763efc4",
       "type_pretty": "∀ {n : ℕ} (c : ℝ) {v : EuclideanSpace ℝ (Fin n) → EuclideanSpace ℝ (Fin n)} {x : EuclideanSpace ℝ (Fin n)},\n  DifferentiableAt ℝ v x → ∇⬝ (fun y => c • v y) x = c * ∇⬝ v x"
     },
     {
@@ -123749,7 +124766,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a3006001ac37d44b3a2cad909cd5cc8cad7118766df39ef7760b4578ad984dcb",
+      "type_hash": "sha256:e604ab94f94bb245a0f6e6382300af70976993a627d0911237662426bcf0ebce",
       "type_pretty": "False ↔\n  ∀ (K L ι G : Type) [inst : Field K] [inst_1 : Field L] [inst_2 : Fintype ι] [inst_3 : Algebra K L]\n    [inst_4 : NoetherProblem.IsRationalExtension K L ι], NoetherProblem.HasNoetherProperty K L ι"
     },
     {
@@ -123788,7 +124805,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:11f11f019b95b9362911948dc9c396237ed665552f918f70e498f9d9ad661f62",
+      "type_hash": "sha256:fa66a16cfdaaec20a118900be79bccf5e504dbb70d5441943d6acf99575d55b2",
       "type_pretty": "∃ K L ι G x x_1 x_2 x_3,\n  ∃ (x_4 : NoetherProblem.IsRationalExtension K L ι), Fintype.card ι = 47 ∧ ¬NoetherProblem.HasNoetherProperty K L ι"
     },
     {
@@ -123827,7 +124844,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:9b168c74d190a6536b0c3e08b7ebd3343bcf901f653d5af47ed8ce518cd96bf4",
+      "type_hash": "sha256:dffce917419c3558684ab46c5d5daafab9392a1836dfd746a67c6c4852eb3960",
       "type_pretty": "∀ {K L ι : Type} {G : Type} [inst : Field K] [inst_1 : Field L] [inst_2 : Fintype ι] [inst_3 : Algebra K L]\n  [inst_4 : NoetherProblem.IsRationalExtension K L ι], Fintype.card ι = 4 → NoetherProblem.HasNoetherProperty K L ι"
     },
     {
@@ -123866,7 +124883,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1172d84ce4f38915555aebd5498aa03f97e9ad4b914bcda7dd0f1a2d951e9b71",
+      "type_hash": "sha256:26b83d1f723ee42770a13f66a5a892d57071740a855d4a1a5498d0fffd74df8e",
       "type_pretty": "∀ {K L ι : Type} {G : Type} [inst : Field K] [inst_1 : Field L] [inst_2 : Fintype ι] [inst_3 : Algebra K L]\n  [inst_4 : NoetherProblem.IsRationalExtension K L ι], Fintype.card ι = 3 → NoetherProblem.HasNoetherProperty K L ι"
     },
     {
@@ -123905,7 +124922,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:31d4920b8bce6b30416c855a0a2a4b17f5fd2f3149e78709f22e7ff34746de2c",
+      "type_hash": "sha256:22ee20472d916990a8f912a5f1c8eb5accd4d9f211ca8e59383ef2d68b94f238",
       "type_pretty": "∀ {K L ι : Type} {G : Type} [inst : Field K] [inst_1 : Field L] [inst_2 : Fintype ι] [inst_3 : Algebra K L]\n  [inst_4 : NoetherProblem.IsRationalExtension K L ι], Fintype.card ι = 2 → NoetherProblem.HasNoetherProperty K L ι"
     },
     {
@@ -123942,7 +124959,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:ac45ed10b6b23cb81f92de635f69879fd07421e9830a2c5fafb964a71ccb5208",
+      "type_hash": "sha256:98fe398824504892d67f5c5e2ba376f7d125015f76cb707d532fe0d7bcbbc1fb",
       "type_pretty": "∀ (K : Type u_1) (L : Type u_2) (ι : Type u_3) [inst : Field K] [inst_1 : Field L] [inst_2 : Algebra K L] [IsEmpty ι]\n  [NoetherProblem.IsRationalExtension K L ι], Nonempty (L ≃ₐ[K] K)"
     },
     {
@@ -124060,7 +125077,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:0ba7136fd6c00437bae27c3ec7ce601389845c78aaf3b37a0b42864c805bd858",
+      "type_hash": "sha256:3839e5d23b1964bcd18bc335bf2475991332302e76eaffa333b7fe0962fec39f",
       "type_pretty": "∀ (K : Type u_1) [inst : Field K] [inst_1 : NumberField K] [Algebra.IsQuadraticExtension ℚ K],\n  ∃ d, d ≠ 1 ∧ Squarefree d ∧ Nonempty (K ≃+* QuadraticAlgebra ℚ (↑d) 0)"
     },
     {
@@ -124098,7 +125115,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:a981794ef79b57273fb3fb8452f5db9f468b7bbf536eb1bb6a6683a5715dc896",
+      "type_hash": "sha256:faa489b3be8dda19e1da4608515de99de578c8acb764e8407f9f28c297d179af",
       "type_pretty": "∀ {D : ℤ},\n  NumberField.IsFundamentalDiscr D ↔\n    ∃ K x, ∃ (x_1 : NumberField K), Algebra.IsQuadraticExtension ℚ K ∧ NumberField.discr K = D"
     },
     {
@@ -124136,7 +125153,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:6ac4611dfa80002d030dc99a16b579c05a884fe30b27bcaad7e26b69ca1c7b9c",
+      "type_hash": "sha256:303b6eca62195bce03c1b15210c7063eccbb37aa0f7b4ab62270d3ce120723cf",
       "type_pretty": "∀ {D : ℤ},\n  NumberField.IsFundamentalDiscr D ↔\n    ∃ d, ∃ (x : Fact (d ≠ 1)) (x_1 : Fact (Squarefree d)), NumberField.discr (QuadraticAlgebra ℚ (↑d) 0) = D"
     },
     {
@@ -124174,7 +125191,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:1cec0120dc92f65b6be4363dcca34e99c2800d684601b3023523cc7b094f7e2c",
+      "type_hash": "sha256:7f4dcf9b1673bccf249d1842edb9a783b7f575c00cb51f2d7edb9e5ffed944d8",
       "type_pretty": "∀ {K : Type u_1} [inst : Field K] [inst_1 : NumberField K],\n  Algebra.IsQuadraticExtension ℚ K ↔ ∃ d, d ≠ 1 ∧ Squarefree d ∧ Nonempty (K ≃+* QuadraticAlgebra ℚ (↑d) 0)"
     },
     {
@@ -126672,7 +127689,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:c72c6e01769caded431e5e39f8eebf3b8f62f620b03bfea9966e9f25616c5cce",
+      "type_hash": "sha256:d5c6ad0aabf25ecf1eaf893723a05df67ec939e0234e087a95cc75800f4dfc9e",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(OeisA102722.a n)) fun n => (1 - Real.eulerMascheroniConstant) * ↑n"
     },
     {
@@ -154823,7 +155840,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:d1b181af0f1cdc82a05c218323af4caac808bc01f01a4bcad41888c866e20789",
+      "type_hash": "sha256:0c4c0a14257603e9c31f6ca9dba21ff2950bc6ce1e90dc43dfb4e4753a851f3f",
       "type_pretty": "Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(OeisA258667.a n)) OeisA258667.asymptoticTerm"
     },
     {
@@ -157698,8 +158715,8 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:6b81ffb8c5fa62c28051984544c3fe5007ebd7719cd7979b155c1c8ffca86592",
-      "type_pretty": "∀ (n : ℕ), ↑(OeisA2897.a n) = MvPolynomial.coeff (OeisA2897.xyzPowN n) (OeisA2897.pPoly n)"
+      "type_hash": "sha256:aa32007cec415a035c9b7b9126a90a2a5b8fbb8b17337e5ae5e217bff18f0cdb",
+      "type_pretty": "∀ (n : ℕ), ↑(OeisA2897.a n) = (OeisA2897.pPoly n).coeff (OeisA2897.xyzPowN n)"
     },
     {
       "ams_subjects": [
@@ -173646,7 +174663,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:2b6a693603bdbfb4648050cc6bb10619ba3b134d3482f2d92e62de47b41719d3",
+      "type_hash": "sha256:b97f9e7ad6537f6b38085061f4f22fcae1a374df1636a31d900d8714f0c531da",
       "type_pretty": "∃ C, 0 < C ∧ Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(OeisA71532.a n)) fun n => C * Real.log ↑n ^ 2"
     },
     {
@@ -173687,7 +174704,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:34101371703f78af471807fbb3f3dea816a264fc6608cce607162312020f1a35",
+      "type_hash": "sha256:984e1bf9840f979eedda6a154c68a1182bac4ede8e1fcf2f03b2d62fe32e108c",
       "type_pretty": "have C := sorry;\n|C - 1.4| < 0.1 ∧ Asymptotics.IsEquivalent Filter.atTop (fun n => ↑(OeisA71532.a n)) fun n => C * Real.log ↑n ^ 2"
     },
     {
@@ -188075,7 +189092,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:3e9d641839e9c312420a640a2f9ce6859870d692af72d1232b518998339c9bbd",
+      "type_hash": "sha256:cb525b6d6b949219eaff3080de01ce4fae2747a81ca9915bc5abe77d65195740",
       "type_pretty": "∀ {N : ℕ} (Ω : Set (EuclideanSpace ℝ (Fin (N + 1)))) (σ : PompeiuProblem.RigidMotion N),\n  ∫ (_x : EuclideanSpace ℝ (Fin (N + 1))) in ⇑σ '' Ω, 0 = 0"
     },
     {
@@ -188429,7 +189446,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:ce76eb547eb2a00121974885152ea1904a096b5498e1ed2d7b3351fcff6578e0",
+      "type_hash": "sha256:bb9085c5d6266e18600eeb49914a2ed6f8516d90ada5702ecf2fb622750de955",
       "type_pretty": "∀ {d : ℤ} [inst : Fact (Squarefree d)] [inst_1 : Fact (d ≠ 1)],\n  d ≡ 1 [ZMOD 4] → NumberField.discr (QuadraticAlgebra ℚ (↑d) 0) = d"
     },
     {
@@ -188467,7 +189484,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:5de9e7951b92622eef791331492811739dcd13e3132dc5530a8841a9258698b8",
+      "type_hash": "sha256:dbe83e47f18e0822286ea9ba45d34c1e65d2c3eb5fed6c76b9e84ab9c4b63c1c",
       "type_pretty": "∀ {d : ℤ} [inst : Fact (Squarefree d)] [inst_1 : Fact (d ≠ 1)],\n  ¬d ≡ 1 [ZMOD 4] → NumberField.discr (QuadraticAlgebra ℚ (↑d) 0) = 4 * d"
     },
     {
@@ -196578,7 +197595,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:fe81e0cf5065af5c387afc8b65855b3adefd9aec3edebdfe6ea8330d1272ef5a",
+      "type_hash": "sha256:0a4a9e65a6320073540d1523f4ce1c6516412bab0aeb92d8a0d2453698b284f2",
       "type_pretty": "False ↔\n  ∀ (Ω : Set ℝ),\n    WeakTiling.IsFiniteUnionOfIntervals Ω →\n      ∀ (ν : MeasureTheory.Measure ℝ),\n        WeakTiling.IsWeakTilingMeasure Ω ν →\n          ∃ T c,\n            (∀ (i : ℕ), WeakTiling.IsProperTiling Ω (T i)) ∧\n              ∑' (i : ℕ), c i = 1 ∧\n                ν =\n                  MeasureTheory.Measure.sum fun i =>\n                    ↑(c i) • MeasureTheory.Measure.sum fun t => MeasureTheory.Measure.dirac ↑t"
     },
     {
@@ -200418,7 +201435,7 @@
         "Quot.sound",
         "WrittenOnTheWallII.Test.K4_diameter._native.decide.ax_1_1"
       ],
-      "type_hash": "sha256:69d79e09680723db7a09c65351826ad23c362587c43a3fb5a3218c54f7ea3ef5",
+      "type_hash": "sha256:9bcad48cf6ea91c79e22dbb0bbd0c5b54e44ef45c406c802106b58b3a455736d",
       "type_pretty": "WrittenOnTheWallII.Test.K4.ediam = 1"
     },
     {
@@ -200695,7 +201712,7 @@
         "Quot.sound",
         "WrittenOnTheWallII.Test.K4_radius._native.decide.ax_1_1"
       ],
-      "type_hash": "sha256:2e98eff4c90631ce5e013c8caa55e8534dda2125b9e3e93bb2fd5cd3fc1ca8c5",
+      "type_hash": "sha256:b3a59e4992adb3673568715edd7c4a9a8b0e5db343b5b3d70a4c0c9c9bbb539b",
       "type_pretty": "WrittenOnTheWallII.Test.K4.radius = 1"
     },
     {
@@ -201287,7 +202304,7 @@
         "Quot.sound",
         "WrittenOnTheWallII.Test.Star5_radius._native.decide.ax_1_1"
       ],
-      "type_hash": "sha256:faea0961c399ad6d12bcfa9f8ea8136bde26129c85b369ce35d5826097b6ac0f",
+      "type_hash": "sha256:b6fdea7369ef8f77b36e797f3aca863164076ebf1fc21397153526f413289a8b",
       "type_pretty": "WrittenOnTheWallII.Test.Star5.radius = 1"
     },
     {
@@ -203092,7 +204109,7 @@
         "Classical.choice",
         "Quot.sound"
       ],
-      "type_hash": "sha256:984867fb3900aebe514156586556b4da6005a50b1e90fb157b08311043ef2182",
+      "type_hash": "sha256:3c4f9c7ca6dc888c29ed877750d5a9197612ad4c04d8295100309a474edbd2af",
       "type_pretty": "∀ {a b c : EuclideanSpace ℝ (Fin 2)},\n  a ≠ b → a ≠ c → b ≠ c → ¬Collinear ℝ {a, b, c} → EuclideanGeometry.ConvexIndep {a, b, c}"
     },
     {
@@ -204437,10 +205454,10 @@
       "type_pretty": "3 ∉ additionChainSteps 7"
     }
   ],
-  "extraction_duration_ms": 45550,
+  "extraction_duration_ms": 43729,
   "generated_by": "lean/CatalogExtractor.lean",
-  "lean_toolchain": "leanprover/lean4:v4.33.1",
-  "mathlib_commit": "0df444a360eaa60ab8c11dca51a86af692955474",
-  "repository_commit": "6a786f997e18e8f095762a2830d191b7e25e505e",
+  "lean_toolchain": "leanprover/lean4:v4.35.0-rc2",
+  "mathlib_commit": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
+  "repository_commit": "4b69a7dca3e731dd1f28cb523b9ebd2ea32527f4",
   "schema_version": 1
 }

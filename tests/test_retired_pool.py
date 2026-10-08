@@ -141,6 +141,32 @@ def test_a_task_id_from_a_deleted_bundle_still_names_its_conjecture(tmp_path):
     assert index.slug_by_task_id["task-counterexample"] == SLUG
 
 
+def test_an_entry_without_a_pool_status_is_a_retirement(tmp_path):
+    """Files generated before holds existed carry no status; every such entry was a retirement."""
+    index = RetiredIndex.load(allowlist_path=_write(tmp_path, _payload()))
+
+    assert index.get(SLUG).pool_status == "retired"
+
+
+def test_a_held_entry_keeps_its_status(tmp_path):
+    index = RetiredIndex.load(
+        allowlist_path=_write(
+            tmp_path,
+            _payload(pool_status="held", reason_code="HOLD_STATEMENT_SOURCE_DISCREPANCY"),
+        )
+    )
+
+    item = index.get(SLUG)
+    assert item.pool_status == "held"
+    assert item.reason_code == "HOLD_STATEMENT_SOURCE_DISCREPANCY"
+
+
+def test_an_unknown_pool_status_stops_startup(tmp_path):
+    """Only `retired` and `held` exist; anything else could be read as an unreviewed state."""
+    with pytest.raises(RetiredPoolError, match="pool status"):
+        RetiredIndex.load(allowlist_path=_write(tmp_path, _payload(pool_status="solved")))
+
+
 def test_a_tier_that_retires_nothing_publishes_no_digest_and_loads_empty(tmp_path):
     """Absent is a valid state — a pool that has never retired anything. Only wrong is fatal."""
     index = RetiredIndex.load(allowlist_path=_write(tmp_path, None, digest=None))

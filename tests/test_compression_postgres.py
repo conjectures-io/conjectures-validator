@@ -48,10 +48,13 @@ def owned_db():
     if not (COMPRESSION / "deploy/migrate/alembic/versions/0011_api_snapshot.py").exists():
         pytest.skip("compression checkout with API migration required (COMPRESSION_REPO)")
     name = "compression_api_" + uuid.uuid4().hex[:12]
-    admin = sa.create_engine(base.rsplit("/", 1)[0] + "/postgres", isolation_level="AUTOCOMMIT")
+    # Only the database name changes, so a socket directory given as `?host=` still names the
+    # fixture `tests/database_guard.py` verified, rather than being cut at its last "/".
+    verified = sa.engine.make_url(base)
+    admin = sa.create_engine(verified.set(database="postgres"), isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
         conn.execute(sa.text(f'CREATE DATABASE "{name}"'))
-    url = base.rsplit("/", 1)[0] + "/" + name
+    url = verified.set(database=name).render_as_string(hide_password=False)
     env = {
         **os.environ,
         "DATABASE_URL": url,

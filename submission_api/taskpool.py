@@ -26,8 +26,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from verifier.models import CatalogDeclaration, TaskManifest
-from verifier.task_loader import load_task_bundle
+from verifier.publication import CheckoutSnapshot, read_coherently
+from verifier.task_loader import TaskBundle, load_task_bundle
 from verifier.task_registry import AllowedTask, TaskNotAllowed, TaskPoolRegistry
+from verifier.task_store import TaskVersionStore
+from verifier.task_versions import is_v2_task_id
+from verifier.version_registry import REGISTRY_NAME, VersionRegistry, assert_matches_allowlist_bytes
 
 CHALLENGE_NAME = "Challenge.lean"
 
@@ -56,9 +60,41 @@ class TaskCatalog:
 
     @classmethod
     def load(cls, *, allowlist_path: Path, pool_root: Path) -> TaskCatalog:
-        registry = TaskPoolRegistry.load(allowlist_path)
+        # One committed state of the checkout or nothing: a publication that is unfinished, or
+        # that lands while this reads, is never served. See `verifier.publication`.
+        return read_coherently(
+            pool_root.parent,
+            lambda snapshot: cls._from_snapshot(snapshot, allowlist_path=allowlist_path, pool_root=pool_root),
+            allowlist_path=allowlist_path,
+        )
+
+    @classmethod
+    def _from_snapshot(cls, snapshot: CheckoutSnapshot, *, allowlist_path: Path, pool_root: Path) -> TaskCatalog:
+        tasks_root = pool_root.parent
+        if snapshot.allowlist is None:
+            raise TaskNotAllowed(f"task allowlist is missing: {allowlist_path}")
+        # The allowlist bytes parsed here are the bytes checked against the registry below.
+        registry = TaskPoolRegistry.from_bytes(snapshot.allowlist)
         entries: dict[str, TaskEntry] = {}
-        for tier in sorted({allowed.tier for allowed in registry.tasks.values()}):
+        # Version-2 tasks live in the immutable version store, one directory per task ID, and
+        # are admitted only if the version registry's current publication says so.
+        v2_ids = sorted(task_id for task_id in registry.tasks if is_v2_task_id(task_id))
+        if v2_ids or snapshot.registry is not None:
+            if snapshot.registry is None:
+                raise TaskNotAllowed(f"allowlisted versions need the version registry {REGISTRY_NAME}")
+            assert_matches_allowlist_bytes(VersionRegistry.from_bytes(snapshot.registry), snapshot.allowlist)
+        if v2_ids:
+            store = TaskVersionStore(tasks_root / "versions")
+            for task_id in v2_ids:
+                bundle = store.load(task_id, expected_sha256=registry.tasks[task_id].task_bundle_sha256)
+                if bundle is None:
+                    raise TaskNotAllowed(f"allowlisted version {task_id} is missing from the version store")
+                allowed = registry.assert_bundle(bundle)
+                entries[task_id] = _entry(allowed, bundle, store.path_for(task_id))
+        legacy_tiers = {
+            allowed.tier for task_id, allowed in registry.tasks.items() if not is_v2_task_id(task_id)
+        }
+        for tier in sorted(legacy_tiers):
             tier_root = pool_root / tier
             if not tier_root.is_dir():
                 # The pool is no longer committed here; it is a pinned checkout of the task
@@ -73,6 +109,10 @@ class TaskCatalog:
             # tier is a path component rather than something to search the pool for.
             for task_dir in sorted(path for path in tier_root.iterdir() if path.is_dir()):
                 bundle = load_task_bundle(task_dir)
+                if bundle.manifest.task_id in entries:
+                    raise TaskNotAllowed(
+                        f"task {bundle.manifest.task_id} appears in both the pool and the version store"
+                    )
                 # Fail closed on task id, repository commit, whole-bundle digest, or target
                 # type digest drift. An unaudited bundle stops startup here.
                 allowed = registry.assert_bundle(bundle)
@@ -85,22 +125,7 @@ class TaskCatalog:
                     raise TaskNotAllowed(
                         f"task {allowed.task_id} appears in more than one pool directory"
                     )
-                entries[allowed.task_id] = TaskEntry(
-                    task_id=allowed.task_id,
-                    tier=allowed.tier,
-                    problem_id=allowed.problem_id,
-                    reward_target_id=allowed.reward_target_id,
-                    mode=allowed.mode,
-                    task_bundle_sha256=allowed.task_bundle_sha256,
-                    target_type_sha256s=allowed.target_type_sha256s,
-                    task_dir=task_dir,
-                    manifest=bundle.manifest,
-                    source=bundle.source,
-                    # A trusted file, so its bytes are already hash-verified. Lean source is
-                    # UTF-8 by construction; a decode failure here would mean the digest check
-                    # above passed on bytes no verifier could compile.
-                    challenge_lean=bundle.files[CHALLENGE_NAME].decode("utf-8"),
-                )
+                entries[allowed.task_id] = _entry(allowed, bundle, task_dir)
         missing = sorted(set(registry.tasks) - set(entries))
         if missing:
             # An allowlisted task with no bytes on disk would otherwise be a 404 at submission
@@ -127,6 +152,25 @@ class TaskCatalog:
 
     def summaries(self) -> tuple[TaskEntry, ...]:
         return tuple(sorted(self.entries.values(), key=lambda item: item.task_id))
+
+
+def _entry(allowed: AllowedTask, bundle: TaskBundle, task_dir: Path) -> TaskEntry:
+    return TaskEntry(
+        task_id=allowed.task_id,
+        tier=allowed.tier,
+        problem_id=allowed.problem_id,
+        reward_target_id=allowed.reward_target_id,
+        mode=allowed.mode,
+        task_bundle_sha256=allowed.task_bundle_sha256,
+        target_type_sha256s=allowed.target_type_sha256s,
+        task_dir=task_dir,
+        manifest=bundle.manifest,
+        source=bundle.source,
+        # A trusted file, so its bytes are already hash-verified. Lean source is UTF-8 by
+        # construction; a decode failure here would mean the digest check above passed on bytes
+        # no verifier could compile.
+        challenge_lean=bundle.files[CHALLENGE_NAME].decode("utf-8"),
+    )
 
 
 def catalog_from_entries(

@@ -192,6 +192,13 @@ class FamilyMember:
     module: str
     task_modes: tuple[str, ...]
     retired: bool
+    # `live`, or the pool status the retired index publishes: `retired` or `held`. `retired`
+    # above stays true for both, because neither can be submitted against.
+    pool_status: str
+    docstring: str | None = None
+
+
+POOL_STATUS_LIVE = "live"
 
 
 def _member(item: Conjecture | RetiredConjecture, *, retired: bool) -> FamilyMember:
@@ -199,8 +206,10 @@ def _member(item: Conjecture | RetiredConjecture, *, retired: bool) -> FamilyMem
         slug=item.slug,
         theorem=item.source.theorem,
         module=item.source.module,
+        docstring=item.source.docstring,
         task_modes=item.task_modes,
         retired=retired,
+        pool_status=item.pool_status if retired else POOL_STATUS_LIVE,
     )
 
 
@@ -228,6 +237,7 @@ class ProblemFamily:
     erdos_problem_number: int | None
     qualifier: str | None
     retired: bool
+    pool_status: str
     # Read from the representative's declaration, and flattened on for the reason above: an entry
     # publishes one name, and deriving it at serialisation time is how the index and the detail page
     # come to disagree about what a problem is called.
@@ -292,8 +302,11 @@ def families(index: ConjectureIndex) -> tuple[ProblemFamily, ...]:
                 erdos_problem_number=erdos_problem_number(representative.module),
                 qualifier=variant_qualifier(representative.theorem),
                 retired=representative.retired,
+                pool_status=representative.pool_status,
                 name=problem_name(
-                    module=representative.module, theorem=representative.theorem
+                    module=representative.module,
+                    theorem=representative.theorem,
+                    docstring=representative.docstring
                 ),
                 # Ordered by slug alone, deliberately not with the retired ones pushed to the end:
                 # retiring a variant must not reorder the list a reader has already seen.
@@ -513,12 +526,14 @@ def title(conjecture: Conjecture | RetiredConjecture) -> str:
 def display_name(conjecture: Conjecture | RetiredConjecture) -> ProblemName:
     """The same conjecture as a heading a reader can use, with the parts it was built from.
 
-    Derived from the source declaration alone — module and theorem — so it holds for a retired
+    Derived from the source declaration, including its research-target description, so it holds for a retired
     target too, and so it cannot disagree with `title`, which reads the same declaration. See
     `submission_api.naming` for what is derived and what is deliberately not invented.
     """
     return problem_name(
-        module=conjecture.source.module, theorem=conjecture.source.theorem
+        module=conjecture.source.module,
+        theorem=conjecture.source.theorem,
+        docstring=conjecture.source.docstring
     )
 
 

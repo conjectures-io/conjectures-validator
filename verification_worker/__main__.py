@@ -20,7 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from verification_worker.runner import RunnerFailure, build_runner
 from verification_worker.settings import SettingsError, WorkerSettings
-from verification_worker.tasks import PoolTaskResolver, TaskNotAllowed
+from verification_worker.tasks import TaskNotAllowed, load_task_resolver
 from verification_worker.worker import VerificationWorker
 
 logger = logging.getLogger("verification_worker")
@@ -53,13 +53,18 @@ async def _run(args: argparse.Namespace) -> int:
     settings = WorkerSettings.from_env()
     if args.check and not settings.production:
         raise SettingsError("--check is a production preflight and requires APP_MODE=PROD")
-    # Loaded before any work: it validates every task id, repository commit and bundle digest
-    # against the audited allowlist, and a pool that fails that is not one to verify against.
-    tasks = PoolTaskResolver.load(
+    # The image is identified first, then asked which verification instance it is. The pool is
+    # loaded for exactly that instance: every bundle is re-validated against the allowlist or
+    # version registry, and only the submissions this instance accepted itself are ever claimed.
+    runner = build_runner(settings)
+    instance = runner.environment_instance()
+    tasks = load_task_resolver(
+        tasks_root=settings.tasks_root or settings.task_allowlist_path.parent,
         allowlist_path=settings.task_allowlist_path,
         pool_root=settings.task_pool_root,
+        environment=instance,
     )
-    runner = build_runner(settings)
+    served = tasks.served_keys()
     engine = create_async_db_engine(settings.database_url or None)
     worker = VerificationWorker(
         settings=settings,
@@ -68,17 +73,22 @@ async def _run(args: argparse.Namespace) -> int:
         tasks=tasks,
     )
     logger.info(
-        "verification worker owner=%s runner=%s tasks=%d",
+        "verification worker owner=%s runner=%s instance=%s/%s served=%d",
         settings.owner,
         settings.runner,
-        len(tasks.tasks),
+        instance.repository_commit,
+        instance.environment_identity_sha256,
+        len(served),
     )
     get_axiom().info(
         source="verification-worker",
         event_type="service_started",
         owner=settings.owner,
         runner=settings.runner,
-        tasks=len(tasks.tasks),
+        tasks=len({key.task_id for key in served}),
+        served_keys=len(served),
+        repository_commit=instance.repository_commit,
+        environment_identity_sha256=instance.environment_identity_sha256,
         app_mode=settings.app_mode,
         container_digest=runner.container_digest,
         max_attempts=settings.max_attempts,
@@ -92,10 +102,10 @@ async def _run(args: argparse.Namespace) -> int:
             async with engine.connect() as connection:
                 await connection.execute(text("SELECT 1"))
             logger.info(
-                "production preflight passed owner=%s image=%s tasks=%d",
+                "production preflight passed owner=%s image=%s served=%d",
                 settings.owner,
                 runner.container_digest,
-                len(tasks.tasks),
+                len(served),
             )
             return 0
         if args.once:

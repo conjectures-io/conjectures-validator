@@ -309,7 +309,7 @@ def test_development_defaults_are_convenient():
     assert settings.submission_terms_effective_from == "2026-09-11"
     assert settings.bounty_pool_balance_rao == 4_000_000_000
     assert settings.bounty_constant_numerator == 1
-    assert settings.bounty_constant_denominator == 10
+    assert settings.bounty_constant_denominator == 20
     assert settings.bounty_ramp_seconds == 1296000
     assert settings.bounty_policy_version == "linear-age-v3-locked"
     assert settings.bounty_max_age_weight == 60

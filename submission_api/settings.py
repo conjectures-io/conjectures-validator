@@ -60,12 +60,12 @@ RAO_PER_TAO = 1_000_000_000
 DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 
 # Development has no chain wallet to read, so it uses a deterministic four-Alpha pool. With the
-# default 1/10 starting share, a new task is displayed at 0.4 Alpha. Production never
+# default 1/20 starting share, a new task is displayed at 0.2 Alpha. Production never
 # uses this value: its balance is read from the configured Subnet 66 stake position.
 DEVELOPMENT_BOUNTY_BALANCE_RAO = 4 * RAO_PER_TAO
 DEFAULT_BOUNTY_POLICY_VERSION = "linear-age-v3-locked"
 DEFAULT_BOUNTY_CONSTANT_NUMERATOR = 1
-DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 10
+DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 20
 DEFAULT_BOUNTY_RAMP_SECONDS = 15 * 86_400
 DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
 DEFAULT_BOUNTY_MAX_AGE_WEIGHT = 60

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from verifier.hashing import is_sha256
+from verifier.models import V2_PROVENANCE
 from verifier.task_generator import problem_id
 from verifier.task_loader import TaskBundle
 from verifier.task_policy import (
@@ -24,6 +25,7 @@ from verifier.task_pool import (
     TASK_POOL_SCHEMA_VERSION,
     reward_target_identity,
     source_family_from_path,
+    staged_research_target,
 )
 
 
@@ -126,6 +128,7 @@ def _valid_tier_policy(policy: object) -> bool:
         "compiled_target_validation",
         "excluded_source_prefixes",
         "grouping",
+        "held_source_theorems_sha256",
         "minimum_erdos_tasks",
         "modes",
         "multi_target_tasks",
@@ -155,6 +158,7 @@ def _valid_tier_policy(policy: object) -> bool:
         and _valid_source_prefixes(policy.get("excluded_source_prefixes"))
         and isinstance(policy.get("grouping"), str)
         and bool(policy["grouping"])
+        and is_sha256(policy.get("held_source_theorems_sha256"))
         and type(policy.get("minimum_erdos_tasks")) is int
         and policy["minimum_erdos_tasks"] >= 0
         and policy.get("modes") == list(PRODUCTION_TASK_MODES)
@@ -209,7 +213,14 @@ class TaskPoolRegistry:
 
     @classmethod
     def load(cls, path: Path) -> "TaskPoolRegistry":
-        value = _json_object(_read_regular(path, MAX_ALLOWLIST_BYTES))
+        return cls.from_bytes(_read_regular(path, MAX_ALLOWLIST_BYTES))
+
+    @classmethod
+    def from_bytes(cls, content: bytes) -> "TaskPoolRegistry":
+        """Parse allowlist bytes a caller has already read (and will check against nothing else)."""
+        if len(content) > MAX_ALLOWLIST_BYTES:
+            raise TaskNotAllowed("task allowlist is too large")
+        value = _json_object(content)
         expected_fields = {
             "allowed_source_theorems",
             "allowed_task_bundles",
@@ -312,6 +323,10 @@ class TaskPoolRegistry:
                 or source_type in source_types
             ):
                 raise TaskNotAllowed("task allowlist source identity is invalid or duplicate")
+            if staged_research_target(theorem, source_path):
+                raise TaskNotAllowed(
+                    "task allowlist names a staged research target without activation"
+                )
             source_by_index[index] = (theorem, source_path, source_type, tier)
             source_theorems.add(theorem)
             source_types.add(source_type)
@@ -491,7 +506,13 @@ class TaskPoolRegistry:
         allowed = self.tasks.get(bundle.manifest.task_id)
         if allowed is None:
             raise TaskNotAllowed("task is not on the audited task allowlist")
-        if bundle.manifest.repository_commit != self.repository_commit:
+        # A legacy bundle names its source commit and must name this one. A v2 bundle names no
+        # commit; whether its dependency identity holds in this snapshot is recorded in the
+        # version registry, which every loader of a v2 bundle also checks.
+        if (
+            bundle.manifest.provenance != V2_PROVENANCE
+            and bundle.manifest.repository_commit != self.repository_commit
+        ):
             raise TaskNotAllowed("task repository commit does not match the allowlist")
         if bundle.sha256 != allowed.task_bundle_sha256:
             raise TaskNotAllowed("task bundle digest does not match the allowlist")

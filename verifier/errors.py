@@ -39,6 +39,14 @@ class ReasonCode(StrEnum):
     RESOURCE_LIMIT = "RESOURCE_LIMIT"
     INSECURE_SANDBOX = "INSECURE_SANDBOX"
     TASK_COMMITMENT_MISMATCH = "TASK_COMMITMENT_MISMATCH"
+    # A version-2 task is bound to an environment (toolchain, pins, policy) or a proof
+    # environment (import identity) other than the one this verifier is running in.
+    ENVIRONMENT_MISMATCH = "ENVIRONMENT_MISMATCH"
+    # The compiled source statement no longer has the dependency identity the task commits to.
+    DEPENDENCY_IDENTITY_MISMATCH = "DEPENDENCY_IDENTITY_MISMATCH"
+    # Comparator or its exporter crashed (for example a lean4export PANIC, child exit 139).
+    # Fail closed — never an accept — and never reported as a semantic proof rejection.
+    COMPARATOR_TOOL_CRASHED = "COMPARATOR_TOOL_CRASHED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -58,6 +66,9 @@ CONFIGURATION_REASONS = frozenset(
         ReasonCode.TRUSTED_FILE_MODIFIED,
         ReasonCode.INSECURE_SANDBOX,
         ReasonCode.TASK_COMMITMENT_MISMATCH,
+        ReasonCode.ENVIRONMENT_MISMATCH,
+        ReasonCode.DEPENDENCY_IDENTITY_MISMATCH,
+        ReasonCode.COMPARATOR_TOOL_CRASHED,
         ReasonCode.WORKSPACE_ERROR,
         ReasonCode.CHALLENGE_BUILD_FAILED,
         ReasonCode.INTERNAL_ERROR,

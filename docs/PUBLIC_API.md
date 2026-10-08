@@ -389,7 +389,7 @@ pool-wide `/v1/catalog/meta` response publishes `bounty.balance_rao` and its dis
 `bounty.balance_usd` conversion, plus the open-target count, rational starting share
 (`constant_numerator` / `constant_denominator`),
 `ramp_seconds`, and rational maximum share. Under `linear-age-v3-locked`, each quote starts at
-1/10 of uncommitted funds and increases linearly to 1/8 after 1296000 elapsed seconds (15 days).
+1/20 of uncommitted funds and increases linearly to 1/8 after 1296000 elapsed seconds (15 days).
 `total_age_weight` and `max_age_weight` remain as legacy descriptive metadata; they do not affect
 this formula. Quotes use the target's original opening date and the minute-resolution `as_of`.
 Existing locked submissions retain their recorded amount, version, and inputs.
@@ -905,7 +905,8 @@ another, so it stops the process rather than showing up as a mismatched detail p
 ## Tests
 
 ```bash
-docker compose -f docker-compose.pytest-db.yml up -d
+# database tests need a verified private fixture (tests/database_guard.py), or they skip
+FC_POSTGRES_DSN=<private fixture DSN> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its system_identifier> \
 .venv/bin/pytest tests/test_api_catalog.py tests/test_api_results.py tests/test_api_public.py
 # no database needed: the reference and display-title parsers are pure functions
 .venv/bin/pytest tests/test_naming.py tests/test_references.py

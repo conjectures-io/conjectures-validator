@@ -177,10 +177,10 @@ one proof is payable at most once. Amounts are integers in rao; floating point a
 payment accounting.
 
 **Catalog bounty estimates are live; accepted submissions are locked.** For open target `i`, the versioned policy is
-`b_i = floor(B * (1/10 + (1/8 - 1/10) * min(age_seconds / 1296000, 1)))`,
+`b_i = floor(B * (1/20 + (1/8 - 1/20) * min(age_seconds / 1296000, 1)))`,
 evaluated with integer arithmetic under `linear-age-v3-locked`. `B` is the finalized bounty-wallet
 balance after outstanding submission locks; task age comes from the durable
-`bounty_tasks.opened_at` row. New targets start at 10%, reaching 1/8 after 15 elapsed days.
+`bounty_tasks.opened_at` row. New targets start at 5%, reaching 1/8 after 15 elapsed days.
 Other targets' ages and catalog size do not affect the share. Existing locks keep their recorded
 amount and policy across this change. Acceptance serializes quote-and-insert
 with a PostgreSQL advisory transaction lock. Competing proofs contribute the maximum locked amount
@@ -259,9 +259,10 @@ for the exact security boundary and residual risks.
 The repository currently includes:
 
 - deterministic extraction and task generation from the pinned Formal Conjectures revision;
-- an audited allowlist of 554 proof/counterexample bundles for 277 active theorem targets (238
-  Erdős, 6 previously solved Green, 32 Wikipedia, and one Millennium) in 277 stable reward targets, with retired targets recorded
-  as retirements and excluded from admission;
+- an audited allowlist of 550 proof/counterexample bundles for 275 active theorem targets (219
+  Erdős, 6 previously solved Green, 32 Wikipedia, one Millennium, and 17 package-authored research
+  targets (activation pending owner approval)) in 275 stable reward targets, with retired targets recorded
+  as retirements and held targets as holds, both excluded from admission;
 - immutable task-bundle commitments;
 - hardened proof parsing, Comparator checks, Lean kernel replay, and networkless isolation;
 - an API-neutral service adapter for bounded proof bytes and exact task digests;

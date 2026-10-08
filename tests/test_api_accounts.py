@@ -2,9 +2,9 @@
 
 Mostly about what must *not* work: a write a hostile page could have caused, a magic link used
 twice, a signature replayed from another flow, an account reading another account's rows, a
-credit spent twice. Needs a real PostgreSQL server:
+credit spent twice. Needs a verified private PostgreSQL fixture:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 
 Signatures here are real sr25519 over the exact messages the server minted — the fixture
 addresses are the standard development URIs, so a test can sign as the miner it claims to be.
@@ -55,7 +55,7 @@ from submission_api.sessions import LEGACY_CSRF_COOKIE, SESSION_COOKIE
 
 pytestmark = pytest.mark.skipif(
     postgres_dsn() is None,
-    reason="no database: run `docker compose -f docker-compose.pytest-db.yml up -d`",
+    reason="no verified private test database (see tests/database_guard.py)",
 )
 
 ORIGIN = "https://conjectures.io"

@@ -385,8 +385,16 @@ def inspect_generated_target(
     env: Mapping[str, str],
     timeout_seconds: int,
     target_theorem: str = "Bounty.target",
+    closure_roots: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
+    """Inspect the compiled challenge; with `closure_roots`, also derive the source closure.
+
+    The closure is written by the inspector into the workspace and returned as raw bytes under
+    `closure`, for `verifier.task_versions` to validate. It is derived from this very compiled
+    environment, so a version-2 task's dependency identity is checked against what Lean loaded.
+    """
     inspector = project_root / ".lake" / "build" / "bin" / "task_inspector"
+    closure_path = paths.root / "dependency-closure.json"
     args = (
         str(lake),
         "env",
@@ -397,6 +405,7 @@ def inspect_generated_target(
         source_theorem,
         classification,
         mode,
+        *((",".join(closure_roots), str(closure_path)) if closure_roots is not None else ()),
     )
     result = run_process(args, cwd=paths.root, timeout_seconds=timeout_seconds, env=env)
     if result.timed_out:
@@ -413,7 +422,13 @@ def inspect_generated_target(
         axioms = payload["source_transitive_axioms"]
         if not isinstance(axioms, list) or not all(isinstance(item, str) for item in axioms):
             raise TypeError("source_transitive_axioms must be a string array")
+        closure = None
+        if closure_roots is not None:
+            from verifier.task_versions import MAX_CLOSURE_BYTES, read_tree_file
+
+            closure = read_tree_file(paths.root, (closure_path.name,), MAX_CLOSURE_BYTES)
         return {
+            "closure": closure,
             "source_hash": sha256_text(str(payload["source_type_canonical"])),
             "target_hash": sha256_text(str(payload["target_type_canonical"])),
             "matches": bool(payload["matches_intended_target"]),
@@ -432,8 +447,21 @@ def target_validator(
     project_root: Path,
     *,
     allow_non_open: bool = False,
+    dependency_index: object | None = None,
 ) -> Callable[[Path, CatalogDeclaration, object, str], str]:
+    """Compile and inspect a generated challenge in the pinned environment.
+
+    With a `dependency_index` (`verifier.task_versions.DependencyIndex`) this validates a
+    version-2 task: the inspector re-derives the statement's dependency identity and this
+    snapshot's build provenance from the compiled challenge workspace, and both must equal the
+    index derived independently from the source environment.
+    """
     lake = tool_path(project_root, "lake")
+    trees = None
+    if dependency_index is not None:
+        from verifier.task_versions import SourceTrees
+
+        trees = SourceTrees.for_project(project_root)
 
     def validate(
         task_dir: Path,
@@ -467,9 +495,21 @@ def target_validator(
                 env=effective_env,
                 timeout_seconds=600,
                 target_theorem=target_theorem,
+                closure_roots=trees.local_roots() if trees is not None else None,
             )
             if inspection["source_hash"] != declaration.type_hash:
                 raise VerifierError(ReasonCode.SOURCE_TYPE_CHANGED, "source type differs during task generation")
+            if dependency_index is not None:
+                from verifier.task_versions import check_inspected_closure
+
+                check_inspected_closure(
+                    inspection["closure"],
+                    trees=trees,
+                    environment=dependency_index.environment,
+                    declaration=declaration,
+                    expected_dependency_sha256=dependency_index.dependencies[declaration.theorem].sha256,
+                    expected_build_provenance_sha256=dependency_index.provenance[declaration.theorem].sha256,
+                )
             if not inspection["matches"]:
                 raise VerifierError(ReasonCode.STATEMENT_MISMATCH, "generated challenge is not the intended target")
             if is_production_task_mode(mode) and not allow_non_open and (

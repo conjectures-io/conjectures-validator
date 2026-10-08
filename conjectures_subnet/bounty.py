@@ -11,7 +11,7 @@ For every currently open reward target ``i`` the capped policy is::
     b_i = floor(B * (c + (m - c) * t_i / ramp_seconds))
 
 ``B`` is the live treasury balance minus outstanding locked exposure. The starting share ``c``
-defaults to ``1/10``, the maximum share ``m`` to ``1/8``, and the ramp to 15 elapsed days.
+defaults to ``1/20``, the maximum share ``m`` to ``1/8``, and the ramp to 15 elapsed days.
 Only the target's own age affects its share; catalog size and other targets' ages do not.
 Arithmetic is integer-only, with one final floor to base units. Catalog timestamps retain their
 minute precision, so quotes progress within each day without daily weight jumps. Legacy age
@@ -207,7 +207,7 @@ class DynamicBountyPricer:
     reward_target_ids: tuple[str, ...]
     policy_version: str = LINEAR_BOUNTY_POLICY_VERSION
     constant_numerator: int = 1
-    constant_denominator: int = 10
+    constant_denominator: int = 20
     ramp_seconds: int = DEFAULT_RAMP_SECONDS
     age_period_seconds: int = 86_400
     max_age_weight: int = 60
@@ -484,7 +484,7 @@ def calculate_bounty_rao(
     age_seconds: int,
     ramp_seconds: int = DEFAULT_RAMP_SECONDS,
     constant_numerator: int = 1,
-    constant_denominator: int = 10,
+    constant_denominator: int = 20,
     max_bounty_share_numerator: int = 1,
     max_bounty_share_denominator: int = 8,
 ) -> int:

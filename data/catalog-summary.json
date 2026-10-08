@@ -1,9 +1,9 @@
 {
   "adapter_required": 475,
-  "automatically_taskable": 4716,
+  "automatically_taskable": 4746,
   "by_category": {
     "API": 313,
-    "research open": 1428,
+    "research open": 1458,
     "research solved": 1597,
     "test": 1690,
     "textbook": 173
@@ -11,7 +11,7 @@
   "by_classification": {
     "BOOL_ANSWER": 0,
     "DEFINITION_HOLE": 0,
-    "DIRECT_PROP": 4682,
+    "DIRECT_PROP": 4712,
     "FINITE_ANSWER": 0,
     "GENERAL_VALUE_ANSWER": 124,
     "INT_ANSWER": 0,
@@ -21,6 +21,6 @@
     "PROP_ANSWER_WRAPPER": 351,
     "UNSUPPORTED": 10
   },
-  "total_declarations": 5201,
+  "total_declarations": 5231,
   "unsupported": 10
 }

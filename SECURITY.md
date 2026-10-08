@@ -173,6 +173,11 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
 - The Lean kernel, Comparator, `lean4export`, Landlock/seccomp implementation, Linux/container
   runtime, hardware, pinned source/build cache, task generator, and operator image are in the trusted
   computing base. A vulnerability in that base can invalidate a verdict.
+- Incremental task versions ([docs/INCREMENTAL_TASKS.md](docs/INCREMENTAL_TASKS.md)) bind each task
+  to environment and dependency identities that are derived in the verification image, and the
+  verifier re-derives build provenance before it compiles a proof. The integrity of the external
+  artifacts those identities describe (toolchain binaries, Mathlib caches, the Comparator and
+  exporter binaries) still rests on the pinned image.
 - Optional Nanoda adds a second kernel implementation but does not eliminate the rest of the trusted
   computing base.
 - Exact canonical type-hash collisions with cataloged, non-admitted theorems are excluded from

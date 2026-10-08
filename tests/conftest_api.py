@@ -4,12 +4,11 @@ Plain factory functions rather than fixtures, matching tests/conftest.py.
 
 These tests need a real PostgreSQL server. The schema uses domains, native enums, JSONB, INET,
 partial indexes and a plpgsql trigger, so there is no portable subset to fall back to and a
-SQLite run would prove nothing about the database the service actually uses. Start the fixed
-test stack and they run:
-
-    docker compose -f docker-compose.pytest-db.yml up -d
-
-`FC_POSTGRES_DSN` still overrides it, for pointing the suite at some other server.
+SQLite run would prove nothing about the database the service actually uses. They run only
+against an explicitly named private fixture whose identity the run declares and the harness
+verifies (`FC_POSTGRES_DSN` plus `FC_TEST_DATABASE_SYSTEM_IDENTIFIER`; see
+`tests/database_guard.py`). Without a DSN they skip; a DSN without a declared identity, a
+mismatched identity, or a shared/production endpoint stops the run.
 
 The schema is built with `Base.metadata.create_all`, which is the mirror rather than the source
 of truth; `scripts/check_schema_drift.py` is what proves the mirror still matches
@@ -18,20 +17,19 @@ of truth; `scripts/check_schema_drift.py` is what proves the mirror still matche
 
 from __future__ import annotations
 
-import os
 import time
 import uuid
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
-from functools import cache
 from pathlib import Path
 
-# `PYTEST_DSN` and `postgres_dsn` are deliberately not imported from `conftest`: this module
-# defines its own copies below and re-exports those, so importing them here only shadowed
-# them. The duplication itself is worth collapsing, but that is a change to how the harness
-# finds its database and does not belong in a lint pass.
 from conftest import declaration
 from conftest import manifest as task_manifest
+
+# The API tests use the same fail-closed database decision as every other suite: an explicit DSN
+# whose server proves it is the declared fixture, or no database at all. There is deliberately no
+# default DSN and no probe of the shared pytest stack. Re-exported, so callers are unchanged.
+from database_guard import postgres_dsn
 from sqlalchemy.ext.asyncio import AsyncEngine
 from test_bundle import (
     MINER_COLDKEY,
@@ -110,7 +108,6 @@ __all__ = [
     "MINER_COLDKEY",
     "OTHER_MINER_COLDKEY",
     "PINS_JSON",
-    "PYTEST_DSN",
     "RECIPIENT",
     "REPOSITORY_COMMIT",
     "TASK_DIGEST",
@@ -169,48 +166,7 @@ def distinct_bundle(marker: str, *, coldkey: str = MINER_COLDKEY) -> tuple[bytes
     return bundle, digest
 
 
-# The stack in docker-compose.pytest-db.yml, credentials and all. Duplicated there rather than
-# read from a file so neither side can drift into pointing somewhere else, and separate from the
-# development database so a suite that drops and recreates the schema cannot reach real data.
 ROOT = Path(__file__).resolve().parents[1]
-
-PYTEST_DSN = (
-    "postgresql+psycopg://conjectures-pytest:conjectures-pytest-pw"
-    "@127.0.0.1:5440/conjectures-pytest"
-)
-
-
-def _reachable(dsn: str) -> bool:
-    """Whether a server is actually answering on `dsn`.
-
-    Probed rather than assumed: the alternative to skipping is every database test failing with
-    a connection error, which reads like a broken suite rather than a stack that is not up.
-    """
-    try:
-        import psycopg
-    except ModuleNotFoundError:  # pragma: no cover - psycopg is a test dependency
-        return False
-    # psycopg wants a libpq DSN; the SQLAlchemy driver suffix is not part of one.
-    libpq = dsn.replace("postgresql+psycopg://", "postgresql://", 1)
-    try:
-        with psycopg.connect(libpq, connect_timeout=2):
-            return True
-    except (psycopg.Error, OSError):
-        return False
-
-
-@cache
-def postgres_dsn() -> str | None:
-    """The database tests' DSN, or None to skip them.
-
-    Cached because this opens a connection and is called once per harness. `FC_POSTGRES_DSN`
-    wins when set, so pointing the suite at another server stays possible; otherwise the fixed
-    pytest stack is used if it is up, which is what makes the tests need no configuration.
-    """
-    explicit = os.environ.get("FC_POSTGRES_DSN", "").strip()
-    if explicit:
-        return explicit
-    return PYTEST_DSN if _reachable(PYTEST_DSN) else None
 
 
 def new_key() -> str:

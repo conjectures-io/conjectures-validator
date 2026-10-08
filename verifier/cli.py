@@ -56,6 +56,16 @@ def _parser() -> argparse.ArgumentParser:
     task_all.add_argument("--enable-nanoda", action="store_true")
     task_all.add_argument("--allow-non-open", action="store_true")
 
+    task_publish = task_commands.add_parser(
+        "publish",
+        help="publish the next incremental v2 release of a tasks checkout in this environment",
+    )
+    task_publish.add_argument("--catalog", type=Path, required=True)
+    task_publish.add_argument("--tasks-root", type=Path, required=True)
+    task_publish.add_argument("--pool-size", type=int, default=None)
+    task_publish.add_argument("--audit-date", required=True)
+    task_publish.add_argument("--jobs", type=int, default=4)
+
     bundle = subcommands.add_parser("bundle")
     bundle_commands = bundle.add_subparsers(dest="bundle_command", required=True)
     bundle_scan = bundle_commands.add_parser("scan")
@@ -74,6 +84,9 @@ def _parser() -> argparse.ArgumentParser:
     verification.add_argument("--allow-uncommitted-task", action="store_true")
     verification.add_argument("--allow-insecure-development", action="store_true")
     verification.add_argument("--allow-test-task", action="store_true")
+    # v2 tasks: the build provenance of the snapshot whose environment this is, from the
+    # version registry. The verifier recomputes it in place and refuses on any difference.
+    verification.add_argument("--expected-build-provenance")
     return parser
 
 
@@ -161,6 +174,29 @@ def _run(args: argparse.Namespace) -> int:
         summary_path.write_text(pretty_json(result), encoding="utf-8")
         _print(result)
         return 0 if result["failed"] == 0 else 2
+    if args.command == "task" and args.task_command == "publish":
+        from verifier.incremental import publish_tasks_checkout
+        from verifier.task_pool import DEFAULT_TIER_SIZE
+
+        if not 1 <= args.jobs <= 16:
+            raise VerifierError(ReasonCode.INVALID_ARGUMENT, "--jobs must be between 1 and 16")
+        result, _allowlist = publish_tasks_checkout(
+            project_root=PROJECT_ROOT,
+            catalog=load_catalog(args.catalog),
+            tasks_root=args.tasks_root.resolve(),
+            pool_size=args.pool_size or DEFAULT_TIER_SIZE,
+            audit_date_utc=args.audit_date,
+            jobs=args.jobs,
+        )
+        _print(
+            {
+                "counts": result.counts,
+                "instance": result.registry.current.instance.to_dict(),
+                "publication": result.registry.current.sequence,
+                "state_changes": dict(result.state_changes),
+            }
+        )
+        return 0
     if args.command == "bundle" and args.bundle_command == "scan":
         verdict = bundle_verdict(
             read_bundle_file(_absolute_without_resolving(args.bundle)),
@@ -187,6 +223,7 @@ def _run(args: argparse.Namespace) -> int:
             allow_uncommitted_task=args.allow_uncommitted_task,
             allow_insecure_development=args.allow_insecure_development,
             allow_test_task=args.allow_test_task,
+            expected_build_provenance_sha256=args.expected_build_provenance,
         )
         _print(report.to_dict())
         return exit_code_for(report.reason_code, report.accepted)

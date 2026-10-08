@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -339,11 +339,21 @@ class ConjectureTaskDetail(ConjectureTask):
 class RetirementInfo(Model):
     """Why a conjecture stopped accepting submissions, and where that was decided.
 
-    Present only on a retired conjecture. Its presence — not a status string — is what tells a
-    client the target is closed; `bounty.reason` reports `WITHDRAWN` for the same reason, so a
-    client reading only the bounty still gets a correct answer.
+    Present only on a conjecture that has left the pool. Its presence — not a status string — is
+    what tells a client the target is closed; `bounty.reason` reports `WITHDRAWN` for the same
+    reason, so a client reading only the bounty still gets a correct answer. `pool_status` says
+    whether the target was retired or is held; neither value means the conjecture is solved.
     """
 
+    pool_status: Literal["retired", "held"] = Field(
+        default="retired",
+        description=(
+            "retired: permanently left the pool; `reason_code` says why. held: admission is "
+            "suspended pending review of a statement or source discrepancy or of an unverified "
+            "resolution claim — the target is neither solved nor retired, and returns only after "
+            "the recorded resolution and a new audit"
+        ),
+    )
     retired_on: str = Field(description="ISO date the target was withdrawn from the pool")
     reason_code: str = Field(
         description=(
@@ -467,6 +477,14 @@ class ConjectureVariantRef(Model):
             "Filter on this to get the directions still worth attempting"
         ),
     )
+    pool_status: Literal["live", "retired", "held"] = Field(
+        default="live",
+        description=(
+            "live: submittable. retired: permanently withdrawn. held: withdrawn pending a "
+            "statement or source correction, not solved. `retired` above is true for both "
+            "retired and held"
+        ),
+    )
 
 
 class ConjectureIndexEntry(Model):
@@ -521,6 +539,13 @@ class ConjectureIndexEntry(Model):
             "True when the conjecture at `slug` has been withdrawn from the pool. Describes that "
             "one conjecture and never the family: a problem whose root is retired can still hold "
             "submittable variants, so do not filter problems on this — read `variants[].retired`"
+        ),
+    )
+    pool_status: Literal["live", "retired", "held"] = Field(
+        default="live",
+        description=(
+            "The conjecture at `slug`: live, retired, or held pending a statement or source "
+            "correction. Held is not solved. Describes that one conjecture, never the family"
         ),
     )
     variants: tuple[ConjectureVariantRef, ...] = Field(

@@ -43,6 +43,13 @@ from verifier.task_policy import PRODUCTION_TASK_MODES
 
 RETIRED_FILE_NAME = "retired-conjectures.json"
 RETIRED_SCHEMA_VERSION = 1
+# Every target that left the pool is in the file above. `retired` is permanent; `held` suspends
+# admission pending review (a statement or source discrepancy, or an unverified resolution claim)
+# and says the target is neither solved nor retired. An entry without the field predates holds and
+# is a retirement.
+POOL_STATUS_RETIRED = "retired"
+POOL_STATUS_HELD = "held"
+POOL_STATUSES = frozenset({POOL_STATUS_RETIRED, POOL_STATUS_HELD})
 TIERS_DIR_NAME = "tiers"
 # The tier-policy field naming the digest of the file below.
 DIGEST_FIELD = "retired_conjectures_sha256"
@@ -94,6 +101,9 @@ class RetiredConjecture:
     recovered_from_commit: str
     source: CatalogDeclaration
     tasks: tuple[RetiredTask, ...]
+    # `retired` or `held`. Both are closed to submission; only `retired` is permanent, and neither
+    # says the conjecture is solved — `reason_code` and the upstream category answer that.
+    pool_status: str = POOL_STATUS_RETIRED
 
     @property
     def classification(self) -> str:
@@ -256,6 +266,13 @@ def _conjectures(
         except (KeyError, TypeError) as exc:
             raise RetiredPoolError(f"{reward_target_id} has no source declaration") from exc
 
+        pool_status = row.get("pool_status", POOL_STATUS_RETIRED)
+        if pool_status not in POOL_STATUSES:
+            raise RetiredPoolError(
+                f"{reward_target_id} has pool status {pool_status!r}; expected one of "
+                f"{sorted(POOL_STATUSES)}"
+            )
+
         items.append(
             RetiredConjecture(
                 slug=slug_for(reward_target_id),
@@ -274,6 +291,7 @@ def _conjectures(
                         key=_mode_order,
                     )
                 ),
+                pool_status=pool_status,
             )
         )
     return tuple(items)
@@ -308,6 +326,9 @@ def _task(value: object, reward_target_id: str) -> RetiredTask:
 
 __all__ = [
     "DIGEST_FIELD",
+    "POOL_STATUS_HELD",
+    "POOL_STATUS_RETIRED",
+    "POOL_STATUSES",
     "RETIRED_FILE_NAME",
     "RETIRED_SCHEMA_VERSION",
     "RetiredConjecture",

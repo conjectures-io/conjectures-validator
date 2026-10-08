@@ -4,16 +4,16 @@ Deliberately independent of the API test harness: the verification seam is a com
 own right, and these are the properties that stop two workers paying twice for one proof or
 charging a miner for our dead container.
 
-Skipped unless a server is reachable. Start the fixed test stack:
+Skipped unless a verified private test database is configured:
 
-    docker compose -f docker-compose.pytest-db.yml up -d
+    FC_POSTGRES_DSN=<private fixture> FC_TEST_DATABASE_SYSTEM_IDENTIFIER=<its id>  # tests/database_guard.py
 """
 
 from __future__ import annotations
 
 import asyncio
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -52,6 +52,8 @@ def run(coroutine):
 @dataclass
 class Kit:
     engine: AsyncEngine
+    # Every submission's exact routing key: the worker under test serves all of them.
+    served: list[queue.ServedSubmissionKey] = field(default_factory=list)
 
     @classmethod
     async def setup(cls) -> Kit:
@@ -82,6 +84,7 @@ class Kit:
         share; only the two modes or source repins of that target share a reward."""
         digest = sha256_bytes(content)
         resolved_problem_id = problem_id or f"fc-e923379e-fixture-{uuid.uuid4()}-problem"
+        self.served.append(queue.ServedSubmissionKey(TASK_ID, TASK_DIGEST, resolved_problem_id))
         async with self.session() as session:
             view = await store.create_submission(
                 session,
@@ -145,7 +148,11 @@ class Kit:
     async def claim(self, *, owner: str = OWNER, lease: int = 120, cap: int = 3):
         async with self.session() as session:
             claimed = await queue.claim_next(
-                session, owner=owner, lease_seconds=lease, max_attempts=cap
+                session,
+                owner=owner,
+                lease_seconds=lease,
+                max_attempts=cap,
+                served=tuple(self.served),
             )
             await session.commit()
             return claimed
@@ -457,7 +464,15 @@ class FakeRunner:
     failure: str | None = None
     calls: int = 0
 
-    async def run(self, *, task_dir, proof, expected_task_sha256, timeout_seconds):
+    async def run(
+        self,
+        *,
+        task_dir,
+        proof,
+        expected_task_sha256,
+        timeout_seconds,
+        expected_build_provenance_sha256=None,
+    ):
         self.calls += 1
         assert expected_task_sha256 == TASK_DIGEST
         assert proof
@@ -491,14 +506,16 @@ def worker(kit: Kit, runner, env: dict[str, str] | None = None) -> VerificationW
         runner=runner,
         tasks=resolver_from_tasks(
             repository_commit="e923379e609b9d5987011a1d1f06ec22ea25cd20",
-            tasks=(
+            tasks=tuple(
                 ResolvedTask(
                     task_id=TASK_ID,
                     tier="tier-1",
                     task_dir=Path("/external-task-pool/tier-1") / TASK_ID,
                     task_bundle_sha256=TASK_DIGEST,
                     timeout_seconds=30,
-                ),
+                    problem_id=key.problem_id,
+                )
+                for key in kit.served
             ),
         ),
     )
@@ -685,6 +702,7 @@ def test_a_task_that_left_the_allowlist_is_not_verified_against_new_bytes():
                         task_dir=Path("/external-task-pool/tier-1") / TASK_ID,
                         task_bundle_sha256="sha256:" + "ef" * 32,
                         timeout_seconds=30,
+                        problem_id=kit.served[0].problem_id,
                     ),
                 ),
             )

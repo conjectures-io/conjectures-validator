@@ -1,6 +1,6 @@
 """A human-facing name for a conjecture, derived from the identifiers upstream actually publishes.
 
-Upstream has no human titles. `conjectures.title` is the fully-qualified source theorem —
+Most upstream declarations have no human titles. `conjectures.title` is the fully-qualified source theorem —
 `Erdos1.erdos_1.variants.lb` — which is the right thing to *cite* and the wrong thing to put in a
 heading. Every client that renders the catalog therefore ends up parsing that identifier, and a
 client-side parser gets the common shapes right and leaves raw Lean in the UI for the rest.
@@ -8,7 +8,11 @@ client-side parser gets the common shapes right and leaves raw Lean in the UI fo
 So the parse lives here instead, once, against the whole pinned catalog rather than against the
 shapes one reader happened to notice.
 
-**Derived, never invented.** Everything published here is a re-spacing of tokens that are already
+Package-authored ResearchTargets with a matching "Incomplete challenge N" docstring use its
+source description as their title. The challenge prefix and source URL are omitted; collection
+metadata retains the package-authored provenance. Other names follow the identifier rules below.
+
+**Derived, never invented.** Identifier-based names are a re-spacing of tokens that are already
 in the audited module path and theorem name: `«17»` under `HilbertProblems` becomes "Hilbert's 17th
 problem", and `CollatzConjecture` becomes "Collatz Conjecture". No name is supplied from outside
 the catalog and no mathematical claim is attached to one — that is the line this module does not
@@ -131,6 +135,13 @@ COLLECTION_PHRASES = {
     # it either. The lookup above is what has to match upstream, and it does.
     "Millenium": Collection("millennium", "Millennium Prize problems"),
     "Other": Collection("other", "Other"),
+    # Statements the release team packaged and reviewed, not an upstream collection.
+    # The label says so on every public page, because nothing else in the name would.
+    "ResearchTargets": Collection(
+        "research_targets",
+        "Package-authored research targets",
+        "Package-authored research target {name}",
+    ),
 }
 
 
@@ -153,13 +164,32 @@ class ProblemName:
     qualifier: str | None
 
 
-def problem_name(*, module: str, theorem: str) -> ProblemName:
+def problem_name(*, module: str, theorem: str, docstring: str | None = None) -> ProblemName:
     """The display name for the conjecture declared as `theorem` in `module`.
 
-    Takes the two strings rather than a `Conjecture` so it serves a retired target too: a
+    Takes source fields rather than a `Conjecture` so it serves a retired target too: a
     `RetiredConjecture` carries the same `CatalogDeclaration` and no manifest, and naming a
     conjecture must not depend on whether it can still be submitted against.
     """
+    # Only use the reviewed ResearchTargets description when its challenge number agrees
+    # with the declaration. Ordinary theorem docstrings are not display titles.
+    target = re.fullmatch(r"FormalConjectures\.ResearchTargets\.(Math[0-9]+)", module)
+    if target is not None and docstring:
+        source = re.fullmatch(re.escape(target[1]) + r"Catalog\.source([0-9]+)", theorem)
+        description = re.fullmatch(
+            r"Incomplete challenge ([0-9]+):\s+(.+?)\.\s+Source:\s+https?://\S+",
+            " ".join(docstring.split()),
+        )
+        if source and description and int(source[1]) == int(description[1]):
+            collection = COLLECTION_PHRASES["ResearchTargets"]
+            return ProblemName(
+                display_title=description[2],
+                collection=collection.key,
+                collection_label=collection.label,
+                reference=description[2],
+                qualifier=None,
+            )
+
     parts = segments(module)
     namespace = parts[1] if len(parts) > 1 else (parts[0] if parts else "")
     tail = parts[2:]

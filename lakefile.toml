@@ -21,6 +21,10 @@ warn.sorry = false
 weak.google.answer = "always_true"
 
 [[lean_lib]]
+name = "DependencyClosure"
+srcDir = "lean"
+
+[[lean_lib]]
 name = "TestFixtures"
 srcDir = "lean"
 [lean_lib.leanOptions]
@@ -37,4 +41,10 @@ supportInterpreter = true
 name = "task_inspector"
 srcDir = "lean"
 root = "TaskInspector"
+supportInterpreter = true
+
+[[lean_exe]]
+name = "dependency_extractor"
+srcDir = "lean"
+root = "DependencyExtractor"
 supportInterpreter = true
