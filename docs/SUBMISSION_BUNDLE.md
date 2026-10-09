@@ -9,7 +9,7 @@ Validate a bundle locally before spending a payment on it:
 ```bash
 python3 -m verifier bundle scan --bundle submission.zip
 python3 -m verifier bundle verify \
-  --bundle submission.zip --task ../conjectures-tasks/pool/<tier>/<task-directory>
+  --bundle submission.zip --task ../conjectures-tasks/versions/<task_id>
 ```
 
 The scan prints the archive and static-policy admission verdict; it does not compile Lean. The
