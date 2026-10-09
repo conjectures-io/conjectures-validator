@@ -193,7 +193,8 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 1G
+          # Five million lexical tokens approach 1 GiB before request/DB buffers.
+          memory: 2G
           pids: 512
         reservations:
           cpus: "0.5"
