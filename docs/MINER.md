@@ -85,7 +85,7 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
 {
   "repository_commit": "379fc0298dc146df549e7061c3ede0353a5bb51f",
   "bundle_format": "conjectures-submission/v1",
-  "max_bundle_bytes": 12582912,
+  "max_bundle_bytes": 33554432,
   "submission_price_rao": 500000000,
   "payment_recipient": "5C4h…",
   "tasks": [
@@ -110,7 +110,7 @@ in.
 ## 2. Write your proof
 
 One file, `Main.lean`, UTF-8, within the task's published `max_submission_bytes`,
-up to 10 MiB (10,485,760 bytes). It is inserted between the trusted
+up to 30 MiB (31,457,280 bytes). It is inserted between the trusted
 header and footer, so write only the declarations you need — no `import` lines.
 
 ```lean

@@ -48,7 +48,7 @@ def test_enlarged_submission_policy_gets_a_new_loadable_task_identity(tmp_path, 
     create = generate_group_task if grouped else generate_task
     target_args = {"declarations": (first, second)} if grouped else {"declaration": first}
     manifests = []
-    for limit in (1_000_000, MAX_SUBMISSION_BYTES):
+    for limit in (1_000_000, 10 * 1024 * 1024, MAX_SUBMISSION_BYTES):
         destination = tmp_path / str(limit)
         manifest = create(
             catalog=catalog(first, second),
@@ -60,19 +60,20 @@ def test_enlarged_submission_policy_gets_a_new_loadable_task_identity(tmp_path, 
         )
         assert load_task_bundle(destination).manifest == manifest
         manifests.append(manifest)
-    assert MAX_SUBMISSION_BYTES == 10 * 1024 * 1024
-    assert manifests[0].task_id != manifests[1].task_id
-    assert manifests[0].source_type_hash == manifests[1].source_type_hash
-    assert manifests[0].trusted_file_hashes == manifests[1].trusted_file_hashes
+    assert MAX_SUBMISSION_BYTES == 30 * 1024 * 1024
+    assert len({manifest.task_id for manifest in manifests}) == len(manifests)
+    for manifest in manifests[1:]:
+        assert manifest.source_type_hash == manifests[0].source_type_hash
+        assert manifest.trusted_file_hashes == manifests[0].trusted_file_hashes
 
 
-def test_generation_defaults_to_ten_megabyte_proofs(tmp_path):
+def test_generation_defaults_to_thirty_megabyte_proofs(tmp_path):
     item = declaration()
     result = generate_task(
         catalog=catalog(item), declaration=item, mode="formalized", output=tmp_path / "task",
         validate_target=lambda *_: item.type_hash,
     )
-    assert result.max_submission_bytes == 10 * 1024 * 1024
+    assert result.max_submission_bytes == 30 * 1024 * 1024
 
 
 def test_formalized_mode_is_the_exact_production_source_type(tmp_path):

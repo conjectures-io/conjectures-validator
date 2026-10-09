@@ -34,12 +34,12 @@ through an unauthenticated channel does not make the task authentic.
 
 ## What miners control
 
-The miner submits one `conjectures-submission/v1` ZIP bundle, up to 12 MiB, described in
+The miner submits one `conjectures-submission/v1` ZIP bundle, up to 32 MiB, described in
 [`docs/SUBMISSION_BUNDLE.md`](docs/SUBMISSION_BUNDLE.md). The bundle is admitted by the
 exact-shape scanner in [`verifier/bundle.py`](verifier/bundle.py), which permits exactly two
-entries: a bounded strict-JSON manifest and one regular UTF-8 `.lean` file of up to 10 MiB
+entries: a bounded strict-JSON manifest and one regular UTF-8 `.lean` file of up to 30 MiB
 (or the task's lower published limit). The static scanner stops tokenization after the
-1,000,000-token policy cap is exceeded and rejects the submission. The verifier receives exactly one
+5,000,000-token policy cap is exceeded and rejects the submission. The verifier receives exactly one
 bounded UTF-8 `.lean` file, one read-only task, an expected task digest, and a fresh disposable
 workspace.
 
