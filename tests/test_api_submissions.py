@@ -127,7 +127,7 @@ def test_a_paid_submission_is_recorded_and_queued():
 
 
 @pytest.mark.parametrize("extra_byte", [0, 1])
-def test_ten_mib_proof_intake_boundary_with_postgres(extra_byte):
+def test_thirty_mib_proof_intake_boundary_with_postgres(extra_byte):
     from dataclasses import replace
     from test_bundle import STORED, archive
     from verifier.task_generator import MAX_SUBMISSION_BYTES

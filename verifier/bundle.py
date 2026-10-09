@@ -53,7 +53,7 @@ PROOF_NAME = "Main.lean"
 BUNDLE_ENTRY_NAMES = (MANIFEST_NAME, PROOF_NAME)
 
 # Leave room for a stored (uncompressed) maximum-sized proof and ZIP metadata.
-MAX_BUNDLE_BYTES = 12 * 1024 * 1024
+MAX_BUNDLE_BYTES = MAX_SUBMISSION_BYTES + 2 * 1024 * 1024
 MAX_MANIFEST_BYTES = 16 * 1024
 MAX_COMPRESSION_RATIO = 200
 # Ordinary writers put extended timestamp and uid/gid records here (Info-ZIP writes 24

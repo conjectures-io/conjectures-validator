@@ -9,7 +9,7 @@ Validate a bundle locally before spending a payment on it:
 ```bash
 python3 -m verifier bundle scan --bundle submission.zip
 python3 -m verifier bundle verify \
-  --bundle submission.zip --task ../conjectures-tasks/pool/<tier>/<task-directory>
+  --bundle submission.zip --task ../conjectures-tasks/versions/<task_id>
 ```
 
 The scan prints the archive and static-policy admission verdict; it does not compile Lean. The
@@ -22,11 +22,11 @@ Exactly two entries, in exactly this order:
 
 ```
 submission.json     the manifest, at most 16 KiB
-Main.lean           the candidate proof, at most 10 MiB (10,485,760 bytes)
+Main.lean           the candidate proof, at most 30 MiB (31,457,280 bytes)
 ```
 
 No directories, no third file, no nested archive, and no other names. The whole archive must
-be at most 12 MiB (12,582,912 bytes), allowing an uncompressed maximum-sized proof.
+be at most 32 MiB (33,554,432 bytes), allowing an uncompressed maximum-sized proof.
 
 ## `submission.json`
 
@@ -72,13 +72,13 @@ truncation into a specific error.
 ## `Main.lean`
 
 The proof is the only untrusted content that reaches Lean. It must be a single valid UTF-8
-document with no NUL bytes, within the task's `max_submission_bytes` (10,485,760 by
+document with no NUL bytes, within the task's `max_submission_bytes` (31,457,280 by
 default for newly generated tasks; older tasks retain their published limit), and it must pass the static Lean policy scanner described in
 [`../README.md`](../README.md#submission-policy-and-verification-stages). Admission runs
 that scanner immediately so a policy violation is reported at submission time rather than
 after verification.
 
-The separate 1,000,000-token, line-length, nesting, and compression-ratio limits still
+The separate 5,000,000-token, line-length, nesting, and compression-ratio limits still
 apply. A file within the byte limit is not necessarily admissible or verifiable
 within the task's time and memory budgets.
 
@@ -86,7 +86,7 @@ within the task's time and memory budgets.
 
 Upgrade the API, verifier image, and miner tooling before publishing tasks with
 the larger limit. `MAX_BUNDLE_BYTES` may lower the API limit but cannot exceed
-12,582,912. Check any external proxy's request-size and upload-timeout settings.
+33,554,432. Check any external proxy's request-size and upload-timeout settings.
 
 Existing manifests remain authoritative: increasing the generator default does
 not change them. To enable larger proofs for existing tasks, pause submissions,
@@ -211,6 +211,6 @@ hardlinks, PAX attributes, and GNU sparse records — far more metadata to defen
 ZIP's complete structure can be enumerated from its central directory before any entry data
 is decompressed, which is what the admission checks above rely on.
 
-The reverse proxy must allow at least the API ZIP ceiling (12 MiB, for example
-`client_max_body_size 12m;` in Nginx). A smaller proxy limit rejects a valid proof before
+The reverse proxy must allow at least the API ZIP ceiling (32 MiB, for example
+`client_max_body_size 32m;` in Nginx). A smaller proxy limit rejects a valid proof before
 it reaches API validation. The proof itself remains limited by the selected task manifest.

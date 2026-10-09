@@ -85,7 +85,7 @@ curl -s "$CONJECTURES_API/v1/tasks" | python3 -m json.tool
 {
   "repository_commit": "379fc0298dc146df549e7061c3ede0353a5bb51f",
   "bundle_format": "conjectures-submission/v1",
-  "max_bundle_bytes": 12582912,
+  "max_bundle_bytes": 33554432,
   "submission_price_rao": 500000000,
   "payment_recipient": "5C4h…",
   "tasks": [
@@ -102,15 +102,15 @@ Keep the `task_id` and its `task_bundle_sha256`: both go into your submission, a
 validator refuses anything that does not match the published commitment.
 
 The task itself is in the separately checked-out `conjectures-tasks` repository, at
-`../conjectures-tasks/pool/<tier>/<task-directory>/`. The directory is a readable name; use the
-opaque `task_id` from its `manifest.json` in the protocol. `Challenge.lean` is the statement you
+`../conjectures-tasks/versions/<task_id>/`. The directory name is the
+opaque `task_id` from its `manifest.json`; use that ID in the protocol. `Challenge.lean` is the statement you
 must prove; `SolutionHeader.lean.txt` and `SolutionFooter.lean.txt` are what your file gets wrapped
 in.
 
 ## 2. Write your proof
 
 One file, `Main.lean`, UTF-8, within the task's published `max_submission_bytes`,
-up to 10 MiB (10,485,760 bytes). It is inserted between the trusted
+up to 30 MiB (31,457,280 bytes) and 5,000,000 lexical tokens. It is inserted between the trusted
 header and footer, so write only the declarations you need — no `import` lines.
 
 ```lean
@@ -146,7 +146,7 @@ is what `conjectures verify --setup` does for you:
 
 ```bash
 python3 -m verifier bundle verify \
-  --task ../conjectures-tasks/pool/<tier>/<task-directory> \
+  --task ../conjectures-tasks/versions/<task_id> \
   --bundle submission.zip
 ```
 
@@ -178,7 +178,7 @@ Submissions accepted before the V012 activation remain under their original payo
 python3 scripts/submit_proof.py \
   --api "$CONJECTURES_API" \
   --bundle submission.zip \
-  --task ../conjectures-tasks/pool/<tier>/<task-directory> \
+  --task ../conjectures-tasks/versions/<task_id> \
   --task-id <task_id> \
   --task-sha256 <task_bundle_sha256> \
   --payment-ref <extrinsic reference> \
