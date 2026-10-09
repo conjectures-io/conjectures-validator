@@ -46,7 +46,7 @@ Ordering here is a security and cost property, the same as on the extrinsic path
    before the server does catalog work for them;
 3. idempotency replay — a retry is answered from durable state without re-uploading;
 4. the balance and a first bounty quote, so an account with nothing to spend is refused before
-   it uploads up to 12 MiB;
+   it uploads up to 32 MiB;
 5. the declared type and length, then the body streamed under a running cap, and the bundle
    admitted by the exact-shape scanner — all of it inside `intents.uploaded_bundle`, so a
    hostile 500 MB body is refused on its declaration rather than buffered and then measured;

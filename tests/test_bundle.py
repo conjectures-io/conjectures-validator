@@ -203,7 +203,7 @@ def rejection(raw: bytes) -> ReasonCode:
 
 
 def test_maximum_stored_proof_fits_bundle_and_honors_task_limit():
-    limit = 10 * 1024 * 1024
+    limit = 30 * 1024 * 1024
     padding_size = limit - len(VALID_PROOF)
     line = b"--" + b"a" * 997 + b"\n"
     proof = VALID_PROOF + line * (padding_size // len(line)) + b" " * (padding_size % len(line))
@@ -222,12 +222,12 @@ def test_maximum_stored_proof_fits_bundle_and_honors_task_limit():
         expected_signer=MINER_COLDKEY,
     ).proof.raw == proof
     with pytest.raises(VerifierError) as caught:
-        load_proof_bundle(raw, max_proof_bytes=1_000_000)
+        load_proof_bundle(raw, max_proof_bytes=10 * 1024 * 1024)
     assert caught.value.reason == ReasonCode.BUNDLE_TOO_LARGE
 
 
 def test_proof_one_byte_over_global_limit_is_rejected():
-    proof = b" " * (10 * 1024 * 1024 + 1)
+    proof = b" " * (30 * 1024 * 1024 + 1)
     candidate = archive(
         proof=proof,
         manifest=manifest_json(proof_bytes=len(proof), proof_sha256=sha256_bytes(proof)),
@@ -344,7 +344,7 @@ def test_the_reference_builder_produces_an_admitted_bundle(tmp_path):
 
 
 @pytest.mark.parametrize("extra_byte", [0, 1])
-def test_reference_builder_ten_mib_boundary(tmp_path, extra_byte):
+def test_reference_builder_thirty_mib_boundary(tmp_path, extra_byte):
     import importlib.util
     import random
 
@@ -357,7 +357,7 @@ def test_reference_builder_ten_mib_boundary(tmp_path, extra_byte):
     spec.loader.exec_module(builder)
 
     # Vary the comments so this tests size, without tripping the compression-ratio policy.
-    size = 10 * 1024 * 1024 + extra_byte
+    size = 30 * 1024 * 1024 + extra_byte
     text = random.Random(0).randbytes(size // 2 + 1).hex().encode()
     padding = b"".join(b"--" + text[i:i + 997] + b"\n" for i in range(0, len(text), 997))
     content = VALID_PROOF + padding[:size - len(VALID_PROOF)]
@@ -368,7 +368,7 @@ def test_reference_builder_ten_mib_boundary(tmp_path, extra_byte):
         "--coldkey", MINER_COLDKEY, "--output", str(output),
     ]
     if extra_byte:
-        with pytest.raises(SystemExit, match="the maximum is 10485760"):
+        with pytest.raises(SystemExit, match="the maximum is 31457280"):
             builder.main(arguments)
         assert not output.exists()
     else:

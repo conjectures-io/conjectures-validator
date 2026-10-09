@@ -293,14 +293,14 @@ The statement the miner must prove — never stored as text anywhere in the bund
 | `production_eligible` | `true` | Gates the strict path |
 | `task_mode` | `formalized` | The only mode |
 | `timeout_seconds` | `3600` | Wall-clock cap |
-| `max_submission_bytes` | `10485760` | Default size cap for newly generated tasks; existing tasks retain their published limit |
+| `max_submission_bytes` | `31457280` | Default size cap for newly generated tasks; existing tasks retain their published limit |
 | `trusted_file_hashes` | 5 entries | Must equal `trusted-hashes.json` |
 
 Generation writes to a temp directory, validates, then publishes with `os.replace`; it refuses to
 overwrite an existing bundle.
 
 Note: `TaskManifest.max_submission_bytes` falls back to `5_000_000` when the key is absent
-(`models.py:207`), while the generator's default is now `10 * 1024 * 1024`.
+(`models.py:207`), while the generator's default is now `30 * 1024 * 1024`.
 Production task loading requires this field explicitly. Existing pool manifests keep their
 committed values until republished; see `docs/SUBMISSION_BUNDLE.md` for rollout requirements.
 
@@ -412,7 +412,7 @@ Ordered gates, each with a stable `reason_code`:
 | 2 | Task is production-eligible | `INELIGIBLE_TASK` |
 | 3 | Dependency pins intact; FC commit matches manifest and checkout | `REPOSITORY_COMMIT_MISMATCH` |
 | 4 | Per-file hashes match; payloads **regenerate byte-identically** | `TRUSTED_FILE_MODIFIED` |
-| 5 | Proof is one regular non-symlink `.lean`, ≤ 10 MiB, valid UTF-8, no NUL | `SUBMISSION_TOO_LARGE`, `SUBMISSION_NOT_UTF8`, `SUBMISSION_POLICY_VIOLATION` |
+| 5 | Proof is one regular non-symlink `.lean`, ≤ 30 MiB, valid UTF-8, no NUL | `SUBMISSION_TOO_LARGE`, `SUBMISSION_NOT_UTF8`, `SUBMISSION_POLICY_VIOLATION` |
 | 6 | Static policy: no forbidden dependency, no attributes, no top-level `#` commands | `SUBMISSION_POLICY_VIOLATION` |
 | 7 | Live Landlock ≥ ABI 4 + seccomp probe passes | `INSECURE_SANDBOX` |
 | 8 | Challenge builds | `CHALLENGE_BUILD_FAILED` |

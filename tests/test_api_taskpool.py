@@ -8,12 +8,14 @@ call `submission_api/app.py` makes at startup — covered only here, against the
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import pytest
 
 from submission_api.taskpool import TaskCatalog, TaskNotAllowed
 from verifier.repository import tasks_repository_root
 from verifier.task_policy import COUNTEREXAMPLE_TASK_MODE, EXACT_TASK_MODE
+from verifier.task_versions import is_v2_task_id
 from verifier.task_pool import (
     DEFAULT_TASK_TIER,
     DEFAULT_TIER_SIZE,
@@ -40,19 +42,16 @@ def test_api_catalog_loads_every_allowlisted_task_from_the_checked_in_pool():
 
 
 @pytest.mark.needs_checkouts
-def test_api_catalog_identifies_tasks_by_manifest_not_directory_name():
-    """The task repository names directories for humans and renames them freely.
-
-    A task is its manifest's task ID; the directory name is a label. This asserts the two
-    genuinely differ in the checked-in pool, so a loader that rebuilt the path from the task
-    ID would fail this test rather than fail at startup in production.
-    """
+def test_api_catalog_resolves_legacy_names_and_version_store_ids():
+    """Legacy directories are labels; immutable v2 directories are keyed by task ID."""
     catalog = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)
 
-    assert all(
-        entry.task_dir.name != entry.task_id for entry in catalog.summaries()
-    )
-    assert all(entry.task_dir.is_dir() for entry in catalog.summaries())
+    for entry in catalog.summaries():
+        if is_v2_task_id(entry.task_id):
+            assert entry.task_dir == TASKS_ROOT / "versions" / entry.task_id
+        else:
+            assert entry.task_dir.name != entry.task_id
+        assert entry.task_dir.is_dir()
 
 
 @pytest.mark.needs_checkouts
@@ -60,16 +59,12 @@ def test_api_catalog_refuses_an_allowlisted_task_with_no_bytes_on_disk(tmp_path:
     """A paid submission must never meet a task the pool cannot produce."""
     complete = TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=POOL_ROOT)
     kept = complete.summaries()[0]
-    (tmp_path / DEFAULT_TASK_TIER).mkdir(parents=True)
-    tier = tmp_path / kept.tier
-    for source in kept.task_dir.iterdir():
-        if source.is_file():
-            destination = tier / kept.task_dir.name / source.name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(source.read_bytes())
+    shutil.copy2(ALLOWLIST, tmp_path / "allowlist.json")
+    shutil.copy2(TASKS_ROOT / "task-versions.json", tmp_path / "task-versions.json")
+    shutil.copytree(kept.task_dir, tmp_path / kept.task_dir.relative_to(TASKS_ROOT))
 
-    with pytest.raises(TaskNotAllowed, match="missing from the pool"):
-        TaskCatalog.load(allowlist_path=ALLOWLIST, pool_root=tmp_path)
+    with pytest.raises(TaskNotAllowed, match="missing from the (pool|version store)"):
+        TaskCatalog.load(allowlist_path=tmp_path / "allowlist.json", pool_root=tmp_path / "pool")
 
 
 def test_a_catalog_entry_carries_the_source_and_challenge_the_public_detail_serves(

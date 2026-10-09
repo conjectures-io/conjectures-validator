@@ -8,6 +8,7 @@ import pytest
 from verifier.catalog import load_catalog
 from verifier.errors import VerifierError
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
+from verifier.version_registry import VersionRegistry, assert_matches_allowlist
 from verifier.repository import tasks_repository_root
 from verifier.task_generator import problem_id
 from verifier.task_pool import (
@@ -158,12 +159,11 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
     allowlist = TASKS_ROOT / "allowlist.json"
     policy = json.loads(allowlist.read_text(encoding="utf-8"))
     registry = TaskPoolRegistry.load(allowlist)
+    versions = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
+    assert_matches_allowlist(versions, allowlist)
     task_directories = tuple(
-        sorted(
-            path
-            for path in (TASKS_ROOT / "pool" / DEFAULT_TASK_TIER).iterdir()
-            if path.is_dir()
-        )
+        TASKS_ROOT / versions.versions[task_id].location
+        for task_id in sorted(registry.tasks)
     )
 
     assert policy["schema_version"] == TASK_POOL_SCHEMA_VERSION

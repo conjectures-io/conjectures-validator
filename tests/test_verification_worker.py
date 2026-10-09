@@ -9,6 +9,7 @@ from silently defaulting either way.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -35,12 +36,14 @@ from verification_worker.runner import (
     build_runner,
 )
 from verification_worker.settings import SettingsError, WorkerSettings
-from verification_worker.tasks import PoolTaskResolver, TaskNotAllowed
+from verification_worker.tasks import TaskNotAllowed, load_task_resolver
 from verifier.errors import ReasonCode
 from verifier.hashing import canonical_json_bytes
 from verifier.models import DEFAULT_CHECKS
 from verifier.repository import tasks_repository_root
 from verifier.task_pool import DEFAULT_TIER_TASK_COUNT
+from verifier.task_versions import is_v2_task_id
+from verifier.version_registry import VersionRegistry
 
 ROOT = Path(__file__).resolve().parents[1]
 TASKS_ROOT = tasks_repository_root(ROOT)
@@ -590,14 +593,11 @@ def test_final_verdict_query_requires_a_live_owned_lease_and_row_lock():
 
 @pytest.mark.needs_checkouts
 def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
-    """The other worker tests build a resolver directly, leaving `load` uncovered.
-
-    The task repository names its directories for humans and renames them freely, so a task is
-    the task ID in its manifest and the directory name is only a label. This asserts the two
-    genuinely differ in the checked-out pool, so a resolver that rebuilt the path from the task
-    ID fails here rather than when a paid submission is already claimed.
-    """
-    resolver = PoolTaskResolver.load(
+    """The production resolver serves the current registry instance and exact bundle paths."""
+    environment = VersionRegistry.load(TASKS_ROOT / "task-versions.json").current.instance
+    resolver = load_task_resolver(
+        tasks_root=TASKS_ROOT,
+        environment=environment,
         allowlist_path=TASKS_ROOT / "allowlist.json",
         pool_root=TASKS_ROOT / "pool",
     )
@@ -605,7 +605,11 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     tasks = tuple(resolver.tasks.values())
     assert len(tasks) == DEFAULT_TIER_TASK_COUNT
     assert all(task.task_dir.is_dir() for task in tasks)
-    assert all(task.task_dir.name != task.task_id for task in tasks)
+    for task in tasks:
+        if is_v2_task_id(task.task_id):
+            assert task.task_dir == TASKS_ROOT / "versions" / task.task_id
+        else:
+            assert task.task_dir.name != task.task_id
     # The worker sizes its lease from this, so a manifest that declares nothing usable would
     # silently become an unbounded container.
     assert all(task.timeout_seconds > 0 for task in tasks)
@@ -614,22 +618,24 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
 @pytest.mark.needs_checkouts
 def test_the_resolver_refuses_a_pool_missing_an_allowlisted_task(tmp_path: Path):
     """A claimed submission whose task has no bytes would be released and retried forever."""
-    complete = PoolTaskResolver.load(
+    environment = VersionRegistry.load(TASKS_ROOT / "task-versions.json").current.instance
+    complete = load_task_resolver(
+        tasks_root=TASKS_ROOT,
+        environment=environment,
         allowlist_path=TASKS_ROOT / "allowlist.json",
         pool_root=TASKS_ROOT / "pool",
     )
     kept = min(complete.tasks.values(), key=lambda task: task.task_id)
-    for tier in {task.tier for task in complete.tasks.values()}:
-        (tmp_path / tier).mkdir(parents=True)
-    destination = tmp_path / kept.tier / kept.task_dir.name
-    destination.mkdir()
-    for source in kept.task_dir.iterdir():
-        if source.is_file():
-            (destination / source.name).write_bytes(source.read_bytes())
+    shutil.copy2(TASKS_ROOT / "allowlist.json", tmp_path / "allowlist.json")
+    shutil.copy2(TASKS_ROOT / "task-versions.json", tmp_path / "task-versions.json")
+    shutil.copytree(kept.task_dir, tmp_path / kept.task_dir.relative_to(TASKS_ROOT))
 
-    with pytest.raises(TaskNotAllowed, match="missing from the pool"):
-        PoolTaskResolver.load(
-            allowlist_path=TASKS_ROOT / "allowlist.json", pool_root=tmp_path
+    with pytest.raises(TaskNotAllowed, match="task bytes are missing"):
+        load_task_resolver(
+            tasks_root=tmp_path,
+            environment=environment,
+            allowlist_path=tmp_path / "allowlist.json",
+            pool_root=tmp_path / "pool",
         )
 
 
