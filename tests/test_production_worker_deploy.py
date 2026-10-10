@@ -44,7 +44,7 @@ def test_systemd_runs_the_non_mutating_preflight_before_the_worker():
     assert run in value
     assert value.index(check) < value.index(run)
     assert "RestartPreventExitStatus=2" in value
-    assert "TimeoutStopSec=75min" in value
+    assert "TimeoutStopSec=255min" in value
 
 
 def test_systemd_keeps_the_release_read_only_without_hiding_proof_paths_from_docker():

@@ -5,6 +5,7 @@ from typing import Mapping
 from verifier.errors import ReasonCode
 from verifier.models import DEFAULT_CHECKS, TaskManifest, VerificationReport
 from verifier.task_generator import problem_id
+from verifier.timeouts import verification_timeout_seconds
 
 
 def tail(value: str, limit: int = 4000) -> str:
@@ -60,4 +61,8 @@ def build_report(
         stderr_tail=tail(stderr),
         workspace_retained=workspace_retained,
         sandbox_mode=sandbox_mode,
+        task_timeout_seconds=manifest.timeout_seconds,
+        effective_timeout_seconds=verification_timeout_seconds(
+            manifest.timeout_seconds, production=manifest.production_eligible
+        ),
     )

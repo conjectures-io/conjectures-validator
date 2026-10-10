@@ -10,6 +10,13 @@ development path. Putting the production worker inside a container would require
 access and would make its per-proof temporary bind paths invisible to the host daemon. The host
 service keeps the boundary explicit and lets Docker mount the exact host paths the worker names.
 
+Production verification has a four-hour (14,400-second) runtime budget. New task manifests
+use that default. Existing task bundles keep their original bytes and digests; the runtime
+budget is the greater of the committed deadline and four hours. Reports record both
+`task_timeout_seconds` and `effective_timeout_seconds`. The worker uses the same policy for
+legacy and versioned tasks, then adds 300 seconds for container startup and 300 seconds for
+recording the result under its lease. Non-production fixtures retain their declared deadlines.
+
 ## Host prerequisites
 
 - Ubuntu with a kernel that passes the verifier's Landlock ABI 4+ and seccomp behavioral probe;
@@ -110,7 +117,7 @@ sudo systemctl enable conjectures-verification-worker
 
 `ExecStartPre` performs the check before every start and does not claim a submission. A deliberate
 configuration refusal exits 2 and is not restart-looped. Runtime failures restart after ten
-seconds. Shutdown allows up to 75 minutes for an in-flight proof to finish before systemd kills the
+seconds. Shutdown allows up to 255 minutes for an in-flight proof to finish before systemd kills the
 process group.
 
 ## Release and rollback

@@ -314,7 +314,7 @@ and no credentials all close it.
    [`../verification_worker/`](../verification_worker/). Workers claim `submissions`, not
    `verification_runs` — a run row can only be written once the verifier has finished. Claiming
    uses a committed lease rather than a held `FOR UPDATE SKIP LOCKED` lock, because a production
-   task declares `timeout_seconds = 3600` and the database terminates any session idle in a
+   production verifier allows four hours (`14400` seconds) and the database terminates any session idle in a
    transaction after 60 seconds.
 
    The trust boundary is the CLI, not `verifier/service_adapter.py`: the worker runs

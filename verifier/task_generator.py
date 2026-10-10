@@ -13,6 +13,7 @@ from verifier.classification import is_adapter_required
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import hash_named_files, pretty_json, sha256_bytes, sha256_text
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
+from verifier.timeouts import DEFAULT_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS
 from verifier.task_policy import (
     COUNTEREXAMPLE_TASK_MODE,
     EXACT_TASK_MODE,
@@ -30,8 +31,6 @@ from verifier.task_versions import (
 
 
 PERMITTED_AXIOMS = ("propext", "Quot.sound", "Classical.choice")
-DEFAULT_TIMEOUT_SECONDS = 3600
-MAX_TIMEOUT_SECONDS = 3600
 LEGACY_MAX_SUBMISSION_BYTES = 1_000_000
 MAX_SUBMISSION_BYTES = 30 * 1024 * 1024
 DEFAULT_MAX_SUBMISSION_BYTES = MAX_SUBMISSION_BYTES

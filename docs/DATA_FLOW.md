@@ -292,7 +292,7 @@ The statement the miner must prove — never stored as text anywhere in the bund
 | `theorem_names` | `["Bounty.target"]` | What must be proved and exported |
 | `production_eligible` | `true` | Gates the strict path |
 | `task_mode` | `formalized` | The only mode |
-| `timeout_seconds` | `3600` | Wall-clock cap |
+| `timeout_seconds` | `14400` | Default wall-clock budget (four hours) |
 | `max_submission_bytes` | `31457280` | Default size cap for newly generated tasks; existing tasks retain their published limit |
 | `trusted_file_hashes` | 5 entries | Must equal `trusted-hashes.json` |
 

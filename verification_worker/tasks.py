@@ -31,6 +31,7 @@ from typing import Protocol
 
 from verifier.publication import CheckoutSnapshot, assert_no_pending_publication, read_coherently
 from verifier.task_loader import load_task_bundle
+from verifier.timeouts import verification_timeout_seconds
 from verifier.task_registry import TaskNotAllowed, TaskPoolRegistry
 from verifier.task_versions import LEGACY_PROVENANCE, V2_PROVENANCE
 from verifier.version_registry import (
@@ -59,7 +60,7 @@ class ResolvedTask:
     tier: str
     task_dir: Path
     task_bundle_sha256: str  # sha256:<hex>, as published in the allowlist
-    timeout_seconds: int  # the manifest's own deadline, which the verifier enforces
+    timeout_seconds: int  # effective execution budget, also enforced by the verifier
     enable_nanoda: bool = False
     # The intake snapshot this resolution is for; None only for resolvers built in tests.
     problem_id: str | None = None
@@ -166,7 +167,7 @@ class PoolTaskResolver:
                     tier=allowed.tier,
                     task_dir=task_dir,
                     task_bundle_sha256=allowed.task_bundle_sha256,
-                    timeout_seconds=bundle.manifest.timeout_seconds,
+                    timeout_seconds=verification_timeout_seconds(bundle.manifest.timeout_seconds),
                     enable_nanoda=bundle.manifest.enable_nanoda,
                     problem_id=allowed.problem_id,
                 )
@@ -280,7 +281,7 @@ class VersionedTaskResolver:
                 tier=record.tier,
                 task_dir=_bundle_directory(tasks_root, key.location),
                 task_bundle_sha256=key.task_bundle_sha256,
-                timeout_seconds=bundle.manifest.timeout_seconds,  # type: ignore[attr-defined]
+                timeout_seconds=verification_timeout_seconds(bundle.manifest.timeout_seconds),  # type: ignore[attr-defined]
                 enable_nanoda=bundle.manifest.enable_nanoda,  # type: ignore[attr-defined]
                 problem_id=key.problem_id,
                 provenance=record.provenance,

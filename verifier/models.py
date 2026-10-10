@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import Any, Mapping
 
 from verifier.errors import ReasonCode, VerifierError
+from verifier.timeouts import DEFAULT_TIMEOUT_SECONDS
 
 
 class Classification(StrEnum):
@@ -221,7 +222,7 @@ class TaskManifest:
                 forbidden_dependencies=tuple(str(x) for x in value.get("forbidden_dependencies", ())),
                 permitted_axioms=tuple(str(x) for x in value["permitted_axioms"]),
                 enable_nanoda=bool(value.get("enable_nanoda", False)),
-                timeout_seconds=int(value.get("timeout_seconds", 3600)),
+                timeout_seconds=int(value.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)),
                 max_submission_bytes=int(value.get("max_submission_bytes", 5_000_000)),
                 adapter_version=int(value.get("adapter_version", 1)),
                 trusted_file_hashes=dict(value["trusted_file_hashes"]),
@@ -314,6 +315,8 @@ class VerificationReport:
     stderr_tail: str
     workspace_retained: bool
     sandbox_mode: str
+    task_timeout_seconds: int
+    effective_timeout_seconds: int
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
