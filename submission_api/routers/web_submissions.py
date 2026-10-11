@@ -316,6 +316,11 @@ async def create_web_submission(
     # than one we refused. With no declared hotkey, every check on this path is answerable from
     # local state, and the endpoint no longer has an outage mode that belongs to the chain.
 
+    # The checks above are advisory reads. Release their transaction before receiving and
+    # scanning the body: a slow upload can outlive PostgreSQL's idle transaction timeout.
+    # No credit has been held or spent; open_intent and lock_quote recheck under locks below.
+    # The session factory uses expire_on_commit=False, so the principal stays usable.
+    await session.commit()
     bundle = await uploaded_bundle(
         request,
         services,
@@ -334,6 +339,11 @@ async def create_web_submission(
             reason_code=REASON_BUNDLE_DIGEST_MISMATCH,
             extra={"bundle_sha256": bundle.sha256},
         )
+
+    now = _now()
+    signed_until = _require_expiry(
+        expires_at, now=now, max_minutes=settings.intent_minutes
+    )
 
     # Rebuilt from what the server holds: the digest of the bytes it just read, and the task
     # digest from its own allowlist entry. Never from the query, which is only ever checked
@@ -556,6 +566,9 @@ async def create_session_submission(
             extra={"credits_available": balance.credits_available, "credits_required": 1},
         )
 
+    # Do not hold the prechecks' transaction open while the client uploads or admission runs.
+    # Credits and the bounty are checked again under locks in the write transaction below.
+    await session.commit()
     bundle = await uploaded_bundle(
         request,
         services,
@@ -571,7 +584,9 @@ async def create_session_submission(
             extra={"bundle_sha256": bundle.sha256},
         )
 
-    # Money from here down, and nothing before this point has touched it.
+    # Money from here down, and nothing before this point has touched it. Use completion
+    # time when checking the current credit balance and setting the new intent's expiry.
+    now = _now()
     intent, _ = await intent_store.open_intent(
         session,
         account_id=principal.account.id,
