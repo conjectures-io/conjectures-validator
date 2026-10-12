@@ -1,0 +1,732 @@
+{
+  "$defs": {
+    "Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-zA-Z0-9._-]{1,100}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9_.\\-/]+$",
+          "title": "Path",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "final_proof",
+            "code",
+            "configuration",
+            "log",
+            "source_export"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "availability": {
+          "enum": [
+            "embedded",
+            "authoritative_submission",
+            "omitted"
+          ],
+          "title": "Availability",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "maxLength": 1048576,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content"
+        },
+        "omission_reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Omission Reason"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "kind",
+        "sha256",
+        "availability",
+        "content",
+        "omission_reason"
+      ],
+      "title": "Artifact",
+      "type": "object"
+    },
+    "CommercialElection": {
+      "additionalProperties": false,
+      "properties": {
+        "terms_version": {
+          "const": "trajectory-commercial-draft-v1",
+          "title": "Terms Version",
+          "type": "string"
+        },
+        "terms_sha256": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Terms Sha256",
+          "type": "string"
+        },
+        "election": {
+          "enum": [
+            "decline",
+            "conditional_grant"
+          ],
+          "title": "Election",
+          "type": "string"
+        },
+        "purposes": {
+          "items": {
+            "enum": [
+              "dataset_redistribution",
+              "sublicensing",
+              "evaluation",
+              "training"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Purposes",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceRights"
+          },
+          "maxItems": 1100,
+          "title": "Sources",
+          "type": "array"
+        },
+        "explicit_assent": {
+          "title": "Explicit Assent",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "terms_version",
+        "terms_sha256",
+        "election",
+        "purposes",
+        "sources",
+        "explicit_assent"
+      ],
+      "title": "CommercialElection",
+      "type": "object"
+    },
+    "Disclosure": {
+      "additionalProperties": false,
+      "properties": {
+        "field_or_event": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Field Or Event",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "impact_on_reproduction": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Impact On Reproduction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_or_event",
+        "reason",
+        "impact_on_reproduction"
+      ],
+      "title": "Disclosure",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "id": {
+          "pattern": "^[a-zA-Z0-9._-]{1,100}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "user_message",
+            "assistant_message",
+            "tool_call",
+            "tool_result",
+            "failure",
+            "revision"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "visibility": {
+          "const": "user_visible",
+          "title": "Visibility",
+          "type": "string"
+        },
+        "timestamp": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9._-]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Run Id"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9._-]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tool Call Id"
+        },
+        "tool_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tool Name"
+        },
+        "content": {
+          "maxLength": 1048576,
+          "title": "Content",
+          "type": "string"
+        },
+        "empty_content": {
+          "default": false,
+          "title": "Empty Content",
+          "type": "boolean"
+        },
+        "parent_event_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9._-]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Event Id"
+        },
+        "artifact_ids": {
+          "items": {
+            "pattern": "^[a-zA-Z0-9._-]{1,100}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Artifact Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sequence",
+        "id",
+        "kind",
+        "visibility",
+        "timestamp",
+        "run_id",
+        "tool_call_id",
+        "tool_name",
+        "content",
+        "artifact_ids"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "KnownValue": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "unknown_reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unknown Reason"
+        }
+      },
+      "required": [
+        "value",
+        "unknown_reason"
+      ],
+      "title": "KnownValue",
+      "type": "object"
+    },
+    "ModelRun": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-zA-Z0-9._-]{1,100}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "provider": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "model": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "version": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "interface": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Interface",
+          "type": "string"
+        },
+        "account_agreement": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "terms_reference": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "settings": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Settings",
+          "type": "string"
+        },
+        "export_method": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Export Method",
+          "type": "string"
+        },
+        "source_export_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Export Sha256"
+        },
+        "source_export_unavailable_reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Export Unavailable Reason"
+        }
+      },
+      "required": [
+        "id",
+        "provider",
+        "model",
+        "version",
+        "interface",
+        "account_agreement",
+        "terms_reference",
+        "settings",
+        "export_method",
+        "source_export_sha256",
+        "source_export_unavailable_reason"
+      ],
+      "title": "ModelRun",
+      "type": "object"
+    },
+    "Permissions": {
+      "additionalProperties": false,
+      "properties": {
+        "terms_version": {
+          "const": "trajectory-review-draft-v1",
+          "title": "Terms Version",
+          "type": "string"
+        },
+        "authentic_user_visible_export": {
+          "title": "Authentic User Visible Export",
+          "type": "boolean"
+        },
+        "authorized_to_submit": {
+          "title": "Authorized To Submit",
+          "type": "boolean"
+        },
+        "secrets_and_personal_data_checked": {
+          "title": "Secrets And Personal Data Checked",
+          "type": "boolean"
+        },
+        "third_party_consent_or_removal": {
+          "title": "Third Party Consent Or Removal",
+          "type": "boolean"
+        },
+        "private_review_and_storage_only": {
+          "title": "Private Review And Storage Only",
+          "type": "boolean"
+        },
+        "upload_alone_grants_no_commercial_rights": {
+          "title": "Upload Alone Grants No Commercial Rights",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "terms_version",
+        "authentic_user_visible_export",
+        "authorized_to_submit",
+        "secrets_and_personal_data_checked",
+        "third_party_consent_or_removal",
+        "private_review_and_storage_only",
+        "upload_alone_grants_no_commercial_rights"
+      ],
+      "title": "Permissions",
+      "type": "object"
+    },
+    "Reproduction": {
+      "additionalProperties": false,
+      "properties": {
+        "lean_toolchain": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "mathlib_commit": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "task_repository_commit": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "code_commit": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "environment": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Environment",
+          "type": "string"
+        },
+        "commands": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Commands",
+          "type": "array"
+        },
+        "expected_result": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Expected Result",
+          "type": "string"
+        },
+        "limitations": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Limitations",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lean_toolchain",
+        "mathlib_commit",
+        "task_repository_commit",
+        "code_commit",
+        "environment",
+        "commands",
+        "expected_result",
+        "limitations"
+      ],
+      "title": "Reproduction",
+      "type": "object"
+    },
+    "SourceRights": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "rights_status": {
+          "enum": [
+            "confirmed",
+            "unknown",
+            "prohibited"
+          ],
+          "title": "Rights Status",
+          "type": "string"
+        },
+        "agreement_or_license": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "evidence_reference": {
+          "$ref": "#/$defs/KnownValue"
+        },
+        "allowed_purposes": {
+          "items": {
+            "enum": [
+              "dataset_redistribution",
+              "sublicensing",
+              "evaluation",
+              "training"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Allowed Purposes",
+          "type": "array"
+        },
+        "restrictions": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Restrictions",
+          "type": "string"
+        },
+        "third_party_rights": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Third Party Rights",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "rights_status",
+        "agreement_or_license",
+        "evidence_reference",
+        "allowed_purposes",
+        "restrictions",
+        "third_party_rights"
+      ],
+      "title": "SourceRights",
+      "type": "object"
+    },
+    "Timestamp": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "unknown_reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unknown Reason"
+        }
+      },
+      "required": [
+        "value",
+        "unknown_reason"
+      ],
+      "title": "Timestamp",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "conjectures-trajectory/v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "synthetic": {
+      "title": "Synthetic",
+      "type": "boolean"
+    },
+    "submission_id": {
+      "format": "uuid",
+      "title": "Submission Id",
+      "type": "string"
+    },
+    "task_id": {
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Task Id",
+      "type": "string"
+    },
+    "task_bundle_sha256": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "title": "Task Bundle Sha256",
+      "type": "string"
+    },
+    "final_proof_sha256": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "title": "Final Proof Sha256",
+      "type": "string"
+    },
+    "exported_at": {
+      "format": "date-time",
+      "title": "Exported At",
+      "type": "string"
+    },
+    "runs": {
+      "items": {
+        "$ref": "#/$defs/ModelRun"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Runs",
+      "type": "array"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/Event"
+      },
+      "maxItems": 10000,
+      "minItems": 2,
+      "title": "Events",
+      "type": "array"
+    },
+    "artifacts": {
+      "items": {
+        "$ref": "#/$defs/Artifact"
+      },
+      "maxItems": 1000,
+      "minItems": 1,
+      "title": "Artifacts",
+      "type": "array"
+    },
+    "reproduction": {
+      "$ref": "#/$defs/Reproduction"
+    },
+    "completeness": {
+      "enum": [
+        "complete_export",
+        "gaps_disclosed"
+      ],
+      "title": "Completeness",
+      "type": "string"
+    },
+    "missing": {
+      "items": {
+        "$ref": "#/$defs/Disclosure"
+      },
+      "maxItems": 1000,
+      "title": "Missing",
+      "type": "array"
+    },
+    "redactions": {
+      "items": {
+        "$ref": "#/$defs/Disclosure"
+      },
+      "maxItems": 1000,
+      "title": "Redactions",
+      "type": "array"
+    },
+    "permissions": {
+      "$ref": "#/$defs/Permissions"
+    },
+    "commercial_election": {
+      "$ref": "#/$defs/CommercialElection"
+    }
+  },
+  "required": [
+    "schema_version",
+    "synthetic",
+    "submission_id",
+    "task_id",
+    "task_bundle_sha256",
+    "final_proof_sha256",
+    "exported_at",
+    "runs",
+    "events",
+    "artifacts",
+    "reproduction",
+    "completeness",
+    "missing",
+    "redactions",
+    "permissions",
+    "commercial_election"
+  ],
+  "title": "TrajectoryPackage",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conjectures.io/trajectory/trajectory.schema.json"
+}

@@ -3344,3 +3344,6 @@ __all__ = [
     "VerificationRun",
     "VerificationState",
 ]
+
+# Register the private bonus tables in the same metadata used by isolated fixtures.
+from conjectures_subnet.db import trajectory_models  # noqa: F401

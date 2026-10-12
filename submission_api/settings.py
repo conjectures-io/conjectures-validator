@@ -787,6 +787,8 @@ class Settings:
     nonce_window_seconds: int
     max_bundle_bytes: int
     manual_review_enabled: bool
+    trajectory_bonus_enabled: bool
+    trajectory_bonus_start_at: str
     review_policy_version: str
     bounty_pool_balance_rao: int
     bounty_policy_version: str
@@ -977,6 +979,27 @@ class Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
+        trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
+        trajectory_bonus_start_at = env.get("TRAJECTORY_BONUS_START_AT", "").strip()
+        if trajectory_bonus_start_at:
+            from datetime import datetime
+            try:
+                cutoff = datetime.fromisoformat(trajectory_bonus_start_at.replace("Z", "+00:00"))
+                if cutoff.tzinfo is None:
+                    raise ValueError("timezone missing")
+            except ValueError as exc:
+                raise SettingsError("TRAJECTORY_BONUS_START_AT must be an ISO timestamp with timezone") from exc
+        if trajectory_bonus_enabled and not trajectory_bonus_start_at:
+            raise SettingsError("enabling trajectory intake requires an explicit TRAJECTORY_BONUS_START_AT")
+        if production and trajectory_bonus_enabled:
+            from submission_api.trajectory_terms import (
+                COMMERCIAL_TERMS_VERSION, REVIEW_TERMS_VERSION, COMMERCIAL_TERMS_SHA256,
+            )
+            if "draft" in COMMERCIAL_TERMS_VERSION or "draft" in REVIEW_TERMS_VERSION:
+                raise SettingsError("trajectory intake cannot launch with draft terms")
+            if env.get("TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256") != COMMERCIAL_TERMS_SHA256:
+                raise SettingsError("trajectory launch requires the owner-approved terms digest")
+
 
         authenticator = _choice(
             env,
@@ -1637,6 +1660,8 @@ class Settings:
                 env, "MAX_BUNDLE_BYTES", MAX_BUNDLE_BYTES, maximum=MAX_BUNDLE_BYTES
             ),
             manual_review_enabled=_flag(env, "MANUAL_REWARD_REVIEW_ENABLED", True),
+            trajectory_bonus_enabled=trajectory_bonus_enabled,
+            trajectory_bonus_start_at=trajectory_bonus_start_at,
             review_policy_version=review_policy_version,
             bounty_pool_balance_rao=bounty_pool_balance_rao,
             bounty_policy_version=bounty_policy_version,

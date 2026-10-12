@@ -1,0 +1,6 @@
+"""Pinned draft terms and exact assent text. Changes require new consent. No live terms exist."""
+COMMERCIAL_TERMS_VERSION = 'trajectory-commercial-draft-v1'
+COMMERCIAL_TERMS_SHA256 = 'sha256:f27713754bf1d6f5c9004f29cab826d217d29217c85fb96139440705d6d717d4'
+REVIEW_TERMS_VERSION = 'trajectory-review-draft-v1'
+REVIEW_TERMS_SHA256 = 'sha256:0d578fbcb7ddc41d7e452d7a2db1edbb74b4dedad314f63e30959342c3bcda97'
+ASSENT_STATEMENTS_SHA256 = 'sha256:282052a9c4e0c227a0c0e5d8f7ae51cfd2552da633ff1831f818b9cfd9fe1b3d'
