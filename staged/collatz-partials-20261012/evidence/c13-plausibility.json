@@ -1,0 +1,61 @@
+{
+  "standard_normal_cdf": {
+    "-2": 0.02275013194817921,
+    "-1": 0.15865525393145707,
+    "0": 0.5,
+    "1": 0.8413447460685429,
+    "2": 0.9772498680518208
+  },
+  "checkpoints": [
+    {
+      "N": 1000,
+      "cdf": {
+        "-2": 0.001,
+        "-1": 0.005,
+        "0": 0.534,
+        "1": 0.669,
+        "2": 0.752
+      },
+      "unresolved_at_10000_steps": 0,
+      "maximum_observed_first_passage": 102
+    },
+    {
+      "N": 10000,
+      "cdf": {
+        "-2": 0.0001,
+        "-1": 0.029,
+        "0": 0.5569,
+        "1": 0.7883,
+        "2": 0.8953
+      },
+      "unresolved_at_10000_steps": 0,
+      "maximum_observed_first_passage": 123
+    },
+    {
+      "N": 100000,
+      "cdf": {
+        "-2": 1e-05,
+        "-1": 0.05234,
+        "0": 0.57968,
+        "1": 0.86833,
+        "2": 0.95065
+      },
+      "unresolved_at_10000_steps": 0,
+      "maximum_observed_first_passage": 199
+    },
+    {
+      "N": 1000000,
+      "cdf": {
+        "-2": 1e-06,
+        "-1": 0.073753,
+        "0": 0.571418,
+        "1": 0.859211,
+        "2": 0.95212
+      },
+      "unresolved_at_10000_steps": 0,
+      "maximum_observed_first_passage": 257
+    }
+  ],
+  "integer_trajectory_arithmetic": "exact Python integers; only normalizing logarithms and CDF comparisons use floating point",
+  "interpretation": "Finite plausibility data only; cannot prove a CLT, exclude an asymptotic counterexample, or establish novelty."
+}

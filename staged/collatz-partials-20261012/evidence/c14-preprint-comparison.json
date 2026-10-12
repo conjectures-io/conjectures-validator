@@ -1,0 +1,37 @@
+{
+  "retrieved_on": "2026-10-12",
+  "metadata_api": "https://api.archives-ouvertes.fr/search/?q=halId_s:hal-05716421&fl=title_s,fileMain_s,files_s,uri_s,version_i,submittedDate_s&wt=json",
+  "metadata": {
+    "response": {
+      "numFound": 1,
+      "start": 0,
+      "maxScore": 5.957884,
+      "numFoundExact": true,
+      "docs": [
+        {
+          "title_s": [
+            "Ternary Residue Mixing and Natural Density Descent for the Collatz Map"
+          ],
+          "uri_s": "https://hal.science/hal-05716421v1",
+          "version_i": 1,
+          "submittedDate_s": "2026-08-13 09:49:17",
+          "fileMain_s": "https://hal.science/hal-05716421/document",
+          "files_s": [
+            "https://hal.science/hal-05716421/file/collatz_novikov_paths.pdf"
+          ]
+        }
+      ]
+    }
+  },
+  "pdf_url": "https://hal.science/hal-05716421/file/collatz_novikov_paths.pdf",
+  "pdf_sha256": "c323bb9691ad8839bbab0caf50ccbe78da63d6052d663a77497adfd16e60b506",
+  "comparison": {
+    "source_conductor": "section 2 defines n-v_3(xi), the exponent, not the modulus 3^n",
+    "same_law": "equations (7)-(10), geometric independent valuation word and uniform lift",
+    "proved_rate": "Theorem 5.2, equation (63): for every A>0 an O_A(q^(-A)) full L1 estimate; H=1 gives the unweighted law",
+    "target_rate": "There exist C,c>0 with full L1 distance <= C exp(-c m), uniformly 1<=m<=n",
+    "distinction": "No exponential dependence on m is asserted by Theorem 5.2; constants depend on A with no uniform control supplying exponential decay. Sections 4 and 5 only prove faster-than-polynomial decay in the conductor exponent.",
+    "formalization_scope": "section 9 explicitly assumes phase decay, mixing and integer comparison; it does not provide an unconditional Lean proof of these analytic estimates.",
+    "disposition": "C14 overlap hold resolved; exact target remains stronger than the retrieved theorem."
+  }
+}

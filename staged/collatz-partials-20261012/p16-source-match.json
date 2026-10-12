@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "coordinates_checked": 6,
+  "map": [
+    "h=1/b",
+    "s=sin(2 eta)",
+    "u=A_y/b",
+    "v=M_x/b",
+    "w=M_y/b",
+    "t=Z_y/b"
+  ],
+  "radius_identity": "h/(1+h) = 1/(1+b)",
+  "reason": "Published construction contacts give the six frozen polynomial equalities; its entire rational root interval maps inside the candidate isolating box. Existing candidate uniqueness identifies the same root.",
+  "lean_equivalence_replayed": false
+}
