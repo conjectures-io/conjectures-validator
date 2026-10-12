@@ -174,19 +174,28 @@ class PayoutNotifier:
 
         defect_quote: DefectAwardQuote | None = None
         if any(row.eligibility_reason == "FORMALIZATION_DEFECT_AWARD" for row in candidates):
-            if self.defect_award_quoter is None:
-                raise RuntimeError(
-                    "a FORMALIZATION_DEFECT_AWARD is eligible but no TaoStats quoter is configured"
+            try:
+                if self.defect_award_quoter is None:
+                    raise RuntimeError("no TaoStats defect-award quoter is configured")
+                quote = self.defect_award_quoter()
+                if quote.amount_rao <= 0:
+                    raise ValueError("the defect-award quote must contain a positive rao amount")
+                defect_quote = quote
+            except Exception as exc:
+                # Only the external pricing boundary is isolated. Leave these awards eligible
+                # for a fresh quote next pass; never substitute the full bounty or a stale rate.
+                # Exception text can contain provider responses or credentials.
+                logger.warning(
+                    "Deferring formalization-defect awards: TaoStats quote unavailable (%s)",
+                    type(exc).__name__,
                 )
-            defect_quote = self.defect_award_quoter()
-            if defect_quote.amount_rao <= 0:
-                raise ValueError("the defect-award quote must contain a positive rao amount")
 
         created = 0
         with self.sessions.begin() as session:
             for candidate in candidates:
                 if candidate.eligibility_reason == "FORMALIZATION_DEFECT_AWARD":
-                    assert defect_quote is not None
+                    if defect_quote is None:
+                        continue
                     pricing_inputs = dict(defect_quote.pricing_inputs)
                     pricing_inputs.update(
                         {

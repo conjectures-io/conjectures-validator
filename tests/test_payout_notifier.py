@@ -548,3 +548,110 @@ def test_obligations_are_seeded_when_discord_is_not_configured():
             assert session.scalars(select(PayoutDiscordDelivery)).all() == []
     finally:
         engine.dispose()
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+@pytest.mark.parametrize("failure", ["timeout", "malformed", "nonpositive", "unconfigured"])
+def test_defect_quote_failure_isolated_and_retried_without_duplicates(failure, caplog):
+    engine = create_db_engine(postgres_dsn())
+    try:
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
+        sessions = session_factory(engine)
+        ids = {name: uuid.uuid4() for name in ("existing", "full", "defect1", "defect2")}
+        with sessions.begin() as session:
+            for name, submission_id in ids.items():
+                content = f"theorem pricing_isolation_{name} : True := trivial".encode()
+                digest = hashlib.sha256(content).digest()
+                session.add(Proof(digest=digest, content=content, byte_length=len(content)))
+                session.flush()
+                session.add(Submission(
+                    id=submission_id, signer_coldkey=COLDKEY, idempotency_key=uuid.uuid4(),
+                    request_digest=hashlib.sha256(name.encode()).digest(),
+                    task_id=name, task_bundle_sha256=hashlib.sha256(b"task").digest(),
+                    problem_id=name, reward_target_id=name, task_mode=TaskMode.FORMALIZED,
+                    proof_digest=digest, payment_reference=name, payment_sender=COLDKEY,
+                    payment_amount_rao=500_000_000, payment_block=1, signer_signature=b"x" * 64,
+                    verification_status=VerificationState.VERIFIED,
+                    manual_review_status=ManualReviewState.APPROVED,
+                    reward_status=RewardState.ELIGIBLE, review_policy_version="v2",
+                    bounty_amount_rao=9_000_000_000_000,
+                    bounty_policy_version="dynamic-age-v2-locked",
+                    bounty_inputs={"fixture": name},
+                ))
+                session.flush()
+                session.add(ReviewDecision(
+                    submission_id=submission_id, decision=ReviewOutcome.APPROVED,
+                    kind=ReviewerKind.HUMAN, reviewer="test", policy_version="v2",
+                    reason_code=("FORMALIZATION_DEFECT_AWARD" if name.startswith("defect")
+                                 else "REVIEW_APPROVED"),
+                ))
+            session.flush()
+            session.add(RewardEvent(
+                submission_id=ids["existing"], eligibility_reason="REVIEW_APPROVED",
+                amount_rao=9_000_000_000_000, pricing_policy_version="dynamic-age-v2-locked",
+                pricing_inputs={"fixture": "existing"}, destination_coldkey=COLDKEY,
+                destination_hotkey=None, initiated_by="fixture",
+                generation_key=f"submission:{ids['existing']}",
+            ))
+
+        calls = 0
+
+        def unavailable():
+            nonlocal calls
+            calls += 1
+            if failure == "nonpositive":
+                return DefectAwardQuote(amount_rao=0, pricing_inputs={})
+            if failure == "malformed":
+                raise ValueError("secret-provider-payload")
+            raise TimeoutError("secret-provider-payload")
+
+        sent = []
+        notifier = PayoutNotifier(
+            sessions=sessions, webhook_url="https://discord.com/api/webhooks/1/token",
+            worker_id="isolation-test", sender=lambda _u, p: sent.extend(p) or len(p),
+            defect_award_quoter=None if failure == "unconfigured" else unavailable,
+        )
+        first = notifier.process_once()
+        assert (first.payouts_seeded, first.seeded, first.delivered) == (1, 4, 4)
+        assert "Deferring formalization-defect awards" in caplog.text
+        assert "secret-provider-payload" not in caplog.text
+        second = notifier.process_once()
+        assert (second.payouts_seeded, second.seeded, second.delivered) == (0, 0, 0)
+        assert calls == (0 if failure == "unconfigured" else 2)
+        with sessions() as session:
+            rewards = session.scalars(select(RewardEvent)).all()
+            assert {r.submission_id for r in rewards} == {ids["existing"], ids["full"]}
+            assert all(r.amount_rao == 9_000_000_000_000 for r in rewards)
+            assert all(r.pricing_policy_version == "dynamic-age-v2-locked" for r in rewards)
+            assert session.get(Submission, ids["defect1"]).reward_status == RewardState.ELIGIBLE
+
+        def recovered():
+            nonlocal calls
+            calls += 1
+            return DefectAwardQuote(1_250_000_000_000, {
+                "award_usd": "750.00", "alpha_usd": "0.6", "netuid": 66,
+                "price_source": "fixture", "price_source_urls": ["https://api.taostats.io/v1/price"],
+                "price_observed_at": "2026-10-12T00:00:00+00:00",
+                "calculation": "750 * 1000000000 / alpha_usd",
+                "rounding": "ROUND_HALF_UP to nearest integer Alpha rao",
+            })
+
+        notifier.defect_award_quoter = recovered
+        third = notifier.process_once()
+        assert (third.payouts_seeded, third.seeded, third.delivered) == (2, 4, 4)
+        fourth = notifier.process_once()
+        assert (fourth.payouts_seeded, fourth.seeded, fourth.delivered) == (0, 0, 0)
+        assert calls == (1 if failure == "unconfigured" else 3)
+        assert len(sent) == 8
+        with sessions() as session:
+            rewards = session.scalars(select(RewardEvent)).all()
+            assert len(rewards) == 4
+            for reward in rewards:
+                if reward.submission_id in {ids["defect1"], ids["defect2"]}:
+                    assert reward.amount_rao == 1_250_000_000_000
+                    assert reward.pricing_policy_version == "formalization-defect-usd-v1"
+                    assert reward.pricing_inputs["award_usd"] == "750.00"
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()

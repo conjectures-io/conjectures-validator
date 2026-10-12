@@ -15,8 +15,8 @@ FORMALIZATION_DEFECT_AWARD_USD = Decimal("750.00")
 FORMALIZATION_DEFECT_POLICY_VERSION = "formalization-defect-usd-v1"
 CAPPED_FORMALIZATION_DEFECT_POLICY_VERSION = "formalization-defect-capped-v2"
 
-TAOSTATS_TAO_PRICE_URL = "https://api.taostats.io/api/price/latest/v1"
-TAOSTATS_SUBNET_POOL_URL = "https://api.taostats.io/api/dtao/pool/latest/v1"
+TAOSTATS_TAO_PRICE_URL = "https://api.taostats.io/v1/price"
+TAOSTATS_SUBNET_POOL_URL = "https://api.taostats.io/v1/subnets/pools"
 
 
 @dataclass(frozen=True)
