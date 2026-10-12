@@ -41,6 +41,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.errors import RecordNotFound
+from conjectures_subnet.db.payout_instructions import instruction_enabled
 from conjectures_subnet.db.models import (
     PayoutState,
     PayoutWatchCursor,
@@ -213,6 +214,7 @@ async def _oldest_match(
     statement = (
         select(RewardEvent)
         .where(
+            instruction_enabled(),
             or_(
                 and_(
                     RewardEvent.status == PayoutState.PENDING,

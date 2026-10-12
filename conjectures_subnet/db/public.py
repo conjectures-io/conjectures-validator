@@ -58,6 +58,7 @@ from datetime import datetime
 from sqlalchemy import Select, Text, and_, cast, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.db.payout_instructions import instruction_enabled
 from conjectures_subnet.db.models import (
     Account,
     ManualReviewState,
@@ -778,6 +779,7 @@ async def _current_payouts(
         )
         .where(
             RewardEvent.submission_id.in_(submission_ids),
+            or_(RewardEvent.status != PayoutState.PENDING, instruction_enabled()),
             RewardEvent.status.in_(
                 (
                     PayoutState.PENDING,

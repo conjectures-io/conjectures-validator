@@ -343,6 +343,8 @@ def test_a_website_submission_pays_the_coldkey_that_signed_it():
         ("v1", 500_000_000_000, 1_250_000_000_000, False),
         ("v2", 500_000_000_000, 1_250_000_000_000, False),
         ("v3", 500_000_000_000, 500_000_000_000, True),
+        ("v4", 500_000_000_000, 500_000_000_000, True),
+        ("v4", 9_000_000_000_000, 1_250_000_000_000, True),
         ("v3", 1_250_000_000_000, 1_250_000_000_000, True),
         ("v3", 9_000_000_000_000, 1_250_000_000_000, True),
         ("v3", 500_000_000_000, None, False),
@@ -452,9 +454,9 @@ def test_defect_award_respects_the_submission_contract(review_policy, locked_amo
             assert reward is not None
             assert reward.amount_rao == expected_amount
             assert reward.pricing_policy_version == (
-                "formalization-defect-capped-v2" if review_policy == "v3" else "formalization-defect-usd-v1"
+                "formalization-defect-capped-v2" if review_policy in {"v3", "v4"} else "formalization-defect-usd-v1"
             )
-            if review_policy == "v3":
+            if review_policy in {"v3", "v4"}:
                 assert reward.amount_rao <= locked_amount
                 assert reward.pricing_inputs["bounty_cap_rao"] == locked_amount
                 assert reward.pricing_inputs["uncapped_amount_rao"] == 1_250_000_000_000
@@ -477,7 +479,7 @@ def test_defect_award_respects_the_submission_contract(review_policy, locked_amo
                 reward = session.scalar(select(RewardEvent).where(RewardEvent.submission_id == submission_id))
                 reward.amount_rao = expected_amount + 1
                 session.flush()
-        if review_policy == "v3":
+        if review_policy in {"v3", "v4"}:
             for field in ("bounty_cap_rao", "uncapped_amount_rao"):
                 with pytest.raises(IntegrityError, match="cap must match"):
                     with sessions.begin() as session:

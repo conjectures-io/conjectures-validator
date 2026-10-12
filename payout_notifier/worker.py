@@ -9,6 +9,7 @@ from sqlalchemy import and_, exists, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
+from conjectures_subnet.db.payout_instructions import instruction_enabled
 from conjectures_subnet.db.models import (
     Account,
     PayoutDiscordDelivery,
@@ -196,7 +197,7 @@ class PayoutNotifier:
                     )
                     amount_rao = defect_quote.amount_rao
                     pricing_policy_version = FORMALIZATION_DEFECT_POLICY_VERSION
-                    if candidate.review_policy_version == "v3":
+                    if candidate.review_policy_version in {"v3", "v4"}:
                         if candidate.bounty_locked_at is None:
                             raise ValueError("a v3 defect award requires a submission bounty lock")
                         amount_rao = min(amount_rao, candidate.locked_amount_rao)
@@ -249,6 +250,7 @@ class PayoutNotifier:
                     literal(user_id),
                 ).where(
                     RewardEvent.status == PayoutState.PENDING,
+                    instruction_enabled(),
                     RewardEvent.extrinsic_reference.is_(None),
                 )
                 statement = (
@@ -294,6 +296,7 @@ class PayoutNotifier:
                 .where(
                     due,
                     RewardEvent.status == PayoutState.PENDING,
+                    instruction_enabled(),
                     RewardEvent.extrinsic_reference.is_(None),
                 )
                 .order_by(
@@ -301,7 +304,7 @@ class PayoutNotifier:
                     PayoutDiscordDelivery.reward_event_id,
                     PayoutDiscordDelivery.signer_wallet,
                 )
-                .with_for_update(of=PayoutDiscordDelivery, skip_locked=True)
+                .with_for_update(of=(PayoutDiscordDelivery, RewardEvent), skip_locked=True)
                 .limit(1)
             )
             row = session.execute(statement).one_or_none()
