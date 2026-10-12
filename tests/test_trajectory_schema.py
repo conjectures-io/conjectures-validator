@@ -105,7 +105,7 @@ def test_feature_requires_explicit_launch_cutoff_and_preserves_recorded_policy()
 
 def test_review_terms_assents_and_template_are_truthful_and_pinned():
     from submission_api.trajectory_terms import REVIEW_TERMS_SHA256, ASSENT_STATEMENTS_SHA256
-    for name, digest in [("review-terms-v1.md", REVIEW_TERMS_SHA256), ("assent-statements-v1.json", ASSENT_STATEMENTS_SHA256)]:
+    for name, digest in [("review-terms-v2.md", REVIEW_TERMS_SHA256), ("assent-statements-v1.json", ASSENT_STATEMENTS_SHA256)]:
         assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories" / name).read_bytes()).hexdigest() == digest
     assert not example()["permissions"]["authentic_user_visible_export"]
     blank = json.loads((ROOT / "docs/trajectories/template.json").read_text())
@@ -229,3 +229,7 @@ def test_success_budget_bounds_exact_retries_and_timeout_does_not_spend_failure_
             async with budget.hold("account"):
                 pass
     asyncio.run(scenario())
+
+
+def test_published_v7_bytes_remain_identical_to_the_archived_contract():
+    assert (ROOT / 'docs/SUBMISSION_TERMS.md').read_bytes() == (ROOT / 'docs/policies/submission-terms-v7.md').read_bytes()

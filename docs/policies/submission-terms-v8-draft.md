@@ -110,6 +110,11 @@ Disclose gaps and redactions and remove credentials and unnecessary personal inf
 The separately capped formalization-defect award retains its existing rules.
 Hidden internal reasoning is neither requested nor accepted. The private review terms
 specify format, consent, access and retention; review permission grants no commercial rights.
+Private packages and full source-rights disclosures expire after 90 days. Historical bonus audit
+records expire after seven years. Required-bounty minimal audit records and fingerprints remain
+while a reward event references the proof, even beyond seven years, to substantiate that financial
+instruction. This does not extend private-content retention. New targets require authenticated
+account submission so the contributor can privately supply the evidence.
 
 For qualifying full-bounty proofs submitted before the chat-log program's published cutoff,
 accepted logs earn an optional additional **$500 USD for Erdős or Green problems**, or

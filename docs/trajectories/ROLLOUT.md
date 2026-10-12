@@ -35,7 +35,15 @@ No production migration, task activation, transfer or announcement has occurred.
    registers the complete current catalog. Preserve/export this boundary for rollback review.
    V045 additionally backfills every previously submitted target, including retired targets,
    before marking existing rows `legacy`. Never prime P34/P35 as legacy.
-3. Apply V044 and V045 through the normal migration process. V044 is an unpublished draft from
+3. Apply V044 and V045 through the normal migration process. Before restarting ANY API,
+   notifier or command-rendering process, even with intake disabled, list their actual DB roles
+   and the migration owner. Set the function owner to the trusted, least-privilege non-superuser
+   migration role with the necessary table access; verify its identity. For each actual caller,
+   explicitly `GRANT EXECUTE ON FUNCTION public.bounty_trajectory_eligible(uuid,text)` to that
+   role, then verify `has_function_privilege(role, 'public.bounty_trajectory_eligible(uuid,text)',
+   'EXECUTE')`. Never grant private claim-table access to payout roles. Run the notifier startup
+   probe and a read-only command query before resuming legacy payouts. This grant is a migration
+   requirement, not an intake-enable step. V044 is an unpublished draft from
    the migrated feature; any private environment that applied an earlier draft must be rebuilt
    or separately reconciled rather than assuming Flyway accepts modified checksums.
 4. Preserve original task versions used by historical submissions. A missing/corrupt bundle

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from sqlalchemy import delete, exists, func, select
+from sqlalchemy import delete, exists, func, or_, select
 from sqlalchemy.orm import defer
 from submission_api import trajectories as store
 from conjectures_subnet.db import async_session_factory, create_async_db_engine
@@ -57,7 +57,9 @@ async def purge(session):
     while True:
         ids = (await session.scalars(select(TrajectoryClaim.id).where(
             TrajectoryClaim.audit_expires_at <= func.now(),
-            ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id))
+            or_(TrajectoryClaim.amount_usd_cents > 0,
+                TrajectoryClaim.terms_version != "trajectory-review-draft-v2",
+                ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id)))
         ).order_by(TrajectoryClaim.id).limit(100))).all()
         processed = 0
         for claim_id in ids:
@@ -68,7 +70,9 @@ async def purge(session):
                 continue
             result = await session.execute(delete(TrajectoryClaim).where(
                 TrajectoryClaim.id == claim_id, TrajectoryClaim.audit_expires_at <= func.now(),
-                ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id))))
+                or_(TrajectoryClaim.amount_usd_cents > 0,
+                TrajectoryClaim.terms_version != "trajectory-review-draft-v2",
+                ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id)))))
             processed += result.rowcount
         await session.commit()
         audit_removed += processed

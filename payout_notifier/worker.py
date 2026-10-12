@@ -7,6 +7,7 @@ from typing import Callable
 
 from sqlalchemy import and_, exists, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from conjectures_subnet.db.payout_instructions import instruction_sendable
@@ -83,6 +84,18 @@ class PayoutNotifier:
         self.lease_seconds = lease_seconds
         self.sender = sender
         self.defect_award_quoter = defect_award_quoter
+
+    def verify_database_access(self) -> None:
+        """Fail before starting the loop if the migration or role grant is missing."""
+        try:
+            with self.sessions() as session:
+                session.scalar(select(func.bounty_trajectory_eligible(None, None)))
+        except SQLAlchemyError as exc:
+            raise RuntimeError(
+                "Payout database preflight failed: verify connectivity, apply V045, and grant "
+                "EXECUTE on public.bounty_trajectory_eligible(uuid,text) to the notifier role "
+                "before starting it (required for legacy payouts too)."
+            ) from exc
 
     def seed_reward_events(self) -> int:
         """Create one idempotent payout instruction for each newly eligible submission.

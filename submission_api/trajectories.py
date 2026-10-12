@@ -134,6 +134,7 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     seen = await session.get(TrajectoryFingerprint, fingerprint)
     if seen and (existing is None or seen.claim_id != existing.id):
         raise Conflict("Evidence has already been submitted.", reason_code="TRAJECTORY_DUPLICATE")
+    previous_terms_version = existing.terms_version if existing else None
     previous_withdrawal = existing.commercial_withdrawn_at.isoformat() if existing and existing.commercial_withdrawn_at else None
     if existing:
         claim = existing
@@ -162,12 +163,14 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
         )
         session.add(claim)
     claim.commercial_election = package.commercial_election.model_dump(mode="json")
+    claim.terms_version = TERMS_VERSION  # New revision requires fresh assent to these exact terms.
     claim.consent = {**consent, "account_id": str(account_id), "accepted_at": now.isoformat()}
     claim.proof_policy_snapshot = {"review_policy_version": submission.review_policy_version,
                                    "bounty_policy_version": submission.bounty_policy_version}
     claim.commercial_withdrawn_at = None
     audit(claim, action="UPLOADED", actor=account_id, now=now,
-          extra={"supersedes_commercial_withdrawal_at": previous_withdrawal})
+          extra={"supersedes_commercial_withdrawal_at": previous_withdrawal,
+                 "previous_terms_version": previous_terms_version, "terms_version": TERMS_VERSION})
     try:
         await session.flush()
         if not seen:

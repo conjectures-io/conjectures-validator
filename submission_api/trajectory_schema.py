@@ -14,7 +14,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 MAX_PACKAGE_BYTES = 32 * 1024 * 1024
 RETENTION_DAYS = 90
-TERMS_VERSION = "trajectory-review-draft-v1"
+TERMS_VERSION = "trajectory-review-draft-v2"
 Digest = Annotated[str, Field(pattern=r"^sha256:[a-f0-9]{64}$")]
 Short = Annotated[str, Field(min_length=1, max_length=500)]
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9._-]{1,100}$")]
@@ -127,7 +127,7 @@ class Reproduction(StrictModel):
 
 
 class Permissions(StrictModel):
-    terms_version: Literal["trajectory-review-draft-v1"]
+    terms_version: Literal["trajectory-review-draft-v2"]
     authentic_user_visible_export: bool = Field(strict=True)
     authorized_to_submit: bool = Field(strict=True)
     secrets_and_personal_data_checked: bool = Field(strict=True)

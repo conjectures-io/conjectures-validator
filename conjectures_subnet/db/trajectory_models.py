@@ -49,7 +49,7 @@ class TrajectoryClaim(Base):
         CheckConstraint("revision BETWEEN 1 AND 3", name="trajectory_revision_bound"),
         CheckConstraint("package IS NULL OR octet_length(package) <= 33554432", name="trajectory_package_bound"),
         CheckConstraint("package IS NULL OR pg_catalog.sha256(package) = package_digest", name="trajectory_package_hash"),
-        CheckConstraint("terms_version = 'trajectory-review-draft-v1'", name="trajectory_terms"),
+        CheckConstraint("terms_version IN ('trajectory-review-draft-v1', 'trajectory-review-draft-v2')", name="trajectory_terms"),
         CheckConstraint("expires_at > created_at AND audit_expires_at > expires_at", name="trajectory_retention"),
         CheckConstraint("status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE') OR (reviewer_id IS NOT NULL AND checklist IS NOT NULL AND review_note IS NOT NULL)", name="trajectory_approval_reviewed"),
         Index("trajectory_account_idx", "account_id", "created_at"),

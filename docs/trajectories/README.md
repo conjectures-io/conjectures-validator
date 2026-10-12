@@ -8,7 +8,7 @@ unlocks the existing full-bounty payout worker and signer notifications. Neither
 transfer or activates a commercial license.
 
 The delivered flow includes the full [commercial license draft](commercial-license-draft-v1.md)
-and separately pinned [private review terms](review-terms-v1.md) and [assent wording](assent-statements-v1.json), with an explicit commercial election inside intake. No contributor must negotiate or sign another
+and separately pinned [private review terms](review-terms-v2.md) and [assent wording](assent-statements-v1.json), with an explicit commercial election inside intake. No contributor must negotiate or sign another
 agreement if the final package, rights, terms and scope match their approved in-flow election.
 The owner approved these economics and P34/P35 admission on October 12, 2026.
 Commercial-license wording and operational launch requirements remain as described below.
@@ -26,7 +26,7 @@ Commercial-license wording and operational launch requirements remain as describ
 | Size | UTF-8 JSON up to 32 MiB, 10,000 events, 100 runs, 1,000 artifacts, 1,048,576 Unicode characters per event/artifact (up to 4 MiB UTF-8), still within the overall byte limit |
 | Proof bytes | Authoritative submission digest reference allowed; existing proofs up to 30 MiB need not be embedded twice |
 | Revisions | At most three package versions, requested changes or withdrawal before replacement |
-| Retention | Private content 90 days from first upload, no extension on revision; minimal audit/election/fingerprints seven years |
+| Retention | Private content 90 days from first upload, no extension on revision; minimal audit/election/fingerprints seven years; required evidence persists while a reward event references its proof |
 
 No live settings, contract, deployment, payout or data sale has been made by this work.
 
@@ -173,7 +173,8 @@ The economic choices above are approved. Before production enablement, complete 
    text, leaving only version/digests/choice/purposes and each source ID/status/hash. This applies
    even to cleared elections; the review database is not commercial delivery storage. Backups require an approved finite deletion
    schedule and a restore-time purge before service traffic; deleting the live row alone does
-   not erase backup copies. The job also removes audit/fingerprints after seven years; the
+   not erase backup copies. The job removes historical-bonus audit/fingerprints after seven years; required-evidence audit
+   remains while a reward event references its proof, as disclosed in draft v2. The
    one-year claim window closes before that deletion and prevents a new claim for the old proof.
 5. **Settlement/activation adapter is not implemented.** This is a launch blocker for paying
    bonuses or selling/using datasets. An authorized finance operator must record a unique claim
@@ -251,5 +252,5 @@ Payout roles must have no SELECT/UPDATE grants on private trajectory tables. The
 path. PUBLIC execute is revoked; explicitly grant EXECUTE on that function to the real API,
 notifier and command-rendering database roles during deployment, without granting claim-table
 access. The function owner must be a trusted migration role, never a public/analytics role. The authorization trigger uses the same projection and locks only the public submission;
-all claim writers and the purge job take that submission lock first. Retain minimal evidence
-audit rows while a reward event references their submission; private content still expires.
+all claim writers and the purge job take that submission lock first. Retain minimal required-evidence
+audit rows while a reward event references their submission; historical bonus rows expire after seven years; private content still expires.

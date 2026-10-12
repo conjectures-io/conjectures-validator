@@ -37,7 +37,7 @@
   "missing": [],
   "redactions": [],
   "permissions": {
-    "terms_version": "trajectory-review-draft-v1",
+    "terms_version": "trajectory-review-draft-v2",
     "authentic_user_visible_export": false,
     "authorized_to_submit": false,
     "secrets_and_personal_data_checked": false,

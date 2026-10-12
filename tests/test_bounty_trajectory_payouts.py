@@ -1,5 +1,6 @@
 """Instruction authorization and chain facts after mandatory-log approval changes."""
 
+from contextlib import contextmanager
 import asyncio
 import uuid
 
@@ -28,9 +29,26 @@ async def restricted_payout_role_can_authorize_without_reading_exports(kit, sid)
         await s.execute(text(f"GRANT SELECT ON submissions, review_decisions TO {role}"))
         await s.execute(text(f"GRANT SELECT, INSERT ON reward_events TO {role}"))
         await s.execute(text(f"GRANT USAGE ON SEQUENCE reward_events_id_seq TO {role}"))
-        await s.execute(text(f"GRANT EXECUTE ON FUNCTION bounty_trajectory_eligible(uuid, text) TO {role}"))
+
         await s.commit()
+    probe_engine = create_db_engine(postgres_dsn())
+
+    @contextmanager
+    def role_sessions():
+        with session_factory(probe_engine)() as session:
+            session.execute(text(f"SET LOCAL ROLE {role}"))
+            yield session
+
+    probe = PayoutNotifier(sessions=role_sessions, webhook_url="", worker_id="grant-probe")
     try:
+        with pytest.raises(RuntimeError, match="grant EXECUTE"):
+            probe.verify_database_access()
+        async with kit.session() as s:
+            await s.execute(
+                text(f"GRANT EXECUTE ON FUNCTION bounty_trajectory_eligible(uuid, text) TO {role}")
+            )
+            await s.commit()
+        probe.verify_database_access()
         async with kit.session() as s:
             await s.execute(text(f"SET LOCAL ROLE {role}"))
             with pytest.raises(DBAPIError, match="permission denied"):
@@ -54,6 +72,7 @@ async def restricted_payout_role_can_authorize_without_reading_exports(kit, sid)
             )
             await s.rollback()  # The notifier creates the lasting instruction below.
     finally:
+        probe_engine.dispose()
         async with kit.session() as s:
             await s.execute(text(f"DROP OWNED BY {role}"))
             await s.execute(text(f"DROP ROLE {role}"))
@@ -190,7 +209,10 @@ async def stale_evidence_scenario():
             async with kit.session() as owner_lock:
                 await owner_lock.get(Submission, uuid.UUID(sid), with_for_update=True)
                 async with kit.session() as purger:
-                    assert await purge(purger) == (0, 0)  # Never race a claim mutation's proof lock.
+                    assert await purge(purger) == (
+                        0,
+                        0,
+                    )  # Never race a claim mutation's proof lock.
                 await owner_lock.rollback()
             async with kit.session() as s:
                 assert await purge(s) == (1, 0)
@@ -206,3 +228,73 @@ async def stale_evidence_scenario():
 @pytest.mark.skipif(postgres_dsn() is None, reason="private database required")
 def test_stale_log_binding_hides_commands_without_blocking_chain_facts():
     asyncio.run(stale_evidence_scenario())
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason="private database required")
+def test_historical_bonus_audit_expires_even_with_a_confirmed_proof_payout():
+    from conjectures_subnet.db.trajectory_models import TrajectoryClaim
+    from scripts.purge_trajectories import purge
+
+    async def scenario():
+        kit = await kit_config().setup()
+        engine = create_db_engine(postgres_dsn())
+        worker = PayoutNotifier(
+            sessions=session_factory(engine), webhook_url="", worker_id="legacy-retention"
+        )
+        try:
+            async with await client(kit) as owner, await client(kit) as admin:
+                account, sid, package = await accepted(kit, owner)
+                async with kit.session() as s:
+                    a = await s.get(Account, uuid.UUID(account["id"]))
+                    a.payout_coldkey = kit.settings.payment_recipient
+                    await s.commit()
+                await reviewer(kit, admin)
+                upload = await owner.post(
+                    f"/v1/me/submissions/{sid}/trajectory",
+                    json=envelope(package),
+                    headers=same_origin(),
+                )
+                assert upload.status_code == 200, upload.text
+                cid = upload.json()["id"]
+                reviewed = await admin.post(
+                    f"/v1/admin/trajectories/{cid}/decision",
+                    json=review_body(),
+                    headers=same_origin(),
+                )
+                assert reviewed.status_code == 200 and reviewed.json()["amount_usd_cents"] > 0
+                assert worker.seed_reward_events() == 1
+                async with kit.session() as s:
+                    event = await s.scalar(select(RewardEvent))
+                    eid = event.id
+                    # Legacy commands stay available through the new predicate.
+                    assert len(command_rows(eid)) == 1
+                    assert (
+                        await s.scalar(
+                            text(
+                                "SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='submissions' AND column_name='bounty_policy_version'"
+                            )
+                        )
+                        == "NO"
+                    )
+                    observed = replace(
+                        observed_stake_transfer(),
+                        block_timestamp=datetime.now(UTC),
+                        amount_rao=event.amount_rao,
+                        destination_coldkey=event.destination_coldkey,
+                    )
+                    assert await payouts.confirm(s, observed)
+                    await s.commit()
+                    claim = await s.get(TrajectoryClaim, uuid.UUID(cid))
+                    claim.created_at = datetime.now(UTC) - timedelta(days=8 * 365)
+                    claim.expires_at = claim.created_at + timedelta(days=90)
+                    claim.audit_expires_at = claim.created_at + timedelta(days=7 * 365)
+                    await s.commit()
+                    assert await purge(s) == (1, 1)
+                async with kit.session() as s:
+                    assert await s.get(TrajectoryClaim, uuid.UUID(cid)) is None
+                    assert (await s.get(RewardEvent, eid)).status == "CONFIRMED"
+        finally:
+            engine.dispose()
+            await kit.teardown()
+
+    asyncio.run(scenario())
