@@ -532,6 +532,8 @@ def create_app(
     # FloatLib's router first: its routes match only FloatLib's slugs (`{slug:floatlib}`), and
     # every one of them has a DEFLATE route of the same shape that would otherwise answer it.
     application.include_router(floatlib_router.router)
+    # FloatLib's `/health`, at the root where its own API serves it; see `routers/floatlib.py`.
+    application.include_router(floatlib_router.root_router)
     application.include_router(competitions_router.router)
     application.include_router(competition_reads.router)
     application.include_router(competitions_admin_router.router)

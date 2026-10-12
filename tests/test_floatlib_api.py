@@ -327,6 +327,7 @@ def read(db, *paths, deflate=True):
     async def scenario():
         engine = create_async_engine(db.dsn, connect_args={"options": f"-c search_path={SCHEMA}"})
         app = FastAPI()
+        app.include_router(floatlib.root_router)
         app.include_router(floatlib.router)
         app.include_router(intake.router)
         app.include_router(competition_reads.router)
@@ -394,6 +395,57 @@ def test_health_states_the_queue_and_the_published_rules(floatlib_db):
     (after,) = read(floatlib_db, "/v1/competitions/floatlib/health")
     assert after.json()["competition_share"] == 0.2
     assert after.json()["admission"] == {"draws": 2000, "quantile": 0.05}
+
+
+def test_root_health_is_floatlibs_health_as_its_own_api_serves_it(floatlib_db):
+    publish(floatlib_db)
+    root, scoped = read(floatlib_db, "/health", "/v1/competitions/floatlib/health")
+    assert root.status_code == 200 and root.json() == scoped.json()
+    assert root.json() == {
+        "ok": True,
+        "queued": 1,
+        "promotion_bar": 0.97,
+        "competition_share": 0.2,
+        "admission": {"draws": 2000, "quantile": 0.05},
+    }
+
+
+def root_health(competitions):
+    """`/health` on an app serving `competitions`, none of them with a reachable database."""
+
+    async def scenario():
+        app = FastAPI()
+        app.include_router(floatlib.root_router)
+        services = SimpleNamespace(competitions=competitions, competition_sessions=None)
+        app.dependency_overrides[get_services] = lambda: services
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            return await c.get("/health")
+
+    return asyncio.run(scenario())
+
+
+NO_STORE = {
+    "ok": True,
+    "queued": None,
+    "promotion_bar": 0.97,
+    "competition_share": None,
+    "admission": None,
+}
+
+
+def test_root_health_answers_without_floatlib_configured():
+    response = root_health(CompetitionRegistry.of(Competition("deflate", "DEFLATE", 8.0)))
+    assert response.status_code == 200 and response.json() == NO_STORE
+
+
+def test_root_health_does_not_fail_with_floatlibs_database():
+    engine = create_async_engine("postgresql+psycopg://nobody:nothing@127.0.0.1:1/absent")
+    try:
+        entry = floatlib_entry(engine=engine, sessions=async_sessionmaker(engine))
+        response = root_health(CompetitionRegistry.of(entry))
+        assert response.status_code == 200 and response.json() == NO_STORE
+    finally:
+        asyncio.run(engine.dispose())
 
 
 def test_champions_lists_every_champion_and_marks_the_one_holding_the_board(floatlib_db):

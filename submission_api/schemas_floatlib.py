@@ -22,10 +22,11 @@ class AdmissionRule(BaseModel):
 
 
 class Health(BaseModel):
-    # The FloatLib host's queue and the rules its latest published scoring applied. `ok` says the
-    # competition's database answered; the rules are null before the first publication.
+    # The FloatLib host's queue and the rules its latest published scoring applied; the rules are
+    # null before the first publication. On `/health`, `queued` and the rules are also null while
+    # FloatLib's database cannot be read, since that answer must not fail with it.
     ok: bool
-    queued: int
+    queued: int | None = None
     promotion_bar: float
     # The competition's share of the validator's emission.
     competition_share: float | None = None

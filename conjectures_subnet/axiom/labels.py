@@ -113,6 +113,9 @@ EventType: TypeAlias = Literal[
     # — reporting one per interval would bury everything else — so this is the only thing that
     # says a replica has taken itself out of service.
     "readiness_degraded",
+    # FloatLib's `/health` answering without FloatLib's database. That answer does not fail, as
+    # FloatLib's own does not, so this is the only trace of the database it could not read.
+    "floatlib_health_degraded",
     # --- submission intake ------------------------------------------------------------------
     "submission_accepted",
     "submission_rejected",

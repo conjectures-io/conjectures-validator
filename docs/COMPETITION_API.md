@@ -49,6 +49,7 @@ A request that fails FastAPI's own validation (wrong type, missing header) gets 
 | POST | `/v1/competitions/{slug}/admin/submissions/{submission_id}/requeue` | ADMIN role, browser session, write |
 | GET | `/v1/competitions/{board}` | Public, no authentication |
 | GET | `/v1/competitions/{board}/health` | Public, no authentication |
+| GET | `/health` | Public, no authentication |
 | GET | `/v1/competitions/{board}/leaderboard` | Public, no authentication |
 | GET | `/v1/competitions/{board}/champions` | Public, no authentication |
 | GET | `/v1/competitions/{board}/submissions/{submission_id}` | Public, no authentication |
@@ -1030,6 +1031,10 @@ The board in the [Competition](#competition) shape, so `/v1/competitions` lists 
 | `promotion_bar` | number | The ratio a submission must reach to be promoted; `0.97` until the first publication |
 | `competition_share` | number or null | The competition's share of the validator's emission, as last published |
 | `admission` | object or null | `{draws, quantile}`: the bootstrap behind promotion, as last published |
+
+### GET `/health`
+
+FloatLib's `/health`, at the root where FloatLib's own API serves it, in the same shape as `/v1/competitions/{board}/health` above. It never fails because of FloatLib's database, as FloatLib's own does not: while that database is unreachable or FloatLib is not served here it still answers 200 with `"ok": true`, `queued`, `competition_share` and `admission` null, and `promotion_bar` at its default `0.97`. It is not the platform's liveness probe, which is `/healthz`.
 
 ### GET `/v1/competitions/{board}/leaderboard`
 

@@ -20,6 +20,7 @@ from fastapi import APIRouter, Path
 from sqlalchemy.exc import InterfaceError, OperationalError
 from starlette.convertors import Convertor, register_url_convertor
 
+from conjectures_subnet.axiom import get_axiom
 from submission_api import floatlib_store as store
 from submission_api import schemas_compression as sc
 from submission_api import schemas_floatlib as s
@@ -189,10 +190,8 @@ async def detail(board: BoardPath, services: ServicesDep, session: CompetitionSe
     return await summary(competition, board_of(services, board), session)
 
 
-@router.get(SLUG + "/health", response_model=s.Health)
-async def health(board: BoardPath, services: ServicesDep, session: CompetitionSessionDep):
-    """The FloatLib host's queue and the rules its latest published scoring applied."""
-    board_of(services, board)
+async def rules(session) -> s.Health:
+    """FloatLib's queue and the rules its latest published scoring applied."""
     await store.compatible(session)
     policy = policy_of(await store.publication(session))
     share = policy.get("competition_share")
@@ -211,6 +210,41 @@ async def health(board: BoardPath, services: ServicesDep, session: CompetitionSe
         competition_share=float(share) if isinstance(share, int | float) else None,
         admission=admission,
     )
+
+
+@router.get(SLUG + "/health", response_model=s.Health)
+async def health(board: BoardPath, services: ServicesDep, session: CompetitionSessionDep):
+    """The FloatLib host's queue and the rules its latest published scoring applied."""
+    board_of(services, board)
+    return await rules(session)
+
+
+# `/health` at the root, as FloatLib's own API serves it, so the website reads it from either.
+root_router = APIRouter(tags=["competitions"])
+
+
+@root_router.get("/health", response_model=s.Health)
+async def root_health(services: ServicesDep):
+    """FloatLib's `/health`: liveness, its queue and its rules, which must not fail with its store.
+
+    Like FloatLib's own: always `ok`, with `queued` and the published rules null while FloatLib's
+    database cannot be read or is not configured here, and the default promotion bar until it
+    has published its own. `/v1/competitions/floatlib/health` is the strict version, which
+    answers 404 or 503 instead. Not the platform's liveness probe: that is `/healthz`.
+    """
+    competition = next((c for c in services.competitions if c.kind == FLOATLIB), None)
+    sessions = competition_sessions(services, competition.slug) if competition else None
+    if sessions is not None:
+        try:
+            async with sessions() as session:
+                return await rules(session)
+        except Exception as exc:  # noqa: BLE001 - this answer must not fail with the store
+            get_axiom().warn(
+                source="api-health",
+                event_type="floatlib_health_degraded",
+                error=f"{type(exc).__name__}: {exc}",
+            )
+    return s.Health(ok=True, promotion_bar=DEFAULT_PROMOTION_BAR)
 
 
 @router.get(SLUG + "/leaderboard", response_model=s.Leaderboard)
