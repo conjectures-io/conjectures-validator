@@ -21,6 +21,8 @@ from submission_api.pagination import (
     encode_parts,
     window,
 )
+from submission_api.competitions import DEFLATE
+from submission_api.routers import floatlib
 from submission_api.routers.competitions import resolve_competition
 from submission_api.settings import MAX_COMPETITION_FILE_BYTES
 
@@ -135,7 +137,11 @@ async def index(
     configured = services.competitions.competitions
     return s.Index(
         items=[
+            # Each from its own database: the injected session is DEFLATE's, so FloatLib opens
+            # its own (`routers/floatlib.py`).
             await summary(c, services, session)
+            if c.kind == DEFLATE
+            else await floatlib.listed(c, services)
             for c in window(configured, limit=limit, offset=offset)
         ],
         total=len(configured),

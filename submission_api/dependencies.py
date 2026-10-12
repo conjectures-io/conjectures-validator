@@ -26,7 +26,7 @@ from conjectures_subnet.db.models import MINER_ROLE, AccountSessionKind
 from submission_api import origin_policy, security
 from submission_api import sessions as session_layer
 from submission_api.auth import Authenticator
-from submission_api.competitions import CompetitionRegistry
+from submission_api.competitions import CompetitionRegistry, UnknownCompetition
 from submission_api.conjectures import ConjectureIndex
 from submission_api.credits import CreditPackage, SubmissionTerms
 from submission_api.errors import Forbidden, ServiceUnavailable, Unauthorized
@@ -189,8 +189,34 @@ async def get_session(services: ServicesDep) -> AsyncIterator[AsyncSession]:
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-async def get_competition_session(services: ServicesDep) -> AsyncIterator[AsyncSession]:
+def competition_sessions(services: Services, slug: str | None) -> async_sessionmaker | None:
+    """The session factory for the competition `slug` names: its own database.
+
+    Falls back to `Services.competition_sessions` -- the DEFLATE competition's, or the only
+    one's -- where the path names no slug (`/v1/competitions`), names one not served here (the
+    handler 404s it), or names one whose entry carries no factory of its own (a test that
+    injects its session through this dependency).
+    """
+    if slug is not None:
+        try:
+            competition = services.competitions.get(slug)
+        except UnknownCompetition:
+            competition = None
+        if competition is not None and competition.sessions is not None:
+            return competition.sessions
+    return services.competition_sessions
+
+
+async def get_competition_session(
+    services: ServicesDep,
+    # FastAPI injects the request by its annotation; the default lets a caller outside a
+    # request ask for the deployment's primary competition, as before there were several.
+    request: Request = None,  # type: ignore[assignment]
+) -> AsyncIterator[AsyncSession]:
     """One competition-database session per request, always closed.
+
+    The database is the one the path's `{slug}` names: every competition owns its own, so a
+    request for one competition can never read another's rows.
 
     Refuses rather than falling back when the deployment configured no competition database.
     A handler that reached `get_session` instead would be writing competition rows into the
@@ -202,12 +228,16 @@ async def get_competition_session(services: ServicesDep) -> AsyncIterator[AsyncS
     there is no transaction spanning both, so "this handler uses both" is a fact a reviewer
     needs to see without reading the body.
     """
-    if services.competition_sessions is None:
+    # `board` on FloatLib's routes, `slug` on DEFLATE's; see `routers/floatlib.py`.
+    params = request.path_params if request is not None else {}
+    slug = params.get("slug") or params.get("board")
+    sessions = competition_sessions(services, slug)
+    if sessions is None:
         raise ServiceUnavailable(
             "competitions are not configured on this deployment",
             reason_code="COMPETITIONS_UNAVAILABLE",
         )
-    async with services.competition_sessions() as session:
+    async with sessions() as session:
         try:
             yield session
         except (OperationalError, InterfaceError) as exc:

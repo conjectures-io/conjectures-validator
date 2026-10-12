@@ -107,21 +107,34 @@ def test_a_distinct_competition_url_is_returned_unchanged():
     assert competition_url(settings).endswith("/conjectures_competition")
 
 
-def test_a_second_competition_is_refused_at_startup():
-    """Two competitions would share every table, so the registry will not hold them.
+def test_two_competitions_on_one_database_are_refused_at_startup():
+    """Two competitions would share every table, so they may not share a database.
 
-    Every handler resolves its competition from the slug in the path, so nothing at request
-    time would notice: both slugs would resolve and both would read and write the same rows,
-    because the competition schema has no slug column to tell them apart. The guard is on
-    construction so it holds for every route at once, rather than for whichever handler
-    remembered to check.
+    No competition schema has a slug column, so two competitions on one database would read and
+    write each other's rows with nothing to tell them apart. The guard is on construction, so it
+    holds for every route at once rather than for whichever handler remembered to check.
     """
+    from submission_api.app import build_competitions
+
+    settings = build_settings(
+        COMPETITIONS_ENABLED="1",
+        COMPETITIONS="deflate,floatlib",
+        DATABASE_URL="postgresql+psycopg://u:p@db:5432/conjectures",
+        COMPETITION_DEFLATE_DATABASE_URL="postgresql+psycopg://u:p@db:5432/shared",
+        COMPETITION_FLOATLIB_DATABASE_URL="postgresql+psycopg://u:p@db:5432/shared",
+    )
+    with pytest.raises(SettingsError, match="same database"):
+        build_competitions(settings)
+
+
+def test_one_slug_served_twice_is_refused():
+    """Which database a request reads must not depend on the order competitions were listed."""
     from submission_api.competitions import Competition, CompetitionRegistry
 
     one = Competition(slug="deflate", name="DEFLATE", speed_floor=8.0)
-    two = Competition(slug="rust-competition", name="rust", speed_floor=8.0)
+    two = Competition(slug="deflate", name="again", speed_floor=8.0)
     assert len(CompetitionRegistry.of(one)) == 1
-    with pytest.raises(ValueError, match="no slug column"):
+    with pytest.raises(ValueError, match="served by both"):
         CompetitionRegistry((one, two))
 
 

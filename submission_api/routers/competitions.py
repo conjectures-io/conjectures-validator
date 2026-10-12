@@ -6,7 +6,7 @@ import time
 from fastapi import APIRouter, Header, Path, Request, Response
 from submission_api import compression_store as queries
 from submission_api import competition_sig, schemas_compression as schemas
-from submission_api.competitions import Competition, UnknownCompetition
+from submission_api.competitions import DEFLATE, Competition, UnknownCompetition
 from submission_api.dependencies import CompetitionSessionDep, CookieWriterDep, ServicesDep
 from submission_api.errors import (
     REASON_SUBMISSIONS_PAUSED,
@@ -32,17 +32,25 @@ SlugPath = Path(description="The competition's slug", max_length=64)
 HotkeyPath = Path(description="A subnet hotkey (ss58)", min_length=2, max_length=64)
 
 
-def resolve_competition(services: ServicesDep, slug: str) -> Competition:
-    """Resolve a slug, or 404.
+def resolve_competition(services: ServicesDep, slug: str, kind: str = DEFLATE) -> Competition:
+    """Resolve a slug of `kind`, or 404.
 
     404 rather than 400: an unknown slug is an address that does not exist here, and saying
     so is the same answer whether the caller typed it wrong or is probing for a competition
     this deployment does not serve.
+
+    A slug of another kind is the same 404. Every route here is DEFLATE's unless it says
+    otherwise, and a FloatLib slug reaching one -- `/v1/competitions/floatlib/pareto`, say --
+    names something FloatLib does not publish; answering it would run DEFLATE's queries
+    against FloatLib's database.
     """
     try:
-        return services.competitions.get(slug)
+        competition = services.competitions.get(slug)
     except UnknownCompetition as exc:
         raise NotFound(f"no competition {slug!r} is served here") from exc
+    if competition.kind != kind:
+        raise NotFound(f"no competition {slug!r} is served here")
+    return competition
 
 
 def refuse_if_paused(services: ServicesDep) -> None:
