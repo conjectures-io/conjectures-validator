@@ -290,6 +290,13 @@ def parse_package(raw: bytes) -> TrajectoryPackage:
             result[key] = value
         return result
 
+    check_json_depth(raw)
+    data = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_keys,
+                      parse_constant=lambda _: (_ for _ in ()).throw(ValueError("nonfinite JSON")))
+    return TrajectoryPackage.model_validate(data)
+
+
+def check_json_depth(raw: bytes):
     # Reject excessively nested JSON before a recursive parser can hit its stack limit.
     depth, quoted, escaped = 0, False, False
     for ch in raw:
@@ -308,6 +315,47 @@ def parse_package(raw: bytes) -> TrajectoryPackage:
                 raise ValueError("JSON nesting exceeds 24 levels")
         elif ch in (93, 125):
             depth -= 1
-    data = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_keys,
-                      parse_constant=lambda _: (_ for _ in ()).throw(ValueError("nonfinite JSON")))
-    return TrajectoryPackage.model_validate(data)
+
+
+SAFE_SEMANTIC_ERRORS = frozenset((
+    'JSON nesting exceeds 24 levels',
+    'artifact SHA-256 does not match UTF-8 content',
+    'artifact paths must be safe relative labels',
+    'artifact paths must be unique',
+    'assistant messages must identify the model run',
+    'branch parent must be an earlier event',
+    'commercial purposes must be distinct',
+    'conditional grant needs explicit assent and selected purposes',
+    'conditional grant requires rights provenance for every run and artifact',
+    'duplicate JSON object key',
+    'duplicate rights source',
+    'duplicate tool call id',
+    'embedded artifacts need content and no omission reason',
+    'empty event content must be explicitly marked; never invent output',
+    'event identifiers must be unique',
+    'event references an unknown artifact',
+    'events must have contiguous chronological sequence numbers',
+    'exactly one final proof must match the linked proof digest',
+    'include user and assistant messages',
+    'known timestamps must follow chronology and precede export',
+    'missing evidence cannot be declared complete',
+    'missing tool results must be disclosed',
+    'non-embedded artifact must not carry content',
+    'nonfinite JSON',
+    'omitted artifacts must be disclosed',
+    'omitted artifacts need a reason',
+    'only the linked final proof can use authoritative submission storage',
+    'package exceeds 32 MiB',
+    'review-only election grants no commercial purposes',
+    'run and artifact identifiers must be unique',
+    'source export needs a digest or an explanation',
+    'sublicensing requires dataset redistribution',
+    'sublicensing requires evaluation or training',
+    'timestamp needs a timezone or an honest unknown reason',
+    'tool calls/results need call id and tool name',
+    'tool fields belong only to tool events',
+    'tool result must follow one distinct call',
+    "tool result must match the call's model run and tool name",
+    'unknown model run',
+    'use a value or an explanation of why it is unknown, never invent one',
+))

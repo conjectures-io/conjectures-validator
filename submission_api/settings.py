@@ -321,11 +321,12 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # coldkey, unproved and not required to be linked, where before it was a proved coldkey/hotkey
 # pair). Both are in the "what is published" and "getting paid" sections.
 #
+# v8 adds prospective treasury-share pricing and required private chat-log review.
 # v7 adopts review policy v4: established prior proofs disqualify even independent rediscovery.
 # The v3 defect-award cap remains unchanged.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
 # leaving it behind would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v7"
+DEFAULT_TERMS_VERSION = "v8"
 DEFAULT_TERMS_DATE = "2026-10-12"
 
 # The website route that renders the sign-in page the magic link opens. That page reads the
@@ -1423,7 +1424,7 @@ class Settings:
             terms_version != DEFAULT_TERMS_VERSION or review_policy_version != "v4"
         ):
             raise SettingsError(
-                "the bundled submission terms require SUBMISSION_TERMS_VERSION=v7 and "
+                "the bundled submission terms require SUBMISSION_TERMS_VERSION=v8 and "
                 "REVIEW_POLICY_VERSION=v4; earlier contracts remain on existing submissions"
             )
 

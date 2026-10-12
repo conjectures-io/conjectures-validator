@@ -30,9 +30,30 @@ Live deletion does not erase backup copies; the owner must approve and publish a
 deletion schedule and restore-time purge process before launch. Applicable legal retention,
 privacy notices and the legal counterparty must be finalized before accepting real submissions.
 
-Uploading does not guarantee acceptance or payment. The proposed bonus is a separate, one-time
-$500 USD for a qualifying package tied to a currently accepted full-bounty proof, within the
-explicitly configured offer window. Existing proof rewards and their recorded terms remain
-unchanged. Proofs disqualified as prior-established under their recorded policy and defect-only awards do not qualify for this bonus.
-Commercial purposes require a separate explicit election under the pinned commercial terms.
-Declining that election does not reduce package-only eligibility under the proposed economics.
+Uploading does not guarantee acceptance or payment. Commercial purposes require a separate
+explicit election under the pinned commercial terms. Declining that election does not reduce
+eligibility for required bounty evidence or a historical bonus.
+
+## Revised bounty and chat-log economics — owner decision, October 12, 2026
+
+New problems, including P34 and P35 (34 and 35 equal circles in a unit square),
+offer 2.5% of the total finalized Alpha treasury balance. The displayed amount changes
+with that balance; the quote locks at proof submission. Existing reserved commitments
+must remain covered before a new quote can be accepted. Proof and refutation share
+one reward per exact target. Existing targets and accepted submissions keep their terms.
+
+For these new bounties, authentic, sufficiently complete user-visible chat logs must
+be submitted and accepted in private human review before a payout can be issued.
+Proof approval alone does not satisfy this additional requirement. There is no separate
+$500/$250 log bonus for a proof claiming this new treasury-share bounty.
+
+For accepted proofs submitted before the program's configured launch cutoff, supplying
+qualifying logs earns an optional additional $500 USD for Erdős or Green source problems,
+or $250 USD for other source problems. The original immutable task bundle determines
+the family; a contributor's label does not. Earlier proof payouts are not reduced or
+made conditional on supplying logs. The claim window lasts one year from launch.
+
+Only exportable user-visible messages and tool interactions are requested. Honest gaps
+and redactions must be disclosed; hidden internal reasoning is neither requested nor accepted.
+Commercial resale/training permission is separate and optional. The required evidence
+or historical bonus does not itself grant such rights. No bonus is automatically paid on upload.

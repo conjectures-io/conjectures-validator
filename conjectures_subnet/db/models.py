@@ -181,6 +181,9 @@ class BountyTask(Base):
     __tablename__ = "bounty_tasks"
 
     reward_target_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    pricing_policy: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'treasury-share-2p5-chat-v1'")
+    )
     opened_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -190,6 +193,8 @@ class BountyTask(Base):
             "length(reward_target_id) BETWEEN 1 AND 255",
             name="bounty_tasks_reward_target_id_nonempty",
         ),
+        CheckConstraint("pricing_policy IN ('legacy', 'treasury-share-2p5-chat-v1')",
+                        name="bounty_tasks_pricing_policy"),
         Index("bounty_tasks_opened_idx", "opened_at", "reward_target_id"),
     )
 
@@ -3347,3 +3352,5 @@ __all__ = [
 
 # Register the private bonus tables in the same metadata used by isolated fixtures.
 from conjectures_subnet.db import trajectory_models  # noqa: F401
+
+from conjectures_subnet.db import bounty_policy  # noqa: F401

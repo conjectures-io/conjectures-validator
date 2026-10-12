@@ -102,7 +102,9 @@ async def offer(services: ServicesDep, response: Response):
     private(response)
     return {
         "enabled": services.settings.trajectory_bonus_enabled,
-        "amount_usd_cents": 50000, "terms_version": TERMS_VERSION,
+        "legacy_bonus_usd_cents": {"erdos": 50000, "green": 50000, "other": 25000},
+        "new_bounty_share": {"numerator": 1, "denominator": 40, "basis": "gross_treasury"},
+        "new_bounties_require_chat_logs": True, "terms_version": TERMS_VERSION,
         "start_at": services.settings.trajectory_bonus_start_at or None,
         "claim_window_days": store.CLAIM_WINDOW_DAYS, "max_package_bytes": MAX_PACKAGE_BYTES,
         "retention_days": RETENTION_DAYS, "audit_retention_days": store.AUDIT_RETENTION_DAYS,
@@ -121,9 +123,18 @@ async def status(submission_id: uuid.UUID, principal: PrincipalDep, services: Se
     submission = await store.owned_submission(session, submission_id, principal.account.id)
     claim = await store.claim_for(session, submission_id)
     decision = await latest_binding_decision(session, submission_id)
-    reason = (store.eligibility_reason(submission, decision, cutoff=cutoff(services), now=dt.datetime.now(dt.UTC))
+    reason = (store.eligibility_reason(submission, decision, cutoff=claim.offer_start_at if claim else cutoff(services),
+                                       now=dt.datetime.now(dt.UTC), enforce_window=claim is None)
               if services.settings.trajectory_bonus_enabled else "Trajectory bonus intake is not open.")
+    amount = claim.amount_usd_cents if claim else None
+    if reason is None and claim is None:
+        try:
+            amount = store.amount_for(services, submission)
+        except Conflict as error:
+            reason = str(error)
     return {"eligible": reason is None, "eligibility_reason": reason,
+            "amount_usd_cents": amount,
+            "chat_logs_required": submission.bounty_policy_version == store.TREASURY_CHAT_POLICY,
             "claim": await store.view(session, claim) if claim else None}
 
 
@@ -135,7 +146,9 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
     account_id = principal.account.id  # rollback expires ORM objects; retain only this immutable ID.
     submission = await store.owned_submission(session, submission_id, account_id)
     decision = await latest_binding_decision(session, submission_id)
-    reason = store.eligibility_reason(submission, decision, cutoff=cutoff(services), now=dt.datetime.now(dt.UTC))
+    existing = await store.claim_for(session, submission_id)
+    reason = store.eligibility_reason(submission, decision, cutoff=existing.offer_start_at if existing else cutoff(services),
+                                      now=dt.datetime.now(dt.UTC), enforce_window=existing is None)
     if reason:
         raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
     # Release the auth/precheck transaction and its connection before accepting a slow body.
@@ -160,22 +173,45 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
         submission = await store.owned_submission(session, submission_id, account_id, lock=True)
         decision = await latest_binding_decision(session, submission_id)
         now = dt.datetime.now(dt.UTC)
-        reason = store.eligibility_reason(submission, decision, cutoff=cutoff(services), now=now)
+        existing = await store.claim_for(session, submission_id)
+        offer_start_at = existing.offer_start_at if existing else cutoff(services)
+        reason = store.eligibility_reason(submission, decision, cutoff=offer_start_at, now=now,
+                                          enforce_window=existing is None)
         if reason:
             raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
         claim = await store.accept_package(session, submission=submission, decision=decision,
-                                           prepared=prepared, account_id=account_id, now=now)
+                                           prepared=prepared, account_id=account_id, now=now,
+                                           amount_usd_cents=store.amount_for(services, submission),
+                                           offer_start_at=offer_start_at)
         await session.commit()
         return await store.view(session, claim)
 
 
+class StateVersion(StrictModel):
+    expected_state_version: Annotated[int, Field(strict=True, ge=1, le=2147483647)]
+
+
+async def mutation_version(request):
+    try:
+        return StateVersion.model_validate_json(await bounded_json(request, 4096)).expected_state_version
+    except ValidationError:
+        raise BadRequest("Include the current claim state version; refresh before retrying.") from None
+
+
+def check_version(claim, expected):
+    if claim.state_version != expected:
+        raise Conflict("This claim changed; refresh before retrying.", reason_code="TRAJECTORY_STALE_REVIEW")
+
+
 @router.post("/me/submissions/{submission_id}/trajectory/withdraw")
-async def withdraw(submission_id: uuid.UUID, principal: CookieWriterDep, session: SessionDep, response: Response):
+async def withdraw(submission_id: uuid.UUID, request: Request, principal: CookieWriterDep, session: SessionDep, response: Response):
     private(response)
+    expected = await mutation_version(request)
     await store.owned_submission(session, submission_id, principal.account.id, lock=True)
     claim = await store.claim_for(session, submission_id)
     if claim is None:
         raise NotFound("Trajectory not found")
+    check_version(claim, expected)
     if claim.status not in ("UNDER_REVIEW", "NEEDS_CHANGES", "WITHDRAWN"):
         raise Conflict("Only a pending trajectory can be withdrawn; contact support about a decided claim.")
     if claim.status != "WITHDRAWN":
@@ -204,7 +240,9 @@ async def queue(principal: Reviewer, session: SessionDep, response: Response,
 async def metadata_view(session, claim, election):
     # Do not lazy-load private bytea data to build a queue or status response.
     return {"id": str(claim.id), "submission_id": str(claim.submission_id),
-            "status": await store.effective_status(session, claim), "revision": claim.revision,
+            "status": await store.effective_status(session, claim), "revision": claim.revision, "state_version": claim.state_version,
+            "amount_usd_cents": claim.amount_usd_cents,
+            "chat_logs_required": claim.amount_usd_cents == 0,
             "review_note": claim.review_note, "expires_at": claim.expires_at,
             "commercial_election": election, "commercial_review": claim.commercial_review,
             "commercial_withdrawn_at": claim.commercial_withdrawn_at,
@@ -244,7 +282,7 @@ class Checklist(StrictModel):
 ReviewNote = Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=2000)]
 
 
-class Decision(StrictModel):
+class Decision(StateVersion):
     decision: Literal["APPROVED_MANUAL_PAYMENT", "NEEDS_CHANGES", "REJECTED"]
     expected_revision: Annotated[int, Field(strict=True, ge=1, le=3)]
     note: ReviewNote
@@ -272,6 +310,7 @@ async def decide(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
     claim = await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package),
         defer(TrajectoryClaim.commercial_election)).where(TrajectoryClaim.id == claim_id)
         .execution_options(populate_existing=True).with_for_update())
+    check_version(claim, body.expected_state_version)
     if principal.account.id == claim.account_id:
         raise Conflict("A contributor cannot review their own trajectory.")
     reviewable = claim.status == "UNDER_REVIEW" or (body.decision == "REJECTED" and claim.status in ("EXPIRED", "NEEDS_CHANGES"))
@@ -282,7 +321,7 @@ async def decide(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
         raise Conflict("Content expired; approval is unavailable.", reason_code="TRAJECTORY_EXPIRED")
     proof_decision = await latest_binding_decision(session, submission.id)
     if body.decision == "APPROVED_MANUAL_PAYMENT":
-        reason = store.eligibility_reason(submission, proof_decision, cutoff=cutoff(services), now=now,
+        reason = store.eligibility_reason(submission, proof_decision, cutoff=claim.offer_start_at, now=now,
                                           enforce_window=False)
         if reason:
             raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
@@ -299,7 +338,8 @@ async def decide(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
         if reason or not body.source_rights_verified or body.decision != "APPROVED_MANUAL_PAYMENT":
             raise Conflict(reason or "Conditional rights clearance needs an approved package and verified source rights.",
                            reason_code="TRAJECTORY_RIGHTS_UNCLEARED")
-    claim.status = body.decision
+    claim.status = ("APPROVED_BOUNTY_EVIDENCE" if body.decision == "APPROVED_MANUAL_PAYMENT"
+                    and claim.amount_usd_cents == 0 else body.decision)
     claim.reviewer_id = principal.account.id
     claim.review_note = body.note.strip()
     claim.checklist = body.checklist.model_dump() if body.checklist else None
@@ -308,7 +348,7 @@ async def decide(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
                                "source_rights_verified": body.source_rights_verified,
                                "reviewer_id": str(principal.account.id), "reviewed_at": now.isoformat(),
                                "license_status": "INACTIVE_NO_PAYMENT_OR_ACTIVATION"}
-    store.audit(claim, action=body.decision, actor=principal.account.id, now=now)
+    store.audit(claim, action=claim.status, actor=principal.account.id, now=now)
     try:
         await session.commit()
     except IntegrityError:
@@ -318,13 +358,15 @@ async def decide(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
 
 
 @router.post("/me/submissions/{submission_id}/trajectory/withdraw-commercial")
-async def withdraw_commercial(submission_id: uuid.UUID, principal: CookieWriterDep,
+async def withdraw_commercial(submission_id: uuid.UUID, request: Request, principal: CookieWriterDep,
                               session: SessionDep, response: Response):
     private(response)
+    expected = await mutation_version(request)
     await store.owned_submission(session, submission_id, principal.account.id, lock=True)
     claim = await store.claim_for(session, submission_id)
     if claim is None:
         raise NotFound("Trajectory not found")
+    check_version(claim, expected)
     # No activation route exists. Every current election is therefore withdrawable,
     # independently of the bonus claim's status or whether intake is paused.
     if claim.commercial_withdrawn_at is None:
@@ -336,9 +378,9 @@ async def withdraw_commercial(submission_id: uuid.UUID, principal: CookieWriterD
     return await store.view(session, claim)
 
 
-class Reopen(StrictModel):
+class Reopen(StateVersion):
     expected_revision: Annotated[int, Field(strict=True, ge=1, le=3)]
-    action: Literal["REVOKE_PROOF_CHANGED", "REOPEN_REVIEW"]
+    action: Literal["REVOKE_PROOF_CHANGED", "REOPEN_REVIEW", "REBIND_PROOF_DECISION"]
     note: ReviewNote
 
 
@@ -354,12 +396,30 @@ async def reopen(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
         defer(TrajectoryClaim.commercial_election)).where(TrajectoryClaim.id == claim_id))
     if claim is None:
         raise NotFound("Trajectory not found")
-    await session.scalar(select(Submission).where(Submission.id == claim.submission_id).with_for_update())
+    submission = await session.scalar(select(Submission).where(Submission.id == claim.submission_id).with_for_update())
     claim = await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package),
         defer(TrajectoryClaim.commercial_election)).where(TrajectoryClaim.id == claim_id)
         .execution_options(populate_existing=True).with_for_update())
+    check_version(claim, body.expected_state_version)
     if principal.account.id == claim.account_id or claim.revision != body.expected_revision:
         raise Conflict("Self review or stale revision is not allowed.")
+    if body.action == "REBIND_PROOF_DECISION":
+        current = await latest_binding_decision(session, submission.id)
+        snapshot = {"review_policy_version": submission.review_policy_version,
+                    "bounty_policy_version": submission.bounty_policy_version}
+        reason = store.eligibility_reason(submission, current, cutoff=claim.offer_start_at,
+                                          now=dt.datetime.now(dt.UTC), enforce_window=False)
+        if (claim.status not in ("APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE") or reason or
+                snapshot != claim.proof_policy_snapshot or current.id == claim.proof_review_decision_id):
+            raise Conflict("Rebinding requires an unchanged policy and a current full-bounty human approval.",
+                           reason_code="TRAJECTORY_REBIND_INELIGIBLE")
+        previous = claim.proof_review_decision_id
+        claim.proof_review_decision_id = current.id
+        claim.review_note = body.note
+        store.audit(claim, action=body.action, actor=principal.account.id, now=dt.datetime.now(dt.UTC),
+                    extra={"previous_proof_review_decision_id": previous})
+        await session.commit()
+        return await store.view(session, claim)
     if body.action == "REVOKE_PROOF_CHANGED":
         if await store.effective_status(session, claim) != "BLOCKED_PROOF_CHANGED":
             raise Conflict("Only a bonus blocked by a changed proof decision can be revoked here.")

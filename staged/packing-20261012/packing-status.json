@@ -1,0 +1,107 @@
+{
+  "reviewed_on": "2026-10-12",
+  "candidates": [
+    {
+      "id": "P15",
+      "container": "unit disk",
+      "count": 15,
+      "status": "WITHDRAWN_PUBLISHED_CERTIFICATE_REPLAYED",
+      "admission_allowed": false,
+      "radius": "1/(1+sqrt(6+2/sqrt(5)+4*sqrt(1+2/sqrt(5))))",
+      "primary_source": "https://nor-git.pages.dev/circle-packing/",
+      "exact_match": "Theorem 1.1; expand 1+(2+c)^2 with c=sqrt(1+2/sqrt(5)).",
+      "evidence": "evidence/packing-certificate-replay.json",
+      "lean_global_optimality_replayed": false,
+      "decision": "Exclude from new open-problem proposals. Preserve source, constructions, prior decisions, submissions and reward commitments."
+    },
+    {
+      "id": "P16",
+      "container": "unit disk",
+      "count": 16,
+      "status": "WITHDRAWN_PUBLISHED_CERTIFICATE_REPLAYED",
+      "admission_allowed": false,
+      "radius": "1/(1+b16)",
+      "primary_source": "https://nor-git.pages.dev/circle-packing/",
+      "exact_match": "Theorem 1.1, section 8.1 equation (8.5), Appendix A.1; b16 interval mapped into all six frozen isolating intervals by match_p16.py; h=1/b16.",
+      "evidence": "evidence/packing-certificate-replay.json",
+      "lean_global_optimality_replayed": false,
+      "decision": "Exclude from new open-problem proposals. Preserve source, constructions, prior decisions, submissions and reward commitments."
+    },
+    {
+      "id": "P18",
+      "container": "unit disk",
+      "count": 18,
+      "status": "WITHDRAWN_PUBLISHED_CERTIFICATE_REPLAYED",
+      "admission_allowed": false,
+      "radius": "1/(1+sqrt(2)+sqrt(6))",
+      "primary_source": "https://nor-git.pages.dev/circle-packing/",
+      "exact_match": "Theorem 1.1; literal equality of radius.",
+      "evidence": "evidence/packing-certificate-replay.json",
+      "lean_global_optimality_replayed": false,
+      "decision": "Exclude from new open-problem proposals. Preserve source, constructions, prior decisions, submissions and reward commitments."
+    },
+    {
+      "id": "P34",
+      "container": "unit square",
+      "count": 34,
+      "status": "OWNER_APPROVED_FOR_RELEASE",
+      "admission_allowed": true,
+      "radius": "1/(4+2*sqrt(2)+2*sqrt(6))",
+      "construction_lean_proved_previously": true,
+      "primary_sources": [
+        "https://link.springer.com/article/10.1007/s10898-021-01086-z",
+        "https://www.sciencedirect.com/science/article/pii/S0166218X01003596",
+        "https://packomania.com/csq/csq.html"
+      ],
+      "matching_published_result": "Markot (2021), section 8, distinguishes proved cases 31-33 and still-open 34/35. Locatelli-Raber (2002) reports optimality within a given tolerance, which does not establish the frozen exact radical upper bound. Packomania supplies best-known configurations, not an exact upper certificate.",
+      "decision": "Owner admitted this exact unit-square target on October 12, 2026. Admission is not a claim of mathematical novelty or production activation.",
+      "pricing_policy": "treasury-share-2p5-chat-v1",
+      "treasury_share": {
+        "numerator": 1,
+        "denominator": 40,
+        "basis": "gross_finalized_alpha"
+      },
+      "chat_logs_required": true
+    },
+    {
+      "id": "P35",
+      "container": "unit square",
+      "count": 35,
+      "status": "OWNER_APPROVED_FOR_RELEASE",
+      "admission_allowed": true,
+      "radius": "1/(8+sqrt(2)+sqrt(6))",
+      "construction_lean_proved_previously": true,
+      "primary_sources": [
+        "https://link.springer.com/article/10.1007/s10898-021-01086-z",
+        "https://www.sciencedirect.com/science/article/pii/S0166218X01003596",
+        "https://packomania.com/csq/csq.html"
+      ],
+      "matching_published_result": "Markot (2021), section 8, distinguishes proved cases 31-33 and still-open 34/35. Locatelli-Raber (2002) reports optimality within a given tolerance, which does not establish the frozen exact radical upper bound. Packomania supplies best-known configurations, not an exact upper certificate.",
+      "decision": "Owner admitted this exact unit-square target on October 12, 2026. Admission is not a claim of mathematical novelty or production activation.",
+      "pricing_policy": "treasury-share-2p5-chat-v1",
+      "treasury_share": {
+        "numerator": 1,
+        "denominator": 40,
+        "basis": "gross_finalized_alpha"
+      },
+      "chat_logs_required": true
+    }
+  ],
+  "existing_exclusions_preserved": [
+    15,
+    16,
+    17,
+    18,
+    20
+  ],
+  "extra_note": "17 and 20 are covered by the same paper but were not candidates in the eleven-item packet. Circles were already withdrawn on October 11 on an unverified claim; this audit strengthens the evidence and preserves that decision.",
+  "active_packing_candidates": [],
+  "rollback": "Revert this staging change; no live pool or payout changed.",
+  "owner_decision_date": "2026-10-12",
+  "owner_instruction": "we can allow 34 and 35 circle packing, at 2.5% of total treasury (growing) (new defualt for all new prolbems)",
+  "approved_packing_candidates": [
+    "P34",
+    "P35"
+  ],
+  "production_activated": false
+}

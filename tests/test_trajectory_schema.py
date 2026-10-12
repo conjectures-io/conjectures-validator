@@ -95,12 +95,12 @@ def test_feature_requires_explicit_launch_cutoff_and_preserves_recorded_policy()
     sub = SimpleNamespace(created_at=now, verification_status="VERIFIED", manual_review_status="APPROVED",
                           reward_status="ELIGIBLE", review_policy_version="v3")
     decision = SimpleNamespace(kind="HUMAN", decision="APPROVED", reason_code="REVIEW_APPROVED")
-    assert eligibility_reason(sub, decision, cutoff=now, now=now) is None
+    assert eligibility_reason(sub, decision, cutoff=now + dt.timedelta(days=1), now=now) is None
     decision.reason_code = "FORMALIZATION_DEFECT_AWARD"
-    assert eligibility_reason(sub, decision, cutoff=now, now=now)
+    assert eligibility_reason(sub, decision, cutoff=now + dt.timedelta(days=1), now=now)
     decision.reason_code = "REVIEW_APPROVED"
     decision.kind = "AUTOMATIC"
-    assert eligibility_reason(sub, decision, cutoff=now, now=now)
+    assert eligibility_reason(sub, decision, cutoff=now + dt.timedelta(days=1), now=now)
 
 
 def test_review_terms_assents_and_template_are_truthful_and_pinned():
@@ -186,5 +186,46 @@ def test_upload_budget_prunes_expired_accounts_and_bounds_failures(monkeypatch):
                     raise ValueError()
         with pytest.raises(TooManyRequests):
             async with budget.hold("new-account"):
+                pass
+    asyncio.run(scenario())
+
+
+def test_semantic_messages_are_allowlisted_and_original_content_can_contain_template_words():
+    from pydantic import ValidationError
+    from submission_api.trajectory_intake import prepare_upload, safe_errors
+    from submission_api.trajectory_terms import REVIEW_TERMS_VERSION, REVIEW_TERMS_SHA256, ASSENT_STATEMENTS_SHA256
+    p = example()
+    p["events"][3]["tool_name"] = "mismatched-tool"
+    with pytest.raises(ValidationError) as error:
+        TrajectoryPackage.model_validate(p)
+    detail = safe_errors(error.value)
+    assert detail[0]["message"] == "tool result must match the call's model run and tool name"
+    p = example()
+    p["synthetic"] = False
+    p["runs"][0]["source_export_unavailable_reason"] = "Fixture only"
+    p["events"][0]["content"] += " Authentic log with a REPLACE_ME variable."
+    body = {"package_json": json.dumps(p), "commercial_election": p["commercial_election"], "consent": {
+        "review_terms_version": REVIEW_TERMS_VERSION, "review_terms_sha256": REVIEW_TERMS_SHA256,
+        "assent_statements_sha256": ASSENT_STATEMENTS_SHA256, "accepted": True}}
+    assert "REPLACE_ME" in prepare_upload(json.dumps(body).encode())[0].events[0].content
+    with pytest.raises(ValueError, match="nesting"):
+        prepare_upload(b"[" * 25 + b"]" * 25)
+
+
+def test_success_budget_bounds_exact_retries_and_timeout_does_not_spend_failure_budget():
+    import asyncio
+    from submission_api.trajectory_intake import UploadBudget
+    from submission_api.errors import ApiError, TooManyRequests
+    async def scenario():
+        budget = UploadBudget()
+        with pytest.raises(ApiError):
+            async with budget.hold("account"):
+                raise ApiError("timed out", status_code=408)
+        assert budget.failures.tracked_clients == 0
+        for _ in range(3):
+            async with budget.hold("account"):
+                pass
+        with pytest.raises(TooManyRequests):
+            async with budget.hold("account"):
                 pass
     asyncio.run(scenario())

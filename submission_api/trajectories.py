@@ -11,6 +11,10 @@ from sqlalchemy.orm import defer
 from sqlalchemy.exc import IntegrityError
 
 from conjectures_subnet.db.models import Submission
+from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY, legacy_chat_bonus_cents
+from verifier.task_store import TaskVersionStore
+from verifier.task_versions import is_v2_task_id
+from verifier.errors import VerifierError
 from conjectures_subnet.db.submissions import latest_binding_decision
 from conjectures_subnet.db.trajectory_models import TrajectoryClaim, TrajectoryFingerprint
 from submission_api.errors import Conflict, NotFound
@@ -24,10 +28,12 @@ AUDIT_RETENTION_DAYS = 7 * 365
 
 
 def eligibility_reason(submission, decision, *, cutoff, now, enforce_window=True):
-    if submission.created_at < cutoff:
-        return "Proof predates the configured offer start."
-    if enforce_window and now > submission.created_at + dt.timedelta(days=CLAIM_WINDOW_DAYS):
-        return "The one-year claim window has closed."
+    required = getattr(submission, "bounty_policy_version", None) == TREASURY_CHAT_POLICY
+    if enforce_window and not required:
+        if submission.created_at >= cutoff:
+            return "The retrospective bonus covers proofs submitted before the program cutoff."
+        if now > cutoff + dt.timedelta(days=CLAIM_WINDOW_DAYS):
+            return "The one-year retrospective claim window has closed."
     if str(submission.verification_status) != "VERIFIED":
         return "Proof has not passed verification."
     if str(submission.manual_review_status) != "APPROVED" or str(submission.reward_status) not in (
@@ -54,17 +60,30 @@ async def claim_for(session, submission_id):
     return await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package), defer(TrajectoryClaim.commercial_election)).where(TrajectoryClaim.submission_id == submission_id))
 
 
-def audit(claim, *, action, actor, now):
+def record_digest(value):
+    return "sha256:" + hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
+                                                ensure_ascii=False).encode()).hexdigest()
+
+
+def audit(claim, *, action, actor, now, extra=None):
+    claim.state_version += 1
+    provenance = {}
+    if action in ("UPLOADED", "APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE"):
+        election_digest = (record_digest(claim.commercial_election) if action == "UPLOADED" else
+            next(entry["election_sha256"] for entry in reversed(claim.history) if entry["action"] == "UPLOADED"))
+        provenance = {"consent_sha256": record_digest(claim.consent), "election_sha256": election_digest,
+                      "proof_policy_sha256": record_digest(claim.proof_policy_snapshot)}
     claim.history = [*claim.history, {
         "action": action, "actor": str(actor), "at": now.isoformat(),
-        "revision": claim.revision, "package_sha256": "sha256:" + claim.package_digest.hex(),
+        "revision": claim.revision, "state_version": claim.state_version,
+        **provenance, **(extra or {}), "package_sha256": "sha256:" + claim.package_digest.hex(),
         "proof_review_decision_id": claim.proof_review_decision_id,
     }]
     claim.updated_at = now
 
 
-async def accept_package(session, *, submission, decision, prepared, account_id, now):
-    package, raw, package_hash, fingerprint, consent = prepared
+async def accept_package(session, *, submission, decision, prepared, account_id, now, amount_usd_cents, offer_start_at):
+    package, raw, package_hash, fingerprint, consent, expected_state_version = prepared
     if package.commercial_election.terms_sha256 != COMMERCIAL_TERMS_SHA256:
         raise Conflict("Commercial election references different terms; review the current draft.",
                        reason_code="TRAJECTORY_TERMS_CHANGED")
@@ -79,14 +98,28 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     if len(raw) > MAX_PACKAGE_BYTES:
         raise Conflict("Canonical package exceeds the size limit.", reason_code="TRAJECTORY_SIZE")
     existing = await claim_for(session, submission.id)
-    if existing and existing.package_digest == package_hash:
-        return existing  # Exact retry returns the durable record without changing any state.
+    if existing:
+        # The initial request may be retried without a token only while its original state
+        # remains untouched. Later revisions must present the current state token.
+        if expected_state_version != existing.state_version and not (
+                expected_state_version is None and existing.state_version == 1):
+            raise Conflict("Claim changed; refresh before resubmitting.", reason_code="TRAJECTORY_STALE_REVIEW")
+        if existing.package_digest == package_hash:
+            if existing.status == "UNDER_REVIEW" and await content_available(session, existing):
+                return existing
+            if existing.status == "NEEDS_CHANGES":
+                raise Conflict("The package is unchanged; address the requested changes first.",
+                               reason_code="TRAJECTORY_UNCHANGED")
+            # A withdrawn identical package is a fresh revision with renewed explicit consent.
+    elif expected_state_version is not None:
+        raise Conflict("Claim changed; refresh before submitting.", reason_code="TRAJECTORY_STALE_REVIEW")
     if existing and (existing.status not in ("NEEDS_CHANGES", "WITHDRAWN") or existing.revision >= 3):
         raise Conflict("A new package requires a revision request or withdrawal, with at most three versions.",
                        reason_code="TRAJECTORY_ALREADY_SUBMITTED")
     seen = await session.get(TrajectoryFingerprint, fingerprint)
     if seen and (existing is None or seen.claim_id != existing.id):
         raise Conflict("Evidence has already been submitted.", reason_code="TRAJECTORY_DUPLICATE")
+    previous_withdrawal = existing.commercial_withdrawn_at.isoformat() if existing and existing.commercial_withdrawn_at else None
     if existing:
         claim = existing
         claim.package = raw
@@ -105,8 +138,8 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
         claim = TrajectoryClaim(
             id=uuid.uuid4(), submission_id=submission.id, account_id=account_id,
             proof_digest=submission.proof_digest, reward_target_id=submission.reward_target_id,
-            status="UNDER_REVIEW", amount_usd_cents=50000, terms_version=TERMS_VERSION,
-            package=raw, package_digest=package_hash, revision=1,
+            status="UNDER_REVIEW", amount_usd_cents=amount_usd_cents, terms_version=TERMS_VERSION,
+            package=raw, package_digest=package_hash, revision=1, state_version=0, offer_start_at=offer_start_at,
             proof_review_decision_id=decision.id, history=[], created_at=now, updated_at=now,
             commercial_election=package.commercial_election.model_dump(mode="json"),
             expires_at=now + dt.timedelta(days=RETENTION_DAYS),
@@ -118,7 +151,8 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     claim.proof_policy_snapshot = {"review_policy_version": submission.review_policy_version,
                                    "bounty_policy_version": submission.bounty_policy_version}
     claim.commercial_withdrawn_at = None
-    audit(claim, action="UPLOADED", actor=account_id, now=now)
+    audit(claim, action="UPLOADED", actor=account_id, now=now,
+          extra={"supersedes_commercial_withdrawal_at": previous_withdrawal})
     try:
         await session.flush()
         if not seen:
@@ -151,13 +185,13 @@ def commercial_clearance_reason(election):
 async def effective_status(session, claim):
     if claim.status in ("UNDER_REVIEW", "NEEDS_CHANGES") and claim.expires_at <= dt.datetime.now(dt.UTC):
         return "EXPIRED"
-    if claim.status != "APPROVED_MANUAL_PAYMENT":
+    if claim.status not in ("APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE"):
         return claim.status
     submission = await session.get(Submission, claim.submission_id)
     decision = await latest_binding_decision(session, claim.submission_id)
     # Any correction invalidates the exact decision this bonus approval relied on. A future
     # payout adapter must repeat this under locks; the current feature cannot issue funds.
-    reason = eligibility_reason(submission, decision, cutoff=submission.created_at,
+    reason = eligibility_reason(submission, decision, cutoff=claim.offer_start_at,
                                 now=dt.datetime.now(dt.UTC), enforce_window=False)
     if (reason or decision.id != claim.proof_review_decision_id
             or claim.proof_policy_snapshot != {"review_policy_version": submission.review_policy_version,
@@ -170,7 +204,9 @@ async def view(session, claim):
     return {
         "id": str(claim.id), "submission_id": str(claim.submission_id),
         "status": await effective_status(session, claim), "amount_usd_cents": claim.amount_usd_cents,
-        "payment_status": "NOT_ISSUED", "revision": claim.revision,
+        "payment_status": "NOT_APPLICABLE" if claim.amount_usd_cents == 0 else "NOT_ISSUED",
+        "chat_logs_required": claim.amount_usd_cents == 0, "revision": claim.revision,
+        "state_version": claim.state_version, "offer_start_at": claim.offer_start_at,
         "package_sha256": "sha256:" + claim.package_digest.hex(), "terms_version": claim.terms_version,
         "review_note": claim.review_note, "created_at": claim.created_at,
         "expires_at": claim.expires_at, "audit_expires_at": claim.audit_expires_at,
@@ -212,3 +248,23 @@ async def minimize_election(session, claim):
         "record_sha256": "sha256:" + hashlib.sha256(json.dumps(source, sort_keys=True,
             separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()} for source in election["sources"]]
     claim.commercial_election = minimized
+
+
+def amount_for(services, submission):
+    """Resolve old and retired tasks by their immutable bundle, never user-supplied family."""
+    if submission.bounty_policy_version == TREASURY_CHAT_POLICY:
+        return 0
+    entry = services.catalog.entries.get(submission.task_id)
+    expected = "sha256:" + bytes(submission.task_bundle_sha256).hex()
+    if entry is not None and entry.task_bundle_sha256 == expected:
+        return legacy_chat_bonus_cents(entry.manifest.source_module)
+    if is_v2_task_id(submission.task_id):
+        try:
+            bundle = TaskVersionStore(services.settings.task_pool_root.parent / "versions").load(
+                submission.task_id, expected_sha256=expected)
+        except (VerifierError, OSError):
+            bundle = None  # Missing/corrupt archives cannot establish the historical tier.
+        if bundle is not None:
+            return legacy_chat_bonus_cents(bundle.manifest.source_module)
+    raise Conflict("The original task bundle is required to classify this historical bonus.",
+                   reason_code="TRAJECTORY_SOURCE_UNAVAILABLE")

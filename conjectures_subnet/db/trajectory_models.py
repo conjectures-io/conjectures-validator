@@ -22,6 +22,8 @@ class TrajectoryClaim(Base):
     terms_version: Mapped[str] = mapped_column(Text, nullable=False)
     package: Mapped[bytes | None] = mapped_column(LargeBinary)
     package_digest: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+    state_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    offer_start_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     proof_review_decision_id: Mapped[int] = mapped_column(ForeignKey("review_decisions.id"), nullable=False)
     reviewer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"))
@@ -39,18 +41,20 @@ class TrajectoryClaim(Base):
     audit_expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
-        CheckConstraint("status IN ('UNDER_REVIEW','NEEDS_CHANGES','REJECTED','APPROVED_MANUAL_PAYMENT','WITHDRAWN','EXPIRED','REVOKED_PROOF_CHANGED')", name="trajectory_status"),
-        CheckConstraint("amount_usd_cents = 50000", name="trajectory_fixed_bonus"),
+        CheckConstraint("status IN ('UNDER_REVIEW','NEEDS_CHANGES','REJECTED','APPROVED_MANUAL_PAYMENT','WITHDRAWN','EXPIRED','REVOKED_PROOF_CHANGED','APPROVED_BOUNTY_EVIDENCE')", name="trajectory_status"),
+        CheckConstraint("amount_usd_cents IN (0, 25000, 50000)", name="trajectory_fixed_bonus"),
+        CheckConstraint("(status <> 'APPROVED_BOUNTY_EVIDENCE' OR amount_usd_cents = 0) AND (status <> 'APPROVED_MANUAL_PAYMENT' OR amount_usd_cents IN (25000, 50000))", name="trajectory_approval_purpose"),
         CheckConstraint("reviewer_id IS NULL OR reviewer_id <> account_id", name="trajectory_no_self_review"),
+        CheckConstraint("state_version > 0", name="trajectory_state_version"),
         CheckConstraint("revision BETWEEN 1 AND 3", name="trajectory_revision_bound"),
         CheckConstraint("package IS NULL OR octet_length(package) <= 33554432", name="trajectory_package_bound"),
         CheckConstraint("package IS NULL OR pg_catalog.sha256(package) = package_digest", name="trajectory_package_hash"),
         CheckConstraint("terms_version = 'trajectory-review-draft-v1'", name="trajectory_terms"),
         CheckConstraint("expires_at > created_at AND audit_expires_at > expires_at", name="trajectory_retention"),
-        CheckConstraint("status <> 'APPROVED_MANUAL_PAYMENT' OR (reviewer_id IS NOT NULL AND checklist IS NOT NULL AND review_note IS NOT NULL)", name="trajectory_approval_reviewed"),
+        CheckConstraint("status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE') OR (reviewer_id IS NOT NULL AND checklist IS NOT NULL AND review_note IS NOT NULL)", name="trajectory_approval_reviewed"),
         Index("trajectory_account_idx", "account_id", "created_at"),
         Index("trajectory_queue_idx", "status", "created_at"),
-        Index("trajectory_one_approved_target", "reward_target_id", unique=True, postgresql_where=text("status = 'APPROVED_MANUAL_PAYMENT'")),
+        Index("trajectory_one_approved_target", "reward_target_id", unique=True, postgresql_where=text("status IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE')")),
     )
 
 

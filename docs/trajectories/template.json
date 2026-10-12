@@ -47,7 +47,7 @@
   },
   "commercial_election": {
     "terms_version": "trajectory-commercial-draft-v1",
-    "terms_sha256": "sha256:f27713754bf1d6f5c9004f29cab826d217d29217c85fb96139440705d6d717d4",
+    "terms_sha256": "sha256:206e58cb2e17317663bcaa9adea43bf212d2890dccc86a4a2b99b35fbffd9d09",
     "election": "decline",
     "purposes": [],
     "sources": [],

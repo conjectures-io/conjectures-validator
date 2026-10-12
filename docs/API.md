@@ -486,3 +486,33 @@ domain errors into HTTP so that layer stays usable from a worker.
 
 The finalized-payment reader, the verification worker, the review service and the reward
 processor are separate components. See [SUBNET.md](SUBNET.md) for the remaining sequence.
+
+
+## Treasury-share targets and private chat logs
+
+New reward targets use `treasury-share-2p5-chat-v1`: one fortieth of the gross finalized
+Alpha treasury, rounded down to rao and locked at submission. Existing target pricing and
+submission locks persist. `/v1/catalog/meta` publishes `new_target_policy_version`,
+`new_target_share_numerator`, `new_target_share_denominator`, `new_target_pricing_basis`,
+and `new_target_chat_logs_required`. Each task's `bounty.policy_version` remains authoritative;
+legacy curve fields in pool metadata describe legacy targets only.
+
+`GET /v1/trajectory-offer` publishes the retrospective source-family tiers ($500 Erdős/Green,
+$250 other), launch cutoff, window, exact consent digests and intake availability.
+`GET /v1/me/submissions/{id}/trajectory` returns the server-selected `amount_usd_cents`,
+`chat_logs_required` and private claim metadata. A required-evidence claim has amount zero
+and `payment_status=NOT_APPLICABLE`; a historical bonus reports `NOT_ISSUED`.
+
+Cookie-authenticated owners upload through `POST` at the same path. The bounded JSON envelope
+contains `package_json`, separate commercial election, explicit review consent and the current
+`expected_state_version` (null on first upload). Reviewer queue, private download and decisions
+are under `/v1/admin/trajectories`. Decisions, withdrawals, reopening and rebinding require a
+current state version; stale mutations return 409. Approval yields `APPROVED_BOUNTY_EVIDENCE`
+for new-policy logs or `APPROVED_MANUAL_PAYMENT` for historical bonuses. Upload or review does
+not transfer funds or activate commercial rights. New-policy full-bounty reward-event writes
+are rejected by PostgreSQL until exact-proof evidence has been reviewed. The separately capped
+formalization-defect award retains its prior policy.
+
+Original task-bundle provenance, not client-supplied labels, sets the historical bonus tier.
+The immutable enrollment cutoff protects in-progress claims when configuration changes.
+See [chat-log documentation](trajectories/README.md) for limits, retention and rollout.

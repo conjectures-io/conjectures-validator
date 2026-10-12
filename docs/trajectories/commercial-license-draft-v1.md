@@ -7,8 +7,8 @@ and record their SHA-256 before accepting any election. The feature is disabled 
 1. **Separate choice.** Uploading a package gives only the private review/storage permission
    in the separately versioned private review terms. Commercial permission requires a separate, unselected
    choice, named purposes, explicit assent, source rights disclosures, and human clearance.
-   Choosing review only does not reduce eligibility for the proposed $500 bonus.
-2. **What the proposed $500 buys.** It pays once for delivery of a qualifying accepted package
+   Choosing review only does not reduce eligibility for the proposed historical log bonus or a new bounty.
+2. **What an accepted package buys.** It pays once for delivery of a qualifying accepted package
    and, only if separately elected and cleared, the permitted commercial rights below. No extra
    license fee is proposed. The owner must approve this optional-license pricing before launch;
    if commercial licensing becomes mandatory, publish new terms and obtain a new election.
@@ -33,7 +33,7 @@ and record their SHA-256 before accepting any election. The feature is disabled 
 6. **When a license starts.** The election records conditional assent in this submission flow;
    no additional contributor agreement is required if the accepted package, purposes, and
    terms stay identical. Permission is inactive until the package and the separate rights
-   review are approved, the $500 payment is documented, and authorized activation is recorded.
+   review are approved, the applicable historical bonus or proof-bounty payment is documented, and authorized activation is recorded.
    This implementation has no payment or activation operation and cannot authorize sale,
    sublicensing, evaluation, or training. Any change of package or scope requires a new assent.
 7. **Duration and withdrawal.** If activated under approved final terms, the license lasts five

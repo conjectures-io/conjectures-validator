@@ -191,8 +191,10 @@ def main(argv: list[str] | None = None) -> int:
                 connection.execute(text(f'CREATE DATABASE "{name}"'))
 
         sql_engine = create_engine(database_url(sql_db))
-        with sql_engine.begin() as connection:
-            for path in migration_files():
+        # Flyway commits each version separately; enum additions must be committed before
+        # a later migration can use the new labels (for example V014 -> V015).
+        for path in migration_files():
+            with sql_engine.begin() as connection:
                 connection.execute(text(path.read_text()))
         applied = [path.name for path in migration_files()]
 

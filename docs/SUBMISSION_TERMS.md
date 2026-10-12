@@ -1,6 +1,6 @@
 # Submission terms
 
-**Terms version:** `v7`<br>
+**Terms version:** `v8`<br>
 **Effective date:** 2026-10-12<br>
 **Manual review policy:** `v4`
 
@@ -94,6 +94,29 @@ the fixed $750 defect award under policies `v1` and `v2`.
 
 Submissions accepted before that activation retain the payout-time pricing policy in force when
 they were submitted; the new lock is not applied retroactively.
+
+## New problems and chat logs
+
+Targets first admitted under `treasury-share-2p5-chat-v1`, including the P34 and P35
+unit-square circle-packing targets, offer **2.5% of the total finalized Alpha treasury**,
+rounded down to integer rao. Their quotes grow with the treasury and lock at submission;
+they do not increase merely with age. A new commitment is accepted only when the treasury
+can cover it alongside existing commitments. Older targets retain their recorded pricing.
+
+To receive a full bounty under this new policy, supply authentic, sufficiently complete,
+legitimately exportable user-visible chat logs linked to the accepted proof. Independent
+human acceptance of those logs is required before payout. Upload alone is insufficient.
+Disclose gaps and redactions and remove credentials and unnecessary personal information.
+The separately capped formalization-defect award retains its existing rules.
+Hidden internal reasoning is neither requested nor accepted. The private review terms
+specify format, consent, access and retention; review permission grants no commercial rights.
+
+For qualifying full-bounty proofs submitted before the chat-log program's published cutoff,
+accepted logs earn an optional additional **$500 USD for Erdős or Green problems**, or
+**$250 USD for other problems**, based on the original task bundle. Claims close 365 days
+after that cutoff. Existing proof payouts are not reduced or made conditional on logs.
+There is no additional historical log bonus for a new treasury-share bounty.
+Commercial licensing remains separate and optional.
 
 ## Attribution and publication
 

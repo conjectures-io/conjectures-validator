@@ -33,6 +33,7 @@ async def purge(session):
             await store.minimize_election(session, claim)
             if claim.status in ("UNDER_REVIEW", "NEEDS_CHANGES"):
                 claim.status = "EXPIRED"
+            claim.state_version += 1
             removed += 1
         await session.commit()
     audit = await session.execute(delete(TrajectoryClaim).where(TrajectoryClaim.audit_expires_at <= func.now()))

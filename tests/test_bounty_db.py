@@ -77,7 +77,7 @@ def test_a_future_opening_date_uses_the_starting_share():
             pricer = replace(kit.services.pricing, clock=lambda: now)
             target = pricer.reward_target_ids[0]
             async with kit.session() as session:
-                session.add(BountyTask(reward_target_id=target, opened_at=now + timedelta(days=1)))
+                session.add(BountyTask(reward_target_id=target, opened_at=now + timedelta(days=1), pricing_policy="legacy"))
                 await session.commit()
                 quote = await pricer.quote(session, reward_target_id=target)
                 assert quote.amount_rao == 200_000_000

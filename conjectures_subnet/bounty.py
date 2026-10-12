@@ -1,4 +1,8 @@
-"""Live, linear-age bounty pricing with submission-time amount locks.
+"""Live target-specific bounty pricing with submission-time amount locks.
+
+New targets use 1/40 of the gross finalized Alpha treasury and require reviewed chat logs.
+Their policy is persisted at first admission. Previously admitted targets retain the linear-age
+policy below. Existing locked quotes never change under either policy.
 
 Catalog prices remain live estimates. Once a paid submission is accepted, its quote is immutable:
 later balance and age changes affect new submissions only. Several proofs may still compete for
@@ -34,6 +38,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
 
 import bittensor as bt
+from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY, treasury_share_rao
 from sqlalchemy import exists, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -205,6 +210,7 @@ class DynamicBountyPricer:
     balance_hotkey: str
     balance_netuid: int
     reward_target_ids: tuple[str, ...]
+    new_target_policy: str = TREASURY_CHAT_POLICY
     policy_version: str = LINEAR_BOUNTY_POLICY_VERSION
     constant_numerator: int = 1
     constant_denominator: int = 20
@@ -217,6 +223,8 @@ class DynamicBountyPricer:
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
 
     def __post_init__(self) -> None:
+        if self.new_target_policy not in ("legacy", TREASURY_CHAT_POLICY):
+            raise ValueError("unknown new-target bounty policy")
         if not self.balance_coldkey or not self.balance_hotkey:
             raise ValueError("bounty balance coldkey and hotkey must not be empty")
         if self.balance_netuid <= 0:
@@ -303,7 +311,7 @@ class DynamicBountyPricer:
             pg_insert(BountyTask)
             .values(
                 [
-                    {"reward_target_id": target, "opened_at": now}
+                    {"reward_target_id": target, "opened_at": now, "pricing_policy": self.new_target_policy}
                     for target in self.reward_target_ids
                 ]
             )
@@ -311,12 +319,13 @@ class DynamicBountyPricer:
         )
         opened_rows = (
             await session.execute(
-                select(BountyTask.reward_target_id, BountyTask.opened_at).where(
+                select(BountyTask.reward_target_id, BountyTask.opened_at, BountyTask.pricing_policy).where(
                     BountyTask.reward_target_id.in_(self.reward_target_ids)
                 )
             )
         ).all()
         opened_at = {str(row[0]): _utc(row[1]) for row in opened_rows}
+        target_policies = {str(row[0]): str(row[2]) for row in opened_rows}
 
         holder_rows = (
             await session.execute(
@@ -380,10 +389,13 @@ class DynamicBountyPricer:
             )
         ).all()
         committed = sum(int(row[1]) for row in reservations)
+        reserved_by_target = {str(row[0]): int(row[1]) for row in reservations}
         balance = max(0, gross_balance - committed)
 
         quotes: dict[str, LiveBounty] = {}
         for target in requested:
+            requires_logs = target_policies.get(target) == TREASURY_CHAT_POLICY
+            policy_version = TREASURY_CHAT_POLICY if requires_logs else self.policy_version
             base_inputs: dict[str, int | str] = {
                 "balance_rao": balance,
                 "treasury_balance_rao": gross_balance,
@@ -407,10 +419,18 @@ class DynamicBountyPricer:
                 "open_targets": len(open_targets),
                 "total_age_weight": total_weight,
             }
+            if requires_logs:
+                base_inputs.update({
+                    "calculation": "floor(total_treasury_alpha_rao / 40)",
+                    "share_numerator": 1, "share_denominator": 40,
+                    "pricing_basis": "gross_treasury",
+                    "chat_logs_required": "true",
+                    "max_bounty_rao": treasury_share_rao(gross_balance),
+                })
             if target not in configured:
                 quotes[target] = LiveBounty(
                     amount_rao=None,
-                    policy_version=self.policy_version,
+                    policy_version=policy_version,
                     available=False,
                     reason="NOT_IN_BOUNTY_POOL",
                     as_of=now,
@@ -421,7 +441,7 @@ class DynamicBountyPricer:
             if holder is not None and claimant_map.get(target) != holder:
                 quotes[target] = LiveBounty(
                     amount_rao=None,
-                    policy_version=self.policy_version,
+                    policy_version=policy_version,
                     available=False,
                     reason="ALREADY_SOLVED",
                     as_of=now,
@@ -440,13 +460,18 @@ class DynamicBountyPricer:
                 max_bounty_share_numerator=self.max_bounty_share_numerator,
                 max_bounty_share_denominator=self.max_bounty_share_denominator,
             )
+            if requires_logs:
+                amount = treasury_share_rao(gross_balance)
+            capacity = (max(0, gross_balance - committed + reserved_by_target.get(target, 0))
+                        if requires_logs else balance)
+            funded = amount > 0 and amount <= capacity
             quotes[target] = LiveBounty(
                 amount_rao=amount,
-                policy_version=self.policy_version,
-                available=amount > 0,
+                policy_version=policy_version,
+                available=funded,
                 reason=(
                     "TREASURY_RESERVED"
-                    if amount <= 0
+                    if not funded
                     else ("OPEN" if holder is None else "CLAIM_HELD")
                 ),
                 as_of=now,

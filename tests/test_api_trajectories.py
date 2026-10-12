@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(postgres_dsn() is None, reason="requires verifie
 
 
 def kit_config():
-    return harness(TRAJECTORY_BONUS_ENABLED="true", TRAJECTORY_BONUS_START_AT="2026-01-01T00:00:00Z")
+    return harness(TRAJECTORY_BONUS_ENABLED="true", TRAJECTORY_BONUS_START_AT="2027-01-01T00:00:00Z")
 
 
 async def accepted(kit, http, *, code="REVIEW_APPROVED"):
@@ -55,14 +55,14 @@ async def reviewer(kit, http):
     return account
 
 
-def envelope(package):
-    return {"package_json": json.dumps(package), "commercial_election": package["commercial_election"],
+def envelope(package, state_version=None):
+    return {"package_json": json.dumps(package), "expected_state_version": state_version, "commercial_election": package["commercial_election"],
             "consent": {"review_terms_version": REVIEW_TERMS_VERSION, "review_terms_sha256": REVIEW_TERMS_SHA256,
                         "assent_statements_sha256": ASSENT_STATEMENTS_SHA256, "accepted": True}}
 
 
-def review_body(*, decision="APPROVED_MANUAL_PAYMENT", revision=1):
-    return {"decision": decision, "expected_revision": revision,
+def review_body(*, decision="APPROVED_MANUAL_PAYMENT", revision=1, state_version=1):
+    return {"decision": decision, "expected_revision": revision, "expected_state_version": state_version,
             "note": "Test-only human evidence checks completed.",
             "checklist": {k: True for k in Checklist.model_fields} if decision == "APPROVED_MANUAL_PAYMENT" else None,
             "commercial_clearance": "NOT_CLEARED", "commercial_note": "Review-only election respected.",
@@ -142,12 +142,12 @@ def test_owner_intake_replay_review_and_no_automatic_payout():
                 assert final.json()["eligible"] is False
                 kit.app.state.services = replace(kit.services, settings=replace(kit.settings, trajectory_bonus_enabled=False))
                 revoked = await admin.post(f"/v1/admin/trajectories/{cid}/reopen", headers=same_origin(),
-                    json={"action": "REVOKE_PROOF_CHANGED", "expected_revision": 1, "note": "Proof approval was revoked; release bonus reservation."})
+                    json={"action": "REVOKE_PROOF_CHANGED", "expected_revision": 1, "expected_state_version": 2, "note": "Proof approval was revoked; release bonus reservation."})
                 assert revoked.status_code == 200 and revoked.json()["status"] == "REVOKED_PROOF_CHANGED"
                 reopened = await admin.post(f"/v1/admin/trajectories/{cid}/reopen", headers=same_origin(),
-                    json={"action": "REOPEN_REVIEW", "expected_revision": 1, "note": "Reopen for a new full review of this proof."})
+                    json={"action": "REOPEN_REVIEW", "expected_revision": 1, "expected_state_version": 3, "note": "Reopen for a new full review of this proof."})
                 assert reopened.status_code == 200 and reopened.json()["status"] == "UNDER_REVIEW"
-                rejected = await admin.post(decision_path, headers=same_origin(), json=review_body(decision="REJECTED"))
+                rejected = await admin.post(decision_path, headers=same_origin(), json=review_body(decision="REJECTED", state_version=4))
                 assert rejected.status_code == 200  # Review remains operable with intake paused.
         finally:
             await kit.teardown()
@@ -170,14 +170,14 @@ def test_revisions_withdrawal_expiry_and_self_review_refusal():
                 result = await admin.post(decision_path, json=review_body(decision="NEEDS_CHANGES"), headers=same_origin())
                 assert result.status_code == 200, result.text
                 p["events"][0]["content"] += " corrected"
-                changed = await owner.post(path, json=envelope(p), headers=same_origin())
+                changed = await owner.post(path, json=envelope(p, 2), headers=same_origin())
                 assert changed.json()["revision"] == 2
                 assert (await admin.post(decision_path, json=review_body(), headers=same_origin())).status_code == 409
-                withdrawn = await owner.post(path + "/withdraw", headers=same_origin())
+                withdrawn = await owner.post(path + "/withdraw", json={"expected_state_version": 3}, headers=same_origin())
                 assert withdrawn.status_code == 200 and withdrawn.json()["content_available"] is False
                 assert (await admin.get(f"/v1/admin/trajectories/{cid}/package")).status_code == 404
                 p["events"][0]["content"] += " third"
-                third = await owner.post(path, json=envelope(p), headers=same_origin())
+                third = await owner.post(path, json=envelope(p, 4), headers=same_origin())
                 assert third.json()["revision"] == 3
                 async with kit.session() as session:
                     claim = await session.get(TrajectoryClaim, uuid.UUID(cid))
@@ -192,7 +192,7 @@ def test_revisions_withdrawal_expiry_and_self_review_refusal():
                     record = await session.get(TrajectoryClaim, uuid.UUID(cid))
                     assert record.status == "EXPIRED" and record.package is None
                     assert record.commercial_election["provenance_expired"]
-                rejected = await admin.post(decision_path, json=review_body(revision=3, decision="REJECTED"), headers=same_origin())
+                rejected = await admin.post(decision_path, json=review_body(revision=3, decision="REJECTED", state_version=6), headers=same_origin())
                 assert rejected.status_code == 200
         finally:
             await kit.teardown()
@@ -333,16 +333,17 @@ def test_in_flow_conditional_license_records_election_and_separate_rights_cleara
                     source.update(rights_status="confirmed", allowed_purposes=["dataset_redistribution", "evaluation"],
                                   agreement_or_license={"value": "Own synthetic fixture license", "unknown_reason": None},
                                   evidence_reference={"value": "Synthetic fixture authorship record", "unknown_reason": None})
-                revised = await owner.post(path, json=envelope(p), headers=same_origin())
+                revised = await owner.post(path, json=envelope(p, 2), headers=same_origin())
                 assert revised.status_code == 200 and revised.json()["revision"] == 2
                 body["expected_revision"] = 2
+                body["expected_state_version"] = 3
                 cleared = await admin.post(dpath, json=body, headers=same_origin())
                 assert cleared.status_code == 200, cleared.text
                 assert cleared.json()["commercial_review"]["decision"] == "CLEARED_CONDITIONAL"
                 assert cleared.json()["license_status"] == "INACTIVE_NO_PAYMENT_OR_ACTIVATION"
                 assert cleared.json()["payment_status"] == "NOT_ISSUED"
                 assert "reviewer_id" not in cleared.json()["commercial_review"]
-                withdrawn = await owner.post(path + "/withdraw-commercial", headers=same_origin())
+                withdrawn = await owner.post(path + "/withdraw-commercial", json={"expected_state_version": 4}, headers=same_origin())
                 assert withdrawn.status_code == 200 and withdrawn.json()["commercial_withdrawn_at"]
                 assert withdrawn.json()["status"] == "APPROVED_MANUAL_PAYMENT"
                 assert withdrawn.json()["commercial_review"] is None
@@ -388,10 +389,12 @@ def test_stream_limit_releases_transaction_before_body_and_refuses_bearer(monkey
                 oversized = await owner.post(path, content=chunks(), headers={**same_origin(), "Content-Type": "application/json"})
                 assert oversized.status_code == 413 and oversized.json()["reason_code"] == "TRAJECTORY_SIZE"
                 assert oversized.headers["cache-control"] == "no-store"
-                _, token = await linked_account_with_cli_token(kit)
+                account, token = await linked_account_with_cli_token(kit)
+                await _grant_reviewer(kit, account["id"])
                 for endpoint in (path, f"/v1/admin/trajectories/{uuid.uuid4()}/decision"):
                     refused = await cli.post(endpoint, json={}, headers={**bearer(token), **same_origin()})
                     assert refused.status_code == 403
+                    assert refused.json()["reason_code"] == ("ROLE_REQUIRES_BROWSER_SESSION" if "/admin/" in endpoint else "BROWSER_SESSION_REQUIRED")
         finally:
             await kit.teardown()
     asyncio.run(scenario())
@@ -447,6 +450,123 @@ def test_reviews_really_contend_on_same_proof_lock(monkeypatch):
                 release.set()
                 results = await asyncio.gather(first, second)
                 assert [r.status_code for r in results] == [200, 409]
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+def test_state_token_prevents_stale_approval_after_reopen_and_same_file_withdrawal_retry():
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner, await client(kit) as admin:
+                _, sid, p = await accepted(kit, owner)
+                path = f"/v1/me/submissions/{sid}/trajectory"
+                first = await owner.post(path, json=envelope(p), headers=same_origin())
+                cid = first.json()["id"]
+                await reviewer(kit, admin)
+                dpath = f"/v1/admin/trajectories/{cid}/decision"
+                result = await admin.post(dpath, json=review_body(decision="REJECTED"), headers=same_origin())
+                assert result.json()["state_version"] == 2
+                reopened = await admin.post(f"/v1/admin/trajectories/{cid}/reopen", headers=same_origin(), json={
+                    "action": "REOPEN_REVIEW", "expected_revision": 1, "expected_state_version": 2,
+                    "note": "Reopen after the first independent review."})
+                assert reopened.json()["state_version"] == 3 and reopened.json()["revision"] == 1
+                stale = await admin.post(dpath, json=review_body(), headers=same_origin())
+                assert stale.status_code == 409 and stale.json()["reason_code"] == "TRAJECTORY_STALE_REVIEW"
+                withdrawal = await owner.post(path + "/withdraw", headers=same_origin(), json={"expected_state_version": 3})
+                assert withdrawal.json()["state_version"] == 4
+                restored = await owner.post(path, json=envelope(p, 4), headers=same_origin())
+                assert restored.status_code == 200, restored.text
+                assert restored.json()["revision"] == 2 and restored.json()["state_version"] == 5
+                assert restored.json()["content_available"] and restored.json()["status"] == "UNDER_REVIEW"
+                changes = await admin.post(dpath, json=review_body(decision="NEEDS_CHANGES", revision=2, state_version=5), headers=same_origin())
+                assert changes.json()["state_version"] == 6
+                unchanged = await owner.post(path, json=envelope(p, 6), headers=same_origin())
+                assert unchanged.status_code == 409 and unchanged.json()["reason_code"] == "TRAJECTORY_UNCHANGED"
+                async with kit.session() as session:
+                    record = await session.get(TrajectoryClaim, uuid.UUID(cid))
+                    assert record.history[-2]["supersedes_commercial_withdrawal_at"]
+                    assert all("consent_sha256" in e and "election_sha256" in e and "proof_policy_sha256" in e
+                               for e in record.history if e["action"] == "UPLOADED")
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+def test_same_outcome_proof_rebind_after_expiry_uses_snapshot_and_retains_review():
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner, await client(kit) as admin:
+                _, sid, p = await accepted(kit, owner)
+                path = f"/v1/me/submissions/{sid}/trajectory"
+                first = await owner.post(path, json=envelope(p), headers=same_origin())
+                cid = first.json()["id"]
+                await reviewer(kit, admin)
+                kit.app.state.services = replace(kit.services, settings=replace(kit.settings,
+                    trajectory_bonus_enabled=False, trajectory_bonus_start_at=""))
+                approved = await admin.post(f"/v1/admin/trajectories/{cid}/decision", json=review_body(), headers=same_origin())
+                assert approved.status_code == 200, approved.text  # Config cleared after enrollment.
+                async with kit.session() as session:
+                    record = await session.get(TrajectoryClaim, uuid.UUID(cid))
+                    assert "consent_sha256" in record.history[-1] and "election_sha256" in record.history[-1]
+                    record.created_at = dt.datetime.now(dt.UTC) - dt.timedelta(days=120)
+                    record.expires_at = dt.datetime.now(dt.UTC) - dt.timedelta(days=30)
+                    record.package = None
+                    current = await proof_store.latest_binding_decision(session, uuid.UUID(sid))
+                    await proof_store.correct_human_decision(session, uuid.UUID(sid), supersedes_id=current.id,
+                        decision=ReviewOutcome.APPROVED, reason_code="REVIEW_APPROVED", reviewer="fixture-correction",
+                        notes="Correct public explanation only", notes_public="Correct public explanation only")
+                    await session.commit()
+                assert (await owner.get(path)).json()["claim"]["status"] == "BLOCKED_PROOF_CHANGED"
+                body = {"action": "REBIND_PROOF_DECISION", "expected_revision": 1, "expected_state_version": 2,
+                        "note": "Verified same outcome and policy after explanation correction."}
+                rebound = await admin.post(f"/v1/admin/trajectories/{cid}/reopen", headers=same_origin(), json=body)
+                assert rebound.status_code == 200, rebound.text
+                assert rebound.json()["status"] == "APPROVED_MANUAL_PAYMENT" and rebound.json()["state_version"] == 3
+                assert not rebound.json()["content_available"] and rebound.json()["payment_status"] == "NOT_ISSUED"
+                async with kit.session() as session:
+                    record = await session.get(TrajectoryClaim, uuid.UUID(cid))
+                    assert record.checklist is not None and record.history[-1]["previous_proof_review_decision_id"]
+                    current = await proof_store.latest_binding_decision(session, uuid.UUID(sid))
+                    await proof_store.correct_human_decision(session, uuid.UUID(sid), supersedes_id=current.id,
+                        decision=ReviewOutcome.REJECTED, reason_code="NOT_NOVEL", reviewer="fixture-correction",
+                        notes="Disqualified proof", notes_public="Disqualified proof")
+                    await session.commit()
+                body["expected_state_version"] = 3
+                denied = await admin.post(f"/v1/admin/trajectories/{cid}/reopen", headers=same_origin(), json=body)
+                assert denied.status_code == 409 and denied.json()["reason_code"] == "TRAJECTORY_REBIND_INELIGIBLE"
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+def test_requested_revision_after_initial_claim_window_and_changed_cutoff():
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner, await client(kit) as admin:
+                _, sid, p = await accepted(kit, owner)
+                path = f"/v1/me/submissions/{sid}/trajectory"
+                first = await owner.post(path, json=envelope(p), headers=same_origin())
+                cid = first.json()["id"]
+                await reviewer(kit, admin)
+                changed = await admin.post(f"/v1/admin/trajectories/{cid}/decision", json=review_body(decision="NEEDS_CHANGES"), headers=same_origin())
+                assert changed.status_code == 200
+                async with kit.session() as session:
+                    sub = await session.get(Submission, uuid.UUID(sid))
+                    sub.created_at = dt.datetime.now(dt.UTC) - dt.timedelta(days=370)
+                    claim = await session.get(TrajectoryClaim, uuid.UUID(cid))
+                    claim.offer_start_at = sub.created_at - dt.timedelta(days=1)
+                    await session.commit()
+                kit.app.state.services = replace(kit.services, settings=replace(kit.settings,
+                    trajectory_bonus_start_at="2099-01-01T00:00:00Z"))
+                assert (await owner.get(path)).json()["eligible"]
+                p["events"][0]["content"] += " Revision requested while review content remains live."
+                revised = await owner.post(path, json=envelope(p, 2), headers=same_origin())
+                assert revised.status_code == 200, revised.text
+                assert revised.json()["revision"] == 2
         finally:
             await kit.teardown()
     asyncio.run(scenario())

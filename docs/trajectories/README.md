@@ -1,24 +1,26 @@
-# Trajectory bonus: disabled proposal and implementation
+# Chat logs and treasury-share bounties: staged implementation
 
-One additional **$500 USD** award per qualifying accepted proof and complete authentic trajectory.
-Existing proof bounties, reward pricing, credits, payout workers and proof terms are unchanged.
+New targets offer 2.5% of gross finalized Alpha treasury and require accepted authentic chat logs.
+For qualifying proofs submitted before launch, accepted logs earn an optional additional
+**$500 USD for Erdős/Green source problems, $250 USD otherwise**. Existing proof payouts retain their terms.
 Upload creates a private review record. Human acceptance creates a manual-payment review record,
 **never a reward event, transfer, active commercial license or automatic payout**.
 
 The delivered flow includes the full [commercial license draft](commercial-license-draft-v1.md)
 and separately pinned [private review terms](review-terms-v1.md) and [assent wording](assent-statements-v1.json), with an explicit commercial election inside intake. No contributor must negotiate or sign another
 agreement if the final package, rights, terms and scope match their approved in-flow election.
-Draft wording, economics and operational readiness require owner/legal approval before launch.
+The owner approved these economics and P34/P35 admission on October 12, 2026.
+Commercial-license wording and operational launch requirements remain as described below.
 
-## Proposed choices requiring approval before launch
+## Recorded policy and launch settings
 
 | Decision | Implemented proposal |
 | --- | --- |
-| Bonus amount | Exactly $500 USD; no automatic currency conversion or transfer |
+| Bonus amount | Historical: $500 Erdős/Green, $250 other; required new-bounty evidence: no extra cash bonus |
 | What it buys | Accepted package delivery plus only separately elected and cleared rights, no additional license fee |
 | Commercial choice | Optional; review-only packages can qualify. Making a permitted license mandatory needs new versioned terms and assent |
 | Enrollment | Explicit timezone-aware `TRAJECTORY_BONUS_START_AT`, required to enable. It is a proof-submission cutoff; no guessed retroactivity |
-| Claim window | 365 days from proof submission; prevents replay after finite audit expiry |
+| Claim window | Historical claims: 365 days from the launch cutoff; new required evidence: no retrospective cutoff |
 | Rights duration | Proposed five years from activation, limited further by actual source rights |
 | Size | UTF-8 JSON up to 32 MiB, 10,000 events, 100 runs, 1,000 artifacts, 1,048,576 Unicode characters per event/artifact (up to 4 MiB UTF-8), still within the overall byte limit |
 | Proof bytes | Authoritative submission digest reference allowed; existing proofs up to 30 MiB need not be embedded twice |
@@ -103,13 +105,13 @@ not reject an otherwise accepted package under the proposed optional-license pol
 
 ## Architecture and safety boundaries
 
-- New `trajectory_claims`, `trajectory_fingerprints` and `trajectory_access_log` tables in migration V044. No foreign key
-  from rewards/payouts and no writes to those tables. The amount is fixed by a database check.
+- New `trajectory_claims`, `trajectory_fingerprints` and `trajectory_access_log` tables in migration V044. V045 adds the durable target pricing policy and a reward-event trigger that requires reviewed
+  evidence for new-policy full bounties. Evidence review itself never transfers funds.
 - Session-cookie owner upload with the existing origin guard; CLI tokens cannot upload or review.
   Account ownership is checked before body consumption, then eligibility is rechecked after the
   bounded stream under the same proof-row lock used by proof corrections. The precheck transaction
   is rolled back before the stream (no idle connection/row lock). A worker admits one upload at a
-  time, at most one per account, with six failed attempts per 15 minutes and a 60-second body
+  time, at most one per account, with three successful uploads per hour and six failed attempts per 15 minutes and a 60-second body
   deadline. Parsing, validation and hashing run in a bounded worker thread. The raw-file limit is
   32 MiB; the transport envelope allows 64 MiB + 64 KiB for JSON escaping, with the same file and
   canonical-size checks. Per-worker limits need a shared edge limit across replicas.
@@ -125,7 +127,7 @@ not reject an otherwise accepted package under the proposed optional-license pol
   deliberately altered fabricated content need human review.
 - A changed/revoked underlying proof approval produces `BLOCKED_PROOF_CHANGED` on reads. A future
   payment adapter must recheck current proof and bonus decisions under locks before any payment.
-  Claims snapshot proof review and bounty policy versions. An independent reviewer can revoke a
+  Claims snapshot proof review and bounty policy versions. Every mutation requires the current state version. An independent reviewer may rebind an unchanged-policy, same-outcome proof approval while retaining the original evidence review. An independent reviewer can revoke a
   blocked approval (`REVOKED_PROOF_CHANGED`), releasing its approved-target reservation, then
   explicitly reopen for fresh review while content exists. Rejected claims can likewise be
   reopened by a reviewer. These actions require a revision and owner-visible explanation.
@@ -141,18 +143,17 @@ not reject an otherwise accepted package under the proposed optional-license pol
   to external model reviewers. Browser local persistence is not used. Existing session security
   and deployment-wide IP rate limits apply; each qualifying proof bounds accepted uploads to three.
   Reviewer decisions, revocation/reopening, owner status and withdrawal remain available if intake
-  is paused; the configured start date must be retained for existing claim reviews.
+  is paused; each claim retains its enrollment cutoff and state version independently of later configuration changes.
 
 ## Operational launch blockers and manual settlement design
 
-Do not enable until the owner approves the proposal above and all of these are complete:
+The economic choices above are approved. Before production enablement, complete the following:
 
-1. Merge the dependency policy work and coordinate V044; this branch starts on validator
+1. Merge the dependency policy work and coordinate V044 and V045; this branch starts on validator
    `ddc02f1473a269507572c4bcd0035fb11ad98905`, the deployed but unmerged PR119 policy baseline.
-   The task-policy reference is PR18 `5fe7720f8aeb4423c0329a51601be720575c991f`. No task repo change
-   or unrelated later validator/web work belongs in this feature.
+   The task-policy reference is PR18 `5fe7720f8aeb4423c0329a51601be720575c991f`. The separate packing admission record preserves the withdrawn disk targets.
 2. Finalize legal counterparty/jurisdiction, versioned license text, privacy disclosures, applicable
-   provider agreements and price/license choice. Changing draft wording requires a new version,
+   provider agreements and optional license wording. Changing draft wording requires a new version,
    regenerated SHA-256, matched frontend bytes and fresh assent. Stale frontend/server terms fail
    closed; neither side may replace a contributor's unseen terms automatically. `APP_MODE=PROD`
    refuses enabled intake while either terms version contains `draft`. Final approved terms also
@@ -184,7 +185,7 @@ Do not enable until the owner approves the proposal above and all of these are c
    exact package and full source evidence. After expiry this draft election cannot be activated. The future durable settlement
    ledger must uniquely bind the claim/proof/target and record activation scope, restrictions,
    actors and expiry; this cannot be a note or a fabricated `REWARDED` status. No such ledger or
-   route exists here, so every API response explicitly says `NOT_ISSUED` and
+   route exists here, so historical bonus responses explicitly say `NOT_ISSUED` (required evidence says `NOT_APPLICABLE`) and
    `INACTIVE_NO_PAYMENT_OR_ACTIVATION`. Do not infer payment from the existing proof reward.
 6. Implement buyer agreements, restriction propagation, permitted delivery/storage, access and
    deletion/rights-dispute handling before any sale. Before the 90-day review purge, an authorized
@@ -225,4 +226,4 @@ and changed proof decisions. DB tests require the repo's explicit private-fixtur
 `scripts/check_schema_drift.py` compares the new SQL and ORM tables. Frontend tests pin the shown
 review/commercial/assent digests, preserve raw file text, require explicit elections and reject synthetic/oversized/mislinked packages.
 `python scripts/trajectory_assets.py` regenerates schema/example/template; copy those and the
-exact license/review Markdown, assent JSON and terms manifest to frontend `public/trajectory/` and verify their hashes together.
+exact license/review Markdown, assent JSON and terms manifest to frontend `data/trajectory/` (served only by the enabled `/trajectory/[asset]` route) and verify their hashes together.

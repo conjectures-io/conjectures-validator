@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
+from conjectures_subnet.db.trajectory_models import TrajectoryClaim
+
 import datetime as dt
 import logging
 from dataclasses import dataclass
@@ -166,6 +169,24 @@ class PayoutNotifier:
                     Submission.reward_status == RewardState.ELIGIBLE,
                     destination_coldkey.is_not(None),
                     ~existing_reward,
+                    or_(
+                        Submission.bounty_policy_version != TREASURY_CHAT_POLICY,
+                        latest_reason == "FORMALIZATION_DEFECT_AWARD",
+                        and_(
+                            Submission.verification_status == "VERIFIED",
+                            Submission.manual_review_status == "APPROVED",
+                            exists(select(TrajectoryClaim.id).where(
+                                TrajectoryClaim.submission_id == Submission.id,
+                                TrajectoryClaim.status == "APPROVED_BOUNTY_EVIDENCE",
+                                TrajectoryClaim.amount_usd_cents == 0,
+                                TrajectoryClaim.proof_review_decision_id == latest_decision_id,
+                                TrajectoryClaim.proof_digest == Submission.proof_digest,
+                                TrajectoryClaim.reward_target_id == Submission.reward_target_id,
+                                TrajectoryClaim.proof_policy_snapshot["review_policy_version"].astext == Submission.review_policy_version,
+                                TrajectoryClaim.proof_policy_snapshot["bounty_policy_version"].astext == Submission.bounty_policy_version,
+                            )),
+                        ),
+                    ),
                     or_(
                         latest_reason == "FORMALIZATION_DEFECT_AWARD",
                         Submission.bounty_locked_at.is_not(None),
