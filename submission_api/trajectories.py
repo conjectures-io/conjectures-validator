@@ -1,4 +1,8 @@
-"""Bonus eligibility and private storage. No path here writes to a payout or reward table."""
+"""Chat-log eligibility and private storage. No path here writes to a payout or reward table.
+
+New bounties: logs are deposited before the proof and bound to it in the submission transaction.
+Earlier proofs: logs are uploaded afterwards, but the chat must show the proof before submission.
+"""
 from __future__ import annotations
 
 import datetime as dt
@@ -6,25 +10,36 @@ import hashlib
 import json
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import defer
 from sqlalchemy.exc import IntegrityError
 
-from conjectures_subnet.db.models import Submission, ReviewDecision
+from conjectures_subnet.db.models import (
+    ReviewDecision, ReviewOutcome, RewardEvent, Submission, VerificationState,
+)
 from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY, legacy_chat_bonus_cents
 from verifier.task_store import TaskVersionStore
 from verifier.task_versions import is_v2_task_id
 from verifier.errors import VerifierError
-from conjectures_subnet.db.submissions import latest_binding_decision
+from conjectures_subnet.db.submissions import (
+    correct_human_decision, latest_binding_decision, record_human_decision,
+)
 from conjectures_subnet.db.trajectory_models import TrajectoryClaim, TrajectoryFingerprint
 from submission_api.errors import Conflict, NotFound
 from submission_api.trajectory_schema import (
-    MAX_PACKAGE_BYTES, RETENTION_DAYS, TERMS_VERSION,
+    DEPOSIT_HOURS, MAX_PACKAGE_BYTES, RETENTION_DAYS, TERMS_VERSION, proof_first_seen,
 )
-from submission_api.trajectory_terms import COMMERCIAL_TERMS_SHA256
 
 CLAIM_WINDOW_DAYS = 365
 AUDIT_RETENTION_DAYS = 7 * 365
+APPROVED = ("APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE")
+# Final required-log outcomes that give up the bounty and reopen the target to other solvers.
+FORFEITED = ("REJECTED", "WITHDRAWN")
+CHAT_LOG_REQUIRED = "CHAT_LOG_REQUIRED"
+# Written by this module, never offered to reviewers, like PROBLEM_ALREADY_AWARDED.
+FORFEIT_CODE = "CHAT_LOGS_NOT_ACCEPTED"
+FORFEIT_PUBLIC = ("This bounty required chat logs submitted with the proof and accepted in review. "
+                  "They were not accepted, so this proof does not receive the bounty.")
 
 
 def eligibility_reason(submission, decision, *, cutoff, now, enforce_window=True):
@@ -64,7 +79,8 @@ async def unchanged_approval_chain(session, submission_id, current, original_id)
 async def owned_submission(session, submission_id, account_id, *, lock=False):
     query = select(Submission).where(Submission.id == submission_id, Submission.account_id == account_id)
     if lock:
-        query = query.with_for_update()
+        # Refresh any earlier unlocked read: verification and review may have moved since.
+        query = query.with_for_update().execution_options(populate_existing=True)
     submission = await session.scalar(query)
     if submission is None:
         raise NotFound("Submission not found")
@@ -72,7 +88,7 @@ async def owned_submission(session, submission_id, account_id, *, lock=False):
 
 
 async def claim_for(session, submission_id):
-    return await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package), defer(TrajectoryClaim.commercial_election)).where(TrajectoryClaim.submission_id == submission_id))
+    return await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package)).where(TrajectoryClaim.submission_id == submission_id))
 
 
 def record_digest(value):
@@ -83,10 +99,8 @@ def record_digest(value):
 def audit(claim, *, action, actor, now, extra=None):
     claim.state_version += 1
     provenance = {}
-    if action in ("UPLOADED", "APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE"):
-        election_digest = (record_digest(claim.commercial_election) if action == "UPLOADED" else
-            next(entry["election_sha256"] for entry in reversed(claim.history) if entry["action"] == "UPLOADED"))
-        provenance = {"consent_sha256": record_digest(claim.consent), "election_sha256": election_digest,
+    if action in ("UPLOADED", "DEPOSITED", "SUBMITTED_WITH_PROOF", *APPROVED):
+        provenance = {"consent_sha256": record_digest(claim.consent),
                       "proof_policy_sha256": record_digest(claim.proof_policy_snapshot)}
     claim.history = [*claim.history, {
         "action": action, "actor": str(actor), "at": now.isoformat(),
@@ -97,21 +111,41 @@ def audit(claim, *, action, actor, now, extra=None):
     claim.updated_at = now
 
 
-async def accept_package(session, *, submission, decision, prepared, account_id, now, amount_usd_cents, offer_start_at):
-    package, raw, package_hash, fingerprint, consent, expected_state_version = prepared
-    if package.commercial_election.terms_sha256 != COMMERCIAL_TERMS_SHA256:
-        raise Conflict("Commercial election references different terms; review the current draft.",
-                       reason_code="TRAJECTORY_TERMS_CHANGED")
+def check_package(package, raw, *, task_id, task_bundle_sha256, proof_digest, submission_id, now):
     if package.synthetic:
-        raise Conflict("Synthetic examples are never bonus submissions.", reason_code="TRAJECTORY_SYNTHETIC")
-    if (package.submission_id != submission.id or package.task_id != submission.task_id
-            or package.final_proof_sha256 != "sha256:" + bytes(submission.proof_digest).hex()
-            or package.task_bundle_sha256 != "sha256:" + bytes(submission.task_bundle_sha256).hex()):
-        raise Conflict("Package linkage does not match this submission.", reason_code="TRAJECTORY_LINK_MISMATCH")
+        raise Conflict("Synthetic examples are never accepted as chat logs.", reason_code="TRAJECTORY_SYNTHETIC")
+    if (package.submission_id != submission_id or package.task_id != task_id
+            or package.final_proof_sha256 != "sha256:" + bytes(proof_digest).hex()
+            or package.task_bundle_sha256 != "sha256:" + bytes(task_bundle_sha256).hex()):
+        raise Conflict("Package linkage does not match this proof." + (
+            " Leave submission_id empty: logs for a new bounty are uploaded before the proof." if submission_id is None else ""),
+            reason_code="TRAJECTORY_LINK_MISMATCH")
     if package.exported_at > now + dt.timedelta(minutes=5):
         raise Conflict("Export time is in the future.", reason_code="TRAJECTORY_TIME_INVALID")
     if len(raw) > MAX_PACKAGE_BYTES:
         raise Conflict("Canonical package exceeds the size limit.", reason_code="TRAJECTORY_SIZE")
+
+
+async def store_fingerprint(session, claim, fingerprint, seen):
+    try:
+        await session.flush()
+        if not seen:
+            session.add(TrajectoryFingerprint(digest=fingerprint, claim_id=claim.id))
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        # Do not expose or log SQL parameters: they include the private export.
+        raise Conflict("A claim or evidence fingerprint already exists.", reason_code="TRAJECTORY_DUPLICATE") from None
+
+
+async def accept_package(session, *, submission, decision, prepared, account_id, now, amount_usd_cents, offer_start_at):
+    """Logs for a proof submitted before the program: uploaded later, but must predate it."""
+    package, raw, package_hash, fingerprint, consent, expected_state_version = prepared
+    check_package(package, raw, task_id=submission.task_id, task_bundle_sha256=submission.task_bundle_sha256,
+                  proof_digest=submission.proof_digest, submission_id=submission.id, now=now)
+    if proof_first_seen(package) >= submission.created_at:
+        raise Conflict("The chat must show the final proof before it was submitted.",
+                       reason_code="TRAJECTORY_AFTER_THE_FACT")
     existing = await claim_for(session, submission.id)
     if existing:
         # The initial request may be retried without a token only while its original state
@@ -135,7 +169,6 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     if seen and (existing is None or seen.claim_id != existing.id):
         raise Conflict("Evidence has already been submitted.", reason_code="TRAJECTORY_DUPLICATE")
     previous_terms_version = existing.terms_version if existing else None
-    previous_withdrawal = existing.commercial_withdrawn_at.isoformat() if existing and existing.commercial_withdrawn_at else None
     if existing:
         claim = existing
         claim.package = raw
@@ -146,7 +179,6 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
         claim.reviewer_id = None
         claim.review_note = None
         claim.checklist = None
-        claim.commercial_review = None
         # Revisions do not extend the original retention deadline.
         if claim.expires_at <= now:
             raise Conflict("Review storage has expired.", reason_code="TRAJECTORY_EXPIRED")
@@ -154,56 +186,105 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
         claim = TrajectoryClaim(
             id=uuid.uuid4(), submission_id=submission.id, account_id=account_id,
             proof_digest=submission.proof_digest, reward_target_id=submission.reward_target_id,
+            task_bundle_sha256=submission.task_bundle_sha256,
             status="UNDER_REVIEW", amount_usd_cents=amount_usd_cents, terms_version=TERMS_VERSION,
             package=raw, package_digest=package_hash, revision=1, state_version=0, offer_start_at=offer_start_at,
             proof_review_decision_id=decision.id, history=[], created_at=now, updated_at=now,
-            commercial_election=package.commercial_election.model_dump(mode="json"),
             expires_at=now + dt.timedelta(days=RETENTION_DAYS),
             audit_expires_at=now + dt.timedelta(days=AUDIT_RETENTION_DAYS),
         )
         session.add(claim)
-    claim.commercial_election = package.commercial_election.model_dump(mode="json")
     claim.terms_version = TERMS_VERSION  # New revision requires fresh assent to these exact terms.
     claim.consent = {**consent, "account_id": str(account_id), "accepted_at": now.isoformat()}
     claim.proof_policy_snapshot = {"review_policy_version": submission.review_policy_version,
                                    "bounty_policy_version": submission.bounty_policy_version}
-    claim.commercial_withdrawn_at = None
     audit(claim, action="UPLOADED", actor=account_id, now=now,
-          extra={"supersedes_commercial_withdrawal_at": previous_withdrawal,
-                 "previous_terms_version": previous_terms_version, "terms_version": TERMS_VERSION})
-    try:
-        await session.flush()
-        if not seen:
-            session.add(TrajectoryFingerprint(digest=fingerprint, claim_id=claim.id))
-        await session.flush()
-    except IntegrityError:
-        await session.rollback()
-        # Do not expose or log SQL parameters: they include the private export.
-        raise Conflict("A claim or evidence fingerprint already exists.", reason_code="TRAJECTORY_DUPLICATE") from None
+          extra={"previous_terms_version": previous_terms_version, "terms_version": TERMS_VERSION})
+    await store_fingerprint(session, claim, fingerprint, seen)
     return claim
 
 
-def commercial_clearance_reason(election):
-    if election.get("provenance_expired"):
-        return "Source rights provenance expired; commercial clearance is unavailable."
-    if election["election"] != "conditional_grant":
-        return "Contributor chose review only."
-    purposes = set(election["purposes"])
-    if not election["sources"]:
-        return "Source rights have not been disclosed."
-    for source in election["sources"]:
-        if (source["rights_status"] != "confirmed"
-                or source["agreement_or_license"]["value"] is None
-                or source["evidence_reference"]["value"] is None
-                or not purposes <= set(source["allowed_purposes"])):
-            return "An unknown, prohibited or insufficient source right prevents clearance."
-    return None
+async def deposit_package(session, *, entry, prepared, account_id, now, review_policy_version):
+    """Logs for a new bounty, received before the proof they must accompany exists."""
+    package, raw, package_hash, fingerprint, consent, _ = prepared
+    proof_digest = bytes.fromhex(package.final_proof_sha256.removeprefix("sha256:"))
+    task_bundle = bytes.fromhex(entry.task_bundle_sha256.removeprefix("sha256:"))
+    check_package(package, raw, task_id=entry.task_id, task_bundle_sha256=task_bundle,
+                  proof_digest=proof_digest, submission_id=None, now=now)
+    existing = await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package))
+                                    .where(TrajectoryClaim.proof_digest == proof_digest).with_for_update())
+    if existing is not None:
+        if existing.status != "DEPOSITED":
+            raise Conflict("Logs for this proof were already submitted with it.",
+                           reason_code="TRAJECTORY_ALREADY_SUBMITTED")
+        live = existing.expires_at > now
+        if existing.account_id != account_id and live:
+            raise Conflict("Evidence has already been submitted.", reason_code="TRAJECTORY_DUPLICATE")
+        if live and existing.package_digest == package_hash and existing.reward_target_id == entry.reward_target_id:
+            return existing  # Exact retry.
+        # Until the proof is submitted, a fresh upload replaces an unused deposit.
+        await session.delete(existing)
+        await session.flush()
+    seen = await session.get(TrajectoryFingerprint, fingerprint)
+    if seen:
+        raise Conflict("Evidence has already been submitted.", reason_code="TRAJECTORY_DUPLICATE")
+    claim = TrajectoryClaim(
+        id=uuid.uuid4(), submission_id=None, account_id=account_id, proof_digest=proof_digest,
+        reward_target_id=entry.reward_target_id, task_bundle_sha256=task_bundle, status="DEPOSITED",
+        amount_usd_cents=0, terms_version=TERMS_VERSION, package=raw, package_digest=package_hash,
+        revision=1, state_version=0, offer_start_at=now, proof_review_decision_id=None, history=[],
+        consent={**consent, "account_id": str(account_id), "accepted_at": now.isoformat()},
+        proof_policy_snapshot={"review_policy_version": review_policy_version,
+                               "bounty_policy_version": TREASURY_CHAT_POLICY},
+        created_at=now, updated_at=now, expires_at=now + dt.timedelta(hours=DEPOSIT_HOURS),
+        audit_expires_at=now + dt.timedelta(days=AUDIT_RETENTION_DAYS),
+    )
+    session.add(claim)
+    audit(claim, action="DEPOSITED", actor=account_id, now=now, extra={"terms_version": TERMS_VERSION})
+    await store_fingerprint(session, claim, fingerprint, seen)
+    return claim
+
+
+def live_deposit(*, account_id, reward_target_id, now):
+    return select(TrajectoryClaim).options(defer(TrajectoryClaim.package)).where(
+        TrajectoryClaim.account_id == account_id, TrajectoryClaim.reward_target_id == reward_target_id,
+        TrajectoryClaim.status == "DEPOSITED", TrajectoryClaim.submission_id.is_(None),
+        TrajectoryClaim.expires_at > now)
+
+
+def missing_logs():
+    return Conflict("This bounty needs its chat logs uploaded before the proof. Upload the logs for "
+                    "this exact proof, then submit it within 24 hours.", reason_code=CHAT_LOG_REQUIRED)
+
+
+async def require_deposit(session, *, account_id, entry, proof_digest, now):
+    """Lock the logs this proof must carry; refuse before any credit is spent."""
+    if isinstance(proof_digest, str):
+        proof_digest = bytes.fromhex(proof_digest.removeprefix("sha256:"))
+    claim = await session.scalar(live_deposit(account_id=account_id, reward_target_id=entry.reward_target_id, now=now)
+        .where(TrajectoryClaim.proof_digest == proof_digest,
+               TrajectoryClaim.task_bundle_sha256 == bytes.fromhex(entry.task_bundle_sha256.removeprefix("sha256:")))
+        .with_for_update())
+    if claim is None:
+        raise missing_logs()
+    return claim
+
+
+async def bind_deposit(session, claim, submission, now):
+    claim.submission_id = submission.id
+    claim.status = "UNDER_REVIEW"
+    claim.expires_at = claim.created_at + dt.timedelta(days=RETENTION_DAYS)
+    claim.proof_policy_snapshot = {"review_policy_version": submission.review_policy_version,
+                                   "bounty_policy_version": submission.bounty_policy_version}
+    audit(claim, action="SUBMITTED_WITH_PROOF", actor=claim.account_id, now=now,
+          extra={"submission_id": str(submission.id)})
+    await session.flush()
 
 
 async def effective_status(session, claim):
-    if claim.status in ("UNDER_REVIEW", "NEEDS_CHANGES") and claim.expires_at <= dt.datetime.now(dt.UTC):
+    if claim.status in ("DEPOSITED", "UNDER_REVIEW", "NEEDS_CHANGES") and claim.expires_at <= dt.datetime.now(dt.UTC):
         return "EXPIRED"
-    if claim.status not in ("APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE"):
+    if claim.status not in APPROVED:
         return claim.status
     submission = await session.get(Submission, claim.submission_id)
     decision = await latest_binding_decision(session, claim.submission_id)
@@ -220,7 +301,7 @@ async def effective_status(session, claim):
 
 async def view(session, claim):
     return {
-        "id": str(claim.id), "submission_id": str(claim.submission_id),
+        "id": str(claim.id), "submission_id": str(claim.submission_id) if claim.submission_id else None,
         "status": await effective_status(session, claim), "amount_usd_cents": claim.amount_usd_cents,
         "payment_status": "NOT_APPLICABLE" if claim.amount_usd_cents == 0 else "NOT_ISSUED",
         "chat_logs_required": claim.amount_usd_cents == 0, "revision": claim.revision,
@@ -229,43 +310,57 @@ async def view(session, claim):
         "review_note": claim.review_note, "created_at": claim.created_at,
         "expires_at": claim.expires_at, "audit_expires_at": claim.audit_expires_at,
         "content_available": await content_available(session, claim),
-        "commercial_election": await session.scalar(select(commercial_projection()).where(TrajectoryClaim.id == claim.id)),
-        "commercial_review": ({k: v for k, v in claim.commercial_review.items() if k != "reviewer_id"} if claim.commercial_review else None),
-        "commercial_withdrawn_at": claim.commercial_withdrawn_at,
-        "license_status": "INACTIVE_NO_PAYMENT_OR_ACTIVATION",
+        "license_status": license_status(claim),
     }
 
 
-def commercial_summary(election):
-    # Rights provenance can fill most of a package. Only the private attachment carries it;
-    # status/queue responses must stay small and must not echo contributor-supplied source text.
-    return {k: election[k] for k in (
-        "election", "purposes", "terms_version", "terms_sha256", "explicit_assent"
-    )}
-
-
-def commercial_projection():
-    column = TrajectoryClaim.commercial_election
-    return func.jsonb_build_object(*[part for k in (
-        "election", "purposes", "terms_version", "terms_sha256", "explicit_assent"
-    ) for part in (k, column[k])])
+def license_status(claim):
+    # Granted on upload, effective on acceptance. No sale or delivery system is part of this code.
+    return "LICENSED_FOR_SALE" if claim.status in APPROVED else "NOT_LICENSED"
 
 
 async def content_available(session, claim):
-    return claim.expires_at > dt.datetime.now(dt.UTC) and bool(await session.scalar(
+    # Accepted logs are kept for sale; everything else expires on schedule.
+    return (claim.status in APPROVED or claim.expires_at > dt.datetime.now(dt.UTC)) and bool(await session.scalar(
         select(TrajectoryClaim.package.is_not(None)).where(TrajectoryClaim.id == claim.id)))
 
 
-async def minimize_election(session, claim):
-    election = await session.scalar(select(TrajectoryClaim.commercial_election).where(TrajectoryClaim.id == claim.id))
-    if election is None or election.get("provenance_expired"):
-        return
-    minimized = commercial_summary(election)
-    minimized["provenance_expired"] = True
-    minimized["sources"] = [{"source_id": source["source_id"], "rights_status": source["rights_status"],
-        "record_sha256": "sha256:" + hashlib.sha256(json.dumps(source, sort_keys=True,
-            separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()} for source in election["sources"]]
-    claim.commercial_election = minimized
+def deletion_after_revocation(claim, now):
+    """A revoked acceptance is no longer licensed; its content follows the normal deletion window."""
+    return min(max(claim.expires_at, now + dt.timedelta(days=RETENTION_DAYS)),
+               claim.audit_expires_at - dt.timedelta(seconds=1))
+
+
+async def lock_payouts(session, submission_id):
+    """Take payout rows before the submission, matching reconciliation and review corrections."""
+    await session.execute(select(RewardEvent.id).where(RewardEvent.submission_id == submission_id)
+                          .order_by(RewardEvent.id).with_for_update())
+
+
+def verification_pending(submission):
+    # A binding decision can only be recorded on a verified proof; verification is automatic.
+    return submission.verification_status not in (VerificationState.VERIFIED, VerificationState.REJECTED)
+
+
+async def forfeit_bounty(session, submission, *, reviewer, notes):
+    """Required logs finally failed: record the binding rejection that releases the target.
+
+    Uses the ordinary decision functions, so the reward hold, treasury reservation and payout
+    guards move exactly as for any rejected proof. A defect award never needed logs and a
+    proof that is already rejected holds nothing, so neither changes.
+    """
+    if submission.verification_status != VerificationState.VERIFIED:
+        return None
+    current = await latest_binding_decision(session, submission.id)
+    if current is None:
+        return await record_human_decision(session, submission.id, decision=ReviewOutcome.REJECTED,
+                                           reason_code=FORFEIT_CODE, reviewer=reviewer, notes=notes,
+                                           notes_public=FORFEIT_PUBLIC)
+    if str(current.decision) == "APPROVED" and current.reason_code != "FORMALIZATION_DEFECT_AWARD":
+        return await correct_human_decision(session, submission.id, supersedes_id=current.id,
+                                            decision=ReviewOutcome.REJECTED, reason_code=FORFEIT_CODE,
+                                            reviewer=reviewer, notes=notes, notes_public=FORFEIT_PUBLIC)
+    return None
 
 
 def amount_for(services, submission):

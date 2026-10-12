@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Generate the published schema, blank template, and explicitly synthetic teaching example."""
+"""Generate the published schema, blank template, synthetic example, and pinned terms digests."""
 import copy
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -63,18 +64,10 @@ def example():
         "missing": [{"field_or_event": "entire example", "reason": "Synthetic data has no source export or accepted proof.",
                      "impact_on_reproduction": "Shows the file format only. Authenticity cannot be established."}],
         "redactions": [],
-        "permissions": {"terms_version": "trajectory-review-draft-v1", "authentic_user_visible_export": True,
-                        "authorized_to_submit": True, "secrets_and_personal_data_checked": True,
-                        "third_party_consent_or_removal": True, "private_review_and_storage_only": True,
-                        "upload_alone_grants_no_commercial_rights": True},
-    }
-    for key in data["permissions"]:
-        if key != "terms_version":
-            data["permissions"][key] = False  # This fabricated example cannot make real attestations.
-    data["commercial_election"] = {
-        "terms_version": "trajectory-commercial-draft-v1",
-        "terms_sha256": digest((ROOT / "docs/trajectories/commercial-license-draft-v1.md").read_bytes()),
-        "election": "decline", "purposes": [], "sources": [], "explicit_assent": False,
+        "permissions": {"terms_version": "chat-log-terms-draft-v1",
+                        # This fabricated example cannot make real promises or grant a license.
+                        "authentic_logs_that_produced_this_proof": False, "allowed_to_share": False,
+                        "secrets_and_personal_data_removed": False, "license_to_sell_once_accepted": False},
     }
     TrajectoryPackage.model_validate(data)
     return data
@@ -86,7 +79,8 @@ def main():
     sample = example()
     template = copy.deepcopy(sample)
     template["synthetic"] = False
-    template["submission_id"] = "REPLACE_WITH_YOUR_SUBMISSION_UUID"
+    # null for a new bounty (logs go in before the proof); the submission UUID for an earlier proof.
+    template["submission_id"] = None
     template["task_bundle_sha256"] = "REPLACE_WITH_TASK_BUNDLE_SHA256"
     template["final_proof_sha256"] = "REPLACE_WITH_FINAL_PROOF_SHA256"
     template["exported_at"] = "REPLACE_WITH_REAL_EXPORT_TIMESTAMP"
@@ -100,24 +94,25 @@ def main():
     template["artifacts"] = []
     template["runs"] = []
     template["missing"] = []
-    for key in template["permissions"]:
-        if key != "terms_version":
-            template["permissions"][key] = False
-    grant = copy.deepcopy(sample)
-    grant["commercial_election"].update(election="conditional_grant", purposes=["evaluation"], explicit_assent=True,
-        sources=[{
-            "source_id": source, "rights_status": "unknown", "agreement_or_license": unknown("Synthetic example; no real license or agreement."),
-            "evidence_reference": unknown("No actual rights evidence exists."), "allowed_purposes": [],
-            "restrictions": "Illustrative only; no commercial rights are granted or cleared.",
-            "third_party_rights": "No real rights representation is made by this synthetic example.",
-        } for source in ["run:run-1", "artifact:final-proof"]])
-    TrajectoryPackage.model_validate(grant)
     schema = TrajectoryPackage.model_json_schema()
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     schema["$id"] = "https://conjectures.io/trajectory/trajectory.schema.json"
     for name, data in [("trajectory.schema.json", schema), ("synthetic-example.json", sample),
-                       ("template.json", template), ("synthetic-rights-example.json", grant)]:
+                       ("template.json", template)]:
         (destination / name).write_text(json.dumps(data, indent=2) + "\n")
+    pin_terms(destination)
+
+
+def pin_terms(destination):
+    """Changing the terms or assent text changes these digests and requires fresh assent."""
+    def sha(name):
+        return "sha256:" + hashlib.sha256((destination / name).read_bytes()).hexdigest()
+    manifest = {"TERMS_VERSION": "chat-log-terms-draft-v1", "TERMS_SHA256": sha("chat-log-terms-draft-v1.md"),
+                "ASSENT_STATEMENTS_SHA256": sha("assent-statements-v2.json")}
+    (destination / "terms-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    (ROOT / "submission_api/trajectory_terms.py").write_text(
+        '"""Pinned chat-log terms and exact assent text. Changing either requires fresh assent."""\n'
+        + "".join(f"{key} = {value!r}\n" for key, value in manifest.items()))
 
 
 if __name__ == "__main__":

@@ -995,13 +995,11 @@ class Settings:
         if trajectory_bonus_enabled and not trajectory_bonus_start_at:
             raise SettingsError("enabling trajectory intake requires an explicit TRAJECTORY_BONUS_START_AT")
         if production and trajectory_bonus_enabled:
-            from submission_api.trajectory_terms import (
-                COMMERCIAL_TERMS_VERSION, REVIEW_TERMS_VERSION, COMMERCIAL_TERMS_SHA256,
-            )
-            if "draft" in COMMERCIAL_TERMS_VERSION or "draft" in REVIEW_TERMS_VERSION:
-                raise SettingsError("trajectory intake cannot launch with draft terms")
-            if env.get("TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256") != COMMERCIAL_TERMS_SHA256:
-                raise SettingsError("trajectory launch requires the owner-approved terms digest")
+            from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
+            if "draft" in TERMS_VERSION:
+                raise SettingsError("chat-log intake cannot launch with draft terms")
+            if env.get("TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256") != TERMS_SHA256:
+                raise SettingsError("chat-log launch requires the owner-approved terms digest")
 
 
         authenticator = _choice(

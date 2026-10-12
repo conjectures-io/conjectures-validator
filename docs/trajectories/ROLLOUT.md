@@ -15,7 +15,10 @@ No production migration, task activation, transfer or announcement has occurred.
 - Each newly admitted reward target offers 2.5% of the total finalized Alpha treasury.
   Quotes change with the treasury, not age; submission locks the amount. Competition for the
   same target reserves the maximum competing lock. New exposure cannot exceed available funds.
-- New-policy full bounties require accepted authentic user-visible chat logs. The DB trigger
+- New-policy full bounties require the chat logs that produced the proof, uploaded before the
+  proof is submitted (the proof is refused without them) and accepted by a reviewer. Rejected
+  or withdrawn logs forfeit the bounty through a binding `CHAT_LOGS_NOT_ACCEPTED` proof
+  rejection, which reopens the target. The DB trigger
   enforces the exact proof, target, current human decision and recorded policy snapshot when
   creating or changing an instruction. Existing commands/notifications recheck that evidence;
   chain reconciliation still records transfers that actually occurred after a review correction.
@@ -23,7 +26,10 @@ No production migration, task activation, transfer or announcement has occurred.
   additional $500 USD for Erdős/Green, $250 for other source families, for accepted logs.
   Existing proof payouts remain independent. Source classification uses the original bundle.
   The retrospective claim window is 365 days from cutoff; required new-bounty evidence is exempt.
-- Commercial rights remain a separate optional election. Published submission terms remain v7;
+  The chat must show the proof before that proof's submission time.
+- Every paid log carries a required license to sell it to buyers, effective on acceptance; logs
+  are never published openly. Terms are plain language (`chat-log-terms-draft-v1.md`).
+  Published submission terms remain v7;
   v8 is inactive in `docs/policies/submission-terms-v8-draft.md` until its release gates are met.
 
 ## Deployment sequence
@@ -55,13 +61,12 @@ No production migration, task activation, transfer or announcement has occurred.
 4. Preserve original task versions used by historical submissions. A missing/corrupt bundle
    blocks tier classification; it must not silently fall back to $250. Account-less historical
    submissions still need verified ownership migration before private account intake.
-5. Complete the inherited intake launch requirements in README: finalized review/optional
-   license text and pinned assent, private storage/access/backup retention, review staffing and
-   purge scheduling. Production refuses draft terms. Historical bonus settlement and commercial
-   activation still require the separate settlement ledger/adapter described there.
+5. Complete the launch blockers in README: owner-approved final chat-log terms and pinned
+   digest, private storage/access/backup retention, review staffing and purge scheduling.
+   Production refuses draft terms. Historical bonus payment needs the separate payment ledger,
+   and selling needs the buyer delivery process described there.
 6. Configure an explicit timezone-aware cutoff, backend intake flag and matching frontend flag.
    Rebuild the frontend; assets reside in `data/trajectory` and are served only while enabled.
-   Review-only evidence must remain eligible regardless of commercial-rights election.
 7. Release P34/P35 with real generated task bundles, immutable source/type hashes, the source
    catalog, tier selection evidence and a verifier image containing that exact source. The
    frozen packet here is an admission record and compile-checked mathematical source, not a
@@ -90,9 +95,9 @@ Deploy with intake disabled first: new-policy catalog quotes return
 refuses new-policy targets even after launch; contributors must use an authenticated account
 submission endpoint to retain private evidence ownership. Legacy extrinsic submissions still work.
 
-Before enabling intake, complete every README launch blocker, including the required-log deadline
-and audited release policy, persisted historical cutoff, and real historical-source/ownership
-inventory. Publish final v8 through an explicit versioned `SUBMISSION_TERMS_PATH`, version and
+Before enabling intake, complete every README launch blocker, including the persisted
+historical cutoff and real historical-source/ownership inventory. The missing-log rule is
+settled: logs are due before the proof, so there is no deadline to track. Publish final v8 through an explicit versioned `SUBMISSION_TERMS_PATH`, version and
 actual effective date; coordinate matching frontend assent and archived v7. Do not change the
 bundled v7 contract merely to deploy disabled code.
 

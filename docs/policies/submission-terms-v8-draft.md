@@ -103,25 +103,25 @@ rounded down to integer rao. Their quotes grow with the treasury and lock at sub
 they do not increase merely with age. A new commitment is accepted only when the treasury
 can cover it alongside existing commitments. Older targets retain their recorded pricing.
 
-To receive a full bounty under this new policy, supply authentic, sufficiently complete,
-legitimately exportable user-visible chat logs linked to the accepted proof. Independent
-human acceptance of those logs is required before payout. Upload alone is insufficient.
-Disclose gaps and redactions and remove credentials and unnecessary personal information.
-The separately capped formalization-defect award retains its existing rules.
-Hidden internal reasoning is neither requested nor accepted. The private review terms
-specify format, consent, access and retention; review permission grants no commercial rights.
-Private packages and full source-rights disclosures expire after 90 days. Historical bonus audit
-records expire after seven years. Required-bounty minimal audit records and fingerprints remain
-while a reward event references the proof, even beyond seven years, to substantiate that financial
-instruction. This does not extend private-content retention. New targets require authenticated
-account submission so the contributor can privately supply the evidence.
+To receive a full bounty under this new policy, upload the AI chat logs that produced the
+proof **before submitting it**, from a signed-in account. A proof for one of these targets
+is not accepted without them, and no credit is spent; the logs cannot be added or replaced
+later. A reviewer accepts them only if the chat actually produced the proof and existed before
+the proof was submitted — not written, edited or reconstructed afterwards. Rejected or withdrawn
+logs mean the proof is rejected as `CHAT_LOGS_NOT_ACCEPTED`: no bounty is paid and the target
+reopens to other solvers. The separately capped formalization-defect award retains its
+existing rules. The [chat-log terms](../trajectories/chat-log-terms-draft-v1.md) apply.
 
 For qualifying full-bounty proofs submitted before the chat-log program's published cutoff,
-accepted logs earn an optional additional **$500 USD for Erdős or Green problems**, or
-**$250 USD for other problems**, based on the original task bundle. Claims close 365 days
-after that cutoff. Existing proof payouts are not reduced or made conditional on logs.
-There is no additional historical log bonus for a new treasury-share bounty.
-Commercial licensing remains separate and optional.
+accepted logs earn an additional **$500 USD for Erdős or Green problems**, or **$250 USD for
+other problems**, based on the original task bundle. The chat must show the proof before it
+was submitted. Claims close 365 days after that cutoff. Existing proof payouts are not reduced
+or made conditional on logs. There is no extra log bonus for a new treasury-share bounty.
+
+Uploading logs grants Conjectures a permanent, worldwide, non-exclusive right to use, copy,
+sell and license them to buyers, including for training and evaluating AI systems, once they
+are accepted. Logs are not published openly. Logs that are not accepted are deleted within 90
+days; accepted logs are kept so they can be sold.
 
 ## Attribution and publication
 

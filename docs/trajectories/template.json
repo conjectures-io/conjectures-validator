@@ -1,7 +1,7 @@
 {
   "schema_version": "conjectures-trajectory/v1",
   "synthetic": false,
-  "submission_id": "REPLACE_WITH_YOUR_SUBMISSION_UUID",
+  "submission_id": null,
   "task_id": "REPLACE_WITH_YOUR_ACCEPTED_TASK_ID",
   "task_bundle_sha256": "REPLACE_WITH_TASK_BUNDLE_SHA256",
   "final_proof_sha256": "REPLACE_WITH_FINAL_PROOF_SHA256",
@@ -37,20 +37,10 @@
   "missing": [],
   "redactions": [],
   "permissions": {
-    "terms_version": "trajectory-review-draft-v2",
-    "authentic_user_visible_export": false,
-    "authorized_to_submit": false,
-    "secrets_and_personal_data_checked": false,
-    "third_party_consent_or_removal": false,
-    "private_review_and_storage_only": false,
-    "upload_alone_grants_no_commercial_rights": false
-  },
-  "commercial_election": {
-    "terms_version": "trajectory-commercial-draft-v1",
-    "terms_sha256": "sha256:206e58cb2e17317663bcaa9adea43bf212d2890dccc86a4a2b99b35fbffd9d09",
-    "election": "decline",
-    "purposes": [],
-    "sources": [],
-    "explicit_assent": false
+    "terms_version": "chat-log-terms-draft-v1",
+    "authentic_logs_that_produced_this_proof": false,
+    "allowed_to_share": false,
+    "secrets_and_personal_data_removed": false,
+    "license_to_sell_once_accepted": false
   }
 }

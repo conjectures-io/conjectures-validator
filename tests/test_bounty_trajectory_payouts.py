@@ -129,21 +129,19 @@ async def stale_evidence_scenario():
     )
     try:
         async with await client(kit) as owner, await client(kit) as admin:
-            account, sid, package = await accepted(kit, owner)
+            account, sid, package = await accepted(kit, owner, required=True)
             async with kit.session() as s:
                 a = await s.get(Account, uuid.UUID(account["id"]))
                 a.payout_coldkey = kit.settings.payment_recipient
                 await s.commit()
             await reviewer(kit, admin)
-            upload = await owner.post(
-                f"/v1/me/submissions/{sid}/trajectory",
-                json=envelope(package),
-                headers=same_origin(),
-            )
-            assert upload.status_code == 200, upload.text
-            cid = upload.json()["id"]
+            # The logs arrived with the proof; nothing is uploaded after approval.
+            claim = (await owner.get(f"/v1/me/submissions/{sid}/trajectory")).json()["claim"]
+            cid = claim["id"]
             reviewed = await admin.post(
-                f"/v1/admin/trajectories/{cid}/decision", json=review_body(), headers=same_origin()
+                f"/v1/admin/trajectories/{cid}/decision",
+                json=review_body(state_version=claim["state_version"]),
+                headers=same_origin(),
             )
             assert reviewed.status_code == 200, reviewed.text
             await restricted_payout_role_can_authorize_without_reading_exports(kit, sid)
@@ -175,7 +173,7 @@ async def stale_evidence_scenario():
                 json={
                     "action": "REVOKE_PROOF_CHANGED",
                     "expected_revision": 1,
-                    "expected_state_version": 2,
+                    "expected_state_version": 3,
                     "note": "A live instruction must be cancelled before this evidence can be revoked.",
                 },
             )
@@ -198,7 +196,7 @@ async def stale_evidence_scenario():
                 json={
                     "action": "REBIND_PROOF_DECISION",
                     "expected_revision": 1,
-                    "expected_state_version": 2,
+                    "expected_state_version": 3,
                     "note": "Same proof and full-bounty decision; public explanation corrected.",
                 },
             )
@@ -244,19 +242,12 @@ async def stale_evidence_scenario():
                 claim.expires_at = claim.created_at + timedelta(days=90)
                 claim.audit_expires_at = claim.created_at + timedelta(days=7 * 365)
                 await s.commit()
-            async with kit.session() as owner_lock:
-                await owner_lock.get(Submission, uuid.UUID(sid), with_for_update=True)
-                async with kit.session() as purger:
-                    assert await purge(purger) == (
-                        0,
-                        0,
-                    )  # Never race a claim mutation's proof lock.
-                await owner_lock.rollback()
+            # Accepted logs are licensed for sale: neither content nor record expires.
             async with kit.session() as s:
-                assert await purge(s) == (1, 0)
+                assert await purge(s) == (0, 0)
             async with kit.session() as s:
                 claim = await s.get(TrajectoryClaim, uuid.UUID(cid))
-                assert claim is not None and claim.package is None
+                assert claim is not None and claim.package is not None
 
     finally:
         engine.dispose()
@@ -269,7 +260,7 @@ def test_stale_log_binding_hides_commands_without_blocking_chain_facts():
 
 
 @pytest.mark.skipif(postgres_dsn() is None, reason="private database required")
-def test_historical_bonus_audit_expires_even_with_a_confirmed_proof_payout():
+def test_rejected_historical_logs_expire_even_with_a_confirmed_proof_payout():
     from conjectures_subnet.db.trajectory_models import TrajectoryClaim
     from scripts.purge_trajectories import purge
 
@@ -296,10 +287,11 @@ def test_historical_bonus_audit_expires_even_with_a_confirmed_proof_payout():
                 cid = upload.json()["id"]
                 reviewed = await admin.post(
                     f"/v1/admin/trajectories/{cid}/decision",
-                    json=review_body(),
+                    json=review_body(decision="REJECTED"),
                     headers=same_origin(),
                 )
                 assert reviewed.status_code == 200 and reviewed.json()["amount_usd_cents"] > 0
+                # The original proof payout never depended on bonus logs.
                 assert worker.seed_reward_events() == 1
                 async with kit.session() as s:
                     event = await s.scalar(select(RewardEvent))
@@ -327,6 +319,12 @@ def test_historical_bonus_audit_expires_even_with_a_confirmed_proof_payout():
                     claim.expires_at = claim.created_at + timedelta(days=90)
                     claim.audit_expires_at = claim.created_at + timedelta(days=7 * 365)
                     await s.commit()
+                async with kit.session() as owner_lock:
+                    await owner_lock.get(Submission, uuid.UUID(sid), with_for_update=True)
+                    async with kit.session() as purger:
+                        assert await purge(purger) == (0, 0)  # Never race a claim mutation's proof lock.
+                    await owner_lock.rollback()
+                async with kit.session() as s:
                     assert await purge(s) == (1, 1)
                 async with kit.session() as s:
                     assert await s.get(TrajectoryClaim, uuid.UUID(cid)) is None

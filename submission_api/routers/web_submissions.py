@@ -69,12 +69,14 @@ from fastapi import APIRouter, Header, Query, Request, Response, status
 
 from conjectures_subnet.attribution import decode_public_credit_header
 from conjectures_subnet.axiom import get_axiom
+from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import credits as credit_store
 from conjectures_subnet.db import intents as intent_store
 from conjectures_subnet.db import submissions as submission_store
 from conjectures_subnet.db.models import TaskMode
 from submission_api import schemas_account as schemas
+from submission_api import trajectories as trajectory_store
 from submission_api.auth import normalise_signature
 from submission_api.dependencies import CookieWriterDep, ServicesDep, SessionDep
 from submission_api.errors import (
@@ -188,6 +190,15 @@ def _assert_payable(quote, reward_target_id: str) -> None:
         )
 
 
+async def _assert_logs_deposited(session, quote, account_id, entry, now) -> None:
+    """Cheap refusal before a bundle upload; the write transaction rechecks the exact proof."""
+    if quote.policy_version != TREASURY_CHAT_POLICY:
+        return
+    if await session.scalar(trajectory_store.live_deposit(
+            account_id=account_id, reward_target_id=entry.reward_target_id, now=now).limit(1)) is None:
+        raise trajectory_store.missing_logs()
+
+
 @router.post(
     "/web",
     response_model=schemas.ConfirmedSubmission,
@@ -296,10 +307,9 @@ async def create_web_submission(
     # that counts is taken under a lock below, and the balance is re-read under the account lock
     # by `open_intent` — but an account with nothing to spend, or a target that is no longer a
     # bounty, should not be asked to send its bundle first.
-    _assert_payable(
-        await services.pricing.quote(session, reward_target_id=entry.reward_target_id),
-        entry.reward_target_id,
-    )
+    early_quote = await services.pricing.quote(session, reward_target_id=entry.reward_target_id)
+    _assert_payable(early_quote, entry.reward_target_id)
+    await _assert_logs_deposited(session, early_quote, principal.account.id, entry, now)
     balance = await credit_store.credit_balance(
         session,
         principal.account.id,
@@ -414,6 +424,10 @@ async def create_web_submission(
         session, reward_target_id=entry.reward_target_id
     )
     _assert_payable(quote, entry.reward_target_id)
+    # A new bounty's chat logs must already be here, for exactly this proof, before any spend.
+    logs = (await trajectory_store.require_deposit(
+        session, account_id=principal.account.id, entry=entry, proof_digest=bundle.proof.sha256, now=now)
+        if quote.policy_version == TREASURY_CHAT_POLICY else None)
 
     confirmed = await intent_store.confirm(
         session,
@@ -445,6 +459,9 @@ async def create_web_submission(
         detail="Submitted from the website and signed by a linked coldkey.",
         context={"signer_coldkey": coldkey, "signed_message": message},
     )
+
+    if logs is not None:
+        await trajectory_store.bind_deposit(session, logs, confirmed.submission, now)
 
     await services.dispatcher.dispatch(session, confirmed.submission, entry.task_dir)
     await session.commit()
@@ -552,10 +569,9 @@ async def create_session_submission(
 
     entry = _resolve_task(services, task_id, task_bundle_sha256)
 
-    _assert_payable(
-        await services.pricing.quote(session, reward_target_id=entry.reward_target_id),
-        entry.reward_target_id,
-    )
+    early_quote = await services.pricing.quote(session, reward_target_id=entry.reward_target_id)
+    _assert_payable(early_quote, entry.reward_target_id)
+    await _assert_logs_deposited(session, early_quote, principal.account.id, entry, now)
     balance = await credit_store.credit_balance(
         session,
         principal.account.id,
@@ -624,6 +640,10 @@ async def create_session_submission(
         session, reward_target_id=entry.reward_target_id
     )
     _assert_payable(quote, entry.reward_target_id)
+    # A new bounty's chat logs must already be here, for exactly this proof, before any spend.
+    logs = (await trajectory_store.require_deposit(
+        session, account_id=principal.account.id, entry=entry, proof_digest=bundle.proof.sha256, now=now)
+        if quote.policy_version == TREASURY_CHAT_POLICY else None)
 
     confirmed = await intent_store.confirm(
         session,
@@ -648,6 +668,9 @@ async def create_session_submission(
         detail="Submitted from the website and authorised by the account session.",
         context={"account_id": str(principal.account.id)},
     )
+
+    if logs is not None:
+        await trajectory_store.bind_deposit(session, logs, confirmed.submission, now)
 
     await services.dispatcher.dispatch(session, confirmed.submission, entry.task_dir)
     await session.commit()

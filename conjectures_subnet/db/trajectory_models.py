@@ -1,4 +1,4 @@
-"""Private evidence records. Payout workers receive only a boolean authorization projection."""
+"""Private chat-log records, licensed for sale once accepted. Payout workers see only a boolean projection."""
 import datetime as dt
 import uuid
 
@@ -13,10 +13,12 @@ class TrajectoryClaim(Base):
     __tablename__ = "trajectory_claims"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    submission_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("submissions.id"), unique=True, nullable=False)
+    # Null only while logs for a new bounty wait for the proof submission they must accompany.
+    submission_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("submissions.id"), unique=True)
     account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False)
     proof_digest: Mapped[bytes] = mapped_column(SHA256, unique=True, nullable=False)
     reward_target_id: Mapped[str] = mapped_column(Text, nullable=False)
+    task_bundle_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     amount_usd_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     terms_version: Mapped[str] = mapped_column(Text, nullable=False)
@@ -25,14 +27,11 @@ class TrajectoryClaim(Base):
     state_version: Mapped[int] = mapped_column(Integer, nullable=False)
     offer_start_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
-    proof_review_decision_id: Mapped[int] = mapped_column(ForeignKey("review_decisions.id"), nullable=False)
+    proof_review_decision_id: Mapped[int | None] = mapped_column(ForeignKey("review_decisions.id"))
     reviewer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     review_note: Mapped[str | None] = mapped_column(Text)
     consent: Mapped[dict] = mapped_column(JSONB, nullable=False)
     proof_policy_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    commercial_withdrawn_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
-    commercial_election: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    commercial_review: Mapped[dict | None] = mapped_column(JSONB)
     checklist: Mapped[dict | None] = mapped_column(JSONB)
     history: Mapped[list] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -41,17 +40,20 @@ class TrajectoryClaim(Base):
     audit_expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
-        CheckConstraint("status IN ('UNDER_REVIEW','NEEDS_CHANGES','REJECTED','APPROVED_MANUAL_PAYMENT','WITHDRAWN','EXPIRED','REVOKED_PROOF_CHANGED','APPROVED_BOUNTY_EVIDENCE')", name="trajectory_status"),
+        CheckConstraint("status IN ('DEPOSITED','UNDER_REVIEW','NEEDS_CHANGES','REJECTED','APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE','WITHDRAWN','EXPIRED','REVOKED_PROOF_CHANGED')", name="trajectory_status"),
+        CheckConstraint("(status = 'DEPOSITED') = (submission_id IS NULL) AND (submission_id IS NOT NULL OR amount_usd_cents = 0)", name="trajectory_deposit"),
+        CheckConstraint("amount_usd_cents > 0 OR (revision = 1 AND status <> 'NEEDS_CHANGES')", name="trajectory_required_logs_fixed"),
+        CheckConstraint("reviewer_id IS NULL OR reviewer_id <> account_id", name="trajectory_no_self_review"),
         CheckConstraint("amount_usd_cents IN (0, 25000, 50000)", name="trajectory_fixed_bonus"),
         CheckConstraint("(status <> 'APPROVED_BOUNTY_EVIDENCE' OR amount_usd_cents = 0) AND (status <> 'APPROVED_MANUAL_PAYMENT' OR amount_usd_cents IN (25000, 50000))", name="trajectory_approval_purpose"),
-        CheckConstraint("reviewer_id IS NULL OR reviewer_id <> account_id", name="trajectory_no_self_review"),
+        CheckConstraint("amount_usd_cents = 0 OR proof_review_decision_id IS NOT NULL", name="trajectory_historical_decision"),
         CheckConstraint("state_version > 0", name="trajectory_state_version"),
         CheckConstraint("revision BETWEEN 1 AND 3", name="trajectory_revision_bound"),
         CheckConstraint("package IS NULL OR octet_length(package) <= 33554432", name="trajectory_package_bound"),
         CheckConstraint("package IS NULL OR pg_catalog.sha256(package) = package_digest", name="trajectory_package_hash"),
-        CheckConstraint("terms_version IN ('trajectory-review-draft-v1', 'trajectory-review-draft-v2')", name="trajectory_terms"),
+        CheckConstraint("terms_version LIKE 'chat-log-terms-%'", name="trajectory_terms"),
         CheckConstraint("expires_at > created_at AND audit_expires_at > expires_at", name="trajectory_retention"),
-        CheckConstraint("status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE') OR (reviewer_id IS NOT NULL AND checklist IS NOT NULL AND review_note IS NOT NULL)", name="trajectory_approval_reviewed"),
+        CheckConstraint("status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE') OR (reviewer_id IS NOT NULL AND checklist IS NOT NULL AND review_note IS NOT NULL AND proof_review_decision_id IS NOT NULL)", name="trajectory_approval_reviewed"),
         Index("trajectory_account_idx", "account_id", "created_at"),
         Index("trajectory_queue_idx", "status", "created_at"),
         Index("trajectory_one_approved_target", "reward_target_id", unique=True, postgresql_where=text("status IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE')")),

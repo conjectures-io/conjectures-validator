@@ -1,256 +1,137 @@
-# Chat logs and treasury-share bounties: staged implementation
+# Proof chat logs: required with new bounties, bonus for earlier proofs
 
-New targets offer 2.5% of gross finalized Alpha treasury and require accepted authentic chat logs.
-For qualifying proofs submitted before launch, accepted logs earn an optional additional
-**$500 USD for Erdős/Green source problems, $250 USD otherwise**. Existing proof payouts retain their terms.
-Upload creates a private review record. Historical-log acceptance creates only a manual-payment review record. Required-log acceptance
-unlocks the existing full-bounty payout worker and signer notifications. Neither action signs a
-transfer or activates a commercial license.
+New targets offer 2.5% of gross finalized Alpha treasury and require the AI chat logs that
+produced the proof, **uploaded before the proof is submitted** and accepted by a reviewer.
+For qualifying proofs submitted before launch, accepted logs earn an additional
+**$500 USD for Erdős/Green source problems, $250 USD otherwise**. Existing proof payouts keep
+their terms. Every accepted log is licensed to Conjectures for sale to buyers; logs are never
+published openly. The owner approved these rules on October 12, 2026.
 
-The delivered flow includes the full [commercial license draft](commercial-license-draft-v1.md)
-and separately pinned [private review terms](review-terms-v2.md) and [assent wording](assent-statements-v1.json), with an explicit commercial election inside intake. No contributor must negotiate or sign another
-agreement if the final package, rights, terms and scope match their approved in-flow election.
-The owner approved these economics and P34/P35 admission on October 12, 2026.
-Commercial-license wording and operational launch requirements remain as described below.
+Contributor terms are one plain-language page, [chat-log-terms-draft-v1.md](chat-log-terms-draft-v1.md),
+with a single pinned assent statement ([assent-statements-v2.json](assent-statements-v2.json)).
+`python scripts/trajectory_assets.py` regenerates the schema, template, example, the terms
+manifest and `submission_api/trajectory_terms.py` digests; copy `docs/trajectories/*.json` and
+the terms Markdown to the frontend's `data/trajectory/` and verify the hashes together.
 
-## Recorded policy and launch settings
+## Owner policy
 
-| Decision | Implemented proposal |
+| Decision | Rule |
 | --- | --- |
-| Bonus amount | Historical: $500 Erdős/Green, $250 other; required new-bounty evidence: no extra cash bonus |
-| What it buys | Accepted package delivery plus only separately elected and cleared rights, no additional license fee |
-| Commercial choice | Optional; review-only packages can qualify. Making a permitted license mandatory needs new versioned terms and assent |
-| Enrollment | Explicit timezone-aware `TRAJECTORY_BONUS_START_AT`, required to enable. It is a proof-submission cutoff; no guessed retroactivity |
-| Claim window | Historical claims: 365 days from the launch cutoff; new required evidence: no retrospective cutoff |
-| Rights duration | Proposed five years from activation, limited further by actual source rights |
-| Size | UTF-8 JSON up to 32 MiB, 10,000 events, 100 runs, 1,000 artifacts, 1,048,576 Unicode characters per event/artifact (up to 4 MiB UTF-8), still within the overall byte limit |
-| Proof bytes | Authoritative submission digest reference allowed; existing proofs up to 30 MiB need not be embedded twice |
-| Revisions | At most three package versions, requested changes or withdrawal before replacement |
-| Retention | Private content 90 days from first upload, no extension on revision; minimal audit/election/fingerprints seven years; required evidence persists while a reward event references its proof |
-
-No live settings, contract, deployment, payout or data sale has been made by this work.
+| Acceptance standard | This chat produced this proof, and the chat existed before the proof was submitted — not written, edited or reconstructed afterwards |
+| New bounties | Logs are deposited before the proof; the proof is refused without them (no credit spent); the deposit lasts 24 hours; no later addition or replacement |
+| Missing or failed logs | Rejected or withdrawn logs forfeit the bounty and reopen the target; there is no grace period |
+| Earlier proofs | $500 Erdős/Green, $250 other, by the original task bundle; the chat must show the proof before its submission time; up to three versions; claims close 365 days after the cutoff |
+| License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance |
+| Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
+| Format | UTF-8 JSON up to 32 MiB, 10,000 events, 100 runs, 1,000 artifacts; the existing proof may be referenced rather than embedded |
 
 ## Contributor instructions
 
-1. Sign in to the account owning the proof. It must be verified and have a current human
-   `REVIEW_APPROVED` full-bounty decision. `FORMALIZATION_DEFECT_AWARD`, automatic approvals,
-   rejected/prior-established proofs and a different account's proof fail closed. Account-less
-   legacy submissions require a separately verified ownership migration before this intake works.
-2. Export relevant conversations through supported provider controls or legitimate API/client
-   logs. Preserve actual chronological user-visible user/assistant messages, tool calls/results,
-   errors, failed attempts, revisions and output artifacts. Never reconstruct or request hidden
-   chain-of-thought, inaccessible internal reasoning or unavailable system instructions. Legitimately
-   exportable reasoning summaries already shown to the user may be included as visible messages;
-   do not attempt to retrieve internal reasoning behind them.
-3. Fill [template.json](template.json) using [trajectory.schema.json](trajectory.schema.json).
-   The template deliberately fails validation until its empty arrays and placeholders are replaced.
-   Its false attestations are illustrative; the intake form separately records your explicit assent. [synthetic-example.json](synthetic-example.json) is a complete teaching example,
-   explicitly synthetic with false authenticity attestations and rejected by intake.
-   [synthetic-rights-example.json](synthetic-rights-example.json) demonstrates every source-rights field with unknown rights, which cannot be cleared. Do not relabel it as authentic evidence.
-4. Identify each provider/model/version/interface, generation settings, export method and original
-   export digest, with honest null/reason pairs for unknown metadata. Record the actual account
-   agreement and terms reference; output ownership is not universal permission to resell/train.
-5. Link the submission UUID, task ID/bundle hash and final proof SHA-256. Include code/config/log
-   artifacts or explain omissions. Hash embedded UTF-8 bytes exactly. `authoritative_submission`
-   references are permitted only for the linked final proof. Artifact paths are labels, never
-   filesystem destinations. Nothing is downloaded, extracted or executed by intake.
-6. Pin Lean, Mathlib, task and code revisions; supply environment, commands, expected result and
-   reproducibility limitations. Record missing/redacted fields and their reproduction impact.
-   For empty tool output use `content: ""` with `empty_content: true`. For branches/regenerations
-   include the earlier `parent_event_id`; preserve chronological export order and explain missing
-   branches. Images/binary attachments must be listed as omitted hashed artifacts with an honest
-   reason and impact; never invent text or fetch external attachments automatically.
-   Do not silently truncate long runs; ask for an approved alternative if 32 MiB is insufficient.
-7. Remove credentials, keys, unrelated account history and unnecessary PII locally. Establish
-   third-party authorization or remove the material. Mark every redaction. Store originals
-   securely for a requested provenance check; never upload an entire provider account archive.
-8. Accept narrow private review/storage permission. Separately choose review-only or conditional
-   commercial purposes in the intake form. There is no default commercial election in the UI.
-   For a conditional grant, `commercial_election.sources` must name `run:<id>` and `artifact:<id>`
-   for every source, with its agreement/license, evidence, rights status, permitted purposes,
-   restrictions and third-party rights. Unknowns are honest disclosures and block commercial
-   clearance, not automatically package-review eligibility.
+1. **New bounty:** on the submit page, choose the proof file first. The page shows the exact
+   `task_id`, `task_bundle_sha256` and `final_proof_sha256` the logs must name, with
+   `submission_id: null`. Upload the logs, then submit the proof within 24 hours.
+   **Earlier proof:** sign in to the account owning a proof with a current human
+   `REVIEW_APPROVED` decision and upload from that submission's page with its `submission_id`.
+2. Export the conversation through the provider's own export, share link or API logs. Keep the
+   real user-visible messages, tool calls and results and failed attempts in order. Never send
+   hidden model reasoning.
+3. Fill [template.json](template.json) against [trajectory.schema.json](trajectory.schema.json).
+   [synthetic-example.json](synthetic-example.json) shows the shape and is refused by intake.
+   Use `null` plus a short reason for anything the export does not show. At least one dated
+   event must attach the final-proof artifact: that is when the chat produced the proof.
+4. Remove passwords, API keys and personal information you do not want shared.
 
-The machine schema validates shapes. Runtime validation also checks chronology, tool references,
-artifact hashes, proof linkage, duplicate JSON keys and bounded nesting. The UTF-8 file is sent
-unchanged inside a JSON-string envelope; separate checkbox/election fields are validated, then
-merged into the canonical reviewed record. The original-file digest and server-side consent time,
-account, exact terms/assent digests are retained. Assent must match displayed static bytes and
-server pins. No IP address or user agent is added to the consent record.
-Omission disclosures still require human matching against missing artifacts and tool results; a
-nonempty disclosure list alone is not proof of completeness. It cannot establish
-authenticity or intellectual-property rights. A modified fabricated transcript can pass a hash
-check; provenance and semantic duplicate review remain mandatory human work.
+Runtime validation checks chronology, tool references, artifact hashes, proof linkage,
+duplicate JSON keys and nesting. Machine timing checks: every timestamp precedes export, export
+is not in the future, and for earlier proofs the first dated event showing the final proof
+precedes the submission time. Timestamps in a file can be forged, so provenance (provider
+export digest or share link) and duplicate review remain human work.
 
-## Human acceptance checklist
+## Review
 
-Every approval requires an independent reviewer, never the contributor, to attest that:
+Reviewers attest three things before accepting (`Checklist` in `routers/trajectories.py`):
+the chat produced this proof; it existed before the proof was submitted (provenance,
+timestamps, duplicates); and the contributor owns the proof with no credentials or others'
+personal information left in. Accepting also requires a current human `REVIEW_APPROVED`
+decision on the proof, which the claim binds.
 
-- The authentic export and source provenance were inspected and chronology matches actual history.
-- All relevant visible messages, tools/results, failures and revisions are accounted for.
-- The final proof matches the accepted proof, pinned dependencies and reproduction results.
-- Unknowns, omissions and redactions are honest and no material gap defeats completeness.
-- Proof ownership, review permission, third-party authorization and privacy checks pass.
-- The full bounty is valid under the proof’s recorded policy. Under policy v4, prior-established
-  proofs are rejected with `NOT_NOVEL`; no other hidden novelty marker exists. Defect-only awards
-  never qualify by default. Older submissions retain their recorded policies.
-- Exact and semantic duplicates, copied histories, manipulated metadata and replay were checked.
-- Narrow private review/storage permission is sufficient.
-
-The separate rights review must inspect each source's actual agreement, region/account terms,
-contributor/employer/collaborator rights and every selected use. It records `NOT_CLEARED` or
-`CLEARED_CONDITIONAL`, with a reason and reviewer identity. Unknown/prohibited/missing rights or
-scopes beyond source permissions fail clearance. All restrictions must accompany a buyer license.
-Commercial clearance alone does not activate rights. Declining or failing rights clearance does
-not reject an otherwise accepted package under the proposed optional-license policy.
+- New-bounty logs can be accepted or rejected, never sent back for changes. Rejection waits
+  until automatic verification finishes. If the proof is approved for the full bounty, or not
+  yet decided, rejection records a binding `CHAT_LOGS_NOT_ACCEPTED` rejection of the proof
+  through the ordinary decision functions, so the reward hold, treasury reservation and payout
+  guards move exactly as for any rejected proof. Contributor withdrawal does the same. A
+  formalization-defect award never needed logs and is unaffected.
+- Appeal: an independent reviewer may reopen rejected logs while their content exists, unless
+  another proof for the target has since qualified (`TRAJECTORY_TARGET_REASSIGNED`). Restoring
+  the bounty also needs the proof decision corrected back to approval through review
+  corrections, which re-checks the target holder.
+- A changed proof decision blocks an acceptance (`BLOCKED_PROOF_CHANGED`). Same-outcome
+  corrections can be rebound; otherwise the reviewer revokes, which ends the license and
+  restarts the 90-day deletion clock.
+- Historical claims keep `NEEDS_CHANGES` revisions (at most three).
 
 ## Architecture and safety boundaries
 
-- New `trajectory_claims`, `trajectory_fingerprints` and `trajectory_access_log` tables in migration V044. V045 adds the durable target pricing policy and a reward-event trigger that requires reviewed
-  evidence for new-policy full bounties. Evidence review itself never transfers funds.
-- Session-cookie owner upload with the existing origin guard; CLI tokens cannot upload or review.
-  Account ownership is checked before body consumption, then eligibility is rechecked after the
-  bounded stream under the same proof-row lock used by proof corrections. The precheck transaction
-  is rolled back before the stream (no idle connection/row lock). A worker admits one upload at a
-  time, at most one per account, with three successful uploads per hour and six failed attempts per 15 minutes and a 60-second body
-  deadline. Parsing, validation and hashing run in a bounded worker thread. The raw-file limit is
-  32 MiB; the transport envelope allows 64 MiB + 64 KiB for JSON escaping, with the same file and
-  canonical-size checks. Per-worker limits need a shared edge limit across replicas.
-- Reviewer queue/download uses `REVIEWER`; decisions add the existing role-write and origin guard.
-  Queue/status responses contain metadata, never package text. Raw downloads are JSON attachment,
-  `nosniff`, sandbox CSP and `no-store`; the UI never renders a transcript or follows its URLs.
-  Download commits a claim/actor/time access record before releasing bytes. Updates to access
-  records are blocked by a DB trigger; records expire with the claim audit row. No package text
-  is included. Metadata reads defer bytea/provenance columns and project only necessary fields.
-- Duplicate-proof and submission keys are unique. Approved claims have a unique stable reward
-  target; fingerprints remain through all revisions. Canonical exact retry is idempotent.
-  Identical evidence repackaged with different submission metadata collides. Semantic clones and
-  deliberately altered fabricated content need human review.
-- A changed/revoked underlying proof approval produces `BLOCKED_PROOF_CHANGED` on reads. A future
-  payment adapter must recheck current proof and bonus decisions under locks before any payment.
-  Claims snapshot proof review and bounty policy versions. Every mutation requires the current state version. An independent reviewer may rebind an unchanged-policy, same-outcome proof approval while retaining the original evidence review. An independent reviewer can revoke a
-  blocked approval (`REVOKED_PROOF_CHANGED`), releasing its approved-target reservation, then
-  explicitly reopen for fresh review while content exists. Rejected claims can likewise be
-  reopened by a reviewer. These actions require a revision and owner-visible explanation.
-- PostgreSQL statements hide bound parameters; invalid exports return at most 20 schema-owned field paths and standard
-  error types, never Pydantic input, arbitrary unknown-key names or raw bytes. Do not enable HTTP-body, SQL-parameter or proxy-body logging.
-- Withdrawal while pending removes current bytes immediately. Changes requested permit another
-  version, bounded to three. The contributor can independently withdraw commercial permission
-  in any current claim status before activation; the durable marker and audit entry survive
-  exact upload retries. This does not change bonus eligibility under the optional-license draft.
-  Expired pending claims display `EXPIRED`; purge persists it, and reviewers can reject expired
-  claims. Approval/reopening requires available unexpired content. Revisions never extend expiry.
-- Packages are private API data, not attached to public results, indexed for search, or forwarded
-  to external model reviewers. Browser local persistence is not used. Existing session security
-  and deployment-wide IP rate limits apply; each qualifying proof bounds accepted uploads to three.
-  Reviewer decisions, revocation/reopening, owner status and withdrawal remain available if intake
-  is paused; each claim retains its enrollment cutoff and state version independently of later configuration changes.
+- `trajectory_claims`, `trajectory_fingerprints` and `trajectory_access_log` (V044). A deposit
+  is a claim with `status = 'DEPOSITED'` and no submission; the bind sets the submission in the
+  same transaction as the credit spend. V045 adds the durable target pricing policy and the
+  reward-event trigger requiring accepted evidence for new-policy full bounties.
+- Session-cookie owner upload with the existing origin guard; CLI tokens cannot upload or
+  review. Prechecks are released before the bounded body stream. One upload per worker at a
+  time, at most one per account, three successful uploads per hour and six failed attempts per
+  15 minutes, 60-second body deadline. Per-worker limits need a shared edge limit across replicas.
+- Reviewer queue/download uses `REVIEWER`; decisions add the role-write and origin guard.
+  Downloads are attachment, `nosniff`, sandbox CSP and `no-store`, and commit an access record
+  before releasing bytes. Queue/status responses never contain package text.
+- Proof digest and fingerprints are unique; one approved claim per reward target. Lock order is
+  payout rows, then submission, then claim, matching reconciliation and review corrections.
+- PostgreSQL statements hide bound parameters; invalid exports return at most 20 schema-owned
+  field paths. Do not enable HTTP-body, SQL-parameter or proxy-body logging.
+- Payout roles never read claim tables. They call only the `bounty_trajectory_eligible(uuid,text)`
+  security-definer projection; see ROLLOUT for owner and EXECUTE grants.
 
-## Operational launch blockers and manual settlement design
+## Retention job
 
-The economic choices above are approved. Before production enablement, complete the following:
+Schedule `python scripts/purge_trajectories.py` daily with an explicit `DATABASE_URL` and alert
+on failures. It deletes unsubmitted deposits after 24 hours, removes package bytes of
+non-accepted claims after 90 days (pending ones become `EXPIRED`), and deletes minimal records
+of non-accepted claims after seven years unless a required-evidence record backs a reward
+event. Accepted logs are never purged: they are the licensed sale inventory. Backups need the
+same schedule, with a restore-time purge before serving traffic.
 
-1. Merge the dependency policy work and coordinate V044 and V045; this branch starts on validator
-   `ddc02f1473a269507572c4bcd0035fb11ad98905`, the deployed but unmerged PR119 policy baseline.
-   The task-policy reference is PR18 `5fe7720f8aeb4423c0329a51601be720575c991f`. The separate packing admission record preserves the withdrawn disk targets.
-2. Finalize legal counterparty/jurisdiction, versioned license text, privacy disclosures, applicable
-   provider agreements and optional license wording. Changing draft wording requires a new version,
-   regenerated SHA-256, matched frontend bytes and fresh assent. Stale frontend/server terms fail
-   closed; neither side may replace a contributor's unseen terms automatically. `APP_MODE=PROD`
-   refuses enabled intake while either terms version contains `draft`. Final approved terms also
-   require an explicit `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256` matching the pinned commercial
-   digest. This guard cannot be satisfied by a flag change alone in this delivery.
-3. Configure encrypted storage/backups, least-privilege DB/API access, reviewer roles, audited
-   download access, TLS, request timeouts and proxy limits aligned with the file/envelope bounds.
-   Migration V044 explicitly revokes PUBLIC access. Inspect `pg_default_acl` and relation grants
-   for actual analytics/replica/read roles and remove unintended grants; no role names are guessed.
-   Load-test the one-upload-per-worker memory budget before selecting replica/edge limits. The
-   current repository uses one DB role; it does not provide cryptographic separation from other
-   processes holding that credential. Dedicated role/storage isolation is a launch requirement.
-4. Schedule `python scripts/purge_trajectories.py` daily with an explicit `DATABASE_URL` and alert
-   on missed/failing runs. Test its deletion and restore procedure on a private fixture. Access
-   already expires at 90 days even if purge fails. Purge removes bytes and full rights-provenance
-   text, leaving only version/digests/choice/purposes and each source ID/status/hash. This applies
-   even to cleared elections; the review database is not commercial delivery storage. Backups require an approved finite deletion
-   schedule and a restore-time purge before service traffic; deleting the live row alone does
-   not erase backup copies. The job removes historical-bonus audit/fingerprints after seven years; required-evidence audit
-   remains while a reward event references its proof, as disclosed in draft v2. The
-   one-year claim window closes before that deletion and prevents a new claim for the old proof.
-5. **Settlement/activation adapter is not implemented.** This is a launch blocker for paying
-   bonuses or selling/using datasets. An authorized finance operator must record a unique claim
-   payment with currency, actual amount, locked USD conversion source/time/rounding if applicable,
-   transaction/reference, destination verification, paid-at time and independent confirmation.
-   A second authorized operator must activate the exact elected license only after rechecking
-   current full-bounty decision, bonus approval, novelty, no duplicate award, nonwithdrawal,
-   commercial source clearance, exact consent/assent/terms digests and package digest. Activation
-   must be before review-content expiry, with `commercial_withdrawn_at IS NULL`, a still-available
-   exact package and full source evidence. After expiry this draft election cannot be activated. The future durable settlement
-   ledger must uniquely bind the claim/proof/target and record activation scope, restrictions,
-   actors and expiry; this cannot be a note or a fabricated `REWARDED` status. No such ledger or
-   route exists here, so historical bonus responses explicitly say `NOT_ISSUED` (required evidence says `NOT_APPLICABLE`) and
-   `INACTIVE_NO_PAYMENT_OR_ACTIVATION`. Do not infer payment from the existing proof reward.
-6. Implement buyer agreements, restriction propagation, permitted delivery/storage, access and
-   deletion/rights-dispute handling before any sale. Before the 90-day review purge, an authorized
-   activation must transfer only the cleared package and accepted restrictions to approved delivery
-   storage with disclosed finite retention. The review system never silently extends retention.
-   For the proposed five-year license activated within 90 days, seven-year audit retention from
-   first upload covers its duration; longer retention/use needs revised disclosures and terms. No substantive extra contributor agreement
-   is required beyond this in-flow election if approved terms/scope stay identical; operational
-   settlement and activation evidence is still required.
-7. Only then select the explicit offer cutoff and enable both `TRAJECTORY_BONUS_ENABLED=true`
-   and frontend `NEXT_PUBLIC_TRAJECTORY_BONUS=1`. Defaults remain off. Reviewer access and owner
-   withdrawal remain available for existing records even if intake is later disabled.
+## Launch blockers
 
-## Provider sources (checked 2026-10-12; recheck before launch)
+1. **Final terms.** The owner approves the wording of `chat-log-terms-draft-v1.md` and its
+   effective date; rename it to a non-draft version, regenerate digests and pin
+   `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256`. Production refuses draft terms. Publish v8
+   submission terms (still `docs/policies/submission-terms-v8-draft.md`) with matching dates.
+2. **Persist the historical cutoff.** It still comes from `TRAJECTORY_BONUS_START_AT`. Store the
+   approved cutoff durably and refuse changes for new enrollments; each claim already
+   snapshots its own.
+3. **Historical bonus payments.** Approval records `NOT_ISSUED`. A payment ledger must record a
+   unique claim payment, actual amount, verified destination, reference and confirmation before
+   anyone pays a bonus. Never infer payment from the proof reward.
+4. **Sale delivery.** Accepted packages stay in the private review store. Selling needs an
+   export/delivery process for buyers (who receives what, buyer terms, takedown handling) that
+   reads only accepted claims and logs each export.
+5. **Inventory.** Original historical task bundles (a missing bundle blocks tier selection) and
+   account-less historical submissions (need verified ownership migration).
+6. **P34/P35 release.** Generated task bundles, registry/catalog entries, source/type commitments
+   and a pinned verifier release; see `staged/packing-20261012/`.
+7. **Production configuration** per ROLLOUT, then enable `TRAJECTORY_BONUS_ENABLED=true`
+   together with frontend `NEXT_PUBLIC_TRAJECTORY_BONUS=1`. New-policy quotes stay
+   `CHAT_LOG_REVIEW_UNAVAILABLE` while intake is off.
 
-Official sources distinguish output ownership, export access, account agreements and downstream
-use restrictions. None establishes a blanket resale/training right for a submitted trajectory.
-
-- [OpenAI Terms of Use](https://openai.com/policies/terms-of-use/) and
-  [Services Agreement](https://openai.com/policies/services-agreement/): conditional output rights
-  do not remove competing-model restrictions, third-party rights or applicable exceptions.
-- [ChatGPT export controls](https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data):
-  use supported exports; organization-managed access differs. Remove unrelated account data.
-- [Anthropic Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and
-  [Commercial Terms](https://www.anthropic.com/legal/commercial-terms): output provisions coexist
-  with competing-product/model restrictions. Verify region and actual account agreement.
-- [Claude export controls](https://support.claude.com/en/articles/9450526-export-your-claude-data):
-  individual and organization export permissions differ; export access does not license resale.
-
-Independent implementation review uses code and synthetic fixtures only. Private contributor
-packages must not be sent to external reviewers without separate, appropriate authorization.
+Operator note: provider terms differ on whether outputs may be resold or used to train other
+models. The contributor promises they may share the logs; buyers should still get the provider
+and model recorded for each run.
 
 ## Validation
 
-`python -m pytest tests/test_trajectory_schema.py tests/test_api_trajectories.py` covers structure,
-ownership, CSRF/role gates, eligibility, replay, revision, expiry, rights separation, no transfer,
-and changed proof decisions. DB tests require the repo's explicit private-fixture identity guard.
-`scripts/check_schema_drift.py` compares the new SQL and ORM tables. Frontend tests pin the shown
-review/commercial/assent digests, preserve raw file text, require explicit elections and reject synthetic/oversized/mislinked packages.
-`python scripts/trajectory_assets.py` regenerates schema/example/template; copy those and the
-exact license/review Markdown, assent JSON and terms manifest to frontend `data/trajectory/` (served only by the enabled `/trajectory/[asset]` route) and verify their hashes together.
-
-## Additional gates identified in the independent xhigh review
-
-Before enabling required-evidence bounties, publish the deadline and an appeal/forfeiture rule
-for logs that are never accepted, implement its audited target/reservation release, and test the
-competing-proof case. No deadline or new disqualification ground is invented in this disabled
-build. New-policy quotes are unavailable while intake is disabled.
-
-Before opening historical claims, persist the owner-approved cutoff independently of environment
-configuration and refuse changes for new enrollments. Production must reject future cutoffs.
-The current per-claim snapshot already keeps accepted claims independent of later configuration.
-
-The v8 submission contract remains an inactive draft; v7 is still bundled and published. Finalize
-v8 with the actual activation date and a distinct immutable version/digest before enabling the
-new program. The recovered `*-draft-v1` artifacts have never collected real assent; their edits
-are permissible only in these disposable staging checkouts. Any prior private test environment
-must be rebuilt. Never overwrite terms that collected contributor assent.
-
-Payout roles must have no SELECT/UPDATE grants on private trajectory tables. They call only the
-`bounty_trajectory_eligible(uuid,text)` security-definer boolean projection with a pinned search
-path. PUBLIC execute is revoked; explicitly grant EXECUTE on that function to the real API,
-notifier and command-rendering database roles during deployment, without granting claim-table
-access. The function owner must be a trusted migration role, never a public/analytics role. The authorization trigger uses the same projection and locks only the public submission;
-all claim writers and the purge job take that submission lock first. Retain minimal required-evidence
-audit rows while a reward event references their submission; historical bonus rows expire after seven years; private content still expires.
+`python -m pytest tests/test_trajectory_schema.py tests/test_api_trajectories.py
+tests/test_new_bounty_policy.py tests/test_bounty_trajectory_payouts.py` covers structure, the
+logs-before-proof requirement, deposit expiry, after-the-fact refusal, review states, forfeiture
+releasing the target, appeals against a competing proof, retention of accepted logs and payout
+authorization. DB tests require the repo's private-fixture identity guard.
+`scripts/check_schema_drift.py` compares SQL and ORM. Frontend tests pin the shown terms and
+assent digests and the deposit linkage checks.

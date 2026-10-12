@@ -78,65 +78,6 @@
       "title": "Artifact",
       "type": "object"
     },
-    "CommercialElection": {
-      "additionalProperties": false,
-      "properties": {
-        "terms_version": {
-          "const": "trajectory-commercial-draft-v1",
-          "title": "Terms Version",
-          "type": "string"
-        },
-        "terms_sha256": {
-          "pattern": "^sha256:[a-f0-9]{64}$",
-          "title": "Terms Sha256",
-          "type": "string"
-        },
-        "election": {
-          "enum": [
-            "decline",
-            "conditional_grant"
-          ],
-          "title": "Election",
-          "type": "string"
-        },
-        "purposes": {
-          "items": {
-            "enum": [
-              "dataset_redistribution",
-              "sublicensing",
-              "evaluation",
-              "training"
-            ],
-            "type": "string"
-          },
-          "maxItems": 4,
-          "title": "Purposes",
-          "type": "array"
-        },
-        "sources": {
-          "items": {
-            "$ref": "#/$defs/SourceRights"
-          },
-          "maxItems": 1100,
-          "title": "Sources",
-          "type": "array"
-        },
-        "explicit_assent": {
-          "title": "Explicit Assent",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "terms_version",
-        "terms_sha256",
-        "election",
-        "purposes",
-        "sources",
-        "explicit_assent"
-      ],
-      "title": "CommercialElection",
-      "type": "object"
-    },
     "Disclosure": {
       "additionalProperties": false,
       "properties": {
@@ -410,43 +351,33 @@
       "additionalProperties": false,
       "properties": {
         "terms_version": {
-          "const": "trajectory-review-draft-v2",
+          "const": "chat-log-terms-draft-v1",
           "title": "Terms Version",
           "type": "string"
         },
-        "authentic_user_visible_export": {
-          "title": "Authentic User Visible Export",
+        "authentic_logs_that_produced_this_proof": {
+          "title": "Authentic Logs That Produced This Proof",
           "type": "boolean"
         },
-        "authorized_to_submit": {
-          "title": "Authorized To Submit",
+        "allowed_to_share": {
+          "title": "Allowed To Share",
           "type": "boolean"
         },
-        "secrets_and_personal_data_checked": {
-          "title": "Secrets And Personal Data Checked",
+        "secrets_and_personal_data_removed": {
+          "title": "Secrets And Personal Data Removed",
           "type": "boolean"
         },
-        "third_party_consent_or_removal": {
-          "title": "Third Party Consent Or Removal",
-          "type": "boolean"
-        },
-        "private_review_and_storage_only": {
-          "title": "Private Review And Storage Only",
-          "type": "boolean"
-        },
-        "upload_alone_grants_no_commercial_rights": {
-          "title": "Upload Alone Grants No Commercial Rights",
+        "license_to_sell_once_accepted": {
+          "title": "License To Sell Once Accepted",
           "type": "boolean"
         }
       },
       "required": [
         "terms_version",
-        "authentic_user_visible_export",
-        "authorized_to_submit",
-        "secrets_and_personal_data_checked",
-        "third_party_consent_or_removal",
-        "private_review_and_storage_only",
-        "upload_alone_grants_no_commercial_rights"
+        "authentic_logs_that_produced_this_proof",
+        "allowed_to_share",
+        "secrets_and_personal_data_removed",
+        "license_to_sell_once_accepted"
       ],
       "title": "Permissions",
       "type": "object"
@@ -509,69 +440,6 @@
       "title": "Reproduction",
       "type": "object"
     },
-    "SourceRights": {
-      "additionalProperties": false,
-      "properties": {
-        "source_id": {
-          "maxLength": 500,
-          "minLength": 1,
-          "title": "Source Id",
-          "type": "string"
-        },
-        "rights_status": {
-          "enum": [
-            "confirmed",
-            "unknown",
-            "prohibited"
-          ],
-          "title": "Rights Status",
-          "type": "string"
-        },
-        "agreement_or_license": {
-          "$ref": "#/$defs/KnownValue"
-        },
-        "evidence_reference": {
-          "$ref": "#/$defs/KnownValue"
-        },
-        "allowed_purposes": {
-          "items": {
-            "enum": [
-              "dataset_redistribution",
-              "sublicensing",
-              "evaluation",
-              "training"
-            ],
-            "type": "string"
-          },
-          "maxItems": 4,
-          "title": "Allowed Purposes",
-          "type": "array"
-        },
-        "restrictions": {
-          "maxLength": 4000,
-          "minLength": 1,
-          "title": "Restrictions",
-          "type": "string"
-        },
-        "third_party_rights": {
-          "maxLength": 2000,
-          "minLength": 1,
-          "title": "Third Party Rights",
-          "type": "string"
-        }
-      },
-      "required": [
-        "source_id",
-        "rights_status",
-        "agreement_or_license",
-        "evidence_reference",
-        "allowed_purposes",
-        "restrictions",
-        "third_party_rights"
-      ],
-      "title": "SourceRights",
-      "type": "object"
-    },
     "Timestamp": {
       "additionalProperties": false,
       "properties": {
@@ -621,9 +489,16 @@
       "type": "boolean"
     },
     "submission_id": {
-      "format": "uuid",
-      "title": "Submission Id",
-      "type": "string"
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Submission Id"
     },
     "task_id": {
       "maxLength": 255,
@@ -702,9 +577,6 @@
     },
     "permissions": {
       "$ref": "#/$defs/Permissions"
-    },
-    "commercial_election": {
-      "$ref": "#/$defs/CommercialElection"
     }
   },
   "required": [
@@ -722,8 +594,7 @@
     "completeness",
     "missing",
     "redactions",
-    "permissions",
-    "commercial_election"
+    "permissions"
   ],
   "title": "TrajectoryPackage",
   "type": "object",

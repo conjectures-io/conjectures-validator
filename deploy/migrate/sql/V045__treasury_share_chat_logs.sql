@@ -8,22 +8,6 @@ ALTER TABLE bounty_tasks ADD COLUMN pricing_policy text NOT NULL DEFAULT 'legacy
 ALTER TABLE bounty_tasks ALTER COLUMN pricing_policy SET DEFAULT 'treasury-share-2p5-chat-v1';
 ALTER TABLE bounty_tasks ADD CONSTRAINT bounty_tasks_pricing_policy
     CHECK (pricing_policy IN ('legacy', 'treasury-share-2p5-chat-v1'));
-ALTER TABLE trajectory_claims DROP CONSTRAINT trajectory_terms;
-ALTER TABLE trajectory_claims ADD CONSTRAINT trajectory_terms CHECK
-    (terms_version IN ('trajectory-review-draft-v1', 'trajectory-review-draft-v2'));
-ALTER TABLE trajectory_claims DROP CONSTRAINT trajectory_fixed_bonus;
-ALTER TABLE trajectory_claims ADD CONSTRAINT trajectory_fixed_bonus CHECK (amount_usd_cents IN (0, 25000, 50000));
-ALTER TABLE trajectory_claims DROP CONSTRAINT trajectory_status;
-ALTER TABLE trajectory_claims ADD CONSTRAINT trajectory_status CHECK
-    (status IN ('UNDER_REVIEW','NEEDS_CHANGES','REJECTED','APPROVED_MANUAL_PAYMENT','WITHDRAWN','EXPIRED','REVOKED_PROOF_CHANGED','APPROVED_BOUNTY_EVIDENCE'));
-ALTER TABLE trajectory_claims DROP CONSTRAINT trajectory_approval_reviewed;
-ALTER TABLE trajectory_claims ADD CONSTRAINT trajectory_approval_reviewed CHECK
-    (status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE') OR (reviewer_id IS NOT NULL AND checklist IS NOT NULL AND review_note IS NOT NULL));
-ALTER TABLE trajectory_claims ADD CONSTRAINT trajectory_approval_purpose CHECK
-    ((status <> 'APPROVED_BOUNTY_EVIDENCE' OR amount_usd_cents = 0) AND (status <> 'APPROVED_MANUAL_PAYMENT' OR amount_usd_cents IN (25000, 50000)));
-DROP INDEX trajectory_one_approved_target;
-CREATE UNIQUE INDEX trajectory_one_approved_target ON trajectory_claims(reward_target_id)
-    WHERE status IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE');
 
 CREATE FUNCTION protect_bounty_target_policy() RETURNS trigger
 LANGUAGE plpgsql AS $$

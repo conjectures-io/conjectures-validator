@@ -10,19 +10,17 @@ from pydantic import Field
 from submission_api.errors import TooManyRequests
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.trajectory_schema import (
-    CommercialElection, Permissions, StrictModel, canonical_bytes, evidence_digest, parse_package, check_json_depth,
+    Permissions, StrictModel, canonical_bytes, evidence_digest, parse_package, check_json_depth,
     SAFE_SEMANTIC_ERRORS,
 )
-from submission_api.trajectory_terms import (
-    ASSENT_STATEMENTS_SHA256, COMMERCIAL_TERMS_SHA256, REVIEW_TERMS_SHA256, REVIEW_TERMS_VERSION,
-)
+from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256, TERMS_VERSION
 
 MAX_ENVELOPE_BYTES = 64 * 1024 * 1024 + 64 * 1024
 
 
 class Consent(StrictModel):
-    review_terms_version: str = Field(max_length=64)
-    review_terms_sha256: str = Field(max_length=71)
+    terms_version: str = Field(max_length=64)
+    terms_sha256: str = Field(max_length=71)
     assent_statements_sha256: str = Field(max_length=71)
     accepted: bool = Field(strict=True)
 
@@ -31,7 +29,6 @@ class Envelope(StrictModel):
     expected_state_version: int | None = Field(default=None, strict=True, ge=1, le=2147483647)
     package_json: str
     consent: Consent
-    commercial_election: CommercialElection
 
 
 def prepare_upload(raw):
@@ -45,11 +42,10 @@ def prepare_upload(raw):
     check_json_depth(raw)
     envelope = Envelope.model_validate(json.loads(raw.decode("utf-8"), object_pairs_hook=unique))
     consent = envelope.consent
-    if (not consent.accepted or consent.review_terms_version != REVIEW_TERMS_VERSION
-            or consent.review_terms_sha256 != REVIEW_TERMS_SHA256
-            or consent.assent_statements_sha256 != ASSENT_STATEMENTS_SHA256
-            or envelope.commercial_election.terms_sha256 != COMMERCIAL_TERMS_SHA256):
-        raise ValueError("review the exact pinned terms and assent statements")
+    if (not consent.accepted or consent.terms_version != TERMS_VERSION
+            or consent.terms_sha256 != TERMS_SHA256
+            or consent.assent_statements_sha256 != ASSENT_STATEMENTS_SHA256):
+        raise ValueError("review the exact pinned terms and assent statement")
     original = envelope.package_json.encode("utf-8")
     package = parse_package(original)  # Validates original UTF-8 text and duplicate keys unchanged.
     template_fields = [package.task_id, *package.reproduction.commands, package.reproduction.environment,
@@ -63,11 +59,7 @@ def prepare_upload(raw):
         raise ValueError("replace all template placeholders")
     # The checkbox is the authority for permission, not booleans in a hand-edited file.
     values = {k: True for k in Permissions.model_fields if k != "terms_version"}
-    package = package.model_copy(update={
-        "permissions": Permissions(terms_version=REVIEW_TERMS_VERSION, **values),
-        "commercial_election": envelope.commercial_election,
-    })
-    package = type(package).model_validate(package.model_dump())  # Cross-source/scopes rechecked.
+    package = package.model_copy(update={"permissions": Permissions(terms_version=TERMS_VERSION, **values)})
     canonical = canonical_bytes(package)
     return package, canonical, hashlib.sha256(canonical).digest(), evidence_digest(package), {
         **consent.model_dump(), "source_file_sha256": "sha256:" + hashlib.sha256(original).hexdigest(),

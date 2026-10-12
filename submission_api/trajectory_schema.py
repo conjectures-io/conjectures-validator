@@ -14,7 +14,8 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 MAX_PACKAGE_BYTES = 32 * 1024 * 1024
 RETENTION_DAYS = 90
-TERMS_VERSION = "trajectory-review-draft-v2"
+TERMS_VERSION = "chat-log-terms-draft-v1"
+DEPOSIT_HOURS = 24
 Digest = Annotated[str, Field(pattern=r"^sha256:[a-f0-9]{64}$")]
 Short = Annotated[str, Field(min_length=1, max_length=500)]
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9._-]{1,100}$")]
@@ -127,55 +128,19 @@ class Reproduction(StrictModel):
 
 
 class Permissions(StrictModel):
-    terms_version: Literal["trajectory-review-draft-v2"]
-    authentic_user_visible_export: bool = Field(strict=True)
-    authorized_to_submit: bool = Field(strict=True)
-    secrets_and_personal_data_checked: bool = Field(strict=True)
-    third_party_consent_or_removal: bool = Field(strict=True)
-    private_review_and_storage_only: bool = Field(strict=True)
-    upload_alone_grants_no_commercial_rights: bool = Field(strict=True)
-
-
-Purpose = Literal["dataset_redistribution", "sublicensing", "evaluation", "training"]
-
-
-class SourceRights(StrictModel):
-    source_id: Short  # run:<id> or artifact:<id>; every source is required for clearance.
-    rights_status: Literal["confirmed", "unknown", "prohibited"]
-    agreement_or_license: KnownValue
-    evidence_reference: KnownValue
-    allowed_purposes: Annotated[list[Purpose], Field(max_length=4)]
-    restrictions: Annotated[str, Field(min_length=1, max_length=4000)]
-    third_party_rights: Annotated[str, Field(min_length=1, max_length=2000)]
-
-
-class CommercialElection(StrictModel):
-    terms_version: Literal["trajectory-commercial-draft-v1"]
-    terms_sha256: Digest
-    election: Literal["decline", "conditional_grant"]
-    purposes: Annotated[list[Purpose], Field(max_length=4)]
-    sources: Annotated[list[SourceRights], Field(max_length=1100)]
-    explicit_assent: bool = Field(strict=True)
-
-    @model_validator(mode="after")
-    def explicit_choice(self):
-        if len(set(self.purposes)) != len(self.purposes):
-            raise ValueError("commercial purposes must be distinct")
-        if self.election == "decline" and (self.purposes or self.explicit_assent):
-            raise ValueError("review-only election grants no commercial purposes")
-        if self.election == "conditional_grant" and (not self.explicit_assent or not self.purposes):
-            raise ValueError("conditional grant needs explicit assent and selected purposes")
-        if "sublicensing" in self.purposes and "dataset_redistribution" not in self.purposes:
-            raise ValueError("sublicensing requires dataset redistribution")
-        if "sublicensing" in self.purposes and not {"training", "evaluation"}.intersection(self.purposes):
-            raise ValueError("sublicensing requires evaluation or training")
-        return self
+    # Set by the server from the intake checkbox, never trusted from a hand-edited file.
+    terms_version: Literal["chat-log-terms-draft-v1"]
+    authentic_logs_that_produced_this_proof: bool = Field(strict=True)
+    allowed_to_share: bool = Field(strict=True)
+    secrets_and_personal_data_removed: bool = Field(strict=True)
+    license_to_sell_once_accepted: bool = Field(strict=True)
 
 
 class TrajectoryPackage(StrictModel):
     schema_version: Literal["conjectures-trajectory/v1"]
     synthetic: bool = Field(strict=True)
-    submission_id: uuid.UUID
+    # Null when logs for a new bounty are uploaded before the proof submission exists.
+    submission_id: uuid.UUID | None
     task_id: Annotated[str, Field(min_length=1, max_length=255)]
     task_bundle_sha256: Digest
     final_proof_sha256: Digest
@@ -188,7 +153,6 @@ class TrajectoryPackage(StrictModel):
     missing: Annotated[list[Disclosure], Field(max_length=1000)]
     redactions: Annotated[list[Disclosure], Field(max_length=1000)]
     permissions: Permissions
-    commercial_election: CommercialElection
 
     @model_validator(mode="after")
     def coherent_evidence(self):
@@ -249,16 +213,19 @@ class TrajectoryPackage(StrictModel):
         proofs = [a for a in self.artifacts if a.kind == "final_proof"]
         if len(proofs) != 1 or proofs[0].sha256 != self.final_proof_sha256:
             raise ValueError("exactly one final proof must match the linked proof digest")
+        if proof_first_seen(self) is None:
+            raise ValueError("a timestamped event must show the final proof")
         if any(a.availability == "omitted" for a in self.artifacts) and not self.missing:
             raise ValueError("omitted artifacts must be disclosed")
-        source_ids = [s.source_id for s in self.commercial_election.sources]
-        if len(set(source_ids)) != len(source_ids):
-            raise ValueError("duplicate rights source")
-        if self.commercial_election.election == "conditional_grant":
-            expected = {"run:" + r for r in run_ids} | {"artifact:" + a for a in artifact_ids}
-            if set(source_ids) != expected:
-                raise ValueError("conditional grant requires rights provenance for every run and artifact")
         return self
+
+
+def proof_first_seen(package):
+    """Earliest dated event attaching the final proof: when the chat produced it."""
+    proof_ids = {a.id for a in package.artifacts if a.kind == "final_proof"}
+    times = [e.timestamp.value for e in package.events
+             if e.timestamp.value is not None and proof_ids.intersection(e.artifact_ids)]
+    return min(times, default=None)
 
 
 def digest(raw: bytes) -> str:
@@ -319,16 +286,13 @@ def check_json_depth(raw: bytes):
 
 SAFE_SEMANTIC_ERRORS = frozenset((
     'JSON nesting exceeds 24 levels',
+    'a timestamped event must show the final proof',
     'artifact SHA-256 does not match UTF-8 content',
     'artifact paths must be safe relative labels',
     'artifact paths must be unique',
     'assistant messages must identify the model run',
     'branch parent must be an earlier event',
-    'commercial purposes must be distinct',
-    'conditional grant needs explicit assent and selected purposes',
-    'conditional grant requires rights provenance for every run and artifact',
     'duplicate JSON object key',
-    'duplicate rights source',
     'duplicate tool call id',
     'embedded artifacts need content and no omission reason',
     'empty event content must be explicitly marked; never invent output',
@@ -346,11 +310,8 @@ SAFE_SEMANTIC_ERRORS = frozenset((
     'omitted artifacts need a reason',
     'only the linked final proof can use authoritative submission storage',
     'package exceeds 32 MiB',
-    'review-only election grants no commercial purposes',
     'run and artifact identifiers must be unique',
     'source export needs a digest or an explanation',
-    'sublicensing requires dataset redistribution',
-    'sublicensing requires evaluation or training',
     'timestamp needs a timezone or an honest unknown reason',
     'tool calls/results need call id and tool name',
     'tool fields belong only to tool events',

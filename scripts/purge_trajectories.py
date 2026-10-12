@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Daily private-content retention job. Does not inspect, print or transmit package data.
+"""Daily chat-log retention job. Does not inspect, print or transmit package data.
+
+Accepted logs are licensed for sale and kept. Unsubmitted deposits are deleted after 24 hours;
+other packages after 90 days; minimal records after seven years unless they back a payout.
 
 Use the deployment's explicit DATABASE_URL and normal application DB credential. Scheduling,
 backup expiry and at-rest encryption must be configured and tested before enabling intake.
@@ -19,13 +22,19 @@ from conjectures_subnet.db.models import RewardEvent, Submission
 
 
 async def purge(session):
-    # Bounded batches; never load bytea contents merely to discard them.
-    removed = 0
+    # Logs uploaded for a new bounty whose proof never followed are deleted outright.
+    unsubmitted = (await session.execute(delete(TrajectoryClaim).where(
+        TrajectoryClaim.status == "DEPOSITED", TrajectoryClaim.submission_id.is_(None),
+        TrajectoryClaim.expires_at <= func.now()))).rowcount
+    await session.commit()
+    # Bounded batches; never load bytea contents merely to discard them. Accepted logs are
+    # licensed for sale and kept; every other package expires on schedule.
+    removed = unsubmitted
+    expiring = (TrajectoryClaim.expires_at <= func.now(), TrajectoryClaim.package.is_not(None),
+                TrajectoryClaim.submission_id.is_not(None), TrajectoryClaim.status.not_in(store.APPROVED))
     while True:
-        candidate_ids = (await session.scalars(select(TrajectoryClaim.id).where(
-            TrajectoryClaim.expires_at <= func.now(),
-            (TrajectoryClaim.package.is_not(None)) | (TrajectoryClaim.commercial_election["provenance_expired"].as_boolean().is_(None))
-        ).order_by(TrajectoryClaim.id).limit(100))).all()
+        candidate_ids = (await session.scalars(select(TrajectoryClaim.id).where(*expiring)
+                                               .order_by(TrajectoryClaim.id).limit(100))).all()
         if not candidate_ids:
             break
         processed = 0
@@ -35,15 +44,12 @@ async def purge(session):
                                          .with_for_update(skip_locked=True))
             if proof is None:
                 continue
-            claim = await session.scalar(select(TrajectoryClaim).options(
-                defer(TrajectoryClaim.package), defer(TrajectoryClaim.commercial_election)).where(
-                    TrajectoryClaim.id == claim_id, TrajectoryClaim.expires_at <= func.now(),
-                    (TrajectoryClaim.package.is_not(None)) | (TrajectoryClaim.commercial_election["provenance_expired"].as_boolean().is_(None)))
+            claim = await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package)).where(
+                    TrajectoryClaim.id == claim_id, *expiring)
                 .execution_options(populate_existing=True).with_for_update(skip_locked=True))
             if claim is None:
                 continue
             claim.package = None
-            await store.minimize_election(session, claim)
             if claim.status in ("UNDER_REVIEW", "NEEDS_CHANGES"):
                 claim.status = "EXPIRED"
             claim.state_version += 1
@@ -53,14 +59,14 @@ async def purge(session):
             await session.rollback()
             break  # Busy rows are retried by the next scheduled run.
         await session.commit()
+    # Minimal records go after seven years, except accepted logs and records backing a payout.
+    audit_expired = (TrajectoryClaim.audit_expires_at <= func.now(), TrajectoryClaim.status.not_in(store.APPROVED),
+                     or_(TrajectoryClaim.amount_usd_cents > 0,
+                         ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id))))
     audit_removed = 0
     while True:
-        ids = (await session.scalars(select(TrajectoryClaim.id).where(
-            TrajectoryClaim.audit_expires_at <= func.now(),
-            or_(TrajectoryClaim.amount_usd_cents > 0,
-                TrajectoryClaim.terms_version != "trajectory-review-draft-v2",
-                ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id)))
-        ).order_by(TrajectoryClaim.id).limit(100))).all()
+        ids = (await session.scalars(select(TrajectoryClaim.id).where(*audit_expired)
+                                     .order_by(TrajectoryClaim.id).limit(100))).all()
         processed = 0
         for claim_id in ids:
             submission_id = await session.scalar(select(TrajectoryClaim.submission_id).where(TrajectoryClaim.id == claim_id))
@@ -68,11 +74,7 @@ async def purge(session):
                                          .with_for_update(skip_locked=True))
             if proof is None:
                 continue
-            result = await session.execute(delete(TrajectoryClaim).where(
-                TrajectoryClaim.id == claim_id, TrajectoryClaim.audit_expires_at <= func.now(),
-                or_(TrajectoryClaim.amount_usd_cents > 0,
-                TrajectoryClaim.terms_version != "trajectory-review-draft-v2",
-                ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id)))))
+            result = await session.execute(delete(TrajectoryClaim).where(TrajectoryClaim.id == claim_id, *audit_expired))
             processed += result.rowcount
         await session.commit()
         audit_removed += processed

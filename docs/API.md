@@ -498,20 +498,31 @@ and `new_target_chat_logs_required`. Each task's `bounty.policy_version` remains
 legacy curve fields in pool metadata describe legacy targets only.
 
 `GET /v1/trajectory-offer` publishes the retrospective source-family tiers ($500 Erdős/Green,
-$250 other), launch cutoff, window, exact consent digests and intake availability.
-`GET /v1/me/submissions/{id}/trajectory` returns the server-selected `amount_usd_cents`,
-`chat_logs_required` and private claim metadata. A required-evidence claim has amount zero
-and `payment_status=NOT_APPLICABLE`; a historical bonus reports `NOT_ISSUED`.
+$250 other), launch cutoff, window, pinned terms/assent digests and intake availability.
 
-Cookie-authenticated owners upload through `POST` at the same path. The bounded JSON envelope
-contains `package_json`, separate commercial election, explicit review consent and the current
-`expected_state_version` (null on first upload). Reviewer queue, private download and decisions
-are under `/v1/admin/trajectories`. Decisions, withdrawals, reopening and rebinding require a
-current state version; stale mutations return 409. Approval yields `APPROVED_BOUNTY_EVIDENCE`
-for new-policy logs or `APPROVED_MANUAL_PAYMENT` for historical bonuses. Upload or review does
-not transfer funds or activate commercial rights. New-policy full-bounty reward-event writes
-are rejected by PostgreSQL until exact-proof evidence has been reviewed. The separately capped
-formalization-defect award retains its prior policy.
+**New-policy logs arrive before the proof.** A cookie-authenticated account uploads them with
+`POST /v1/me/chat-log-deposits`: the JSON envelope holds `package_json` (with
+`submission_id: null`, the task, task bundle and exact `final_proof_sha256`) and explicit
+`consent` to the pinned chat-log terms. The deposit lasts 24 hours. The account submission
+paths (`/v1/submissions/session`, `/web`, and intent confirm) then require a live deposit for
+that exact proof and account before spending a credit, refusing with `CHAT_LOG_REQUIRED`, and
+bind it to the new submission in the same transaction. Logs cannot be added or replaced later
+(`CHAT_LOGS_FIXED_AT_SUBMISSION`).
+
+`GET /v1/me/submissions/{id}/trajectory` returns the server-selected `amount_usd_cents`,
+`chat_logs_required`, `license_status` and private claim metadata. A required-evidence claim
+has amount zero and `payment_status=NOT_APPLICABLE`; a historical bonus reports `NOT_ISSUED`.
+Owners of earlier proofs upload bonus logs through `POST` at the same path; the chat must show
+the final proof before the submission's time (`TRAJECTORY_AFTER_THE_FACT`).
+
+Reviewer queue, private download and decisions are under `/v1/admin/trajectories`. Decisions,
+withdrawals, reopening and rebinding require a current state version; stale mutations return
+409. Approval yields `APPROVED_BOUNTY_EVIDENCE` for new-policy logs or `APPROVED_MANUAL_PAYMENT`
+for historical bonuses, and makes the logs `LICENSED_FOR_SALE`. Rejecting or withdrawing
+new-policy logs records a binding `CHAT_LOGS_NOT_ACCEPTED` rejection of the proof, which
+releases the reward target and its treasury reservation. Nothing here transfers funds.
+New-policy full-bounty reward-event writes are rejected by PostgreSQL until exact-proof
+evidence has been accepted. The separately capped formalization-defect award retains its prior policy.
 
 Original task-bundle provenance, not client-supplied labels, sets the historical bonus tier.
 The immutable enrollment cutoff protects in-progress claims when configuration changes.

@@ -9,9 +9,9 @@ from types import SimpleNamespace
 import pytest
 
 from submission_api.settings import Settings, SettingsError
-from submission_api.trajectory_schema import TrajectoryPackage, canonical_bytes, evidence_digest, parse_package
-from submission_api.trajectory_terms import COMMERCIAL_TERMS_SHA256
-from submission_api.trajectories import commercial_clearance_reason, eligibility_reason
+from submission_api.trajectory_schema import TrajectoryPackage, canonical_bytes, evidence_digest, parse_package, proof_first_seen
+from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256, TERMS_VERSION
+from submission_api.trajectories import eligibility_reason
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,14 +20,21 @@ def example():
     return json.loads((ROOT / "docs/trajectories/synthetic-example.json").read_text())
 
 
-def test_published_schema_example_and_pinned_license():
+def envelope_body(package, state_version=None, **consent):
+    return {"package_json": json.dumps(package), "expected_state_version": state_version, "consent": {
+        "terms_version": TERMS_VERSION, "terms_sha256": TERMS_SHA256,
+        "assent_statements_sha256": ASSENT_STATEMENTS_SHA256, "accepted": True, **consent}}
+
+
+def test_published_schema_example_and_pinned_terms():
     p = TrajectoryPackage.model_validate(example())
     assert parse_package(canonical_bytes(p)) == p
     schema = json.loads((ROOT / "docs/trajectories/trajectory.schema.json").read_text())
     generated = TrajectoryPackage.model_json_schema()
     assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == generated
-    assert COMMERCIAL_TERMS_SHA256 == "sha256:" + hashlib.sha256(
-        (ROOT / "docs/trajectories/commercial-license-draft-v1.md").read_bytes()).hexdigest()
+    assert TERMS_SHA256 == "sha256:" + hashlib.sha256(
+        (ROOT / "docs/trajectories/chat-log-terms-draft-v1.md").read_bytes()).hexdigest()
+    assert proof_first_seen(p) == dt.datetime(2026, 10, 12, 12, 0, 6, tzinfo=dt.UTC)
 
 
 @pytest.mark.parametrize("change", [
@@ -47,9 +54,11 @@ def test_published_schema_example_and_pinned_license():
     lambda p: p["artifacts"][0].update(path="../../secrets"),
     lambda p: p.update(final_proof_sha256="sha256:" + "1" * 64),
     lambda p: p.update(completeness="complete_export"),
-    lambda p: p["permissions"].update(private_review_and_storage_only="true"),
-    lambda p: p["commercial_election"].update(election="conditional_grant", explicit_assent=False),
-    lambda p: p["commercial_election"].update(purposes=["training"]),
+    lambda p: p["permissions"].update(allowed_to_share="true"),
+    lambda p: p.update(commercial_election={"election": "decline"}),
+    # The chat must date the proof: no timestamped event may be left showing it.
+    lambda p: [e.update(artifact_ids=[]) for e in p["events"]],
+    lambda p: [e["timestamp"].update(value=None, unknown_reason="Not exported") for e in p["events"]],
 ])
 def test_refuses_invalid_or_misleading_evidence(change):
     p = example()
@@ -71,19 +80,6 @@ def test_fingerprint_ignores_repackaging_but_hash_tracks_exact_package():
     assert canonical_bytes(p) != canonical_bytes(other)
 
 
-def test_optional_license_unknown_rights_block_only_commercial_clearance():
-    election = copy.deepcopy(example()["commercial_election"])
-    assert commercial_clearance_reason(election)
-    election.update(election="conditional_grant", explicit_assent=True, purposes=["training"], sources=[{
-        "rights_status": "unknown", "agreement_or_license": {"value": None},
-        "evidence_reference": {"value": None}, "allowed_purposes": [],
-    }])
-    assert commercial_clearance_reason(election)
-    election["sources"][0].update(rights_status="confirmed", agreement_or_license={"value": "Own code"},
-                                  evidence_reference={"value": "license evidence"}, allowed_purposes=["training"])
-    assert commercial_clearance_reason(election) is None
-
-
 def test_feature_requires_explicit_launch_cutoff_and_preserves_recorded_policy():
     from conftest_api import build_settings
     assert build_settings().trajectory_bonus_enabled is False
@@ -103,17 +99,19 @@ def test_feature_requires_explicit_launch_cutoff_and_preserves_recorded_policy()
     assert eligibility_reason(sub, decision, cutoff=now + dt.timedelta(days=1), now=now)
 
 
-def test_review_terms_assents_and_template_are_truthful_and_pinned():
-    from submission_api.trajectory_terms import REVIEW_TERMS_SHA256, ASSENT_STATEMENTS_SHA256
-    for name, digest in [("review-terms-v2.md", REVIEW_TERMS_SHA256), ("assent-statements-v1.json", ASSENT_STATEMENTS_SHA256)]:
-        assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories" / name).read_bytes()).hexdigest() == digest
-    assert not example()["permissions"]["authentic_user_visible_export"]
+def test_terms_assent_and_template_are_plain_and_pinned():
+    assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
+    terms = (ROOT / "docs/trajectories/chat-log-terms-draft-v1.md").read_text()
+    for promise in ("upload the logs before you submit the proof", "this chat actually produced the proof",
+                    "not written, edited or\nreconstructed afterwards", "sell and license the logs to buyers",
+                    "We do not\npublish the logs openly"):
+        assert promise in terms, promise
+    assert not example()["permissions"]["authentic_logs_that_produced_this_proof"]
     blank = json.loads((ROOT / "docs/trajectories/template.json").read_text())
     assert not blank["runs"] and not blank["events"] and not blank["artifacts"]
-    assert "REPLACE_" in blank["exported_at"]
+    assert "REPLACE_" in blank["exported_at"] and blank["submission_id"] is None
     assert blank["reproduction"]["lean_toolchain"]["value"] is None
-    grant = TrajectoryPackage.model_validate(json.loads((ROOT / "docs/trajectories/synthetic-rights-example.json").read_text()))
-    assert commercial_clearance_reason(grant.commercial_election.model_dump())
+    assert "commercial_election" not in blank
 
 
 def test_empty_output_and_branch_linkage_preserve_export():
@@ -129,13 +127,10 @@ def test_empty_output_and_branch_linkage_preserve_export():
 def test_raw_envelope_consent_duplicate_keys_and_safe_locations():
     from pydantic import ValidationError
     from submission_api.trajectory_intake import prepare_upload, safe_errors
-    from submission_api.trajectory_terms import REVIEW_TERMS_VERSION, REVIEW_TERMS_SHA256, ASSENT_STATEMENTS_SHA256
     p = example()
-    body = {"package_json": json.dumps(p), "commercial_election": p["commercial_election"], "consent": {
-        "review_terms_version": REVIEW_TERMS_VERSION, "review_terms_sha256": REVIEW_TERMS_SHA256,
-        "assent_statements_sha256": ASSENT_STATEMENTS_SHA256, "accepted": True}}
-    assert prepare_upload(json.dumps(body).encode())[0].permissions.authentic_user_visible_export
-    for key in ("review_terms_version", "review_terms_sha256", "assent_statements_sha256", "accepted"):
+    body = envelope_body(p)
+    assert prepare_upload(json.dumps(body).encode())[0].permissions.license_to_sell_once_accepted
+    for key in ("terms_version", "terms_sha256", "assent_statements_sha256", "accepted"):
         changed = copy.deepcopy(body)
         changed["consent"][key] = False if key == "accepted" else "stale"
         with pytest.raises(ValueError):
@@ -151,19 +146,11 @@ def test_raw_envelope_consent_duplicate_keys_and_safe_locations():
         assert "SECRET" not in result and "unknown-field" in result and "extra_forbidden" in result
 
 
-def test_sublicensing_needs_actual_permitted_use():
-    from submission_api.trajectory_schema import CommercialElection
-    value = example()["commercial_election"]
-    value.update(election="conditional_grant", purposes=["dataset_redistribution", "sublicensing"], explicit_assent=True)
-    with pytest.raises(ValueError):
-        CommercialElection.model_validate(value)
-
-
 def test_production_refuses_draft_launch_even_with_digest():
     with pytest.raises(SettingsError, match="draft terms"):
         Settings.from_env({"APP_MODE": "PROD", "TRAJECTORY_BONUS_ENABLED": "true",
             "TRAJECTORY_BONUS_START_AT": "2026-01-01T00:00:00Z",
-            "TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256": COMMERCIAL_TERMS_SHA256})
+            "TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256": TERMS_SHA256})
 
 
 def test_upload_budget_prunes_expired_accounts_and_bounds_failures(monkeypatch):
@@ -193,7 +180,6 @@ def test_upload_budget_prunes_expired_accounts_and_bounds_failures(monkeypatch):
 def test_semantic_messages_are_allowlisted_and_original_content_can_contain_template_words():
     from pydantic import ValidationError
     from submission_api.trajectory_intake import prepare_upload, safe_errors
-    from submission_api.trajectory_terms import REVIEW_TERMS_VERSION, REVIEW_TERMS_SHA256, ASSENT_STATEMENTS_SHA256
     p = example()
     p["events"][3]["tool_name"] = "mismatched-tool"
     with pytest.raises(ValidationError) as error:
@@ -204,9 +190,7 @@ def test_semantic_messages_are_allowlisted_and_original_content_can_contain_temp
     p["synthetic"] = False
     p["runs"][0]["source_export_unavailable_reason"] = "Fixture only"
     p["events"][0]["content"] += " Authentic log with a REPLACE_ME variable."
-    body = {"package_json": json.dumps(p), "commercial_election": p["commercial_election"], "consent": {
-        "review_terms_version": REVIEW_TERMS_VERSION, "review_terms_sha256": REVIEW_TERMS_SHA256,
-        "assent_statements_sha256": ASSENT_STATEMENTS_SHA256, "accepted": True}}
+    body = envelope_body(p)
     assert "REPLACE_ME" in prepare_upload(json.dumps(body).encode())[0].events[0].content
     with pytest.raises(ValueError, match="nesting"):
         prepare_upload(b"[" * 25 + b"]" * 25)

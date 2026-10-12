@@ -91,7 +91,7 @@ def test_new_target_policy_is_durable_and_grows_only_with_treasury():
 @pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
 def test_required_logs_block_all_payout_instructions_until_review():
     from test_api_accounts import client, same_origin
-    from test_api_trajectories import accepted, envelope, reviewer, review_body, kit_config
+    from test_api_trajectories import accepted, reviewer, review_body, kit_config
     from conjectures_subnet.db.engine import create_db_engine, session_factory
     from conjectures_subnet.db.models import Account, ReviewOutcome, VerificationState
     from conjectures_subnet.db import submissions as proof_store
@@ -114,7 +114,7 @@ def test_required_logs_block_all_payout_instructions_until_review():
                 await session.commit()
         try:
             async with await client(kit) as owner, await client(kit) as admin:
-                account, sid, package = await accepted(kit, owner)
+                account, sid, package = await accepted(kit, owner, required=True)
                 async with kit.session() as session:
                     row = await session.get(Account, uuid.UUID(account['id']))
                     row.payout_coldkey = kit.settings.payment_recipient
@@ -123,17 +123,14 @@ def test_required_logs_block_all_payout_instructions_until_review():
                 state = await owner.get(f'/v1/me/submissions/{sid}/trajectory')
                 assert state.json()['chat_logs_required'] is True
                 assert state.json()['amount_usd_cents'] == 0
+                # The logs arrived with the proof but are not yet reviewed.
+                claim = state.json()['claim']
+                assert claim['amount_usd_cents'] == 0 and claim['status'] == 'UNDER_REVIEW'
                 assert worker.seed_reward_events() == 0
                 with pytest.raises(IntegrityError, match='requires reviewed chat logs'):
                     await payout()
-                response = await owner.post(f'/v1/me/submissions/{sid}/trajectory', json=envelope(package), headers=same_origin())
-                assert response.status_code == 200, response.text
-                claim = response.json()
-                assert claim['amount_usd_cents'] == 0
-                assert worker.seed_reward_events() == 0
-                with pytest.raises(IntegrityError, match='requires reviewed chat logs'):
-                    await payout()
-                reviewed = await admin.post(f'/v1/admin/trajectories/{claim["id"]}/decision', json=review_body(), headers=same_origin())
+                reviewed = await admin.post(f'/v1/admin/trajectories/{claim["id"]}/decision',
+                                            json=review_body(state_version=claim['state_version']), headers=same_origin())
                 assert reviewed.status_code == 200, reviewed.text
                 assert reviewed.json()['status'] == 'APPROVED_BOUNTY_EVIDENCE'
                 async with kit.session() as session:
@@ -158,7 +155,7 @@ def test_required_logs_block_all_payout_instructions_until_review():
                 with pytest.raises(IntegrityError, match='requires reviewed chat logs'):
                     await payout()
                 rebound = await admin.post(f'/v1/admin/trajectories/{claim["id"]}/reopen', headers=same_origin(), json={
-                    'action': 'REBIND_PROOF_DECISION', 'expected_revision': 1, 'expected_state_version': 2,
+                    'action': 'REBIND_PROOF_DECISION', 'expected_revision': 1, 'expected_state_version': 3,
                     'note': 'Verified that the proof and approval outcome remain unchanged.'})
                 assert rebound.status_code == 200, rebound.text
                 assert rebound.json()['status'] == 'APPROVED_BOUNTY_EVIDENCE'
@@ -209,8 +206,9 @@ def test_historical_bonus_amount_is_selected_by_server(module, amount):
 @pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
 def test_gross_share_reservations_preserve_competing_locks_and_refuse_overcommitment():
     from conftest_api import task_entry, distinct_bundle
-    from test_api_accounts import client
+    from test_api_accounts import client, same_origin
     from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
+    from test_api_trajectories import DEPOSITS, envelope, package_for
 
     async def scenario():
         other = 'fc-target:Fixture.second'
@@ -224,12 +222,14 @@ def test_gross_share_reservations_preserve_competing_locks_and_refuse_overcommit
         try:
             async with await client(kit) as owner:
                 await keyless_account(kit, owner, credits_=2)
-                bundle, _ = distinct_bundle('first-gross-share', coldkey=None)
+                bundle, proof = distinct_bundle('first-gross-share', coldkey=None)
+                assert (await owner.post(DEPOSITS, json=envelope(package_for(proof, None)), headers=same_origin())).status_code == 200
                 first = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
                                          headers=zip_headers(owner))
                 assert first.status_code == 201, first.text
                 first_id = first.json()['submission']['id']
-                bundle, _ = distinct_bundle('competing-gross-share', coldkey=None)
+                bundle, proof = distinct_bundle('competing-gross-share', coldkey=None)
+                assert (await owner.post(DEPOSITS, json=envelope(package_for(proof, None)), headers=same_origin())).status_code == 200
                 second = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
                                           headers=zip_headers(owner))
                 assert second.status_code == 201, second.text
@@ -258,8 +258,9 @@ def test_production_default_refuses_unusable_submission_paths_before_spending(en
     from sqlalchemy import func
     from conftest_api import valid_bundle
     from test_api_submissions import _post
-    from test_api_accounts import client
+    from test_api_accounts import client, same_origin
     from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
+    from test_api_trajectories import DEPOSITS, envelope, package_for
     from conftest_api import distinct_bundle
     from conjectures_subnet.bounty import DynamicBountyPricer
 
@@ -279,12 +280,19 @@ def test_production_default_refuses_unusable_submission_paths_before_spending(en
                 assert await session.scalar(select(func.count()).select_from(Submission)) == 0
             async with await client(kit) as owner:
                 await keyless_account(kit, owner)
-                bundle, _ = distinct_bundle('default-account', coldkey=None)
+                bundle, proof = distinct_bundle('default-account', coldkey=None)
                 result = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
                                           headers=zip_headers(owner))
-                assert result.status_code == (201 if enabled else 409), result.text
-                if not enabled:
-                    assert result.json()['reason_code'] == 'CHAT_LOG_REVIEW_UNAVAILABLE'
+                # Open intake still refuses a new-bounty proof that arrives without its logs.
+                assert result.status_code == 409, result.text
+                assert result.json()['reason_code'] == ('CHAT_LOG_REQUIRED' if enabled else 'CHAT_LOG_REVIEW_UNAVAILABLE')
+                assert (await owner.get('/v1/me/credits')).json()['credits_available'] == 1
+                deposited = await owner.post(DEPOSITS, json=envelope(package_for(proof, None)), headers=same_origin())
+                assert deposited.status_code == (200 if enabled else 503), deposited.text
+                if enabled:
+                    result = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
+                                              headers=zip_headers(owner))
+                    assert result.status_code == 201, result.text
                 balance = (await owner.get('/v1/me/credits')).json()['credits_available']
                 assert balance == (0 if enabled else 1)
                 meta = (await owner.get('/v1/catalog/meta')).json()['bounty']
