@@ -573,6 +573,33 @@ def _flag(environ: Mapping[str, str], key: str, default: bool) -> bool:
     raise SettingsError(f"{key} must be a boolean, got {raw!r}")
 
 
+def _competition_url_variable(slug: str) -> str:
+    """The variable naming `slug`'s own database: `floatlib` -> `COMPETITION_FLOATLIB_...`."""
+    return f"COMPETITION_{slug.upper().replace('-', '_')}_DATABASE_URL"
+
+
+def _competition_slugs(environ: Mapping[str, str], competition_slug: str) -> tuple[str, ...]:
+    """`COMPETITIONS`, or `competition_slug` alone when it is unset.
+
+    Each entry must be a competition this API can serve: `competition_slug`, which is DEFLATE
+    under whatever slug the deployment gave it, or `floatlib`. Refused at startup rather than
+    404'd at request time, because a typo here would otherwise read as a competition that is
+    simply down.
+    """
+    raw = environ.get("COMPETITIONS", "").strip()
+    slugs = tuple(s.strip() for s in raw.split(",") if s.strip()) or (competition_slug,)
+    if len(set(slugs)) != len(slugs):
+        raise SettingsError(f"COMPETITIONS lists a competition twice: {raw!r}")
+    known = (competition_slug, "floatlib")
+    for slug in slugs:
+        if slug not in known:
+            raise SettingsError(
+                f"COMPETITIONS names {slug!r}, which this API cannot serve; "
+                f"known: {', '.join(dict.fromkeys(known))}"
+            )
+    return slugs
+
+
 def _directory(environ: Mapping[str, str], key: str, default: Path) -> Path:
     raw = environ.get(key, "").strip()
     return Path(os.path.abspath(default if not raw else Path(raw)))
@@ -744,8 +771,8 @@ class Settings:
     # is the POSTGRES_* credentials with COMPETITION_POSTGRES_DB. Production requires it
     # explicitly; see from_env.
     competition_database_url: str
-    # Which competition this deployment serves. One, because the competition schema carries
-    # no slug column -- see submission_api/competitions.py.
+    # The DEFLATE competition's slug, and what this deployment serves when `COMPETITIONS` is
+    # unset. See submission_api/competitions/__init__.py.
     competition_slug: str
     competition_name: str
     competition_speed_floor: float
@@ -943,6 +970,18 @@ class Settings:
     # turn it on. TMC PAY publishes no status for the case, so it is derived from `confirmed_at`
     # against `expires_at` — see `tmc_pay.payment_was_late`.
     tmc_pay_credit_late_payments: bool
+    # Every competition this deployment serves, in the order `/v1/competitions` lists them:
+    # `COMPETITIONS`, or `competition_slug` alone when that is unset. See
+    # submission_api/competitions/__init__.py.
+    competition_slugs: tuple[str, ...] = ()
+    # Each competition's own database URL, from `COMPETITION_<SLUG>_DATABASE_URL`, as
+    # (slug, url) pairs. A slug missing here is `competition_slug` falling back to
+    # `competition_database_url`; no other competition has a fallback.
+    competition_database_urls: tuple[tuple[str, str], ...] = ()
+
+    def competition_database_url_for(self, slug: str) -> str:
+        """`slug`'s configured database URL, or empty when it has none of its own."""
+        return dict(self.competition_database_urls).get(slug, "")
 
     @property
     def tmc_pay_enabled(self) -> bool:
@@ -1558,20 +1597,41 @@ class Settings:
         tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
         competitions_enabled = _flag(env, "COMPETITIONS_ENABLED", False)
         competition_database_url = env.get("COMPETITION_DATABASE_URL", "").strip()
-        if production and competitions_enabled and not competition_database_url:
-            raise SettingsError(
-                "COMPETITION_DATABASE_URL is required in production when "
-                "COMPETITIONS_ENABLED is set: the fallback assembles a URL from the "
-                "POSTGRES_* variables, and which database the competition writes to is not "
-                "something to leave to a default"
-            )
+        competition_slug = env.get("COMPETITION_SLUG", "").strip() or "deflate"
+        competition_slugs = _competition_slugs(env, competition_slug)
+        competition_database_urls = tuple(
+            (slug, url)
+            for slug in competition_slugs
+            if (url := env.get(_competition_url_variable(slug), "").strip())
+        )
+        if competitions_enabled:
+            configured = dict(competition_database_urls)
+            for slug in competition_slugs:
+                if slug in configured:
+                    continue
+                if slug != competition_slug:
+                    # Only the DEFLATE slug has a fallback (COMPETITION_DATABASE_URL, then the
+                    # POSTGRES_* variables); any other competition's database is a different one
+                    # and must be named.
+                    raise SettingsError(
+                        f"{_competition_url_variable(slug)} is required to serve {slug!r}"
+                    )
+                if production and not competition_database_url:
+                    raise SettingsError(
+                        "COMPETITION_DATABASE_URL is required in production when "
+                        "COMPETITIONS_ENABLED is set: the fallback assembles a URL from the "
+                        "POSTGRES_* variables, and which database the competition writes to is "
+                        "not something to leave to a default"
+                    )
 
         return cls(
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
             competitions_enabled=competitions_enabled,
             competition_database_url=competition_database_url,
-            competition_slug=env.get("COMPETITION_SLUG", "").strip() or "deflate",
+            competition_slug=competition_slug,
+            competition_slugs=competition_slugs,
+            competition_database_urls=competition_database_urls,
             competition_name=(
                 env.get("COMPETITION_NAME", "").strip() or "DEFLATE"
             ),

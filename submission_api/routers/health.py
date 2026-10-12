@@ -17,6 +17,7 @@ from sqlalchemy import text
 
 from conjectures_subnet.axiom import get_axiom
 from submission_api import __version__, schemas
+from submission_api.competitions import DEFLATE, FLOATLIB
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import ServiceUnavailable
 
@@ -41,21 +42,32 @@ async def readyz(services: ServicesDep, session: SessionDep) -> schemas.Readines
         # Kept, so the event can say *why* the probe failed. The response still must not: an
         # unauthenticated endpoint does not describe the database it could not reach.
         database_error = f"{type(exc).__name__}: {exc}"
-    # The competition database, when this deployment has one. Probed through the engine
-    # rather than `CompetitionSessionDep`, which raises by design when it is absent — a
-    # readiness handler is the one place that must observe that rather than propagate it.
+    # The competition databases, when this deployment has any: every one of them, each
+    # against its own schema, because each competition owns its database and one being down
+    # takes that competition's routes down with it. Probed through the engines rather than
+    # `CompetitionSessionDep`, which raises by design when one is absent — a readiness handler
+    # is the one place that must observe that rather than propagate it.
     competition_database: bool | None = None
     competition_error: str | None = None
-    if services.competition_engine is not None:
+    probes = [(c.slug, c.kind, c.engine) for c in services.competitions if c.engine is not None]
+    if not probes and services.competition_engine is not None:
+        probes = [(None, DEFLATE, services.competition_engine)]
+    for slug, kind, engine in probes:
         try:
-            async with services.competition_engine.connect() as conn:
-                from submission_api.compression_store import compatible
+            async with engine.connect() as conn:
+                if kind == FLOATLIB:
+                    from submission_api.floatlib_store import compatible
+                else:
+                    from submission_api.compression_store import compatible
 
                 await compatible(conn)
-            competition_database = True
+            competition_database = competition_database is not False
         except Exception as exc:  # noqa: BLE001 - readiness must not raise
             competition_database = False
-            competition_error = f"{type(exc).__name__}: {exc}"
+            failed = f"{type(exc).__name__}: {exc}"
+            competition_error = "; ".join(
+                filter(None, (competition_error, f"{slug}: {failed}" if slug else failed))
+            )
     tasks = len(services.catalog.entries)
     # One process, one port, one origin: a replica that cannot serve `/v1/competitions/*`
     # should leave rotation rather than serve half its surface as 503s while reporting ready.
