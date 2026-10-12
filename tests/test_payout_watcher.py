@@ -6,7 +6,6 @@ import hashlib
 import uuid
 from dataclasses import replace
 from types import SimpleNamespace
-from dataclasses import replace
 
 import pytest
 from conftest import DATABASE_SKIP_REASON, postgres_dsn
