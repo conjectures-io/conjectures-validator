@@ -360,6 +360,10 @@ def _retired_detail(
     when the target closes.
     """
     name = conjectures.display_name(item)
+    # A documented prior-proof decision supersedes the archived open label for
+    # display only. Keep the source declaration and immutable bundles untouched.
+    category = ("research solved" if item.reason_code == "PRIOR_PUBLIC_PROOF"
+                else item.source.category)
     return public.ConjectureDetail(
         slug=item.slug,
         # Named by the same two functions a live conjecture is, so the two cannot drift: a reader
@@ -369,16 +373,14 @@ def _retired_detail(
         title=conjectures.title(item),
         statement=item.source.type_pretty,
         summary=item.source.docstring,
-        category=item.source.category,
+        category=category,
         classification=item.classification,
         task_modes=item.task_modes,
         tier=item.tier,
         ams_subjects=item.source.ams_subjects,
-        # Read from the source declaration, exactly as `conjectures.is_open` does for a live
-        # target: whether the conjecture is open *upstream* is a fact about mathematics, and it
-        # does not change because this pool stopped issuing tasks for it. Whether it can be
-        # submitted against is what `retirement` and `bounty.reason` report.
-        is_open=item.source.category == conjectures.OPEN_CATEGORY,
+        # An ordinary admission hold does not establish a mathematical resolution;
+        # an explicitly documented PRIOR_PUBLIC_PROOF decision does.
+        is_open=category == conjectures.OPEN_CATEGORY,
         problem_id=item.problem_id,
         reward_target_id=item.reward_target_id,
         source_theorem=item.source.theorem,
