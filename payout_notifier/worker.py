@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass
 from typing import Callable
 
-from sqlalchemy import and_, exists, func, literal, or_, select
+from sqlalchemy import and_, exists, func, literal, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
@@ -90,6 +90,23 @@ class PayoutNotifier:
         try:
             with self.sessions() as session:
                 session.scalar(select(func.bounty_trajectory_eligible(None, None)))
+                owners_ready = session.scalar(text("""
+                    SELECT trigger_fn.proowner = projection.proowner
+                       AND has_function_privilege(trigger_fn.proowner, projection.oid, 'EXECUTE')
+                       AND has_table_privilege(trigger_fn.proowner, 'public.submissions', 'SELECT')
+                       AND has_any_column_privilege(trigger_fn.proowner, 'public.submissions', 'UPDATE')
+                       AND has_table_privilege(projection.proowner, 'public.review_decisions', 'SELECT')
+                       AND has_table_privilege(projection.proowner, 'public.trajectory_claims', 'SELECT')
+                    FROM pg_catalog.pg_proc trigger_fn, pg_catalog.pg_proc projection
+                    WHERE trigger_fn.oid = 'public.require_bounty_trajectory()'::regprocedure
+                      AND projection.oid = 'public.bounty_trajectory_eligible(uuid,text)'::regprocedure
+                """))
+                if not owners_ready:
+                    raise RuntimeError(
+                        "Payout definer preflight failed: both functions must share a trusted owner "
+                        "with projection EXECUTE, SELECT on submissions/review_decisions/trajectory_claims, "
+                        "and UPDATE on a submissions column for the row lock."
+                    )
         except SQLAlchemyError as exc:
             raise RuntimeError(
                 "Payout database preflight failed: verify connectivity, apply V045, and grant "

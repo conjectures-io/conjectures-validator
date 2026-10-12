@@ -23,8 +23,16 @@ from payout_notifier.worker import PayoutNotifier
 
 async def restricted_payout_role_can_authorize_without_reading_exports(kit, sid):
     role = "trajectory_payout_test_" + uuid.uuid4().hex
+    owner_role = "trajectory_definer_test_" + uuid.uuid4().hex
     async with kit.session() as s:
         await s.execute(text(f"CREATE ROLE {role} NOLOGIN"))
+        await s.execute(text(f"CREATE ROLE {owner_role} NOLOGIN"))
+        await s.execute(text(f"GRANT USAGE ON SCHEMA public TO {owner_role}"))
+        await s.execute(
+            text(
+                f"GRANT SELECT ON submissions, review_decisions, trajectory_claims TO {owner_role}"
+            )
+        )
         await s.execute(text(f"GRANT USAGE ON SCHEMA public TO {role}"))
         await s.execute(text(f"GRANT SELECT ON submissions, review_decisions TO {role}"))
         await s.execute(text(f"GRANT SELECT, INSERT ON reward_events TO {role}"))
@@ -47,6 +55,26 @@ async def restricted_payout_role_can_authorize_without_reading_exports(kit, sid)
             await s.execute(
                 text(f"GRANT EXECUTE ON FUNCTION bounty_trajectory_eligible(uuid, text) TO {role}")
             )
+            await s.commit()
+        probe.verify_database_access()
+        async with kit.session() as s:
+            await s.execute(
+                text(
+                    f"ALTER FUNCTION public.bounty_trajectory_eligible(uuid,text) OWNER TO {owner_role}"
+                )
+            )
+            await s.commit()
+        with pytest.raises(RuntimeError, match="both functions must share"):
+            probe.verify_database_access()
+        async with kit.session() as s:
+            await s.execute(
+                text(f"ALTER FUNCTION public.require_bounty_trajectory() OWNER TO {owner_role}")
+            )
+            await s.commit()
+        with pytest.raises(RuntimeError, match="UPDATE on a submissions column"):
+            probe.verify_database_access()
+        async with kit.session() as s:
+            await s.execute(text(f"GRANT UPDATE(id) ON public.submissions TO {owner_role}"))
             await s.commit()
         probe.verify_database_access()
         async with kit.session() as s:
@@ -74,6 +102,16 @@ async def restricted_payout_role_can_authorize_without_reading_exports(kit, sid)
     finally:
         probe_engine.dispose()
         async with kit.session() as s:
+            await s.execute(
+                text(
+                    "ALTER FUNCTION public.bounty_trajectory_eligible(uuid,text) OWNER TO CURRENT_USER"
+                )
+            )
+            await s.execute(
+                text("ALTER FUNCTION public.require_bounty_trajectory() OWNER TO CURRENT_USER")
+            )
+            await s.execute(text(f"DROP OWNED BY {owner_role}"))
+            await s.execute(text(f"DROP ROLE {owner_role}"))
             await s.execute(text(f"DROP OWNED BY {role}"))
             await s.execute(text(f"DROP ROLE {role}"))
             await s.commit()

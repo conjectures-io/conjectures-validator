@@ -37,13 +37,19 @@ No production migration, task activation, transfer or announcement has occurred.
    before marking existing rows `legacy`. Never prime P34/P35 as legacy.
 3. Apply V044 and V045 through the normal migration process. Before restarting ANY API,
    notifier or command-rendering process, even with intake disabled, list their actual DB roles
-   and the migration owner. Set the function owner to the trusted, least-privilege non-superuser
-   migration role with the necessary table access; verify its identity. For each actual caller,
+   and the migration owner. Keep BOTH `public.bounty_trajectory_eligible(uuid,text)` and
+   `public.require_bounty_trajectory()` under the SAME trusted non-superuser owner. That owner
+   needs SELECT on `public.submissions`, `public.review_decisions`, `public.trajectory_claims`,
+   and UPDATE on at least one `submissions` column for `FOR UPDATE` (for example `UPDATE(id)`).
+   Verify both owners and `SELECT has_function_privilege(proowner,
+   'public.bounty_trajectory_eligible(uuid,text)', 'EXECUTE') FROM pg_proc WHERE oid =
+   'public.require_bounty_trajectory()'::regprocedure`. Never transfer only one function or
+   assume a SELECT-only owner can execute the row-locking trigger. For each actual caller,
    explicitly `GRANT EXECUTE ON FUNCTION public.bounty_trajectory_eligible(uuid,text)` to that
    role, then verify `has_function_privilege(role, 'public.bounty_trajectory_eligible(uuid,text)',
    'EXECUTE')`. Never grant private claim-table access to payout roles. Run the notifier startup
    probe and a read-only command query before resuming legacy payouts. This grant is a migration
-   requirement, not an intake-enable step. V044 is an unpublished draft from
+   requirement, not an intake-enable step. V044 and V045 are unpublished drafts from
    the migrated feature; any private environment that applied an earlier draft must be rebuilt
    or separately reconciled rather than assuming Flyway accepts modified checksums.
 4. Preserve original task versions used by historical submissions. A missing/corrupt bundle

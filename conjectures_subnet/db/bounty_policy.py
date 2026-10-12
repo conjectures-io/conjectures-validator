@@ -61,7 +61,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp 
 BEGIN
     -- Serialize authorization against proof corrections and claim mutations.
     PERFORM id FROM public.submissions WHERE id = NEW.submission_id FOR UPDATE;
-    IF NOT bounty_trajectory_eligible(NEW.submission_id, NEW.eligibility_reason) THEN
+    IF NOT public.bounty_trajectory_eligible(NEW.submission_id, NEW.eligibility_reason) THEN
         RAISE EXCEPTION 'this bounty requires reviewed chat logs matching the accepted proof'
             USING ERRCODE = '23514', CONSTRAINT = 'reward_requires_reviewed_chat_logs';
     END IF;
