@@ -16,7 +16,9 @@ No production migration, task activation, transfer or announcement has occurred.
   Quotes change with the treasury, not age; submission locks the amount. Competition for the
   same target reserves the maximum competing lock. New exposure cannot exceed available funds.
 - New-policy full bounties require accepted authentic user-visible chat logs. The DB trigger
-  enforces the exact proof, target, current human decision and recorded policy snapshot.
+  enforces the exact proof, target, current human decision and recorded policy snapshot when
+  creating or changing an instruction. Existing commands/notifications recheck that evidence;
+  chain reconciliation still records transfers that actually occurred after a review correction.
 - Qualifying full-bounty proofs submitted before the configured launch cutoff can receive an
   additional $500 USD for Erdős/Green, $250 for other source families, for accepted logs.
   Existing proof payouts remain independent. Source classification uses the original bundle.
