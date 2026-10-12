@@ -2,7 +2,7 @@
 
 **Terms version:** `v7`<br>
 **Effective date:** 2026-10-12<br>
-**Manual review policy:** `v3`
+**Manual review policy:** `v4`
 
 These terms apply only to submissions accepted on or after the effective date. A submission
 accepted earlier remains governed by the terms and review-policy version recorded at acceptance.

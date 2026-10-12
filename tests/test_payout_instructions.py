@@ -15,7 +15,7 @@ from conjectures_subnet.db.engine import (create_db_engine, session_factory,
 from conjectures_subnet.db.errors import RecordConflict, RecordNotFound
 from conjectures_subnet.db.models import (Account, Base, REVIEWER_ROLE, RewardEvent,
     ReviewDecision, ReviewOutcome, RewardState, Submission, PayoutInstructionAction,
-    PayoutState, PayoutDiscordDelivery, TreasuryPayout)
+    PayoutState, TreasuryPayout)
 from conjectures_subnet.db.payout_instructions import (
     cancel_and_withdraw, change_instruction, instruction_enabled, validate_chain_evidence)
 from conjectures_subnet.db.submissions import correct_human_decision
@@ -33,12 +33,26 @@ def evidence(**changes):
     {"pending_multisig_count":1}, {"pending_multisig_count":False},
     {"no_matching_chain_transfer":False}, {"network":"test"},
     {"finalized_block_hash":""}, {"checked_at":"bad"},
-    {"checked_at":(dt.datetime.now(dt.UTC)-dt.timedelta(minutes=5)).isoformat()},
-    {"checked_at":(dt.datetime.now(dt.UTC)+dt.timedelta(minutes=5)).isoformat()},
 ])
 def test_unclear_or_stale_chain_check_refused(change):
+    now = dt.datetime(2026, 10, 12, 12, tzinfo=dt.UTC)
+    receipt = evidence(**{"checked_at": now.isoformat(), **change})
     with pytest.raises(RecordConflict):
-        validate_chain_evidence(evidence(**change), now=dt.datetime.now(dt.UTC))
+        validate_chain_evidence(receipt, now=now)
+
+
+@pytest.mark.parametrize("age_seconds", [-300, -0.001, 0, 120, 120.001, 300])
+def test_chain_check_freshness_boundaries_are_independent_of_suite_duration(age_seconds):
+    # Do not evaluate wall-clock parameters at collection: a long suite could
+    # turn a purported future timestamp into a valid recent one before this runs.
+    now = dt.datetime(2026, 10, 12, 12, tzinfo=dt.UTC)
+    receipt = evidence(checked_at=(now-dt.timedelta(seconds=age_seconds)).isoformat())
+    if 0 <= age_seconds <= 120:
+        validate_chain_evidence(receipt, now=now)
+    else:
+        with pytest.raises(RecordConflict) as exc:
+            validate_chain_evidence(receipt, now=now)
+        assert exc.value.reason_code == "PAYOUT_CHAIN_CHECK_STALE"
 
 
 @pytest.fixture
@@ -133,7 +147,8 @@ def test_transaction_history_blocks_cancellation(kit,change):
     sessions, _, req=kit
     with sessions.begin() as s:
         event=s.get(RewardEvent,req['reward_event_id'])
-        for k,v in change.items(): setattr(event,k, event.created_at + dt.timedelta(seconds=1) if k == "submitted_at" else v)
+        for k,v in change.items():
+            setattr(event,k, event.created_at + dt.timedelta(seconds=1) if k == "submitted_at" else v)
     with pytest.raises(RecordConflict,match="transaction or failure"):
         run(lambda s:cancel(s,req))
     with sessions() as s:
@@ -198,10 +213,13 @@ def test_nonpending_payout_blocks(kit,state):
         if state==PayoutState.FAILED:
             event.failure_reason="unresolved attempt"
         else:
-            event.extrinsic_reference="123-0-0";event.submitted_block=123
-            event.submitted_at=event.created_at;event.chain_observed=True
+            event.extrinsic_reference="123-0-0"
+            event.submitted_block=123
+            event.submitted_at=event.created_at
+            event.chain_observed=True
             if state==PayoutState.CONFIRMED:
-                event.finalized_block=124;event.confirmed_at=event.created_at
+                event.finalized_block=124
+                event.confirmed_at=event.created_at
     with pytest.raises(RecordConflict,match="transaction or failure"):
         run(lambda s:cancel(s,req))
 
