@@ -552,7 +552,14 @@ def test_obligations_are_seeded_when_discord_is_not_configured():
 
 @pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
 @pytest.mark.parametrize("failure", ["timeout", "malformed", "nonpositive", "unconfigured"])
-def test_defect_quote_failure_isolated_and_retried_without_duplicates(failure, caplog):
+def test_defect_quote_failure_isolated_and_retried_without_duplicates(failure, monkeypatch):
+    # Other service tests configure global logging. Capture the worker's rendered warning
+    # directly so redaction coverage does not depend on logger handlers or propagation.
+    warnings = []
+    monkeypatch.setattr(
+        "payout_notifier.worker.logger.warning",
+        lambda message, *args: warnings.append(message % args),
+    )
     engine = create_db_engine(postgres_dsn())
     try:
         Base.metadata.drop_all(engine)
@@ -614,8 +621,8 @@ def test_defect_quote_failure_isolated_and_retried_without_duplicates(failure, c
         )
         first = notifier.process_once()
         assert (first.payouts_seeded, first.seeded, first.delivered) == (1, 4, 4)
-        assert "Deferring formalization-defect awards" in caplog.text
-        assert "secret-provider-payload" not in caplog.text
+        assert "Deferring formalization-defect awards" in "\n".join(warnings)
+        assert "secret-provider-payload" not in "\n".join(warnings)
         second = notifier.process_once()
         assert (second.payouts_seeded, second.seeded, second.delivered) == (0, 0, 0)
         assert calls == (0 if failure == "unconfigured" else 2)
