@@ -1,6 +1,6 @@
 # Competition API reference
 
-The `/v1/competitions` surface of the conjectures platform API: every endpoint's inputs (name, location, type, whether required, constraints) and outputs (status and field-by-field response types). It serves one competition today, `deflate`, so `{slug}` is `deflate` in every path.
+The `/v1/competitions` surface of the conjectures platform API: every endpoint's inputs (name, location, type, whether required, constraints) and outputs (status and field-by-field response types). It serves DEFLATE (`deflate`) and, where it is configured, FloatLib (`floatlib` and `floatlib-<slot>`), each from its own database. Every section below except [FloatLib](#floatlib) is DEFLATE's, so `{slug}` is `deflate` there; a FloatLib slug on a DEFLATE-only route is **404 `NOT_FOUND`**.
 
 Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (dev merged with main), the version running on DEV. Access rules, refusal codes and the three responses without a response model come from the route handlers (`submission_api/routers/competitions.py`, `competition_reads.py`, `competitions_admin.py`). Examples are real DEV responses from the same day, trimmed to one array item, with the slug and name rewritten for the competition's renames from `miniz-oxide` ("miniz_oxide DEFLATE") to `lz77` ("LZ77 parsing") and then to `deflate` ("DEFLATE"). The slug is part of every path and of the signed submit message, so a client still using `miniz-oxide` or `lz77` gets 404 `NOT_FOUND`.
 
@@ -47,6 +47,12 @@ A request that fails FastAPI's own validation (wrong type, missing header) gets 
 | GET | `/v1/competitions/{slug}/admin/queue` | ADMIN role, browser session |
 | GET | `/v1/competitions/{slug}/admin/submissions/{submission_id}` | ADMIN role, browser session |
 | POST | `/v1/competitions/{slug}/admin/submissions/{submission_id}/requeue` | ADMIN role, browser session, write |
+| GET | `/v1/competitions/{board}` | Public, no authentication |
+| GET | `/v1/competitions/{board}/health` | Public, no authentication |
+| GET | `/v1/competitions/{board}/leaderboard` | Public, no authentication |
+| GET | `/v1/competitions/{board}/champions` | Public, no authentication |
+| GET | `/v1/competitions/{board}/submissions/{submission_id}` | Public, no authentication |
+| GET | `/v1/competitions/{board}/submissions/{submission_id}/report` | Public, no authentication |
 
 ## Discover
 
@@ -1006,6 +1012,53 @@ Move an `error` or stuck `verifying` row back to `queued`, with a reason.
 - 403 `ROLE_REQUIRED`: the account lacks the ADMIN role
 - 503 `OPERATOR_ADAPTER_UNAVAILABLE`: **always, on the current schema** (the adapter refuses any database with `submissions.verification_attempt`, which the public routes require)
 - 404 `NOT_FOUND`
+
+## FloatLib
+
+`{board}` is a FloatLib board: `floatlib`, the paid full entry (slot `full`), or one of its practice boards: `floatlib-add`, `-mul`, `-fma`, `-div`, `-sqrt`, `-sum`, `-bmm`. All of them read FloatLib's own database (`COMPETITION_FLOATLIB_DATABASE_URL`, as the `platform_api` role of `conjectures-optimisation-float-kernels`) and nothing else. The shapes are FloatLib's own API's (`validator/service/schemas.py` there), plus `kernels`, `promoted_at`, `/champions` and the rules on `/health`. Times are `YYYY-MM-DDTHH:MM:SSZ`, ids integers. Submissions are not taken here: miners submit to the FloatLib host. Every route answers **404 `NOT_FOUND`** when FloatLib is not served here, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when its database is older than its migration 0016 or `platform_api` cannot read `promotions`.
+
+### GET `/v1/competitions/{board}`
+
+The board in the [Competition](#competition) shape, so `/v1/competitions` lists FloatLib (once, as `floatlib`) beside DEFLATE: `files` is `Kernel.lean`, the one metric is `ratio` (lower is better), `policy` is the latest published scoring's, and `submissions_open` is `false`.
+
+### GET `/v1/competitions/{board}/health`
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `ok` | boolean | FloatLib's database answered |
+| `queued` | integer | Queued plus verifying, across every board |
+| `promotion_bar` | number | The ratio a submission must reach to be promoted; `0.97` until the first publication |
+| `competition_share` | number or null | The competition's share of the validator's emission, as last published |
+| `admission` | object or null | `{draws, quantile}`: the bootstrap behind promotion, as last published |
+
+### GET `/v1/competitions/{board}/leaderboard`
+
+The board: the champion first, then every other hotkey's best accepted ratio against it, fastest first.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `slot` | string | `full` or the practice board's kernel |
+| `incumbent_sha256` | string or null | The latest recorded incumbent, provenance |
+| `champion_sha256` | string or null | The Kernel.lean every ratio here is measured against |
+| `verifier_fingerprint` | string or null | The verifier of the newest verdict |
+| `promotion_bar` | number | As on `/health` |
+| `leader` | integer or null | The champion's submission; null while the shipped champion holds |
+| `pays` | boolean | Whether the champion's author is paid: the full entry only |
+| `ranking[]` | array | `rank`, `submission`, `hotkey`, `ratio`, `qualifies` (at or below the bar), `admission`, `submitted_at`, `kernels`, `promoted_at` |
+
+`admission` is `leader` on the champion's row on every board; on the others it is the latest published scoring's outcome (`qualifies`, `not-significant`, `above-bar`, `no-evidence`), which scores only the full entry, so practice-board rows carry `null`. `kernels` is ns per operation for each kernel, summed over its timed input types: `{add, mul, sum, bmm}` on the full entry, the board's own kernel on a practice board. `promoted_at` is when the champion took over, on its row only.
+
+### GET `/v1/competitions/{board}/champions`
+
+Every submission the board promoted, newest first: `[{submission, hotkey, ratio, promoted_at, demoted_at, current}]`. `ratio` is against the champion it took over from. A newer promotion supersedes a champion without demoting it, and `demoted_at` is set only when a champion's own bench failed too often, which hands the board back to the newest earlier champion not demoted -- so `current` says who holds the board.
+
+### GET `/v1/competitions/{board}/submissions/{submission_id}`
+
+One submission of that board (another board's id is a 404): `id`, `hotkey`, `slot`, `digest`, `submitted_at`, `state`, `exit_code`, `stage`, `reason`, `ratio`, `classes` (per input type: `incumbent_ns`, `submission_ns`, `ratio`, `spread_inc`, `spread_sub`), `seed`, `incumbent_sha256`, `champion_sha256`, `verifier_fingerprint`, and `verification_current` (an accepted verdict from the newest verdict's verifier; null otherwise).
+
+### GET `/v1/competitions/{board}/submissions/{submission_id}/report`
+
+`{report}`: the gate's verdict JSON in full, as a string.
 
 ## Signing a submission
 
