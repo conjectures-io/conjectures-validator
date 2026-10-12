@@ -1,4 +1,4 @@
--- Private optional evidence review only. No reward event, payout action or credit mutation.
+-- Private evidence review. V045 adds a minimal boolean authorization projection for new bounties.
 CREATE TABLE trajectory_claims (
     id uuid PRIMARY KEY,
     submission_id uuid NOT NULL UNIQUE REFERENCES submissions(id),
@@ -46,7 +46,7 @@ CREATE TABLE trajectory_fingerprints (
     digest sha256 PRIMARY KEY,
     claim_id uuid NOT NULL REFERENCES trajectory_claims(id) ON DELETE CASCADE
 );
-COMMENT ON TABLE trajectory_claims IS 'Private trajectory review. Contains untrusted sensitive exports. Never join into public result or payout queries.';
+COMMENT ON TABLE trajectory_claims IS 'Private trajectory review. Contains untrusted sensitive exports. Never expose exports to public result or payout roles; V045 supplies only a boolean authorization projection.';
 
 CREATE INDEX trajectory_fingerprint_claim_idx ON trajectory_fingerprints(claim_id);
 CREATE TABLE trajectory_access_log (

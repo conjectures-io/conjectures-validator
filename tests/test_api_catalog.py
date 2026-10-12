@@ -636,11 +636,11 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
             assert body["treasury_address"] == kit.settings.payment_recipient
             assert body["bounty"] == {
                 "policy_version": "linear-age-v3-locked",
-                "new_target_policy_version": "treasury-share-2p5-chat-v1",
-                "new_target_share_numerator": 1,
-                "new_target_share_denominator": 40,
-                "new_target_pricing_basis": "gross_treasury",
-                "new_target_chat_logs_required": True,
+                "new_target_policy_version": "linear-age-v3-locked",
+                "new_target_share_numerator": None,
+                "new_target_share_denominator": None,
+                "new_target_pricing_basis": "legacy_available_treasury",
+                "new_target_chat_logs_required": False,
                 "balance_rao": 4_000_000_000,
                 "balance_usd": "150.00",
                 "wallet_coldkey": kit.settings.bounty_wallet_coldkey,

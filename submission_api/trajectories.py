@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import defer
 from sqlalchemy.exc import IntegrityError
 
-from conjectures_subnet.db.models import Submission
+from conjectures_subnet.db.models import Submission, ReviewDecision
 from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY, legacy_chat_bonus_cents
 from verifier.task_store import TaskVersionStore
 from verifier.task_versions import is_v2_task_id
@@ -44,6 +44,21 @@ def eligibility_reason(submission, decision, *, cutoff, now, enforce_window=True
             or decision.reason_code != "REVIEW_APPROVED"):
         return "A binding human approval for the full bounty is required; defect awards are excluded."
     return None
+
+
+async def unchanged_approval_chain(session, submission_id, current, original_id):
+    """Only explanation corrections may reuse a completed private evidence review."""
+    decision = current
+    seen = set()
+    while decision is not None and decision.id not in seen:
+        seen.add(decision.id)
+        if (decision.submission_id != submission_id or str(decision.kind) != "HUMAN"
+                or str(decision.decision) != "APPROVED" or decision.reason_code != "REVIEW_APPROVED"):
+            return False
+        if decision.id == original_id:
+            return True
+        decision = await session.get(ReviewDecision, decision.supersedes_id) if decision.supersedes_id else None
+    return False
 
 
 async def owned_submission(session, submission_id, account_id, *, lock=False):

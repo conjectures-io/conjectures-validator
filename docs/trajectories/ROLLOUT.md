@@ -23,8 +23,8 @@ No production migration, task activation, transfer or announcement has occurred.
   additional $500 USD for Erdős/Green, $250 for other source families, for accepted logs.
   Existing proof payouts remain independent. Source classification uses the original bundle.
   The retrospective claim window is 365 days from cutoff; required new-bounty evidence is exempt.
-- Commercial rights remain a separate optional election. Submission terms advance to v8;
-  published v7 is preserved in `docs/policies/submission-terms-v7.md`.
+- Commercial rights remain a separate optional election. Published submission terms remain v7;
+  v8 is inactive in `docs/policies/submission-terms-v8-draft.md` until its release gates are met.
 
 ## Deployment sequence
 
@@ -59,3 +59,29 @@ No production migration, task activation, transfer or announcement has occurred.
 Rollback must preserve accepted quotes and consent history. Do not drop V044/V045 tables or
 reassign a target's policy after accepting submissions. Pause intake/new targets and roll forward
 with a reviewed fix when commitments exist. Never treat evidence approval as proof of payment.
+
+## Cutover and rollback constraints
+
+The owner-approved default applies to every target first published after this cutover, including
+pending releases such as the 259-target release. A review date alone does not make an unpublished
+target legacy. Before V045, export and review the exact currently published target list and its
+`bounty_tasks` rows, including all submitted retired targets. Record pending releases explicitly:
+those released after the boundary use 2.5% and required logs; any exception needs a separate owner
+policy decision before admission. Catalog reads register that approved default durably. Production
+must use the default pricer; `new_target_policy="legacy"` is a test/old-binary compatibility option,
+not a production cutover override. UPDATE of target identity/policy and DELETE are rejected.
+
+Deploy with intake disabled first: new-policy catalog quotes return
+`CHAT_LOG_REVIEW_UNAVAILABLE` and no submission fee is consumed. The extrinsic-only endpoint
+refuses new-policy targets even after launch; contributors must use an authenticated account
+submission endpoint to retain private evidence ownership. Legacy extrinsic submissions still work.
+
+Before enabling intake, complete every README launch blocker, including the required-log deadline
+and audited release policy, persisted historical cutoff, and real historical-source/ownership
+inventory. Publish final v8 through an explicit versioned `SUBMISSION_TERMS_PATH`, version and
+actual effective date; coordinate matching frontend assent and archived v7. Do not change the
+bundled v7 contract merely to deploy disabled code.
+
+Once V045 or any new-policy submission exists, do not roll the application/notifier back to an
+older binary: its batch does not understand mandatory evidence. Pause new intake and roll forward
+with a reviewed fix; preserve all policy, consent and payout rows.

@@ -165,11 +165,11 @@ class BountyPoolInfo(Model):
     """The common inputs behind every live task estimate."""
 
     policy_version: str
-    new_target_policy_version: str = "treasury-share-2p5-chat-v1"
-    new_target_share_numerator: int = 1
-    new_target_share_denominator: int = 40
-    new_target_pricing_basis: str = "gross_treasury"
-    new_target_chat_logs_required: bool = True
+    new_target_policy_version: str
+    new_target_share_numerator: int | None
+    new_target_share_denominator: int | None
+    new_target_pricing_basis: str
+    new_target_chat_logs_required: bool
     balance_rao: int
     balance_usd: str | None = Field(
         description=(

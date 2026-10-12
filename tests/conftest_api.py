@@ -357,6 +357,7 @@ def harness(
         payments=verifier,
         dispatcher=dispatcher or QueueDispatcher(),
         pricing=DynamicBountyPricer(
+            required_evidence_available=settings.trajectory_bonus_enabled,
             new_target_policy="legacy",
             clock=lambda: pricing_now,
             balance_reader=StaticBalanceReader(settings.bounty_pool_balance_rao),

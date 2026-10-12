@@ -3,8 +3,9 @@
 New targets offer 2.5% of gross finalized Alpha treasury and require accepted authentic chat logs.
 For qualifying proofs submitted before launch, accepted logs earn an optional additional
 **$500 USD for Erdős/Green source problems, $250 USD otherwise**. Existing proof payouts retain their terms.
-Upload creates a private review record. Human acceptance creates a manual-payment review record,
-**never a reward event, transfer, active commercial license or automatic payout**.
+Upload creates a private review record. Historical-log acceptance creates only a manual-payment review record. Required-log acceptance
+unlocks the existing full-bounty payout worker and signer notifications. Neither action signs a
+transfer or activates a commercial license.
 
 The delivered flow includes the full [commercial license draft](commercial-license-draft-v1.md)
 and separately pinned [private review terms](review-terms-v1.md) and [assent wording](assent-statements-v1.json), with an explicit commercial election inside intake. No contributor must negotiate or sign another
@@ -227,3 +228,28 @@ and changed proof decisions. DB tests require the repo's explicit private-fixtur
 review/commercial/assent digests, preserve raw file text, require explicit elections and reject synthetic/oversized/mislinked packages.
 `python scripts/trajectory_assets.py` regenerates schema/example/template; copy those and the
 exact license/review Markdown, assent JSON and terms manifest to frontend `data/trajectory/` (served only by the enabled `/trajectory/[asset]` route) and verify their hashes together.
+
+## Additional gates identified in the independent xhigh review
+
+Before enabling required-evidence bounties, publish the deadline and an appeal/forfeiture rule
+for logs that are never accepted, implement its audited target/reservation release, and test the
+competing-proof case. No deadline or new disqualification ground is invented in this disabled
+build. New-policy quotes are unavailable while intake is disabled.
+
+Before opening historical claims, persist the owner-approved cutoff independently of environment
+configuration and refuse changes for new enrollments. Production must reject future cutoffs.
+The current per-claim snapshot already keeps accepted claims independent of later configuration.
+
+The v8 submission contract remains an inactive draft; v7 is still bundled and published. Finalize
+v8 with the actual activation date and a distinct immutable version/digest before enabling the
+new program. The recovered `*-draft-v1` artifacts have never collected real assent; their edits
+are permissible only in these disposable staging checkouts. Any prior private test environment
+must be rebuilt. Never overwrite terms that collected contributor assent.
+
+Payout roles must have no SELECT/UPDATE grants on private trajectory tables. They call only the
+`bounty_trajectory_eligible(uuid,text)` security-definer boolean projection with a pinned search
+path. PUBLIC execute is revoked; explicitly grant EXECUTE on that function to the real API,
+notifier and command-rendering database roles during deployment, without granting claim-table
+access. The function owner must be a trusted migration role, never a public/analytics role. The authorization trigger uses the same projection and locks only the public submission;
+all claim writers and the purge job take that submission lock first. Retain minimal evidence
+audit rows while a reward event references their submission; private content still expires.

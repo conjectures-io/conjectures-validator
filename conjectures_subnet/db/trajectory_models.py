@@ -1,4 +1,4 @@
-"""Private bonus-review records. Deliberately unrelated to reward_events or payout workers."""
+"""Private evidence records. Payout workers receive only a boolean authorization projection."""
 import datetime as dt
 import uuid
 

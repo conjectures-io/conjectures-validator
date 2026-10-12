@@ -5,9 +5,9 @@ import uuid
 
 import pytest
 from dataclasses import replace
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from sqlalchemy import select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, DBAPIError
 from conftest_api import postgres_dsn
 from test_api_accounts import client, same_origin
 from test_api_trajectories import accepted, envelope, reviewer, review_body, kit_config
@@ -18,6 +18,46 @@ from conjectures_subnet.db.engine import create_db_engine, session_factory
 from conjectures_subnet.db.models import Account, Submission, RewardEvent, ReviewOutcome
 from conjectures_subnet.db import submissions as proof_store, payouts
 from payout_notifier.worker import PayoutNotifier
+
+
+async def restricted_payout_role_can_authorize_without_reading_exports(kit, sid):
+    role = "trajectory_payout_test_" + uuid.uuid4().hex
+    async with kit.session() as s:
+        await s.execute(text(f"CREATE ROLE {role} NOLOGIN"))
+        await s.execute(text(f"GRANT USAGE ON SCHEMA public TO {role}"))
+        await s.execute(text(f"GRANT SELECT ON submissions, review_decisions TO {role}"))
+        await s.execute(text(f"GRANT SELECT, INSERT ON reward_events TO {role}"))
+        await s.execute(text(f"GRANT USAGE ON SEQUENCE reward_events_id_seq TO {role}"))
+        await s.execute(text(f"GRANT EXECUTE ON FUNCTION bounty_trajectory_eligible(uuid, text) TO {role}"))
+        await s.commit()
+    try:
+        async with kit.session() as s:
+            await s.execute(text(f"SET LOCAL ROLE {role}"))
+            with pytest.raises(DBAPIError, match="permission denied"):
+                await s.execute(text("SELECT package FROM trajectory_claims"))
+            await s.rollback()
+        async with kit.session() as s:
+            await s.execute(text(f"SET LOCAL ROLE {role}"))
+            assert await s.scalar(
+                text("SELECT bounty_trajectory_eligible(:sid, 'REVIEW_APPROVED')"),
+                {"sid": uuid.UUID(sid)},
+            )
+            # The real INSERT invokes both the existing amount guard and the new definer guard.
+            await s.execute(
+                text("""INSERT INTO reward_events (
+                submission_id, amount_rao, eligibility_reason, pricing_policy_version, pricing_inputs,
+                destination_coldkey, initiated_by, generation_key)
+                SELECT id, bounty_amount_rao, 'REVIEW_APPROVED', bounty_policy_version, bounty_inputs,
+                    :destination, 'restricted-role-test', 'submission:' || id::text
+                FROM submissions WHERE id=:sid"""),
+                {"sid": uuid.UUID(sid), "destination": kit.settings.payment_recipient},
+            )
+            await s.rollback()  # The notifier creates the lasting instruction below.
+    finally:
+        async with kit.session() as s:
+            await s.execute(text(f"DROP OWNED BY {role}"))
+            await s.execute(text(f"DROP ROLE {role}"))
+            await s.commit()
 
 
 async def stale_evidence_scenario():
@@ -49,6 +89,7 @@ async def stale_evidence_scenario():
                 f"/v1/admin/trajectories/{cid}/decision", json=review_body(), headers=same_origin()
             )
             assert reviewed.status_code == 200, reviewed.text
+            await restricted_payout_role_can_authorize_without_reading_exports(kit, sid)
             assert worker.seed_reward_events() == 1
             assert worker.seed() == 2
             async with kit.session() as s:
@@ -71,6 +112,20 @@ async def stale_evidence_scenario():
             assert command_rows(eid) == []
             assert worker.seed() == 0
             assert worker.claim() is None
+            revoked = await admin.post(
+                f"/v1/admin/trajectories/{cid}/reopen",
+                headers=same_origin(),
+                json={
+                    "action": "REVOKE_PROOF_CHANGED",
+                    "expected_revision": 1,
+                    "expected_state_version": 2,
+                    "note": "A live instruction must be cancelled before this evidence can be revoked.",
+                },
+            )
+            assert (
+                revoked.status_code == 409
+                and revoked.json()["reason_code"] == "TRAJECTORY_PAYOUT_IN_FLIGHT"
+            )
             # Revising an instruction still rechecks evidence, even if its amount stays fixed.
             async with kit.session() as s:
                 with pytest.raises(IntegrityError, match="requires reviewed chat logs"):
@@ -123,6 +178,25 @@ async def stale_evidence_scenario():
                 await s.commit()
                 assert (await s.get(Submission, uuid.UUID(sid))).reward_status == "REWARDED"
                 assert (await s.get(RewardEvent, eid)).chain_observed
+            from conjectures_subnet.db.trajectory_models import TrajectoryClaim
+            from scripts.purge_trajectories import purge
+
+            async with kit.session() as s:
+                claim = await s.get(TrajectoryClaim, uuid.UUID(cid))
+                claim.created_at = datetime.now(UTC) - timedelta(days=8 * 365)
+                claim.expires_at = claim.created_at + timedelta(days=90)
+                claim.audit_expires_at = claim.created_at + timedelta(days=7 * 365)
+                await s.commit()
+            async with kit.session() as owner_lock:
+                await owner_lock.get(Submission, uuid.UUID(sid), with_for_update=True)
+                async with kit.session() as purger:
+                    assert await purge(purger) == (0, 0)  # Never race a claim mutation's proof lock.
+                await owner_lock.rollback()
+            async with kit.session() as s:
+                assert await purge(s) == (1, 0)
+            async with kit.session() as s:
+                claim = await s.get(TrajectoryClaim, uuid.UUID(cid))
+                assert claim is not None and claim.package is None
 
     finally:
         engine.dispose()

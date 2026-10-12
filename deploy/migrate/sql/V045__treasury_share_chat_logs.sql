@@ -25,20 +25,21 @@ CREATE UNIQUE INDEX trajectory_one_approved_target ON trajectory_claims(reward_t
 CREATE FUNCTION protect_bounty_target_policy() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
-    IF NEW.pricing_policy IS DISTINCT FROM OLD.pricing_policy THEN
+    IF TG_OP = 'DELETE' OR NEW.pricing_policy IS DISTINCT FROM OLD.pricing_policy
+       OR NEW.reward_target_id IS DISTINCT FROM OLD.reward_target_id THEN
         RAISE EXCEPTION 'a reward target keeps its original pricing policy'
             USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
 END;
 $$;
-CREATE TRIGGER bounty_target_policy_immutable BEFORE UPDATE ON bounty_tasks
+CREATE TRIGGER bounty_target_policy_immutable BEFORE UPDATE OR DELETE ON bounty_tasks
 FOR EACH ROW EXECUTE FUNCTION protect_bounty_target_policy();
 
 -- Shared by instruction creation, notification and command rendering. Chain history is
 -- recorded independently: a later review correction cannot undo a transfer on chain.
 CREATE FUNCTION bounty_trajectory_eligible(proof_id uuid, reward_reason text) RETURNS boolean
-LANGUAGE sql AS $$
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT COALESCE((SELECT
         proof.bounty_policy_version <> 'treasury-share-2p5-chat-v1' OR (
             proof.verification_status = 'VERIFIED' AND proof.manual_review_status = 'APPROVED'
@@ -66,12 +67,13 @@ LANGUAGE sql AS $$
     ), false);
 $$;
 
+REVOKE ALL ON FUNCTION bounty_trajectory_eligible(uuid, text) FROM PUBLIC;
+
 CREATE FUNCTION require_bounty_trajectory() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
     -- Serialize authorization against proof corrections and claim mutations.
     PERFORM id FROM submissions WHERE id = NEW.submission_id FOR UPDATE;
-    PERFORM id FROM trajectory_claims WHERE submission_id = NEW.submission_id FOR UPDATE;
     IF NOT bounty_trajectory_eligible(NEW.submission_id, NEW.eligibility_reason) THEN
         RAISE EXCEPTION 'this bounty requires reviewed chat logs matching the accepted proof'
             USING ERRCODE = '23514', CONSTRAINT = 'reward_requires_reviewed_chat_logs';

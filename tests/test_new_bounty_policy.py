@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import uuid
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 
 from conftest_api import harness, postgres_dsn
@@ -79,6 +79,9 @@ def test_new_target_policy_is_durable_and_grows_only_with_treasury():
                 row.pricing_policy = 'legacy'
                 with pytest.raises(IntegrityError, match='original pricing policy'):
                     await session.flush()
+                await session.rollback()
+                with pytest.raises(IntegrityError, match='original pricing policy'):
+                    await session.execute(delete(BountyTask).where(BountyTask.reward_target_id == 'packing34'))
                 await session.rollback()
         finally:
             await kit.teardown()
@@ -205,31 +208,37 @@ def test_historical_bonus_amount_is_selected_by_server(module, amount):
 
 @pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
 def test_gross_share_reservations_preserve_competing_locks_and_refuse_overcommitment():
-    from conftest_api import task_entry, valid_bundle, distinct_bundle
-    from test_api_submissions import _post
+    from conftest_api import task_entry, distinct_bundle
+    from test_api_accounts import client
+    from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
 
     async def scenario():
         other = 'fc-target:Fixture.second'
         kit = await harness(entries=(task_entry(), task_entry(task_id='second-task', reward_target_id=other)),
-                            BOUNTY_POOL_BALANCE_RAO='4000').setup()
+                            BOUNTY_POOL_BALANCE_RAO='4000', TRAJECTORY_BONUS_ENABLED='true',
+                            TRAJECTORY_BONUS_START_AT='2027-01-01T00:00:00Z').setup()
         pricer = replace(kit.services.pricing, new_target_policy=TREASURY_CHAT_POLICY)
         kit.services = replace(kit.services, pricing=pricer)
         kit.app.state.services = kit.services
         target = task_entry().reward_target_id
         try:
-            first = await _post(kit, valid_bundle())
-            assert first.status_code == 201, first.text
-            assert first.json()['bounty']['amount_rao'] == 100
-            bundle, digest = distinct_bundle('competing-gross-share')
-            second = await _post(kit, bundle, payment_reference='0xpayment-competing-gross', proof_digest=digest)
-            assert second.status_code == 201, second.text
-            assert second.json()['bounty']['amount_rao'] == 100
+            async with await client(kit) as owner:
+                await keyless_account(kit, owner, credits_=2)
+                bundle, _ = distinct_bundle('first-gross-share', coldkey=None)
+                first = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
+                                         headers=zip_headers(owner))
+                assert first.status_code == 201, first.text
+                first_id = first.json()['submission']['id']
+                bundle, _ = distinct_bundle('competing-gross-share', coldkey=None)
+                second = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
+                                          headers=zip_headers(owner))
+                assert second.status_code == 201, second.text
             async with kit.session() as session:
                 q = await pricer.quote(session, reward_target_id=other)
                 assert q.amount_rao == 100 and q.inputs['committed_bounty_rao'] == 100
                 richer = replace(pricer, balance_reader=StaticBalanceReader(8000))
                 assert (await richer.quote(session, reward_target_id=other)).amount_rao == 200
-                first_row = await session.get(Submission, uuid.UUID(first.json()['submission_id']))
+                first_row = await session.get(Submission, uuid.UUID(first_id))
                 assert first_row.bounty_amount_rao == 100  # Existing lock is never repriced.
                 poorer = replace(pricer, balance_reader=StaticBalanceReader(100))
                 exhausted = await poorer.quote(session, reward_target_id=other)
@@ -238,6 +247,49 @@ def test_gross_share_reservations_preserve_competing_locks_and_refuse_overcommit
                 # Another attempt at the same unresolved target adds no exposure.
                 competing = await poorer.quote(session, reward_target_id=target)
                 assert competing.available and competing.inputs['committed_bounty_rao'] == 100
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
+@pytest.mark.parametrize('enabled', [False, True])
+def test_production_default_refuses_unusable_submission_paths_before_spending(enabled):
+    from sqlalchemy import func
+    from conftest_api import valid_bundle
+    from test_api_submissions import _post
+    from test_api_accounts import client
+    from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
+    from conftest_api import distinct_bundle
+    from conjectures_subnet.bounty import DynamicBountyPricer
+
+    async def scenario():
+        kit = await harness(TRAJECTORY_BONUS_ENABLED=str(enabled).lower(),
+                            TRAJECTORY_BONUS_START_AT='2027-01-01T00:00:00Z').setup()
+        # Remove only the harness's historical-policy override: this is the production default.
+        pricer = replace(kit.services.pricing,
+                         new_target_policy=DynamicBountyPricer.__dataclass_fields__['new_target_policy'].default)
+        kit.services = replace(kit.services, pricing=pricer)
+        kit.app.state.services = kit.services
+        try:
+            response = await _post(kit, valid_bundle())
+            assert response.status_code == (409 if enabled else 503), response.text
+            assert response.json()['reason_code'] == ('CHAT_LOG_ACCOUNT_REQUIRED' if enabled else 'CHAT_LOG_REVIEW_UNAVAILABLE')
+            async with kit.session() as session:
+                assert await session.scalar(select(func.count()).select_from(Submission)) == 0
+            async with await client(kit) as owner:
+                await keyless_account(kit, owner)
+                bundle, _ = distinct_bundle('default-account', coldkey=None)
+                result = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
+                                          headers=zip_headers(owner))
+                assert result.status_code == (201 if enabled else 409), result.text
+                if not enabled:
+                    assert result.json()['reason_code'] == 'CHAT_LOG_REVIEW_UNAVAILABLE'
+                balance = (await owner.get('/v1/me/credits')).json()['credits_available']
+                assert balance == (0 if enabled else 1)
+                meta = (await owner.get('/v1/catalog/meta')).json()['bounty']
+                assert meta['new_target_policy_version'] == TREASURY_CHAT_POLICY
+                assert meta['new_target_share_denominator'] == 40 and meta['new_target_chat_logs_required']
         finally:
             await kit.teardown()
     asyncio.run(scenario())

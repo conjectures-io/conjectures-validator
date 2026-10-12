@@ -92,6 +92,7 @@ class BountyPoolSnapshot:
     max_age_weight: int
     max_bounty_share_numerator: int
     max_bounty_share_denominator: int
+    new_target_policy_version: str = TREASURY_CHAT_POLICY
 
 
 class BalanceReader(Protocol):
@@ -211,6 +212,7 @@ class DynamicBountyPricer:
     balance_netuid: int
     reward_target_ids: tuple[str, ...]
     new_target_policy: str = TREASURY_CHAT_POLICY
+    required_evidence_available: bool = False
     policy_version: str = LINEAR_BOUNTY_POLICY_VERSION
     constant_numerator: int = 1
     constant_denominator: int = 20
@@ -320,7 +322,7 @@ class DynamicBountyPricer:
         opened_rows = (
             await session.execute(
                 select(BountyTask.reward_target_id, BountyTask.opened_at, BountyTask.pricing_policy).where(
-                    BountyTask.reward_target_id.in_(self.reward_target_ids)
+                    BountyTask.reward_target_id.in_(set(self.reward_target_ids) | set(requested))
                 )
             )
         ).all()
@@ -468,8 +470,9 @@ class DynamicBountyPricer:
             quotes[target] = LiveBounty(
                 amount_rao=amount,
                 policy_version=policy_version,
-                available=funded,
+                available=funded and (not requires_logs or self.required_evidence_available),
                 reason=(
+                    "CHAT_LOG_REVIEW_UNAVAILABLE" if requires_logs and not self.required_evidence_available else
                     "TREASURY_RESERVED"
                     if not funded
                     else ("OPEN" if holder is None else "CLAIM_HELD")
@@ -486,6 +489,7 @@ class DynamicBountyPricer:
         return BountyPoolSnapshot(
             quotes=quotes,
             policy_version=self.policy_version,
+            new_target_policy_version=(self.policy_version if self.new_target_policy == "legacy" else self.new_target_policy),
             balance_rao=gross_balance,
             wallet_coldkey=self.balance_coldkey,
             wallet_hotkey=self.balance_hotkey,

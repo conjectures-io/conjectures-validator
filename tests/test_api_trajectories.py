@@ -355,7 +355,7 @@ def test_in_flow_conditional_license_records_election_and_separate_rights_cleara
                     await session.commit()
                     from scripts.purge_trajectories import purge
                     await purge(session)
-                    await session.refresh(record)
+                    await session.refresh(record, ["commercial_election"])
                     assert "restrictions" not in record.commercial_election["sources"][0]
                     assert "record_sha256" in record.commercial_election["sources"][0]
         finally:
@@ -537,12 +537,21 @@ def test_same_outcome_proof_rebind_after_expiry_uses_snapshot_and_retains_review
                 body["expected_state_version"] = 3
                 denied = await admin.post(f"/v1/admin/trajectories/{cid}/reopen", headers=same_origin(), json=body)
                 assert denied.status_code == 409 and denied.json()["reason_code"] == "TRAJECTORY_REBIND_INELIGIBLE"
+                async with kit.session() as session:
+                    current = await proof_store.latest_binding_decision(session, uuid.UUID(sid))
+                    await proof_store.correct_human_decision(session, uuid.UUID(sid), supersedes_id=current.id,
+                        decision=ReviewOutcome.APPROVED, reason_code="REVIEW_APPROVED", reviewer="fixture-correction",
+                        notes="Appeal granted", notes_public="Appeal granted")
+                    await session.commit()
+                # Re-approval after rejection requires a fresh evidence review, not a same-outcome rebind.
+                denied = await admin.post(f"/v1/admin/trajectories/{cid}/reopen", headers=same_origin(), json=body)
+                assert denied.status_code == 409 and denied.json()["reason_code"] == "TRAJECTORY_REBIND_INELIGIBLE"
         finally:
             await kit.teardown()
     asyncio.run(scenario())
 
 
-def test_requested_revision_after_initial_claim_window_and_changed_cutoff():
+def test_requested_revision_after_initial_claim_window_and_changed_cutoff(monkeypatch):
     async def scenario():
         kit = await kit_config().setup()
         try:
@@ -550,6 +559,9 @@ def test_requested_revision_after_initial_claim_window_and_changed_cutoff():
                 _, sid, p = await accepted(kit, owner)
                 path = f"/v1/me/submissions/{sid}/trajectory"
                 first = await owner.post(path, json=envelope(p), headers=same_origin())
+                def unavailable_original(*args):
+                    raise AssertionError("An enrolled claim must keep its original amount without reopening the bundle")
+                monkeypatch.setattr("submission_api.trajectories.amount_for", unavailable_original)
                 cid = first.json()["id"]
                 await reviewer(kit, admin)
                 changed = await admin.post(f"/v1/admin/trajectories/{cid}/decision", json=review_body(decision="NEEDS_CHANGES"), headers=same_origin())

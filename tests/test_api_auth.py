@@ -305,7 +305,7 @@ def test_development_defaults_are_convenient():
     assert settings.payment_amount_rao == 500_000_000
     assert settings.nonce_window_seconds == 120
     assert settings.review_policy_version == "v4"
-    assert settings.submission_terms_version == "v8"
+    assert settings.submission_terms_version == "v7"
     assert settings.submission_terms_effective_from == "2026-10-12"
     assert settings.bounty_pool_balance_rao == 4_000_000_000
     assert settings.bounty_constant_numerator == 1

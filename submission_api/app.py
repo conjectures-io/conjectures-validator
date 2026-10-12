@@ -230,6 +230,7 @@ def build_services(
         payments=verifier,
         dispatcher=build_dispatcher(settings),
         pricing=DynamicBountyPricer(
+            required_evidence_available=settings.trajectory_bonus_enabled,
             balance_reader=CachedBalanceReader(
                 balance_reader, ttl_seconds=settings.bounty_balance_cache_seconds
             ),

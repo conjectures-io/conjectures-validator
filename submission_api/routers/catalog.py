@@ -184,6 +184,11 @@ def _bounty_pool(
 ) -> public.BountyPoolInfo:
     return public.BountyPoolInfo(
         policy_version=snapshot.policy_version,
+        new_target_policy_version=snapshot.new_target_policy_version,
+        new_target_share_numerator=1 if snapshot.new_target_policy_version == "treasury-share-2p5-chat-v1" else None,
+        new_target_share_denominator=40 if snapshot.new_target_policy_version == "treasury-share-2p5-chat-v1" else None,
+        new_target_pricing_basis="gross_treasury" if snapshot.new_target_policy_version == "treasury-share-2p5-chat-v1" else "legacy_available_treasury",
+        new_target_chat_logs_required=snapshot.new_target_policy_version == "treasury-share-2p5-chat-v1",
         balance_rao=snapshot.balance_rao,
         balance_usd=amount_usd(snapshot.balance_rao, alpha_usd=alpha_usd),
         wallet_coldkey=snapshot.wallet_coldkey,

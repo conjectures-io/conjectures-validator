@@ -129,7 +129,7 @@ async def status(submission_id: uuid.UUID, principal: PrincipalDep, services: Se
     amount = claim.amount_usd_cents if claim else None
     if reason is None and claim is None:
         try:
-            amount = store.amount_for(services, submission)
+            amount = await anyio.to_thread.run_sync(store.amount_for, services, submission)
         except Conflict as error:
             reason = str(error)
     return {"eligible": reason is None, "eligibility_reason": reason,
@@ -181,7 +181,8 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
             raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
         claim = await store.accept_package(session, submission=submission, decision=decision,
                                            prepared=prepared, account_id=account_id, now=now,
-                                           amount_usd_cents=store.amount_for(services, submission),
+                                           amount_usd_cents=(existing.amount_usd_cents if existing else
+                                               await anyio.to_thread.run_sync(store.amount_for, services, submission)),
                                            offer_start_at=offer_start_at)
         await session.commit()
         return await store.view(session, claim)
@@ -396,6 +397,12 @@ async def reopen(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
         defer(TrajectoryClaim.commercial_election)).where(TrajectoryClaim.id == claim_id))
     if claim is None:
         raise NotFound("Trajectory not found")
+    if body.action == "REVOKE_PROOF_CHANGED" and claim.amount_usd_cents == 0:
+        # Match the event -> submission lock order used by cancellation/reconciliation.
+        from conjectures_subnet.db.submissions import _reward_event_exists
+        if await _reward_event_exists(session, claim.submission_id):
+            raise Conflict("Cancel the unsigned payout instruction before revoking required evidence; transfers already in flight cannot be revoked.",
+                           reason_code="TRAJECTORY_PAYOUT_IN_FLIGHT")
     submission = await session.scalar(select(Submission).where(Submission.id == claim.submission_id).with_for_update())
     claim = await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package),
         defer(TrajectoryClaim.commercial_election)).where(TrajectoryClaim.id == claim_id)
@@ -410,14 +417,14 @@ async def reopen(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
         reason = store.eligibility_reason(submission, current, cutoff=claim.offer_start_at,
                                           now=dt.datetime.now(dt.UTC), enforce_window=False)
         if (claim.status not in ("APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE") or reason or
-                snapshot != claim.proof_policy_snapshot or current.id == claim.proof_review_decision_id):
+                snapshot != claim.proof_policy_snapshot or current.id == claim.proof_review_decision_id or
+                not await store.unchanged_approval_chain(session, submission.id, current, claim.proof_review_decision_id)):
             raise Conflict("Rebinding requires an unchanged policy and a current full-bounty human approval.",
                            reason_code="TRAJECTORY_REBIND_INELIGIBLE")
         previous = claim.proof_review_decision_id
         claim.proof_review_decision_id = current.id
-        claim.review_note = body.note
         store.audit(claim, action=body.action, actor=principal.account.id, now=dt.datetime.now(dt.UTC),
-                    extra={"previous_proof_review_decision_id": previous})
+                    extra={"previous_proof_review_decision_id": previous, "note": body.note})
         await session.commit()
         return await store.view(session, claim)
     if body.action == "REVOKE_PROOF_CHANGED":

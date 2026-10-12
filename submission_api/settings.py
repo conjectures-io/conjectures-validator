@@ -321,12 +321,12 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # coldkey, unproved and not required to be linked, where before it was a proved coldkey/hotkey
 # pair). Both are in the "what is published" and "getting paid" sections.
 #
-# v8 adds prospective treasury-share pricing and required private chat-log review.
+# v8 treasury/chat-log terms remain a separate, inactive draft until launch.
 # v7 adopts review policy v4: established prior proofs disqualify even independent rediscovery.
 # The v3 defect-award cap remains unchanged.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
 # leaving it behind would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v8"
+DEFAULT_TERMS_VERSION = "v7"
 DEFAULT_TERMS_DATE = "2026-10-12"
 
 # The website route that renders the sign-in page the magic link opens. That page reads the
@@ -988,6 +988,8 @@ class Settings:
                 cutoff = datetime.fromisoformat(trajectory_bonus_start_at.replace("Z", "+00:00"))
                 if cutoff.tzinfo is None:
                     raise ValueError("timezone missing")
+                if production and trajectory_bonus_enabled and cutoff > datetime.now(cutoff.tzinfo):
+                    raise ValueError("production cutoff cannot be in the future")
             except ValueError as exc:
                 raise SettingsError("TRAJECTORY_BONUS_START_AT must be an ISO timestamp with timezone") from exc
         if trajectory_bonus_enabled and not trajectory_bonus_start_at:
@@ -1424,9 +1426,14 @@ class Settings:
             terms_version != DEFAULT_TERMS_VERSION or review_policy_version != "v4"
         ):
             raise SettingsError(
-                "the bundled submission terms require SUBMISSION_TERMS_VERSION=v8 and "
+                "the bundled submission terms require SUBMISSION_TERMS_VERSION=v7 and "
                 "REVIEW_POLICY_VERSION=v4; earlier contracts remain on existing submissions"
             )
+
+        if production and trajectory_bonus_enabled and (
+            not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7"
+        ):
+            raise SettingsError("trajectory launch requires explicit final versioned submission terms")
 
         # A pinned USD rate, or nothing. Converting TAO to USD needs a live external rate
         # this validator does not have, so the field is null rather than invented — and it
