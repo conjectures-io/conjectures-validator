@@ -1,4 +1,4 @@
--- New reward targets use a gross-treasury 2.5% share; existing targets and quotes keep their rules.
+-- New reward targets require accepted chat logs; existing targets and quotes keep their rules.
 -- Before applying, prime bounty_tasks with the currently published catalog. This boundary is durable.
 INSERT INTO bounty_tasks(reward_target_id, opened_at)
 SELECT reward_target_id, min(created_at) FROM submissions GROUP BY reward_target_id

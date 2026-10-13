@@ -109,7 +109,12 @@ async def offer(services: ServicesDep, session: SessionDep, response: Response):
     return {
         "enabled": services.settings.trajectory_bonus_enabled and start_at is not None,
         "legacy_bonus_usd_cents": {"erdos": 50000, "other": 25000},
-        "new_bounty_share": {"numerator": 1, "denominator": 40, "basis": "gross_treasury"},
+        "new_bounty_share": {"numerator": services.settings.bounty_constant_numerator,
+                             "denominator": services.settings.bounty_constant_denominator,
+                             "maximum_numerator": services.settings.bounty_max_share_numerator,
+                             "maximum_denominator": services.settings.bounty_max_share_denominator,
+                             "ramp_seconds": services.settings.bounty_ramp_seconds,
+                             "basis": "available_treasury"},
         "new_bounties_require_chat_logs": True, "logs_due": "BEFORE_PROOF_SUBMISSION",
         "deposit_hours": DEPOSIT_HOURS, "license": "REQUIRED_SALE_LICENSE_ON_ACCEPTANCE",
         "start_at": start_at,
