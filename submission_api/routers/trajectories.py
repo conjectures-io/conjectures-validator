@@ -18,7 +18,7 @@ from conjectures_subnet.db.submissions import latest_binding_decision
 from conjectures_subnet.db.trajectory_models import TrajectoryAccess, TrajectoryClaim
 from submission_api import trajectories as store
 from submission_api.dependencies import (
-    CookieWriterDep, PrincipalDep, ServicesDep, SessionDep, require_role, require_role_writer,
+    CookieWriterDep, PrincipalDep, ServicesDep, SessionDep, WriterDep, require_role, require_role_writer,
 )
 from submission_api.errors import ApiError, BadRequest, Conflict, NotFound, PayloadTooLarge
 from submission_api.sessions import Principal
@@ -184,12 +184,15 @@ async def received_package(request, consent, expected_state_version=None):
 
 
 @router.post("/me/chat-log-deposits")
-async def deposit(request: Request, principal: CookieWriterDep, services: ServicesDep,
+async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
                   session: SessionDep, response: Response, terms_version: TermsVersion,
                   terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False):
-    """Logs for a new bounty, uploaded before the proof. The proof must follow within 24 hours.
+    """Logs for a bounty that requires them, uploaded before the proof, which must follow
+    within 24 hours. The request body is the .zip package; consent rides in the query.
 
-    The request body is the .zip package; consent rides in the query.
+    A CLI token may upload too: the coldkey-signed submission path binds these logs through the
+    account its key is linked to. Unlike the writes held to a browser session, an upload changes
+    neither who the account is nor where its money goes.
     """
     private(response)
     await opened(services, session)

@@ -28,9 +28,18 @@ conjectures build --proof Main.lean --task erdos1094    # seals submission.zip
 conjectures verify                                      # is the proof correct?
 conjectures check                                       # is the envelope acceptable?
 conjectures pay                                         # 0.5 TAO, coldkey -> treasury
+conjectures logs upload chat-log-package.zip            # the AI chat logs behind the proof
 conjectures submit
 conjectures submissions show <id> --watch
 ```
+
+**Every open problem requires the AI chat logs that produced the proof**, uploaded before the
+proof is submitted and accepted by a reviewer ([submission terms v9](policies/submission-terms-v9.md),
+[chat-log terms](trajectories/chat-log-terms-v2.md)). Logs belong to the account your coldkey is
+linked to: run `conjectures auth register` once and `conjectures auth login`, then `logs upload`.
+A coldkey-signed submission finds the logs through that link; without them it is refused before
+the payment is spent, so upload and submit again with the same payment. Package the logs as
+[the agent instructions](trajectories/agent-instructions.md) describe.
 
 `check` never reads the proof: it is the zip, the manifest and a static policy scan. Whether the
 **proof** is correct is a different question, and only the verifier answers it — `verify` builds

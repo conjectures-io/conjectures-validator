@@ -123,3 +123,17 @@ with a reviewed fix; preserve all policy, consent and payout rows.
 The watcher also needs EXECUTE on `public.trajectory_bonus_oldest_pending(text,text)` under
 the same trusted owner with SELECT on `trajectory_payments`. This opens chain tracking when a
 historical bonus is the only outstanding obligation.
+
+## Every open target requires logs (October 13, 2026)
+
+Owner decision after launch: chat logs are required for every open target, not only new ones.
+
+- V050 moves every `legacy` row in `bounty_tasks` to `linear-age-v3-chat-logs`, keeping
+  `opened_at` and the starting share, so bounty amounts do not change. Submissions keep the
+  policy recorded on them. The V046 immutability trigger is disabled for that one statement only.
+- Coldkey-signed submissions (`POST /v1/submissions`, the `conjectures` CLI) take the logs the
+  signer's linked account deposited, refusing before the payment is spent. A CLI bearer token may
+  deposit logs (`POST /v1/me/chat-log-deposits`); the bonus upload and withdrawal stay browser-only.
+- Publish `docs/policies/submission-terms-v9.md` (`SUBMISSION_TERMS_VERSION=v9`) and
+  `chat-log-terms-v2.md`; set `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256` to the v2 digest in
+  `submission_api/trajectory_terms.py`, and ship the web's `data/trajectory` copy with it.

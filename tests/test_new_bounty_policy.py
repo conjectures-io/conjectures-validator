@@ -289,3 +289,62 @@ def test_production_default_refuses_unusable_submission_paths_before_spending(en
         finally:
             await kit.teardown()
     asyncio.run(scenario())
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
+def test_coldkey_signed_proof_carries_logs_deposited_from_a_cli_session():
+    from sqlalchemy import func
+    from conftest_api import distinct_bundle
+    from conjectures_subnet.bounty import DynamicBountyPricer
+    from conjectures_subnet.db.trajectory_models import TrajectoryClaim
+    from test_api_accounts import client
+    from test_api_cli_sessions import bearer, linked_account_with_cli_token
+    from test_api_submissions import _post
+    from test_api_trajectories import DEPOSITS, as_upload, kit_config, package_for
+
+    async def scenario():
+        kit = await kit_config().setup()
+        pricer = replace(kit.services.pricing,
+                         new_target_policy=DynamicBountyPricer.__dataclass_fields__['new_target_policy'].default)
+        kit.services = replace(kit.services, pricing=pricer)
+        kit.app.state.services = kit.services
+        try:
+            bundle, proof = distinct_bundle('cli-logs')
+
+            async def submissions():
+                async with kit.session() as session:
+                    return await session.scalar(select(func.count()).select_from(Submission))
+
+            # A coldkey linked to no account has nowhere to keep logs.
+            refused = await _post(kit, bundle, proof_digest=proof)
+            assert refused.status_code == 409, refused.text
+            assert refused.json()['reason_code'] == 'CHAT_LOG_ACCOUNT_REQUIRED'
+            account, token = await linked_account_with_cli_token(kit)
+            # Linked, but no logs yet: refused before the transfer is spent.
+            refused = await _post(kit, bundle, proof_digest=proof)
+            assert refused.status_code == 409, refused.text
+            assert refused.json()['reason_code'] == 'CHAT_LOG_REQUIRED'
+            assert await submissions() == 0
+
+            # A CLI token uploads them; it has no browser to prove where the request came from.
+            upload = as_upload(package_for(proof, None))
+            upload['headers'] = {**bearer(token), 'content-type': 'application/zip'}
+            async with await client(kit) as cli:
+                deposited = await cli.post(DEPOSITS, **upload)
+            assert deposited.status_code == 200, deposited.text
+            assert deposited.json()['status'] == 'DEPOSITED'
+
+            # The same transfer now buys the submission, and the logs are bound to it.
+            created = await _post(kit, bundle, proof_digest=proof)
+            assert created.status_code == 201, created.text
+            sid = uuid.UUID(created.json()['submission_id'])
+            async with kit.session() as session:
+                claim = await session.scalar(select(TrajectoryClaim).where(TrajectoryClaim.submission_id == sid))
+                assert claim.status == 'UNDER_REVIEW' and str(claim.account_id) == account['id']
+                sub = await session.get(Submission, sid)
+                assert sub.bounty_policy_version == TREASURY_CHAT_POLICY
+                # Payout attribution is unchanged: the coldkey that paid, not the account.
+                assert sub.account_id is None
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
