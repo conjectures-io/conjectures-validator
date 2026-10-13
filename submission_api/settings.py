@@ -26,6 +26,8 @@ and a guess about which database to write to is not one worth shipping.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import ipaddress
 import os
 import re
@@ -275,9 +277,7 @@ DEFAULT_PASSWORD_THROTTLE_MINUTES = 15
 
 # Public OAuth client identifier, not a secret. Empty keeps Google sign-in disabled without
 # weakening either of the existing login methods.
-GOOGLE_CLIENT_ID_SHAPE = re.compile(
-    r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$"
-)
+GOOGLE_CLIENT_ID_SHAPE = re.compile(r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$")
 
 # How many signatures may be offered against one challenge before it is spent.
 #
@@ -289,9 +289,7 @@ DEFAULT_CHALLENGE_ATTEMPTS = 5
 
 # Public OAuth client identifier, not a secret. Empty keeps Google sign-in disabled without
 # weakening either of the existing login methods.
-GOOGLE_CLIENT_ID_SHAPE = re.compile(
-    r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$"
-)
+GOOGLE_CLIENT_ID_SHAPE = re.compile(r"^[0-9]+-[A-Za-z0-9_-]{10,200}\.apps\.googleusercontent\.com$")
 
 # How long a held credit stays held. Long enough to upload a bundle and sign a digest,
 # short enough that an abandoned intent does not strand a credit for the day.
@@ -485,9 +483,7 @@ def _require(environ: Mapping[str, str], key: str) -> str:
     return value
 
 
-def _choice(
-    environ: Mapping[str, str], key: str, options: tuple[str, ...], default: str
-) -> str:
+def _choice(environ: Mapping[str, str], key: str, options: tuple[str, ...], default: str) -> str:
     """One of a fixed set, or the default.
 
     An empty value means "not set", exactly as it does for `_positive_int` and `_flag`. That
@@ -628,14 +624,10 @@ def _networks(environ: Mapping[str, str], key: str) -> tuple[ProxyNetwork, ...]:
 
 
 def _csv(environ: Mapping[str, str], key: str) -> tuple[str, ...]:
-    return tuple(
-        item.strip() for item in environ.get(key, "").split(",") if item.strip()
-    )
+    return tuple(item.strip() for item in environ.get(key, "").split(",") if item.strip())
 
 
-def _payable_pairs(
-    environ: Mapping[str, str], key: str
-) -> tuple[tuple[str, str | None], ...]:
+def _payable_pairs(environ: Mapping[str, str], key: str) -> tuple[tuple[str, str | None], ...]:
     """An allowlist of `CODE` or `CODE:network` entries, normalised.
 
     Unset and empty both mean "every pair TMC PAY offers", which is the same answer and is what an
@@ -646,9 +638,7 @@ def _payable_pairs(
     pairs: list[tuple[str, str | None]] = []
     for item in _csv(environ, key):
         if PAYABLE_PAIR_SHAPE.fullmatch(item) is None:
-            raise SettingsError(
-                f"{key} entries must be CODE or CODE:network, got {item!r}"
-            )
+            raise SettingsError(f"{key} entries must be CODE or CODE:network, got {item!r}")
         code, _, network = item.partition(":")
         pairs.append((code.upper(), network.lower() or None))
     return tuple(pairs)
@@ -710,9 +700,7 @@ def _write_origins(
     return _cors_origins(environ, key, production=production)
 
 
-def _cors_origins(
-    environ: Mapping[str, str], key: str, *, production: bool
-) -> tuple[str, ...]:
+def _cors_origins(environ: Mapping[str, str], key: str, *, production: bool) -> tuple[str, ...]:
     """An exact allowlist of browser origins.
 
     No wildcard in production, and no pattern matching in any mode: a subdomain wildcard turns
@@ -745,9 +733,7 @@ def _cors_origins(
         and not item.startswith(("http://localhost", "http://127.0.0.1"))
     )
     if production and insecure:
-        raise SettingsError(
-            f"{key} must use https in production: " + ", ".join(insecure)
-        )
+        raise SettingsError(f"{key} must use https in production: " + ", ".join(insecure))
     # Deduplicated and ordered, so the same configuration always produces the same allowlist.
     return tuple(sorted(set(origins)))
 
@@ -973,6 +959,10 @@ class Settings:
     # Every competition this deployment serves, in the order `/v1/competitions` lists them:
     # `COMPETITIONS`, or `competition_slug` alone when that is unset. See
     # submission_api/competitions/__init__.py.
+    deflate_submissions_enabled: bool = True
+    floatlib_submissions_enabled: bool = False
+    floatlib_registration_cutoff: datetime | None = None
+    floatlib_check_deflate_usage: bool = False
     competition_slugs: tuple[str, ...] = ()
     # Each competition's own database URL, from `COMPETITION_<SLUG>_DATABASE_URL`, as
     # (slug, url) pairs. A slug missing here is `competition_slug` falling back to
@@ -992,11 +982,7 @@ class Settings:
         cannot be authenticated — and an integration that creates invoices it can never confirm
         would take money and issue nothing.
         """
-        return bool(
-            self.tmc_pay_base_url
-            and self.tmc_pay_api_key
-            and self.tmc_pay_webhook_secret
-        )
+        return bool(self.tmc_pay_base_url and self.tmc_pay_api_key and self.tmc_pay_webhook_secret)
 
     @property
     def production(self) -> bool:
@@ -1030,9 +1016,7 @@ class Settings:
         )
         dispatcher = _choice(env, "SUBMISSION_DISPATCHER", DISPATCHERS, QUEUE_DISPATCH)
         if production and authenticator != COLDKEY_SIGNATURE_AUTH:
-            raise SettingsError(
-                "production requires SUBMISSION_AUTHENTICATOR=coldkey-signature"
-            )
+            raise SettingsError("production requires SUBMISSION_AUTHENTICATOR=coldkey-signature")
         if production and payment_verifier != CHAIN_PAYMENTS:
             raise SettingsError("production requires SUBMISSION_PAYMENT_VERIFIER=chain")
         if production and dispatcher != QUEUE_DISPATCH:
@@ -1041,9 +1025,7 @@ class Settings:
                 "share a trust domain with the proof verifier"
             )
 
-        recipient = _address(
-            env, "PAYMENT_RECIPIENT_SS58", _require(env, "PAYMENT_RECIPIENT_SS58")
-        )
+        recipient = _address(env, "PAYMENT_RECIPIENT_SS58", _require(env, "PAYMENT_RECIPIENT_SS58"))
         bounty_wallet_coldkey = _address(
             env,
             "BOUNTY_WALLET_COLDKEY_SS58",
@@ -1060,9 +1042,7 @@ class Settings:
 
         review_policy_version = env.get("REVIEW_POLICY_VERSION", "v3").strip()
         if POLICY_VERSION.fullmatch(review_policy_version) is None:
-            raise SettingsError(
-                "REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
-            )
+            raise SettingsError("REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}")
 
         # Production prices from the live bounty stake. A configured balance there would quietly
         # turn a moving chain value into a stale promise, so the deterministic override is
@@ -1079,9 +1059,7 @@ class Settings:
             "BOUNTY_POLICY_VERSION", DEFAULT_BOUNTY_POLICY_VERSION
         ).strip()
         if POLICY_VERSION.fullmatch(bounty_policy_version) is None:
-            raise SettingsError(
-                "BOUNTY_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
-            )
+            raise SettingsError("BOUNTY_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}")
         if bounty_policy_version.startswith("dynamic-age-"):
             raise SettingsError(
                 "BOUNTY_POLICY_VERSION names the old pricing formula; set it to "
@@ -1119,8 +1097,7 @@ class Settings:
         )
         if bounty_max_share_numerator > bounty_max_share_denominator:
             raise SettingsError(
-                "BOUNTY_MAX_SHARE_NUMERATOR must not exceed "
-                "BOUNTY_MAX_SHARE_DENOMINATOR"
+                "BOUNTY_MAX_SHARE_NUMERATOR must not exceed BOUNTY_MAX_SHARE_DENOMINATOR"
             )
         if (
             bounty_constant_numerator * bounty_max_share_denominator
@@ -1130,15 +1107,11 @@ class Settings:
                 "BOUNTY_CONSTANT_NUMERATOR / BOUNTY_CONSTANT_DENOMINATOR must not exceed "
                 "BOUNTY_MAX_SHARE_NUMERATOR / BOUNTY_MAX_SHARE_DENOMINATOR"
             )
-        bittensor_network = env.get(
-            "BITTENSOR_NETWORK", DEFAULT_BITTENSOR_NETWORK
-        ).strip()
+        bittensor_network = env.get("BITTENSOR_NETWORK", DEFAULT_BITTENSOR_NETWORK).strip()
         if not bittensor_network or len(bittensor_network) > 255 or "\x00" in bittensor_network:
             raise SettingsError("BITTENSOR_NETWORK must contain 1 to 255 non-NUL characters")
         taostats_api_key = env.get("TAOSTATS_API_KEY", "").strip()
-        if len(taostats_api_key) > 512 or any(
-            ord(char) < 32 for char in taostats_api_key
-        ):
+        if len(taostats_api_key) > 512 or any(ord(char) < 32 for char in taostats_api_key):
             raise SettingsError(
                 "TAOSTATS_API_KEY must not exceed 512 characters or contain control characters"
             )
@@ -1148,28 +1121,21 @@ class Settings:
         ).strip()
         if CONTRIBUTIONS_REPOSITORY.fullmatch(contributions_repository) is None:
             raise SettingsError("CONTRIBUTIONS_REPOSITORY must be 'owner/name'")
-        contributions_branch = env.get(
-            "CONTRIBUTIONS_BRANCH", DEFAULT_CONTRIBUTIONS_BRANCH
-        ).strip()
+        contributions_branch = env.get("CONTRIBUTIONS_BRANCH", DEFAULT_CONTRIBUTIONS_BRANCH).strip()
         if CONTRIBUTIONS_BRANCH.fullmatch(contributions_branch) is None:
             raise SettingsError("CONTRIBUTIONS_BRANCH is not a valid ref name")
         # Overridable so a test or an air-gapped deployment can point the mirror at a stand-in.
         # Production still requires https: the ETag-conditional poll carries no credential, but a
         # plaintext one would let anyone on the path decide what this API publishes as the corpus.
         contributions_api_base_url = (
-            env.get("CONTRIBUTIONS_GITHUB_API_URL", "").strip()
-            or DEFAULT_CONTRIBUTIONS_API_URL
+            env.get("CONTRIBUTIONS_GITHUB_API_URL", "").strip() or DEFAULT_CONTRIBUTIONS_API_URL
         )
         if not contributions_api_base_url.startswith(("http://", "https://")):
-            raise SettingsError(
-                "CONTRIBUTIONS_GITHUB_API_URL must be an absolute http(s) URL"
-            )
+            raise SettingsError("CONTRIBUTIONS_GITHUB_API_URL must be an absolute http(s) URL")
         if production and not contributions_api_base_url.startswith("https://"):
             raise SettingsError("CONTRIBUTIONS_GITHUB_API_URL must use https in production")
         contributions_token = env.get("CONTRIBUTIONS_GITHUB_TOKEN", "").strip()
-        if len(contributions_token) > 512 or any(
-            ord(char) < 32 for char in contributions_token
-        ):
+        if len(contributions_token) > 512 or any(ord(char) < 32 for char in contributions_token):
             raise SettingsError(
                 "CONTRIBUTIONS_GITHUB_TOKEN must not exceed 512 characters or contain "
                 "control characters"
@@ -1233,9 +1199,7 @@ class Settings:
 
         banner = env.get("STATUS_BANNER", "").strip()
         if len(banner) > MAX_BANNER_LENGTH:
-            raise SettingsError(
-                f"STATUS_BANNER must not exceed {MAX_BANNER_LENGTH} characters"
-            )
+            raise SettingsError(f"STATUS_BANNER must not exceed {MAX_BANNER_LENGTH} characters")
 
         mail_sender = _choice(
             env, "MAIL_SENDER", MAIL_SENDERS, SMTP_MAIL if production else CONSOLE_MAIL
@@ -1251,9 +1215,7 @@ class Settings:
         smtp_username = env.get("SMTP_USERNAME", "").strip()
         smtp_password = env.get("SMTP_PASSWORD", "")
         smtp_from_address = env.get("SMTP_FROM_ADDRESS", "").strip()
-        smtp_security = _choice(
-            env, "SMTP_SECURITY", SMTP_SECURITY_MODES, SMTP_STARTTLS
-        )
+        smtp_security = _choice(env, "SMTP_SECURITY", SMTP_SECURITY_MODES, SMTP_STARTTLS)
         smtp_timeout_seconds = _positive_float(
             env,
             "SMTP_TIMEOUT_SECONDS",
@@ -1270,9 +1232,7 @@ class Settings:
             ):
                 raise SettingsError("SMTP_HOST must be a hostname without whitespace")
             if not smtp_from_address:
-                raise SettingsError(
-                    "SMTP_FROM_ADDRESS is required when MAIL_SENDER=smtp"
-                )
+                raise SettingsError("SMTP_FROM_ADDRESS is required when MAIL_SENDER=smtp")
             if SMTP_FROM_ADDRESS.fullmatch(smtp_from_address) is None:
                 raise SettingsError("SMTP_FROM_ADDRESS must be one email address")
             if bool(smtp_username) != bool(smtp_password):
@@ -1290,9 +1250,7 @@ class Settings:
         brevo_api_key = env.get("BREVO_API_KEY", "").strip()
         brevo_base_url = env.get("BREVO_BASE_URL", DEFAULT_BREVO_BASE_URL).strip()
         brevo_sender_address = env.get("BREVO_SENDER_ADDRESS", "").strip()
-        brevo_sender_name = env.get(
-            "BREVO_SENDER_NAME", DEFAULT_BREVO_SENDER_NAME
-        ).strip()
+        brevo_sender_name = env.get("BREVO_SENDER_NAME", DEFAULT_BREVO_SENDER_NAME).strip()
         brevo_timeout_seconds = _positive_float(
             env,
             "BREVO_TIMEOUT_SECONDS",
@@ -1332,9 +1290,7 @@ class Settings:
             maximum=MAX_PASSWORD_COST_LOG2,
         )
         if password_cost_log2 < MIN_PASSWORD_COST_LOG2:
-            raise SettingsError(
-                f"PASSWORD_COST_LOG2 must be at least {MIN_PASSWORD_COST_LOG2}"
-            )
+            raise SettingsError(f"PASSWORD_COST_LOG2 must be at least {MIN_PASSWORD_COST_LOG2}")
         password_attempts = _positive_int(
             env, "PASSWORD_ATTEMPTS", DEFAULT_PASSWORD_ATTEMPTS, maximum=1_000
         )
@@ -1398,41 +1354,25 @@ class Settings:
         # Rooted, and no origin of its own: this is joined onto `website_base_url`, so an
         # absolute URL here would silently send the sign-in link to a host nobody configured
         # — the same failure WEBSITE_BASE_URL is validated to prevent.
-        email_verify_path = env.get(
-            "EMAIL_VERIFY_PATH", DEFAULT_EMAIL_VERIFY_PATH
-        ).strip()
+        email_verify_path = env.get("EMAIL_VERIFY_PATH", DEFAULT_EMAIL_VERIFY_PATH).strip()
         if not email_verify_path.startswith("/") or email_verify_path.startswith("//"):
-            raise SettingsError(
-                "EMAIL_VERIFY_PATH must be a rooted path such as /login/verify"
-            )
+            raise SettingsError("EMAIL_VERIFY_PATH must be a rooted path such as /login/verify")
         if "?" in email_verify_path or "#" in email_verify_path:
             raise SettingsError(
                 "EMAIL_VERIFY_PATH must not carry a query string or fragment; the token "
                 "is appended as the only query parameter"
             )
         email_verify_path = email_verify_path.rstrip("/") or "/"
-        signup_verify_path = _website_path(
-            env, "SIGNUP_VERIFY_PATH", DEFAULT_SIGNUP_VERIFY_PATH
-        )
-        password_reset_path = _website_path(
-            env, "PASSWORD_RESET_PATH", DEFAULT_PASSWORD_RESET_PATH
-        )
+        signup_verify_path = _website_path(env, "SIGNUP_VERIFY_PATH", DEFAULT_SIGNUP_VERIFY_PATH)
+        password_reset_path = _website_path(env, "PASSWORD_RESET_PATH", DEFAULT_PASSWORD_RESET_PATH)
         sign_in_path = _website_path(env, "SIGN_IN_PATH", DEFAULT_SIGN_IN_PATH)
 
-        terms_date = env.get(
-            "SUBMISSION_TERMS_EFFECTIVE_FROM", DEFAULT_TERMS_DATE
-        ).strip()
+        terms_date = env.get("SUBMISSION_TERMS_EFFECTIVE_FROM", DEFAULT_TERMS_DATE).strip()
         if ISO_DATE.fullmatch(terms_date) is None:
-            raise SettingsError(
-                "SUBMISSION_TERMS_EFFECTIVE_FROM must be an ISO date, YYYY-MM-DD"
-            )
-        terms_version = env.get(
-            "SUBMISSION_TERMS_VERSION", DEFAULT_TERMS_VERSION
-        ).strip()
+            raise SettingsError("SUBMISSION_TERMS_EFFECTIVE_FROM must be an ISO date, YYYY-MM-DD")
+        terms_version = env.get("SUBMISSION_TERMS_VERSION", DEFAULT_TERMS_VERSION).strip()
         if POLICY_VERSION.fullmatch(terms_version) is None:
-            raise SettingsError(
-                "SUBMISSION_TERMS_VERSION must match [a-z0-9][a-z0-9.-]{0,63}"
-            )
+            raise SettingsError("SUBMISSION_TERMS_VERSION must match [a-z0-9][a-z0-9.-]{0,63}")
 
         if not env.get("SUBMISSION_TERMS_PATH", "").strip() and (
             terms_version != DEFAULT_TERMS_VERSION or review_policy_version != "v3"
@@ -1447,9 +1387,7 @@ class Settings:
         # is a string all the way through, because a price must not become a float.
         credit_price_usd = env.get("CREDIT_PRICE_USD", "").strip()
         if credit_price_usd and not re.fullmatch(r"\d{1,9}(\.\d{1,4})?", credit_price_usd):
-            raise SettingsError(
-                "CREDIT_PRICE_USD must be a plain decimal amount, e.g. 4.50"
-            )
+            raise SettingsError("CREDIT_PRICE_USD must be a plain decimal amount, e.g. 4.50")
         credit_price_usd_asof = env.get("CREDIT_PRICE_USD_ASOF", "").strip()
         if credit_price_usd and ISO_DATE.fullmatch(credit_price_usd_asof) is None:
             raise SettingsError(
@@ -1496,12 +1434,9 @@ class Settings:
                 )
             if production and not tmc_pay_base_url.startswith("https://"):
                 raise SettingsError("TMC_PAY_API_BASE_URL must use https in production")
-            if len(tmc_pay_api_key) > 512 or any(
-                ord(char) < 32 for char in tmc_pay_api_key
-            ):
+            if len(tmc_pay_api_key) > 512 or any(ord(char) < 32 for char in tmc_pay_api_key):
                 raise SettingsError(
-                    "TMC_PAY_API_KEY must not exceed 512 characters or contain control "
-                    "characters"
+                    "TMC_PAY_API_KEY must not exceed 512 characters or contain control characters"
                 )
             if len(tmc_pay_webhook_secret) < 16:
                 # The secret is the only thing standing between an unauthenticated endpoint and
@@ -1513,8 +1448,7 @@ class Settings:
         # `none` switches the public candle feed off; empty means "use the default host". Validated
         # here so a typo is a boot failure rather than a purchase that silently falls back.
         taomarketcap_base_url = (
-            env.get("TAOMARKETCAP_API_BASE_URL", "").strip()
-            or DEFAULT_TAOMARKETCAP_API_BASE_URL
+            env.get("TAOMARKETCAP_API_BASE_URL", "").strip() or DEFAULT_TAOMARKETCAP_API_BASE_URL
         )
         if taomarketcap_base_url.lower() == "none":
             taomarketcap_base_url = ""
@@ -1528,9 +1462,7 @@ class Settings:
 
         # Read as a pair: the write allowlist inherits the read one unless it is set, so the
         # read one has to be resolved first.
-        cors_allowed_origins = _cors_origins(
-            env, "CORS_ALLOWED_ORIGINS", production=production
-        )
+        cors_allowed_origins = _cors_origins(env, "CORS_ALLOWED_ORIGINS", production=production)
         write_allowed_origins = _write_origins(
             env,
             "WRITE_ALLOWED_ORIGINS",
@@ -1539,8 +1471,7 @@ class Settings:
         )
 
         tmc_pay_fiat_currency = (
-            env.get("TMC_PAY_FIAT_CURRENCY", "").strip().upper()
-            or DEFAULT_TMC_PAY_FIAT_CURRENCY
+            env.get("TMC_PAY_FIAT_CURRENCY", "").strip().upper() or DEFAULT_TMC_PAY_FIAT_CURRENCY
         )
         if FIAT_CURRENCY.fullmatch(tmc_pay_fiat_currency) is None:
             raise SettingsError(
@@ -1578,9 +1509,7 @@ class Settings:
             raise SettingsError("TMC_PAY_MERCHANT_ID must not exceed 64 characters")
         tmc_pay_payable_pairs = _payable_pairs(env, "TMC_PAY_PAYABLE_PAIRS")
         tmc_pay_webhook_debug = _flag(env, "TMC_PAY_WEBHOOK_DEBUG", False)
-        tmc_pay_hosted_base_url = (
-            env.get("TMC_PAY_HOSTED_BASE_URL", "").strip().rstrip("/")
-        )
+        tmc_pay_hosted_base_url = env.get("TMC_PAY_HOSTED_BASE_URL", "").strip().rstrip("/")
         if tmc_pay_hosted_base_url:
             if not tmc_pay_hosted_base_url.startswith(("http://", "https://")):
                 raise SettingsError(
@@ -1590,9 +1519,7 @@ class Settings:
             if production and not tmc_pay_hosted_base_url.startswith("https://"):
                 # It is a link handed to a person who is about to send money. Over http, the
                 # address on the page is whatever the network says it is.
-                raise SettingsError(
-                    "TMC_PAY_HOSTED_BASE_URL must use https in production"
-                )
+                raise SettingsError("TMC_PAY_HOSTED_BASE_URL must use https in production")
 
         tasks_root = _directory(env, "CONJECTURES_TASKS_ROOT", DEFAULT_TASKS_ROOT)
         competitions_enabled = _flag(env, "COMPETITIONS_ENABLED", False)
@@ -1624,7 +1551,38 @@ class Settings:
                         "not something to leave to a default"
                     )
 
+        floatlib_uploads = _flag(env, "FLOATLIB_SUBMISSIONS_ENABLED", False)
+        deflate_uploads = _flag(env, "DEFLATE_SUBMISSIONS_ENABLED", True)
+        check_deflate = _flag(env, "FLOATLIB_CHECK_DEFLATE_USAGE", False)
+        cutoff_raw = env.get("FLOATLIB_REGISTRATION_CUTOFF", "").strip()
+        cutoff = None
+        if cutoff_raw:
+            try:
+                cutoff = datetime.fromisoformat(cutoff_raw)
+                if cutoff.tzinfo is None:
+                    raise ValueError("timezone is required")
+                cutoff = cutoff.astimezone(UTC)
+            except ValueError as exc:
+                raise SettingsError(
+                    "FLOATLIB_REGISTRATION_CUTOFF must be an ISO-8601 timestamp with timezone"
+                ) from exc
+        if floatlib_uploads:
+            if not competitions_enabled or "floatlib" not in competition_slugs:
+                raise SettingsError(
+                    "FLOATLIB_SUBMISSIONS_ENABLED requires FloatLib to be configured"
+                )
+            if cutoff is None:
+                raise SettingsError("FLOATLIB_REGISTRATION_CUTOFF is required for FloatLib uploads")
+            if check_deflate and ("deflate" not in competition_slugs or deflate_uploads):
+                raise SettingsError(
+                    "FLOATLIB_CHECK_DEFLATE_USAGE requires DEFLATE configured with uploads disabled"
+                )
+
         return cls(
+            deflate_submissions_enabled=deflate_uploads,
+            floatlib_submissions_enabled=floatlib_uploads,
+            floatlib_registration_cutoff=cutoff,
+            floatlib_check_deflate_usage=check_deflate,
             app_mode=app_mode,
             database_url=env.get("DATABASE_URL", "").strip(),
             competitions_enabled=competitions_enabled,
@@ -1632,9 +1590,7 @@ class Settings:
             competition_slug=competition_slug,
             competition_slugs=competition_slugs,
             competition_database_urls=competition_database_urls,
-            competition_name=(
-                env.get("COMPETITION_NAME", "").strip() or "DEFLATE"
-            ),
+            competition_name=(env.get("COMPETITION_NAME", "").strip() or "DEFLATE"),
             competition_speed_floor=_positive_float(
                 env, "COMPETITION_SPEED_FLOOR", 8.0, maximum=1_000.0
             ),
@@ -1665,20 +1621,14 @@ class Settings:
                 "TASK_ALLOWLIST_PATH",
                 tasks_root / "allowlist.json",
             ),
-            task_pool_root=_directory(
-                env, "TASK_POOL_ROOT", tasks_root / "pool"
-            ),
-            verifier_project_root=_directory(
-                env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT
-            ),
+            task_pool_root=_directory(env, "TASK_POOL_ROOT", tasks_root / "pool"),
+            verifier_project_root=_directory(env, "VERIFIER_PROJECT_ROOT", PROJECT_ROOT),
             payment_recipient=recipient,
             payment_amount_rao=_positive_int(
                 env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
             ),
             bittensor_network=bittensor_network,
-            bittensor_archive_network=env.get(
-                "BITTENSOR_ARCHIVE_NETWORK", ""
-            ).strip(),
+            bittensor_archive_network=env.get("BITTENSOR_ARCHIVE_NETWORK", "").strip(),
             bounty_wallet_coldkey=bounty_wallet_coldkey,
             bounty_wallet_hotkey=bounty_wallet_hotkey,
             bounty_netuid=_positive_int(
@@ -1689,9 +1639,7 @@ class Settings:
             dispatcher=dispatcher,
             development_coldkeys=development_coldkeys,
             development_payment_references=_csv(env, "DEVELOPMENT_PAYMENT_REFERENCES"),
-            nonce_window_seconds=_positive_int(
-                env, "NONCE_WINDOW_SECONDS", 120, maximum=3600
-            ),
+            nonce_window_seconds=_positive_int(env, "NONCE_WINDOW_SECONDS", 120, maximum=3600),
             max_bundle_bytes=_positive_int(
                 env, "MAX_BUNDLE_BYTES", MAX_BUNDLE_BYTES, maximum=MAX_BUNDLE_BYTES
             ),
@@ -1749,9 +1697,7 @@ class Settings:
                 DEFAULT_RATE_LIMIT_MAX_CLIENTS,
                 maximum=5_000_000,
             ),
-            trusted_proxy_hops=_bounded_int(
-                env, "TRUSTED_PROXY_HOPS", 0, minimum=0, maximum=8
-            ),
+            trusted_proxy_hops=_bounded_int(env, "TRUSTED_PROXY_HOPS", 0, minimum=0, maximum=8),
             trusted_proxy_peers=_networks(env, "TRUSTED_PROXY_PEERS"),
             cursor_secret=_secret(
                 env,
@@ -1833,9 +1779,7 @@ class Settings:
             sign_in_path=sign_in_path,
             login_domain=login_domain,
             google_client_id=google_client_id,
-            session_days=_positive_int(
-                env, "SESSION_DAYS", DEFAULT_SESSION_DAYS, maximum=365
-            ),
+            session_days=_positive_int(env, "SESSION_DAYS", DEFAULT_SESSION_DAYS, maximum=365),
             session_refresh_minutes=_positive_int(
                 env,
                 "SESSION_REFRESH_MINUTES",
@@ -1871,12 +1815,8 @@ class Settings:
             intent_minutes=_positive_int(
                 env, "INTENT_MINUTES", DEFAULT_INTENT_MINUTES, maximum=1_440
             ),
-            deposit_hours=_positive_int(
-                env, "DEPOSIT_HOURS", DEFAULT_DEPOSIT_HOURS, maximum=720
-            ),
-            credit_packages=env.get(
-                "CREDIT_PACKAGES", DEFAULT_CREDIT_PACKAGES
-            ).strip()
+            deposit_hours=_positive_int(env, "DEPOSIT_HOURS", DEFAULT_DEPOSIT_HOURS, maximum=720),
+            credit_packages=env.get("CREDIT_PACKAGES", DEFAULT_CREDIT_PACKAGES).strip()
             or DEFAULT_CREDIT_PACKAGES,
             credit_price_usd=credit_price_usd,
             credit_price_usd_asof=credit_price_usd_asof,
@@ -1954,7 +1894,5 @@ class Settings:
                 minimum=0,
                 maximum=86_400,
             ),
-            tmc_pay_credit_late_payments=_flag(
-                env, "TMC_PAY_CREDIT_LATE_PAYMENTS", False
-            ),
+            tmc_pay_credit_late_payments=_flag(env, "TMC_PAY_CREDIT_LATE_PAYMENTS", False),
         )
