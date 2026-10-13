@@ -1,8 +1,6 @@
 """FloatLib's read contract, as the website reads it.
 
-The shapes `conjectures-optimisation-float-kernels` serves from its own API
-(`validator/service/schemas.py`), so a client reads either the same way, plus what only the
-platform adds: per-kernel times and promotion dates on the board, the champions' history, and
+The shared FloatLib wire contract served centrally, including: per-kernel times and promotion dates on the board, the champions' history, and
 the rules a page states. Timestamps are ISO-8601 to the second with a `Z`, as that API writes
 them.
 """
@@ -109,3 +107,13 @@ class Champion(BaseModel):
     # Reward rank, independent of leaderboard position; null on unpaid or older champions.
     rank: int | None = None
     rank_share: float | None = None
+
+
+class Accepted(BaseModel):
+    competition: str = "floatlib"
+    submission: int
+    slot: str = "full"
+    state: str = "queued"
+    digest: str
+    created: bool = True
+    slots_remaining: int = 0

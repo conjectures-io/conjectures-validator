@@ -3,12 +3,11 @@
 Every route here matches only FloatLib's slugs -- `floatlib`, the paid full entry, and
 `floatlib-<slot>`, its practice boards -- through the `floatlib` path convertor, and the app
 includes this router before DEFLATE's, whose `{slug}` routes would otherwise answer them. A
-FloatLib slug on a route only DEFLATE has (`/pareto`, the submit paths, the operator queue) falls
+FloatLib slug on a route only DEFLATE has (`/pareto`, the session submit path, the operator queue) falls
 through to DEFLATE's handler, which 404s it (`routers.competitions.resolve_competition`).
 
-The shapes are FloatLib's own API's (`schemas_floatlib`), so the website reads either the same
-way. What a board means is FloatLib's rule, restated in `floatlib_store`; nothing here re-runs
-its scoring. Submissions are not taken here: miners submit to the FloatLib host.
+The shapes are the FloatLib wire contract (`schemas_floatlib`). What a board means is FloatLib's rule, restated in `floatlib_store`; nothing here re-runs
+its scoring. Signed full-entry submissions are handled by `floatlib_intake`; practice boards are read-only.
 """
 
 from __future__ import annotations
@@ -143,7 +142,7 @@ def kernel_times(slot: str, classes) -> dict[str, float] | None:
     return times or None
 
 
-async def summary(competition: Competition, slot: str, session) -> sc.Competition:
+async def summary(competition: Competition, slot: str, session, services) -> sc.Competition:
     """One FloatLib board in the index's shape, so `/v1/competitions` lists it like DEFLATE."""
     await store.compatible(session)
     publication = await store.publication(session)
@@ -153,8 +152,9 @@ async def summary(competition: Competition, slot: str, session) -> sc.Competitio
     return sc.Competition(
         slug=floatlib_slug(slot),
         name=competition.name if slot == FLOATLIB_MAIN_SLOT else f"{competition.name} {slot}",
-        # Submissions go to the FloatLib host; this API takes none.
-        submissions_open=False,
+        submissions_open=slot == FLOATLIB_MAIN_SLOT
+        and getattr(services.settings, "floatlib_submissions_enabled", False)
+        and not services.settings.submissions_paused,
         queue_depth=await store.queue_depth(session),
         current_snapshot_id=sid,
         description="Formally verified float kernels, king of the hill",
@@ -186,7 +186,7 @@ async def listed(competition: Competition, services) -> sc.Competition:
         )
     async with sessions() as session:
         try:
-            return await summary(competition, FLOATLIB_MAIN_SLOT, session)
+            return await summary(competition, FLOATLIB_MAIN_SLOT, session, services)
         except (OperationalError, InterfaceError) as exc:
             raise ServiceUnavailable(
                 "the competition database is unreachable",
@@ -197,7 +197,7 @@ async def listed(competition: Competition, services) -> sc.Competition:
 @router.get(SLUG, response_model=sc.Competition)
 async def detail(board: BoardPath, services: ServicesDep, session: CompetitionSessionDep):
     competition = resolve_competition(services, board, FLOATLIB)
-    return await summary(competition, board_of(services, board), session)
+    return await summary(competition, board_of(services, board), session, services)
 
 
 async def rules(session) -> s.Health:
@@ -375,3 +375,9 @@ async def report(
     """The gate's verdict JSON in full; its own endpoint, since no listing should carry it."""
     await _row(services, board, session, submission_id)
     return s.Report(report=await store.report(session, submission_id))
+
+
+# Include before the generic DEFLATE upload route in the application.
+from .floatlib_intake import router as intake_router  # noqa: E402
+
+router.include_router(intake_router)

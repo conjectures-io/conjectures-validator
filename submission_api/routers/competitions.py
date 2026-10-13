@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from fastapi import APIRouter, Header, Path, Request, Response
+from fastapi import APIRouter, Depends, Header, Path, Request, Response
 from submission_api import compression_store as queries
 from submission_api import competition_sig, schemas_compression as schemas
 from submission_api.competitions import DEFLATE, Competition, UnknownCompetition
@@ -72,6 +72,20 @@ def refuse_if_paused(services: ServicesDep) -> None:
             "submissions are paused; see GET /v1/system/status",
             reason_code=REASON_SUBMISSIONS_PAUSED,
         )
+
+
+def refuse_if_closed(services: ServicesDep) -> None:
+    if not getattr(services.settings, "deflate_submissions_enabled", True):
+        raise Forbidden(
+            "Submissions for this competition are closed.", reason_code="SUBMISSIONS_CLOSED"
+        )
+
+
+def require_open_intake(request: Request, services: ServicesDep) -> None:
+    # A closed competition must answer before header validation, auth or multipart parsing.
+    resolve_competition(services, request.path_params["slug"])
+    refuse_if_closed(services)
+    refuse_if_paused(services)
 
 
 UPLOAD_SCHEMA = {
@@ -198,6 +212,7 @@ async def _queue(
     # structural backstop: a third write path added later reaches the queue through here,
     # and a guard only in the callers is one a new caller can forget. Checking a boolean
     # twice costs nothing; discovering the omission in production would not.
+    refuse_if_closed(services)
     refuse_if_paused(services)
 
     await queries.compatible(session)
@@ -262,6 +277,7 @@ async def _queue(
     status_code=201,
     summary="Submit, signed by a subnet hotkey",
     openapi_extra=UPLOAD_SCHEMA,
+    dependencies=[Depends(require_open_intake)],
 )
 async def submit(
     request: Request,
@@ -281,8 +297,9 @@ async def submit(
     allowlists no `X-Conjectures-*` header, which is what keeps this endpoint unreachable
     from a browser even on an allowlisted origin. See `competition_sig`.
     """
-    refuse_if_paused(services)
     competition = resolve_competition(services, slug)
+    refuse_if_closed(services)
+    refuse_if_paused(services)
     settings = services.settings
 
     await queries.compatible(session)
@@ -342,6 +359,7 @@ def _is_hex(value: str) -> bool:
     status_code=201,
     summary="Submit as a signed-in account",
     openapi_extra=UPLOAD_SCHEMA,
+    dependencies=[Depends(require_open_intake)],
 )
 async def submit_as_account(
     request: Request,
@@ -369,8 +387,9 @@ async def submit_as_account(
     account's coldkey cannot retroactively un-register anything -- so there is no window in
     which the two reads could disagree about the past.
     """
-    refuse_if_paused(services)
     competition = resolve_competition(services, slug)
+    refuse_if_closed(services)
+    refuse_if_paused(services)
     await queries.compatible(session)
     await _spend_ip(request, session, services)
     coldkey = principal.account.submission_coldkey

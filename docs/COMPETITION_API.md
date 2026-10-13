@@ -1016,11 +1016,11 @@ Move an `error` or stuck `verifying` row back to `queued`, with a reason.
 
 ## FloatLib
 
-`{board}` is a FloatLib board: `floatlib`, the paid full entry (slot `full`), or one of its practice boards: `floatlib-add`, `-mul`, `-fma`, `-div`, `-sqrt`, `-sum`, `-bmm`. All of them read FloatLib's own database (`COMPETITION_FLOATLIB_DATABASE_URL`, as the `platform_api` role of `conjectures-optimisation-float-kernels`) and nothing else. The shapes are FloatLib's own API's (`validator/service/schemas.py` there), plus `kernels`, `promoted_at`, `/champions` and the rules on `/health`. Times are `YYYY-MM-DDTHH:MM:SSZ`, ids integers. Submissions are not taken here: miners submit to the FloatLib host. Every route answers **404 `NOT_FOUND`** when FloatLib is not served here, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when its database is older than its migration 0016 or `platform_api` cannot read `promotions`.
+`{board}` is a FloatLib board: `floatlib`, the paid full entry (slot `full`), or one of its practice boards: `floatlib-add`, `-mul`, `-fma`, `-div`, `-sqrt`, `-sum`, `-bmm`. All of them read FloatLib's own database (`COMPETITION_FLOATLIB_DATABASE_URL`, as the `platform_api` role of `conjectures-optimisation-float-kernels`) and nothing else. The shapes are FloatLib's own API's (`validator/service/schemas.py` there), plus `kernels`, `promoted_at`, `/champions` and the rules on `/health`. Times are `YYYY-MM-DDTHH:MM:SSZ`, ids integers. Full-entry submissions are accepted here when enabled; practice boards are read-only. Every route answers **404 `NOT_FOUND`** when FloatLib is not served here, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when its database is older than its migration 0016 or `platform_api` cannot read `promotions`.
 
 ### GET `/v1/competitions/{board}`
 
-The board in the [Competition](#competition) shape, so `/v1/competitions` lists FloatLib (once, as `floatlib`) beside DEFLATE: `files` is `Kernel.lean`, the one metric is `ratio` (lower is better), `policy` is the latest published scoring's, and `submissions_open` is `false`.
+The board in the [Competition](#competition) shape, so `/v1/competitions` lists FloatLib (once, as `floatlib`) beside DEFLATE: `files` is `Kernel.lean`, the one metric is `ratio` (lower is better), `policy` is the latest published scoring's, and `submissions_open` reflects `FLOATLIB_SUBMISSIONS_ENABLED` and the global pause flag (practice boards are always closed).
 
 ### GET `/v1/competitions/{board}/health`
 
@@ -1463,3 +1463,43 @@ What a requeue did. `requeued` is false when the row was not one to requeue.
 | `confidence_level` | number | yes |  |
 | `method` | string | yes |  |
 | `sidedness` | string | yes |  |
+
+### FloatLib signed upload
+
+`POST /v1/competitions/floatlib/submissions` accepts exactly one UTF-8 file part named
+`Kernel.lean` (1–256000 bytes) with the `X-Conjectures-Hotkey`, `X-Conjectures-Timestamp`
+and `X-Conjectures-Signature` headers. The signed message is the same five-line competition
+message, with `digest` equal to SHA-256 of this one file and `competition: floatlib`.
+The multipart body is capped at 512000 bytes, including overhead, even without Content-Length.
+
+A new entry returns 201:
+
+```json
+{"competition":"floatlib","submission":49,"slot":"full","state":"queued","digest":"…","created":true,"slots_remaining":0}
+```
+
+Duplicate files from the same hotkey return 409 `DUPLICATE_SUBMISSION` with existing
+`submission` and `state`; no new work is created, even after re-registration. Every stored
+FloatLib submission since the hotkey's latest registration blocks a new file, regardless of
+slot or state. Refused requests before insertion do not consume eligibility.
+
+Configuration:
+- `FLOATLIB_SUBMISSIONS_ENABLED=false` by default; enables full-entry uploads only.
+- `FLOATLIB_REGISTRATION_CUTOFF`: required when enabled, ISO-8601 with timezone. The latest
+  on-chain registration must be strictly after this cutoff by default.
+- `FLOATLIB_CHECK_DEFLATE_USAGE=false` by default. When true, the configured DEFLATE database
+  is checked instead of applying the cutoff. Any miner submission since that registration,
+  including pending and error entries, blocks use. Connection failures warn and fall back to
+  the cutoff; schema/query defects do not grant eligibility. This mode requires DEFLATE
+  configured with uploads closed.
+- `DEFLATE_SUBMISSIONS_ENABLED=true` by default for existing deployments. Set false at
+  transition; both signed and session DEFLATE uploads return 403 `SUBMISSIONS_CLOSED` with
+  “Submissions for this competition are closed.” Reads and queued verification continue.
+
+No registration is charged again when the gate finishes verification. Interrupted work retries
+the same submission; terminal validator errors require operator recovery of that entry.
+
+Deployment: deploy the FloatLib worker changes first, reapply its platform grants, then enable
+central intake with the chosen cutoff. Close DEFLATE intake and drain any already-running
+upload requests before enabling the optional DEFLATE usage check. Remove the old standalone
+FloatLib API process and proxy route. No schema migration is required for this intake change.
