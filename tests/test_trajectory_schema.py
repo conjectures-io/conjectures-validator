@@ -114,6 +114,18 @@ def test_terms_assent_and_template_are_plain_and_pinned():
     assert "commercial_election" not in blank
 
 
+def test_agent_instructions_cover_every_schema_field():
+    # Contributors hand this file to an AI agent; it must keep up with the schema it targets.
+    guide = (ROOT / "docs/trajectories/agent-instructions.md").read_text()
+    schema = TrajectoryPackage.model_json_schema()
+    fields = set(schema["properties"])
+    for name in ("ModelRun", "Event", "Artifact", "Reproduction"):
+        fields |= set(schema["$defs"][name]["properties"])
+    assert not {f for f in fields if f"`{f}`" not in guide}
+    for rule in ("verbatim", "thinking", "[REDACTED]", "authoritative_submission", "real timestamp"):
+        assert rule in guide
+
+
 def test_empty_output_and_branch_linkage_preserve_export():
     p = example()
     p["events"][3].update(content="", empty_content=True)

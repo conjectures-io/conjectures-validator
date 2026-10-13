@@ -11,8 +11,9 @@ Contributor terms are one plain-language page, [chat-log-terms-v1.md](chat-log-t
 (owner-reviewed October 13, 2026), with a single pinned assent statement
 ([assent-statements-v2.json](assent-statements-v2.json)). They take effect when intake opens.
 `python scripts/trajectory_assets.py` regenerates the schema, template, example, the terms
-manifest and `submission_api/trajectory_terms.py` digests; copy `docs/trajectories/*.json` and
-the terms Markdown to the frontend's `data/trajectory/` and verify the hashes together.
+manifest and `submission_api/trajectory_terms.py` digests; copy `docs/trajectories/*.json`, the
+terms Markdown and `agent-instructions.md` to the frontend's `data/trajectory/` and verify the
+hashes together.
 
 ## Owner policy
 
@@ -38,7 +39,9 @@ the terms Markdown to the frontend's `data/trajectory/` and verify the hashes to
 2. Export the conversation through the provider's own export, share link or API logs. Keep the
    real user-visible messages, tool calls and results and failed attempts in order. Never send
    hidden model reasoning.
-3. Fill [template.json](template.json) against [trajectory.schema.json](trajectory.schema.json).
+3. Easiest: give an AI agent [agent-instructions.md](agent-instructions.md) with the export, the
+   proof file and the values above; it builds the file. Or fill
+   [template.json](template.json) against [trajectory.schema.json](trajectory.schema.json) by hand.
    [synthetic-example.json](synthetic-example.json) shows the shape and is refused by intake.
    Use `null` plus a short reason for anything the export does not show. At least one dated
    event must attach the final-proof artifact: that is when the chat produced the proof.
