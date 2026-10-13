@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from dataclasses import dataclass, field
+from unittest.mock import patch
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import pytest
@@ -308,7 +309,10 @@ def legacy_version(tasks: Tasks, commit: str):
     identifier = legacy_task_id(commit, decl.theorem, "formalized", 1)
     output = tasks.root / "history" / "legacy" / identifier
     output.parent.mkdir(parents=True, exist_ok=True)
-    generate_task(catalog=catalog, declaration=decl, mode="formalized", output=output, validate_target=CountingValidator())
+    # Preserve the historical adapter-1 fixture even when new generation defaults to adapter 2.
+    from verifier.adapters import adapter_for
+    with patch("verifier.task_generator.adapter_for", return_value=replace(adapter_for(decl), versions=(1,))):
+        generate_task(catalog=catalog, declaration=decl, mode="formalized", output=output, validate_target=CountingValidator())
     from verifier.task_loader import load_task_bundle
 
     bundle = load_task_bundle(output)

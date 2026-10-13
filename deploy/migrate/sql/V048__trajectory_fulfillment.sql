@@ -113,7 +113,7 @@ BEGIN
                 RETURN OLD;
             END IF;
         ELSIF TG_TABLE_NAME = 'trajectory_deliveries' THEN
-            IF OLD.revoked_at IS NOT NULL AND OLD.created_at < now() - interval '2555 days'
+            IF OLD.created_at < now() - interval '2555 days'
                AND NOT EXISTS (SELECT 1 FROM trajectory_exports e WHERE e.delivery_id = OLD.id)
                AND EXISTS (SELECT 1 FROM trajectory_claims c WHERE c.id = OLD.claim_id
                    AND c.audit_expires_at < now() AND c.status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE')) THEN

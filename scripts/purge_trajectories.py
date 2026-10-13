@@ -162,7 +162,6 @@ async def purge(session):
             await session.execute(
                 delete(TrajectoryDelivery).where(
                     TrajectoryDelivery.claim_id == claim_id,
-                    TrajectoryDelivery.revoked_at.is_not(None),
                     TrajectoryDelivery.created_at < cutoff,
                     ~exists(
                         select(TrajectoryExport.id).where(

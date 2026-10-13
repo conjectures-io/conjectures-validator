@@ -105,7 +105,7 @@ to permanently stop that grant. Notify the buyer through the agreed private chan
 deletion confirmation. Then POST `action: "RECORD_TAKEDOWN"` with the reference to that
 confirmation. Neither action erases exports or previous consent. A fresh grant requires a new
 explicit agreement/acceptance after a valid reapproval. Confirmed payment records and outstanding takedowns keep their minimal claim evidence.
-Cancelled instructions and revoked, completed delivery records expire after their own
+Cancelled instructions, unused grants and revoked, completed delivery records expire after their own
 seven-year window and the claim's audit window. Non-accepted package bytes still expire
 according to the contributor terms.
 

@@ -327,7 +327,7 @@ async def view(session, claim):
 
 
 def license_status(claim):
-    # Granted on upload, effective on acceptance. No sale or delivery system is part of this code.
+    # Raw review status for the queue; fulfillment separately checks the current proof binding.
     return "LICENSED_FOR_SALE" if claim.status in APPROVED else "NOT_LICENSED"
 
 

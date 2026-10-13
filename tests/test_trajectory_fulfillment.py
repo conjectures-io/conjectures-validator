@@ -13,7 +13,7 @@ from test_api_accounts import client, same_origin, sign_in_by_email
 from test_api_trajectories import accepted, as_upload, kit_config, reviewer, review_body
 from conjectures_subnet.db import payouts, submissions as proof_store
 from conjectures_subnet.db.models import Account, ReviewOutcome, TreasuryPayout
-from conjectures_subnet.db.trajectory_fulfillment import TrajectoryExport, TrajectoryPayment
+from conjectures_subnet.db.trajectory_fulfillment import TrajectoryDelivery, TrajectoryExport, TrajectoryPayment
 from conjectures_subnet.db.trajectory_models import TrajectoryClaim
 from submission_api.errors import Conflict
 from submission_api.trajectory_fulfillment import BUYER_ASSENT, alpha_amount
@@ -193,7 +193,7 @@ def test_bonus_cancellation_needs_chain_check_and_preserves_previous_instruction
 
 
 @pytest.mark.skipif(postgres_dsn() is None, reason="requires verified private fixture")
-def test_expired_cancelled_bonus_does_not_keep_a_rejected_claim_forever():
+def test_expired_unfulfilled_records_do_not_keep_a_rejected_claim_forever():
     from scripts.purge_trajectories import purge
 
     async def scenario():
@@ -214,6 +214,10 @@ def test_expired_cancelled_bonus_does_not_keep_a_rejected_claim_forever():
                         origin_hotkey=kit.services.settings.bounty_wallet_hotkey,
                         destination_evidence="Archived fixture destination verification", status="PREPARED")
                     session.add(payment)
+                    session.add(TrajectoryDelivery(id=uuid.uuid4(), claim_id=claim.id, buyer_id=actor,
+                        created_by=actor, created_at=old, claim_state_version=claim.state_version,
+                        package_digest=claim.package_digest, agreement_reference="Archived undownloaded agreement",
+                        agreement_sha256=b"a" * 32))
                     await session.flush()
                     payment.status = "CANCELLED"
                     payment.completed_at, payment.completed_by = old + dt.timedelta(days=1), actor
@@ -225,6 +229,7 @@ def test_expired_cancelled_bonus_does_not_keep_a_rejected_claim_forever():
                     _, audit_removed = await purge(session)
                     assert audit_removed == 1
                     assert await session.scalar(select(func.count()).select_from(TrajectoryPayment)) == 0
+                    assert await session.scalar(select(func.count()).select_from(TrajectoryDelivery)) == 0
                     assert await session.scalar(select(func.count()).select_from(TrajectoryClaim)) == 0
         finally:
             await kit.teardown()
