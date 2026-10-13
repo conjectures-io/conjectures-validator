@@ -539,3 +539,27 @@ Historical bonus preparation/confirmation and buyer delivery are documented in
 [trajectories/FULFILLMENT.md](trajectories/FULFILLMENT.md). Administrative writes require ADMIN
 and the session origin guard. Buyers access only their own grants, assent before download,
 and receive no public package URL. All fulfillment responses disable caching.
+
+## Supporting PDFs
+
+Signed-in authors can attach up to three PDFs (20 MiB each) to their submissions. Attachments
+are optional, stored outside the proof bundle, and do not change proof hashes, fees or rewards.
+The website accepts files alongside the proof and uploads them after the paid submission succeeds.
+An attachment failure can be retried independently, or handled later on the account submission page.
+
+- `GET /v1/me/submissions/{id}/pdfs`: the owner's attachment metadata and limits.
+- `POST /v1/me/submissions/{id}/pdfs?filename=paper.pdf&publish_on_approval=true`: raw
+  `application/pdf` body; browser session and same-origin write authorization required. The
+  publication flag must be true to agree to public display on approval.
+  Content-identical retries return the existing attachment (200); new attachments return 201.
+- `GET /v1/me/submissions/{id}/pdfs/{pdf_id}`: owner view; `?download=true` requests a download.
+- `DELETE /v1/me/submissions/{id}/pdfs/{pdf_id}`: owner removal, idempotent (204).
+- `GET /v1/admin/reviews/{id}/pdfs` and `.../{pdf_id}`: reviewer metadata and PDF access.
+- `GET /v1/results/{id}/pdfs` and `.../{pdf_id}`: public metadata and PDF access, only while
+  the submission is both verified and approved. Corrections revoke access on subsequent reads.
+
+Metadata contains `id`, `filename`, `byte_length`, `sha256` and `created_at`; PDF bytes are served
+only by the file routes. These routes use `Cache-Control: no-store`; PDF responses carry
+`application/pdf`, `nosniff`, a sandbox CSP, and encoded filenames. Uploads check the PDF header
+and end marker without interpreting PDF instructions. Supporting documents are author supplied;
+the verifier continues to check only the submitted proof bundle. V049 adds `submission_pdfs`.

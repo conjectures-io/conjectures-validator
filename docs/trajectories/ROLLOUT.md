@@ -53,7 +53,7 @@ The consolidated handoff is [the release checklist](../releases/2026-10-13.md).
    registers the complete current catalog. Preserve/export this boundary for rollback review.
    V046 additionally backfills every previously submitted target, including retired targets,
    before marking existing rows `legacy`. Never prime P34/P35 as legacy.
-3. Apply V044–V048 through the normal migration process. Before restarting ANY API,
+3. Apply V044–V049 through the normal migration process. Before restarting ANY API,
    notifier or command-rendering process, even with intake disabled, list their actual DB roles
    and the migration owner. Keep BOTH `public.bounty_trajectory_eligible(uuid,text)` and
    `public.require_bounty_trajectory()` under the SAME trusted non-superuser owner. That owner

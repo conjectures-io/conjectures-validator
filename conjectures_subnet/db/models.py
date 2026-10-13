@@ -3367,3 +3367,5 @@ from conjectures_subnet.db import trajectory_models  # noqa: F401
 from conjectures_subnet.db import bounty_policy  # noqa: F401
 
 from conjectures_subnet.db import trajectory_fulfillment  # noqa: F401
+
+from conjectures_subnet.db import submission_pdfs  # noqa: F401
