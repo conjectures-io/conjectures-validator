@@ -16,7 +16,9 @@ BEGIN
         RAISE EXCEPTION 'a reward target keeps its original pricing policy' USING ERRCODE = '23514';
     END IF;
     IF NEW.pricing_policy IS DISTINCT FROM OLD.pricing_policy
-       OR NEW.reward_target_id IS DISTINCT FROM OLD.reward_target_id THEN
+       OR NEW.reward_target_id IS DISTINCT FROM OLD.reward_target_id
+       OR NEW.start_share_numerator IS DISTINCT FROM OLD.start_share_numerator
+       OR NEW.start_share_denominator IS DISTINCT FROM OLD.start_share_denominator THEN
         RAISE EXCEPTION 'a reward target keeps its original pricing policy'
             USING ERRCODE = '23514';
     END IF;

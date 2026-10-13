@@ -67,7 +67,8 @@ services:
       TASK_ALLOWLIST_PATH: /opt/conjectures/tasks/allowlist.json
       TASK_POOL_ROOT: /opt/conjectures/tasks/pool
       PINS_LOCK_PATH: /opt/conjectures/pins.lock.json
-      SUBMISSION_TERMS_PATH: /opt/conjectures/docs/SUBMISSION_TERMS.md
+      # v8 lives under docs/policies; set SUBMISSION_TERMS_PATH in .env to publish it.
+      SUBMISSION_TERMS_PATH: ${SUBMISSION_TERMS_PATH:-/opt/conjectures/docs/SUBMISSION_TERMS.md}
 
       # --- Trust boundary ---------------------------------------------------
       # `queue` leaves accepted submissions UNVERIFIED for a worker in the other
@@ -145,6 +146,7 @@ services:
       - ../conjectures-tasks:/opt/conjectures/tasks:ro
       - ./pins.lock.json:/opt/conjectures/pins.lock.json:ro
       - ./docs/SUBMISSION_TERMS.md:/opt/conjectures/docs/SUBMISSION_TERMS.md:ro
+      - ./docs/policies:/opt/conjectures/docs/policies:ro
 
     depends_on:
       db:

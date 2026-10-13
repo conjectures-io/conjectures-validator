@@ -1,8 +1,8 @@
 """Live target-specific bounty pricing with submission-time amount locks.
 
-New targets use 1/40 of the gross finalized Alpha treasury and require reviewed chat logs.
-Their policy is persisted at first admission. Previously admitted targets retain the linear-age
-policy below. Existing locked quotes never change under either policy.
+New targets start at the configured share (1/40) and require reviewed chat logs. Their policy
+and starting share are persisted at first admission; previously admitted targets keep theirs.
+Existing locked quotes never change under either policy.
 
 Catalog prices remain live estimates. Once a paid submission is accepted, its quote is immutable:
 later balance and age changes affect new submissions only. Several proofs may still compete for
@@ -460,6 +460,11 @@ class DynamicBountyPricer:
             weight = weights[target]
             age_seconds = max(0, int((now - opened_at[target]).total_seconds()))
             start_numerator, start_denominator = start_share[target]
+            if (start_numerator * self.max_bounty_share_denominator
+                    > self.max_bounty_share_numerator * start_denominator):
+                # A target opened above a since-lowered cap starts at the cap.
+                start_numerator = self.max_bounty_share_numerator
+                start_denominator = self.max_bounty_share_denominator
             amount = calculate_bounty_rao(
                 balance_rao=balance,
                 age_seconds=age_seconds,

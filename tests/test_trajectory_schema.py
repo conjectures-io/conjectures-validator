@@ -204,6 +204,18 @@ def test_production_launch_needs_the_pinned_approved_terms_digest():
     assert "chat-log" not in str(later.value)
 
 
+def test_chat_log_launch_must_publish_the_terms_version_it_names():
+    from test_api_auth import production_env
+    root = Path(__file__).resolve().parents[1]
+    launch = {"TRAJECTORY_BONUS_ENABLED": "true", "TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256": TERMS_SHA256,
+              "SUBMISSION_TERMS_VERSION": "v8", "SUBMISSION_TERMS_EFFECTIVE_FROM": "2026-10-13"}
+    v8 = str(root / "docs/policies/submission-terms-v8.md")
+    assert Settings.from_env(production_env(**launch, SUBMISSION_TERMS_PATH=v8)).trajectory_bonus_enabled
+    # The v7 file labelled v8 is refused rather than published under the wrong version.
+    with pytest.raises(SettingsError, match="must state the configured"):
+        Settings.from_env(production_env(**launch, SUBMISSION_TERMS_PATH=str(root / "docs/SUBMISSION_TERMS.md")))
+
+
 def test_upload_budget_prunes_expired_accounts_and_bounds_failures(monkeypatch):
     import asyncio
     from submission_api.trajectory_intake import UploadBudget

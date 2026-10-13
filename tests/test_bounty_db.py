@@ -13,6 +13,7 @@ pytest.importorskip("fastapi")
 from conftest_api import harness, postgres_dsn
 from conjectures_subnet.bounty import StaticBalanceReader
 from conjectures_subnet.db.models import BountyTask
+from sqlalchemy.exc import IntegrityError
 
 pytestmark = pytest.mark.skipif(postgres_dsn() is None, reason="test PostgreSQL unavailable")
 
@@ -80,7 +81,7 @@ def test_a_future_opening_date_uses_the_starting_share():
                 session.add(BountyTask(reward_target_id=target, opened_at=now + timedelta(days=1), pricing_policy="legacy"))
                 await session.commit()
                 quote = await pricer.quote(session, reward_target_id=target)
-                assert quote.amount_rao == 200_000_000
+                assert quote.amount_rao == 100_000_000  # A row opened now defaults to 1/40.
                 assert quote.inputs["age_seconds"] == 0
         finally:
             await kit.teardown()
@@ -98,7 +99,8 @@ def test_a_target_keeps_the_starting_share_it_opened_with():
             new = "fc-target:Fixture.new"
             async with kit.session() as session:
                 # A target already open before V044 carries the 1/20 backfill.
-                session.add(BountyTask(reward_target_id=existing, opened_at=now))
+                session.add(BountyTask(reward_target_id=existing, opened_at=now,
+                                       start_share_numerator=1, start_share_denominator=20))
                 await session.commit()
                 expanded = replace(pricer, reward_target_ids=(existing, new))
                 snapshot = await expanded.quote_many(session, reward_target_ids=(existing, new))
@@ -108,11 +110,20 @@ def test_a_target_keeps_the_starting_share_it_opened_with():
                 assert snapshot.quotes[new].inputs["constant_denominator"] == 40
                 await session.commit()
 
+                # Lowering the cap below a stored start prices that target at the cap, not an error.
+                capped = replace(expanded, constant_denominator=40, max_bounty_share_denominator=40)
+                assert (await capped.quote(session, reward_target_id=existing)).amount_rao == 2_000_000_000
                 # A later configuration change applies only to targets opened after it.
                 changed = replace(expanded, constant_denominator=10)
                 assert (await changed.quote(session, reward_target_id=new)).amount_rao == 2_000_000_000
                 persisted = await session.get(BountyTask, new)
                 assert (persisted.start_share_numerator, persisted.start_share_denominator) == (1, 40)
+                await session.commit()
+                # The database refuses to reprice an open target, as well as the code never doing so.
+                persisted.start_share_denominator = 20
+                with pytest.raises(IntegrityError, match="original pricing policy"):
+                    await session.flush()
+                await session.rollback()
         finally:
             await kit.teardown()
 

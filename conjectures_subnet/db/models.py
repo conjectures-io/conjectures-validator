@@ -192,7 +192,7 @@ class BountyTask(Base):
         Integer, nullable=False, server_default=text("1")
     )
     start_share_denominator: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("20")
+        Integer, nullable=False, server_default=text("40")
     )
 
     __table_args__ = (

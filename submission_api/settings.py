@@ -1419,6 +1419,17 @@ class Settings:
             not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7"
         ):
             raise SettingsError("trajectory launch requires explicit final versioned submission terms")
+        if production and trajectory_bonus_enabled:
+            # The published file must itself be that version, so v7 text cannot go out as v8.
+            try:
+                published = Path(env["SUBMISSION_TERMS_PATH"].strip()).read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as exc:
+                raise SettingsError(f"cannot read SUBMISSION_TERMS_PATH: {exc}") from exc
+            stated = re.search(r"\*\*Terms version:\*\* `([^`]+)`", published)
+            if stated is None or stated.group(1) != terms_version:
+                raise SettingsError(
+                    "SUBMISSION_TERMS_PATH must state the configured SUBMISSION_TERMS_VERSION"
+                )
 
         # A pinned USD rate, or nothing. Converting TAO to USD needs a live external rate
         # this validator does not have, so the field is null rather than invented — and it

@@ -51,7 +51,8 @@ def test_new_target_policy_is_durable_and_follows_the_curve_from_its_own_start()
                              reward_target_ids=(old, 'packing34'), clock=lambda: now,
                              balance_reader=StaticBalanceReader(4000))
             async with kit.session() as session:
-                session.add(BountyTask(reward_target_id=old, opened_at=now, pricing_policy='legacy'))
+                session.add(BountyTask(reward_target_id=old, opened_at=now, pricing_policy='legacy',
+                                       start_share_numerator=1, start_share_denominator=20))
                 await session.commit()
                 quotes = await pricer.quote_many(session, reward_target_ids=(old, 'packing34'))
                 assert quotes.quotes[old].amount_rao == 200
