@@ -101,6 +101,16 @@ def pays(policy: dict, slot: str) -> bool:
     return slot == FLOATLIB_MAIN_SLOT
 
 
+def rank_shares(policy: dict) -> list[float] | None:
+    """Published reward fractions; unknown for older or malformed publications."""
+    shares = policy.get("rank_shares")
+    if not isinstance(shares, list) or not shares:
+        return None
+    if any(type(share) not in (int, float) or not 0 <= share <= 1 for share in shares):
+        return None
+    return [float(share) for share in shares]
+
+
 def outcomes(publication, slot: str) -> dict[int, str]:
     """Each submission's published admission outcome on `slot`; empty for an unscored board."""
     snapshot = publication[1] if publication else None
@@ -209,6 +219,7 @@ async def rules(session) -> s.Health:
         promotion_bar=promotion_bar(policy),
         competition_share=float(share) if isinstance(share, int | float) else None,
         admission=admission,
+        rank_shares=rank_shares(policy),
     )
 
 
@@ -295,6 +306,10 @@ async def champions(board: BoardPath, services: ServicesDep, session: Competitio
     await store.compatible(session)
     history = await store.promotions(session, slot)
     current = store.standing(history)
+    policy = policy_of(await store.publication(session))
+    shares = (rank_shares(policy) or []) if pays(policy, slot) else []
+    eligible = [p for p in history if p["demoted_at"] is None][: len(shares)]
+    ranks = {p["promotion_id"]: index for index, p in enumerate(eligible, 1)}
     return [
         s.Champion(
             submission=p["id"],
@@ -303,6 +318,8 @@ async def champions(board: BoardPath, services: ServicesDep, session: Competitio
             promoted_at=iso(p["promoted_at"]),
             demoted_at=iso(p["demoted_at"]) if p["demoted_at"] is not None else None,
             current=current is not None and p["promotion_id"] == current["promotion_id"],
+            rank=ranks.get(p["promotion_id"]),
+            rank_share=shares[ranks[p["promotion_id"]] - 1] if p["promotion_id"] in ranks else None,
         )
         for p in history
     ]
