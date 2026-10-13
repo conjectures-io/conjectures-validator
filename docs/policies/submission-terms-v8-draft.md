@@ -113,7 +113,7 @@ reopens to other solvers. The separately capped formalization-defect award retai
 existing rules. The [chat-log terms](../trajectories/chat-log-terms-v1.md) apply.
 
 For full-bounty proofs submitted before chat-log intake opened, accepted logs earn an
-additional **$500 USD for Erdős or Green problems**, or **$250 USD for other problems**, based
+additional **$500 USD for Erdős problems**, or **$250 USD for all other problems**, based
 on the original task bundle and paid in Subnet 66 Alpha worth that amount when paid. The chat
 must show the proof before it was submitted. Claims close one year after intake opened. Existing proof payouts are not reduced
 or made conditional on logs. There is no extra log bonus for a new treasury-share bounty.

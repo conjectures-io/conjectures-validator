@@ -31,7 +31,7 @@ def test_no_invalid_treasury_balance(value):
 
 @pytest.mark.parametrize('module,amount', [
     ('FormalConjectures.ErdosProblems.«313»', 50000),
-    ('FormalConjectures.GreensOpenProblems.«51»', 50000),
+    ('FormalConjectures.GreensOpenProblems.«51»', 25000),
     ('FormalConjectures.ResearchTargets.Math30', 25000),
     ('FormalConjectures.Wikipedia.ArtinPrimitiveRootsConjecture', 25000),
     ('FakeErdosProblems.1', 25000),
@@ -175,7 +175,7 @@ def test_required_logs_block_all_payout_instructions_until_review():
 @pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
 @pytest.mark.parametrize('module,amount', [
     ('FormalConjectures.ErdosProblems.«313»', 50000),
-    ('FormalConjectures.GreensOpenProblems.«51»', 50000),
+    ('FormalConjectures.GreensOpenProblems.«51»', 25000),
     ('FormalConjectures.ResearchTargets.Math30', 25000),
 ])
 def test_historical_bonus_amount_is_selected_by_server(module, amount):

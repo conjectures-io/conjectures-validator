@@ -104,7 +104,7 @@ async def offer(services: ServicesDep, session: SessionDep, response: Response):
     start_at = await store.opened_at(session)
     return {
         "enabled": services.settings.trajectory_bonus_enabled and start_at is not None,
-        "legacy_bonus_usd_cents": {"erdos": 50000, "green": 50000, "other": 25000},
+        "legacy_bonus_usd_cents": {"erdos": 50000, "other": 25000},
         "new_bounty_share": {"numerator": 1, "denominator": 40, "basis": "gross_treasury"},
         "new_bounties_require_chat_logs": True, "logs_due": "BEFORE_PROOF_SUBMISSION",
         "deposit_hours": DEPOSIT_HOURS, "license": "REQUIRED_SALE_LICENSE_ON_ACCEPTANCE",

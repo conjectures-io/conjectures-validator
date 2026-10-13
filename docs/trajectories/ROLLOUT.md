@@ -23,7 +23,7 @@ No production migration, task activation, transfer or announcement has occurred.
   creating or changing an instruction. Existing commands/notifications recheck that evidence;
   chain reconciliation still records transfers that actually occurred after a review correction.
 - Qualifying full-bounty proofs submitted before the configured launch cutoff can receive an
-  additional $500 USD for Erdős/Green, $250 for other source families, for accepted logs.
+  additional $500 USD for Erdős problems, $250 for every other source family, for accepted logs.
   Existing proof payouts remain independent. Source classification uses the original bundle.
   The retrospective claim window is 365 days from cutoff; required new-bounty evidence is exempt.
   The chat must show the proof before that proof's submission time.

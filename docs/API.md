@@ -497,8 +497,8 @@ submission locks persist. `/v1/catalog/meta` publishes `new_target_policy_versio
 and `new_target_chat_logs_required`. Each task's `bounty.policy_version` remains authoritative;
 legacy curve fields in pool metadata describe legacy targets only.
 
-`GET /v1/trajectory-offer` publishes the retrospective source-family tiers ($500 Erdős/Green,
-$250 other), `start_at` (the permanent moment intake opened, also the bonus cutoff), the claim
+`GET /v1/trajectory-offer` publishes the retrospective source-family tiers ($500 Erdős,
+$250 every other problem), `start_at` (the permanent moment intake opened, also the bonus cutoff), the claim
 window, pinned terms/assent digests and intake availability. Intake answers 503 until both
 `TRAJECTORY_BONUS_ENABLED` and the opening record exist.
 

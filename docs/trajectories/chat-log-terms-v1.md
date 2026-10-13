@@ -18,9 +18,9 @@ recreation of them.
 **What it pays.** New bounties pay 2.5% of the Alpha treasury, locked when you submit, and
 are paid only if the logs are accepted. If the logs are rejected or you withdraw them, the
 bounty is not paid and the problem reopens to other solvers. For a proof submitted before
-intake opened and approved for its full bounty, accepted logs earn an extra $500 (Erdős and
-Green problems) or $250 (other problems), paid in Subnet 66 Alpha worth that amount when it
-is paid. Your original reward does not change.
+intake opened and approved for its full bounty, accepted logs earn an extra $500 for an Erdős
+problem or $250 for any other problem, paid in Subnet 66 Alpha worth that amount when it is
+paid. Your original reward does not change.
 
 **What you give us.** By uploading, you give Conjectures a permanent, worldwide,
 non-exclusive right to use, copy, sell and license the logs to buyers, including for

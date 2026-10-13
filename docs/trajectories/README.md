@@ -3,7 +3,7 @@
 New targets offer 2.5% of gross finalized Alpha treasury and require the AI chat logs that
 produced the proof, **uploaded before the proof is submitted** and accepted by a reviewer.
 For qualifying proofs submitted before launch, accepted logs earn an additional
-**$500 USD for Erdős/Green source problems, $250 USD otherwise**. Existing proof payouts keep
+**$500 USD for Erdős problems, $250 USD for everything else**. Existing proof payouts keep
 their terms. Every accepted log is licensed to Conjectures for sale to buyers; logs are never
 published openly. The owner approved these rules on October 12, 2026.
 
@@ -22,7 +22,7 @@ hashes together.
 | Acceptance standard | The original chat logs that produced the proof, not a recreation of them |
 | New bounties | Logs are deposited before the proof; the proof is refused without them (no credit spent); the deposit lasts 24 hours; no later addition or replacement |
 | Missing or failed logs | Rejected or withdrawn logs forfeit the bounty and reopen the target; there is no grace period |
-| Earlier proofs | $500 Erdős/Green, $250 other, by the original task bundle, paid in Subnet 66 Alpha worth that USD amount at payment time; only proofs submitted before intake opened and approved for the full bounty; the chat must show the proof before its submission time; up to three versions; claims close 365 days after opening |
+| Earlier proofs | $500 Erdős, $250 every other problem (Green's included), by the original task bundle, paid in Subnet 66 Alpha worth that USD amount at payment time; only proofs submitted before intake opened and approved for the full bounty; the chat must show the proof before its submission time; up to three versions; claims close 365 days after opening |
 | Cutoff | The moment intake opens, stamped once by `scripts/open_chat_log_intake.py` in `chat_log_program`; the database refuses any update, delete or truncate |
 | License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
 | Buyers | May use, including for training and evaluation, but may not publish the logs openly |
