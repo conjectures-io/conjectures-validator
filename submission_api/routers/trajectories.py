@@ -45,7 +45,7 @@ class PrivateHeadersMiddleware:
 
     async def __call__(self, scope, receive, send):
         path = scope.get("path", "")
-        sensitive = path.startswith(("/v1/admin/trajectories", "/v1/me/chat-log-deposits")) or (
+        sensitive = path.startswith(("/v1/admin/trajectories", "/v1/admin/trajectory-", "/v1/me/chat-log-deliveries", "/v1/me/chat-log-deposits")) or (
             path.startswith("/v1/me/submissions/") and "/trajectory" in path)
         if scope["type"] != "http" or not sensitive:
             return await self.app(scope, receive, send)

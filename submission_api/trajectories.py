@@ -307,17 +307,22 @@ async def effective_status(session, claim):
 
 
 async def view(session, claim):
+    from conjectures_subnet.db.trajectory_fulfillment import TrajectoryPayment
+    payment = await session.scalar(select(TrajectoryPayment).where(
+        TrajectoryPayment.claim_id == claim.id).order_by(TrajectoryPayment.prepared_at.desc()).limit(1))
+    effective = await effective_status(session, claim)
     return {
         "id": str(claim.id), "submission_id": str(claim.submission_id) if claim.submission_id else None,
-        "status": await effective_status(session, claim), "amount_usd_cents": claim.amount_usd_cents,
-        "payment_status": "NOT_APPLICABLE" if claim.amount_usd_cents == 0 else "NOT_ISSUED",
+        "status": effective, "amount_usd_cents": claim.amount_usd_cents,
+        "payment_status": "NOT_APPLICABLE" if claim.amount_usd_cents == 0 else (payment.status if payment else "NOT_ISSUED"),
+        "payment_id": str(payment.id) if payment else None,
         "chat_logs_required": claim.amount_usd_cents == 0, "revision": claim.revision,
         "state_version": claim.state_version, "offer_start_at": claim.offer_start_at,
         "package_sha256": "sha256:" + claim.package_digest.hex(), "terms_version": claim.terms_version,
         "review_note": claim.review_note, "created_at": claim.created_at,
         "expires_at": claim.expires_at, "audit_expires_at": claim.audit_expires_at,
         "content_available": await content_available(session, claim),
-        "license_status": license_status(claim),
+        "license_status": "LICENSED_FOR_SALE" if effective in APPROVED else "NOT_LICENSED",
     }
 
 

@@ -60,7 +60,10 @@ async def purge(session):
             break  # Busy rows are retried by the next scheduled run.
         await session.commit()
     # Minimal records go after seven years, except accepted logs and records backing a payout.
-    audit_expired = (TrajectoryClaim.audit_expires_at <= func.now(), TrajectoryClaim.status.not_in(store.APPROVED),
+    from conjectures_subnet.db.trajectory_fulfillment import TrajectoryPayment, TrajectoryDelivery
+    audit_expired = (
+        ~exists(select(TrajectoryPayment.id).where(TrajectoryPayment.claim_id == TrajectoryClaim.id)),
+        ~exists(select(TrajectoryDelivery.id).where(TrajectoryDelivery.claim_id == TrajectoryClaim.id)),TrajectoryClaim.audit_expires_at <= func.now(), TrajectoryClaim.status.not_in(store.APPROVED),
                      or_(TrajectoryClaim.amount_usd_cents > 0,
                          ~exists(select(RewardEvent.id).where(RewardEvent.submission_id == TrajectoryClaim.submission_id))))
     audit_removed = 0

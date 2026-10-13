@@ -38,6 +38,12 @@ No production migration, task activation, transfer or announcement has occurred.
   v8 is `docs/policies/submission-terms-v8.md`, published at go-live through `SUBMISSION_TERMS_PATH`,
   `SUBMISSION_TERMS_VERSION=v8` and `SUBMISSION_TERMS_EFFECTIVE_FROM` set to the go-live date.
 
+## Prepared, not published
+
+The release is being prepared only. No production migrations, intake opening, merges, task
+activation, transfer, buyer delivery or announcement are authorized by this preparation.
+The consolidated handoff is [the release checklist](../releases/2026-10-13.md).
+
 ## Deployment sequence
 
 1. Coordinate with PR119 and the unmerged task/source release work. Keep writes paused across
@@ -47,7 +53,7 @@ No production migration, task activation, transfer or announcement has occurred.
    registers the complete current catalog. Preserve/export this boundary for rollback review.
    V046 additionally backfills every previously submitted target, including retired targets,
    before marking existing rows `legacy`. Never prime P34/P35 as legacy.
-3. Apply V045 and V046 through the normal migration process. Before restarting ANY API,
+3. Apply V044–V048 through the normal migration process. Before restarting ANY API,
    notifier or command-rendering process, even with intake disabled, list their actual DB roles
    and the migration owner. Keep BOTH `public.bounty_trajectory_eligible(uuid,text)` and
    `public.require_bounty_trajectory()` under the SAME trusted non-superuser owner. That owner
@@ -68,8 +74,11 @@ No production migration, task activation, transfer or announcement has occurred.
    blocks tier classification; it must not silently fall back to $250. Account-less historical
    submissions still need verified ownership migration before private account intake.
 5. Pin the approved chat-log terms digest, configure private storage/access/backup retention,
-   review staffing and purge scheduling. Historical bonus payment needs the separate payment
-   ledger, and selling needs the buyer delivery process (README, "Still to build").
+   review staffing and purge scheduling. V048 adds the historical payment ledger and private
+   buyer delivery; follow [FULFILLMENT.md](FULFILLMENT.md). Grant the watcher EXECUTE on
+   `trajectory_bonus_transfer_reserved(text,text,text,bigint,timestamptz)` under its trusted
+   function owner before restarting reconciliation. Keep that owner able to SELECT
+   `trajectory_payments`; payout roles still get no private package/claim access.
 6. When staging passes, run `scripts/open_chat_log_intake.py` (the cutoff), then set the
    backend intake flag and matching frontend flag. Rebuild the frontend; assets reside in
    `data/trajectory` and are served only while enabled.
@@ -110,3 +119,7 @@ bundled v7 contract merely to deploy disabled code.
 Once V046 or any new-policy submission exists, do not roll the application/notifier back to an
 older binary: its batch does not understand mandatory evidence. Pause new intake and roll forward
 with a reviewed fix; preserve all policy, consent and payout rows.
+
+The watcher also needs EXECUTE on `public.trajectory_bonus_oldest_pending(text,text)` under
+the same trusted owner with SELECT on `trajectory_payments`. This opens chain tracking when a
+historical bonus is the only outstanding obligation.

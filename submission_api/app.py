@@ -106,6 +106,7 @@ from submission_api.routers import (
     tasks,
     web_submissions,
     trajectories,
+    trajectory_fulfillment,
 )
 from submission_api.settings import Settings, SettingsError
 from submission_api.taskpool import TaskCatalog
@@ -509,4 +510,5 @@ def create_app(
     application.include_router(admin.router)
     application.include_router(reviews.router)
     application.include_router(trajectories.router)
+    application.include_router(trajectory_fulfillment.router)
     return application

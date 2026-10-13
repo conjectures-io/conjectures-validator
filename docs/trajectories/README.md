@@ -121,15 +121,16 @@ go-live moment.
 4. Immediately set `TRAJECTORY_BONUS_ENABLED=true` and frontend `NEXT_PUBLIC_TRAJECTORY_BONUS=1`.
    Intake stays closed (503) until both the flag and the opening record exist.
 
-## Still to build or prepare
+## Fulfillment and remaining launch preparation
 
-1. **Historical bonus payments.** Approval records `NOT_ISSUED`. Before paying anyone, a payment
-   ledger must record a unique claim payment, the USD amount, the Alpha amount and the price
-   source/time used to convert it, the verified destination, reference and confirmation. Never
-   infer payment from the proof reward. Accepted bonuses can wait for this after go-live.
-2. **Sale delivery.** Accepted packages stay in the private review store. Selling needs an
-   export/delivery process for buyers that reads only accepted claims, logs each export, binds
-   buyers to no open publication, and handles takedown when an acceptance is revoked.
+1. **Historical bonus payments are implemented.** V048 records a reserved bonus, its exact USD/Alpha
+   conversion and destination evidence, and confirmation against the finalized treasury ledger.
+   It never signs or sends money. See [FULFILLMENT.md](FULFILLMENT.md) for preparation,
+   cancellation, duplicate prevention and confirmation.
+2. **Private buyer delivery is implemented.** V048 binds a buyer agreement to the accepted package,
+   records the buyer's assent and every export, and blocks changed/revoked approvals. Buyers use
+   `/account/chat-log-deliveries`. The administrator queue tracks takedowns; agreement negotiation,
+   contacting buyers and checking deletion remain explicit operator actions.
 3. **Inventory.** Original historical task bundles (a missing bundle blocks tier selection) and
    account-less historical submissions (need verified ownership migration).
 4. **P34/P35 release.** Generated task bundles, registry/catalog entries, source/type commitments

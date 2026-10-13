@@ -94,6 +94,7 @@ class BountyPoolSnapshot:
     max_age_weight: int
     max_bounty_share_numerator: int
     max_bounty_share_denominator: int
+    available_balance_rao: int = 0
     new_target_policy_version: str = TREASURY_CHAT_POLICY
 
 
@@ -404,6 +405,15 @@ class DynamicBountyPricer:
             )
         ).all()
         committed = sum(int(row[1]) for row in reservations)
+        from conjectures_subnet.db.trajectory_fulfillment import TrajectoryPayment
+        # Bonus obligations reserve Alpha too. Keep confirmed ones through the same cache grace.
+        bonus_reserved = await session.scalar(select(func.coalesce(func.sum(TrajectoryPayment.amount_rao), 0)).where(
+            TrajectoryPayment.origin_coldkey == self.balance_coldkey,
+            TrajectoryPayment.origin_hotkey == self.balance_hotkey,
+            (TrajectoryPayment.status == "PREPARED") | (
+                (TrajectoryPayment.status == "CONFIRMED") &
+                (TrajectoryPayment.completed_at > now - timedelta(seconds=self.confirmed_payout_grace_seconds)))))
+        committed += int(bonus_reserved or 0) if self.balance_netuid == 66 else 0
         balance = max(0, gross_balance - committed)
 
         quotes: dict[str, LiveBounty] = {}
@@ -501,6 +511,7 @@ class DynamicBountyPricer:
             policy_version=self.policy_version,
             new_target_policy_version=(self.policy_version if self.new_target_policy == "legacy" else self.new_target_policy),
             balance_rao=gross_balance,
+            available_balance_rao=balance,
             wallet_coldkey=self.balance_coldkey,
             wallet_hotkey=self.balance_hotkey,
             netuid=self.balance_netuid,

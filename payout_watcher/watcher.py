@@ -89,7 +89,9 @@ class PayoutWatcher:
             if existing is not None:
                 self._require_same_watch(existing)
                 return existing
-            watch_from = await store.oldest_unresolved_at(session)
+            watch_from = await store.oldest_unresolved_at(session, **(
+                {"origin_coldkey": self.settings.origin_coldkey, "origin_hotkey": self.settings.origin_hotkey}
+                if self.settings.netuid == 66 else {}))
         if watch_from is None:
             return None
         watch_from = _utc(watch_from)

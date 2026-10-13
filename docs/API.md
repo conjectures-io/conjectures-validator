@@ -532,3 +532,10 @@ evidence has been accepted. The separately capped formalization-defect award ret
 Original task-bundle provenance, not client-supplied labels, sets the historical bonus tier.
 Each claim keeps the cutoff it was made under, so a correction never changes in-progress claims.
 See [chat-log documentation](trajectories/README.md) for limits, retention and rollout.
+
+## Private chat-log fulfillment
+
+Historical bonus preparation/confirmation and buyer delivery are documented in
+[trajectories/FULFILLMENT.md](trajectories/FULFILLMENT.md). Administrative writes require ADMIN
+and the session origin guard. Buyers access only their own grants, assent before download,
+and receive no public package URL. All fulfillment responses disable caching.
