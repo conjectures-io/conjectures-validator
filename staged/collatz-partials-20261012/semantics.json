@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "exact_recurrence_levels": 4,
+  "checks": [
+    "push law equals published pull recurrence",
+    "normalization",
+    "nonnegative mass",
+    "zero mass on multiples of 3",
+    "all coarse marginals",
+    "published mod3 and mod9 fixtures",
+    "independent shortcut renewal mean and variance"
+  ],
+  "research_targets_proved": false
+}

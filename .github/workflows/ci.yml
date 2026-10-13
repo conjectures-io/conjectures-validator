@@ -317,3 +317,14 @@ jobs:
         run: |
           python scripts/check_schema_drift.py \
             --dsn postgresql://drift:drift-pw@127.0.0.1:5441/postgres
+
+  collatz-semantics:
+    name: Collatz statement checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python staged/collatz-partials-20261012/check_semantics.py
+      - run: python staged/collatz-partials-20261012/check_c13_plausibility.py

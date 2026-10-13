@@ -1,0 +1,31 @@
+{
+  "checks": [
+    {
+      "file": "PartialCollatz.lean",
+      "sha256": "4a18cb3f6d8e24c9093449d3ba65187fcb08c21a3260ffde52de2a976df48be3",
+      "exit_code": 0
+    },
+    {
+      "file": "C12.lean",
+      "sha256": "4e47faf9ba53e4e92b619ae4909912cb9393e04c0666225b1a50fb163c4ed245",
+      "exit_code": 0
+    },
+    {
+      "file": "C13.lean",
+      "sha256": "fb647727bb4e5a81df857d508fe32a6691bf70df9e1dc869bbd99c4a2d3af31b",
+      "exit_code": 0
+    },
+    {
+      "file": "C14.lean",
+      "sha256": "5f126128a5046dbaf779624429ab2edf7a6023f054785e4c2d36bee246e146b5",
+      "exit_code": 0
+    },
+    {
+      "file": "Fixtures.lean",
+      "sha256": "e0aafbd291025938271a2ddc4964ad86a841818f5b34770fa5ea63b552032b8c",
+      "exit_code": 0
+    }
+  ],
+  "all_passed": true,
+  "research_problems_proved": false
+}

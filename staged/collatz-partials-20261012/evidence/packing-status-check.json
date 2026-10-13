@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "candidates_checked": 5,
+  "collatz_history_preserved": true,
+  "previous_snapshot_sha256": "92e1bff2e447942df299994f900d36b377d9b9541315f90468e28704b7a68e53",
+  "active_packing_candidates": []
+}

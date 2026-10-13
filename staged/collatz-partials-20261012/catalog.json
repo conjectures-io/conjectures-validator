@@ -1,0 +1,154 @@
+{
+  "schema": "collatz-partial-proposals-v1",
+  "reviewed_on": "2026-10-12",
+  "mathematical_selection_model": "gpt-6-astra",
+  "mathematical_selection_effort": "xhigh",
+  "submission_enabled": false,
+  "production_activated": false,
+  "logical_independence_claimed": false,
+  "candidates": [
+    {
+      "id": "C12",
+      "number": 5,
+      "slug": "mod-eight-escape",
+      "name": "ModEightEscape",
+      "blocks": [
+        "ordinaryNat",
+        "ModEightEscape"
+      ],
+      "title": "Collatz: escape to 5 or 7 modulo 8",
+      "summary": "Every positive ordinary Collatz trajectory eventually reaches $1$ or a number congruent to $5$ or $7$ modulo $8$.",
+      "statement": "For every $n>0$, there is $k\\ge0$ such that $C^k(n)=1$, $C^k(n)\\equiv5\\pmod8$, or $C^k(n)\\equiv7\\pmod8$.",
+      "scope": [
+        "This is Yolcu–Aaronson–Heule Conjecture 4.14, expressed without a nonconvergence premise.",
+        "A trajectory may reach one of the two residue classes and continue indefinitely. The question does not require every start to reach 1.",
+        "The October 2026 formalized weakenings add an extra residue class; this statement has no extra exit."
+      ],
+      "example": "$C(3)=10$ and $C^2(3)=5$, so $n=3$ has an exit at step $2$. The start $n=7$ has an exit at time zero.",
+      "conventions": [
+        {
+          "term": "Clock",
+          "detail": "$C(n)=n/2$ for even $n$, and $C(n)=3n+1$ for odd $n$. Time zero is allowed."
+        }
+      ],
+      "difficulty": "The exact modulo-8 avoidance problem survives recent formalized one-residue weakenings and documented limits of finite termination certificates. Those weaker theorems do not remove their extra exit.",
+      "openness": "Named open conjecture, with explicit October 2, 2026 primary-source frontier. No proof of the exact endpoint found in this bounded screen.",
+      "references": [
+        {
+          "label": "Yolcu–Aaronson–Heule, §4.5, Conjecture 4.14; ordinary map defined in §1",
+          "url": "https://emreyolcu.com/research/rewriting-collatz.pdf"
+        },
+        {
+          "label": "Nashida, October 2, 2026, modulo-8 weakenings and certificate barriers",
+          "url": "https://github.com/harappa/collatz-matrix-interpretation-barriers"
+        }
+      ],
+      "publication_readiness": "QUESTION_ONLY_REVIEW_READY"
+    },
+    {
+      "id": "C13",
+      "number": 6,
+      "slug": "sqrt-passage-gaussian",
+      "name": "SqrtPassageGaussian",
+      "blocks": [
+        "shortcutNat",
+        "FirstSqrtPassage",
+        "sqrtPassageBound",
+        "normalCDF",
+        "sqrtPassageCount",
+        "SqrtPassageGaussian"
+      ],
+      "title": "Collatz: Gaussian fluctuations of square-root descent",
+      "summary": "Over all starts $1\\le n\\le N$, the first shortcut passage below $\\sqrt n$, centered at $\\log n/\\log(4/3)$ and scaled by $\\sqrt{(\\log3)^2\\log n/(\\log(4/3))^3}$, has a standard normal limit.",
+      "statement": "Put $d=\\log(4/3)$ and $b_z(n)=\\log n/d+z\\sqrt{(\\log3)^2\\log n/d^3}$. For every real $z$, the proportion of $1\\le n\\le N$ whose first shortcut passage to a value at most $\\sqrt n$ occurs by time $b_z(n)$ tends to the standard normal cumulative probability $\\Phi(z)$.",
+      "scope": [
+        "This review packet proposes the exact square-root first-passage CLT as a new research formulation motivated by published stochastic models. It is not a named published conjecture, and no priority claim is made.",
+        "The denominator is N, including starts with no finite passage. No convergence to 1 is assumed.",
+        "The known coarse trajectory concentration does not establish this square-root-of-logarithm fluctuation scale.",
+        "Full Collatz asserts eventual arrival at 1, without this quantitative distribution. This question stops at square-root descent; no implication in either direction between the full Collatz conjecture and this precise limit is claimed."
+      ],
+      "example": "The shortcut trajectory $16,8,4$ first reaches $\\sqrt{16}=4$ at step $2$. A later visit does not count as the first passage.",
+      "conventions": [
+        {
+          "term": "Clock and logarithm",
+          "detail": "$T(n)=n/2$ for even $n$ and $(3n+1)/2$ for odd $n$; all logarithms are natural."
+        },
+        {
+          "term": "First passage",
+          "detail": "The exact condition is $(T^k(n))^2\\le n$ and $(T^j(n))^2>n$ for all $j<k$."
+        }
+      ],
+      "difficulty": "Typical passage takes about 3.476 log n steps, beyond the initial parity uniformity window of about 1.443 log n. A central limit theorem requires sqrt(log n) precision, whereas Inselmann's comparison permits epsilon log n errors. The published density-one transport estimates do not preserve events of intermediate limiting density Phi(z), so they do not directly transport the proposed Gaussian law.",
+      "openness": "Proposed exact formulation: no deterministic integer-start first-passage CLT with this normalization found. Absence-of-proof screen is bounded, not a certification of exhaustive novelty.",
+      "references": [
+        {
+          "label": "Inselmann, Theorems 1.1 and 1.3: coarse natural-density trajectory approximation",
+          "url": "https://arxiv.org/html/2402.03276v3"
+        },
+        {
+          "label": "Kontorovich–Lagarias, §3.2, Theorem 3.2: stochastic first-passage comparison",
+          "url": "https://arxiv.org/pdf/0910.1944"
+        },
+        {
+          "label": "September 2026 Gaussian history law: a different total-variation word cutoff",
+          "url": "https://github.com/KokunoYumeto/collatz-workbench/blob/main/collatz_reconstruction/research_program/history_law_cutoff_20260914/RESEARCH_NOTE.md"
+        }
+      ],
+      "publication_readiness": "QUESTION_ONLY_REVIEW_READY",
+      "provenance": {
+        "kind": "newly_proposed_precise_strengthening",
+        "formulated_in": "this 2026-10-12 review packet",
+        "motivation": "Kontorovich–Lagarias stochastic first passage; deterministic comparison with Inselmann",
+        "named_published_conjecture": false,
+        "priority_claim": false,
+        "logical_relation_to_full_collatz": "No implication/equivalence or strict hardness ordering established. It measures a prefix ending at sqrt(n), not convergence to 1."
+      }
+    },
+    {
+      "id": "C14",
+      "number": 7,
+      "slug": "exponential-syracuse-mixing",
+      "name": "ExponentialSyracuseMixing",
+      "blocks": [
+        "syracuseMass",
+        "syracuseOscillation",
+        "ExponentialSyracuseMixing"
+      ],
+      "title": "Collatz: exponential fine-scale Syracuse mixing",
+      "summary": "The exact Syracuse offset law modulo $3^n$ approaches the uniform lift of its coarse law modulo $3^m$ with $L^1$ error at most $C e^{-cm}$, uniformly for $1\\le m\\le n$.",
+      "statement": "Let $p_n$ be the exact rational Syracuse offset mass defined below. Are there constants $C,c>0$ such that, for every $1\\le m\\le n$, $\\sum_{r=0}^{3^n-1}|p_n(r)-3^{m-n}p_m(r\\bmod3^m)|\\le C e^{-cm}$?",
+      "scope": [
+        "The coarse law is not uniform: it assigns zero mass to multiples of 3.",
+        "This strengthens the superpolynomial mixing estimate in Tao's Proposition 1.14 to the exponential rate predicted in Remark 1.15.",
+        "It is an analytic subproblem about a precisely defined probability law. It asserts no universal convergence of integer Collatz trajectories.",
+        "The September 2026 retained-weight mixing theorem was compared in full: its conductor is the exponent of 3 and its bound is an arbitrary fixed inverse power, not the exponential rate asked here."
+      ],
+      "example": "Modulo $3$, the masses at $0,1,2$ are $0,1/3,2/3$. When $m=n$, the displayed error is zero.",
+      "conventions": [
+        {
+          "term": "Exact probability law",
+          "detail": "At level n+1, send a residue y to $(3y+1)2^{-a}$ modulo $3^{n+1}$, with the geometric law of a summed over its period $L=2\\cdot3^n$. The exact weight is $2^{L-a}/(2^L-1)$ for $1\\le a\\le L$."
+        },
+        {
+          "term": "Distance",
+          "detail": "The displayed L1 sum is twice the usual total variation distance; the existential constant C absorbs that factor."
+        }
+      ],
+      "difficulty": "A bound by every fixed inverse power does not supply uniform exponential decay; the constants may depend on the power. The target asks for one pair C,c valid at all scales.",
+      "openness": "Tao v7 (July 16, 2026), Remark 1.15 predicts this exponential strengthening. The September 2026 preprint was read in full: Theorem 5.2, equation (63), still proves only O_A(m^(-A)) for each fixed A, and section 9 assumes its analytic estimates in Lean. No exact proof or unconditional formalization was located in the bounded current screen.",
+      "references": [
+        {
+          "label": "Tao, v7 (July 16, 2026), Lemma 1.12, equation (1.23), Proposition 1.14 and Remark 1.15",
+          "url": "https://arxiv.org/html/1909.03562v7"
+        },
+        {
+          "label": "al-Jammas–Kolpakov–Luo, Theorem 5.2 (63), conductor convention §2 and Lean scope §9: inverse-power estimate only",
+          "url": "https://hal.science/hal-05716421/file/collatz_novikov_paths.pdf"
+        }
+      ],
+      "publication_readiness": "QUESTION_ONLY_REVIEW_READY",
+      "literature_hold_resolved_on": "2026-10-12",
+      "evidence": "evidence/c14-preprint-comparison.json"
+    }
+  ]
+}
