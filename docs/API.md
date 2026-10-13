@@ -498,7 +498,9 @@ and `new_target_chat_logs_required`. Each task's `bounty.policy_version` remains
 legacy curve fields in pool metadata describe legacy targets only.
 
 `GET /v1/trajectory-offer` publishes the retrospective source-family tiers ($500 Erdős/Green,
-$250 other), launch cutoff, window, pinned terms/assent digests and intake availability.
+$250 other), `start_at` (the permanent moment intake opened, also the bonus cutoff), the claim
+window, pinned terms/assent digests and intake availability. Intake answers 503 until both
+`TRAJECTORY_BONUS_ENABLED` and the opening record exist.
 
 **New-policy logs arrive before the proof.** A cookie-authenticated account uploads them with
 `POST /v1/me/chat-log-deposits`: the JSON envelope holds `package_json` (with

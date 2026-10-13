@@ -72,3 +72,28 @@ END;
 $$;
 CREATE TRIGGER trajectory_access_no_update BEFORE UPDATE ON trajectory_access_log
 FOR EACH ROW EXECUTE FUNCTION forbid_trajectory_access_update();
+
+-- The moment chat-log intake opened, stamped once by scripts/open_chat_log_intake.py. Proofs
+-- submitted before it qualify for the $500/$250 bonus for one year; it can never move.
+CREATE TABLE chat_log_program (
+    id smallint PRIMARY KEY,
+    opened_at timestamptz NOT NULL,
+    terms_version text NOT NULL,
+    terms_sha256 sha256 NOT NULL,
+    opened_by text NOT NULL,
+    CONSTRAINT chat_log_program_single CHECK (id = 1),
+    CONSTRAINT chat_log_program_terms CHECK (terms_version LIKE 'chat-log-terms-%'),
+    CONSTRAINT chat_log_program_opened_by CHECK (length(opened_by) BETWEEN 1 AND 255)
+);
+REVOKE ALL ON chat_log_program FROM PUBLIC;
+
+CREATE FUNCTION forbid_chat_log_program_change() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'the chat-log program opening is permanent' USING ERRCODE = '23514';
+END;
+$$;
+CREATE TRIGGER chat_log_program_permanent BEFORE UPDATE OR DELETE ON chat_log_program
+FOR EACH ROW EXECUTE FUNCTION forbid_chat_log_program_change();
+CREATE TRIGGER chat_log_program_no_truncate BEFORE TRUNCATE ON chat_log_program
+FOR EACH STATEMENT EXECUTE FUNCTION forbid_chat_log_program_change();

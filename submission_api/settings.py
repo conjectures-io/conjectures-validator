@@ -789,7 +789,6 @@ class Settings:
     max_bundle_bytes: int
     manual_review_enabled: bool
     trajectory_bonus_enabled: bool
-    trajectory_bonus_start_at: str
     review_policy_version: str
     bounty_pool_balance_rao: int
     bounty_policy_version: str
@@ -981,19 +980,7 @@ class Settings:
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
         trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
-        trajectory_bonus_start_at = env.get("TRAJECTORY_BONUS_START_AT", "").strip()
-        if trajectory_bonus_start_at:
-            from datetime import datetime
-            try:
-                cutoff = datetime.fromisoformat(trajectory_bonus_start_at.replace("Z", "+00:00"))
-                if cutoff.tzinfo is None:
-                    raise ValueError("timezone missing")
-                if production and trajectory_bonus_enabled and cutoff > datetime.now(cutoff.tzinfo):
-                    raise ValueError("production cutoff cannot be in the future")
-            except ValueError as exc:
-                raise SettingsError("TRAJECTORY_BONUS_START_AT must be an ISO timestamp with timezone") from exc
-        if trajectory_bonus_enabled and not trajectory_bonus_start_at:
-            raise SettingsError("enabling trajectory intake requires an explicit TRAJECTORY_BONUS_START_AT")
+        # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
         if production and trajectory_bonus_enabled:
             from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
             if "draft" in TERMS_VERSION:
@@ -1667,7 +1654,6 @@ class Settings:
             ),
             manual_review_enabled=_flag(env, "MANUAL_REWARD_REVIEW_ENABLED", True),
             trajectory_bonus_enabled=trajectory_bonus_enabled,
-            trajectory_bonus_start_at=trajectory_bonus_start_at,
             review_policy_version=review_policy_version,
             bounty_pool_balance_rao=bounty_pool_balance_rao,
             bounty_policy_version=bounty_policy_version,

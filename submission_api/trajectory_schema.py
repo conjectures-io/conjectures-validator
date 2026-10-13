@@ -14,7 +14,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 MAX_PACKAGE_BYTES = 32 * 1024 * 1024
 RETENTION_DAYS = 90
-TERMS_VERSION = "chat-log-terms-draft-v1"
+TERMS_VERSION = "chat-log-terms-v1"
 DEPOSIT_HOURS = 24
 Digest = Annotated[str, Field(pattern=r"^sha256:[a-f0-9]{64}$")]
 Short = Annotated[str, Field(min_length=1, max_length=500)]
@@ -129,7 +129,7 @@ class Reproduction(StrictModel):
 
 class Permissions(StrictModel):
     # Set by the server from the intake checkbox, never trusted from a hand-edited file.
-    terms_version: Literal["chat-log-terms-draft-v1"]
+    terms_version: Literal["chat-log-terms-v1"]
     authentic_logs_that_produced_this_proof: bool = Field(strict=True)
     allowed_to_share: bool = Field(strict=True)
     secrets_and_personal_data_removed: bool = Field(strict=True)

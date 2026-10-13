@@ -6,8 +6,8 @@ import uuid
 from dataclasses import replace
 
 import pytest
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from conftest_api import MINER_COLDKEY, TASK_DIGEST, distinct_bundle, harness, postgres_dsn
 from test_api_accounts import client, same_origin, sign_in_by_email
@@ -17,16 +17,36 @@ from test_trajectory_schema import envelope_body as envelope, example
 from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
 from conjectures_subnet.db import submissions as proof_store
 from conjectures_subnet.db.models import ReviewOutcome, RewardEvent, Submission
-from conjectures_subnet.db.trajectory_models import TrajectoryAccess, TrajectoryClaim, TrajectoryFingerprint
-from submission_api.trajectory_terms import TERMS_SHA256
+from conjectures_subnet.db.trajectory_models import ChatLogProgram, TrajectoryAccess, TrajectoryClaim, TrajectoryFingerprint
+from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
 from submission_api.trajectory_intake import MAX_ENVELOPE_BYTES
 from submission_api.routers.trajectories import Checklist
 
 pytestmark = pytest.mark.skipif(postgres_dsn() is None, reason="requires verified private fixture")
 
 
-def kit_config():
-    return harness(TRAJECTORY_BONUS_ENABLED="true", TRAJECTORY_BONUS_START_AT="2027-01-01T00:00:00Z")
+# After every fixture proof, so those proofs count as submitted before intake opened.
+FUTURE_OPENING = dt.datetime(2027, 1, 1, tzinfo=dt.UTC)
+
+
+class OpenedHarness:
+    """A harness whose chat-log program record says intake opened at `opened_at` (None: not yet)."""
+    def __init__(self, inner, opened_at):
+        self.inner, self.opened_at = inner, opened_at
+
+    async def setup(self):
+        kit = await self.inner.setup()
+        if self.opened_at is not None:
+            async with kit.session() as session:
+                session.add(ChatLogProgram(id=1, opened_at=self.opened_at, terms_version=TERMS_VERSION,
+                                           terms_sha256=bytes.fromhex(TERMS_SHA256.removeprefix("sha256:")),
+                                           opened_by="test fixture"))
+                await session.commit()
+        return kit
+
+
+def kit_config(*, opened_at=FUTURE_OPENING, enabled=True, **options):
+    return OpenedHarness(harness(TRAJECTORY_BONUS_ENABLED=str(enabled).lower(), **options), opened_at)
 
 
 DEPOSITS = "/v1/me/chat-log-deposits"
@@ -441,6 +461,42 @@ def test_new_bounty_logs_are_due_before_the_proof_and_rejection_reopens_the_targ
     asyncio.run(scenario())
 
 
+def test_intake_stays_closed_until_opened_and_the_opening_never_moves():
+    from scripts.open_chat_log_intake import open_intake
+
+    async def scenario():
+        kit = await kit_config(opened_at=None).setup()
+        try:
+            async with await client(kit) as owner:
+                _, sid, p = await accepted(kit, owner)
+                closed = await owner.get("/v1/trajectory-offer")
+                assert closed.json()["enabled"] is False and closed.json()["start_at"] is None
+                refused = await owner.post(f"/v1/me/submissions/{sid}/trajectory", json=envelope(p), headers=same_origin())
+                assert refused.status_code == 503
+                assert (await owner.post(DEPOSITS, json=envelope(p), headers=same_origin())).status_code == 503
+                assert (await owner.get(f"/v1/me/submissions/{sid}/trajectory")).json()["eligibility_reason"] == "Chat-log intake is not open."
+                async with kit.session() as session:
+                    first, new = await open_intake(session, opened_by="test operator")
+                    assert new
+                async with kit.session() as session:
+                    again, new = await open_intake(session, opened_by="someone else")
+                    assert again == first and not new
+                    for statement in ("UPDATE chat_log_program SET opened_at = now() - interval '1 year'",
+                                      "DELETE FROM chat_log_program", "TRUNCATE chat_log_program"):
+                        with pytest.raises(DBAPIError, match="permanent"):
+                            await session.execute(text(statement))
+                        await session.rollback()
+                    record = await session.get(ChatLogProgram, 1)
+                    assert record.opened_by == "test operator" and record.terms_version == TERMS_VERSION
+                opened = (await owner.get("/v1/trajectory-offer")).json()
+                assert opened["enabled"] and dt.datetime.fromisoformat(opened["start_at"]) == first
+                # This proof was submitted moments before opening, so it now qualifies.
+                assert (await owner.get(f"/v1/me/submissions/{sid}/trajectory")).json()["eligible"]
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
 def test_signed_intent_confirmation_also_requires_logs_for_the_exact_proof():
     from submission_api.auth import development_signature
     from test_api_accounts import designate, full_intent
@@ -637,7 +693,7 @@ def test_same_outcome_proof_rebind_after_expiry_uses_snapshot_and_retains_review
                 cid = first.json()["id"]
                 await reviewer(kit, admin)
                 kit.app.state.services = replace(kit.services, settings=replace(kit.settings,
-                    trajectory_bonus_enabled=False, trajectory_bonus_start_at=""))
+                    trajectory_bonus_enabled=False))
                 approved = await admin.post(f"/v1/admin/trajectories/{cid}/decision", json=review_body(), headers=same_origin())
                 assert approved.status_code == 200, approved.text  # Config cleared after enrollment.
                 async with kit.session() as session:
@@ -704,8 +760,6 @@ def test_requested_revision_after_initial_claim_window_and_changed_cutoff(monkey
                     claim = await session.get(TrajectoryClaim, uuid.UUID(cid))
                     claim.offer_start_at = sub.created_at - dt.timedelta(days=1)
                     await session.commit()
-                kit.app.state.services = replace(kit.services, settings=replace(kit.settings,
-                    trajectory_bonus_start_at="2099-01-01T00:00:00Z"))
                 assert (await owner.get(path)).json()["eligible"]
                 p["events"][0]["content"] += " Revision requested while review content remains live."
                 dated(p, dt.datetime.now(dt.UTC) - dt.timedelta(days=371))  # The chat predates the proof.

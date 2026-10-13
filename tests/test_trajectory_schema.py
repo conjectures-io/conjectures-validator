@@ -33,7 +33,7 @@ def test_published_schema_example_and_pinned_terms():
     generated = TrajectoryPackage.model_json_schema()
     assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == generated
     assert TERMS_SHA256 == "sha256:" + hashlib.sha256(
-        (ROOT / "docs/trajectories/chat-log-terms-draft-v1.md").read_bytes()).hexdigest()
+        (ROOT / "docs/trajectories/chat-log-terms-v1.md").read_bytes()).hexdigest()
     assert proof_first_seen(p) == dt.datetime(2026, 10, 12, 12, 0, 6, tzinfo=dt.UTC)
 
 
@@ -80,13 +80,12 @@ def test_fingerprint_ignores_repackaging_but_hash_tracks_exact_package():
     assert canonical_bytes(p) != canonical_bytes(other)
 
 
-def test_feature_requires_explicit_launch_cutoff_and_preserves_recorded_policy():
+def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
     from conftest_api import build_settings
     assert build_settings().trajectory_bonus_enabled is False
-    with pytest.raises(SettingsError):
-        Settings.from_env({"TRAJECTORY_BONUS_ENABLED": "true"})
-    with pytest.raises(SettingsError):
-        Settings.from_env({"TRAJECTORY_BONUS_START_AT": "2026-01-01"})
+    # The bonus cutoff is stamped once in the database when intake opens, never read from env.
+    enabled = build_settings(TRAJECTORY_BONUS_ENABLED="true", TRAJECTORY_BONUS_START_AT="2020-01-01T00:00:00Z")
+    assert enabled.trajectory_bonus_enabled and not hasattr(enabled, "trajectory_bonus_start_at")
     now = dt.datetime.now(dt.UTC)
     sub = SimpleNamespace(created_at=now, verification_status="VERIFIED", manual_review_status="APPROVED",
                           reward_status="ELIGIBLE", review_policy_version="v3")
@@ -101,10 +100,11 @@ def test_feature_requires_explicit_launch_cutoff_and_preserves_recorded_policy()
 
 def test_terms_assent_and_template_are_plain_and_pinned():
     assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
-    terms = (ROOT / "docs/trajectories/chat-log-terms-draft-v1.md").read_text()
+    terms = (ROOT / "docs/trajectories/chat-log-terms-v1.md").read_text()
     for promise in ("upload the logs before you submit the proof", "this chat actually produced the proof",
                     "not written, edited or\nreconstructed afterwards", "sell and license the logs to buyers",
-                    "We do not\npublish the logs openly"):
+                    "publish the logs openly, and buyers may not either", "within one year of that\nmoment",
+                    "approved for its full bounty", "paid in Subnet 66 Alpha", "this right ends"):
         assert promise in terms, promise
     assert not example()["permissions"]["authentic_logs_that_produced_this_proof"]
     blank = json.loads((ROOT / "docs/trajectories/template.json").read_text())
@@ -146,11 +146,15 @@ def test_raw_envelope_consent_duplicate_keys_and_safe_locations():
         assert "SECRET" not in result and "unknown-field" in result and "extra_forbidden" in result
 
 
-def test_production_refuses_draft_launch_even_with_digest():
-    with pytest.raises(SettingsError, match="draft terms"):
+def test_production_launch_needs_the_pinned_approved_terms_digest():
+    assert "draft" not in TERMS_VERSION
+    with pytest.raises(SettingsError, match="owner-approved terms digest"):
         Settings.from_env({"APP_MODE": "PROD", "TRAJECTORY_BONUS_ENABLED": "true",
-            "TRAJECTORY_BONUS_START_AT": "2026-01-01T00:00:00Z",
+            "TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256": "sha256:" + "0" * 64})
+    with pytest.raises(SettingsError) as later:  # Other production settings are still required.
+        Settings.from_env({"APP_MODE": "PROD", "TRAJECTORY_BONUS_ENABLED": "true",
             "TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256": TERMS_SHA256})
+    assert "chat-log" not in str(later.value)
 
 
 def test_upload_budget_prunes_expired_accounts_and_bounds_failures(monkeypatch):

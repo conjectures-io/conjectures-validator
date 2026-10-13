@@ -28,7 +28,10 @@ No production migration, task activation, transfer or announcement has occurred.
   The retrospective claim window is 365 days from cutoff; required new-bounty evidence is exempt.
   The chat must show the proof before that proof's submission time.
 - Every paid log carries a required license to sell it to buyers, effective on acceptance; logs
-  are never published openly. Terms are plain language (`chat-log-terms-draft-v1.md`).
+  are never published openly, by us or buyers. Terms are plain language (`chat-log-terms-v1.md`).
+  Historical bonuses are paid in Subnet 66 Alpha worth the USD amount at payment time.
+- The bonus cutoff and the terms' effective date are the go-live moment, stamped once in
+  `chat_log_program` by `scripts/open_chat_log_intake.py`.
   Published submission terms remain v7;
   v8 is inactive in `docs/policies/submission-terms-v8-draft.md` until its release gates are met.
 
@@ -61,12 +64,12 @@ No production migration, task activation, transfer or announcement has occurred.
 4. Preserve original task versions used by historical submissions. A missing/corrupt bundle
    blocks tier classification; it must not silently fall back to $250. Account-less historical
    submissions still need verified ownership migration before private account intake.
-5. Complete the launch blockers in README: owner-approved final chat-log terms and pinned
-   digest, private storage/access/backup retention, review staffing and purge scheduling.
-   Production refuses draft terms. Historical bonus payment needs the separate payment ledger,
-   and selling needs the buyer delivery process described there.
-6. Configure an explicit timezone-aware cutoff, backend intake flag and matching frontend flag.
-   Rebuild the frontend; assets reside in `data/trajectory` and are served only while enabled.
+5. Pin the approved chat-log terms digest, configure private storage/access/backup retention,
+   review staffing and purge scheduling. Historical bonus payment needs the separate payment
+   ledger, and selling needs the buyer delivery process (README, "Still to build").
+6. When staging passes, run `scripts/open_chat_log_intake.py` (permanent cutoff), then set the
+   backend intake flag and matching frontend flag. Rebuild the frontend; assets reside in
+   `data/trajectory` and are served only while enabled.
 7. Release P34/P35 with real generated task bundles, immutable source/type hashes, the source
    catalog, tier selection evidence and a verifier image containing that exact source. The
    frozen packet here is an admission record and compile-checked mathematical source, not a
@@ -95,8 +98,8 @@ Deploy with intake disabled first: new-policy catalog quotes return
 refuses new-policy targets even after launch; contributors must use an authenticated account
 submission endpoint to retain private evidence ownership. Legacy extrinsic submissions still work.
 
-Before enabling intake, complete every README launch blocker, including the persisted
-historical cutoff and real historical-source/ownership inventory. The missing-log rule is
+Before enabling intake, follow the README go-live steps and complete the historical
+source/ownership inventory. The missing-log rule is
 settled: logs are due before the proof, so there is no deadline to track. Publish final v8 through an explicit versioned `SUBMISSION_TERMS_PATH`, version and
 actual effective date; coordinate matching frontend assent and archived v7. Do not change the
 bundled v7 contract merely to deploy disabled code.

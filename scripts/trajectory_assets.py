@@ -64,7 +64,7 @@ def example():
         "missing": [{"field_or_event": "entire example", "reason": "Synthetic data has no source export or accepted proof.",
                      "impact_on_reproduction": "Shows the file format only. Authenticity cannot be established."}],
         "redactions": [],
-        "permissions": {"terms_version": "chat-log-terms-draft-v1",
+        "permissions": {"terms_version": "chat-log-terms-v1",
                         # This fabricated example cannot make real promises or grant a license.
                         "authentic_logs_that_produced_this_proof": False, "allowed_to_share": False,
                         "secrets_and_personal_data_removed": False, "license_to_sell_once_accepted": False},
@@ -107,7 +107,7 @@ def pin_terms(destination):
     """Changing the terms or assent text changes these digests and requires fresh assent."""
     def sha(name):
         return "sha256:" + hashlib.sha256((destination / name).read_bytes()).hexdigest()
-    manifest = {"TERMS_VERSION": "chat-log-terms-draft-v1", "TERMS_SHA256": sha("chat-log-terms-draft-v1.md"),
+    manifest = {"TERMS_VERSION": "chat-log-terms-v1", "TERMS_SHA256": sha("chat-log-terms-v1.md"),
                 "ASSENT_STATEMENTS_SHA256": sha("assent-statements-v2.json")}
     (destination / "terms-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (ROOT / "submission_api/trajectory_terms.py").write_text(

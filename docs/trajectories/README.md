@@ -7,8 +7,9 @@ For qualifying proofs submitted before launch, accepted logs earn an additional
 their terms. Every accepted log is licensed to Conjectures for sale to buyers; logs are never
 published openly. The owner approved these rules on October 12, 2026.
 
-Contributor terms are one plain-language page, [chat-log-terms-draft-v1.md](chat-log-terms-draft-v1.md),
-with a single pinned assent statement ([assent-statements-v2.json](assent-statements-v2.json)).
+Contributor terms are one plain-language page, [chat-log-terms-v1.md](chat-log-terms-v1.md)
+(owner-reviewed October 13, 2026), with a single pinned assent statement
+([assent-statements-v2.json](assent-statements-v2.json)). They take effect when intake opens.
 `python scripts/trajectory_assets.py` regenerates the schema, template, example, the terms
 manifest and `submission_api/trajectory_terms.py` digests; copy `docs/trajectories/*.json` and
 the terms Markdown to the frontend's `data/trajectory/` and verify the hashes together.
@@ -20,8 +21,10 @@ the terms Markdown to the frontend's `data/trajectory/` and verify the hashes to
 | Acceptance standard | This chat produced this proof, and the chat existed before the proof was submitted — not written, edited or reconstructed afterwards |
 | New bounties | Logs are deposited before the proof; the proof is refused without them (no credit spent); the deposit lasts 24 hours; no later addition or replacement |
 | Missing or failed logs | Rejected or withdrawn logs forfeit the bounty and reopen the target; there is no grace period |
-| Earlier proofs | $500 Erdős/Green, $250 other, by the original task bundle; the chat must show the proof before its submission time; up to three versions; claims close 365 days after the cutoff |
-| License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance |
+| Earlier proofs | $500 Erdős/Green, $250 other, by the original task bundle, paid in Subnet 66 Alpha worth that USD amount at payment time; only proofs submitted before intake opened and approved for the full bounty; the chat must show the proof before its submission time; up to three versions; claims close 365 days after opening |
+| Cutoff | The moment intake opens, stamped once by `scripts/open_chat_log_intake.py` in `chat_log_program`; the database refuses any update, delete or truncate |
+| License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
+| Buyers | May use, including for training and evaluation, but may not publish the logs openly |
 | Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
 | Format | UTF-8 JSON up to 32 MiB, 10,000 events, 100 runs, 1,000 artifacts; the existing proof may be referenced rather than embedded |
 
@@ -99,28 +102,33 @@ of non-accepted claims after seven years unless a required-evidence record backs
 event. Accepted logs are never purged: they are the licensed sale inventory. Backups need the
 same schedule, with a restore-time purge before serving traffic.
 
-## Launch blockers
+## Go-live (when the staging run passes)
 
-1. **Final terms.** The owner approves the wording of `chat-log-terms-draft-v1.md` and its
-   effective date; rename it to a non-draft version, regenerate digests and pin
-   `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256`. Production refuses draft terms. Publish v8
-   submission terms (still `docs/policies/submission-terms-v8-draft.md`) with matching dates.
-2. **Persist the historical cutoff.** It still comes from `TRAJECTORY_BONUS_START_AT`. Store the
-   approved cutoff durably and refuse changes for new enrollments; each claim already
-   snapshots its own.
-3. **Historical bonus payments.** Approval records `NOT_ISSUED`. A payment ledger must record a
-   unique claim payment, actual amount, verified destination, reference and confirmation before
-   anyone pays a bonus. Never infer payment from the proof reward.
-4. **Sale delivery.** Accepted packages stay in the private review store. Selling needs an
-   export/delivery process for buyers (who receives what, buyer terms, takedown handling) that
-   reads only accepted claims and logs each export.
-5. **Inventory.** Original historical task bundles (a missing bundle blocks tier selection) and
+The owner chose no advance date: the terms' effective date and the bonus cutoff are both the
+go-live moment.
+
+1. Deploy per ROLLOUT with intake off; set `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256` to the
+   `TERMS_SHA256` in `submission_api/trajectory_terms.py`. Run the staging check end to end.
+2. Publish final v8 submission terms with the same effective date (see ROLLOUT).
+3. Run `DATABASE_URL=... python scripts/open_chat_log_intake.py --opened-by "<name>" --confirm`.
+   This is permanent; a second run changes nothing and prints the original moment.
+4. Immediately set `TRAJECTORY_BONUS_ENABLED=true` and frontend `NEXT_PUBLIC_TRAJECTORY_BONUS=1`.
+   Intake stays closed (503) until both the flag and the opening record exist.
+
+## Still to build or prepare
+
+1. **Historical bonus payments.** Approval records `NOT_ISSUED`. Before paying anyone, a payment
+   ledger must record a unique claim payment, the USD amount, the Alpha amount and the price
+   source/time used to convert it, the verified destination, reference and confirmation. Never
+   infer payment from the proof reward. Accepted bonuses can wait for this after go-live.
+2. **Sale delivery.** Accepted packages stay in the private review store. Selling needs an
+   export/delivery process for buyers that reads only accepted claims, logs each export, binds
+   buyers to no open publication, and handles takedown when an acceptance is revoked.
+3. **Inventory.** Original historical task bundles (a missing bundle blocks tier selection) and
    account-less historical submissions (need verified ownership migration).
-6. **P34/P35 release.** Generated task bundles, registry/catalog entries, source/type commitments
-   and a pinned verifier release; see `staged/packing-20261012/`.
-7. **Production configuration** per ROLLOUT, then enable `TRAJECTORY_BONUS_ENABLED=true`
-   together with frontend `NEXT_PUBLIC_TRAJECTORY_BONUS=1`. New-policy quotes stay
-   `CHAT_LOG_REVIEW_UNAVAILABLE` while intake is off.
+4. **P34/P35 release.** Generated task bundles, registry/catalog entries, source/type commitments
+   and a pinned verifier release; see `staged/packing-20261012/`. New-policy targets exist only
+   once something new is published.
 
 Operator note: provider terms differ on whether outputs may be resold or used to train other
 models. The contributor promises they may share the logs; buyers should still get the provider

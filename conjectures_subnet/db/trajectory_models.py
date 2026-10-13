@@ -2,7 +2,7 @@
 import datetime as dt
 import uuid
 
-from sqlalchemy import DDL, event, CheckConstraint, DateTime, ForeignKey, Index, Integer, LargeBinary, Text, text
+from sqlalchemy import DDL, event, CheckConstraint, DateTime, ForeignKey, Index, Integer, LargeBinary, SmallInteger, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -79,3 +79,31 @@ class TrajectoryAccess(Base):
 
 event.listen(TrajectoryAccess.__table__, "after_create", DDL("CREATE FUNCTION forbid_trajectory_access_update() RETURNS trigger\nLANGUAGE plpgsql AS $$\nBEGIN\n    RAISE EXCEPTION 'trajectory access records cannot be updated';\nEND;\n$$;\nCREATE TRIGGER trajectory_access_no_update BEFORE UPDATE ON trajectory_access_log\nFOR EACH ROW EXECUTE FUNCTION forbid_trajectory_access_update();"))
 event.listen(TrajectoryAccess.__table__, "before_drop", DDL("DROP FUNCTION IF EXISTS forbid_trajectory_access_update() CASCADE;"))
+
+
+class ChatLogProgram(Base):
+    """The moment intake opened: the permanent cutoff for the earlier-proof bonus."""
+    __tablename__ = "chat_log_program"
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
+    opened_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    terms_version: Mapped[str] = mapped_column(Text, nullable=False)
+    terms_sha256: Mapped[bytes] = mapped_column(SHA256, nullable=False)
+    opened_by: Mapped[str] = mapped_column(Text, nullable=False)
+    __table_args__ = (
+        CheckConstraint("id = 1", name="chat_log_program_single"),
+        CheckConstraint("terms_version LIKE 'chat-log-terms-%'", name="chat_log_program_terms"),
+        CheckConstraint("length(opened_by) BETWEEN 1 AND 255", name="chat_log_program_opened_by"),
+    )
+
+
+event.listen(ChatLogProgram.__table__, "after_create", DDL("""CREATE FUNCTION forbid_chat_log_program_change() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'the chat-log program opening is permanent' USING ERRCODE = '23514';
+END;
+$$;
+CREATE TRIGGER chat_log_program_permanent BEFORE UPDATE OR DELETE ON chat_log_program
+FOR EACH ROW EXECUTE FUNCTION forbid_chat_log_program_change();
+CREATE TRIGGER chat_log_program_no_truncate BEFORE TRUNCATE ON chat_log_program
+FOR EACH STATEMENT EXECUTE FUNCTION forbid_chat_log_program_change();"""))
+event.listen(ChatLogProgram.__table__, "before_drop", DDL("DROP FUNCTION IF EXISTS forbid_chat_log_program_change() CASCADE;"))

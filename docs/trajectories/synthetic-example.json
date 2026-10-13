@@ -222,7 +222,7 @@
   ],
   "redactions": [],
   "permissions": {
-    "terms_version": "chat-log-terms-draft-v1",
+    "terms_version": "chat-log-terms-v1",
     "authentic_logs_that_produced_this_proof": false,
     "allowed_to_share": false,
     "secrets_and_personal_data_removed": false,

@@ -110,18 +110,18 @@ later. A reviewer accepts them only if the chat actually produced the proof and 
 the proof was submitted — not written, edited or reconstructed afterwards. Rejected or withdrawn
 logs mean the proof is rejected as `CHAT_LOGS_NOT_ACCEPTED`: no bounty is paid and the target
 reopens to other solvers. The separately capped formalization-defect award retains its
-existing rules. The [chat-log terms](../trajectories/chat-log-terms-draft-v1.md) apply.
+existing rules. The [chat-log terms](../trajectories/chat-log-terms-v1.md) apply.
 
-For qualifying full-bounty proofs submitted before the chat-log program's published cutoff,
-accepted logs earn an additional **$500 USD for Erdős or Green problems**, or **$250 USD for
-other problems**, based on the original task bundle. The chat must show the proof before it
-was submitted. Claims close 365 days after that cutoff. Existing proof payouts are not reduced
+For full-bounty proofs submitted before chat-log intake opened, accepted logs earn an
+additional **$500 USD for Erdős or Green problems**, or **$250 USD for other problems**, based
+on the original task bundle and paid in Subnet 66 Alpha worth that amount when paid. The chat
+must show the proof before it was submitted. Claims close one year after intake opened. Existing proof payouts are not reduced
 or made conditional on logs. There is no extra log bonus for a new treasury-share bounty.
 
 Uploading logs grants Conjectures a permanent, worldwide, non-exclusive right to use, copy,
 sell and license them to buyers, including for training and evaluating AI systems, once they
-are accepted. Logs are not published openly. Logs that are not accepted are deleted within 90
-days; accepted logs are kept so they can be sold.
+are accepted. Logs are not published openly, by us or by buyers. Logs that are not accepted
+are deleted within 90 days; accepted logs are kept so they can be sold.
 
 ## Attribution and publication
 

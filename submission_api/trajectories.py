@@ -24,7 +24,7 @@ from verifier.errors import VerifierError
 from conjectures_subnet.db.submissions import (
     correct_human_decision, latest_binding_decision, record_human_decision,
 )
-from conjectures_subnet.db.trajectory_models import TrajectoryClaim, TrajectoryFingerprint
+from conjectures_subnet.db.trajectory_models import ChatLogProgram, TrajectoryClaim, TrajectoryFingerprint
 from submission_api.errors import Conflict, NotFound
 from submission_api.trajectory_schema import (
     DEPOSIT_HOURS, MAX_PACKAGE_BYTES, RETENTION_DAYS, TERMS_VERSION, proof_first_seen,
@@ -74,6 +74,11 @@ async def unchanged_approval_chain(session, submission_id, current, original_id)
             return True
         decision = await session.get(ReviewDecision, decision.supersedes_id) if decision.supersedes_id else None
     return False
+
+
+async def opened_at(session):
+    """When intake opened, or None. Stamped once by scripts/open_chat_log_intake.py; never moves."""
+    return await session.scalar(select(ChatLogProgram.opened_at).where(ChatLogProgram.id == 1))
 
 
 async def owned_submission(session, submission_id, account_id, *, lock=False):

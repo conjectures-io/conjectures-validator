@@ -62,13 +62,15 @@ def private(response):
     response.headers["Vary"] = "Authorization, Cookie"
 
 
-def enabled(services):
-    if not services.settings.trajectory_bonus_enabled:
-        raise ApiError("Trajectory bonus intake is not open.", status_code=503, reason_code="TRAJECTORY_DISABLED")
+NOT_OPEN = "Chat-log intake is not open."
 
 
-def cutoff(services):
-    return dt.datetime.fromisoformat(services.settings.trajectory_bonus_start_at.replace("Z", "+00:00"))
+async def opened(services, session):
+    """Intake needs both the deployment flag and the permanent opening record."""
+    cutoff = await store.opened_at(session) if services.settings.trajectory_bonus_enabled else None
+    if cutoff is None:
+        raise ApiError(NOT_OPEN, status_code=503, reason_code="TRAJECTORY_DISABLED")
+    return cutoff
 
 
 async def bounded_json(request, limit):
@@ -97,15 +99,16 @@ async def bounded_json(request, limit):
 
 
 @router.get("/trajectory-offer")
-async def offer(services: ServicesDep, response: Response):
+async def offer(services: ServicesDep, session: SessionDep, response: Response):
     private(response)
+    start_at = await store.opened_at(session)
     return {
-        "enabled": services.settings.trajectory_bonus_enabled,
+        "enabled": services.settings.trajectory_bonus_enabled and start_at is not None,
         "legacy_bonus_usd_cents": {"erdos": 50000, "green": 50000, "other": 25000},
         "new_bounty_share": {"numerator": 1, "denominator": 40, "basis": "gross_treasury"},
         "new_bounties_require_chat_logs": True, "logs_due": "BEFORE_PROOF_SUBMISSION",
         "deposit_hours": DEPOSIT_HOURS, "license": "REQUIRED_SALE_LICENSE_ON_ACCEPTANCE",
-        "start_at": services.settings.trajectory_bonus_start_at or None,
+        "start_at": start_at,
         "claim_window_days": store.CLAIM_WINDOW_DAYS, "max_package_bytes": MAX_PACKAGE_BYTES,
         "retention_days": RETENTION_DAYS, "audit_retention_days": store.AUDIT_RETENTION_DAYS,
         "terms_version": TERMS_VERSION, "terms_sha256": TERMS_SHA256,
@@ -127,13 +130,14 @@ async def status(submission_id: uuid.UUID, principal: PrincipalDep, services: Se
     submission = await store.owned_submission(session, submission_id, principal.account.id)
     claim = await store.claim_for(session, submission_id)
     decision = await latest_binding_decision(session, submission_id)
+    start_at = await store.opened_at(session) if services.settings.trajectory_bonus_enabled else None
     if required(submission):
         reason = FIXED_AT_SUBMISSION
-    elif services.settings.trajectory_bonus_enabled:
-        reason = store.eligibility_reason(submission, decision, cutoff=claim.offer_start_at if claim else cutoff(services),
+    elif start_at is not None:
+        reason = store.eligibility_reason(submission, decision, cutoff=claim.offer_start_at if claim else start_at,
                                           now=dt.datetime.now(dt.UTC), enforce_window=claim is None)
     else:
-        reason = "Chat-log intake is not open."
+        reason = NOT_OPEN
     amount = claim.amount_usd_cents if claim else (0 if required(submission) else None)
     if reason is None and claim is None:
         try:
@@ -167,7 +171,7 @@ async def deposit(request: Request, principal: CookieWriterDep, services: Servic
                   session: SessionDep, response: Response):
     """Logs for a new bounty, uploaded before the proof. The proof must follow within 24 hours."""
     private(response)
-    enabled(services)
+    await opened(services, session)
     account_id = principal.account.id
     await session.rollback()
     if not hasattr(request.app.state, "trajectory_upload_budget"):
@@ -199,14 +203,14 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
                  services: ServicesDep, session: SessionDep, response: Response):
     """Bonus logs for a proof submitted before the program began."""
     private(response)
-    enabled(services)
+    start_at = await opened(services, session)
     account_id = principal.account.id  # rollback expires ORM objects; retain only this immutable ID.
     submission = await store.owned_submission(session, submission_id, account_id)
     if required(submission):
         raise Conflict(FIXED_AT_SUBMISSION, reason_code="CHAT_LOGS_FIXED_AT_SUBMISSION")
     decision = await latest_binding_decision(session, submission_id)
     existing = await store.claim_for(session, submission_id)
-    reason = store.eligibility_reason(submission, decision, cutoff=existing.offer_start_at if existing else cutoff(services),
+    reason = store.eligibility_reason(submission, decision, cutoff=existing.offer_start_at if existing else start_at,
                                       now=dt.datetime.now(dt.UTC), enforce_window=existing is None)
     if reason:
         raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
@@ -221,7 +225,7 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
         decision = await latest_binding_decision(session, submission_id)
         now = dt.datetime.now(dt.UTC)
         existing = await store.claim_for(session, submission_id)
-        offer_start_at = existing.offer_start_at if existing else cutoff(services)
+        offer_start_at = existing.offer_start_at if existing else start_at
         reason = store.eligibility_reason(submission, decision, cutoff=offer_start_at, now=now,
                                           enforce_window=existing is None)
         if reason:

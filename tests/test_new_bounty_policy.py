@@ -181,13 +181,12 @@ def test_required_logs_block_all_payout_instructions_until_review():
 def test_historical_bonus_amount_is_selected_by_server(module, amount):
     from conftest_api import task_entry
     from test_api_accounts import client, same_origin
-    from test_api_trajectories import accepted, envelope
+    from test_api_trajectories import accepted, envelope, kit_config
 
     async def scenario():
         entry = task_entry()
         entry = replace(entry, manifest=replace(entry.manifest, source_module=module))
-        kit = await harness(entries=(entry,), TRAJECTORY_BONUS_ENABLED='true',
-                            TRAJECTORY_BONUS_START_AT='2027-01-01T00:00:00Z').setup()
+        kit = await kit_config(entries=(entry,)).setup()
         try:
             async with await client(kit) as owner:
                 _, sid, package = await accepted(kit, owner)
@@ -208,13 +207,12 @@ def test_gross_share_reservations_preserve_competing_locks_and_refuse_overcommit
     from conftest_api import task_entry, distinct_bundle
     from test_api_accounts import client, same_origin
     from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
-    from test_api_trajectories import DEPOSITS, envelope, package_for
+    from test_api_trajectories import DEPOSITS, envelope, kit_config, package_for
 
     async def scenario():
         other = 'fc-target:Fixture.second'
-        kit = await harness(entries=(task_entry(), task_entry(task_id='second-task', reward_target_id=other)),
-                            BOUNTY_POOL_BALANCE_RAO='4000', TRAJECTORY_BONUS_ENABLED='true',
-                            TRAJECTORY_BONUS_START_AT='2027-01-01T00:00:00Z').setup()
+        kit = await kit_config(entries=(task_entry(), task_entry(task_id='second-task', reward_target_id=other)),
+                               BOUNTY_POOL_BALANCE_RAO='4000').setup()
         pricer = replace(kit.services.pricing, new_target_policy=TREASURY_CHAT_POLICY)
         kit.services = replace(kit.services, pricing=pricer)
         kit.app.state.services = kit.services
@@ -260,13 +258,12 @@ def test_production_default_refuses_unusable_submission_paths_before_spending(en
     from test_api_submissions import _post
     from test_api_accounts import client, same_origin
     from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
-    from test_api_trajectories import DEPOSITS, envelope, package_for
+    from test_api_trajectories import DEPOSITS, envelope, kit_config, package_for
     from conftest_api import distinct_bundle
     from conjectures_subnet.bounty import DynamicBountyPricer
 
     async def scenario():
-        kit = await harness(TRAJECTORY_BONUS_ENABLED=str(enabled).lower(),
-                            TRAJECTORY_BONUS_START_AT='2027-01-01T00:00:00Z').setup()
+        kit = await kit_config(enabled=enabled).setup()
         # Remove only the harness's historical-policy override: this is the production default.
         pricer = replace(kit.services.pricing,
                          new_target_policy=DynamicBountyPricer.__dataclass_fields__['new_target_policy'].default)
