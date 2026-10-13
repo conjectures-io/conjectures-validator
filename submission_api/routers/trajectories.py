@@ -328,9 +328,8 @@ async def download(claim_id: uuid.UUID, principal: Reviewer, session: SessionDep
 
 
 class Checklist(StrictModel):
-    # The acceptance standard: this chat produced this proof, and was not made after the fact.
-    chat_produced_this_proof: Literal[True]
-    chat_existed_before_proof_submission: Literal[True]
+    # The acceptance standard: the original chat that produced this proof, not a recreation.
+    original_chat_that_produced_the_proof: Literal[True]
     contributor_owns_proof_and_logs_safe_to_sell: Literal[True]
 
 

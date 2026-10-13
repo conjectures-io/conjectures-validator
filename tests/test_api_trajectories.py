@@ -153,7 +153,7 @@ def test_owner_intake_replay_review_and_no_automatic_payout():
                 missing_checks["checklist"] = None
                 assert (await admin.post(decision_path, json=missing_checks, headers=same_origin())).status_code == 400
                 partial = review_body()
-                partial["checklist"]["chat_existed_before_proof_submission"] = False
+                partial["checklist"]["original_chat_that_produced_the_proof"] = False
                 assert (await admin.post(decision_path, json=partial, headers=same_origin())).status_code == 400
                 approved = await admin.post(decision_path, json=review_body(), headers=same_origin())
                 assert approved.status_code == 200, approved.text

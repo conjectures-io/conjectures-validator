@@ -106,8 +106,8 @@ can cover it alongside existing commitments. Older targets retain their recorded
 To receive a full bounty under this new policy, upload the AI chat logs that produced the
 proof **before submitting it**, from a signed-in account. A proof for one of these targets
 is not accepted without them, and no credit is spent; the logs cannot be added or replaced
-later. A reviewer accepts them only if the chat actually produced the proof and existed before
-the proof was submitted — not written, edited or reconstructed afterwards. Rejected or withdrawn
+later. A reviewer accepts them only if they are the original chat logs that produced the
+proof, not a recreation of them. Rejected or withdrawn
 logs mean the proof is rejected as `CHAT_LOGS_NOT_ACCEPTED`: no bounty is paid and the target
 reopens to other solvers. The separately capped formalization-defect award retains its
 existing rules. The [chat-log terms](../trajectories/chat-log-terms-v1.md) apply.

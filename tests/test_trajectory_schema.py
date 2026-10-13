@@ -101,8 +101,8 @@ def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
 def test_terms_assent_and_template_are_plain_and_pinned():
     assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
     terms = (ROOT / "docs/trajectories/chat-log-terms-v1.md").read_text()
-    for promise in ("upload the logs before you submit the proof", "this chat actually produced the proof",
-                    "not written, edited or\nreconstructed afterwards", "sell and license the logs to buyers",
+    for promise in ("upload the logs before you submit the proof", "original chat logs that produced the proof",
+                    "not a\nrecreation", "sell and license the logs to buyers",
                     "publish the logs openly, and buyers may not either", "within one year of that\nmoment",
                     "approved for its full bounty", "paid in Subnet 66 Alpha", "this right ends"):
         assert promise in terms, promise

@@ -7,9 +7,9 @@ Conjectures chat-log JSON." Check the result yourself before uploading it.
 ## Your task
 
 Turn the contributor's exported AI conversation into one JSON file that matches
-`trajectory.schema.json` and passes every rule below. The file shows a reviewer that this
-chat produced the proof and existed before the proof was submitted. Copy what happened;
-never improve it.
+`trajectory.schema.json` and passes every rule below. A reviewer checks that these are the
+original chat logs that produced the proof, not a recreation, so copy what happened and never
+improve it.
 
 ## Inputs (ask the contributor for anything missing)
 

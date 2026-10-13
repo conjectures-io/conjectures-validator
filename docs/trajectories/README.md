@@ -19,7 +19,7 @@ hashes together.
 
 | Decision | Rule |
 | --- | --- |
-| Acceptance standard | This chat produced this proof, and the chat existed before the proof was submitted — not written, edited or reconstructed afterwards |
+| Acceptance standard | The original chat logs that produced the proof, not a recreation of them |
 | New bounties | Logs are deposited before the proof; the proof is refused without them (no credit spent); the deposit lasts 24 hours; no later addition or replacement |
 | Missing or failed logs | Rejected or withdrawn logs forfeit the bounty and reopen the target; there is no grace period |
 | Earlier proofs | $500 Erdős/Green, $250 other, by the original task bundle, paid in Subnet 66 Alpha worth that USD amount at payment time; only proofs submitted before intake opened and approved for the full bounty; the chat must show the proof before its submission time; up to three versions; claims close 365 days after opening |
@@ -55,10 +55,9 @@ export digest or share link) and duplicate review remain human work.
 
 ## Review
 
-Reviewers attest three things before accepting (`Checklist` in `routers/trajectories.py`):
-the chat produced this proof; it existed before the proof was submitted (provenance,
-timestamps, duplicates); and the contributor owns the proof with no credentials or others'
-personal information left in. Accepting also requires a current human `REVIEW_APPROVED`
+Reviewers attest two things before accepting (`Checklist` in `routers/trajectories.py`):
+these are the original chat logs that produced the proof, not a recreation; and the
+contributor owns the proof with no credentials or others' personal information left in. Accepting also requires a current human `REVIEW_APPROVED`
 decision on the proof, which the claim binds.
 
 - New-bounty logs can be accepted or rejected, never sent back for changes. Rejection waits

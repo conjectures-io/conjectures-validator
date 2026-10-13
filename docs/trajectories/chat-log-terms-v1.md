@@ -12,10 +12,8 @@ for a new bounty is not accepted without them, and the logs cannot be replaced a
 For a proof submitted before intake opened, you can upload its logs within one year of that
 moment.
 
-**What we check.** A reviewer checks two things: that this chat actually produced the proof,
-and that the chat existed before the proof was submitted — it was not written, edited or
-reconstructed afterwards. We may ask for the original export or a share link from the AI
-provider. Fabricated, altered or copied logs are rejected.
+**What we check.** That these are the original chat logs that produced the proof, not a
+recreation of them.
 
 **What it pays.** New bounties pay 2.5% of the Alpha treasury, locked when you submit, and
 are paid only if the logs are accepted. If the logs are rejected or you withdraw them, the

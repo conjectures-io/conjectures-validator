@@ -149,7 +149,7 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     check_package(package, raw, task_id=submission.task_id, task_bundle_sha256=submission.task_bundle_sha256,
                   proof_digest=submission.proof_digest, submission_id=submission.id, now=now)
     if proof_first_seen(package) >= submission.created_at:
-        raise Conflict("The chat must show the final proof before it was submitted.",
+        raise Conflict("These need to be the original logs: the chat must show the final proof before it was submitted.",
                        reason_code="TRAJECTORY_AFTER_THE_FACT")
     existing = await claim_for(session, submission.id)
     if existing:
