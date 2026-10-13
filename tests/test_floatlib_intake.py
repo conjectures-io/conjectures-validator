@@ -5,6 +5,7 @@ import hashlib
 import time
 from datetime import timedelta
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from bittensor.sp_core import Keypair
@@ -238,17 +239,23 @@ def test_deflate_overrides_cutoff_and_ignores_old_entries_and_baselines(upload_d
 
 
 @pytest.mark.parametrize("eligible", [True, False])
-def test_deflate_connection_failure_falls_back_to_cutoff(upload_db, monkeypatch, caplog, eligible):
+def test_deflate_connection_failure_falls_back_to_cutoff(upload_db, monkeypatch, eligible):
     register(upload_db)
 
     async def unavailable(*args):
         raise OperationalError("connect", {}, ConnectionError("fixture unavailable"))
 
     monkeypatch.setattr(floatlib_intake, "used_in_deflate", unavailable)
+    # Test the warning call independently of global logging configuration changed by other tests.
+    warning = Mock()
+    monkeypatch.setattr(floatlib_intake.logger, "warning", warning)
     cutoff = T0 - timedelta(seconds=1) if eligible else T0
     result = post(upload_db, floatlib_check_deflate_usage=True, floatlib_registration_cutoff=cutoff)
     assert result.status_code == (201 if eligible else 402)
-    assert "applying registration cutoff" in caplog.text
+    warning.assert_called_once_with(
+        "[floatlib] DEFLATE usage unavailable; applying registration cutoff for hotkey %s",
+        ALICE.ss58_address,
+    )
 
 
 def test_query_defect_does_not_fall_back(upload_db, monkeypatch):
