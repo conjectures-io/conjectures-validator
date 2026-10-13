@@ -28,9 +28,11 @@ Extract everything available:
 - Recorded model settings, timestamps, token usage and runtime details.
 - Agent and subagent relationships, handoffs, forks and continuations.
 
-Never obtain or reconstruct hidden chain of thought, and never present a summary as one. Never
-invent missing prompts, reasoning, tool output, timestamps or files. Keep a file's contents
-distinct from a mention of the file, and actual tool events distinct from descriptions of tool use.
+Never obtain or reconstruct hidden chain of thought, and never present a summary as one. If a
+session stored reasoning the user didn't see, keep its event but leave the text out: `content`
+set to `null` and `fidelity` set to `redacted`. Never invent missing prompts, reasoning, tool
+output, timestamps or files. Keep a file's contents distinct from a mention of the file, and
+actual tool events distinct from descriptions of tool use.
 
 ## 2. Write `events.jsonl`
 
