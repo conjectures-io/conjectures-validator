@@ -14,6 +14,7 @@ from test_api_trajectories import accepted, as_upload, kit_config, reviewer, rev
 from conjectures_subnet.db import payouts, submissions as proof_store
 from conjectures_subnet.db.models import Account, ReviewOutcome, TreasuryPayout
 from conjectures_subnet.db.trajectory_fulfillment import TrajectoryExport, TrajectoryPayment
+from conjectures_subnet.db.trajectory_models import TrajectoryClaim
 from submission_api.errors import Conflict
 from submission_api.trajectory_fulfillment import BUYER_ASSENT, alpha_amount
 
@@ -186,6 +187,45 @@ def test_bonus_cancellation_needs_chain_check_and_preserves_previous_instruction
                     with pytest.raises(DBAPIError):
                         await session.execute(text("DELETE FROM trajectory_payments WHERE id = :id"), {"id": first["id"]})
                     await session.rollback()
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason="requires verified private fixture")
+def test_expired_cancelled_bonus_does_not_keep_a_rejected_claim_forever():
+    from scripts.purge_trajectories import purge
+
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner, await client(kit) as admin:
+                _, _, approved = await setup_claim(kit, owner, admin)
+                now = dt.datetime.now(dt.UTC)
+                old = now - dt.timedelta(days=3000)
+                async with kit.session() as session:
+                    actor = await session.scalar(select(Account.id).where(Account.email == "trajectory-reviewer@example.com"))
+                    claim = await session.get(TrajectoryClaim, uuid.UUID(approved["id"]))
+                    payment = TrajectoryPayment(id=uuid.uuid4(), claim_id=claim.id, prepared_by=actor,
+                        prepared_at=old, claim_state_version=claim.state_version, amount_usd_cents=claim.amount_usd_cents,
+                        amount_rao=alpha_amount(claim.amount_usd_cents, "1000"), alpha_usd=Decimal("1000"),
+                        price_source="Archived fixture quote", price_observed_at=old,
+                        destination_coldkey=MINER_COLDKEY, origin_coldkey=kit.services.settings.bounty_wallet_coldkey,
+                        origin_hotkey=kit.services.settings.bounty_wallet_hotkey,
+                        destination_evidence="Archived fixture destination verification", status="PREPARED")
+                    session.add(payment)
+                    await session.flush()
+                    payment.status = "CANCELLED"
+                    payment.completed_at, payment.completed_by = old + dt.timedelta(days=1), actor
+                    payment.completion_evidence = {"note": "Archived fixture cancellation"}
+                    claim.status = "REJECTED"
+                    claim.created_at, claim.expires_at = old, old + dt.timedelta(days=90)
+                    claim.audit_expires_at = old + dt.timedelta(days=2555)
+                    await session.commit()
+                    _, audit_removed = await purge(session)
+                    assert audit_removed == 1
+                    assert await session.scalar(select(func.count()).select_from(TrajectoryPayment)) == 0
+                    assert await session.scalar(select(func.count()).select_from(TrajectoryClaim)) == 0
         finally:
             await kit.teardown()
     asyncio.run(scenario())

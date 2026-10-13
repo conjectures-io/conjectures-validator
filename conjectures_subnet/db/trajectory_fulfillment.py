@@ -102,6 +102,30 @@ BEGIN
         END IF;
         RETURN NEW;
     END IF;
+    -- Expiry may remove unfulfilled records after seven years; settled payments stay permanent.
+    IF TG_OP = 'DELETE' THEN
+        IF TG_TABLE_NAME = 'trajectory_payments' THEN
+            IF OLD.status = 'CANCELLED' AND OLD.prepared_at < now() - interval '2555 days'
+               AND EXISTS (SELECT 1 FROM trajectory_claims c WHERE c.id = OLD.claim_id
+                   AND c.audit_expires_at < now() AND c.status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE')) THEN
+                RETURN OLD;
+            END IF;
+        ELSIF TG_TABLE_NAME = 'trajectory_deliveries' THEN
+            IF OLD.revoked_at IS NOT NULL AND OLD.created_at < now() - interval '2555 days'
+               AND NOT EXISTS (SELECT 1 FROM trajectory_exports e WHERE e.delivery_id = OLD.id)
+               AND EXISTS (SELECT 1 FROM trajectory_claims c WHERE c.id = OLD.claim_id
+                   AND c.audit_expires_at < now() AND c.status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE')) THEN
+                RETURN OLD;
+            END IF;
+        ELSIF TG_TABLE_NAME = 'trajectory_exports' THEN
+            IF OLD.exported_at < now() - interval '2555 days' AND EXISTS (
+                SELECT 1 FROM trajectory_deliveries d JOIN trajectory_claims c ON c.id = d.claim_id
+                WHERE d.id = OLD.delivery_id AND d.revoked_at IS NOT NULL AND d.takedown_recorded_at IS NOT NULL
+                  AND c.audit_expires_at < now() AND c.status NOT IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE')) THEN
+                RETURN OLD;
+            END IF;
+        END IF;
+    END IF;
     IF TG_OP IN ('DELETE', 'TRUNCATE') OR TG_TABLE_NAME = 'trajectory_exports' THEN
         RAISE EXCEPTION 'fulfillment records are permanent' USING ERRCODE = '23514';
     END IF;

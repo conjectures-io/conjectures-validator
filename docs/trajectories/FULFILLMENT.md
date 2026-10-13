@@ -91,7 +91,7 @@ The buyer uses `/account/chat-log-deliveries` on the site, backed by:
 - GET `/me/chat-log-deliveries/{id}/package`: an attachment, only after that buyer's assent.
 
 Every download rechecks proof approval and claim state while holding the submission/claim
-locks, and commits a permanent export record before returning bytes. No public object URL or
+locks, and commits a append-only export record before returning bytes. No public object URL or
 shared bearer link is generated. Attachment, sandbox CSP and nosniff headers keep package HTML
 from being rendered as a site page.
 
@@ -104,9 +104,10 @@ POST `/admin/trajectory-deliveries/{id}` with `action: "REVOKE"` and an explanat
 to permanently stop that grant. Notify the buyer through the agreed private channel and obtain
 deletion confirmation. Then POST `action: "RECORD_TAKEDOWN"` with the reference to that
 confirmation. Neither action erases exports or previous consent. A fresh grant requires a new
-explicit agreement/acceptance after a valid reapproval. Buyer receipts, payment records and
-their minimal claim records survive ordinary retention purges; non-accepted package bytes
-still expire according to the contributor terms.
+explicit agreement/acceptance after a valid reapproval. Confirmed payment records and outstanding takedowns keep their minimal claim evidence.
+Cancelled instructions and revoked, completed delivery records expire after their own
+seven-year window and the claim's audit window. Non-accepted package bytes still expire
+according to the contributor terms.
 
 ## Database roles
 
