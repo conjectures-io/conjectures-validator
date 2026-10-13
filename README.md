@@ -634,18 +634,20 @@ For each open reward target `i`, policy `linear-age-v3-locked` publishes:
 ```text
 B = finalized treasury balance - outstanding locked exposure
 progress_i = min(max(age_i_seconds, 0), 1296000) / 1296000
-b_i = floor(B * (1/20 + (1/8 - 1/20) * progress_i))
+c_i = starting share stored when target i opened (1/40 for new targets)
+b_i = floor(B * (c_i + (1/8 - c_i) * progress_i))
 ```
 
-A target starts at 5% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
+A new target starts at 2.5% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
 (12.5%) after 15 elapsed days. Its share then stays at 1/8; funding and commitments can still
 change the Alpha amount. Age advances within the day at the catalog's minute-resolution clock.
 Pricing uses integer arithmetic with one final floor to base units. Neither catalog size nor
 other targets' ages enter the calculation. The legacy `total_age_weight` and `max_age_weight`
 metadata remain available for older clients but no longer affect prices.
 
-`bounty_tasks.opened_at` is inserted once per stable `reward_target_id`, so an API restart or source
-repin does not reset age. A target leaves the pricing pool as soon as one submission holds its
+`bounty_tasks.opened_at` and the starting share are inserted once per stable `reward_target_id`,
+so an API restart or source repin does not reset age, and changing `BOUNTY_CONSTANT_*` affects
+only targets opened afterwards. Targets opened before migration V044 keep their 1/20 start. A target leaves the pricing pool as soon as one submission holds its
 unique reward claim. Catalog responses are live and publish `locked: false`; accepting a
 submission serializes a fresh quote and stores it with `locked: true`. New quotes use the live
 chain balance minus outstanding locks. Competing attempts for one target contribute only their
@@ -665,7 +667,7 @@ Before restarting the API, update any explicit overrides in `.env`:
 ```dotenv
 BOUNTY_POLICY_VERSION=linear-age-v3-locked
 BOUNTY_CONSTANT_NUMERATOR=1
-BOUNTY_CONSTANT_DENOMINATOR=20
+BOUNTY_CONSTANT_DENOMINATOR=40
 BOUNTY_MAX_SHARE_NUMERATOR=1
 BOUNTY_MAX_SHARE_DENOMINATOR=8
 BOUNTY_RAMP_SECONDS=1296000

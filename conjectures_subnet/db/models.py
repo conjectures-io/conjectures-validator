@@ -184,11 +184,22 @@ class BountyTask(Base):
     opened_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    # The starting treasury share the target opened with; later policy changes do not alter it.
+    start_share_numerator: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
+    )
+    start_share_denominator: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("20")
+    )
 
     __table_args__ = (
         CheckConstraint(
             "length(reward_target_id) BETWEEN 1 AND 255",
             name="bounty_tasks_reward_target_id_nonempty",
+        ),
+        CheckConstraint(
+            "start_share_numerator > 0 AND start_share_denominator > 0",
+            name="bounty_tasks_start_share_positive",
         ),
         Index("bounty_tasks_opened_idx", "opened_at", "reward_target_id"),
     )

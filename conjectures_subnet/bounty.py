@@ -10,8 +10,10 @@ For every currently open reward target ``i`` the capped policy is::
     t_i = min(age_i_seconds, ramp_seconds)
     b_i = floor(B * (c + (m - c) * t_i / ramp_seconds))
 
-``B`` is the live treasury balance minus outstanding locked exposure. The starting share ``c``
-defaults to ``1/20``, the maximum share ``m`` to ``1/8``, and the ramp to 15 elapsed days.
+``B`` is the live treasury balance minus outstanding locked exposure. Each target keeps the
+starting share ``c`` it opened with; newly opened targets get the configured share, ``1/40`` by
+default (targets opened before that change keep ``1/20``). The maximum share ``m`` defaults to
+``1/8`` and the ramp to 15 elapsed days.
 Only the target's own age affects its share; catalog size and other targets' ages do not.
 Arithmetic is integer-only, with one final floor to base units. Catalog timestamps retain their
 minute precision, so quotes progress within each day without daily weight jumps. Legacy age
@@ -207,7 +209,7 @@ class DynamicBountyPricer:
     reward_target_ids: tuple[str, ...]
     policy_version: str = LINEAR_BOUNTY_POLICY_VERSION
     constant_numerator: int = 1
-    constant_denominator: int = 20
+    constant_denominator: int = 40
     ramp_seconds: int = DEFAULT_RAMP_SECONDS
     age_period_seconds: int = 86_400
     max_age_weight: int = 60
@@ -303,7 +305,12 @@ class DynamicBountyPricer:
             pg_insert(BountyTask)
             .values(
                 [
-                    {"reward_target_id": target, "opened_at": now}
+                    {
+                        "reward_target_id": target,
+                        "opened_at": now,
+                        "start_share_numerator": self.constant_numerator,
+                        "start_share_denominator": self.constant_denominator,
+                    }
                     for target in self.reward_target_ids
                 ]
             )
@@ -311,12 +318,16 @@ class DynamicBountyPricer:
         )
         opened_rows = (
             await session.execute(
-                select(BountyTask.reward_target_id, BountyTask.opened_at).where(
-                    BountyTask.reward_target_id.in_(self.reward_target_ids)
-                )
+                select(
+                    BountyTask.reward_target_id,
+                    BountyTask.opened_at,
+                    BountyTask.start_share_numerator,
+                    BountyTask.start_share_denominator,
+                ).where(BountyTask.reward_target_id.in_(self.reward_target_ids))
             )
         ).all()
         opened_at = {str(row[0]): _utc(row[1]) for row in opened_rows}
+        start_share = {str(row[0]): (int(row[2]), int(row[3])) for row in opened_rows}
 
         holder_rows = (
             await session.execute(
@@ -431,12 +442,13 @@ class DynamicBountyPricer:
 
             weight = weights[target]
             age_seconds = max(0, int((now - opened_at[target]).total_seconds()))
+            start_numerator, start_denominator = start_share[target]
             amount = calculate_bounty_rao(
                 balance_rao=balance,
                 age_seconds=age_seconds,
                 ramp_seconds=self.ramp_seconds,
-                constant_numerator=self.constant_numerator,
-                constant_denominator=self.constant_denominator,
+                constant_numerator=start_numerator,
+                constant_denominator=start_denominator,
                 max_bounty_share_numerator=self.max_bounty_share_numerator,
                 max_bounty_share_denominator=self.max_bounty_share_denominator,
             )
@@ -452,6 +464,8 @@ class DynamicBountyPricer:
                 as_of=now,
                 inputs={
                     **base_inputs,
+                    "constant_numerator": start_numerator,
+                    "constant_denominator": start_denominator,
                     "age_weight": weight,
                     "age_seconds": age_seconds,
                     "opened_at": opened_at[target].isoformat(),
