@@ -486,3 +486,49 @@ domain errors into HTTP so that layer stays usable from a worker.
 
 The finalized-payment reader, the verification worker, the review service and the reward
 processor are separate components. See [SUBNET.md](SUBNET.md) for the remaining sequence.
+
+
+## Treasury-share targets and private chat logs
+
+New reward targets use `linear-age-v3-chat-logs`: the same linear curve as every target,
+starting at the target's stored share (1/40 for new targets) of the available Alpha treasury
+and reaching 1/8 after 15 days, locked at submission. Existing target pricing and submission
+locks persist. `/v1/catalog/meta` publishes `new_target_policy_version`,
+`new_target_share_numerator`, `new_target_share_denominator`, `new_target_pricing_basis`,
+and `new_target_chat_logs_required`. Each task's `bounty.policy_version` remains authoritative,
+and each quote's inputs carry the starting share its target opened with.
+
+`GET /v1/trajectory-offer` publishes the retrospective source-family tiers ($500 Erdős,
+$250 every other problem), `start_at` (the moment intake opened, also the bonus cutoff; corrected only with a permanent record), the claim
+window, pinned terms/assent digests and intake availability. Intake answers 503 until both
+`TRAJECTORY_BONUS_ENABLED` and the opening record exist.
+
+**New-policy logs arrive before the proof.** A cookie-authenticated account uploads them with
+`POST /v1/me/chat-log-deposits`. The request body is the `.zip` package
+(`Content-Type: application/zip`, up to 64 MiB) whose `manifest.json` names `submission_id: null`,
+the task, task bundle and exact `final_proof_sha256`; explicit consent to the pinned chat-log
+terms rides in the query (`terms_version`, `terms_sha256`, `assent_statements_sha256`,
+`accepted`). Invalid packages return `validation_errors` naming the file and line. The deposit lasts 24 hours. The account submission
+paths (`/v1/submissions/session`, `/web`, and intent confirm) then require a live deposit for
+that exact proof and account before spending a credit, refusing with `CHAT_LOG_REQUIRED`, and
+bind it to the new submission in the same transaction. Logs cannot be added or replaced later
+(`CHAT_LOGS_FIXED_AT_SUBMISSION`).
+
+`GET /v1/me/submissions/{id}/trajectory` returns the server-selected `amount_usd_cents`,
+`chat_logs_required`, `license_status` and private claim metadata. A required-evidence claim
+has amount zero and `payment_status=NOT_APPLICABLE`; a historical bonus reports `NOT_ISSUED`.
+Owners of earlier proofs upload bonus logs through `POST` at the same path; the chat must show
+the final proof before the submission's time (`TRAJECTORY_AFTER_THE_FACT`).
+
+Reviewer queue, private download and decisions are under `/v1/admin/trajectories`. Decisions,
+withdrawals, reopening and rebinding require a current state version; stale mutations return
+409. Approval yields `APPROVED_BOUNTY_EVIDENCE` for new-policy logs or `APPROVED_MANUAL_PAYMENT`
+for historical bonuses, and makes the logs `LICENSED_FOR_SALE`. Rejecting or withdrawing
+new-policy logs records a binding `CHAT_LOGS_NOT_ACCEPTED` rejection of the proof, which
+releases the reward target and its treasury reservation. Nothing here transfers funds.
+New-policy full-bounty reward-event writes are rejected by PostgreSQL until exact-proof
+evidence has been accepted. The separately capped formalization-defect award retains its prior policy.
+
+Original task-bundle provenance, not client-supplied labels, sets the historical bonus tier.
+Each claim keeps the cutoff it was made under, so a correction never changes in-progress claims.
+See [chat-log documentation](trajectories/README.md) for limits, retention and rollout.

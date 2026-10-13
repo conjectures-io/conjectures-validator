@@ -27,6 +27,13 @@ def instruction_enabled():
     return func.coalesce(latest, "RESTORE") != "CANCEL"
 
 
+def instruction_sendable():
+    """Current authorization for producing commands; never filters chain observations."""
+    from sqlalchemy import and_
+    return and_(instruction_enabled(),
+                func.bounty_trajectory_eligible(RewardEvent.submission_id, RewardEvent.eligibility_reason))
+
+
 def validate_chain_evidence(evidence: dict, *, now: dt.datetime) -> None:
     """Require a recent explicit operator check; this is not an on-chain revocation."""
     try:

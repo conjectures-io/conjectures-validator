@@ -321,6 +321,7 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # coldkey, unproved and not required to be linked, where before it was a proved coldkey/hotkey
 # pair). Both are in the "what is published" and "getting paid" sections.
 #
+# v8 treasury/chat-log terms remain a separate, inactive draft until launch.
 # v7 adopts review policy v4: established prior proofs disqualify even independent rediscovery.
 # The v3 defect-award cap remains unchanged.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
@@ -787,6 +788,7 @@ class Settings:
     nonce_window_seconds: int
     max_bundle_bytes: int
     manual_review_enabled: bool
+    trajectory_bonus_enabled: bool
     review_policy_version: str
     bounty_pool_balance_rao: int
     bounty_policy_version: str
@@ -977,6 +979,15 @@ class Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
+        trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
+        # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
+        if production and trajectory_bonus_enabled:
+            from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
+            if "draft" in TERMS_VERSION:
+                raise SettingsError("chat-log intake cannot launch with draft terms")
+            if env.get("TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256") != TERMS_SHA256:
+                raise SettingsError("chat-log launch requires the owner-approved terms digest")
+
 
         authenticator = _choice(
             env,
@@ -1404,6 +1415,11 @@ class Settings:
                 "REVIEW_POLICY_VERSION=v4; earlier contracts remain on existing submissions"
             )
 
+        if production and trajectory_bonus_enabled and (
+            not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7"
+        ):
+            raise SettingsError("trajectory launch requires explicit final versioned submission terms")
+
         # A pinned USD rate, or nothing. Converting TAO to USD needs a live external rate
         # this validator does not have, so the field is null rather than invented — and it
         # is a string all the way through, because a price must not become a float.
@@ -1637,6 +1653,7 @@ class Settings:
                 env, "MAX_BUNDLE_BYTES", MAX_BUNDLE_BYTES, maximum=MAX_BUNDLE_BYTES
             ),
             manual_review_enabled=_flag(env, "MANUAL_REWARD_REVIEW_ENABLED", True),
+            trajectory_bonus_enabled=trajectory_bonus_enabled,
             review_policy_version=review_policy_version,
             bounty_pool_balance_rao=bounty_pool_balance_rao,
             bounty_policy_version=bounty_policy_version,

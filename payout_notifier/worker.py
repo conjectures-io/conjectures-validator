@@ -5,11 +5,12 @@ import logging
 from dataclasses import dataclass
 from typing import Callable
 
-from sqlalchemy import and_, exists, func, literal, or_, select
+from sqlalchemy import and_, exists, func, literal, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from conjectures_subnet.db.payout_instructions import instruction_enabled
+from conjectures_subnet.db.payout_instructions import instruction_sendable
 from conjectures_subnet.db.models import (
     Account,
     PayoutDiscordDelivery,
@@ -83,6 +84,35 @@ class PayoutNotifier:
         self.lease_seconds = lease_seconds
         self.sender = sender
         self.defect_award_quoter = defect_award_quoter
+
+    def verify_database_access(self) -> None:
+        """Fail before starting the loop if the migration or role grant is missing."""
+        try:
+            with self.sessions() as session:
+                session.scalar(select(func.bounty_trajectory_eligible(None, None)))
+                owners_ready = session.scalar(text("""
+                    SELECT trigger_fn.proowner = projection.proowner
+                       AND has_function_privilege(trigger_fn.proowner, projection.oid, 'EXECUTE')
+                       AND has_table_privilege(trigger_fn.proowner, 'public.submissions', 'SELECT')
+                       AND has_any_column_privilege(trigger_fn.proowner, 'public.submissions', 'UPDATE')
+                       AND has_table_privilege(projection.proowner, 'public.review_decisions', 'SELECT')
+                       AND has_table_privilege(projection.proowner, 'public.trajectory_claims', 'SELECT')
+                    FROM pg_catalog.pg_proc trigger_fn, pg_catalog.pg_proc projection
+                    WHERE trigger_fn.oid = 'public.require_bounty_trajectory()'::regprocedure
+                      AND projection.oid = 'public.bounty_trajectory_eligible(uuid,text)'::regprocedure
+                """))
+                if not owners_ready:
+                    raise RuntimeError(
+                        "Payout definer preflight failed: both functions must share a trusted owner "
+                        "with projection EXECUTE, SELECT on submissions/review_decisions/trajectory_claims, "
+                        "and UPDATE on a submissions column for the row lock."
+                    )
+        except SQLAlchemyError as exc:
+            raise RuntimeError(
+                "Payout database preflight failed: verify connectivity, apply V046, and grant "
+                "EXECUTE on public.bounty_trajectory_eligible(uuid,text) to the notifier role "
+                "before starting it (required for legacy payouts too)."
+            ) from exc
 
     def seed_reward_events(self) -> int:
         """Create one idempotent payout instruction for each newly eligible submission.
@@ -166,6 +196,7 @@ class PayoutNotifier:
                     Submission.reward_status == RewardState.ELIGIBLE,
                     destination_coldkey.is_not(None),
                     ~existing_reward,
+                    func.bounty_trajectory_eligible(Submission.id, latest_reason),
                     or_(
                         latest_reason == "FORMALIZATION_DEFECT_AWARD",
                         Submission.bounty_locked_at.is_not(None),
@@ -259,7 +290,7 @@ class PayoutNotifier:
                     literal(user_id),
                 ).where(
                     RewardEvent.status == PayoutState.PENDING,
-                    instruction_enabled(),
+                    instruction_sendable(),
                     RewardEvent.extrinsic_reference.is_(None),
                 )
                 statement = (
@@ -305,7 +336,7 @@ class PayoutNotifier:
                 .where(
                     due,
                     RewardEvent.status == PayoutState.PENDING,
-                    instruction_enabled(),
+                    instruction_sendable(),
                     RewardEvent.extrinsic_reference.is_(None),
                 )
                 .order_by(

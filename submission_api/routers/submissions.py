@@ -373,6 +373,7 @@ async def create_submission(
             session, reward_target_id=entry.reward_target_id
         )
         _assert_payable_quote(quote, entry.reward_target_id)
+        _assert_accountless_quote(quote)
 
         raw = await read_body(request, content_length, settings.max_bundle_bytes)
         try:
@@ -409,6 +410,7 @@ async def create_submission(
             session, reward_target_id=entry.reward_target_id
         )
         _assert_payable_quote(quote, entry.reward_target_id)
+        _assert_accountless_quote(quote)
 
         # Payment last, and before any write: the schema has no unpaid state.
         try:
@@ -525,7 +527,17 @@ async def create_submission(
         )
 
 
+def _assert_accountless_quote(quote) -> None:
+    from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
+    if quote.policy_version == TREASURY_CHAT_POLICY:
+        raise Conflict("This bounty requires private chat logs. Submit through an authenticated account so you can supply them.",
+                       reason_code="CHAT_LOG_ACCOUNT_REQUIRED")
+
+
 def _assert_payable_quote(quote, reward_target_id: str) -> None:
+    if not quote.available and quote.reason == "CHAT_LOG_REVIEW_UNAVAILABLE":
+        raise ServiceUnavailable("Required chat-log review is not open; this bounty is not accepting submissions.",
+                                 reason_code="CHAT_LOG_REVIEW_UNAVAILABLE")
     if not quote.available and quote.reason in {"ALREADY_SOLVED", "NOT_IN_BOUNTY_POOL"}:
         raise Conflict(
             "this bounty has already been solved",
