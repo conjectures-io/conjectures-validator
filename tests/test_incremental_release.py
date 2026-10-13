@@ -247,3 +247,19 @@ def test_a_stuck_build_is_terminated_by_the_outer_bound_and_publication_fails_cl
         parallel_release(env, store, MarkerValidator(markers, delay_seconds=600), jobs=2, timeout=2)
     assert time.monotonic() - started < 60
     assert [entry for entry in store.root.iterdir() if not entry.name.startswith(".")] == []
+
+
+def test_mathlib_header_upgrade_is_explicit_and_stable(setting):
+    env, store = setting
+    first, _, _ = release(env, decls(), store=store, previous=VersionRegistry.empty())
+    assert all(bundle.manifest.adapter_version == 1 for bundle in first.bundles)
+    upgraded, validator, _ = release(env, decls(), store=store, previous=first.registry, adapter_version=2)
+    assert upgraded.counts["built"] == 6 and upgraded.counts["superseded"] == 6
+    assert len(validator.builds) == 6
+    assert all(bundle.files["SolutionHeader.lean.txt"].startswith(b"import Mathlib\n") for bundle in upgraded.bundles)
+    assert_append_only(first.registry, upgraded.registry)
+    same, validator, _ = release(env, decls(), store=store, previous=upgraded.registry)
+    assert same.counts["reused"] == 6 and validator.builds == []
+    assert ids_by_key(same) == ids_by_key(upgraded)
+    with pytest.raises(VerifierError, match="downgrades"):
+        release(env, decls(), store=store, previous=upgraded.registry, adapter_version=1)

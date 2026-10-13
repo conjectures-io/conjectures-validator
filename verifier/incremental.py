@@ -82,6 +82,7 @@ def plan_release(
     catalog: Catalog,
     targets: Iterable[SelectedTarget],
     index: DependencyIndex,
+    adapter_versions: Mapping[tuple[str, str], int] | None = None,
 ) -> tuple[PlannedTaskVersion, ...]:
     plans = []
     for target in targets:
@@ -99,6 +100,7 @@ def plan_release(
                     mode=mode,
                     environment=index.environment,
                     dependency=dependency,
+                    adapter_version=(adapter_versions or {}).get((target.declaration.theorem, mode), 1),
                 )
             )
     ids = [plan.task_id for plan in plans]
@@ -195,6 +197,7 @@ def publish_release(
     project_root: Any = None,
     jobs: int = 1,
     job_timeout_seconds: int = DEFAULT_JOB_TIMEOUT_SECONDS,
+    adapter_version: int | None = None,
 ) -> tuple[ReleaseResult, bytes]:
     """Publish one release; returns the new registry and the allowlist bytes it opened."""
     environment: EnvironmentIdentity = index.environment
@@ -206,7 +209,24 @@ def publish_release(
     if any(state not in EXIT_STATES for state in exit_states.values()):
         raise VerifierError(ReasonCode.INVALID_ARGUMENT, "exit states are retired or held")
     selected = tuple(targets)
-    plans = plan_release(catalog=catalog, targets=selected, index=index)
+    # Keep the header version of every active task unless an explicit upgrade is requested.
+    # Supporting another header must never rotate the existing registry by itself.
+    versions = {}
+    for record in previous.versions.values():
+        if record.state != "active":
+            continue
+        bundle = store.load(record.task_id, expected_sha256=record.task_bundle_sha256)
+        if bundle is None:
+            raise VerifierError(ReasonCode.TRUSTED_FILE_MODIFIED, "published bundle is missing")
+        current = bundle.manifest.adapter_version
+        if adapter_version is not None and adapter_version < current:
+            raise VerifierError(ReasonCode.INVALID_ARGUMENT, "header downgrades are not supported")
+        versions[(record.theorems[0], record.mode)] = current
+    if adapter_version is not None:
+        for target in selected:
+            for mode in target.modes:
+                versions[(target.declaration.theorem, mode)] = adapter_version
+    plans = plan_release(catalog=catalog, targets=selected, index=index, adapter_versions=versions)
     tiers = {target.declaration.theorem: target.tier for target in selected}
 
     def reuse(plan: PlannedTaskVersion) -> TaskBundle | None:
@@ -344,6 +364,7 @@ def publish_tasks_checkout(
     audit_date_utc: str,
     exit_states: Mapping[str, str] | None = None,
     jobs: int = 1,
+    adapter_version: int | None = None,
 ) -> tuple[ReleaseResult, bytes]:
     """Publish the next release of a tasks checkout from its audited selection metadata.
 
@@ -417,6 +438,7 @@ def publish_tasks_checkout(
             exit_states=states,
             project_root=Path(project_root),
             jobs=jobs,
+            adapter_version=adapter_version,
         )
         # The exact bytes about to be committed, checked as every reader will check them.
         checked = TaskPoolRegistry.from_bytes(allowlist)

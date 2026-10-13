@@ -70,6 +70,9 @@ LEAN_MODULE_NAME = re.compile(
     r"(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»)"
     r"(?:\.(?:[A-Za-z_][A-Za-z0-9_']*|[0-9]+|«[A-Za-z0-9_'.]+»))*"
 )
+# Fixed imports ahead of the source module in trusted headers, by adapter version. Only trusted
+# generation chooses these; submitted proofs still cannot import anything.
+HEADER_IMPORTS: Mapping[int, tuple[str, ...]] = {1: (), 2: ("Mathlib",)}
 
 
 def task_slug(theorem: str) -> str:
@@ -121,17 +124,24 @@ def group_task_id(
     return f"fc-{repository_commit[:8]}-{slug}-{digest}-{mode}-v{adapter_version}"
 
 
-def _imports(declaration: CatalogDeclaration) -> str:
+def _imports(declaration: CatalogDeclaration, adapter_version: int) -> str:
     if LEAN_MODULE_NAME.fullmatch(declaration.module) is None:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "source module name is unsafe")
-    return f"import {declaration.module}\nimport TaskSupport\n\nnamespace Bounty\n"
+    if adapter_version not in HEADER_IMPORTS:
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "task adapter version has no header policy")
+    modules = (*HEADER_IMPORTS[adapter_version], declaration.module, "TaskSupport")
+    return "".join(f"import {module}\n" for module in modules) + "\nnamespace Bounty\n"
 
 
-def _challenge_text(declaration: CatalogDeclaration, generated: GeneratedLean) -> str:
+def _challenge_text(
+    declaration: CatalogDeclaration,
+    generated: GeneratedLean,
+    adapter_version: int,
+) -> str:
     definitions = "\n\n".join(generated.definition_declarations)
     separator = "\n\n" if definitions else ""
     return (
-        f"{_imports(declaration)}\n"
+        f"{_imports(declaration, adapter_version)}\n"
         f"{definitions}{separator}"
         f"theorem target : {generated.target_type} := by\n"
         "  sorry\n\n"
@@ -142,12 +152,13 @@ def _challenge_text(declaration: CatalogDeclaration, generated: GeneratedLean) -
 def _group_challenge_text(
     declaration: CatalogDeclaration,
     generated: tuple[GeneratedLean, ...],
+    adapter_version: int,
 ) -> str:
     targets = "\n\n".join(
         f"theorem target_{index} : {item.target_type} := by\n  sorry"
         for index, item in enumerate(generated, start=1)
     )
-    return f"{_imports(declaration)}\n{targets}\n\nend Bounty\n"
+    return f"{_imports(declaration, adapter_version)}\n{targets}\n\nend Bounty\n"
 
 
 def _comparator_config(
@@ -176,7 +187,7 @@ def trusted_task_payloads(
     adapter_version: int,
 ) -> Mapping[str, bytes]:
     adapter = adapter_for(declaration)
-    if adapter is None or adapter.version != adapter_version:
+    if adapter is None or adapter_version not in adapter.versions:
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
             "task adapter is unavailable or has a different version",
@@ -192,8 +203,8 @@ def trusted_task_payloads(
         "adapter_version": adapter_version,
     }
     texts = {
-        "Challenge.lean": _challenge_text(declaration, generated),
-        "SolutionHeader.lean.txt": _imports(declaration),
+        "Challenge.lean": _challenge_text(declaration, generated, adapter_version),
+        "SolutionHeader.lean.txt": _imports(declaration, adapter_version),
         "SolutionFooter.lean.txt": "\nend Bounty\n",
         "comparator-config.json": pretty_json(_comparator_config(generated, enable_nanoda)),
         "source-metadata.json": pretty_json(source_metadata),
@@ -217,7 +228,7 @@ def trusted_group_task_payloads(
     source_metadata = []
     for declaration in declarations:
         adapter = adapter_for(declaration)
-        if adapter is None or adapter.version != adapter_version:
+        if adapter is None or adapter_version not in adapter.versions:
             raise VerifierError(
                 ReasonCode.INVALID_MANIFEST,
                 "task adapter is unavailable or has a different version",
@@ -242,8 +253,8 @@ def trusted_group_task_payloads(
         for index in range(1, len(declarations) + 1)
     )
     texts = {
-        "Challenge.lean": _group_challenge_text(declarations[0], generated_items),
-        "SolutionHeader.lean.txt": _imports(declarations[0]),
+        "Challenge.lean": _group_challenge_text(declarations[0], generated_items, adapter_version),
+        "SolutionHeader.lean.txt": _imports(declarations[0], adapter_version),
         "SolutionFooter.lean.txt": "\nend Bounty\n",
         "comparator-config.json": pretty_json(
             {
@@ -280,15 +291,15 @@ def trusted_task_version_payloads(
     environment regenerate byte-identical files in every snapshot that leaves them unchanged.
     """
     adapter = adapter_for(declaration)
-    if adapter is None or adapter.version != adapter_version:
+    if adapter is None or adapter_version not in adapter.versions:
         raise VerifierError(
             ReasonCode.INVALID_MANIFEST,
             "task adapter is unavailable or has a different version",
         )
     generated = adapter.generate(declaration, mode, GenerationContext("", adapter_version))
     texts = {
-        "Challenge.lean": _challenge_text(declaration, generated),
-        "SolutionHeader.lean.txt": _imports(declaration),
+        "Challenge.lean": _challenge_text(declaration, generated, adapter_version),
+        "SolutionHeader.lean.txt": _imports(declaration, adapter_version),
         "SolutionFooter.lean.txt": "\nend Bounty\n",
         "comparator-config.json": pretty_json(_comparator_config(generated, enable_nanoda)),
         "source-metadata.json": pretty_json(
@@ -337,6 +348,7 @@ def plan_task_version(
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     max_submission_bytes: int = DEFAULT_MAX_SUBMISSION_BYTES,
     allow_non_open: bool = False,
+    adapter_version: int = 1,
 ) -> PlannedTaskVersion:
     """Compute a v2 version's ID and trusted bytes. Applies every check `generate_task` does."""
     if declaration.classification == Classification.POINTER_DECLARATION:
@@ -369,12 +381,12 @@ def plan_task_version(
             f"declaration is not production eligible: {'; '.join(violations)}",
         )
     version = TaskVersionDocument(environment, dependency, nanoda_commit)
-    payloads = trusted_task_version_payloads(declaration, mode, enable_nanoda, adapter.version, version)
+    payloads = trusted_task_version_payloads(declaration, mode, enable_nanoda, adapter_version, version)
     hashes = {name: sha256_bytes(content) for name, content in sorted(payloads.items())}
-    generated = adapter.generate(declaration, mode, GenerationContext("", adapter.version))
+    generated = adapter.generate(declaration, mode, GenerationContext("", adapter_version))
     config = _comparator_config(generated, enable_nanoda)
     inputs = {
-        "adapter_version": adapter.version,
+        "adapter_version": adapter_version,
         "answer_policy": dict(generated.answer_policy),
         "classification": declaration.classification.value,
         "definition_names": list(config["definition_names"]),
@@ -392,7 +404,7 @@ def plan_task_version(
         "theorem_names": ["Bounty.target"],
         "timeout_seconds": timeout_seconds,
     }
-    _imports(declaration)
+    _imports(declaration, adapter_version)
     identifier = v2_task_id(
         slug=task_slug(declaration.theorem),
         mode=mode,
@@ -684,7 +696,7 @@ def generate_group_task(
             )
         if adapter_version is None:
             adapter_version = adapter.version
-        elif adapter.version != adapter_version:
+        elif adapter_version not in adapter.versions:
             raise VerifierError(
                 ReasonCode.INVALID_ARGUMENT,
                 "all-of task declarations must use the same adapter version",

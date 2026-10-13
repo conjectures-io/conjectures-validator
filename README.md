@@ -851,6 +851,9 @@ Full-catalog statistics are written to `data/catalog-summary.json` from the actu
 catalog. No estimated counts are committed. Batch generation writes `generation-summary.json` with
 every generated task, adapter-required skip, unsupported skip, and failure.
 
+See [trusted task headers](docs/TASK_HEADERS.md) for adapter-2 Mathlib imports and the explicit,
+registry-preserving upgrade path. Supporting the header does not rotate published tasks.
+
 ## Adding an adapter
 
 Add a pure generator to `verifier/adapters.py`, give it a new immutable version, define the submitted
