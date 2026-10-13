@@ -390,6 +390,7 @@ def test_health_states_the_queue_and_the_published_rules(floatlib_db):
         "promotion_bar": 0.97,
         "competition_share": None,
         "admission": None,
+        "rank_shares": None,
     }
     publish(floatlib_db)
     (after,) = read(floatlib_db, "/v1/competitions/floatlib/health")
@@ -407,6 +408,7 @@ def test_root_health_is_floatlibs_health_as_its_own_api_serves_it(floatlib_db):
         "promotion_bar": 0.97,
         "competition_share": 0.2,
         "admission": {"draws": 2000, "quantile": 0.05},
+        "rank_shares": None,
     }
 
 
@@ -430,6 +432,7 @@ NO_STORE = {
     "promotion_bar": 0.97,
     "competition_share": None,
     "admission": None,
+    "rank_shares": None,
 }
 
 
@@ -481,6 +484,8 @@ def test_champions_lists_every_champion_and_marks_the_one_holding_the_board(floa
         "promoted_at": "2026-10-08T10:05:00Z",
         "demoted_at": None,
         "current": True,
+        "rank": None,
+        "rank_share": None,
     }
     assert practice.json() == []
 
@@ -542,3 +547,67 @@ def test_a_schema_without_promotions_is_an_outage_not_a_500(floatlib_db):
     (response,) = read(floatlib_db, "/v1/competitions/floatlib/leaderboard")
     assert response.status_code == 503
     assert response.json()["reason_code"] == "COMPETITION_SCHEMA_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("count", range(5))
+def test_champion_reward_ranks_follow_published_policy(floatlib_db, count):
+    execute(floatlib_db, "DELETE FROM promotions")
+    # Two rewarded ranks can belong to the same hotkey.
+    execute(floatlib_db, "UPDATE submissions SET hotkey = 'alice' WHERE id = 2")
+    for index in range(count):
+        execute(
+            floatlib_db,
+            "INSERT INTO promotions (slot, submission_id, champion_sha256, promoted_at) "
+            "VALUES ('full', :id, :digest, :at)",
+            id=index + 1,
+            digest=f"{index + 1:064x}",
+            at=T0 + timedelta(minutes=index),
+        )
+    snapshot = json.loads(json.dumps(PUBLICATION))
+    snapshot["policy"]["rank_shares"] = [0.6, 0.3, 0.1]
+    publish(floatlib_db, snapshot)
+    history, health = read(
+        floatlib_db,
+        "/v1/competitions/floatlib/champions",
+        "/v1/competitions/floatlib/health",
+    )
+    assert health.json()["rank_shares"] == [0.6, 0.3, 0.1]
+    assert [(c["rank"], c["rank_share"]) for c in history.json()] == [
+        (i + 1, [0.6, 0.3, 0.1][i]) if i < 3 else (None, None) for i in range(count)
+    ]
+    if count >= 2:
+        execute(
+            floatlib_db,
+            "UPDATE promotions SET demoted_at = :at WHERE submission_id = :id",
+            at=T0 + timedelta(hours=2),
+            id=count,
+        )
+        (after,) = read(floatlib_db, "/v1/competitions/floatlib/champions")
+        assert after.json()[0]["rank"] is None
+        assert after.json()[0]["rank_share"] is None
+        assert after.json()[1]["rank"] == 1
+        assert after.json()[1]["rank_share"] == 0.6
+        assert after.json()[1]["current"] is True
+    execute(
+        floatlib_db,
+        "INSERT INTO promotions (slot, submission_id, champion_sha256) VALUES ('add', 5, :sha)",
+        sha="e" * 64,
+    )
+    (practice,) = read(floatlib_db, "/v1/competitions/floatlib-add/champions")
+    assert practice.json()[0]["rank"] is None
+    assert practice.json()[0]["rank_share"] is None
+
+
+@pytest.mark.parametrize("shares", [None, [], "bad", [True], [-0.1], [1.1]])
+def test_invalid_or_legacy_rank_policy_is_unknown(floatlib_db, shares):
+    snapshot = json.loads(json.dumps(PUBLICATION))
+    snapshot["policy"]["rank_shares"] = shares
+    publish(floatlib_db, snapshot)
+    history, health = read(
+        floatlib_db,
+        "/v1/competitions/floatlib/champions",
+        "/v1/competitions/floatlib/health",
+    )
+    assert health.json()["rank_shares"] is None
+    assert history.json()[0]["rank"] is None
+    assert history.json()[0]["rank_share"] is None

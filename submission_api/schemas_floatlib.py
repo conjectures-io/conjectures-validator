@@ -31,6 +31,8 @@ class Health(BaseModel):
     # The competition's share of the validator's emission.
     competition_share: float | None = None
     admission: AdmissionRule | None = None
+    # Each reward rank's fraction of the slot winner share, newest champion first.
+    rank_shares: list[float] | None = None
 
 
 class SubmissionView(BaseModel):
@@ -86,7 +88,7 @@ class Leaderboard(BaseModel):
     promotion_bar: float
     # The champion's submission id; null while the shipped champion holds.
     leader: int | None = None
-    # Whether this board pays its champion's author: the full entry does, the practice boards
+    # Whether this board pays its recent champions' authors: the full entry does, the practice boards
     # do not.
     pays: bool
     ranking: list[Ranking]
@@ -104,3 +106,6 @@ class Champion(BaseModel):
     # Set only when its own bench failed too often and it was demoted.
     demoted_at: str | None = None
     current: bool
+    # Reward rank, independent of leaderboard position; null on unpaid or older champions.
+    rank: int | None = None
+    rank_share: float | None = None

@@ -1031,10 +1031,11 @@ The board in the [Competition](#competition) shape, so `/v1/competitions` lists 
 | `promotion_bar` | number | The ratio a submission must reach to be promoted; `0.97` until the first publication |
 | `competition_share` | number or null | The competition's share of the validator's emission, as last published |
 | `admission` | object or null | `{draws, quantile}`: the bootstrap behind promotion, as last published |
+| `rank_shares` | number array or null | Published fractions of the slot winner share, newest champion first (currently `[0.6, 0.3, 0.1]`); null for older snapshots |
 
 ### GET `/health`
 
-FloatLib's `/health`, at the root where FloatLib's own API serves it, in the same shape as `/v1/competitions/{board}/health` above. It never fails because of FloatLib's database, as FloatLib's own does not: while that database is unreachable or FloatLib is not served here it still answers 200 with `"ok": true`, `queued`, `competition_share` and `admission` null, and `promotion_bar` at its default `0.97`. It is not the platform's liveness probe, which is `/healthz`.
+FloatLib's `/health`, at the root where FloatLib's own API serves it, in the same shape as `/v1/competitions/{board}/health` above. It never fails because of FloatLib's database, as FloatLib's own does not: while that database is unreachable or FloatLib is not served here it still answers 200 with `"ok": true`, `queued`, `competition_share`, `admission` and `rank_shares` null, and `promotion_bar` at its default `0.97`. It is not the platform's liveness probe, which is `/healthz`.
 
 ### GET `/v1/competitions/{board}/leaderboard`
 
@@ -1055,7 +1056,9 @@ The board: the champion first, then every other hotkey's best accepted ratio aga
 
 ### GET `/v1/competitions/{board}/champions`
 
-Every submission the board promoted, newest first: `[{submission, hotkey, ratio, promoted_at, demoted_at, current}]`. `ratio` is against the champion it took over from. A newer promotion supersedes a champion without demoting it, and `demoted_at` is set only when a champion's own bench failed too often, which hands the board back to the newest earlier champion not demoted -- so `current` says who holds the board.
+Every submission the board promoted, newest first, without pagination: `[{submission, hotkey, ratio, promoted_at, demoted_at, current, rank, rank_share}]`. `ratio` is against the champion it took over from. A newer promotion supersedes a champion without demoting it, and `demoted_at` records an explicit operator demotion, which hands the board back to the newest earlier champion not demoted -- so `current` says who holds the board.
+
+`rank` is the reward rank (1 is the current champion), and `rank_share` is that rank's fraction of the slot winner share. These use the latest published `policy.rank_shares` and the current non-demoted promotion history. Missing ranks are not redistributed; a hotkey can hold multiple ranks. Both fields are null for older champions, unpaid practice boards, and publications without a valid rank policy. They describe the reward rule, not proof that an on-chain payout has occurred; pause withholding and the competition's emission share apply separately.
 
 ### GET `/v1/competitions/{board}/submissions/{submission_id}`
 
