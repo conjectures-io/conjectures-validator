@@ -44,7 +44,7 @@ def test_published_schema_example_and_pinned_terms():
     schema = json.loads((ROOT / "docs/trajectories/chat-log-package.schema.json").read_text())
     assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == package_schema()
     assert TERMS_SHA256 == "sha256:" + hashlib.sha256(
-        (ROOT / "docs/trajectories/chat-log-terms-v1.md").read_bytes()).hexdigest()
+        (ROOT / "docs/trajectories/chat-log-terms-v2.md").read_bytes()).hexdigest()
 
 
 @pytest.mark.parametrize("change", [
@@ -147,10 +147,12 @@ def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
 
 def test_terms_assent_and_example_are_plain_and_pinned():
     assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
-    terms = (ROOT / "docs/trajectories/chat-log-terms-v1.md").read_text()
-    for promise in ("upload the logs before you submit the proof", "original chat logs that produced the proof",
+    terms = (ROOT / "docs/trajectories/chat-log-terms-v2.md").read_text()
+    for promise in ("Every open problem requires logs", "before you submit the\nproof",
+                    "`conjectures logs upload`", "original chat logs that produced the proof",
                     "not a\nrecreation", "sell and license the logs to buyers",
-                    "publish the logs openly, and buyers may not either", "within one year of that\nmoment",
+                    "publish the logs openly, and buyers may not either", "within one year of that moment",
+                    "earlier problems keep the schedule they opened with",
                     "approved for its full bounty", "paid in Subnet 66 Alpha", "this right ends"):
         assert promise in terms, promise
     assert example()["manifest"]["synthetic"] is True
@@ -211,6 +213,9 @@ def test_chat_log_launch_must_publish_the_terms_version_it_names():
               "SUBMISSION_TERMS_VERSION": "v8", "SUBMISSION_TERMS_EFFECTIVE_FROM": "2026-10-13"}
     v8 = str(root / "docs/policies/submission-terms-v8.md")
     assert Settings.from_env(production_env(**launch, SUBMISSION_TERMS_PATH=v8)).trajectory_bonus_enabled
+    v9 = {**launch, "SUBMISSION_TERMS_VERSION": "v9"}
+    path = str(root / "docs/policies/submission-terms-v9.md")
+    assert Settings.from_env(production_env(**v9, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
     # The v7 file labelled v8 is refused rather than published under the wrong version.
     with pytest.raises(SettingsError, match="must state the configured"):
         Settings.from_env(production_env(**launch, SUBMISSION_TERMS_PATH=str(root / "docs/SUBMISSION_TERMS.md")))
