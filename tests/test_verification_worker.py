@@ -594,7 +594,8 @@ def test_final_verdict_query_requires_a_live_owned_lease_and_row_lock():
 @pytest.mark.needs_checkouts
 def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     """The production resolver serves the current registry instance and exact bundle paths."""
-    environment = VersionRegistry.load(TASKS_ROOT / "task-versions.json").current.instance
+    registry = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
+    environment = registry.current.instance
     resolver = load_task_resolver(
         tasks_root=TASKS_ROOT,
         environment=environment,
@@ -603,7 +604,18 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     )
 
     tasks = tuple(resolver.tasks.values())
-    assert len(tasks) == DEFAULT_TIER_TASK_COUNT
+    active_ids = {
+        record.task_id for record in registry.versions.values() if record.state == "active"
+    }
+    admitted_ids = {
+        record.task_id
+        for record in registry.versions.values()
+        if record.admission_at(environment) is not None
+    }
+    assert len(active_ids) == DEFAULT_TIER_TASK_COUNT
+    # A hold closes new admissions without removing bundles needed for previously paid work.
+    assert len(admitted_ids - active_ids) == 2
+    assert {task.task_id for task in tasks} == admitted_ids
     assert all(task.task_dir.is_dir() for task in tasks)
     for task in tasks:
         if is_v2_task_id(task.task_id):
