@@ -133,8 +133,8 @@ def test_the_list_publishes_every_conjecture_with_its_facets():
                 SOLVED_DIRECT,
                 OPEN_ANSWER,
             ]
-            assert body["items"][0]["bounty"]["amount_rao"] == 200_000_000
-            assert body["items"][0]["bounty"]["amount_usd"] == "7.50"
+            assert body["items"][0]["bounty"]["amount_rao"] == 100_000_000
+            assert body["items"][0]["bounty"]["amount_usd"] == "3.75"
 
             facets = {facet["field"]: facet["values"] for facet in body["facets"]}
             assert {item["value"]: item["count"] for item in facets["category"]} == {
@@ -636,6 +636,11 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
             assert body["treasury_address"] == kit.settings.payment_recipient
             assert body["bounty"] == {
                 "policy_version": "linear-age-v3-locked",
+                "new_target_policy_version": "linear-age-v3-locked",
+                "new_target_share_numerator": 1,
+                "new_target_share_denominator": 40,
+                "new_target_pricing_basis": "available_treasury",
+                "new_target_chat_logs_required": False,
                 "balance_rao": 4_000_000_000,
                 "balance_usd": "150.00",
                 "wallet_coldkey": kit.settings.bounty_wallet_coldkey,
@@ -645,7 +650,7 @@ def test_meta_reports_the_pool_the_price_the_treasury_and_the_pins():
                 "open_targets": 3,
                 "total_age_weight": 3,
                 "constant_numerator": 1,
-                "constant_denominator": 20,
+                "constant_denominator": 40,
                 "ramp_seconds": 1296000,
                 "max_age_weight": 60,
                 "max_bounty_share_numerator": 1,

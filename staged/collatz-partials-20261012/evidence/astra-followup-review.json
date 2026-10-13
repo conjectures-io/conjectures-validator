@@ -1,0 +1,16 @@
+{
+  "reviewed_on": "2026-10-12",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "xhigh",
+  "disposition": "Retain C12, C13 and C14 as question-only review-ready candidates.",
+  "c12": "Exact ordinary-map Conjecture 4.14 formulation; no correction.",
+  "c13": {
+    "provenance": "New proposed first-passage strengthening motivated by the stochastic model; no proof found in screened sources.",
+    "normalization": "Correct; drift d/2, variance (log3)^2/4 and barrier distance log(n)/2.",
+    "known_results": "Successive-limit CLTs in Kontorovich-Lagarias section5 and first-order/density-one transport in Inselmann do not establish this diagonal limit.",
+    "asymptotic_obstructions": "No defect found; deterministic lower endpoint tends to negative infinity, lattice spacing tends to zero. Finite data must not be advertised as Gaussian convergence.",
+    "logical_scope": "Bounded modification observation correct, including simultaneous nonexistence of passage. It illustrates information ignored, not logical independence for fixed Collatz. No equivalence or strict hardness ordering claimed."
+  },
+  "c14": "Independently read downloaded manuscript sections2,4,5,9. Conductor is an exponent; theorem5.2 remains superpolynomial. Internal exponential errors do not prove the target. Overlap hold resolved.",
+  "lean_changes_needed": false
+}

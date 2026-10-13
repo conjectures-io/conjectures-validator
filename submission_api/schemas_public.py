@@ -165,6 +165,11 @@ class BountyPoolInfo(Model):
     """The common inputs behind every live task estimate."""
 
     policy_version: str
+    new_target_policy_version: str
+    new_target_share_numerator: int | None
+    new_target_share_denominator: int | None
+    new_target_pricing_basis: str
+    new_target_chat_logs_required: bool
     balance_rao: int
     balance_usd: str | None = Field(
         description=(
@@ -178,8 +183,12 @@ class BountyPoolInfo(Model):
     asset: str = Field(description="alpha")
     open_targets: int
     total_age_weight: int = Field(description="Legacy age statistic; does not affect pricing.")
-    constant_numerator: int = Field(description="Numerator of the starting treasury share.")
-    constant_denominator: int = Field(description="Denominator of the starting treasury share.")
+    constant_numerator: int = Field(
+        description="Numerator of the starting treasury share for newly opened targets."
+    )
+    constant_denominator: int = Field(
+        description="Denominator of the starting treasury share for newly opened targets."
+    )
     ramp_seconds: int = Field(description="Elapsed seconds from the starting share to the maximum.")
     max_age_weight: int
     max_bounty_share_numerator: int

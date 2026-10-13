@@ -29,7 +29,7 @@ ExecStart=/opt/conjectures-validator/current/.venv/bin/python -m verification_wo
 Restart=on-failure
 RestartPreventExitStatus=2
 RestartSec=10s
-TimeoutStopSec=75min
+TimeoutStopSec=255min
 KillMode=mixed
 UMask=0077
 

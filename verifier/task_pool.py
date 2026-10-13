@@ -29,7 +29,7 @@ RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 275
+DEFAULT_TIER_SIZE = 274
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = 219
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
@@ -185,15 +185,17 @@ def reward_target_identity(theorem: str) -> str:
 # How a target that left the pool is presented. `retired` is permanent and its reason code says
 # why (an external solution, an owner-accepted publication closure, a defect, a withdrawal).
 # `held` suspends admission pending review: the target is neither solved nor retired, and
-# re-admission needs the recorded resolution and a new audit. A hold is either a statement or
-# source discrepancy, or an unverified claim to resolve the exact target.
+# re-admission needs the recorded resolution and a new audit. A hold is a statement or source
+# discrepancy, an unverified claim to resolve the exact target, or a documented prior public
+# proof awaiting the owner's decision.
 POOL_STATUS_RETIRED = "retired"
 POOL_STATUS_HELD = "held"
 EXIT_POOL_STATUSES = frozenset({POOL_STATUS_RETIRED, POOL_STATUS_HELD})
 HOLD_STATEMENT_SOURCE_DISCREPANCY = "HOLD_STATEMENT_SOURCE_DISCREPANCY"
 HOLD_UNVERIFIED_RESOLUTION_CLAIM = "HOLD_UNVERIFIED_RESOLUTION_CLAIM"
+HOLD_PRIOR_PUBLIC_PROOF = "PRIOR_PUBLIC_PROOF"
 HOLD_REASON_CODES = frozenset(
-    {HOLD_STATEMENT_SOURCE_DISCREPANCY, HOLD_UNVERIFIED_RESOLUTION_CLAIM}
+    {HOLD_STATEMENT_SOURCE_DISCREPANCY, HOLD_UNVERIFIED_RESOLUTION_CLAIM, HOLD_PRIOR_PUBLIC_PROOF}
 )
 EXTERNAL_SOLUTION_REASON_CODE = "SOLVED_EXTERNALLY"
 OWNER_ACCEPTED_CLOSURE_REASON_CODE = "OWNER_ACCEPTED_PUBLICATION_CLOSURE"

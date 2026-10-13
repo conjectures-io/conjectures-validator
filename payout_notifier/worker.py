@@ -5,10 +5,12 @@ import logging
 from dataclasses import dataclass
 from typing import Callable
 
-from sqlalchemy import and_, exists, func, literal, or_, select
+from sqlalchemy import and_, exists, func, literal, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from conjectures_subnet.db.payout_instructions import instruction_sendable
 from conjectures_subnet.db.models import (
     Account,
     PayoutDiscordDelivery,
@@ -82,6 +84,35 @@ class PayoutNotifier:
         self.lease_seconds = lease_seconds
         self.sender = sender
         self.defect_award_quoter = defect_award_quoter
+
+    def verify_database_access(self) -> None:
+        """Fail before starting the loop if the migration or role grant is missing."""
+        try:
+            with self.sessions() as session:
+                session.scalar(select(func.bounty_trajectory_eligible(None, None)))
+                owners_ready = session.scalar(text("""
+                    SELECT trigger_fn.proowner = projection.proowner
+                       AND has_function_privilege(trigger_fn.proowner, projection.oid, 'EXECUTE')
+                       AND has_table_privilege(trigger_fn.proowner, 'public.submissions', 'SELECT')
+                       AND has_any_column_privilege(trigger_fn.proowner, 'public.submissions', 'UPDATE')
+                       AND has_table_privilege(projection.proowner, 'public.review_decisions', 'SELECT')
+                       AND has_table_privilege(projection.proowner, 'public.trajectory_claims', 'SELECT')
+                    FROM pg_catalog.pg_proc trigger_fn, pg_catalog.pg_proc projection
+                    WHERE trigger_fn.oid = 'public.require_bounty_trajectory()'::regprocedure
+                      AND projection.oid = 'public.bounty_trajectory_eligible(uuid,text)'::regprocedure
+                """))
+                if not owners_ready:
+                    raise RuntimeError(
+                        "Payout definer preflight failed: both functions must share a trusted owner "
+                        "with projection EXECUTE, SELECT on submissions/review_decisions/trajectory_claims, "
+                        "and UPDATE on a submissions column for the row lock."
+                    )
+        except SQLAlchemyError as exc:
+            raise RuntimeError(
+                "Payout database preflight failed: verify connectivity, apply V046, and grant "
+                "EXECUTE on public.bounty_trajectory_eligible(uuid,text) to the notifier role "
+                "before starting it (required for legacy payouts too)."
+            ) from exc
 
     def seed_reward_events(self) -> int:
         """Create one idempotent payout instruction for each newly eligible submission.
@@ -165,6 +196,7 @@ class PayoutNotifier:
                     Submission.reward_status == RewardState.ELIGIBLE,
                     destination_coldkey.is_not(None),
                     ~existing_reward,
+                    func.bounty_trajectory_eligible(Submission.id, latest_reason),
                     or_(
                         latest_reason == "FORMALIZATION_DEFECT_AWARD",
                         Submission.bounty_locked_at.is_not(None),
@@ -174,19 +206,28 @@ class PayoutNotifier:
 
         defect_quote: DefectAwardQuote | None = None
         if any(row.eligibility_reason == "FORMALIZATION_DEFECT_AWARD" for row in candidates):
-            if self.defect_award_quoter is None:
-                raise RuntimeError(
-                    "a FORMALIZATION_DEFECT_AWARD is eligible but no TaoStats quoter is configured"
+            try:
+                if self.defect_award_quoter is None:
+                    raise RuntimeError("no TaoStats defect-award quoter is configured")
+                quote = self.defect_award_quoter()
+                if quote.amount_rao <= 0:
+                    raise ValueError("the defect-award quote must contain a positive rao amount")
+                defect_quote = quote
+            except Exception as exc:
+                # Only the external pricing boundary is isolated. Leave these awards eligible
+                # for a fresh quote next pass; never substitute the full bounty or a stale rate.
+                # Exception text can contain provider responses or credentials.
+                logger.warning(
+                    "Deferring formalization-defect awards: TaoStats quote unavailable (%s)",
+                    type(exc).__name__,
                 )
-            defect_quote = self.defect_award_quoter()
-            if defect_quote.amount_rao <= 0:
-                raise ValueError("the defect-award quote must contain a positive rao amount")
 
         created = 0
         with self.sessions.begin() as session:
             for candidate in candidates:
                 if candidate.eligibility_reason == "FORMALIZATION_DEFECT_AWARD":
-                    assert defect_quote is not None
+                    if defect_quote is None:
+                        continue
                     pricing_inputs = dict(defect_quote.pricing_inputs)
                     pricing_inputs.update(
                         {
@@ -196,7 +237,7 @@ class PayoutNotifier:
                     )
                     amount_rao = defect_quote.amount_rao
                     pricing_policy_version = FORMALIZATION_DEFECT_POLICY_VERSION
-                    if candidate.review_policy_version == "v3":
+                    if candidate.review_policy_version in {"v3", "v4"}:
                         if candidate.bounty_locked_at is None:
                             raise ValueError("a v3 defect award requires a submission bounty lock")
                         amount_rao = min(amount_rao, candidate.locked_amount_rao)
@@ -249,6 +290,7 @@ class PayoutNotifier:
                     literal(user_id),
                 ).where(
                     RewardEvent.status == PayoutState.PENDING,
+                    instruction_sendable(),
                     RewardEvent.extrinsic_reference.is_(None),
                 )
                 statement = (
@@ -294,6 +336,7 @@ class PayoutNotifier:
                 .where(
                     due,
                     RewardEvent.status == PayoutState.PENDING,
+                    instruction_sendable(),
                     RewardEvent.extrinsic_reference.is_(None),
                 )
                 .order_by(
@@ -301,7 +344,7 @@ class PayoutNotifier:
                     PayoutDiscordDelivery.reward_event_id,
                     PayoutDiscordDelivery.signer_wallet,
                 )
-                .with_for_update(of=PayoutDiscordDelivery, skip_locked=True)
+                .with_for_update(of=(PayoutDiscordDelivery, RewardEvent), skip_locked=True)
                 .limit(1)
             )
             row = session.execute(statement).one_or_none()

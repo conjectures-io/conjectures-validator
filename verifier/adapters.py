@@ -20,9 +20,19 @@ class GeneratedLean:
     answer_policy: Mapping[str, Any]
 
 
+# Version 1 trusted headers import only the source module and TaskSupport. Version 2 headers also
+# import the entire pinned Mathlib; targets are unchanged. Published version-1 bundles must keep
+# reconstructing byte-for-byte, so new generation uses the last version and the loader accepts all.
+ADAPTER_VERSIONS = (1, 2)
+ADAPTER_VERSION = ADAPTER_VERSIONS[-1]
+
+
 class TaskAdapter(Protocol):
     classification: Classification
-    version: int
+    versions: tuple[int, ...]
+
+    @property
+    def version(self) -> int: ...
 
     def supports(self, declaration: CatalogDeclaration) -> bool: ...
 
@@ -38,7 +48,11 @@ class AdapterSpec:
     classification: Classification
     modes: tuple[str, ...]
     generator: Callable[[CatalogDeclaration, str, GenerationContext], GeneratedLean]
-    version: int = 1
+    versions: tuple[int, ...] = ADAPTER_VERSIONS
+
+    @property
+    def version(self) -> int:
+        return self.versions[-1]
 
     def supports(self, declaration: CatalogDeclaration) -> bool:
         return declaration.classification == self.classification

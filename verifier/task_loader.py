@@ -8,6 +8,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
 
+from verifier.adapters import ADAPTER_VERSIONS
 from verifier.classification import supported_modes
 from verifier.errors import ReasonCode, VerifierError
 from verifier.hashing import is_sha256, sha256_bytes, sha256_named_bytes
@@ -267,8 +268,8 @@ def _validate_manifest(manifest: TaskManifest) -> None:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest timeout exceeds verifier policy")
     if not 0 < manifest.max_submission_bytes <= MAX_SUBMISSION_BYTES:
         raise VerifierError(ReasonCode.INVALID_MANIFEST, "manifest submission size exceeds verifier policy")
-    if manifest.adapter_version <= 0:
-        raise VerifierError(ReasonCode.INVALID_MANIFEST, "adapter version must be positive")
+    if manifest.adapter_version not in ADAPTER_VERSIONS:
+        raise VerifierError(ReasonCode.INVALID_MANIFEST, "adapter version is not supported by this verifier")
     source_path = Path(manifest.source_path)
     if (
         not manifest.source_theorem

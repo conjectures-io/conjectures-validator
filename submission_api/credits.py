@@ -268,7 +268,7 @@ APPROVAL_REASONS: tuple[tuple[str, str], ...] = (
     (
         "FORMALIZATION_DEFECT_AWARD",
         "The exact published Lean task was proved or refuted through a material "
-        "formalization defect; under review policy v3 the award is the lesser of $750 USD "
+        "formalization defect; under review policy v3 or v4 the award is the lesser of $750 USD "
         "equivalent and the locked task bounty, paid in Subnet 66 Alpha instead of the full "
         "conjecture bounty. Earlier submissions retain their recorded award terms.",
     ),
@@ -303,8 +303,9 @@ DISQUALIFICATION_REASONS: tuple[tuple[str, str], ...] = (
     (
         "NOT_NOVEL",
         "The result was already available in the pinned environment, or a dated public "
-        "source had already solved the same direct problem and the submission substantially "
-        "implements that source's solution for the exact target.",
+        "source contained an established proof of the same direct problem before acceptance. "
+        "Under v4 this applies even without Lean formalization or when independently rediscovered; "
+        "unsupported claims and mismatched scope do not qualify. Earlier contracts remain recorded.",
     ),
     (
         "PRIOR_EXTERNAL_FORMALIZATION",

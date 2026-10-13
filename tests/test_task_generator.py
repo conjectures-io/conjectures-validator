@@ -3,19 +3,26 @@ from dataclasses import replace
 
 import pytest
 
+from verifier.adapters import ADAPTER_VERSION, ADAPTER_VERSIONS, ADAPTERS
 from verifier.errors import ReasonCode, VerifierError
 from verifier.models import Classification
 from verifier.task_generator import (
+    HEADER_IMPORTS,
     MAX_SUBMISSION_BYTES,
     generate_all,
     generate_group_task,
     generate_task,
     group_task_id,
     task_id,
+    trusted_group_task_payloads,
+    trusted_task_payloads,
 )
 from verifier.task_loader import load_task, load_task_bundle
 
-from conftest import catalog, declaration
+from conftest import catalog, declaration, recommit_trusted_files, relabel_adapter_version
+
+LEGACY_HEADER = "import TestFixtures\nimport TaskSupport\n\nnamespace Bounty\n"
+MATHLIB_HEADER = "import Mathlib\n" + LEGACY_HEADER
 
 
 def test_generates_immutable_task_files(tmp_path):
@@ -224,7 +231,7 @@ def test_generates_all_of_task_with_exact_individual_targets(tmp_path):
         catalog(first, second).repository_commit,
         (first.theorem, second.theorem),
         "formalized",
-        1,
+        ADAPTER_VERSION,
     )
     assert result.theorem_names == ("Bounty.target_1", "Bounty.target_2")
     assert 'fcTypeOfName% "Fixture.parts.i"' in challenge
@@ -394,3 +401,167 @@ def test_source_name_is_encoded_as_a_lean_string_literal(tmp_path):
     challenge = (tmp_path / "task" / "Challenge.lean").read_text(encoding="utf-8")
     assert "\naxiom forged : False" not in challenge
     assert '\\naxiom forged : False' in challenge
+
+
+def _parts():
+    first = declaration(theorem="Fixture.parts.i")
+    second = replace(declaration(theorem="Fixture.parts.ii"), type_hash="sha256:" + "2" * 64)
+    return first, second
+
+
+def _generate_current(tmp_path, grouped):
+    first, second = _parts()
+    destination = tmp_path / ("group" if grouped else "single")
+    create = generate_group_task if grouped else generate_task
+    target_args = {"declarations": (first, second)} if grouped else {"declaration": first}
+    manifest = create(
+        catalog=catalog(first, second),
+        **target_args,
+        mode="formalized",
+        output=destination,
+        validate_target=lambda _path, item, *_: item.type_hash,
+    )
+    return destination, manifest
+
+
+def test_every_adapter_version_has_a_frozen_header_policy():
+    assert ADAPTER_VERSIONS == (1, 2)
+    assert ADAPTER_VERSION == 2
+    assert tuple(HEADER_IMPORTS) == ADAPTER_VERSIONS
+    assert HEADER_IMPORTS[1] == ()
+    assert HEADER_IMPORTS[2] == ("Mathlib",)
+    assert all(adapter.versions == ADAPTER_VERSIONS for adapter in ADAPTERS.values())
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+def test_new_tasks_import_the_entire_pinned_mathlib(tmp_path, grouped):
+    task, manifest = _generate_current(tmp_path, grouped)
+
+    challenge = (task / "Challenge.lean").read_text(encoding="utf-8")
+    assert (task / "SolutionHeader.lean.txt").read_text(encoding="utf-8") == MATHLIB_HEADER
+    assert challenge.startswith(MATHLIB_HEADER + "\ntheorem target")
+    assert challenge.count("import ") == 3
+    assert manifest.adapter_version == 2
+    assert manifest.task_id.endswith("-formalized-v2")
+    if grouped:
+        sources = json.loads((task / "group-metadata.json").read_text(encoding="utf-8"))["sources"]
+    else:
+        sources = [json.loads((task / "source-metadata.json").read_text(encoding="utf-8"))]
+    assert {source["adapter_version"] for source in sources} == {2}
+    assert load_task_bundle(task).manifest == manifest
+
+
+def test_version_one_payloads_stay_byte_for_byte_and_differ_only_by_the_mathlib_import():
+    first, second = _parts()
+    commit = catalog().repository_commit
+    single = {
+        version: trusted_task_payloads(first, "formalized", False, commit, version)
+        for version in ADAPTER_VERSIONS
+    }
+    group = {
+        version: trusted_group_task_payloads((first, second), "formalized", False, commit, version)
+        for version in ADAPTER_VERSIONS
+    }
+
+    assert single[1]["SolutionHeader.lean.txt"] == LEGACY_HEADER.encode()
+    assert single[1]["Challenge.lean"] == (
+        LEGACY_HEADER
+        + '\ntheorem target : fcTypeOfName% "Fixture.parts.i" := by\n  sorry\n\nend Bounty\n'
+    ).encode()
+    assert group[1]["SolutionHeader.lean.txt"] == LEGACY_HEADER.encode()
+    assert group[1]["Challenge.lean"] == (
+        LEGACY_HEADER
+        + '\ntheorem target_1 : fcTypeOfName% "Fixture.parts.i" := by\n  sorry'
+        + '\n\ntheorem target_2 : fcTypeOfName% "Fixture.parts.ii" := by\n  sorry'
+        + "\n\nend Bounty\n"
+    ).encode()
+    for payloads in (single, group):
+        for name in ("Challenge.lean", "SolutionHeader.lean.txt"):
+            assert payloads[2][name] == b"import Mathlib\n" + payloads[1][name]
+        for name in ("SolutionFooter.lean.txt", "comparator-config.json"):
+            assert payloads[2][name] == payloads[1][name]
+        source_metadata = {
+            version: json.loads(payloads[version]["source-metadata.json"])
+            for version in ADAPTER_VERSIONS
+        }
+        assert source_metadata[1] == {**source_metadata[2], "adapter_version": 1}
+
+
+def test_header_policy_versions_have_distinct_task_identities():
+    commit = catalog().repository_commit
+    theorems = ("Fixture.parts.i", "Fixture.parts.ii")
+    for limit in (1_000_000, 10 * 1024 * 1024, MAX_SUBMISSION_BYTES):
+        for mode in ("formalized", "counterexample"):
+            single = {
+                version: task_id(commit, theorems[0], mode, version, max_submission_bytes=limit)
+                for version in ADAPTER_VERSIONS
+            }
+            grouped = {
+                version: group_task_id(commit, theorems, mode, version, max_submission_bytes=limit)
+                for version in ADAPTER_VERSIONS
+            }
+            for identities in (single, grouped):
+                assert identities[1].endswith(f"-{mode}-v1")
+                assert identities[2].endswith(f"-{mode}-v2")
+                digests = {identity.rsplit("-", 3)[1] for identity in identities.values()}
+                assert len(digests) == len(ADAPTER_VERSIONS)
+
+
+def test_unknown_adapter_version_cannot_reconstruct_payloads():
+    first, second = _parts()
+    commit = catalog().repository_commit
+    for build, target in (
+        (trusted_task_payloads, first),
+        (trusted_group_task_payloads, (first, second)),
+    ):
+        for version in (0, 3):
+            with pytest.raises(VerifierError) as error:
+                build(target, "formalized", False, commit, version)
+            assert error.value.reason == ReasonCode.INVALID_MANIFEST
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+@pytest.mark.parametrize(
+    "header",
+    [
+        LEGACY_HEADER,
+        "import Mathlib\nimport Lean.Elab.Command\nimport TestFixtures\nimport TaskSupport\n\nnamespace Bounty\n",
+        "import TestFixtures\nimport TaskSupport\nimport Mathlib\n\nnamespace Bounty\n",
+    ],
+    ids=["mathlib-removed", "extra-import", "reordered"],
+)
+def test_mathlib_header_cannot_be_edited_even_when_rehashed(tmp_path, grouped, header):
+    task, _manifest = _generate_current(tmp_path, grouped)
+    for name in ("Challenge.lean", "SolutionHeader.lean.txt"):
+        path = task / name
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(MATHLIB_HEADER, header, 1),
+            encoding="utf-8",
+        )
+    recommit_trusted_files(task)
+    with pytest.raises(VerifierError, match="not produced by the pinned generator") as error:
+        load_task_bundle(task)
+    assert error.value.reason == ReasonCode.TRUSTED_FILE_MODIFIED
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+def test_mathlib_header_bundle_cannot_be_relabelled_as_version_one(tmp_path, grouped):
+    task, manifest = _generate_current(tmp_path, grouped)
+    relabel_adapter_version(task, 1)
+    relabelled = json.loads((task / "manifest.json").read_text(encoding="utf-8"))
+    assert relabelled["task_id"].endswith("-v1") and relabelled["task_id"] != manifest.task_id
+    with pytest.raises(
+        VerifierError,
+        match="pinned generator: Challenge.lean, SolutionHeader.lean.txt$",
+    ) as error:
+        load_task_bundle(task)
+    assert error.value.reason == ReasonCode.TRUSTED_FILE_MODIFIED
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+def test_unsupported_adapter_version_is_rejected_before_reconstruction(tmp_path, grouped):
+    task, _manifest = _generate_current(tmp_path, grouped)
+    relabel_adapter_version(task, ADAPTER_VERSION + 1)
+    with pytest.raises(VerifierError, match="adapter version is not supported") as error:
+        load_task_bundle(task)
+    assert error.value.reason == ReasonCode.INVALID_MANIFEST

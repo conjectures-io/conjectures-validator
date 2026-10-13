@@ -550,11 +550,11 @@ def test_the_insecure_sandbox_flag_rejects_a_value_it_cannot_read():
 
 def test_the_lease_covers_the_container_which_covers_the_task_deadline():
     settings = WorkerSettings.from_env({})
-    # A production task declares an hour. Each bound must strictly contain the one inside it,
+    # Production verification allows four hours. Each bound must strictly contain the one inside it,
     # or a container gets killed before the verifier's own deadline fires and a live verdict
     # gets written under an expired lease.
-    assert settings.container_timeout(3600) > 3600
-    assert settings.lease_seconds(3600) > settings.container_timeout(3600)
+    assert settings.container_timeout(14400) == 14700
+    assert settings.lease_seconds(14400) == 15000
 
 
 def test_final_verdict_query_requires_a_live_owned_lease_and_row_lock():
@@ -594,7 +594,8 @@ def test_final_verdict_query_requires_a_live_owned_lease_and_row_lock():
 @pytest.mark.needs_checkouts
 def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     """The production resolver serves the current registry instance and exact bundle paths."""
-    environment = VersionRegistry.load(TASKS_ROOT / "task-versions.json").current.instance
+    registry = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
+    environment = registry.current.instance
     resolver = load_task_resolver(
         tasks_root=TASKS_ROOT,
         environment=environment,
@@ -603,7 +604,18 @@ def test_the_resolver_loads_the_checked_out_pool_by_manifest_task_id():
     )
 
     tasks = tuple(resolver.tasks.values())
-    assert len(tasks) == DEFAULT_TIER_TASK_COUNT
+    active_ids = {
+        record.task_id for record in registry.versions.values() if record.state == "active"
+    }
+    admitted_ids = {
+        record.task_id
+        for record in registry.versions.values()
+        if record.admission_at(environment) is not None
+    }
+    assert len(active_ids) == DEFAULT_TIER_TASK_COUNT
+    # A hold closes new admissions without removing bundles needed for previously paid work.
+    assert len(admitted_ids - active_ids) == 2
+    assert {task.task_id for task in tasks} == admitted_ids
     assert all(task.task_dir.is_dir() for task in tasks)
     for task in tasks:
         if is_v2_task_id(task.task_id):
@@ -696,3 +708,31 @@ def test_a_rejection_about_a_different_proof_is_still_refused():
             expected_submission_sha256="sha256:" + "ef" * 32,
             expected_nanoda_enabled=False,
         )
+
+
+@pytest.mark.parametrize(
+    'budgets,message',
+    [
+        ({'task_timeout_seconds': 3600}, 'both timeout budgets'),
+        ({'task_timeout_seconds': True, 'effective_timeout_seconds': 14400}, 'positive integer'),
+        ({'task_timeout_seconds': 3600, 'effective_timeout_seconds': 0}, 'positive integer'),
+        ({'task_timeout_seconds': 3600, 'effective_timeout_seconds': 3599}, 'cannot shorten'),
+    ],
+)
+def test_invalid_runtime_budget_reports_are_refused(budgets, message):
+    with pytest.raises(RunnerFailure, match=message):
+        assert_production_report(
+            verifier_run(production_report(**budgets)),
+            expected_task_id='fc-fixture-task', expected_task_sha256=TASK_DIGEST,
+            expected_submission_sha256='sha256:' + 'ef' * 32,
+            expected_nanoda_enabled=False,
+        )
+
+
+def test_four_hour_runtime_report_is_accepted_with_legacy_task_budget():
+    assert_production_report(
+        verifier_run(production_report(task_timeout_seconds=3600, effective_timeout_seconds=14400)),
+        expected_task_id='fc-fixture-task', expected_task_sha256=TASK_DIGEST,
+        expected_submission_sha256='sha256:' + 'ef' * 32,
+        expected_nanoda_enabled=False,
+    )

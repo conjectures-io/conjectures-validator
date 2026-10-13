@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 # Database tests are destructive, so the suite never discovers a server: there is no default DSN
 # and no probe of the shared pytest stack. `tests/database_guard.py` decides, fail-closed, from an
 # explicit DSN plus the declared identity of the fixture it must reach. `postgres_dsn` and
@@ -10,7 +13,9 @@ from database_guard import (
     competition_dsn,
     postgres_dsn,
 )
+from verifier.hashing import hash_named_files, pretty_json
 from verifier.models import Catalog, CatalogDeclaration, Classification, TaskManifest
+from verifier.task_generator import group_task_id, task_id
 
 DATABASE_SKIP_REASON = (
     "no database: set FC_POSTGRES_DSN and FC_TEST_DATABASE_SYSTEM_IDENTIFIER to a private "
@@ -118,3 +123,50 @@ def manifest(*, answer_policy=None, forbidden=()) -> TaskManifest:
         production_eligible=True,
         answer_policy=answer_policy or {},
     )
+
+
+def recommit_trusted_files(task: Path) -> None:
+    """Re-hash every trusted payload, as a forger with write access to a bundle would."""
+    manifest_path = task / "manifest.json"
+    value = json.loads(manifest_path.read_text(encoding="utf-8"))
+    value["trusted_file_hashes"] = hash_named_files(task, tuple(value["trusted_file_hashes"]))
+    manifest_path.write_text(pretty_json(value), encoding="utf-8")
+    (task / "trusted-hashes.json").write_text(
+        pretty_json(value["trusted_file_hashes"]), encoding="utf-8"
+    )
+
+
+def relabel_adapter_version(task: Path, version: int) -> None:
+    """Consistently move a bundle's identity and metadata to another adapter version.
+
+    The Lean payloads are deliberately left alone, so only header reconstruction can tell.
+    """
+    manifest_path = task / "manifest.json"
+    value = json.loads(manifest_path.read_text(encoding="utf-8"))
+    value["adapter_version"] = version
+    metadata_names = ["source-metadata.json"]
+    if (task / "group-metadata.json").exists():
+        metadata_names.append("group-metadata.json")
+        value["task_id"] = group_task_id(
+            value["repository_commit"],
+            tuple(value["forbidden_dependencies"]),
+            value["task_mode"],
+            version,
+            max_submission_bytes=value["max_submission_bytes"],
+        )
+    else:
+        value["task_id"] = task_id(
+            value["repository_commit"],
+            value["source_theorem"],
+            value["task_mode"],
+            version,
+            max_submission_bytes=value["max_submission_bytes"],
+        )
+    manifest_path.write_text(pretty_json(value), encoding="utf-8")
+    for name in metadata_names:
+        path = task / name
+        metadata = json.loads(path.read_text(encoding="utf-8"))
+        for source in metadata.get("sources", [metadata]):
+            source["adapter_version"] = version
+        path.write_text(pretty_json(metadata), encoding="utf-8")
+    recommit_trusted_files(task)

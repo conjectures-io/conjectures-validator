@@ -1,0 +1,297 @@
+{
+  "complete": true,
+  "all_passed": true,
+  "elapsed_seconds": 261.636,
+  "checks": [
+    {
+      "claim": "ORDERS",
+      "description": "check_compositions.py",
+      "passed": true,
+      "seconds": 0.254
+    },
+    {
+      "claim": "C0",
+      "description": "constants.py",
+      "passed": true,
+      "seconds": 0.055
+    },
+    {
+      "claim": "G15",
+      "description": "pentagon_certificate.py",
+      "passed": true,
+      "seconds": 0.528
+    },
+    {
+      "claim": "E15",
+      "description": "inner_energy_certificate.py",
+      "passed": true,
+      "seconds": 0.625
+    },
+    {
+      "claim": "R15.bounds",
+      "description": "radial_integer_validate.py",
+      "passed": true,
+      "seconds": 0.153
+    },
+    {
+      "claim": "R15.compile",
+      "description": "radial_integer.cpp",
+      "passed": true,
+      "seconds": 0.84
+    },
+    {
+      "claim": "R15",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 0.316
+    },
+    {
+      "claim": "L15",
+      "description": "additive_estimates.py",
+      "passed": true,
+      "seconds": 0.019
+    },
+    {
+      "claim": "C16",
+      "description": "certify_construction16.py",
+      "passed": true,
+      "seconds": 0.022
+    },
+    {
+      "claim": "E16",
+      "description": "energy16.py",
+      "passed": true,
+      "seconds": 1.143
+    },
+    {
+      "claim": "G16",
+      "description": "certify_geometry16.py",
+      "passed": true,
+      "seconds": 0.024
+    },
+    {
+      "claim": "G16.printed",
+      "description": "check_printed_bounds.py",
+      "passed": true,
+      "seconds": 0.024
+    },
+    {
+      "claim": "R16.bounds",
+      "description": "radial_integer_validate.py",
+      "passed": true,
+      "seconds": 0.532
+    },
+    {
+      "claim": "R16.compile",
+      "description": "radial_integer.cpp",
+      "passed": true,
+      "seconds": 0.437
+    },
+    {
+      "claim": "R16",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 0.319
+    },
+    {
+      "claim": "P16",
+      "description": "coordinate_nearness.py",
+      "passed": true,
+      "seconds": 0.044
+    },
+    {
+      "claim": "L16",
+      "description": "certify_local16.py",
+      "passed": true,
+      "seconds": 0.032
+    },
+    {
+      "claim": "C17",
+      "description": "verify17_exact.py",
+      "passed": true,
+      "seconds": 0.026
+    },
+    {
+      "claim": "E17",
+      "description": "energy17.py",
+      "passed": true,
+      "seconds": 37.606
+    },
+    {
+      "claim": "R17.bounds",
+      "description": "validate_angles.py",
+      "passed": true,
+      "seconds": 13.549
+    },
+    {
+      "claim": "R17.compile",
+      "description": "radial_integer.cpp",
+      "passed": true,
+      "seconds": 0.78
+    },
+    {
+      "claim": "R17.11",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 0.644
+    },
+    {
+      "claim": "R17.10",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 110.307
+    },
+    {
+      "claim": "P17",
+      "description": "coordinate_nearness17.py",
+      "passed": true,
+      "seconds": 0.065
+    },
+    {
+      "claim": "L17",
+      "description": "certify_local17.py",
+      "passed": true,
+      "seconds": 0.033
+    },
+    {
+      "claim": "C18",
+      "description": "exact18.py",
+      "passed": true,
+      "seconds": 0.126
+    },
+    {
+      "claim": "E18",
+      "description": "energy18.py",
+      "passed": true,
+      "seconds": 15.964
+    },
+    {
+      "claim": "R18.bounds",
+      "description": "validate_angles.py",
+      "passed": true,
+      "seconds": 1.193
+    },
+    {
+      "claim": "R18.compile",
+      "description": "radial_integer.cpp",
+      "passed": true,
+      "seconds": 2.867
+    },
+    {
+      "claim": "R18.11",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 3.524
+    },
+    {
+      "claim": "R18.10",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 6.698
+    },
+    {
+      "claim": "P18",
+      "description": "certify_bridges18.py",
+      "passed": true,
+      "seconds": 0.05
+    },
+    {
+      "claim": "L18.10",
+      "description": "certify_m10.py",
+      "passed": true,
+      "seconds": 0.091
+    },
+    {
+      "claim": "L18.limits",
+      "description": "certify_m11_limits.py",
+      "passed": true,
+      "seconds": 0.117
+    },
+    {
+      "claim": "L18.W",
+      "description": "certify_local18.py",
+      "passed": true,
+      "seconds": 0.057
+    },
+    {
+      "claim": "C20",
+      "description": "verify20_exact.py",
+      "passed": true,
+      "seconds": 0.026
+    },
+    {
+      "claim": "E20.bounds",
+      "description": "energy_integer_validate.py",
+      "passed": true,
+      "seconds": 0.074
+    },
+    {
+      "claim": "E20.compile",
+      "description": "energy_integer.cpp",
+      "passed": true,
+      "seconds": 0.765
+    },
+    {
+      "claim": "E20",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 2.634
+    },
+    {
+      "claim": "R20.bounds",
+      "description": "validate_angles.py",
+      "passed": true,
+      "seconds": 2.942
+    },
+    {
+      "claim": "R20.compile",
+      "description": "radial_integer.cpp",
+      "passed": true,
+      "seconds": 0.611
+    },
+    {
+      "claim": "R20",
+      "description": "exhaustive integer replay",
+      "passed": true,
+      "seconds": 52.499
+    },
+    {
+      "claim": "P20",
+      "description": "coordinate_nearness20.py",
+      "passed": true,
+      "seconds": 0.044
+    },
+    {
+      "claim": "L20",
+      "description": "certify_local20.py",
+      "passed": true,
+      "seconds": 0.032
+    },
+    {
+      "claim": "REFERENCE",
+      "description": "check_reference_certificates.py",
+      "passed": true,
+      "seconds": 1.986
+    },
+    {
+      "claim": "CONSISTENCY",
+      "description": "check_consistency.py",
+      "passed": true,
+      "seconds": 0.254
+    },
+    {
+      "claim": "SUMMARY",
+      "description": "certificate_summary.py",
+      "passed": true,
+      "seconds": 0.231
+    }
+  ],
+  "environment": {
+    "python": "3.13.1",
+    "compiler": "Apple clang version 16.0.0 (clang-1600.0.26.6)",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "processor": "arm",
+    "logical_cpus": 10,
+    "stages_run_sequentially": true
+  }
+}

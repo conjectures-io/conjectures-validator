@@ -1,8 +1,8 @@
 # Submission terms
 
-**Terms version:** `v6`<br>
-**Effective date:** 2026-09-11<br>
-**Manual review policy:** `v3`
+**Terms version:** `v7`<br>
+**Effective date:** 2026-10-12<br>
+**Manual review policy:** `v4`
 
 These terms apply only to submissions accepted on or after the effective date. A submission
 accepted earlier remains governed by the terms and review-policy version recorded at acceptance.
@@ -56,17 +56,18 @@ One reward is paid per exact theorem target. Its proof and refutation tasks comp
 reward, including across source repins. Independently formalized parents, parts, and variants are
 separate targets and can each earn a reward.
 
-A reward may be refused as `NOT_NOVEL` when either the result was already available in the exact
-pinned environment or, before we accepted the submission, a dated public source had already solved
-the same direct mathematical problem and the submitted proof substantially implements that
-source's solution for the exact target. The second branch requires the source and its date, an
-exact comparison of the source result with the submitted target, and concrete correspondence
-between the source's distinctive mathematical argument and the submitted proof. A shared
-conclusion, standard library use, or conventional strategy is not enough.
+A reward is disqualified as `NOT_NOVEL` if the result was already available in the exact
+pinned environment, or a complete, established public proof of the same direct mathematical
+problem predates our acceptance of the submission. This includes conventional mathematical
+proofs and computer-assisted proofs, even if they were never formalized in Lean. An independent
+rediscovery, a different argument, or a first Lean formalization does not restore eligibility.
 
-`NOT_NOVEL` is a bounty-eligibility classification, not an accusation of plagiarism. It does not
-require a finding that the submitter falsely claimed authorship. If the chronology, exact target
-match, or source-to-submission correspondence is genuinely uncertain, this reason does not apply.
+We must identify the actual prior proof, establish reliable public chronology, match the exact
+scope and hypotheses, and explain why the proof is complete and established. An unsupported
+claim, inaccessible announcement, intention to prove, or proof of only a different/special case
+is insufficient. Material uncertainty about validity, chronology, or target match must be
+resolved before rejecting on that basis. `NOT_NOVEL` concerns bounty eligibility and does not
+accuse the submitter of plagiarism or declare their Lean proof invalid.
 
 A reward may also be refused when public, dated evidence shows that the same target had already
 been completed in an external formal proof system before we accepted the submission. This is
@@ -83,7 +84,7 @@ successful claim first. Rejected attempts release their treasury exposure. If yo
 is approved for the full conjecture bounty, its payout event copies the locked amount and pricing
 inputs exactly.
 
-For a `FORMALIZATION_DEFECT_AWARD` under review policy `v3`, the reward is **$750 USD equivalent
+For a `FORMALIZATION_DEFECT_AWARD` under review policy `v3` or `v4`, the reward is **$750 USD equivalent
 or the task bounty locked for your submission, whichever is less**, paid in Subnet 66 Alpha.
 Convert $750 to integer Alpha rao at the authoritative Alpha/USD rate when the payout record is
 created, using the existing nearest-rao rounding convention, then take the smaller of that amount

@@ -65,6 +65,8 @@ def _parser() -> argparse.ArgumentParser:
     task_publish.add_argument("--pool-size", type=int, default=None)
     task_publish.add_argument("--audit-date", required=True)
     task_publish.add_argument("--jobs", type=int, default=4)
+    task_publish.add_argument("--adapter-version", type=int, choices=(1, 2), default=None,
+                              help="explicit header upgrade; omitted preserves published headers")
 
     bundle = subcommands.add_parser("bundle")
     bundle_commands = bundle.add_subparsers(dest="bundle_command", required=True)
@@ -187,6 +189,7 @@ def _run(args: argparse.Namespace) -> int:
             pool_size=args.pool_size or DEFAULT_TIER_SIZE,
             audit_date_utc=args.audit_date,
             jobs=args.jobs,
+            adapter_version=args.adapter_version,
         )
         _print(
             {

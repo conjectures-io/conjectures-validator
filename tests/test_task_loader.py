@@ -11,6 +11,8 @@ from verifier.repository import tasks_repository_root
 from verifier.task_generator import MAX_SUBMISSION_BYTES, task_id
 from verifier.task_loader import load_task, load_task_bundle, verify_trusted_hashes
 
+from conftest import recommit_trusted_files, relabel_adapter_version
+
 
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_ROOT = tasks_repository_root(ROOT)
@@ -159,5 +161,40 @@ def test_hashed_but_non_generated_challenge_is_rejected(tmp_path):
         target["Challenge.lean"] = digest
         path.write_text(json.dumps(value), encoding="utf-8")
     with pytest.raises(VerifierError) as error:
+        load_task_bundle(task)
+    assert error.value.reason == ReasonCode.TRUSTED_FILE_MODIFIED
+
+
+def test_published_version_one_bundles_still_load_under_their_commitments():
+    from verifier.version_registry import VersionRegistry
+
+    registry = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
+    assert len(registry.versions) >= 550
+    assert sum(record.state == "active" for record in registry.versions.values()) == 548
+    for record in registry.versions.values():
+        bundle = load_task_bundle(TASKS_ROOT / record.location)
+        assert bundle.manifest.adapter_version == 1
+        assert not bundle.files["SolutionHeader.lean.txt"].startswith(b"import Mathlib\n")
+        assert bundle.sha256 == record.task_bundle_sha256
+        assert bundle.manifest.task_id == record.task_id
+
+def test_published_header_cannot_gain_the_mathlib_import_in_place(tmp_path):
+    task = copied_task(tmp_path)
+    for name in ("Challenge.lean", "SolutionHeader.lean.txt"):
+        path = task / name
+        path.write_bytes(b"import Mathlib\n" + path.read_bytes())
+    recommit_trusted_files(task)
+    with pytest.raises(VerifierError, match="not produced by the pinned generator") as error:
+        load_task_bundle(task)
+    assert error.value.reason == ReasonCode.TRUSTED_FILE_MODIFIED
+
+
+def test_published_bundle_cannot_be_relabelled_as_the_mathlib_header_version(tmp_path):
+    task = copied_task(tmp_path)
+    relabel_adapter_version(task, 2)
+    with pytest.raises(
+        VerifierError,
+        match="pinned generator: Challenge.lean, SolutionHeader.lean.txt$",
+    ) as error:
         load_task_bundle(task)
     assert error.value.reason == ReasonCode.TRUSTED_FILE_MODIFIED

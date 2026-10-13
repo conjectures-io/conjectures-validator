@@ -292,7 +292,7 @@ The statement the miner must prove — never stored as text anywhere in the bund
 | `theorem_names` | `["Bounty.target"]` | What must be proved and exported |
 | `production_eligible` | `true` | Gates the strict path |
 | `task_mode` | `formalized` | The only mode |
-| `timeout_seconds` | `3600` | Wall-clock cap |
+| `timeout_seconds` | `14400` | Default wall-clock budget (four hours) |
 | `max_submission_bytes` | `31457280` | Default size cap for newly generated tasks; existing tasks retain their published limit |
 | `trusted_file_hashes` | 5 entries | Must equal `trusted-hashes.json` |
 
@@ -490,7 +490,8 @@ review is configured globally, per task, or per submission.
 `reward_events` records the submission, eligibility reason, actual integer payout amount,
 dynamic-pricing policy version and inputs, destination, attempt state, and finalized chain
 evidence. The live policy reads the finalized bounty-wallet balance, durable target ages, and the set of
-targets without a successful reward claim. Each target starts at 1/20 of uncommitted funds and
+targets without a successful reward claim. Each new target starts at 1/40 of uncommitted funds
+(targets opened before V044 keep 1/20) and
 reaches the 1/8 maximum linearly over 15 elapsed days. Acceptance stores the quote as the immutable
 conditional amount-of-record, and later payout generation copies it without repricing.
 
@@ -505,7 +506,7 @@ latter carries the exact Alpha amount frozen in `reward_events.amount_rao`.
 
 | Required input | Status |
 | --- | --- |
-| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` drives a linear 15-day ramp from 1/20 to 1/8 of uncommitted funds; no subjective difficulty score is used |
+| Per-task value signal | **Implemented for payouts.** `bounty_tasks.opened_at` drives a linear 15-day ramp from the target's stored starting share (1/40 for new targets) to 1/8 of uncommitted funds; no subjective difficulty score is used |
 | Payout proof-of-inclusion returned to the miner | **Implemented.** Owner responses carry the canonical event reference and finalized block |
 | Automated bounty transfer and reconciliation | **Partial.** Transfer signing remains human multisig; best/finalized event reconciliation is automatic |
 

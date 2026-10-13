@@ -105,6 +105,9 @@ from submission_api.routers import (
     system,
     tasks,
     web_submissions,
+    trajectories,
+    trajectory_fulfillment,
+    submission_pdfs,
 )
 from submission_api.settings import Settings, SettingsError
 from submission_api.taskpool import TaskCatalog
@@ -229,6 +232,7 @@ def build_services(
         payments=verifier,
         dispatcher=build_dispatcher(settings),
         pricing=DynamicBountyPricer(
+            required_evidence_available=settings.trajectory_bonus_enabled,
             balance_reader=CachedBalanceReader(
                 balance_reader, ttl_seconds=settings.bounty_balance_cache_seconds
             ),
@@ -446,6 +450,7 @@ def create_app(
         SessionCookieRefreshMiddleware, settings=resolved_settings
     )
     application.add_middleware(SecurityHeadersMiddleware, settings=resolved_settings)
+    application.add_middleware(trajectories.PrivateHeadersMiddleware)
     # Outermost. It observes the final status of every response, including the ones the layers
     # below generate without a route running, and it owns the correlation id every log record
     # produced inside it is tagged with.
@@ -505,4 +510,7 @@ def create_app(
     application.include_router(invitations.admin_router)
     application.include_router(admin.router)
     application.include_router(reviews.router)
+    application.include_router(trajectories.router)
+    application.include_router(trajectory_fulfillment.router)
+    application.include_router(submission_pdfs.router)
     return application
