@@ -28,8 +28,8 @@ from submission_api.rates import SOURCE_TAOSTATS, TaoUsdQuote
 RAO_PER_ALPHA = Decimal(1_000_000_000)
 USD_CENT = Decimal("0.01")
 
-TAOSTATS_TAO_PRICE_URL = "https://api.taostats.io/api/price/latest/v1"
-TAOSTATS_SUBNET_POOL_URL = "https://api.taostats.io/api/dtao/pool/latest/v1"
+TAOSTATS_TAO_PRICE_URL = "https://api.taostats.io/v1/price"
+TAOSTATS_SUBNET_POOL_URL = "https://api.taostats.io/v1/subnets/pools"
 
 logger = logging.getLogger(__name__)
 
