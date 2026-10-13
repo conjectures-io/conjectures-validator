@@ -1,15 +1,19 @@
 import copy
 import datetime as dt
 import hashlib
+import io
 import json
-import uuid
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from scripts.trajectory_assets import build_package, example_document
 from submission_api.settings import Settings, SettingsError
-from submission_api.trajectory_schema import TrajectoryPackage, canonical_bytes, evidence_digest, parse_package, proof_first_seen
+from submission_api.trajectory_schema import (
+    ArtifactEntry, EventRecord, Manifest, PackageError, package_schema, parse_package,
+)
 from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256, TERMS_VERSION
 from submission_api.trajectories import eligibility_reason
 
@@ -17,67 +21,110 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def example():
-    return json.loads((ROOT / "docs/trajectories/synthetic-example.json").read_text())
+    """The synthetic package in its one-object form (manifest, events, artifacts, files...)."""
+    return copy.deepcopy(example_document())
 
 
-def envelope_body(package, state_version=None, **consent):
-    return {"package_json": json.dumps(package), "expected_state_version": state_version, "consent": {
-        "terms_version": TERMS_VERSION, "terms_sha256": TERMS_SHA256,
-        "assent_statements_sha256": ASSENT_STATEMENTS_SHA256, "accepted": True, **consent}}
+def consent_params(**overrides):
+    return {"terms_version": TERMS_VERSION, "terms_sha256": TERMS_SHA256,
+            "assent_statements_sha256": ASSENT_STATEMENTS_SHA256, "accepted": "true", **overrides}
+
+
+def check(document, **kwargs):
+    return parse_package(build_package(document, **kwargs))
 
 
 def test_published_schema_example_and_pinned_terms():
-    p = TrajectoryPackage.model_validate(example())
-    assert parse_package(canonical_bytes(p)) == p
-    schema = json.loads((ROOT / "docs/trajectories/trajectory.schema.json").read_text())
-    generated = TrajectoryPackage.model_json_schema()
-    assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == generated
+    summary = check(example())
+    assert (summary.events, summary.artifacts) == (10, 1)
+    assert summary.proof_first_seen == dt.datetime(2026, 10, 12, 12, 0, 6, tzinfo=dt.UTC)
+    assert summary.manifest.synthetic
+    published = (ROOT / "docs/trajectories/example-package.zip").read_bytes()
+    assert published == build_package(example()) and parse_package(published).events == 10
+    schema = json.loads((ROOT / "docs/trajectories/chat-log-package.schema.json").read_text())
+    assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == package_schema()
     assert TERMS_SHA256 == "sha256:" + hashlib.sha256(
         (ROOT / "docs/trajectories/chat-log-terms-v1.md").read_bytes()).hexdigest()
-    assert proof_first_seen(p) == dt.datetime(2026, 10, 12, 12, 0, 6, tzinfo=dt.UTC)
 
 
 @pytest.mark.parametrize("change", [
-    lambda p: p.update(hidden_chain_of_thought="secret"),
-    lambda p: p["events"][1].update(kind="internal_reasoning"),
-    lambda p: p["events"][1].update(visibility="hidden"),
-    lambda p: p["events"][1].update(sequence=4),
-    lambda p: p["events"][1].update(run_id="nonexistent"),
-    lambda p: p["events"][1].update(artifact_ids=["nonexistent"]),
-    lambda p: p["events"][1]["timestamp"].update(value="2026-10-12T11:00:00Z"),
-    lambda p: p["events"][1]["timestamp"].update(value="2026-10-12T12:00:00"),
-    lambda p: p["events"][3].update(tool_call_id="missing-call"),
-    lambda p: p["events"][3].update(tool_name="different-tool"),
-    lambda p: p["events"][3].update(run_id=None),
-    lambda p: p["runs"][0]["version"].update(unknown_reason=None),
-    lambda p: p["artifacts"][0].update(content="tampered proof"),
-    lambda p: p["artifacts"][0].update(path="../../secrets"),
-    lambda p: p.update(final_proof_sha256="sha256:" + "1" * 64),
-    lambda p: p.update(completeness="complete_export"),
-    lambda p: p["permissions"].update(allowed_to_share="true"),
-    lambda p: p.update(commercial_election={"election": "decline"}),
-    # The chat must date the proof: no timestamped event may be left showing it.
-    lambda p: [e.update(artifact_ids=[]) for e in p["events"]],
-    lambda p: [e["timestamp"].update(value=None, unknown_reason="Not exported") for e in p["events"]],
+    lambda p: p["manifest"].update(format="conjectures-trajectory/v1"),
+    lambda p: p["manifest"].update(final_proof_sha256="sha256:" + "1" * 64),
+    lambda p: p["manifest"].update(exported_at="2026-10-12T12:30:00"),
+    lambda p: p["manifest"].pop("task_id"),
+    lambda p: p["events"][1].update(role="internal_reasoning"),
+    lambda p: p["events"][1].update(id="event-1"),
+    lambda p: p["events"][1].update(timestamp="2026-10-12T13:00:00Z"),  # After exported_at.
+    lambda p: p.update(events=[e for e in p["events"] if e["role"] != "user"]),
+    lambda p: p["artifacts"][0].update(event_ids=["event-404"]),
+    lambda p: p["artifacts"][0].update(sha256="sha256:" + "2" * 64),
+    lambda p: p["artifacts"][0].update(kind="code"),
+    lambda p: p["files"].update({"artifacts/Solution.lean": b"tampered"}),
+    lambda p: p["artifacts"][0].update(path="../../etc/passwd"),
+    # The chat must date the proof: its linked event needs a real timestamp.
+    lambda p: p["events"][5].update(timestamp=None),
+    lambda p: p["artifacts"][0].update(event_ids=[]),
 ])
-def test_refuses_invalid_or_misleading_evidence(change):
+def test_refuses_invalid_or_misleading_packages(change):
     p = example()
     change(p)
-    with pytest.raises(ValueError):
-        parse_package(json.dumps(p).encode())
+    with pytest.raises(PackageError):
+        check(p)
 
 
-@pytest.mark.parametrize("raw", [b'{"a":1,"a":2}', b"[" * 25 + b"]" * 25, b'{"x": NaN}', b"\xff"])
-def test_strict_json(raw):
-    with pytest.raises(ValueError):
-        parse_package(raw)
+def test_required_files_paths_and_zip_safety():
+    raw = build_package(example())
+    with pytest.raises(PackageError, match="missing a required file") as error:
+        parse_package(_without(raw, "README.md"))
+    assert error.value.file == "README.md"
+    assert check(example(), folder="").events == 10  # Zipped without a top folder.
+    with pytest.raises(PackageError, match="upload a .zip package"):
+        parse_package(b'{"not": "a zip"}')
+    for name in ("../escape.txt", "/abs.txt"):
+        with pytest.raises(PackageError, match="unsafe path"):
+            parse_package(_with(raw, name, b"x"))
+    with pytest.raises(PackageError, match="exceeds 64 MiB"):
+        parse_package(b"x" * (64 * 1024 * 1024 + 1))
+
+
+def _without(raw: bytes, suffix: str) -> bytes:
+    source, out = zipfile.ZipFile(io.BytesIO(raw)), io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+        for info in source.infolist():
+            if not info.filename.endswith("/" + suffix):
+                target.writestr(info, source.read(info))
+    return out.getvalue()
+
+
+def _with(raw: bytes, name: str, data: bytes) -> bytes:
+    source, out = zipfile.ZipFile(io.BytesIO(raw)), io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+        for info in source.infolist():
+            target.writestr(info, source.read(info))
+        target.writestr(zipfile.ZipInfo(name), data)
+    return out.getvalue()
 
 
 def test_fingerprint_ignores_repackaging_but_hash_tracks_exact_package():
-    p = TrajectoryPackage.model_validate(example())
-    other = p.model_copy(update={"submission_id": uuid.UUID("00000000-0000-4000-8000-000000000002")})
-    assert evidence_digest(p) == evidence_digest(other)
-    assert canonical_bytes(p) != canonical_bytes(other)
+    p = example()
+    other = example()
+    other["manifest"]["submission_id"] = "00000000-0000-4000-8000-000000000002"
+    assert check(p).fingerprint == check(other).fingerprint
+    assert build_package(p) != build_package(other)
+
+
+def test_extra_fields_are_kept_and_strict_json_is_enforced():
+    p = example()
+    p["events"][0]["model_settings"] = {"temperature": 1}
+    p["manifest"]["usage"] = {"input_tokens": 10}
+    assert check(p).manifest.usage == {"input_tokens": 10}
+    p["files"]["artifacts/notes.txt"] = b"scratch"
+    assert check(p).events == 10
+    raw = build_package(example())
+    events = zipfile.ZipFile(io.BytesIO(raw)).read("chat-log-package/events.jsonl")
+    doubled = events.replace(b'"role": "user"', b'"role": "user", "role": "user"', 1)
+    with pytest.raises(PackageError, match="duplicate JSON object key"):
+        parse_package(_with(_without(raw, "events.jsonl"), "chat-log-package/events.jsonl", doubled))
 
 
 def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
@@ -98,7 +145,7 @@ def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
     assert eligibility_reason(sub, decision, cutoff=now + dt.timedelta(days=1), now=now)
 
 
-def test_terms_assent_and_template_are_plain_and_pinned():
+def test_terms_assent_and_example_are_plain_and_pinned():
     assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
     terms = (ROOT / "docs/trajectories/chat-log-terms-v1.md").read_text()
     for promise in ("upload the logs before you submit the proof", "original chat logs that produced the proof",
@@ -106,56 +153,44 @@ def test_terms_assent_and_template_are_plain_and_pinned():
                     "publish the logs openly, and buyers may not either", "within one year of that\nmoment",
                     "approved for its full bounty", "paid in Subnet 66 Alpha", "this right ends"):
         assert promise in terms, promise
-    assert not example()["permissions"]["authentic_logs_that_produced_this_proof"]
-    blank = json.loads((ROOT / "docs/trajectories/template.json").read_text())
-    assert not blank["runs"] and not blank["events"] and not blank["artifacts"]
-    assert "REPLACE_" in blank["exported_at"] and blank["submission_id"] is None
-    assert blank["reproduction"]["lean_toolchain"]["value"] is None
-    assert "commercial_election" not in blank
+    assert example()["manifest"]["synthetic"] is True
 
 
-def test_agent_instructions_cover_every_schema_field():
-    # Contributors hand this file to an AI agent; it must keep up with the schema it targets.
+def test_agent_instructions_cover_every_checked_field_and_stay_neutral():
+    # Contributors hand this file to an AI agent; it must keep up with what the server checks.
     guide = (ROOT / "docs/trajectories/agent-instructions.md").read_text()
-    schema = TrajectoryPackage.model_json_schema()
-    fields = set(schema["properties"])
-    for name in ("ModelRun", "Event", "Artifact", "Reproduction"):
-        fields |= set(schema["$defs"][name]["properties"])
-    assert not {f for f in fields if f"`{f}`" not in guide}
-    for rule in ("verbatim", "thinking", "[REDACTED]", "authoritative_submission", "real timestamp"):
-        assert rule in guide
+    fields = set(Manifest.model_fields) | set(EventRecord.model_fields) | set(ArtifactEntry.model_fields)
+    assert not {f for f in fields - {"synthetic"} if f"`{f}`" not in guide}
+    for name in ("README.md", "events.jsonl", "episodes.jsonl", "sample.html", "artifact-index.json",
+                 "manifest.json", "validation.json", "chat-log-package.zip", "conjectures-chat-log/v2"):
+        assert name in guide, name
+    for rule in ("[REDACTED]", "real timestamp", "hidden chain of thought", "64 MB"):
+        assert rule in guide, rule
+    for word in ("owner", "licens", "permission", "legal", "broker", "sell", "buyer", "Codex", "Claude"):
+        assert word.lower() not in guide.lower(), word
 
 
-def test_empty_output_and_branch_linkage_preserve_export():
-    p = example()
-    p["events"][3].update(content="", empty_content=True)
-    p["events"][5]["parent_event_id"] = "event-2"
-    assert TrajectoryPackage.model_validate(p).events[3].content == ""
-    p["events"][5]["parent_event_id"] = "event-9"
-    with pytest.raises(ValueError):
-        TrajectoryPackage.model_validate(p)
-
-
-def test_raw_envelope_consent_duplicate_keys_and_safe_locations():
-    from pydantic import ValidationError
-    from submission_api.trajectory_intake import prepare_upload, safe_errors
-    p = example()
-    body = envelope_body(p)
-    assert prepare_upload(json.dumps(body).encode())[0].permissions.license_to_sell_once_accepted
+def test_consent_and_safe_error_locations():
+    from submission_api.errors import BadRequest
+    from submission_api.trajectory_intake import Consent, check_consent, package_errors
+    assert check_consent(Consent(**{**consent_params(), "accepted": True}))["accepted"]
     for key in ("terms_version", "terms_sha256", "assent_statements_sha256", "accepted"):
-        changed = copy.deepcopy(body)
-        changed["consent"][key] = False if key == "accepted" else "stale"
-        with pytest.raises(ValueError):
-            prepare_upload(json.dumps(changed).encode())
-    body["package_json"] = body["package_json"].replace('"synthetic": true', '"synthetic": false, "synthetic": true')
-    with pytest.raises(ValueError):
-        prepare_upload(json.dumps(body).encode())
-    p["SECRET_UNKNOWN_FIELD"] = "SECRET_VALUE"
-    try:
-        TrajectoryPackage.model_validate(p)
-    except ValidationError as error:
-        result = json.dumps(safe_errors(error))
-        assert "SECRET" not in result and "unknown-field" in result and "extra_forbidden" in result
+        with pytest.raises(BadRequest):
+            check_consent(Consent(**{**consent_params(), "accepted": True, key: False if key == "accepted" else "stale"}))
+    p = example()
+    p["events"][2]["role"] = "SECRET_ROLE_VALUE"
+    with pytest.raises(PackageError) as error:
+        check(p)
+    result = package_errors(error.value)
+    assert result[0]["file"] == "events.jsonl" and result[0]["line"] == 3
+    assert "SECRET" not in json.dumps(result)
+    p = example()
+    p["artifacts"][0]["sha256"] = "sha256:" + "3" * 64
+    p["manifest"]["final_proof_sha256"] = "sha256:" + "3" * 64
+    with pytest.raises(PackageError) as error:
+        check(p)
+    assert package_errors(error.value) == [{"file": "artifact-index.json", "line": 1, "path": [],
+                                            "type": "value_error", "message": "artifact SHA-256 does not match the file"}]
 
 
 def test_production_launch_needs_the_pinned_approved_terms_digest():
@@ -191,25 +226,6 @@ def test_upload_budget_prunes_expired_accounts_and_bounds_failures(monkeypatch):
             async with budget.hold("new-account"):
                 pass
     asyncio.run(scenario())
-
-
-def test_semantic_messages_are_allowlisted_and_original_content_can_contain_template_words():
-    from pydantic import ValidationError
-    from submission_api.trajectory_intake import prepare_upload, safe_errors
-    p = example()
-    p["events"][3]["tool_name"] = "mismatched-tool"
-    with pytest.raises(ValidationError) as error:
-        TrajectoryPackage.model_validate(p)
-    detail = safe_errors(error.value)
-    assert detail[0]["message"] == "tool result must match the call's model run and tool name"
-    p = example()
-    p["synthetic"] = False
-    p["runs"][0]["source_export_unavailable_reason"] = "Fixture only"
-    p["events"][0]["content"] += " Authentic log with a REPLACE_ME variable."
-    body = envelope_body(p)
-    assert "REPLACE_ME" in prepare_upload(json.dumps(body).encode())[0].events[0].content
-    with pytest.raises(ValueError, match="nesting"):
-        prepare_upload(b"[" * 25 + b"]" * 25)
 
 
 def test_success_budget_bounds_exact_retries_and_timeout_does_not_spend_failure_budget():

@@ -11,7 +11,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, DBAPIError
 from conftest_api import postgres_dsn
 from test_api_accounts import client, same_origin
-from test_api_trajectories import accepted, envelope, reviewer, review_body, kit_config
+from test_api_trajectories import accepted, as_upload, reviewer, review_body, kit_config
 from test_payout_instructions import command_rows
 from test_payout_watcher import observed_stake_transfer
 from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
@@ -280,8 +280,7 @@ def test_rejected_historical_logs_expire_even_with_a_confirmed_proof_payout():
                 await reviewer(kit, admin)
                 upload = await owner.post(
                     f"/v1/me/submissions/{sid}/trajectory",
-                    json=envelope(package),
-                    headers=same_origin(),
+                    **as_upload(package),
                 )
                 assert upload.status_code == 200, upload.text
                 cid = upload.json()["id"]

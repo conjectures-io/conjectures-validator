@@ -1,0 +1,176 @@
+{
+  "title": "Conjectures chat-log package (conjectures-chat-log/v2)",
+  "description": "A zip holding README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json (an array of artifact entries), artifacts/, manifest.json and validation.json. Only these three parts are checked; extra fields are kept.",
+  "$defs": {
+    "manifest": {
+      "additionalProperties": true,
+      "properties": {
+        "format": {
+          "const": "conjectures-chat-log/v2",
+          "title": "Format",
+          "type": "string"
+        },
+        "synthetic": {
+          "default": false,
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "submission_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Submission Id"
+        },
+        "task_id": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "task_bundle_sha256": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Task Bundle Sha256",
+          "type": "string"
+        },
+        "final_proof_sha256": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Final Proof Sha256",
+          "type": "string"
+        },
+        "exported_at": {
+          "format": "date-time",
+          "title": "Exported At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "submission_id",
+        "task_id",
+        "task_bundle_sha256",
+        "final_proof_sha256",
+        "exported_at"
+      ],
+      "title": "Manifest",
+      "type": "object"
+    },
+    "event": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant",
+            "tool",
+            "system"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "type": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Timestamp"
+        },
+        "artifact_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Artifact Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "type",
+        "timestamp"
+      ],
+      "title": "EventRecord",
+      "type": "object"
+    },
+    "artifact": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "included": {
+          "title": "Included",
+          "type": "boolean"
+        },
+        "event_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10000,
+          "title": "Event Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "kind",
+        "sha256",
+        "included"
+      ],
+      "title": "ArtifactEntry",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conjectures.io/trajectory/chat-log-package.schema.json"
+}

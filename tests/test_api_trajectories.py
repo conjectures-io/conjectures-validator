@@ -13,13 +13,14 @@ from conftest_api import MINER_COLDKEY, TASK_DIGEST, distinct_bundle, harness, p
 from test_api_accounts import client, same_origin, sign_in_by_email
 from test_api_reviews import _grant_reviewer, _verify
 from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
-from test_trajectory_schema import envelope_body as envelope, example
+from test_trajectory_schema import consent_params, example
+from scripts.trajectory_assets import build_package
 from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
 from conjectures_subnet.db import submissions as proof_store
 from conjectures_subnet.db.models import ReviewOutcome, RewardEvent, Submission
 from conjectures_subnet.db.trajectory_models import ChatLogProgram, TrajectoryAccess, TrajectoryClaim, TrajectoryFingerprint
 from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
-from submission_api.trajectory_intake import MAX_ENVELOPE_BYTES
+from submission_api.trajectory_intake import MAX_UPLOAD_BYTES
 from submission_api.routers.trajectories import Checklist
 
 pytestmark = pytest.mark.skipif(postgres_dsn() is None, reason="requires verified private fixture")
@@ -56,19 +57,38 @@ def dated(p, before):
     """Date the chat (and the event showing the proof) shortly before `before`."""
     start = before - dt.timedelta(hours=1)
     for i, event in enumerate(p["events"]):
-        event["timestamp"] = {"value": (start + dt.timedelta(seconds=i)).isoformat(), "unknown_reason": None}
-    p["exported_at"] = (start + dt.timedelta(minutes=30)).isoformat()
+        event["timestamp"] = (start + dt.timedelta(seconds=i)).isoformat()
+    p["manifest"]["exported_at"] = (start + dt.timedelta(minutes=30)).isoformat()
     return p
 
 
 def package_for(proof_hash, submission_id):
     p = example()
-    p.update(synthetic=False, submission_id=submission_id, task_id="fixture", task_bundle_sha256=TASK_DIGEST,
-             final_proof_sha256=proof_hash)
-    p["runs"][0]["source_export_unavailable_reason"] = "Local test fixture, no provider export."
-    # Synthetic test-only evidence. Production must reject the unmodified synthetic example.
-    p["artifacts"][0].update(sha256=proof_hash, content=None, availability="authoritative_submission")
+    p["manifest"].update(synthetic=False, submission_id=submission_id, task_id="fixture",
+                         task_bundle_sha256=TASK_DIGEST, final_proof_sha256=proof_hash)
+    # Synthetic test-only evidence; the proof itself is the submission's, not a copy in the zip.
+    p["artifacts"][0].update(sha256=proof_hash, included=False)
+    p["files"].pop("artifacts/Solution.lean")
     return dated(p, dt.datetime.now(dt.UTC))
+
+
+def relinked(p, **manifest):
+    """The same package with different linkage in its manifest."""
+    q = json.loads(json.dumps({k: v for k, v in p.items() if k != "files"}))
+    q["files"] = dict(p["files"])
+    q["manifest"].update(manifest)
+    return q
+
+
+def as_upload(document, state_version=None, origin=None, **consent):
+    """Request arguments: the zip package is the body, consent rides in the query."""
+    params = consent_params(**consent)
+    if state_version is not None:
+        params["expected_state_version"] = state_version
+    headers = {**same_origin(), "content-type": "application/zip"}
+    if origin:
+        headers["Origin"] = origin
+    return {"content": build_package(document), "params": params, "headers": headers}
 
 
 async def accepted(kit, http, *, code="REVIEW_APPROVED", required=False, marker="trajectory-fixture",
@@ -78,7 +98,7 @@ async def accepted(kit, http, *, code="REVIEW_APPROVED", required=False, marker=
     bundle, proof_hash = distinct_bundle(marker, coldkey=None)
     p = package_for(proof_hash, None)
     if required:
-        deposited = await http.post(DEPOSITS, json=envelope(p), headers=same_origin())
+        deposited = await http.post(DEPOSITS, **as_upload(p))
         assert deposited.status_code == 200 and deposited.json()["status"] == "DEPOSITED", deposited.text
     result = await http.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
                              headers=zip_headers(http))
@@ -90,7 +110,7 @@ async def accepted(kit, http, *, code="REVIEW_APPROVED", required=False, marker=
                                                 reason_code=code, reviewer="fixture-reviewer")
         await session.commit()
     if not required:
-        p["submission_id"] = sid
+        p["manifest"]["submission_id"] = sid
     return account, sid, p
 
 
@@ -116,19 +136,19 @@ def test_owner_intake_replay_review_and_no_automatic_payout():
                 assert (await stranger.get(path)).status_code == 401
                 await sign_in_by_email(kit, stranger, email="stranger@example.com")
                 assert (await stranger.get(path)).status_code == 404
-                assert (await stranger.post(path, json=envelope(p), headers=same_origin())).status_code == 404
-                assert (await owner.post(path, json=envelope(p), headers={"Origin": "https://evil.invalid"})).status_code == 403
+                assert (await stranger.post(path, **as_upload(p))).status_code == 404
+                assert (await owner.post(path, **as_upload(p, origin="https://evil.invalid"))).status_code == 403
                 assert (await owner.get("/v1/admin/trajectories")).status_code == 403
-                upload = await owner.post(path, json=envelope(p), headers=same_origin())
+                upload = await owner.post(path, **as_upload(p))
                 assert upload.status_code == 200, upload.text
                 assert upload.headers["cache-control"] == "no-store"
                 cid = upload.json()["id"]
                 assert upload.json()["status"] == "UNDER_REVIEW"
-                retry = await owner.post(path, json=envelope(p), headers=same_origin())
+                retry = await owner.post(path, **as_upload(p))
                 assert retry.json()["id"] == cid and retry.json()["revision"] == 1
                 altered = json.loads(json.dumps(p))
                 altered["events"][0]["content"] += " edit"
-                assert (await owner.post(path, json=envelope(altered), headers=same_origin())).status_code == 409
+                assert (await owner.post(path, **as_upload(altered))).status_code == 409
                 await reviewer(kit, admin)
                 queue = await admin.get("/v1/admin/trajectories")
                 assert queue.status_code == 200, queue.text
@@ -198,7 +218,7 @@ def test_revisions_withdrawal_expiry_and_self_review_refusal():
             async with await client(kit) as owner, await client(kit) as admin:
                 account, sid, p = await accepted(kit, owner)
                 path = f"/v1/me/submissions/{sid}/trajectory"
-                first = await owner.post(path, json=envelope(p), headers=same_origin())
+                first = await owner.post(path, **as_upload(p))
                 cid = first.json()["id"]
                 await _grant_reviewer(kit, account["id"])
                 decision_path = f"/v1/admin/trajectories/{cid}/decision"
@@ -207,14 +227,14 @@ def test_revisions_withdrawal_expiry_and_self_review_refusal():
                 result = await admin.post(decision_path, json=review_body(decision="NEEDS_CHANGES"), headers=same_origin())
                 assert result.status_code == 200, result.text
                 p["events"][0]["content"] += " corrected"
-                changed = await owner.post(path, json=envelope(p, 2), headers=same_origin())
+                changed = await owner.post(path, **as_upload(p, 2))
                 assert changed.json()["revision"] == 2
                 assert (await admin.post(decision_path, json=review_body(), headers=same_origin())).status_code == 409
                 withdrawn = await owner.post(path + "/withdraw", json={"expected_state_version": 3}, headers=same_origin())
                 assert withdrawn.status_code == 200 and withdrawn.json()["content_available"] is False
                 assert (await admin.get(f"/v1/admin/trajectories/{cid}/package")).status_code == 404
                 p["events"][0]["content"] += " third"
-                third = await owner.post(path, json=envelope(p, 4), headers=same_origin())
+                third = await owner.post(path, **as_upload(p, 4))
                 assert third.json()["revision"] == 3
                 async with kit.session() as session:
                     claim = await session.get(TrajectoryClaim, uuid.UUID(cid))
@@ -243,40 +263,48 @@ def test_disabled_ineligible_synthetic_linkage_and_safe_validation():
                 _, sid, p = await accepted(kit, owner)
                 path = f"/v1/me/submissions/{sid}/trajectory"
                 kit.app.state.services = replace(kit.services, settings=replace(kit.settings, trajectory_bonus_enabled=False))
-                assert (await owner.post(path, json=envelope(p), headers=same_origin())).status_code == 503
+                assert (await owner.post(path, **as_upload(p))).status_code == 503
                 kit.app.state.services = kit.services
-                p["synthetic"] = True
-                assert (await owner.post(path, json=envelope(p), headers=same_origin())).status_code == 409
-                p["synthetic"] = False
-                p["task_id"] = "wrong-task"
-                assert (await owner.post(path, json=envelope(p), headers=same_origin())).status_code == 409
-                p["task_id"] = "fixture"
+                p["manifest"]["synthetic"] = True
+                assert (await owner.post(path, **as_upload(p))).status_code == 409
+                p["manifest"]["synthetic"] = False
+                p["manifest"]["task_id"] = "wrong-task"
+                assert (await owner.post(path, **as_upload(p))).status_code == 409
+                p["manifest"]["task_id"] = "fixture"
                 async with kit.session() as session:
                     sub = await session.get(Submission, uuid.UUID(sid))
                     submitted_at = sub.created_at
                     sub.created_at = dt.datetime.now(dt.UTC) - dt.timedelta(days=2)
                     await session.commit()
-                after = await owner.post(path, json=envelope(p), headers=same_origin())
+                after = await owner.post(path, **as_upload(p))
                 assert after.status_code == 409 and after.json()["reason_code"] == "TRAJECTORY_AFTER_THE_FACT"
                 async with kit.session() as session:
                     (await session.get(Submission, uuid.UUID(sid))).created_at = submitted_at
                     await session.commit()
-                p["private_reasoning"] = "SECRET_MUST_NOT_BE_ECHOED"
-                invalid = await owner.post(path, json=envelope(p), headers=same_origin())
+                p["events"][0]["role"] = "SECRET_MUST_NOT_BE_ECHOED"
+                invalid = await owner.post(path, **as_upload(p))
                 assert invalid.status_code == 400
                 assert "SECRET_MUST_NOT_BE_ECHOED" not in invalid.text
-                del p["private_reasoning"]
-                oversized = await owner.post(path, content=b"{}", headers={**same_origin(), "content-type": "application/json", "content-length": str(MAX_ENVELOPE_BYTES + 1)})
+                p["events"][0]["role"] = "user"
+                oversized = await owner.post(path, content=b"PK", params=consent_params(), headers={
+                    **same_origin(), "content-type": "application/zip", "content-length": str(MAX_UPLOAD_BYTES + 1)})
                 assert oversized.status_code == 413
-                wrong_format = await owner.post(path, content=b"PKzip", headers={**same_origin(), "content-type": "application/zip"})
+                wrong_format = await owner.post(path, content=b"{}", params=consent_params(),
+                                                headers={**same_origin(), "content-type": "application/json"})
                 assert wrong_format.status_code == 415
+                fresh_upload_budget(kit)
+                not_a_zip = await owner.post(path, content=b"{}", params=consent_params(),
+                                             headers={**same_origin(), "content-type": "application/zip"})
+                assert not_a_zip.status_code == 400 and not_a_zip.json()["validation_errors"][0]["message"] == "upload a .zip package"
+                unconsented = await owner.post(path, **as_upload(p, accepted="false"))
+                assert unconsented.status_code == 400 and unconsented.json()["reason_code"] == "TRAJECTORY_TERMS_CHANGED"
                 async with kit.session() as session:
                     current = await proof_store.latest_binding_decision(session, uuid.UUID(sid))
                     await proof_store.correct_human_decision(session, uuid.UUID(sid), supersedes_id=current.id,
                         decision=ReviewOutcome.APPROVED, reason_code="FORMALIZATION_DEFECT_AWARD", reviewer="fixture-correction",
                         notes="Defect award only", notes_public="Defect award only")
                     await session.commit()
-                assert (await owner.post(path, json=envelope(p), headers=same_origin())).status_code == 409
+                assert (await owner.post(path, **as_upload(p))).status_code == 409
         finally:
             await kit.teardown()
     asyncio.run(scenario())
@@ -290,12 +318,12 @@ def test_concurrent_upload_and_review_are_serialized():
                 _, sid, p = await accepted(kit, owner)
                 path = f"/v1/me/submissions/{sid}/trajectory"
                 first, second = await asyncio.gather(
-                    owner.post(path, json=envelope(p), headers=same_origin()),
-                    owner.post(path, json=envelope(p), headers=same_origin()))
+                    owner.post(path, **as_upload(p)),
+                    owner.post(path, **as_upload(p)))
                 assert sorted([first.status_code, second.status_code]) in ([200, 200], [200, 429]), (first.text, second.text)
                 if first.status_code != 200:
                     first, second = second, first
-                retry = await owner.post(path, json=envelope(p), headers=same_origin())
+                retry = await owner.post(path, **as_upload(p))
                 assert retry.json()["id"] == first.json()["id"]
                 await reviewer(kit, admin)
                 dpath = f"/v1/admin/trajectories/{first.json()['id']}/decision"
@@ -377,21 +405,21 @@ def test_new_bounty_logs_are_due_before_the_proof_and_rejection_reopens_the_targ
                 assert missing.status_code == 409 and missing.json()["reason_code"] == "CHAT_LOG_REQUIRED"
                 assert (await owner.get("/v1/me/credits")).json()["credits_available"] == 1
                 p = package_for(proof_hash, None)
-                named = dict(p, submission_id=str(uuid.uuid4()))
-                linked = await owner.post(DEPOSITS, json=envelope(named), headers=same_origin())
+                named = relinked(p, submission_id=str(uuid.uuid4()))
+                linked = await owner.post(DEPOSITS, **as_upload(named))
                 assert linked.status_code == 409 and linked.json()["reason_code"] == "TRAJECTORY_LINK_MISMATCH"
-                deposited = await owner.post(DEPOSITS, json=envelope(p), headers=same_origin())
+                deposited = await owner.post(DEPOSITS, **as_upload(p))
                 assert deposited.status_code == 200, deposited.text
                 assert deposited.json()["status"] == "DEPOSITED" and deposited.json()["submission_id"] is None
                 assert deposited.headers["cache-control"] == "no-store"
-                retry = await owner.post(DEPOSITS, json=envelope(p), headers=same_origin())
+                retry = await owner.post(DEPOSITS, **as_upload(p))
                 assert retry.json()["id"] == deposited.json()["id"]
                 # Logs for one proof never satisfy another.
                 wrong = await submit(owner, distinct_bundle("another-proof", coldkey=None)[0])
                 assert wrong.status_code == 409 and wrong.json()["reason_code"] == "CHAT_LOG_REQUIRED"
                 fresh_upload_budget(kit)
                 # Logs whose proof never follows are deleted outright.
-                abandoned = await owner.post(DEPOSITS, headers=same_origin(), json=envelope(
+                abandoned = await owner.post(DEPOSITS,  **as_upload(
                     package_for(distinct_bundle("abandoned-proof", coldkey=None)[1], None)))
                 assert abandoned.status_code == 200, abandoned.text
                 async with kit.session() as session:
@@ -415,10 +443,10 @@ def test_new_bounty_logs_are_due_before_the_proof_and_rejection_reopens_the_targ
                     assert [e["action"] for e in record.history] == ["DEPOSITED", "SUBMITTED_WITH_PROOF"]
                 # Logs cannot be added or replaced after the proof.
                 fresh_upload_budget(kit)
-                late = await owner.post(f"/v1/me/submissions/{sid}/trajectory", headers=same_origin(),
-                                        json=envelope(dict(p, submission_id=sid)))
+                late = await owner.post(f"/v1/me/submissions/{sid}/trajectory",
+                                        **as_upload(relinked(p, submission_id=sid)))
                 assert late.status_code == 409 and late.json()["reason_code"] == "CHAT_LOGS_FIXED_AT_SUBMISSION"
-                again = await owner.post(DEPOSITS, json=envelope(p), headers=same_origin())
+                again = await owner.post(DEPOSITS, **as_upload(p))
                 assert again.status_code == 409 and again.json()["reason_code"] == "TRAJECTORY_ALREADY_SUBMITTED"
                 await reviewer(kit, admin)
                 dpath = f"/v1/admin/trajectories/{claim['id']}/decision"
@@ -453,7 +481,7 @@ def test_new_bounty_logs_are_due_before_the_proof_and_rejection_reopens_the_targ
                     "expected_state_version": rejected.json()["state_version"], "note": "Appeal of the rejected chat logs."})
                 assert appeal.status_code == 409 and appeal.json()["reason_code"] == "TRAJECTORY_TARGET_REASSIGNED"
                 fresh_upload_budget(kit)
-                closed = await owner.post(DEPOSITS, headers=same_origin(), json=envelope(
+                closed = await owner.post(DEPOSITS,  **as_upload(
                     package_for(distinct_bundle("late-proof", coldkey=None)[1], None)))
                 assert closed.status_code == 409 and closed.json()["reason_code"] == "TRAJECTORY_INELIGIBLE"
         finally:
@@ -471,9 +499,9 @@ def test_intake_stays_closed_until_opened_and_the_opening_never_moves():
                 _, sid, p = await accepted(kit, owner)
                 closed = await owner.get("/v1/trajectory-offer")
                 assert closed.json()["enabled"] is False and closed.json()["start_at"] is None
-                refused = await owner.post(f"/v1/me/submissions/{sid}/trajectory", json=envelope(p), headers=same_origin())
+                refused = await owner.post(f"/v1/me/submissions/{sid}/trajectory", **as_upload(p))
                 assert refused.status_code == 503
-                assert (await owner.post(DEPOSITS, json=envelope(p), headers=same_origin())).status_code == 503
+                assert (await owner.post(DEPOSITS, **as_upload(p))).status_code == 503
                 assert (await owner.get(f"/v1/me/submissions/{sid}/trajectory")).json()["eligibility_reason"] == "Chat-log intake is not open."
                 async with kit.session() as session:
                     first, new = await open_intake(session, opened_by="test operator")
@@ -515,8 +543,8 @@ def test_signed_intent_confirmation_also_requires_logs_for_the_exact_proof():
                 assert refused.status_code == 409 and refused.json()["reason_code"] == "CHAT_LOG_REQUIRED"
                 async with kit.session() as session:
                     assert await session.scalar(select(func.count()).select_from(Submission)) == 0
-                deposited = await http.post(DEPOSITS, headers=same_origin(),
-                                            json=envelope(package_for(uploaded["proof_sha256"], None)))
+                deposited = await http.post(DEPOSITS,
+                                            **as_upload(package_for(uploaded["proof_sha256"], None)))
                 assert deposited.status_code == 200, deposited.text
                 confirmed = await http.post(confirm, json=body, headers=same_origin())
                 assert confirmed.status_code == 201, confirmed.text
@@ -569,13 +597,14 @@ def test_stream_limit_releases_transaction_before_body_and_refuses_bearer(monkey
                     observed["session"] = session
                     return result
                 monkeypatch.setattr(store, "owned_submission", capture)
-                monkeypatch.setattr(router, "MAX_ENVELOPE_BYTES", 1024)
+                monkeypatch.setattr(router, "MAX_UPLOAD_BYTES", 1024)
                 async def chunks():
                     assert not observed["session"].in_transaction()
                     yield b"x" * 800
                     await asyncio.sleep(0)
                     yield b"x" * 800
-                oversized = await owner.post(path, content=chunks(), headers={**same_origin(), "Content-Type": "application/json"})
+                oversized = await owner.post(path, content=chunks(), params=consent_params(),
+                                             headers={**same_origin(), "Content-Type": "application/zip"})
                 assert oversized.status_code == 413 and oversized.json()["reason_code"] == "TRAJECTORY_SIZE"
                 assert oversized.headers["cache-control"] == "no-store"
                 account, token = await linked_account_with_cli_token(kit)
@@ -603,7 +632,7 @@ def test_policy_v4_prior_established_proof_is_ineligible():
                         decision=ReviewOutcome.REJECTED, reason_code="NOT_NOVEL", reviewer="fixture-correction",
                         notes="Previously established result under v4", notes_public="Previously established result")
                     await session.commit()
-                result = await owner.post(f"/v1/me/submissions/{sid}/trajectory", json=envelope(p), headers=same_origin())
+                result = await owner.post(f"/v1/me/submissions/{sid}/trajectory", **as_upload(p))
                 assert result.status_code == 409 and result.json()["reason_code"] == "TRAJECTORY_INELIGIBLE"
         finally:
             await kit.teardown()
@@ -617,7 +646,7 @@ def test_reviews_really_contend_on_same_proof_lock(monkeypatch):
         try:
             async with await client(kit) as owner, await client(kit) as admin:
                 _, sid, p = await accepted(kit, owner)
-                upload = await owner.post(f"/v1/me/submissions/{sid}/trajectory", json=envelope(p), headers=same_origin())
+                upload = await owner.post(f"/v1/me/submissions/{sid}/trajectory", **as_upload(p))
                 await reviewer(kit, admin)
                 path = f"/v1/admin/trajectories/{upload.json()['id']}/decision"
                 entered, release = asyncio.Event(), asyncio.Event()
@@ -651,7 +680,7 @@ def test_state_token_prevents_stale_approval_after_reopen_and_same_file_withdraw
             async with await client(kit) as owner, await client(kit) as admin:
                 _, sid, p = await accepted(kit, owner)
                 path = f"/v1/me/submissions/{sid}/trajectory"
-                first = await owner.post(path, json=envelope(p), headers=same_origin())
+                first = await owner.post(path, **as_upload(p))
                 cid = first.json()["id"]
                 await reviewer(kit, admin)
                 dpath = f"/v1/admin/trajectories/{cid}/decision"
@@ -665,13 +694,13 @@ def test_state_token_prevents_stale_approval_after_reopen_and_same_file_withdraw
                 assert stale.status_code == 409 and stale.json()["reason_code"] == "TRAJECTORY_STALE_REVIEW"
                 withdrawal = await owner.post(path + "/withdraw", headers=same_origin(), json={"expected_state_version": 3})
                 assert withdrawal.json()["state_version"] == 4
-                restored = await owner.post(path, json=envelope(p, 4), headers=same_origin())
+                restored = await owner.post(path, **as_upload(p, 4))
                 assert restored.status_code == 200, restored.text
                 assert restored.json()["revision"] == 2 and restored.json()["state_version"] == 5
                 assert restored.json()["content_available"] and restored.json()["status"] == "UNDER_REVIEW"
                 changes = await admin.post(dpath, json=review_body(decision="NEEDS_CHANGES", revision=2, state_version=5), headers=same_origin())
                 assert changes.json()["state_version"] == 6
-                unchanged = await owner.post(path, json=envelope(p, 6), headers=same_origin())
+                unchanged = await owner.post(path, **as_upload(p, 6))
                 assert unchanged.status_code == 409 and unchanged.json()["reason_code"] == "TRAJECTORY_UNCHANGED"
                 async with kit.session() as session:
                     record = await session.get(TrajectoryClaim, uuid.UUID(cid))
@@ -689,7 +718,7 @@ def test_same_outcome_proof_rebind_after_expiry_uses_snapshot_and_retains_review
             async with await client(kit) as owner, await client(kit) as admin:
                 _, sid, p = await accepted(kit, owner)
                 path = f"/v1/me/submissions/{sid}/trajectory"
-                first = await owner.post(path, json=envelope(p), headers=same_origin())
+                first = await owner.post(path, **as_upload(p))
                 cid = first.json()["id"]
                 await reviewer(kit, admin)
                 kit.app.state.services = replace(kit.services, settings=replace(kit.settings,
@@ -746,7 +775,7 @@ def test_requested_revision_after_initial_claim_window_and_changed_cutoff(monkey
             async with await client(kit) as owner, await client(kit) as admin:
                 _, sid, p = await accepted(kit, owner)
                 path = f"/v1/me/submissions/{sid}/trajectory"
-                first = await owner.post(path, json=envelope(p), headers=same_origin())
+                first = await owner.post(path, **as_upload(p))
                 def unavailable_original(*args):
                     raise AssertionError("An enrolled claim must keep its original amount without reopening the bundle")
                 monkeypatch.setattr("submission_api.trajectories.amount_for", unavailable_original)
@@ -763,7 +792,7 @@ def test_requested_revision_after_initial_claim_window_and_changed_cutoff(monkey
                 assert (await owner.get(path)).json()["eligible"]
                 p["events"][0]["content"] += " Revision requested while review content remains live."
                 dated(p, dt.datetime.now(dt.UTC) - dt.timedelta(days=371))  # The chat predates the proof.
-                revised = await owner.post(path, json=envelope(p, 2), headers=same_origin())
+                revised = await owner.post(path, **as_upload(p, 2))
                 assert revised.status_code == 200, revised.text
                 assert revised.json()["revision"] == 2
         finally:

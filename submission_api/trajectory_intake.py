@@ -1,21 +1,21 @@
-"""Bounded raw-file envelope and separately attested, pinned consent."""
+"""Bounded zip package upload and separately attested, pinned consent."""
 import hashlib
-import json
 import time
 from contextlib import asynccontextmanager
 
 import anyio
-from pydantic import Field
+from pydantic import BaseModel, Field
 
-from submission_api.errors import TooManyRequests
+from submission_api.errors import BadRequest, TooManyRequests
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.trajectory_schema import (
-    Permissions, StrictModel, canonical_bytes, evidence_digest, parse_package, check_json_depth,
-    SAFE_SEMANTIC_ERRORS,
+    MAX_PACKAGE_BYTES, PackageError, StrictModel, parse_package, SAFE_SEMANTIC_ERRORS,
 )
 from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256, TERMS_VERSION
 
-MAX_ENVELOPE_BYTES = 128 * 1024 * 1024 + 64 * 1024
+# The request body is the zip itself; consent rides in the query.
+MAX_UPLOAD_BYTES = MAX_PACKAGE_BYTES
+PACKAGE_MEDIA_TYPES = ("application/zip", "application/x-zip-compressed", "application/octet-stream")
 
 
 class Consent(StrictModel):
@@ -25,49 +25,26 @@ class Consent(StrictModel):
     accepted: bool = Field(strict=True)
 
 
-class Envelope(StrictModel):
-    expected_state_version: int | None = Field(default=None, strict=True, ge=1, le=2147483647)
-    package_json: str
-    consent: Consent
-
-
-def prepare_upload(raw):
-    def unique(pairs):
-        result = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError("duplicate envelope key")
-            result[key] = value
-        return result
-    check_json_depth(raw)
-    envelope = Envelope.model_validate(json.loads(raw.decode("utf-8"), object_pairs_hook=unique))
-    consent = envelope.consent
+def check_consent(consent: Consent) -> dict:
+    """Checked before any byte of the package is read."""
     if (not consent.accepted or consent.terms_version != TERMS_VERSION
             or consent.terms_sha256 != TERMS_SHA256
             or consent.assent_statements_sha256 != ASSENT_STATEMENTS_SHA256):
-        raise ValueError("review the exact pinned terms and assent statement")
-    original = envelope.package_json.encode("utf-8")
-    package = parse_package(original)  # Validates original UTF-8 text and duplicate keys unchanged.
-    template_fields = [package.task_id, *package.reproduction.commands, package.reproduction.environment,
-                       package.reproduction.expected_result, package.reproduction.limitations]
-    for name in ("lean_toolchain", "mathlib_commit", "task_repository_commit", "code_commit"):
-        pin = getattr(package.reproduction, name)
-        template_fields.extend([pin.value or "", pin.unknown_reason or ""])
-    if not package.synthetic and (any("REPLACE_" in value for value in template_fields) or any(
-            run.source_export_unavailable_reason == "No original conversation exists; this is synthetic."
-            for run in package.runs)):
-        raise ValueError("replace all template placeholders")
-    # The checkbox is the authority for permission, not booleans in a hand-edited file.
-    values = {k: True for k in Permissions.model_fields if k != "terms_version"}
-    package = package.model_copy(update={"permissions": Permissions(terms_version=TERMS_VERSION, **values)})
-    canonical = canonical_bytes(package)
-    return package, canonical, hashlib.sha256(canonical).digest(), evidence_digest(package), {
-        **consent.model_dump(), "source_file_sha256": "sha256:" + hashlib.sha256(original).hexdigest(),
-    }, envelope.expected_state_version
+        raise BadRequest("Review and accept the exact chat-log terms shown, then retry.",
+                         reason_code="TRAJECTORY_TERMS_CHANGED")
+    return consent.model_dump()
+
+
+def prepare_upload(raw: bytes, consent: dict, expected_state_version=None):
+    """Validate the zip (in a worker thread); the stored package is the uploaded bytes unchanged."""
+    summary = parse_package(raw)
+    return summary, raw, hashlib.sha256(raw).digest(), summary.fingerprint, {
+        **consent, "source_file_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+    }, expected_state_version
 
 
 class UploadBudget:
-    """One 64-MiB parser/stream at a time per worker; no waiting requests hold a DB connection.
+    """One 64-MiB package check at a time per worker; no waiting requests hold a DB connection.
 
     Process-local limits complement the deployment's IP limiter. Replicas need a shared edge
     limit for a global quota. Failed attempts, including invalid exports, spend a separate budget.
@@ -112,12 +89,23 @@ class UploadBudget:
             self.slots.release()
 
 
+def package_errors(error: PackageError) -> list[dict]:
+    """Bounded, schema-owned locations only: package file, line, field names and standard codes."""
+    location = {k: v for k, v in (("file", error.file), ("line", error.line)) if v is not None}
+    if error.validation is None:
+        item = {**location, "path": [], "type": "value_error"}
+        if error.message in SAFE_SEMANTIC_ERRORS:
+            item["message"] = error.message
+        return [item]
+    return [{**location, **item} for item in safe_errors(error.validation)]
+
+
 def safe_errors(error):
     """Only schema-owned field names/indices and standard error codes, never input or messages."""
     from submission_api import trajectory_schema
-    names = set(Envelope.model_fields) | set(Consent.model_fields)
+    names = set(Consent.model_fields)
     for value in vars(trajectory_schema).values():
-        if isinstance(value, type) and issubclass(value, StrictModel):
+        if isinstance(value, type) and issubclass(value, BaseModel):
             names.update(value.model_fields)
     result = []
     for error_item in error.errors(include_url=False, include_context=True, include_input=False)[:20]:

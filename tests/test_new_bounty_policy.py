@@ -180,8 +180,8 @@ def test_required_logs_block_all_payout_instructions_until_review():
 ])
 def test_historical_bonus_amount_is_selected_by_server(module, amount):
     from conftest_api import task_entry
-    from test_api_accounts import client, same_origin
-    from test_api_trajectories import accepted, envelope, kit_config
+    from test_api_accounts import client
+    from test_api_trajectories import accepted, as_upload, kit_config
 
     async def scenario():
         entry = task_entry()
@@ -193,7 +193,7 @@ def test_historical_bonus_amount_is_selected_by_server(module, amount):
                 path = f'/v1/me/submissions/{sid}/trajectory'
                 state = await owner.get(path)
                 assert state.json()['amount_usd_cents'] == amount
-                uploaded = await owner.post(path, json=envelope(package), headers=same_origin())
+                uploaded = await owner.post(path, **as_upload(package))
                 assert uploaded.status_code == 200, uploaded.text
                 assert uploaded.json()['amount_usd_cents'] == amount
                 assert not uploaded.json()['chat_logs_required']
@@ -205,9 +205,9 @@ def test_historical_bonus_amount_is_selected_by_server(module, amount):
 @pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
 def test_gross_share_reservations_preserve_competing_locks_and_refuse_overcommitment():
     from conftest_api import task_entry, distinct_bundle
-    from test_api_accounts import client, same_origin
+    from test_api_accounts import client
     from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
-    from test_api_trajectories import DEPOSITS, envelope, kit_config, package_for
+    from test_api_trajectories import DEPOSITS, as_upload, kit_config, package_for
 
     async def scenario():
         other = 'fc-target:Fixture.second'
@@ -221,13 +221,13 @@ def test_gross_share_reservations_preserve_competing_locks_and_refuse_overcommit
             async with await client(kit) as owner:
                 await keyless_account(kit, owner, credits_=2)
                 bundle, proof = distinct_bundle('first-gross-share', coldkey=None)
-                assert (await owner.post(DEPOSITS, json=envelope(package_for(proof, None)), headers=same_origin())).status_code == 200
+                assert (await owner.post(DEPOSITS, **as_upload(package_for(proof, None)))).status_code == 200
                 first = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
                                          headers=zip_headers(owner))
                 assert first.status_code == 201, first.text
                 first_id = first.json()['submission']['id']
                 bundle, proof = distinct_bundle('competing-gross-share', coldkey=None)
-                assert (await owner.post(DEPOSITS, json=envelope(package_for(proof, None)), headers=same_origin())).status_code == 200
+                assert (await owner.post(DEPOSITS, **as_upload(package_for(proof, None)))).status_code == 200
                 second = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,
                                           headers=zip_headers(owner))
                 assert second.status_code == 201, second.text
@@ -256,9 +256,9 @@ def test_production_default_refuses_unusable_submission_paths_before_spending(en
     from sqlalchemy import func
     from conftest_api import valid_bundle
     from test_api_submissions import _post
-    from test_api_accounts import client, same_origin
+    from test_api_accounts import client
     from test_api_session_submissions import SESSION, _digest, keyless_account, params, zip_headers
-    from test_api_trajectories import DEPOSITS, envelope, kit_config, package_for
+    from test_api_trajectories import DEPOSITS, as_upload, kit_config, package_for
     from conftest_api import distinct_bundle
     from conjectures_subnet.bounty import DynamicBountyPricer
 
@@ -284,7 +284,7 @@ def test_production_default_refuses_unusable_submission_paths_before_spending(en
                 assert result.status_code == 409, result.text
                 assert result.json()['reason_code'] == ('CHAT_LOG_REQUIRED' if enabled else 'CHAT_LOG_REVIEW_UNAVAILABLE')
                 assert (await owner.get('/v1/me/credits')).json()['credits_available'] == 1
-                deposited = await owner.post(DEPOSITS, json=envelope(package_for(proof, None)), headers=same_origin())
+                deposited = await owner.post(DEPOSITS, **as_upload(package_for(proof, None)))
                 assert deposited.status_code == (200 if enabled else 503), deposited.text
                 if enabled:
                     result = await owner.post(SESSION, params=params(bundle_sha256=_digest(bundle)), content=bundle,

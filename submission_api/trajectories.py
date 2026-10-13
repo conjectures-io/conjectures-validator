@@ -27,7 +27,7 @@ from conjectures_subnet.db.submissions import (
 from conjectures_subnet.db.trajectory_models import ChatLogProgram, TrajectoryClaim, TrajectoryFingerprint
 from submission_api.errors import Conflict, NotFound
 from submission_api.trajectory_schema import (
-    DEPOSIT_HOURS, MAX_PACKAGE_BYTES, RETENTION_DAYS, TERMS_VERSION, proof_first_seen,
+    DEPOSIT_HOURS, MAX_PACKAGE_BYTES, RETENTION_DAYS, TERMS_VERSION,
 )
 
 CLAIM_WINDOW_DAYS = 365
@@ -116,7 +116,8 @@ def audit(claim, *, action, actor, now, extra=None):
     claim.updated_at = now
 
 
-def check_package(package, raw, *, task_id, task_bundle_sha256, proof_digest, submission_id, now):
+def check_package(summary, raw, *, task_id, task_bundle_sha256, proof_digest, submission_id, now):
+    package = summary.manifest
     if package.synthetic:
         raise Conflict("Synthetic examples are never accepted as chat logs.", reason_code="TRAJECTORY_SYNTHETIC")
     if (package.submission_id != submission_id or package.task_id != task_id
@@ -128,7 +129,7 @@ def check_package(package, raw, *, task_id, task_bundle_sha256, proof_digest, su
     if package.exported_at > now + dt.timedelta(minutes=5):
         raise Conflict("Export time is in the future.", reason_code="TRAJECTORY_TIME_INVALID")
     if len(raw) > MAX_PACKAGE_BYTES:
-        raise Conflict("Canonical package exceeds the size limit.", reason_code="TRAJECTORY_SIZE")
+        raise Conflict("The package exceeds 64 MB.", reason_code="TRAJECTORY_SIZE")
 
 
 async def store_fingerprint(session, claim, fingerprint, seen):
@@ -148,7 +149,7 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     package, raw, package_hash, fingerprint, consent, expected_state_version = prepared
     check_package(package, raw, task_id=submission.task_id, task_bundle_sha256=submission.task_bundle_sha256,
                   proof_digest=submission.proof_digest, submission_id=submission.id, now=now)
-    if proof_first_seen(package) >= submission.created_at:
+    if package.proof_first_seen >= submission.created_at:
         raise Conflict("These need to be the original logs: the chat must show the final proof before it was submitted.",
                        reason_code="TRAJECTORY_AFTER_THE_FACT")
     existing = await claim_for(session, submission.id)
@@ -212,7 +213,7 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
 async def deposit_package(session, *, entry, prepared, account_id, now, review_policy_version):
     """Logs for a new bounty, received before the proof they must accompany exists."""
     package, raw, package_hash, fingerprint, consent, _ = prepared
-    proof_digest = bytes.fromhex(package.final_proof_sha256.removeprefix("sha256:"))
+    proof_digest = bytes.fromhex(package.manifest.final_proof_sha256.removeprefix("sha256:"))
     task_bundle = bytes.fromhex(entry.task_bundle_sha256.removeprefix("sha256:"))
     check_package(package, raw, task_id=entry.task_id, task_bundle_sha256=task_bundle,
                   proof_digest=proof_digest, submission_id=None, now=now)

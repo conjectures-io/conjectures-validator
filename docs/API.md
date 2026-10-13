@@ -503,9 +503,11 @@ window, pinned terms/assent digests and intake availability. Intake answers 503 
 `TRAJECTORY_BONUS_ENABLED` and the opening record exist.
 
 **New-policy logs arrive before the proof.** A cookie-authenticated account uploads them with
-`POST /v1/me/chat-log-deposits`: the JSON envelope holds `package_json` (with
-`submission_id: null`, the task, task bundle and exact `final_proof_sha256`) and explicit
-`consent` to the pinned chat-log terms. The deposit lasts 24 hours. The account submission
+`POST /v1/me/chat-log-deposits`. The request body is the `.zip` package
+(`Content-Type: application/zip`, up to 64 MiB) whose `manifest.json` names `submission_id: null`,
+the task, task bundle and exact `final_proof_sha256`; explicit consent to the pinned chat-log
+terms rides in the query (`terms_version`, `terms_sha256`, `assent_statements_sha256`,
+`accepted`). Invalid packages return `validation_errors` naming the file and line. The deposit lasts 24 hours. The account submission
 paths (`/v1/submissions/session`, `/web`, and intent confirm) then require a live deposit for
 that exact proof and account before spending a credit, refusing with `CHAT_LOG_REQUIRED`, and
 bind it to the new submission in the same transaction. Logs cannot be added or replaced later

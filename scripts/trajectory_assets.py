@@ -1,105 +1,94 @@
 #!/usr/bin/env python3
-"""Generate the published schema, blank template, synthetic example, and pinned terms digests."""
+"""Generate the published package schema, the synthetic example package and pinned terms digests."""
 import copy
 import hashlib
+import io
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from submission_api.trajectory_schema import TrajectoryPackage, digest
+from submission_api.trajectory_schema import FORMAT, digest, package_schema, parse_package
 
 
-def known(value):
-    return {"value": value, "unknown_reason": None}
-
-
-def unknown(why):
-    return {"value": None, "unknown_reason": why}
-
-
-def example():
-    proof = "example : True := by\n  trivial\n"
-    h = digest(proof.encode())
-    messages = [
-        ("user_message", "Prove True in Lean. This entire conversation is a synthetic teaching example.", None),
-        ("assistant_message", "I will try an initial constructor-based proof; this synthetic attempt will fail.", None),
-        ("tool_call", "lean Solution.lean; file contains: example : True := by exact False.elim", "call-1"),
-        ("tool_result", "error: type mismatch (synthetic result, no Lean invocation occurred)", "call-1"),
-        ("failure", "The initial synthetic attempt used the wrong constructor.", None),
-        ("revision", "Replaced the body with trivial; see the final-proof artifact.", None),
-        ("tool_call", "lean Solution.lean", "call-2"),
-        ("tool_result", "exit code 0 (synthetic result, not a verification claim)", "call-2"),
-        ("assistant_message", "The final source is attached. No actual bounty or accepted submission exists in this example.", None),
+def example_document():
+    """A made-up session in the one-object form tests mutate; `build_package` zips it."""
+    proof = b"example : True := by\n  trivial\n"
+    proof_sha = digest(proof)
+    turns = [
+        ("user", "message", "Prove True in Lean. This whole session is a synthetic example.", None, []),
+        ("assistant", "message", "I'll try a constructor first; this synthetic attempt will fail.", None, []),
+        ("assistant", "tool_call", "lean Solution.lean", "call-1", []),
+        ("tool", "tool_result", "error: type mismatch (synthetic, no Lean ran)", "call-1", []),
+        ("assistant", "message", "Wrong constructor. Rewriting the proof with `trivial`.", None, []),
+        ("assistant", "tool_call", "write Solution.lean", "call-2", ["final-proof"]),
+        ("tool", "tool_result", "written", "call-2", []),
+        ("assistant", "tool_call", "lean Solution.lean", "call-3", []),
+        ("tool", "tool_result", "exit code 0 (synthetic, not a verification claim)", "call-3", []),
+        ("assistant", "message", "Solution.lean compiles. No real bounty or submission exists here.", None, []),
     ]
-    data = {
-        "schema_version": "conjectures-trajectory/v1", "synthetic": True,
-        "submission_id": "00000000-0000-4000-8000-000000000001", "task_id": "synthetic-example",
-        "task_bundle_sha256": "sha256:" + "0" * 64, "final_proof_sha256": h,
-        "exported_at": "2026-10-12T12:01:00Z",
-        "runs": [{"id": "run-1", "provider": known("Synthetic Provider"), "model": known("Synthetic Model"),
-                  "version": unknown("Illustrative data; no real model was invoked."),
-                  "interface": "Handwritten synthetic example", "settings": "No actual generation settings.",
-                  "account_agreement": unknown("No provider account was used."),
-                  "terms_reference": unknown("No provider terms apply to these invented example messages."),
-                  "export_method": "Created for documentation; never claim this is authentic evidence.",
-                  "source_export_sha256": None,
-                  "source_export_unavailable_reason": "No original conversation exists; this is synthetic."}],
-        "events": [{"sequence": i, "id": f"event-{i}", "kind": kind, "visibility": "user_visible",
-                    "timestamp": known(f"2026-10-12T12:00:{i:02d}Z"),
-                    "run_id": "run-1", "tool_call_id": call, "tool_name": "terminal" if call else None,
-                    "content": content, "artifact_ids": ["final-proof"] if i in (6, 9) else []}
-                   for i, (kind, content, call) in enumerate(messages, 1)],
-        "artifacts": [{"id": "final-proof", "path": "Solution.lean", "kind": "final_proof", "sha256": h,
-                       "availability": "embedded", "content": proof, "omission_reason": None}],
-        "reproduction": {"lean_toolchain": known("leanprover/lean4:v4.27.0"),
-                         "mathlib_commit": unknown("This standalone synthetic proof does not import Mathlib."),
-                         "task_repository_commit": unknown("There is no real task repository for this example."),
-                         "code_commit": unknown("Example source was never committed."),
-                         "environment": "Illustrative Lean command; no actual environment was run.",
-                         "commands": ["lean Solution.lean"], "expected_result": "Exit code 0 for the standalone True example.",
-                         "limitations": "Synthetic event log, fake submission UUID and task hash. Never eligible for a bonus."},
-        "completeness": "gaps_disclosed",
-        "missing": [{"field_or_event": "entire example", "reason": "Synthetic data has no source export or accepted proof.",
-                     "impact_on_reproduction": "Shows the file format only. Authenticity cannot be established."}],
-        "redactions": [],
-        "permissions": {"terms_version": "chat-log-terms-v1",
-                        # This fabricated example cannot make real promises or grant a license.
-                        "authentic_logs_that_produced_this_proof": False, "allowed_to_share": False,
-                        "secrets_and_personal_data_removed": False, "license_to_sell_once_accepted": False},
+    events = [{
+        "id": f"event-{i}", "source": f"synthetic:{i}", "thread_id": "thread-1", "agent_id": "main",
+        "parent_agent_id": None, "turn_id": None, "tool_call_id": call, "role": role, "type": kind,
+        "timestamp": f"2026-10-12T12:00:{i:02d}Z", "content": content, "tool_arguments": None,
+        "tool_result": None, "status": None, "artifact_ids": artifacts, "fidelity": "verbatim",
+    } for i, (role, kind, content, call, artifacts) in enumerate(turns, 1)]
+    return {
+        "manifest": {
+            "format": FORMAT, "synthetic": True, "submission_id": None, "task_id": "synthetic-example",
+            "task_bundle_sha256": "sha256:" + "0" * 64, "final_proof_sha256": proof_sha,
+            "exported_at": "2026-10-12T12:30:00Z", "source_hashes": {}, "counts": {"events": len(events)},
+            "models": [{"provider": "Synthetic", "model": "Synthetic model"}],
+            "missing_evidence": ["Everything: this is a made-up example, never eligible."],
+        },
+        "events": events,
+        "artifacts": [{"id": "final-proof", "path": "artifacts/Solution.lean", "kind": "final_proof",
+                       "sha256": proof_sha, "included": True, "event_ids": ["event-6"]}],
+        "files": {"artifacts/Solution.lean": proof},
+        "episodes": [{"title": "Wrong constructor, then a fix", "summary": "Retrospective: the first attempt "
+                      "failed to compile; the rewrite with `trivial` compiled.", "event_ids":
+                      ["event-3", "event-4", "event-5", "event-6", "event-9"], "artifact_ids": ["final-proof"]}],
+        "readme": "# Synthetic example package\n\nShows the shape of a chat-log package. Never eligible.\n",
+        "sample_html": "<!doctype html><title>Sample</title><p>Synthetic example; see episodes.jsonl.</p>\n",
+        "validation": {"checks": [{"name": "events.jsonl parses", "passed": True}]},
     }
-    TrajectoryPackage.model_validate(data)
-    return data
+
+
+def build_package(document, folder="chat-log-package/") -> bytes:
+    """Zip the one-object form into the package layout the agent instructions describe."""
+    def lines(rows):
+        return "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows).encode()
+    files = {
+        "README.md": document["readme"].encode(), "events.jsonl": lines(document["events"]),
+        "episodes.jsonl": lines(document["episodes"]), "sample.html": document["sample_html"].encode(),
+        "artifact-index.json": json.dumps(document["artifacts"], indent=2).encode(),
+        "manifest.json": json.dumps(document["manifest"], indent=2).encode(),
+        "validation.json": json.dumps(document["validation"], indent=2).encode(),
+        **document["files"],
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, data in sorted(files.items()):
+            info = zipfile.ZipInfo(folder + name, date_time=(2026, 10, 12, 12, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, data)
+    return buffer.getvalue()
 
 
 def main():
     destination = ROOT / "docs/trajectories"
     destination.mkdir(parents=True, exist_ok=True)
-    sample = example()
-    template = copy.deepcopy(sample)
-    template["synthetic"] = False
-    # null for a new bounty (logs go in before the proof); the submission UUID for an earlier proof.
-    template["submission_id"] = None
-    template["task_bundle_sha256"] = "REPLACE_WITH_TASK_BUNDLE_SHA256"
-    template["final_proof_sha256"] = "REPLACE_WITH_FINAL_PROOF_SHA256"
-    template["exported_at"] = "REPLACE_WITH_REAL_EXPORT_TIMESTAMP"
-    template["reproduction"] = {
-        **{k: unknown("REPLACE_WITH_KNOWN_PIN_OR_HONEST_REASON") for k in ("lean_toolchain", "mathlib_commit", "task_repository_commit", "code_commit")},
-        "environment": "REPLACE_WITH_ENVIRONMENT", "commands": ["REPLACE_WITH_COMMANDS"],
-        "expected_result": "REPLACE_WITH_OBSERVED_RESULT", "limitations": "REPLACE_WITH_LIMITATIONS_OR_NONE",
-    }
-    template["task_id"] = "REPLACE_WITH_YOUR_ACCEPTED_TASK_ID"
-    template["events"] = []
-    template["artifacts"] = []
-    template["runs"] = []
-    template["missing"] = []
-    schema = TrajectoryPackage.model_json_schema()
+    package = build_package(example_document())
+    parse_package(package)  # The example passes every structural check (and is refused as synthetic).
+    schema = copy.deepcopy(package_schema())
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-    schema["$id"] = "https://conjectures.io/trajectory/trajectory.schema.json"
-    for name, data in [("trajectory.schema.json", schema), ("synthetic-example.json", sample),
-                       ("template.json", template)]:
-        (destination / name).write_text(json.dumps(data, indent=2) + "\n")
+    schema["$id"] = "https://conjectures.io/trajectory/chat-log-package.schema.json"
+    (destination / "chat-log-package.schema.json").write_text(json.dumps(schema, indent=2) + "\n")
+    (destination / "example-package.zip").write_bytes(package)
+    for stale in ("trajectory.schema.json", "template.json", "synthetic-example.json"):
+        (destination / stale).unlink(missing_ok=True)
     pin_terms(destination)
 
 

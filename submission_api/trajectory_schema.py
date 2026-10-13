@@ -1,266 +1,269 @@
-"""Exportable evidence, never a request for private model reasoning.
+"""Chat-log packages: one zip holding the observable record of an AI research session.
 
-This format is deliberately JSON text only. Nothing is extracted, executed, rendered as HTML,
-or fetched from URLs. Validation establishes structure and linkage, not truth or rights.
+The zip is read in memory and never extracted. Only what links the record to a proof is checked:
+the manifest, the events, the artifact index, the proof link and the hashes of included files.
+README.md, episodes.jsonl and sample.html travel as they are; the site never renders them.
+Validation establishes structure and linkage, not truth or rights.
 """
 from __future__ import annotations
 
 import hashlib
+import io
 import json
+import posixpath
+import stat
 import uuid
+import zipfile
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
+FORMAT = "conjectures-chat-log/v2"
 MAX_PACKAGE_BYTES = 64 * 1024 * 1024
+MAX_UNPACKED_BYTES = 512 * 1024 * 1024
+MAX_FILES = 20_000
+MAX_JSON_FILE_BYTES = 32 * 1024 * 1024
+MAX_EVENT_LINE_BYTES = 64 * 1024 * 1024
 RETENTION_DAYS = 90
 TERMS_VERSION = "chat-log-terms-v1"
 DEPOSIT_HOURS = 24
+REQUIRED_FILES = ("README.md", "events.jsonl", "episodes.jsonl", "sample.html", "artifact-index.json",
+                  "manifest.json", "validation.json")
 Digest = Annotated[str, Field(pattern=r"^sha256:[a-f0-9]{64}$")]
-Short = Annotated[str, Field(min_length=1, max_length=500)]
-Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9._-]{1,100}$")]
+Name = Annotated[str, Field(min_length=1, max_length=200)]
 
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=False)
 
 
-class KnownValue(StrictModel):
-    value: Short | None
-    unknown_reason: Short | None
-
-    @model_validator(mode="after")
-    def honest_unknown(self):
-        if (self.value is None) != (self.unknown_reason is not None):
-            raise ValueError("use a value or an explanation of why it is unknown, never invent one")
-        return self
+class OpenModel(BaseModel):
+    """Required fields are checked; anything else the agent records is kept as given."""
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=False)
 
 
-class Timestamp(StrictModel):
-    value: AwareDatetime | None
-    unknown_reason: Short | None
-
-    @model_validator(mode="after")
-    def honest_unknown(self):
-        if (self.value is None) != (self.unknown_reason is not None):
-            raise ValueError("timestamp needs a timezone or an honest unknown reason")
-        return self
-
-
-class ModelRun(StrictModel):
-    id: Identifier
-    provider: KnownValue
-    model: KnownValue
-    version: KnownValue
-    interface: Short
-    account_agreement: KnownValue
-    terms_reference: KnownValue
-    settings: Annotated[str, Field(min_length=1, max_length=4000)]
-    export_method: Short
-    source_export_sha256: Digest | None
-    source_export_unavailable_reason: Short | None
-
-    @model_validator(mode="after")
-    def export_evidence(self):
-        if (self.source_export_sha256 is None) != (self.source_export_unavailable_reason is not None):
-            raise ValueError("source export needs a digest or an explanation")
-        return self
-
-
-class Event(StrictModel):
-    sequence: Annotated[int, Field(strict=True, ge=1, le=10000)]
-    id: Identifier
-    kind: Literal["user_message", "assistant_message", "tool_call", "tool_result", "failure", "revision"]
-    visibility: Literal["user_visible"]
-    timestamp: Timestamp
-    run_id: Identifier | None
-    tool_call_id: Identifier | None
-    tool_name: Short | None
-    content: Annotated[str, Field(max_length=1024 * 1024)]
-    empty_content: bool = Field(default=False, strict=True)
-    parent_event_id: Identifier | None = None
-    artifact_ids: Annotated[list[Identifier], Field(max_length=100)]
-
-
-class Artifact(StrictModel):
-    id: Identifier
-    path: Annotated[str, Field(min_length=1, max_length=255, pattern=r"^[a-zA-Z0-9_.\-/]+$")]
-    kind: Literal["final_proof", "code", "configuration", "log", "source_export"]
-    sha256: Digest
-    availability: Literal["embedded", "authoritative_submission", "omitted"]
-    content: Annotated[str, Field(max_length=1024 * 1024)] | None
-    omission_reason: Short | None
-
-    @model_validator(mode="after")
-    def artifact_integrity(self):
-        if self.path.startswith("/") or any(p in ("", ".", "..") for p in self.path.split("/")):
-            raise ValueError("artifact paths must be safe relative labels")
-        if self.availability == "embedded":
-            if self.content is None or self.omission_reason is not None:
-                raise ValueError("embedded artifacts need content and no omission reason")
-            if digest(self.content.encode("utf-8")) != self.sha256:
-                raise ValueError("artifact SHA-256 does not match UTF-8 content")
-        elif self.content is not None:
-            raise ValueError("non-embedded artifact must not carry content")
-        elif self.availability == "authoritative_submission":
-            if self.kind != "final_proof" or self.omission_reason is not None:
-                raise ValueError("only the linked final proof can use authoritative submission storage")
-        elif not self.omission_reason:
-            raise ValueError("omitted artifacts need a reason")
-        return self
-
-
-class Disclosure(StrictModel):
-    field_or_event: Short
-    reason: Annotated[str, Field(min_length=1, max_length=2000)]
-    impact_on_reproduction: Annotated[str, Field(min_length=1, max_length=2000)]
-
-
-class Reproduction(StrictModel):
-    lean_toolchain: KnownValue
-    mathlib_commit: KnownValue
-    task_repository_commit: KnownValue
-    code_commit: KnownValue
-    environment: Annotated[str, Field(min_length=1, max_length=4000)]
-    commands: Annotated[list[Short], Field(min_length=1, max_length=100)]
-    expected_result: Annotated[str, Field(min_length=1, max_length=4000)]
-    limitations: Annotated[str, Field(min_length=1, max_length=4000)]
-
-
-class Permissions(StrictModel):
-    # Set by the server from the intake checkbox, never trusted from a hand-edited file.
-    terms_version: Literal["chat-log-terms-v1"]
-    authentic_logs_that_produced_this_proof: bool = Field(strict=True)
-    allowed_to_share: bool = Field(strict=True)
-    secrets_and_personal_data_removed: bool = Field(strict=True)
-    license_to_sell_once_accepted: bool = Field(strict=True)
-
-
-class TrajectoryPackage(StrictModel):
-    schema_version: Literal["conjectures-trajectory/v1"]
-    synthetic: bool = Field(strict=True)
+class Manifest(OpenModel):
+    format: Literal["conjectures-chat-log/v2"]
+    synthetic: bool = Field(default=False, strict=True)
     # Null when logs for a new bounty are uploaded before the proof submission exists.
     submission_id: uuid.UUID | None
     task_id: Annotated[str, Field(min_length=1, max_length=255)]
     task_bundle_sha256: Digest
     final_proof_sha256: Digest
     exported_at: AwareDatetime
-    runs: Annotated[list[ModelRun], Field(min_length=1, max_length=100)]
-    events: Annotated[list[Event], Field(min_length=2, max_length=10000)]
-    artifacts: Annotated[list[Artifact], Field(min_length=1, max_length=1000)]
-    reproduction: Reproduction
-    completeness: Literal["complete_export", "gaps_disclosed"]
-    missing: Annotated[list[Disclosure], Field(max_length=1000)]
-    redactions: Annotated[list[Disclosure], Field(max_length=1000)]
-    permissions: Permissions
-
-    @model_validator(mode="after")
-    def coherent_evidence(self):
-        run_ids = {r.id for r in self.runs}
-        artifact_ids = {a.id for a in self.artifacts}
-        if len(run_ids) != len(self.runs) or len(artifact_ids) != len(self.artifacts):
-            raise ValueError("run and artifact identifiers must be unique")
-        if len({a.path for a in self.artifacts}) != len(self.artifacts):
-            raise ValueError("artifact paths must be unique")
-        if len({e.id for e in self.events}) != len(self.events):
-            raise ValueError("event identifiers must be unique")
-        previous_time = None
-        seen_events = set()
-        calls = {}
-        results = set()
-        for sequence, event in enumerate(self.events, 1):
-            if (event.content == "") != event.empty_content:
-                raise ValueError("empty event content must be explicitly marked; never invent output")
-            if event.parent_event_id is not None and event.parent_event_id not in seen_events:
-                raise ValueError("branch parent must be an earlier event")
-            seen_events.add(event.id)
-            if event.sequence != sequence:
-                raise ValueError("events must have contiguous chronological sequence numbers")
-            if event.run_id is not None and event.run_id not in run_ids:
-                raise ValueError("unknown model run")
-            if event.kind == "assistant_message" and event.run_id is None:
-                raise ValueError("assistant messages must identify the model run")
-            if not set(event.artifact_ids) <= artifact_ids:
-                raise ValueError("event references an unknown artifact")
-            when = event.timestamp.value
-            if when is not None:
-                if when > self.exported_at or (previous_time is not None and when < previous_time):
-                    raise ValueError("known timestamps must follow chronology and precede export")
-                previous_time = when
-            if event.kind in ("tool_call", "tool_result"):
-                if not event.tool_call_id or not event.tool_name:
-                    raise ValueError("tool calls/results need call id and tool name")
-                if event.kind == "tool_call":
-                    if event.tool_call_id in calls:
-                        raise ValueError("duplicate tool call id")
-                    calls[event.tool_call_id] = (event.run_id, event.tool_name)
-                else:
-                    if event.tool_call_id not in calls or event.tool_call_id in results:
-                        raise ValueError("tool result must follow one distinct call")
-                    if calls[event.tool_call_id] != (event.run_id, event.tool_name):
-                        raise ValueError("tool result must match the call's model run and tool name")
-                    results.add(event.tool_call_id)
-            elif event.tool_call_id is not None or event.tool_name is not None:
-                raise ValueError("tool fields belong only to tool events")
-        if calls.keys() != results and not self.missing:
-            raise ValueError("missing tool results must be disclosed")
-        if self.missing and self.completeness != "gaps_disclosed":
-            raise ValueError("missing evidence cannot be declared complete")
-        if not any(e.kind == "user_message" for e in self.events) or not any(
-            e.kind == "assistant_message" for e in self.events
-        ):
-            raise ValueError("include user and assistant messages")
-        proofs = [a for a in self.artifacts if a.kind == "final_proof"]
-        if len(proofs) != 1 or proofs[0].sha256 != self.final_proof_sha256:
-            raise ValueError("exactly one final proof must match the linked proof digest")
-        if proof_first_seen(self) is None:
-            raise ValueError("a timestamped event must show the final proof")
-        if any(a.availability == "omitted" for a in self.artifacts) and not self.missing:
-            raise ValueError("omitted artifacts must be disclosed")
-        return self
 
 
-def proof_first_seen(package):
-    """Earliest dated event attaching the final proof: when the chat produced it."""
-    proof_ids = {a.id for a in package.artifacts if a.kind == "final_proof"}
-    times = [e.timestamp.value for e in package.events
-             if e.timestamp.value is not None and proof_ids.intersection(e.artifact_ids)]
-    return min(times, default=None)
+class EventRecord(OpenModel):
+    id: Name
+    role: Literal["user", "assistant", "tool", "system"]
+    type: Annotated[str, Field(min_length=1, max_length=100)]
+    timestamp: AwareDatetime | None
+    artifact_ids: Annotated[list[Name], Field(max_length=1000)] = []
+
+
+class ArtifactEntry(OpenModel):
+    id: Name
+    path: Annotated[str, Field(min_length=1, max_length=1024)]
+    kind: Annotated[str, Field(min_length=1, max_length=100)]
+    sha256: Digest
+    included: bool = Field(strict=True)
+    event_ids: Annotated[list[Name], Field(max_length=10_000)] = []
+
+
+class PackageError(ValueError):
+    """A rejected package. Messages come only from SAFE_SEMANTIC_ERRORS or a ValidationError."""
+    def __init__(self, message: str = "", *, file: str | None = None, line: int | None = None,
+                 validation: ValidationError | None = None):
+        super().__init__(message or "invalid package")
+        self.message, self.file, self.line, self.validation = message, file, line, validation
+
+
+@dataclass(frozen=True)
+class PackageSummary:
+    manifest: Manifest
+    fingerprint: bytes
+    proof_first_seen: datetime | None
+    events: int
+    artifacts: int
 
 
 def digest(raw: bytes) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
-def canonical_bytes(package: TrajectoryPackage) -> bytes:
-    return json.dumps(package.model_dump(mode="json"), sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=False).encode("utf-8")
+def _unique_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object key")
+        result[key] = value
+    return result
 
 
-def evidence_digest(package: TrajectoryPackage) -> bytes:
-    # Linkage and export time are excluded: repackaging the same transcript for another proof
-    # must collide. Semantic fabrication still needs a human provenance review.
-    evidence = package.model_dump(mode="json", include={"runs", "events", "artifacts"})
-    return hashlib.sha256(json.dumps(evidence, sort_keys=True, separators=(",", ":"),
-                                    ensure_ascii=False).encode("utf-8")).digest()
+def _nonfinite(_):
+    raise ValueError("nonfinite JSON")
 
 
-def parse_package(raw: bytes) -> TrajectoryPackage:
-    if len(raw) > MAX_PACKAGE_BYTES:
-        raise ValueError("package exceeds 64 MiB")
-
-    def unique_keys(pairs):
-        result = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError("duplicate JSON object key")
-            result[key] = value
-        return result
-
+def _decode(raw: bytes):
     check_json_depth(raw)
-    data = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_keys,
-                      parse_constant=lambda _: (_ for _ in ()).throw(ValueError("nonfinite JSON")))
-    return TrajectoryPackage.model_validate(data)
+    return json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_keys, parse_constant=_nonfinite)
+
+
+def _safe(error: Exception) -> str:
+    return str(error) if str(error) in SAFE_SEMANTIC_ERRORS else ""
+
+
+def _safe_path(name: str) -> bool:
+    parts = name.split("/")
+    return bool(name) and not name.startswith("/") and "\\" not in name and ".." not in parts and ":" not in parts[0]
+
+
+def _entries(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
+    infos = archive.infolist()
+    if len(infos) > MAX_FILES:
+        raise PackageError("too many files in the package")
+    names, unpacked = {}, 0
+    for info in infos:
+        if info.flag_bits & 0x1:
+            raise PackageError("encrypted zip entries are not accepted")
+        if stat.S_ISLNK(info.external_attr >> 16):
+            raise PackageError("links are not allowed in the package")
+        if not _safe_path(info.filename):
+            raise PackageError("unsafe path in the package")
+        if info.filename in names:
+            raise PackageError("duplicate path in the package")
+        unpacked += info.file_size
+        if unpacked > MAX_UNPACKED_BYTES:
+            raise PackageError("the package unpacks to more than 512 MiB")
+        if not info.is_dir():
+            names[info.filename] = info
+    return names
+
+
+def _root(names) -> str:
+    """The package folder may be zipped as is, or inside one top-level folder."""
+    if "manifest.json" in names:
+        return ""
+    tops = {name.split("/", 1)[0] for name in names}
+    if len(tops) == 1 and f"{next(iter(tops))}/manifest.json" in names:
+        return next(iter(tops)) + "/"
+    return ""
+
+
+def _json_file(archive, info, file):
+    if info.file_size > MAX_JSON_FILE_BYTES:
+        raise PackageError("a JSON file in the package is too large", file=file)
+    try:
+        return _decode(archive.read(info))
+    except (ValueError, UnicodeError, RecursionError) as error:
+        raise PackageError(_safe(error) or "invalid JSON", file=file) from None
+
+
+def _lines(archive, info, file):
+    with archive.open(info) as source:
+        for number, raw in enumerate(source, 1):
+            raw = raw.rstrip(b"\r\n")
+            if not raw:
+                raise PackageError("blank lines are not allowed", file=file, line=number)
+            if len(raw) > MAX_EVENT_LINE_BYTES:
+                raise PackageError("a line is too large", file=file, line=number)
+            yield number, raw
+
+
+def parse_package(raw: bytes) -> PackageSummary:
+    """Check a zip package held in memory; memory beyond the zip is bounded by one line or file."""
+    if len(raw) > MAX_PACKAGE_BYTES:
+        raise PackageError("package exceeds 64 MiB")
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(raw))
+        names = _entries(archive)
+        root = _root(names)
+        for required in REQUIRED_FILES:
+            if root + required not in names:
+                raise PackageError("the package is missing a required file", file=required)
+        try:
+            manifest = Manifest.model_validate(_json_file(archive, names[root + "manifest.json"], "manifest.json"))
+        except ValidationError as error:
+            raise PackageError(file="manifest.json", validation=error) from None
+
+        fingerprint = hashlib.sha256()
+        event_times, roles, events = {}, set(), 0
+        for number, line in _lines(archive, names[root + "events.jsonl"], "events.jsonl"):
+            try:
+                event = EventRecord.model_validate(_decode(line))
+            except ValidationError as error:
+                raise PackageError(file="events.jsonl", line=number, validation=error) from None
+            except (ValueError, UnicodeError, RecursionError) as error:
+                raise PackageError(_safe(error) or "invalid JSON", file="events.jsonl", line=number) from None
+            if event.id in event_times:
+                raise PackageError("event ids must be unique", file="events.jsonl", line=number)
+            if event.timestamp is not None and event.timestamp > manifest.exported_at + timedelta(minutes=5):
+                raise PackageError("event timestamps must not be later than exported_at", file="events.jsonl", line=number)
+            event_times[event.id] = event.timestamp
+            roles.add(event.role)
+            events += 1
+            fingerprint.update(line + b"\n")
+        if events < 2 or not {"user", "assistant"} <= roles:
+            raise PackageError("include user and assistant messages", file="events.jsonl")
+
+        for number, line in _lines(archive, names[root + "episodes.jsonl"], "episodes.jsonl"):
+            try:
+                _decode(line)
+            except (ValueError, UnicodeError, RecursionError) as error:
+                raise PackageError(_safe(error) or "invalid JSON", file="episodes.jsonl", line=number) from None
+        _json_file(archive, names[root + "validation.json"], "validation.json")
+
+        index = _json_file(archive, names[root + "artifact-index.json"], "artifact-index.json")
+        if not isinstance(index, list):
+            raise PackageError("artifact-index.json must be a JSON array", file="artifact-index.json")
+        artifacts, proofs = set(), []
+        for position, item in enumerate(index, 1):
+            try:
+                entry = ArtifactEntry.model_validate(item)
+            except ValidationError as error:
+                raise PackageError(file="artifact-index.json", line=position, validation=error) from None
+            if entry.id in artifacts:
+                raise PackageError("artifact ids must be unique", file="artifact-index.json", line=position)
+            artifacts.add(entry.id)
+            if any(event_id not in event_times for event_id in entry.event_ids):
+                raise PackageError("an artifact links an unknown event", file="artifact-index.json", line=position)
+            if entry.kind == "final_proof":
+                proofs.append(entry)
+            if entry.included:
+                path = posixpath.normpath(entry.path)
+                if not _safe_path(path) or root + path not in names:
+                    raise PackageError("an included artifact is missing from the package", file="artifact-index.json", line=position)
+                hashed = hashlib.sha256()
+                with archive.open(names[root + path]) as source:
+                    while chunk := source.read(1024 * 1024):
+                        hashed.update(chunk)
+                if "sha256:" + hashed.hexdigest() != entry.sha256:
+                    raise PackageError("artifact SHA-256 does not match the file", file="artifact-index.json", line=position)
+        if len(proofs) != 1 or proofs[0].sha256 != manifest.final_proof_sha256:
+            raise PackageError("exactly one final proof must match the linked proof digest", file="artifact-index.json")
+        times = [event_times[event_id] for event_id in proofs[0].event_ids if event_times[event_id] is not None]
+        if not times:
+            raise PackageError("a timestamped event must show the final proof", file="artifact-index.json")
+    except zipfile.BadZipFile:
+        raise PackageError("upload a .zip package") from None
+    except (zipfile.LargeZipFile, NotImplementedError, EOFError, OSError):
+        raise PackageError("the zip could not be read") from None
+    return PackageSummary(manifest=manifest, fingerprint=fingerprint.digest(), proof_first_seen=min(times),
+                          events=events, artifacts=len(artifacts))
+
+
+def package_schema() -> dict:
+    """JSON Schema for the three checked parts: manifest.json, one events.jsonl line, one index entry."""
+    return {
+        "title": "Conjectures chat-log package (conjectures-chat-log/v2)",
+        "description": ("A zip holding README.md, events.jsonl, episodes.jsonl, sample.html, "
+                        "artifact-index.json (an array of artifact entries), artifacts/, manifest.json and "
+                        "validation.json. Only these three parts are checked; extra fields are kept."),
+        "$defs": {"manifest": Manifest.model_json_schema(), "event": EventRecord.model_json_schema(),
+                  "artifact": ArtifactEntry.model_json_schema()},
+    }
 
 
 def check_json_depth(raw: bytes):
@@ -286,37 +289,30 @@ def check_json_depth(raw: bytes):
 
 SAFE_SEMANTIC_ERRORS = frozenset((
     'JSON nesting exceeds 24 levels',
+    'a JSON file in the package is too large',
+    'a line is too large',
     'a timestamped event must show the final proof',
-    'artifact SHA-256 does not match UTF-8 content',
-    'artifact paths must be safe relative labels',
-    'artifact paths must be unique',
-    'assistant messages must identify the model run',
-    'branch parent must be an earlier event',
+    'an artifact links an unknown event',
+    'an included artifact is missing from the package',
+    'artifact SHA-256 does not match the file',
+    'artifact ids must be unique',
+    'artifact-index.json must be a JSON array',
+    'blank lines are not allowed',
     'duplicate JSON object key',
-    'duplicate tool call id',
-    'embedded artifacts need content and no omission reason',
-    'empty event content must be explicitly marked; never invent output',
-    'event identifiers must be unique',
-    'event references an unknown artifact',
-    'events must have contiguous chronological sequence numbers',
+    'duplicate path in the package',
+    'encrypted zip entries are not accepted',
+    'event ids must be unique',
+    'event timestamps must not be later than exported_at',
     'exactly one final proof must match the linked proof digest',
     'include user and assistant messages',
-    'known timestamps must follow chronology and precede export',
-    'missing evidence cannot be declared complete',
-    'missing tool results must be disclosed',
-    'non-embedded artifact must not carry content',
+    'invalid JSON',
+    'links are not allowed in the package',
     'nonfinite JSON',
-    'omitted artifacts must be disclosed',
-    'omitted artifacts need a reason',
-    'only the linked final proof can use authoritative submission storage',
     'package exceeds 64 MiB',
-    'run and artifact identifiers must be unique',
-    'source export needs a digest or an explanation',
-    'timestamp needs a timezone or an honest unknown reason',
-    'tool calls/results need call id and tool name',
-    'tool fields belong only to tool events',
-    'tool result must follow one distinct call',
-    "tool result must match the call's model run and tool name",
-    'unknown model run',
-    'use a value or an explanation of why it is unknown, never invent one',
+    'the package is missing a required file',
+    'the package unpacks to more than 512 MiB',
+    'the zip could not be read',
+    'too many files in the package',
+    'unsafe path in the package',
+    'upload a .zip package',
 ))

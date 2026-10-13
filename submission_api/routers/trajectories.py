@@ -28,7 +28,10 @@ from submission_api.trajectory_schema import (
 )
 from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256
 from verifier.task_registry import TaskNotAllowed as RegistryTaskNotAllowed
-from submission_api.trajectory_intake import MAX_ENVELOPE_BYTES, UploadBudget, prepare_upload, safe_errors
+from submission_api.trajectory_intake import (
+    MAX_UPLOAD_BYTES, PACKAGE_MEDIA_TYPES, Consent, UploadBudget, check_consent, package_errors, prepare_upload,
+)
+from submission_api.trajectory_schema import PackageError
 
 router = APIRouter(prefix="/v1", tags=["trajectories"])
 Reviewer = Annotated[Principal, Depends(require_role(REVIEWER_ROLE))]
@@ -73,9 +76,10 @@ async def opened(services, session):
     return cutoff
 
 
-async def bounded_json(request, limit):
-    if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
-        raise ApiError("Send a UTF-8 application/json file.", status_code=415, reason_code="TRAJECTORY_FORMAT")
+async def bounded_json(request, limit, media_types=("application/json",)):
+    if request.headers.get("content-type", "").split(";")[0].strip().lower() not in media_types:
+        raise ApiError("Send a UTF-8 application/json file." if media_types == ("application/json",)
+                       else "Send the chat-log package as a .zip file.", status_code=415, reason_code="TRAJECTORY_FORMAT")
     if request.headers.get("content-encoding", "identity") != "identity":
         raise BadRequest("Compressed bodies are not accepted.")
     length = request.headers.get("content-length")
@@ -149,36 +153,48 @@ async def status(submission_id: uuid.UUID, principal: PrincipalDep, services: Se
             "claim": await store.view(session, claim) if claim else None}
 
 
-async def received_package(request):
-    """Bounded receipt and validation, inside the caller's upload budget and with no open transaction."""
+TermsVersion = Annotated[str, Query(max_length=64)]
+TermsDigest = Annotated[str, Query(max_length=71)]
+
+
+def consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted) -> dict:
+    """Consent rides in the query and is checked before any byte of the package is read."""
+    return check_consent(Consent(terms_version=terms_version, terms_sha256=terms_sha256,
+                                 assent_statements_sha256=assent_statements_sha256, accepted=accepted))
+
+
+async def received_package(request, consent, expected_state_version=None):
+    """Bounded receipt of the zip and its checks, inside the caller's upload budget, with no open transaction."""
     try:
-        with anyio.fail_after(60):
-            raw = await bounded_json(request, MAX_ENVELOPE_BYTES)
-        return await anyio.to_thread.run_sync(prepare_upload, raw)
+        with anyio.fail_after(120):
+            raw = await bounded_json(request, MAX_UPLOAD_BYTES, PACKAGE_MEDIA_TYPES)
+        return await anyio.to_thread.run_sync(prepare_upload, raw, consent, expected_state_version)
     except TimeoutError:
         raise ApiError("Upload timed out; retry with a complete file.", status_code=408,
                        reason_code="TRAJECTORY_TIMEOUT") from None
-    except ValidationError as error:
-        raise BadRequest("Invalid chat-log package; check the indicated fields against the schema.",
-                         reason_code="TRAJECTORY_INVALID", extra={"validation_errors": safe_errors(error)}) from None
-    except (ValueError, UnicodeError, RecursionError):
-        raise BadRequest("Invalid chat-log package or consent. Check the current terms, schema, hashes, chronology and limits.",
-                         reason_code="TRAJECTORY_INVALID") from None
+    except PackageError as error:
+        raise BadRequest("Invalid chat-log package; check the indicated files and lines against the instructions.",
+                         reason_code="TRAJECTORY_INVALID", extra={"validation_errors": package_errors(error)}) from None
 
 
 @router.post("/me/chat-log-deposits")
 async def deposit(request: Request, principal: CookieWriterDep, services: ServicesDep,
-                  session: SessionDep, response: Response):
-    """Logs for a new bounty, uploaded before the proof. The proof must follow within 24 hours."""
+                  session: SessionDep, response: Response, terms_version: TermsVersion,
+                  terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False):
+    """Logs for a new bounty, uploaded before the proof. The proof must follow within 24 hours.
+
+    The request body is the .zip package; consent rides in the query.
+    """
     private(response)
     await opened(services, session)
+    consent = consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted)
     account_id = principal.account.id
     await session.rollback()
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
     async with request.app.state.trajectory_upload_budget.hold(account_id):
-        prepared = await received_package(request)
-        package = prepared[0]
+        prepared = await received_package(request, consent)
+        package = prepared[0].manifest
         try:
             entry = services.catalog.resolve(package.task_id, package.task_bundle_sha256)
         except (TaskNotAllowed, RegistryTaskNotAllowed, ValueError):
@@ -200,10 +216,13 @@ async def deposit(request: Request, principal: CookieWriterDep, services: Servic
 
 @router.post("/me/submissions/{submission_id}/trajectory")
 async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWriterDep,
-                 services: ServicesDep, session: SessionDep, response: Response):
-    """Bonus logs for a proof submitted before the program began."""
+                 services: ServicesDep, session: SessionDep, response: Response, terms_version: TermsVersion,
+                 terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False,
+                 expected_state_version: Annotated[int | None, Query(ge=1, le=2147483647)] = None):
+    """Bonus logs for a proof submitted before the program began. The body is the .zip package."""
     private(response)
     start_at = await opened(services, session)
+    consent = consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted)
     account_id = principal.account.id  # rollback expires ORM objects; retain only this immutable ID.
     submission = await store.owned_submission(session, submission_id, account_id)
     if required(submission):
@@ -219,7 +238,7 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
     async with request.app.state.trajectory_upload_budget.hold(account_id):
-        prepared = await received_package(request)
+        prepared = await received_package(request, consent, expected_state_version)
         # Recheck under the proof correction lock after all untrusted parsing and hashing.
         submission = await store.owned_submission(session, submission_id, account_id, lock=True)
         decision = await latest_binding_decision(session, submission_id)
@@ -319,10 +338,10 @@ async def download(claim_id: uuid.UUID, principal: Reviewer, session: SessionDep
     session.add(TrajectoryAccess(id=uuid.uuid4(), claim_id=claim.id, actor_id=principal.account.id,
                                  accessed_at=dt.datetime.now(dt.UTC)))
     await session.commit()  # Do not release content unless the access record is durable.
-    return Response(content, media_type="application/json", headers={
+    return Response(content, media_type="application/zip", headers={
         "Cache-Control": "no-store", "Vary": "Authorization, Cookie",
         "X-Content-Type-Options": "nosniff",
-        "Content-Disposition": f'attachment; filename="chat-logs-{claim.id}.json"',
+        "Content-Disposition": f'attachment; filename="chat-logs-{claim.id}.zip"',
         "Content-Security-Policy": "default-src 'none'; sandbox",
     })
 

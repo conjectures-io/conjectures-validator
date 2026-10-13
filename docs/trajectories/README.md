@@ -10,10 +10,10 @@ published openly. The owner approved these rules on October 12, 2026.
 Contributor terms are one plain-language page, [chat-log-terms-v1.md](chat-log-terms-v1.md)
 (owner-reviewed October 13, 2026), with a single pinned assent statement
 ([assent-statements-v2.json](assent-statements-v2.json)). They take effect when intake opens.
-`python scripts/trajectory_assets.py` regenerates the schema, template, example, the terms
-manifest and `submission_api/trajectory_terms.py` digests; copy `docs/trajectories/*.json`, the
-terms Markdown and `agent-instructions.md` to the frontend's `data/trajectory/` and verify the
-hashes together.
+`python scripts/trajectory_assets.py` regenerates the package schema, the synthetic
+`example-package.zip`, the terms manifest and `submission_api/trajectory_terms.py` digests; copy
+`docs/trajectories/*.json`, `example-package.zip`, the terms Markdown and `agent-instructions.md`
+to the frontend's `data/trajectory/` and verify the hashes together.
 
 ## Owner policy
 
@@ -27,7 +27,7 @@ hashes together.
 | License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
 | Buyers | May use, including for training and evaluation, but may not publish the logs openly |
 | Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
-| Format | UTF-8 JSON up to 64 MiB, 10,000 events, 100 runs, 1,000 artifacts; the existing proof may be referenced rather than embedded |
+| Format | One .zip package up to 64 MiB (512 MiB unpacked, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
 
 ## Contributor instructions
 
@@ -36,21 +36,22 @@ hashes together.
    `submission_id: null`. Upload the logs, then submit the proof within 24 hours.
    **Earlier proof:** sign in to the account owning a proof with a current human
    `REVIEW_APPROVED` decision and upload from that submission's page with its `submission_id`.
-2. Export the conversation through the provider's own export, share link or API logs. Keep the
-   real user-visible messages, tool calls and results and failed attempts in order. Never send
-   hidden model reasoning.
-3. Easiest: give an AI agent [agent-instructions.md](agent-instructions.md) with the export, the
-   proof file and the values above; it builds the file. Or fill
-   [template.json](template.json) against [trajectory.schema.json](trajectory.schema.json) by hand.
-   [synthetic-example.json](synthetic-example.json) shows the shape and is refused by intake.
-   Use `null` plus a short reason for anything the export does not show. At least one dated
-   event must attach the final-proof artifact: that is when the chat produced the proof.
-4. Remove passwords, API keys and personal information you do not want shared.
+2. Give an AI agent [agent-instructions.md](agent-instructions.md) (the site's copy-paste
+   message does this) with the sessions or export, the proof file and the values above. It builds
+   `chat-log-package.zip`: the full observable record (messages, tool calls and results, failed
+   attempts, files, subagents, usage), selected episodes and a readable sample.
+   [chat-log-package.schema.json](chat-log-package.schema.json) describes the checked parts and
+   [example-package.zip](example-package.zip) shows the layout; the example is refused by intake.
+3. The final proof is one `artifact-index.json` entry linked to a dated event: that is when the
+   chat produced the proof.
 
-Runtime validation checks chronology, tool references, artifact hashes, proof linkage,
-duplicate JSON keys and nesting. Machine timing checks: every timestamp precedes export, export
-is not in the future, and for earlier proofs the first dated event showing the final proof
-precedes the submission time. Timestamps in a file can be forged, so provenance (provider
+The server reads the zip in memory and never extracts it. It refuses unsafe paths, links,
+encrypted entries, more than 20,000 files or 512 MiB unpacked, and checks: the required files
+are present; `manifest.json` has the format and the four linkage values; `events.jsonl` parses
+with unique ids, known roles, and timestamps no later than export; `artifact-index.json` entries
+link real events and included files match their hashes; exactly one final proof matches the
+proof digest and is linked to a dated event (before the submission time for earlier proofs).
+README.md, episodes.jsonl and sample.html are not inspected and never rendered by the site. Timestamps in a file can be forged, so provenance (provider
 export digest or share link) and duplicate review remain human work.
 
 ## Review
