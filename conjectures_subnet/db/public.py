@@ -55,7 +55,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import Select, Text, and_, cast, exists, func, or_, select, tuple_
+from sqlalchemy import BigInteger, Select, Text, and_, cast, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.payout_instructions import instruction_enabled
@@ -223,6 +223,31 @@ class _RunFacts:
     sandbox_mode: str
     finished_at: datetime
     has_report: bool
+
+
+# One payout may be split between co-solvers and paid as several transfers. Each part names the
+# instruction it replaced in `pricing_inputs.split_of_reward_event_id`; parts sharing it are one
+# payout and their amounts add up. Every other event is a payout of its own.
+_PAYOUT = func.coalesce(
+    cast(RewardEvent.pricing_inputs["split_of_reward_event_id"].astext, BigInteger),
+    RewardEvent.id,
+)
+
+
+def _payouts(*conditions: object):
+    """Per submission and payout: the summed amount, its policy, latest id and confirmation."""
+    return (
+        select(
+            RewardEvent.submission_id,
+            func.sum(RewardEvent.amount_rao).label("amount_rao"),
+            func.max(RewardEvent.pricing_policy_version).label("pricing_policy_version"),
+            func.max(RewardEvent.confirmed_at).label("confirmed_at"),
+            func.max(RewardEvent.id).label("latest_id"),
+        )
+        .where(*conditions)
+        .group_by(RewardEvent.submission_id, _PAYOUT)
+        .subquery()
+    )
 
 
 @dataclass(frozen=True)
@@ -473,18 +498,18 @@ async def result_stats(
     ).one()
     # The latest confirmed payout per submission, chosen the way `_confirmed_payouts` chooses it,
     # so the sum is of exactly the amounts the certified feed shows.
+    confirmed = _payouts(
+        RewardEvent.status == PayoutState.CONFIRMED,
+        RewardEvent.chain_observed.is_(True),
+        RewardEvent.confirmed_at.is_not(None),
+    )
     latest = (
-        select(RewardEvent.submission_id, RewardEvent.amount_rao)
-        .where(
-            RewardEvent.status == PayoutState.CONFIRMED,
-            RewardEvent.chain_observed.is_(True),
-            RewardEvent.confirmed_at.is_not(None),
-        )
-        .distinct(RewardEvent.submission_id)
+        select(confirmed.c.submission_id, confirmed.c.amount_rao)
+        .distinct(confirmed.c.submission_id)
         .order_by(
-            RewardEvent.submission_id,
-            RewardEvent.confirmed_at.desc(),
-            RewardEvent.id.desc(),
+            confirmed.c.submission_id,
+            confirmed.c.confirmed_at.desc(),
+            confirmed.c.latest_id.desc(),
         )
         .subquery()
     )
@@ -730,28 +755,23 @@ async def _confirmed_payouts(
     real transfer must be recordable. PostgreSQL ``DISTINCT ON`` selects the latest confirmed
     attempt and keeps its timestamp, actual amount, and pricing policy together as one fact.
     """
+    confirmed = _payouts(
+        RewardEvent.submission_id.in_(submission_ids),
+        RewardEvent.status == PayoutState.CONFIRMED,
+        RewardEvent.chain_observed.is_(True),
+    )
     statement = (
-        select(
-            RewardEvent.submission_id,
-            RewardEvent.amount_rao,
-            RewardEvent.pricing_policy_version,
-            RewardEvent.confirmed_at,
-        )
-        .where(
-            RewardEvent.submission_id.in_(submission_ids),
-            RewardEvent.status == PayoutState.CONFIRMED,
-            RewardEvent.chain_observed.is_(True),
-        )
-        .distinct(RewardEvent.submission_id)
+        select(confirmed)
+        .distinct(confirmed.c.submission_id)
         .order_by(
-            RewardEvent.submission_id,
-            RewardEvent.confirmed_at.desc(),
-            RewardEvent.id.desc(),
+            confirmed.c.submission_id,
+            confirmed.c.confirmed_at.desc(),
+            confirmed.c.latest_id.desc(),
         )
     )
     return {
         row.submission_id: _PayoutFacts(
-            amount_rao=row.amount_rao,
+            amount_rao=int(row.amount_rao),
             policy_version=row.pricing_policy_version,
             confirmed_at=row.confirmed_at,
         )
@@ -770,30 +790,25 @@ async def _current_payouts(
     completed amount on the public result. Confirmation remains a separate fact: displaying a
     pending event's amount must not make the result look paid.
     """
+    current = _payouts(
+        RewardEvent.submission_id.in_(submission_ids),
+        or_(RewardEvent.status != PayoutState.PENDING, instruction_enabled()),
+        RewardEvent.status.in_(
+            (
+                PayoutState.PENDING,
+                PayoutState.SUBMITTED,
+                PayoutState.CONFIRMED,
+            )
+        ),
+    )
     statement = (
-        select(
-            RewardEvent.submission_id,
-            RewardEvent.amount_rao,
-            RewardEvent.pricing_policy_version,
-            RewardEvent.confirmed_at,
-        )
-        .where(
-            RewardEvent.submission_id.in_(submission_ids),
-            or_(RewardEvent.status != PayoutState.PENDING, instruction_enabled()),
-            RewardEvent.status.in_(
-                (
-                    PayoutState.PENDING,
-                    PayoutState.SUBMITTED,
-                    PayoutState.CONFIRMED,
-                )
-            ),
-        )
-        .distinct(RewardEvent.submission_id)
-        .order_by(RewardEvent.submission_id, RewardEvent.id.desc())
+        select(current)
+        .distinct(current.c.submission_id)
+        .order_by(current.c.submission_id, current.c.latest_id.desc())
     )
     return {
         row.submission_id: _PayoutFacts(
-            amount_rao=row.amount_rao,
+            amount_rao=int(row.amount_rao),
             policy_version=row.pricing_policy_version,
             confirmed_at=row.confirmed_at,
         )
