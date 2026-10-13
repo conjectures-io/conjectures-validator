@@ -194,7 +194,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $
     SELECT EXISTS (SELECT 1 FROM public.trajectory_payments
         WHERE origin_coldkey::text = origin_key AND origin_hotkey::text = hotkey
           AND destination_coldkey::text = destination_key AND amount_rao = amount
-          AND status IN ('PREPARED','CONFIRMED')
+          AND status = 'PREPARED'
           AND prepared_at <= transferred_at + interval '60 seconds');
 $$;
 REVOKE ALL ON FUNCTION trajectory_bonus_transfer_reserved(text,text,text,bigint,timestamptz) FROM PUBLIC;

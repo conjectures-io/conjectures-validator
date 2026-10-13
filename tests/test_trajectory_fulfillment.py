@@ -100,6 +100,12 @@ def test_bonus_reservation_duplicate_guard_and_finalized_reconciliation():
                 result = await owner.get(f"/v1/me/submissions/{sid}/trajectory")
                 assert result.json()["claim"]["payment_status"] == "CONFIRMED"
                 async with kit.session() as session:
+                    # The settled transfer stays unavailable, but a later proof payment with
+                    # the same recipient/amount must not remain reserved by this paid bonus.
+                    assert await payouts.claim_payout(session, payout_id) is None
+                    assert not await session.scalar(select(func.trajectory_bonus_transfer_reserved(
+                        payment["origin_coldkey"], payment["origin_hotkey"], MINER_COLDKEY,
+                        int(payment["amount_rao"]), dt.datetime.now(dt.UTC) + dt.timedelta(minutes=1))))
                     with pytest.raises(DBAPIError):
                         await session.execute(text("UPDATE trajectory_payments SET amount_rao = amount_rao + 1 WHERE id = :id"), {"id": pid})
                     await session.rollback()
