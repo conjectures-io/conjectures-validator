@@ -12,7 +12,7 @@ from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-MAX_PACKAGE_BYTES = 32 * 1024 * 1024
+MAX_PACKAGE_BYTES = 64 * 1024 * 1024
 RETENTION_DAYS = 90
 TERMS_VERSION = "chat-log-terms-v1"
 DEPOSIT_HOURS = 24
@@ -247,7 +247,7 @@ def evidence_digest(package: TrajectoryPackage) -> bytes:
 
 def parse_package(raw: bytes) -> TrajectoryPackage:
     if len(raw) > MAX_PACKAGE_BYTES:
-        raise ValueError("package exceeds 32 MiB")
+        raise ValueError("package exceeds 64 MiB")
 
     def unique_keys(pairs):
         result = {}
@@ -309,7 +309,7 @@ SAFE_SEMANTIC_ERRORS = frozenset((
     'omitted artifacts must be disclosed',
     'omitted artifacts need a reason',
     'only the linked final proof can use authoritative submission storage',
-    'package exceeds 32 MiB',
+    'package exceeds 64 MiB',
     'run and artifact identifiers must be unique',
     'source export needs a digest or an explanation',
     'timestamp needs a timezone or an honest unknown reason',

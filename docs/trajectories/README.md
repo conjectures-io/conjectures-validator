@@ -27,7 +27,7 @@ hashes together.
 | License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
 | Buyers | May use, including for training and evaluation, but may not publish the logs openly |
 | Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
-| Format | UTF-8 JSON up to 32 MiB, 10,000 events, 100 runs, 1,000 artifacts; the existing proof may be referenced rather than embedded |
+| Format | UTF-8 JSON up to 64 MiB, 10,000 events, 100 runs, 1,000 artifacts; the existing proof may be referenced rather than embedded |
 
 ## Contributor instructions
 

@@ -15,7 +15,7 @@ from submission_api.trajectory_schema import (
 )
 from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256, TERMS_VERSION
 
-MAX_ENVELOPE_BYTES = 64 * 1024 * 1024 + 64 * 1024
+MAX_ENVELOPE_BYTES = 128 * 1024 * 1024 + 64 * 1024
 
 
 class Consent(StrictModel):
@@ -67,7 +67,7 @@ def prepare_upload(raw):
 
 
 class UploadBudget:
-    """One 32-MiB parser/stream at a time per worker; no waiting requests hold a DB connection.
+    """One 64-MiB parser/stream at a time per worker; no waiting requests hold a DB connection.
 
     Process-local limits complement the deployment's IP limiter. Replicas need a shared edge
     limit for a global quota. Failed attempts, including invalid exports, spend a separate budget.

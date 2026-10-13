@@ -173,7 +173,7 @@ string, keep that string; do not parse, unwrap or pretty-print them.
    - there is at least one user and one assistant message;
    - one final proof, attached to a dated event;
    - omissions are listed in `missing`.
-4. Keep the file under 32 MiB, 10,000 events, 100 runs and 1,000 artifacts.
+4. Keep the file under 64 MiB, 10,000 events, 100 runs and 1,000 artifacts.
 5. Tell the contributor what you left out or redacted, and where any timestamps were unknown.
 
 The contributor uploads the file on the Conjectures site and agrees to the chat-log terms

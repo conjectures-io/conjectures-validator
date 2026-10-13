@@ -49,7 +49,7 @@ class TrajectoryClaim(Base):
         CheckConstraint("amount_usd_cents = 0 OR proof_review_decision_id IS NOT NULL", name="trajectory_historical_decision"),
         CheckConstraint("state_version > 0", name="trajectory_state_version"),
         CheckConstraint("revision BETWEEN 1 AND 3", name="trajectory_revision_bound"),
-        CheckConstraint("package IS NULL OR octet_length(package) <= 33554432", name="trajectory_package_bound"),
+        CheckConstraint("package IS NULL OR octet_length(package) <= 67108864", name="trajectory_package_bound"),
         CheckConstraint("package IS NULL OR pg_catalog.sha256(package) = package_digest", name="trajectory_package_hash"),
         CheckConstraint("terms_version LIKE 'chat-log-terms-%'", name="trajectory_terms"),
         CheckConstraint("expires_at > created_at AND audit_expires_at > expires_at", name="trajectory_retention"),
