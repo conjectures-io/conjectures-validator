@@ -13,15 +13,22 @@ never improve it.
 
 ## Inputs (ask the contributor for anything missing)
 
-1. **The exported conversation(s)** in which the proof was found, in the provider's own
-   format. Typical sources:
+Wherever these instructions say to ask the contributor and you cannot, make the conservative
+choice (leave it out, or `null` with a reason) and say what you chose in your report.
+
+1. **The conversation(s)** in which the proof was found, in the tool's own format:
+   - **Claude Code:** session files are `~/.claude/projects/<folder>/<session-id>.jsonl`, where
+     `<folder>` is the working directory with `/` replaced by `-`. If you are Claude Code,
+     you can read these yourself. Subagent sessions live in `<session-id>/subagents/`; include
+     those that worked on the proof as extra runs.
+   - **Codex CLI:** session files are `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. If you are
+     Codex, you can read these yourself.
    - ChatGPT: Settings → Data controls → Export data; use `conversations.json` from the zip.
    - Claude: Settings → Privacy → Export data; use `conversations.json` from the zip.
-   - Claude Code: the session's `.jsonl` file, usually under `~/.claude/projects/`.
-   - Codex CLI: the session's `rollout-*.jsonl`, usually under `~/.codex/sessions/`.
    - API scripts: the request/response logs they saved.
 
-   Ask for the provider's share link too, if they have one.
+   To find the right session, search the files for the theorem name or a line of the final
+   proof, then confirm with the contributor. Ask for the provider's share link too, if any.
 2. **The final proof file** exactly as it will be (or was) submitted.
 3. **The values shown on the Conjectures page:** `task_id`, `task_bundle_sha256`,
    `final_proof_sha256`, and `submission_id` — `null` for a new bounty (logs go in before the
@@ -46,8 +53,41 @@ nothing else from the account.
 
 **Remove secrets.** Replace passwords, API keys, tokens and personal details the contributor
 does not want shared with `[REDACTED]`, and add one entry per redaction to `redactions`
-(`field_or_event`, `reason`, `impact_on_reproduction`). Ask the contributor about anything
-unclear.
+(`field_or_event`, `reason`, `impact_on_reproduction`). Usernames inside file paths can stay
+unless the contributor asks otherwise. Ask the contributor about anything unclear.
+
+## Reading Claude Code and Codex sessions
+
+Copy the original session file somewhere outside the folder you will upload from, and hash
+that untouched copy first. Then read it line by line; each line is one JSON record with its own
+`timestamp`. Copy tool inputs and outputs exactly as stored: if the file holds them as a JSON
+string, keep that string; do not parse, unwrap or pretty-print them.
+
+- **Claude Code:**
+  - Use records whose `type` is `user` or `assistant`.
+  - `message.content` is either a plain string (treat it as one `text` block) or a list of blocks.
+  - Map the blocks:
+    - `text` → `user_message` or `assistant_message`;
+    - `tool_use` → `tool_call`, using the block's `id` as `tool_call_id`, its `name` as
+      `tool_name`, and its input as the content, verbatim JSON;
+    - `tool_result` → `tool_result`, matched on `tool_use_id`, even when `is_error` is true;
+      the error text itself is the content.
+  - Skip `thinking` blocks and every other record type (attachments, costs, titles, queue
+    entries). Those are bookkeeping, not the chat.
+  - Records with `"isSidechain": true` belong to subagents: make them a separate run.
+- **Codex:**
+  - Use `response_item` records.
+  - `payload.type` `message` with role `user` or `assistant` → the message (its `input_text`
+    or `output_text` parts).
+  - `function_call` or `custom_tool_call` → `tool_call` (`call_id`), and
+    the matching `…_output` → `tool_result`.
+  - Skip `reasoning` items, `developer` or system messages, and every other record type
+    (`event_msg`, `turn_context`, token counts, session metadata). Read `turn_context` only for
+    the model name and `session_meta` only for the CLI version.
+  - If a `compacted` record shows earlier history was summarized away, list it in `missing`.
+- In both: if the work spans several sessions, add each as its own run, in time order.
+  If the contributor typed into the session itself, those are user messages; edits they made
+  outside it are not in the log, so say so in `reproduction.limitations`.
 
 ## Filling the file
 
@@ -55,15 +95,18 @@ unclear.
 - `submission_id`, `task_id`, `task_bundle_sha256`, `final_proof_sha256`: exactly the values
   from the Conjectures page.
 - `exported_at`: when the contributor exported the conversation, ISO 8601 with timezone. Must
-  be at or after every event time and not in the future. If they don't know, use the export
-  file's creation time.
+  be at or after every event time and not in the future. For Claude Code or Codex sessions read
+  straight from disk, use the time you copied the session files. Otherwise, if the contributor
+  doesn't know, use the export file's creation time.
 - `runs`: one entry per conversation/session.
   - `id`: e.g. `run-1`.
-  - `provider`, `model`, `version`: from the export, or `null` + `unknown_reason`.
-  - `interface`: e.g. "ChatGPT web", "Claude Code CLI".
-  - `account_agreement`: the plan used, e.g. "ChatGPT Plus".
-  - `terms_reference`: the provider terms that apply, e.g. "OpenAI Terms of Use" or "Anthropic
-    Consumer Terms".
+  - `provider`, `model`: from the export, or `null` + `unknown_reason`.
+  - `version`: the model's exact snapshot or date if the export shows it; otherwise `null` +
+    `unknown_reason`. The app or CLI version goes in `interface`, not here.
+  - `interface`: e.g. "ChatGPT web", "Claude Code CLI 2.1.280", "Codex CLI 0.120.0".
+  - `account_agreement`: the plan used, e.g. "ChatGPT Plus" or "Claude Max".
+  - `terms_reference`: the provider terms for that plan, e.g. "OpenAI Terms of Use" or
+    "Anthropic Consumer Terms". Session files rarely show either; ask, or use `null` + reason.
   - `settings`: model settings if known; otherwise "Not shown in export".
   - `export_method`: how it was exported, plus the share link if there is one.
   - `source_export_sha256`: `sha256:` + hex SHA-256 of the original exported file, unmodified,
@@ -72,11 +115,14 @@ unclear.
     that original file private: a reviewer may ask for it.
 - `events`: one per visible message or tool step, in order.
   - `sequence`: 1, 2, 3, … with no gaps; `id`: unique, e.g. `event-1`.
-  - `kind`: `user_message`, `assistant_message`, `tool_call`, `tool_result`, `failure`
-    (an error or failed attempt) or `revision` (the user editing or assembling the proof).
+  - `kind`: `user_message`, `assistant_message`, `tool_call`, `tool_result`, `failure` or
+    `revision`. A tool's error stays its `tool_result`. Use `failure` only for an error the app
+    itself showed outside any message or tool result, and `revision` only for an edit the log
+    itself records as such. Never add either to describe what happened.
   - `timestamp`: the export's time for that message, converted to ISO 8601 with timezone
-    (ChatGPT `create_time` is Unix seconds). Use `null` + `unknown_reason` only when the export
-    really has no time. Known times must never go backwards.
+    (ChatGPT `create_time` is Unix seconds); keep the precision the export has, milliseconds
+    included. Use `null` + `unknown_reason` only when the export really has no time. Known times
+    must never go backwards.
   - `run_id`: the run it belongs to. Required on every assistant message.
   - `tool_call_id` and `tool_name`: only on `tool_call`/`tool_result`, and only for tool steps
     that are in the export. Compiler output the user pasted in stays a `user_message`. Each
@@ -88,9 +134,12 @@ unclear.
   - `artifact_ids`: artifacts this event produced or showed. **The event where the final proof
     appears must list the final-proof artifact and have a real timestamp.** That is when the chat
     produced the proof. For an earlier proof it must be before the proof's submission time. Use
-    the first event whose content contains the final proof. If no message contains it exactly
-    (say the contributor tidied it afterwards), use the message with the closest version and
-    explain the difference in `reproduction.limitations`.
+    the first event after which the proof is in its final form: the message that contains it
+    in full, or, when the proof was written by tools (Claude Code `Write`/`Edit`, Codex
+    `apply_patch`), the last tool call that wrote or patched the proof file. If no event gets
+    it exactly (say the contributor tidied it afterwards), use the closest one and explain the
+    difference in `reproduction.limitations`. It is fine that the log contains the proof: it is
+    private to reviewers.
 - `artifacts`:
   - Exactly one `final_proof`, with `sha256` equal to `final_proof_sha256`. Prefer setting
     `availability` to `"authoritative_submission"` with `content: null`, which points at the
@@ -104,7 +153,8 @@ unclear.
   and `limitations`. Unknown is fine; say why. Use `limitations` to say what you deliberately
   left out (hidden system messages, reasoning, unrelated chats). Those are not gaps, so they do
   not go in `missing`.
-- `completeness`: `complete_export`, or `gaps_disclosed` whenever `missing` is not empty.
+- `completeness`: `complete_export` if `missing` is empty; otherwise `gaps_disclosed`. (The
+  template's value is only a placeholder.)
 - `permissions`: copy it from the template unchanged. The website fills it from the
   contributor's own checkbox.
 - No fields other than those in the schema.
@@ -112,7 +162,9 @@ unclear.
 ## Check before handing it back
 
 1. Validate against `trajectory.schema.json`. For example, in Python with `jsonschema`:
-   `jsonschema.validate(json.load(open(path)), json.load(open("trajectory.schema.json")))`.
+   `jsonschema.validate(data, schema, format_checker=jsonschema.FormatChecker())`. Format checks
+   only run if their helper packages are installed, so also check by hand that every timestamp
+   parses as ISO 8601 with a timezone and that `submission_id` is `null` or a UUID.
 2. Recompute every SHA-256 over the exact UTF-8 bytes and compare.
 3. Check these rules too, which the schema alone does not:
    - sequences are contiguous;
