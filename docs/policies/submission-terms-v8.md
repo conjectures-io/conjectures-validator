@@ -1,7 +1,7 @@
 # Submission terms
 
-**Terms version:** `v8-draft`<br>
-**Effective date:** Not active; set the actual activation date at release<br>
+**Terms version:** `v8`<br>
+**Effective date:** 2026-10-13<br>
 **Manual review policy:** `v4`
 
 These terms apply only to submissions accepted on or after the effective date. A submission
@@ -115,7 +115,7 @@ For full-bounty proofs submitted before chat-log intake opened, accepted logs ea
 additional **$500 USD for Erdős problems**, or **$250 USD for all other problems**, based
 on the original task bundle and paid in Subnet 66 Alpha worth that amount when paid. The chat
 must show the proof before it was submitted. Claims close one year after intake opened. Existing proof payouts are not reduced
-or made conditional on logs. There is no extra log bonus for a new treasury-share bounty.
+or made conditional on logs. There is no extra log bonus for a new-problem bounty.
 
 Uploading logs grants Conjectures a permanent, worldwide, non-exclusive right to use, copy,
 sell and license them to buyers, including for training and evaluating AI systems, once they

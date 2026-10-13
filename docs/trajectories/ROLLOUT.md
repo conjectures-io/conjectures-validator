@@ -35,7 +35,8 @@ No production migration, task activation, transfer or announcement has occurred.
   `chat_log_program` by `scripts/open_chat_log_intake.py`. It can be corrected with
   `--correct-to` only alongside a permanent correction record; claims keep their own cutoff.
   Published submission terms remain v7;
-  v8 is inactive in `docs/policies/submission-terms-v8-draft.md` until its release gates are met.
+  v8 is `docs/policies/submission-terms-v8.md`, published at go-live through `SUBMISSION_TERMS_PATH`,
+  `SUBMISSION_TERMS_VERSION=v8` and `SUBMISSION_TERMS_EFFECTIVE_FROM` set to the go-live date.
 
 ## Deployment sequence
 
