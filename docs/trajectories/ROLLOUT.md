@@ -150,3 +150,12 @@ Owner decision: incomplete required logs can be sent back instead of rejected.
 - Publish `docs/policies/submission-terms-v10.md` (`SUBMISSION_TERMS_VERSION=v10`,
   `SUBMISSION_TERMS_EFFECTIVE_FROM=2026-10-14`) and `chat-log-terms-v3.md`, with
   `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256` set to the v3 digest and the web copy shipped with it.
+
+## Reasoning kept where readable (October 14, 2026)
+
+Owner decision: packages keep the model's reasoning wherever the session stored it as readable
+text, shown to the user or not. Reasoning a tool kept encrypted or withheld stays a `redacted`
+event, and the packaging agent never decrypts, reconstructs or regenerates it. Publish
+`chat-log-terms-v4.md` and `docs/policies/submission-terms-v11.md` (`SUBMISSION_TERMS_VERSION=v11`),
+set `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256` to the v4 digest, and ship the web's
+`data/trajectory` copy (instructions, terms, manifest) with it.
