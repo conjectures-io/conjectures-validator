@@ -12,10 +12,10 @@ from urllib.parse import urlsplit
 # Public chain identities, not secrets. The generator and watcher deliberately use the same
 # constants so the command printed to an operator is byte-for-byte the command sent to a signer.
 #
-# This is the validator's OWN hotkey, and V035 made it the only one in a payout. The alpha being
-# paid out is already staked here; `transfer_stake` changes who owns that stake without moving it
-# off this hotkey. A miner never supplies a hotkey and none is stored per reward event.
-DEFAULT_ORIGIN_HOTKEY = "5Gn2SyG6PmBstAjiPD93CTuxADqYaYqf6fKeFuezKsX7Chf9"
+# The treasury's Alpha is delegated to Arbos. `transfer_stake` changes who owns it while
+# keeping that delegation. Retain the previous hotkey only for historical payout monitoring.
+DEFAULT_ORIGIN_HOTKEY = "5DRPoRiBSPNvgSvRsehaUhtXqPgXYrds8VS42vdzT5MzcpZV"
+LEGACY_ORIGIN_HOTKEY = "5Gn2SyG6PmBstAjiPD93CTuxADqYaYqf6fKeFuezKsX7Chf9"
 DEFAULT_PROXY_FOR = "5HMqFHmvUpzuAjEnse3hzMKS5LsFL428hffCfenF2smuGNhs"
 DEFAULT_MULTISIG = "team-mainnet"
 # These are signer identities used for delivery ownership and Discord routing.  ``btcli -w``
@@ -82,7 +82,7 @@ def render_command(
     is what removed the miner hotkey from this system: the old call moved alpha to a *new*
     (coldkey, hotkey) stake position and therefore needed a destination hotkey, which a miner had
     to supply and which had to be registered on chain. This one changes the *owner* of stake that
-    stays on `origin_hotkey` — ours — so the destination is the coldkey alone.
+    stays on `origin_hotkey` — the treasury's delegate — so the destination is the coldkey alone.
 
     Economically identical for the recipient, and that is the point: a stake position is owned by
     the coldkey it is staked for, whichever hotkey it is delegated to. The destination coldkey
@@ -269,6 +269,7 @@ __all__ = [
     "DEFAULT_ORIGIN_HOTKEY",
     "DEFAULT_PROXY_FOR",
     "DEFAULT_WALLETS",
+    "LEGACY_ORIGIN_HOTKEY",
     "discord_notifications",
     "render_command",
     "render_payouts",

@@ -41,6 +41,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.errors import RecordNotFound
+from conjectures_subnet.db.payout_instructions import instruction_enabled
 from conjectures_subnet.db.models import (
     PayoutState,
     PayoutWatchCursor,
@@ -132,7 +133,9 @@ async def advance_cursor(
     return row
 
 
-async def oldest_unresolved_at(session: AsyncSession) -> dt.datetime | None:
+async def oldest_unresolved_at(
+    session: AsyncSession, *, origin_coldkey: str | None = None, origin_hotkey: str | None = None,
+) -> dt.datetime | None:
     # A manually reconciled historical row may have been written after its transfer.  Prefer its
     # submitted time when that is earlier so the first replay starts far enough back to verify it.
     watch_from = func.least(
@@ -153,7 +156,11 @@ async def oldest_unresolved_at(session: AsyncSession) -> dt.datetime | None:
         .order_by(watch_from, RewardEvent.id)
         .limit(1)
     )
-    return (await session.execute(statement)).scalar_one_or_none()
+    proof = (await session.execute(statement)).scalar_one_or_none()
+    bonus = None
+    if origin_coldkey is not None and origin_hotkey is not None:
+        bonus = await session.scalar(select(func.trajectory_bonus_oldest_pending(origin_coldkey, origin_hotkey)))
+    return min((when for when in (proof, bonus) if when is not None), default=None)
 
 
 # --- Event settlement ---------------------------------------------------------------------
@@ -213,6 +220,7 @@ async def _oldest_match(
     statement = (
         select(RewardEvent)
         .where(
+            instruction_enabled(),
             or_(
                 and_(
                     RewardEvent.status == PayoutState.PENDING,
@@ -504,6 +512,10 @@ async def claim_payout(
         raise RecordNotFound(f"no treasury payout {payout_id}")
     if payout.status is not TreasuryPayoutState.UNCLAIMED:
         return None
+    if payout.origin_netuid == 66 and await session.scalar(select(func.trajectory_bonus_transfer_reserved(
+            payout.origin_coldkey, payout.origin_hotkey, payout.destination_coldkey,
+            payout.amount_rao, payout.block_timestamp))):
+        return None  # Operator confirms the separate bonus ledger; never consume a proof reward.
     event = await _by_reference(session, payout)
     if event is not None:
         if not _same_payout(event, payout):
@@ -563,6 +575,10 @@ async def bind_payout(
         raise PayoutConflict(
             f"treasury payout {payout_id} is {payout.status}, not UNCLAIMED"
         )
+    if payout.origin_netuid == 66 and await session.scalar(select(func.trajectory_bonus_transfer_reserved(
+            payout.origin_coldkey, payout.origin_hotkey, payout.destination_coldkey,
+            payout.amount_rao, payout.block_timestamp))):
+        raise PayoutConflict("this transfer matches a reserved historical bonus; reconcile that ledger first")
     event = await session.get(RewardEvent, reward_event_id, with_for_update=True)
     if event is None:
         raise RecordNotFound(f"no reward event {reward_event_id}")

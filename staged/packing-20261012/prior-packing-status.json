@@ -1,0 +1,86 @@
+{
+  "reviewed_on": "2026-10-12",
+  "candidates": [
+    {
+      "id": "P15",
+      "container": "unit disk",
+      "count": 15,
+      "status": "WITHDRAWN_PUBLISHED_CERTIFICATE_REPLAYED",
+      "admission_allowed": false,
+      "radius": "1/(1+sqrt(6+2/sqrt(5)+4*sqrt(1+2/sqrt(5))))",
+      "primary_source": "https://nor-git.pages.dev/circle-packing/",
+      "exact_match": "Theorem 1.1; expand 1+(2+c)^2 with c=sqrt(1+2/sqrt(5)).",
+      "evidence": "evidence/packing-certificate-replay.json",
+      "lean_global_optimality_replayed": false,
+      "decision": "Exclude from new open-problem proposals. Preserve source, constructions, prior decisions, submissions and reward commitments."
+    },
+    {
+      "id": "P16",
+      "container": "unit disk",
+      "count": 16,
+      "status": "WITHDRAWN_PUBLISHED_CERTIFICATE_REPLAYED",
+      "admission_allowed": false,
+      "radius": "1/(1+b16)",
+      "primary_source": "https://nor-git.pages.dev/circle-packing/",
+      "exact_match": "Theorem 1.1, section 8.1 equation (8.5), Appendix A.1; b16 interval mapped into all six frozen isolating intervals by match_p16.py; h=1/b16.",
+      "evidence": "evidence/packing-certificate-replay.json",
+      "lean_global_optimality_replayed": false,
+      "decision": "Exclude from new open-problem proposals. Preserve source, constructions, prior decisions, submissions and reward commitments."
+    },
+    {
+      "id": "P18",
+      "container": "unit disk",
+      "count": 18,
+      "status": "WITHDRAWN_PUBLISHED_CERTIFICATE_REPLAYED",
+      "admission_allowed": false,
+      "radius": "1/(1+sqrt(2)+sqrt(6))",
+      "primary_source": "https://nor-git.pages.dev/circle-packing/",
+      "exact_match": "Theorem 1.1; literal equality of radius.",
+      "evidence": "evidence/packing-certificate-replay.json",
+      "lean_global_optimality_replayed": false,
+      "decision": "Exclude from new open-problem proposals. Preserve source, constructions, prior decisions, submissions and reward commitments."
+    },
+    {
+      "id": "P34",
+      "container": "unit square",
+      "count": 34,
+      "status": "HOLD_EXACT_OPTIMALITY_STATUS",
+      "admission_allowed": false,
+      "radius": "1/(4+2*sqrt(2)+2*sqrt(6))",
+      "construction_lean_proved_previously": true,
+      "primary_sources": [
+        "https://link.springer.com/article/10.1007/s10898-021-01086-z",
+        "https://www.sciencedirect.com/science/article/pii/S0166218X01003596",
+        "https://packomania.com/csq/csq.html"
+      ],
+      "matching_published_result": "Markot (2021), section 8, distinguishes proved cases 31-33 and still-open 34/35. Locatelli-Raber (2002) reports optimality within a given tolerance, which does not establish the frozen exact radical upper bound. Packomania supplies best-known configurations, not an exact upper certificate.",
+      "decision": "Retain all artifacts; hold promotion pending exact global-upper-bound literature/certificate comparison. No verified exact solved result located."
+    },
+    {
+      "id": "P35",
+      "container": "unit square",
+      "count": 35,
+      "status": "HOLD_EXACT_OPTIMALITY_STATUS",
+      "admission_allowed": false,
+      "radius": "1/(8+sqrt(2)+sqrt(6))",
+      "construction_lean_proved_previously": true,
+      "primary_sources": [
+        "https://link.springer.com/article/10.1007/s10898-021-01086-z",
+        "https://www.sciencedirect.com/science/article/pii/S0166218X01003596",
+        "https://packomania.com/csq/csq.html"
+      ],
+      "matching_published_result": "Markot (2021), section 8, distinguishes proved cases 31-33 and still-open 34/35. Locatelli-Raber (2002) reports optimality within a given tolerance, which does not establish the frozen exact radical upper bound. Packomania supplies best-known configurations, not an exact upper certificate.",
+      "decision": "Retain all artifacts; hold promotion pending exact global-upper-bound literature/certificate comparison. No verified exact solved result located."
+    }
+  ],
+  "existing_exclusions_preserved": [
+    15,
+    16,
+    17,
+    18,
+    20
+  ],
+  "extra_note": "17 and 20 are covered by the same paper but were not candidates in the eleven-item packet. Circles were already withdrawn on October 11 on an unverified claim; this audit strengthens the evidence and preserves that decision.",
+  "active_packing_candidates": [],
+  "rollback": "Restore isolated candidate11-status.json from evidence/candidate11-held-fixes-20261008-status-before.json; or revert the audit commit. No production rollback is needed."
+}

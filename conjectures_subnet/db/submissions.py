@@ -686,17 +686,21 @@ async def latest_binding_decision(
 
 
 async def _reward_event_exists(session: AsyncSession, submission_id: uuid.UUID) -> bool:
-    """Whether any payout row has ever been opened against this submission.
+    """Whether an instruction or transaction still blocks withdrawal.
 
-    The authority on "money has started moving", and deliberately stronger than
-    `reward_status`: an event in PENDING has been committed before the extrinsic is signed, and
-    a FAILED one is an attempt that happened. A correction must not be able to un-approve a
-    submission on the strength of a status column while a row in `reward_events` says otherwise.
+    Only an explicitly cancelled, completely unsigned instruction is exempt. Failed,
+    submitted, confirmed, and transaction-bearing records continue to block.
     """
-    found = await session.scalar(
-        select(RewardEvent.id).where(RewardEvent.submission_id == submission_id).limit(1)
-    )
-    return found is not None
+    from conjectures_subnet.db.payout_instructions import instruction_enabled, unsigned
+    rows = (await session.scalars(select(RewardEvent).where(
+        RewardEvent.submission_id == submission_id).with_for_update())).all()
+    for event in rows:
+        if not unsigned(event):
+            return True
+        enabled = await session.scalar(select(instruction_enabled()).where(RewardEvent.id == event.id))
+        if enabled:
+            return True
+    return False
 
 
 async def correct_human_decision(
@@ -732,9 +736,9 @@ async def correct_human_decision(
 
     **Un-approving is bounded by whether the money moved.** Turning APPROVED into REJECTED sets
     `reward_status` back to INELIGIBLE, which is safe exactly while no payout exists: nothing has
-    been signed, and the submission simply leaves the payout notifier's queue. Once a
-    `reward_events` row exists — in any state, including PENDING and FAILED — the correction is
-    refused with `REWARD_ALREADY_PAID`, because nothing in this database can recall an extrinsic
+    been signed, and the submission simply leaves the payout notifier's queue. An uncancelled instruction or any transaction/failure history is
+    refused with `REWARD_ALREADY_PAID`, because nothing in this database can recall an extrinsic. Only a separately audited
+    cancellation of a completely unsigned PENDING instruction permits withdrawal
     and a status column quietly walked backwards under a paid submission is worse than a refusal
     an operator has to act on. `RewardState.REWARDED` and `FAILED` are refused on the same
     ground even in the anomalous case where no event row accompanies them.
@@ -754,6 +758,11 @@ async def correct_human_decision(
     trail is where the reason for overriding a colleague lives, and a correction with no stated
     reason is the one an operator cannot reconstruct later.
     """
+    # Match chain reconciliation and instruction cancellation's lock order. A
+    # correction must not hold the submission while waiting for its payout row.
+    await session.execute(select(RewardEvent.id).where(
+        RewardEvent.submission_id == submission_id
+    ).order_by(RewardEvent.id).with_for_update())
     submission = await session.get(Submission, submission_id, with_for_update=True)
     if submission is None:
         raise RecordNotFound("no such submission")

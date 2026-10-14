@@ -273,7 +273,7 @@ def fake_allowlist(bundles) -> bytes:
 
 
 def release(
-    env, decls, *, store, previous, commit=COMMIT_A, environment=None, exit_states=None, validator=None, indexed=None
+    env, decls, *, store, previous, commit=COMMIT_A, environment=None, exit_states=None, validator=None, indexed=None, adapter_version=None
 ):
     from verifier.incremental import SelectedTarget, publish_release
     from verifier.models import Catalog
@@ -292,6 +292,7 @@ def release(
         allowlist_for=fake_allowlist,
         exit_states=exit_states or {},
         validate_target=validator,
+        adapter_version=adapter_version,
     )
     return result, validator, built
 

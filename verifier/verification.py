@@ -22,6 +22,7 @@ from verifier.repository import (
 )
 from verifier.static_checks import check_submission
 from verifier.submission import load_submission
+from verifier.timeouts import verification_timeout_seconds
 from verifier.task_loader import load_task_bundle
 from verifier.task_policy import (
     COUNTEREXAMPLE_TASK_MODE,
@@ -93,7 +94,10 @@ def verify(
     v2 = manifest.provenance == V2_PROVENANCE
     environment = None
     environment_commit: str | None = manifest.repository_commit
-    deadline = started + manifest.timeout_seconds * 1_000_000_000
+    timeout_seconds = verification_timeout_seconds(
+        manifest.timeout_seconds, production=manifest.production_eligible
+    )
+    deadline = started + timeout_seconds * 1_000_000_000
     checks = updated_checks(
         {},
         manifest_valid=True,

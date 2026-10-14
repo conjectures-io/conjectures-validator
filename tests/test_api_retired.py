@@ -122,6 +122,24 @@ def test_a_retired_conjecture_still_has_a_page():
     assert body["reward_target_id"] == REWARD_TARGET
 
 
+def test_prior_public_proof_hold_supersedes_archived_open_display_only():
+    from dataclasses import replace
+
+    original = retired_index().get(RETIRED_SLUG)
+    prior = replace(original, reason_code="PRIOR_PUBLIC_PROOF", pool_status="held")
+    index = RetiredIndex(by_slug={prior.slug: prior},
+                         slug_by_task_id={t.task_id: prior.slug for t in prior.tasks})
+    fixture = harness(entries=live_entries(), retired=index)
+    body = run(_get(fixture, f"/v1/catalog/conjectures/{RETIRED_SLUG}")).json()
+    assert body["is_open"] is False
+    assert body["category"] == "research solved"
+    assert body["retirement"]["pool_status"] == "held"
+    assert body["bounty"]["available"] is False
+    assert all(t["machine_contract"] is None for t in body["tasks"])
+    assert original.source.category == "research open"
+    assert prior.source == original.source
+
+
 def test_the_statement_served_is_the_one_recovered_from_the_deleted_bundle():
     """Everything a reader came for survives the bundle it lived in."""
     body = run(_get(kit(), f"/v1/catalog/conjectures/{RETIRED_SLUG}")).json()

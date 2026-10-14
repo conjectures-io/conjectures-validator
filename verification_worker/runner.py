@@ -54,6 +54,8 @@ REPORT_KEYS = ("accepted", "reason_code", "stage", "checks", "sandbox_mode")
 MAX_CONTAINER_STDOUT_BYTES = 1024 * 1024
 MAX_CONTAINER_STDERR_BYTES = 256 * 1024
 
+TIMEOUT_REPORT_KEYS = frozenset({"task_timeout_seconds", "effective_timeout_seconds"})
+
 FULL_REPORT_KEYS = frozenset(
     {
         "schema_version",
@@ -206,7 +208,7 @@ def assert_production_report(
         raise RunnerFailure(
             "production verifier report is missing " + ", ".join(missing)
         )
-    unexpected = sorted(set(report) - FULL_REPORT_KEYS)
+    unexpected = sorted(set(report) - FULL_REPORT_KEYS - TIMEOUT_REPORT_KEYS)
     if unexpected:
         raise RunnerFailure(
             "production verifier report has unexpected fields: "
@@ -224,6 +226,15 @@ def assert_production_report(
         raise RunnerFailure("production verifier report sandbox_mode must be a non-empty string")
     if type(report["duration_ms"]) is not int or report["duration_ms"] < 0:
         raise RunnerFailure("production verifier report duration_ms must be a nonnegative integer")
+    # Older immutable reports predate the runtime policy; new reports carry both budgets.
+    if TIMEOUT_REPORT_KEYS & set(report):
+        if not TIMEOUT_REPORT_KEYS <= set(report):
+            raise RunnerFailure("production verifier report must include both timeout budgets")
+        for key in TIMEOUT_REPORT_KEYS:
+            if type(report[key]) is not int or report[key] <= 0:
+                raise RunnerFailure(f"production verifier report {key} must be a positive integer")
+        if report["effective_timeout_seconds"] < report["task_timeout_seconds"]:
+            raise RunnerFailure("effective timeout cannot shorten the committed task budget")
     comparator_exit = report["comparator_exit_code"]
     if comparator_exit is not None and type(comparator_exit) is not int:
         raise RunnerFailure("production verifier comparator_exit_code must be an integer or null")

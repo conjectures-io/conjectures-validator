@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-12",
+  "exit_code": 0,
+  "image": "sha256:60ffdc444e7ec3f707fca465173dadcdf7652c67ed9da810fa23f3edf63a10a8",
+  "network": "none",
+  "lean_trust": 0,
+  "modules": [
+    "QuadCertificate",
+    "FrozenSquareData",
+    "FrozenCircleData",
+    "Candidates",
+    "PackingFixtures"
+  ],
+  "log_sha256": "sha256:b5aa3a9a14939976bce98d7c0949b03f02bb6d42bc5bdeeb445be3f7a2b198d7",
+  "scope": "Definition, exact radius, construction and negative-control checks only; not global optimality proofs or task-pool activation."
+}

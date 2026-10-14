@@ -109,6 +109,9 @@ def _query(event_ids: Sequence[int]) -> str:
         "FROM reward_events\n"
         "WHERE status = 'PENDING'\n"
         "  AND extrinsic_reference IS NULL"
+        " AND COALESCE((SELECT action FROM payout_instruction_actions a "
+        "WHERE a.reward_event_id = reward_events.id ORDER BY a.id DESC LIMIT 1), 'RESTORE') <> 'CANCEL'"
+        " AND bounty_trajectory_eligible(submission_id, eligibility_reason)"
         + where_event
         + "\nORDER BY id;\n"
         "ROLLBACK;\n"

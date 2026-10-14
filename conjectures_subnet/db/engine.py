@@ -118,7 +118,8 @@ def create_async_db_engine(
     url: str | None = None, *, echo: bool = False
 ) -> AsyncEngine:
     """An async Engine with a pre-ping pool, for the submission API."""
-    return create_async_engine(url or database_url(), pool_pre_ping=True, echo=echo)
+    # SQL exceptions must never print bound private trajectory bytes (or other credentials).
+    return create_async_engine(url or database_url(), pool_pre_ping=True, echo=echo, hide_parameters=True)
 
 
 def async_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

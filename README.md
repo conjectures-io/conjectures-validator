@@ -438,9 +438,9 @@ python -m verifier task generate \
 ## Solver task pool
 
 Use the immutable bundles in the pinned
-[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool) checkout as
+[`conjectures-tasks`](https://github.com/conjectures-io/conjectures-tasks/tree/main/versions) checkout as
 the public targets for solver attempts. The pool currently has one compatibility tier:
-[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/pool/tier-1) contains 275
+[`tier-1`](https://github.com/conjectures-io/conjectures-tasks/tree/main/tiers/tier-1) contains 275
 active audited targets across 226 source files: 219 Erdős, 6 previously solved Green, 32 Wikipedia,
 one Millennium target, and 17 package-authored research targets (activation pending owner approval). The October release retires three exact targets solved externally
 (Erdős 252, Erdős 701, and one Erdős 70 variant) and eleven closed on the release owner's
@@ -457,8 +457,11 @@ the six previously solved entries and earlier archived results remain available.
 All tasks use Lean 4.35.0-rc2 and the source revision in `pins.lock.json`. The audited patch
 includes corrected normality and Hardy–Littlewood definitions. The tier contains 550
 immutable bundles: a `formalized` task for P and a `counterexample` task for ¬P for each
-target. Every active manifest permits a 10 MiB (10,485,760-byte) proof. The source repin
-creates fresh task IDs and commitments while preserving existing stable reward identities.
+target. Every active manifest permits a 30 MiB (31,457,280-byte) proof, with a separate
+5,000,000 lexical-token cap. Active bundles live in `versions/<task_id>/`. The October 9
+limit update publishes fresh version-2 task IDs and commitments while preserving stable
+reward identities and every historical bundle in the version registry. Miners must refresh
+the task ID and digest from the API before building a new submission.
 Status evidence is a dated literature screen, not a guarantee that no prior solution exists.
 
 Each bundle has a commit-specific `problem_id`, while each exact theorem target has a stable
@@ -484,7 +487,8 @@ edit the task bundle. Confirm that the bundle is byte-for-byte allowlisted befor
 time:
 
 ```bash
-TASK="$(find ../conjectures-tasks/pool -mindepth 2 -maxdepth 2 -type d | sort | head -n 1)"
+# Set TASK_ID to an active task from GET /v1/tasks.
+TASK="../conjectures-tasks/versions/$TASK_ID"
 python ../conjectures-tasks/scripts/check_task.py "$TASK"
 ```
 
@@ -630,18 +634,20 @@ For each open reward target `i`, policy `linear-age-v3-locked` publishes:
 ```text
 B = finalized treasury balance - outstanding locked exposure
 progress_i = min(max(age_i_seconds, 0), 1296000) / 1296000
-b_i = floor(B * (1/20 + (1/8 - 1/20) * progress_i))
+c_i = starting share stored when target i opened (1/40 for new targets)
+b_i = floor(B * (c_i + (1/8 - c_i) * progress_i))
 ```
 
-A target starts at 5% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
+A new target starts at 2.5% of the available Subnet 66 Alpha treasury and reaches exactly 1/8
 (12.5%) after 15 elapsed days. Its share then stays at 1/8; funding and commitments can still
 change the Alpha amount. Age advances within the day at the catalog's minute-resolution clock.
 Pricing uses integer arithmetic with one final floor to base units. Neither catalog size nor
 other targets' ages enter the calculation. The legacy `total_age_weight` and `max_age_weight`
 metadata remain available for older clients but no longer affect prices.
 
-`bounty_tasks.opened_at` is inserted once per stable `reward_target_id`, so an API restart or source
-repin does not reset age. A target leaves the pricing pool as soon as one submission holds its
+`bounty_tasks.opened_at` and the starting share are inserted once per stable `reward_target_id`,
+so an API restart or source repin does not reset age, and changing `BOUNTY_CONSTANT_*` affects
+only targets opened afterwards. Targets opened before migration V044 keep their 1/20 start. A target leaves the pricing pool as soon as one submission holds its
 unique reward claim. Catalog responses are live and publish `locked: false`; accepting a
 submission serializes a fresh quote and stores it with `locked: true`. New quotes use the live
 chain balance minus outstanding locks. Competing attempts for one target contribute only their
@@ -661,11 +667,11 @@ Before restarting the API, update any explicit overrides in `.env`:
 ```dotenv
 BOUNTY_POLICY_VERSION=linear-age-v3-locked
 BOUNTY_CONSTANT_NUMERATOR=1
-BOUNTY_CONSTANT_DENOMINATOR=20
+BOUNTY_CONSTANT_DENOMINATOR=40
 BOUNTY_MAX_SHARE_NUMERATOR=1
 BOUNTY_MAX_SHARE_DENOMINATOR=8
 BOUNTY_RAMP_SECONDS=1296000
-REVIEW_POLICY_VERSION=v3
+REVIEW_POLICY_VERSION=v4
 SUBMISSION_TERMS_VERSION=v6
 SUBMISSION_TERMS_EFFECTIVE_FROM=2026-09-11
 ```
@@ -844,6 +850,9 @@ active verifier after the cutover.
 Full-catalog statistics are written to `data/catalog-summary.json` from the actual extracted
 catalog. No estimated counts are committed. Batch generation writes `generation-summary.json` with
 every generated task, adapter-required skip, unsupported skip, and failure.
+
+See [trusted task headers](docs/TASK_HEADERS.md) for adapter-2 Mathlib imports and the explicit,
+registry-preserving upgrade path. Supporting the header does not rotate published tasks.
 
 ## Adding an adapter
 

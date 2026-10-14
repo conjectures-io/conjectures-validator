@@ -45,6 +45,12 @@ def main() -> int:
             timeout_seconds=settings.taostats_timeout_seconds,
         ),
     )
+    try:
+        notifier.verify_database_access()
+    except RuntimeError as exc:
+        logger.error("%s", exc)
+        engine.dispose()
+        return 2
     stop = threading.Event()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         signal.signal(signal_name, lambda *_args: stop.set())

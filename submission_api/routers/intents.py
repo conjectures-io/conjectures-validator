@@ -39,11 +39,13 @@ from conjectures_subnet.attribution import (
     public_credit_from_values,
 )
 from conjectures_subnet.axiom import get_axiom
+from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import intents as intent_store
 from conjectures_subnet.db.errors import RecordConflict
 from conjectures_subnet.db.models import TaskMode
 from submission_api import schemas_account as schemas
+from submission_api import trajectories as trajectory_store
 from submission_api.dependencies import (
     PrincipalDep,
     ServicesDep,
@@ -536,6 +538,9 @@ async def confirm_intent(
     quote = await services.pricing.lock_quote(
         session, reward_target_id=entry.reward_target_id
     )
+    if not quote.available and quote.reason == "CHAT_LOG_REVIEW_UNAVAILABLE":
+        raise Conflict("Required chat-log review is not open; this bounty is not accepting submissions.",
+                       reason_code="CHAT_LOG_REVIEW_UNAVAILABLE")
     if not quote.available and quote.reason in {"ALREADY_SOLVED", "NOT_IN_BOUNTY_POOL"}:
         raise Conflict(
             "this bounty has already been solved",
@@ -547,6 +552,10 @@ async def confirm_intent(
             "the bounty treasury has no uncommitted payable balance",
             reason_code="BOUNTY_UNFUNDED",
         )
+    # A new bounty's chat logs must already be here, for exactly this proof, before any spend.
+    logs = (await trajectory_store.require_deposit(
+        session, account_id=principal.account.id, entry=entry, proof_digest=intent.proof_sha256, now=_now())
+        if quote.policy_version == TREASURY_CHAT_POLICY else None)
     try:
         confirmed = await intent_store.confirm(
             session,
@@ -566,6 +575,8 @@ async def confirm_intent(
     except RecordConflict:
         await session.rollback()
         raise
+    if logs is not None:
+        await trajectory_store.bind_deposit(session, logs, confirmed.submission, _now())
 
     await services.dispatcher.dispatch(session, confirmed.submission, entry.task_dir)
     await session.commit()

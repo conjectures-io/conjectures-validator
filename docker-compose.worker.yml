@@ -8,7 +8,7 @@
 #
 # An overlay, not a project of its own. Merged `-f` files form a single Compose project, which is
 # what makes both of the things this needs work: the worker shares the database's network, so
-# `db:5432` resolves, and `depends_on` can gate on the migration service in the other file. A
+# `conjectures_db:5432` resolves, and `depends_on` can gate on the migration service in the other file. A
 # standalone project would have neither — it would be reduced to reaching the published loopback
 # port, and could not wait for Flyway at all.
 #
@@ -55,9 +55,9 @@ services:
 
     env_file: .env
     environment:
-      # `db`, not the published 127.0.0.1 port: that publish exists for host tools, and inside the
-      # project the database is reachable by service name.
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Use the unique container hostname; `db` can also resolve to another attached stack.
+      # The published loopback port is only for host tools.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@conjectures_db:5432/${POSTGRES_DB}
 
       APP_MODE: DEV
       # DEV only, and WorkerSettings refuses it when APP_MODE=PROD: the in-process runner compiles

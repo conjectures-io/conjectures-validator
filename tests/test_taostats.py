@@ -23,10 +23,10 @@ def test_taostats_combines_alpha_tao_and_tao_usd_without_float_arithmetic():
         def handler(request):
             calls.append(request)
             assert request.headers["authorization"] == "test-api-key"
-            if request.url.path == "/api/price/latest/v1":
+            if request.url.path == "/v1/price":
                 assert request.url.params["asset"] == "tao"
                 return httpx.Response(200, json={"data": [{"price": "200.00"}]})
-            assert request.url.path == "/api/dtao/pool/latest/v1"
+            assert request.url.path == "/v1/subnets/pools"
             assert request.url.params["netuid"] == "66"
             assert request.url.params["limit"] == "1"
             return httpx.Response(200, json={"data": [{"price": "0.25"}]})
@@ -82,3 +82,44 @@ def test_usd_amount_rounds_to_cents_and_tracks_unavailable_bounties():
     assert amount_usd(1, alpha_usd=Decimal("5000000")) == "0.01"
     assert amount_usd(None, alpha_usd=Decimal("50")) is None
     assert amount_usd(1_000_000_000, alpha_usd=None) is None
+
+
+@pytest.mark.parametrize("status,payload", [
+    (200, {"data": [{"price": "281.050562235749"}]}),
+    (200, {"data": []}),
+    (200, {"data": {"price": "200"}}),
+    (200, {"data": [{"price": "NaN"}]}),
+    (200, {"data": [{"price": "Infinity"}]}),
+    (429, {}), (503, {}),
+])
+def test_tao_invoice_fallback_uses_v1_and_caches_success_or_failure(status, payload):
+    from submission_api.taostats import TaoStatsTaoUsdPriceReader
+
+    async def scenario():
+        calls = []
+        clock = [0.0]
+
+        def handler(request):
+            calls.append(request)
+            assert request.url.path == "/v1/price"
+            assert dict(request.url.params) == {"asset": "tao"}
+            assert request.headers["authorization"] == "fixture-key"
+            return httpx.Response(status, json=payload)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            reader = TaoStatsTaoUsdPriceReader(
+                api_key="fixture-key", ttl_seconds=60, client=client,
+                monotonic=lambda: clock[0],
+            )
+            quote = await reader.tao_usd()
+            if payload == {"data": [{"price": "281.050562235749"}]}:
+                assert quote.price == Decimal("281.050562235749")
+            else:
+                assert quote is None
+            assert await reader.tao_usd() == quote
+            assert len(calls) == 1
+            clock[0] = 61
+            assert await reader.tao_usd() == quote
+            assert len(calls) == 2
+
+    run(scenario())

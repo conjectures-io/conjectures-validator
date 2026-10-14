@@ -181,8 +181,18 @@ class BountyTask(Base):
     __tablename__ = "bounty_tasks"
 
     reward_target_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    pricing_policy: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'linear-age-v3-chat-logs'")
+    )
     opened_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    # The starting treasury share the target opened with; later policy changes do not alter it.
+    start_share_numerator: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
+    )
+    start_share_denominator: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("40")
     )
 
     __table_args__ = (
@@ -190,6 +200,12 @@ class BountyTask(Base):
             "length(reward_target_id) BETWEEN 1 AND 255",
             name="bounty_tasks_reward_target_id_nonempty",
         ),
+        CheckConstraint(
+            "start_share_numerator > 0 AND start_share_denominator > 0",
+            name="bounty_tasks_start_share_positive",
+        ),
+        CheckConstraint("pricing_policy IN ('legacy', 'linear-age-v3-chat-logs')",
+                        name="bounty_tasks_pricing_policy"),
         Index("bounty_tasks_opened_idx", "opened_at", "reward_target_id"),
     )
 
@@ -905,7 +921,7 @@ event.listen(
         "        IF latest_decision.decision <> 'APPROVED'\n"
         "           OR NEW.eligibility_reason <> 'FORMALIZATION_DEFECT_AWARD'\n"
         "           OR NEW.pricing_policy_version IS DISTINCT FROM\n"
-        "                (CASE WHEN submission_lock.review_policy_version = 'v3'\n"
+        "                (CASE WHEN submission_lock.review_policy_version IN ('v3', 'v4')\n"
         "                    THEN 'formalization-defect-capped-v2'\n"
         "                    ELSE 'formalization-defect-usd-v1' END) THEN\n"
         "            RAISE EXCEPTION 'defect award must match the latest approved review decision'\n"
@@ -945,7 +961,7 @@ event.listen(
         "                USING ERRCODE = '23514', CONSTRAINT = 'reward_event_has_valid_defect_price';\n"
         "        END IF;\n"
         "        calculated_rao := round(award_usd * 1000000000 / alpha_usd)::BIGINT;\n"
-        "        IF submission_lock.review_policy_version = 'v3' THEN\n"
+        "        IF submission_lock.review_policy_version IN ('v3', 'v4') THEN\n"
         "            IF submission_lock.bounty_locked_at IS NULL THEN\n"
         "                RAISE EXCEPTION 'capped defect award requires a submission-time bounty lock'\n"
         "                    USING ERRCODE = '23514', CONSTRAINT = 'reward_event_requires_bounty_lock';\n"
@@ -3270,6 +3286,38 @@ event.listen(
 )
 
 
+class PayoutInstructionAction(Base):
+    __tablename__ = "payout_instruction_actions"
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    reward_event_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("reward_events.id"), nullable=False)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    actor: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    review_decision_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("review_decisions.id"), nullable=False)
+    chain_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    __table_args__ = (
+        CheckConstraint("action IN ('CANCEL', 'RESTORE')", name="payout_instruction_action_valid"),
+        CheckConstraint("length(actor) BETWEEN 1 AND 256", name="payout_instruction_actor_nonempty"),
+        CheckConstraint("length(reason) BETWEEN 1 AND 20000", name="payout_instruction_reason_nonempty"),
+        Index("payout_instruction_actions_event_idx", "reward_event_id", text("id DESC")),
+    )
+
+
+event.listen(PayoutInstructionAction.__table__, "after_create", DDL(
+    "CREATE FUNCTION payout_instruction_actions_immutable() RETURNS TRIGGER AS $$\n"
+    "BEGIN\n"
+    "    RAISE EXCEPTION 'payout instruction actions are append-only' USING ERRCODE = '23514';\n"
+    "END;\n"
+    "$$ LANGUAGE plpgsql;\n"
+    "CREATE TRIGGER payout_instruction_actions_immutable BEFORE UPDATE OR DELETE ON payout_instruction_actions\n"
+    "FOR EACH ROW EXECUTE FUNCTION payout_instruction_actions_immutable();"
+))
+event.listen(PayoutInstructionAction.__table__, "before_drop", DDL(
+    "DROP FUNCTION IF EXISTS payout_instruction_actions_immutable() CASCADE;"
+))
+
+
 __all__ = [
     "ACCOUNT_ROLES",
     "ADMIN_ROLE",
@@ -3297,6 +3345,7 @@ __all__ = [
     "ManualReviewState",
     "PayoutDiscordDelivery",
     "PayoutState",
+    "PayoutInstructionAction",
     "PayoutWatchCursor",
     "Proof",
     "ReviewDecision",
@@ -3311,3 +3360,12 @@ __all__ = [
     "VerificationRun",
     "VerificationState",
 ]
+
+# Register the private bonus tables in the same metadata used by isolated fixtures.
+from conjectures_subnet.db import trajectory_models  # noqa: F401
+
+from conjectures_subnet.db import bounty_policy  # noqa: F401
+
+from conjectures_subnet.db import trajectory_fulfillment  # noqa: F401
+
+from conjectures_subnet.db import submission_pdfs  # noqa: F401

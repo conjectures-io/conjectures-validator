@@ -1,0 +1,4 @@
+"""Pinned chat-log terms and exact assent text. Changing either requires fresh assent."""
+TERMS_VERSION = 'chat-log-terms-v2'
+TERMS_SHA256 = 'sha256:a12a14d07a61fb8e1d430618e50f3a1f812295183a21c215b172b555e6ee9809'
+ASSENT_STATEMENTS_SHA256 = 'sha256:e95110b7fd55ef1639b66ff1049723c610ab7c5c5c92b9d429c4ddd80721a62d'

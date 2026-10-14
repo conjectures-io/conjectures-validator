@@ -7,16 +7,16 @@ import pytest
 from conftest import manifest
 
 
-@pytest.mark.parametrize("token_count", [300_000, 1_000_000])
+@pytest.mark.parametrize("token_count", [1_000_000, 5_000_000])
 def test_large_proof_passes_token_policy(token_count):
     # Newlines keep the independent line-length limit out of this boundary check.
     assert check_submission("x\n" * token_count, manifest()).valid
 
 
-def test_proof_above_one_million_tokens_is_rejected():
-    result = check_submission("x\n" * 1_000_001, manifest())
+def test_proof_above_five_million_tokens_is_rejected():
+    result = check_submission("x\n" * 5_000_001, manifest())
     assert not result.valid
-    assert result.violations == ("submission exceeds the 1000000-token policy limit",)
+    assert result.violations == ("submission exceeds the 5000000-token policy limit",)
 
 
 def test_token_overflow_stops_scanning_and_rejects(monkeypatch):
@@ -211,3 +211,36 @@ def test_rooted_source_dependency_with_dots_inside_quoted_names_is_rejected():
     )
     assert not rooted.valid
     assert not short.valid
+
+
+def test_mathlib_header_tasks_keep_every_solver_input_ban():
+    # Only the trusted generator chooses imports; the solver policy is the same for every version.
+    legacy = manifest()
+    current = replace(legacy, adapter_version=2)
+    forbidden = {
+        "import": "import Mathlib.Topology.Basic\ntheorem target : True := by trivial\n",
+        "late import": "theorem target : True := by trivial\nimport Mathlib.RingTheory.Ideal.Basic\n",
+        "native_decide": "theorem target : True := by native_decide\n",
+        "axiom": "axiom cheat : False\ntheorem target : True := False.elim cheat\n",
+        "set_option": "set_option maxHeartbeats 0 in\ntheorem target : True := by trivial\n",
+        "sorry": "theorem target : True := by sorry\n",
+    }
+    for label, text in forbidden.items():
+        result = check_submission(text, current)
+        assert not result.valid, label
+        assert result == check_submission(text, legacy), label
+
+
+def test_mathlib_lemmas_need_no_solver_import():
+    text = (
+        "theorem chebyshev (s : Finset ℕ) (f g : ℕ → ℝ) (h : MonovaryOn f g s) :\n"
+        "    (∑ i ∈ s, f i) * ∑ i ∈ s, g i ≤ (s.card : ℝ) * ∑ i ∈ s, f i * g i :=\n"
+        "  h.sum_mul_sum_le_card_mul_sum\n\n"
+        "theorem topology : IsOpen (Set.Ioo (0 : ℝ) 1) := isOpen_Ioo\n\n"
+        "theorem ring_theory : (Ideal.span ({2} : Set ℤ)).IsPrime :=\n"
+        "  (Ideal.span_singleton_prime (by norm_num)).2 Int.prime_two\n\n"
+        "theorem target : 1 < Real.log (30 / 11 : ℝ) := by\n"
+        "  rw [Real.lt_log_iff_exp_lt (by norm_num)]\n"
+        "  exact Real.exp_one_lt_d9.trans (by norm_num)\n"
+    )
+    assert check_submission(text, replace(manifest(), adapter_version=2)).valid

@@ -29,6 +29,7 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
+from sqlalchemy import select
 
 from conftest_api import (
     COLDKEY,
@@ -46,6 +47,7 @@ from conjectures_subnet.attribution import public_credit
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.models import (
     ManualReviewState,
+    PayoutInstructionAction,
     PayoutState,
     ReviewDecision,
     ReviewerKind,
@@ -251,8 +253,8 @@ def test_a_certified_result_is_attributed_to_conjectures_and_names_no_miner():
             assert item["attribution"] == "conjectures.io"
             assert item["certified_at"] is not None
             assert item["verified_at"] is not None
-            assert item["bounty_amount_rao"] == 200_000_000
-            assert item["bounty_amount_usd"] == "10.00"
+            assert item["bounty_amount_rao"] == 100_000_000
+            assert item["bounty_amount_usd"] == "5.00"
             assert item["verifier_version"] == "verifier-1.2.3"
             assert item["report_available"] is True
             assert item["review"]["decision"] == "APPROVED"
@@ -334,6 +336,80 @@ def test_a_pending_payout_is_the_displayed_bounty_but_not_a_certification():
             assert item["bounty_amount_rao"] == 750_000_000
             assert item["bounty_policy_version"] == "payout-time-correction"
             assert item["certified_at"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_split_payout_displays_both_shares_and_counts_only_observed_transfers():
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, "split-payout")
+            await _verify(kit, submission_id)
+            await _approve(kit, submission_id)
+            sid = uuid.UUID(submission_id)
+
+            def event(amount, **values):
+                return RewardEvent(
+                    submission_id=sid, eligibility_reason="REVIEW_APPROVED",
+                    amount_rao=amount, pricing_policy_version="split-test",
+                    destination_coldkey=COLDKEY, initiated_by="test",
+                    status=PayoutState.PENDING, **values,
+                )
+
+            async with kit.session() as session:
+                original = event(751, pricing_inputs={})
+                session.add(original)
+                await session.flush()
+                review_id = await session.scalar(
+                    select(ReviewDecision.id).where(ReviewDecision.submission_id == sid)
+                )
+                session.add(PayoutInstructionAction(
+                    reward_event_id=original.id, action="CANCEL", actor="test",
+                    reason="Split between co-solvers", review_decision_id=review_id,
+                    chain_evidence={},
+                ))
+                shares = [event(amount, pricing_inputs={"split_of_reward_event_id": original.id})
+                          for amount in (376, 375)]
+                session.add_all(shares)
+                await session.flush()
+                share_ids = [share.id for share in shares]
+                await session.commit()
+
+            async def assert_amounts(paid):
+                result = (await _get(kit, f"/v1/results/{submission_id}")).json()
+                assert result["bounty_amount_rao"] == 751
+                assert result["bounty_policy_version"] == "split-test"
+                stats = (await _get(kit, "/v1/results/stats")).json()
+                assert stats["paid_out_rao"] == paid
+                return result
+
+            assert (await assert_amounts(0))["certified_at"] is None
+            for share_id, paid in zip(share_ids, (376, 751)):
+                async with kit.session() as session:
+                    share = await session.get(RewardEvent, share_id)
+                    share.status = PayoutState.CONFIRMED
+                    share.chain_observed = True
+                    share.submitted_at = datetime.now(UTC)
+                    share.confirmed_at = datetime.now(UTC)
+                    share.submitted_block = 100
+                    share.finalized_block = 101
+                    share.extrinsic_reference = f"split-{share_id}"
+                    submission = await session.get(Submission, sid)
+                    submission.reward_status = RewardState.REWARDED
+                    await session.commit()
+                await assert_amounts(paid)
+
+            # A later independent payout remains the current amount, rather than being
+            # added to a previous payout simply because the submission is the same.
+            async with kit.session() as session:
+                session.add(event(900, pricing_inputs={}))
+                await session.commit()
+            result = (await _get(kit, f"/v1/results/{submission_id}")).json()
+            assert result["bounty_amount_rao"] == 900
+            assert (await _get(kit, "/v1/results/stats")).json()["paid_out_rao"] == 751
         finally:
             await kit.teardown()
 

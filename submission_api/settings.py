@@ -67,7 +67,7 @@ DEFAULT_SUBMISSION_PRICE_RAO = RAO_PER_TAO // 2
 DEVELOPMENT_BOUNTY_BALANCE_RAO = 4 * RAO_PER_TAO
 DEFAULT_BOUNTY_POLICY_VERSION = "linear-age-v3-locked"
 DEFAULT_BOUNTY_CONSTANT_NUMERATOR = 1
-DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 20
+DEFAULT_BOUNTY_CONSTANT_DENOMINATOR = 40
 DEFAULT_BOUNTY_RAMP_SECONDS = 15 * 86_400
 DEFAULT_BOUNTY_AGE_PERIOD_SECONDS = 86_400
 DEFAULT_BOUNTY_MAX_AGE_WEIGHT = 60
@@ -319,11 +319,13 @@ DEFAULT_CREDIT_PACKAGES = "1,5:1,10:3"
 # coldkey, unproved and not required to be linked, where before it was a proved coldkey/hotkey
 # pair). Both are in the "what is published" and "getting paid" sections.
 #
-# v6 adopts review policy v3: defect awards cannot exceed the submission bounty lock.
+# v8 treasury/chat-log terms remain a separate, inactive draft until launch.
+# v7 adopts review policy v4: established prior proofs disqualify even independent rediscovery.
+# The v3 defect-award cap remains unchanged.
 # `docs/SUBMISSION_TERMS.md` is served as `body_md` under this version, so the two move together:
 # leaving it behind would serve rewritten terms under a version string a miner already accepted.
-DEFAULT_TERMS_VERSION = "v6"
-DEFAULT_TERMS_DATE = "2026-09-11"
+DEFAULT_TERMS_VERSION = "v7"
+DEFAULT_TERMS_DATE = "2026-10-12"
 
 # The website route that renders the sign-in page the magic link opens. That page reads the
 # token from the query string and POSTs it to `/v1/auth/email/verify`; the API itself never
@@ -799,6 +801,7 @@ class Settings:
     nonce_window_seconds: int
     max_bundle_bytes: int
     manual_review_enabled: bool
+    trajectory_bonus_enabled: bool
     review_policy_version: str
     bounty_pool_balance_rao: int
     bounty_policy_version: str
@@ -1001,6 +1004,15 @@ class Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
+        trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
+        # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
+        if production and trajectory_bonus_enabled:
+            from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
+            if "draft" in TERMS_VERSION:
+                raise SettingsError("chat-log intake cannot launch with draft terms")
+            if env.get("TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256") != TERMS_SHA256:
+                raise SettingsError("chat-log launch requires the owner-approved terms digest")
+
 
         authenticator = _choice(
             env,
@@ -1040,7 +1052,7 @@ class Settings:
             bounty_hotkey_raw or recipient,
         )
 
-        review_policy_version = env.get("REVIEW_POLICY_VERSION", "v3").strip()
+        review_policy_version = env.get("REVIEW_POLICY_VERSION", "v4").strip()
         if POLICY_VERSION.fullmatch(review_policy_version) is None:
             raise SettingsError("REVIEW_POLICY_VERSION must match [a-z0-9][a-z0-9.-]{0,63}")
 
@@ -1375,12 +1387,28 @@ class Settings:
             raise SettingsError("SUBMISSION_TERMS_VERSION must match [a-z0-9][a-z0-9.-]{0,63}")
 
         if not env.get("SUBMISSION_TERMS_PATH", "").strip() and (
-            terms_version != DEFAULT_TERMS_VERSION or review_policy_version != "v3"
+            terms_version != DEFAULT_TERMS_VERSION or review_policy_version != "v4"
         ):
             raise SettingsError(
-                "the bundled submission terms require SUBMISSION_TERMS_VERSION=v6 and "
-                "REVIEW_POLICY_VERSION=v3; earlier contracts remain on existing submissions"
+                "the bundled submission terms require SUBMISSION_TERMS_VERSION=v7 and "
+                "REVIEW_POLICY_VERSION=v4; earlier contracts remain on existing submissions"
             )
+
+        if production and trajectory_bonus_enabled and (
+            not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7"
+        ):
+            raise SettingsError("trajectory launch requires explicit final versioned submission terms")
+        if production and trajectory_bonus_enabled:
+            # The published file must itself be that version, so v7 text cannot go out as v8.
+            try:
+                published = Path(env["SUBMISSION_TERMS_PATH"].strip()).read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as exc:
+                raise SettingsError(f"cannot read SUBMISSION_TERMS_PATH: {exc}") from exc
+            stated = re.search(r"\*\*Terms version:\*\* `([^`]+)`", published)
+            if stated is None or stated.group(1) != terms_version:
+                raise SettingsError(
+                    "SUBMISSION_TERMS_PATH must state the configured SUBMISSION_TERMS_VERSION"
+                )
 
         # A pinned USD rate, or nothing. Converting TAO to USD needs a live external rate
         # this validator does not have, so the field is null rather than invented — and it
@@ -1644,6 +1672,7 @@ class Settings:
                 env, "MAX_BUNDLE_BYTES", MAX_BUNDLE_BYTES, maximum=MAX_BUNDLE_BYTES
             ),
             manual_review_enabled=_flag(env, "MANUAL_REWARD_REVIEW_ENABLED", True),
+            trajectory_bonus_enabled=trajectory_bonus_enabled,
             review_policy_version=review_policy_version,
             bounty_pool_balance_rao=bounty_pool_balance_rao,
             bounty_policy_version=bounty_policy_version,

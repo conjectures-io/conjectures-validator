@@ -83,7 +83,7 @@ def test_this_candidate_activates_only_the_reviewed_ready_subset():
     assert {theorem_of(number) for number in activated} == ACTIVATED_RESEARCH_TARGETS
     assert CORE <= activated <= CORE | FIRST_BATCH_READY
     assert not activated & NEVER_ACTIVATED
-    assert DEFAULT_TIER_SIZE == 258 + len(activated)
+    assert DEFAULT_TIER_SIZE == 258 + len(activated) - 1  # Wilf e4 (source22) is held.
     assert task_pool.staged_research_target(THEOREM, MATH30)
     assert not task_pool.staged_research_target(ACTIVE, MATH30)
     # The gate concerns this family only; an Erdős source is unaffected by it.
@@ -663,7 +663,8 @@ def test_checked_in_matrix_activates_exactly_the_pool_research_targets():
         for row in policy["allowed_source_theorems"]
         if row["source_path"].startswith("FormalConjectures/ResearchTargets/")
     }
-    assert set(research_rows) == ACTIVATED_RESEARCH_TARGETS
+    held = task_pool.load_held_sources(tasks_root / "tiers/tier-1/held-source-theorems.json")
+    assert set(research_rows) == ACTIVATED_RESEARCH_TARGETS - held.theorems
     by_theorem = {target.theorem: target for target in decisions.targets}
     assert all(
         row["source_type_sha256"] == by_theorem[theorem].source_type_sha256

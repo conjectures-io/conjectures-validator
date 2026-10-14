@@ -1,0 +1,7 @@
+{
+  "Candidates.lean": "sha256:1501b37165cf13961eefebf29b2c54cc24e6a80b84c50fb976e2c0207dc6d33b",
+  "FrozenCircleData.lean": "sha256:ac9fb03e60f4a93c08139d3ea2075a75c1d51c922e2addfb1b2b1ec1ac91f2ca",
+  "FrozenSquareData.lean": "sha256:a8d7f296107cba7a128ca95153de27aefd51dbcc7512f8d257be3ed89c3ad983",
+  "PackingFixtures.lean": "sha256:1623978ab7783cfaf4535b7370d6b5ce257e238d6032dad9f8eba7142a98f7c0",
+  "QuadCertificate.lean": "sha256:81dc9f4002a2291b231613813b8e29cb239170ae237c7be5b7d3432693c79655"
+}

@@ -36,6 +36,8 @@ from conjectures_subnet.attribution import (
     public_credit_from_values,
 )
 from conjectures_subnet.axiom import Severity, get_axiom
+from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY
+from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import digests
 from conjectures_subnet.db import submissions as store
 from conjectures_subnet.db.errors import DatabaseError
@@ -48,6 +50,7 @@ from conjectures_subnet.db.models import (
     VerificationState,
 )
 from submission_api import schemas
+from submission_api import trajectories as trajectory_store
 from submission_api.auth import (
     SignedRequest,
     assert_fresh_nonce,
@@ -409,6 +412,9 @@ async def create_submission(
             session, reward_target_id=entry.reward_target_id
         )
         _assert_payable_quote(quote, entry.reward_target_id)
+        # Refused here, before the payment is spent, so the miner can upload the logs and retry
+        # with the same transfer.
+        logs = await _required_logs(session, quote, entry, miner, bundle.proof.sha256)
 
         # Payment last, and before any write: the schema has no unpaid state.
         try:
@@ -478,6 +484,8 @@ async def create_submission(
             audit.disarm()
             response.status_code = status.HTTP_200_OK
             return await _status(view, services=services, session=session)
+        if logs is not None:
+            await trajectory_store.bind_deposit(session, logs, view.submission, datetime.now(UTC))
 
         # Spend the transfer, so it cannot also buy credits. In the same transaction as the
         # submission above, and after the replay check so an idempotent retry is not refused as a
@@ -525,7 +533,33 @@ async def create_submission(
         )
 
 
+async def _required_logs(session: AsyncSession, quote, entry, coldkey: str, proof_sha256: str):
+    """The deposited chat logs this proof must carry, or None when its bounty takes none.
+
+    Logs belong to an account, so a coldkey-signed submission finds them through the account
+    the key is linked to. Called only after the signature has proved control of the key, so the
+    refusal is no oracle for which addresses have accounts.
+    """
+    if quote.policy_version != TREASURY_CHAT_POLICY:
+        return None
+    account = await account_store.find_by_coldkey(session, coldkey)
+    if account is None:
+        raise Conflict(
+            "This bounty requires the chat logs that produced the proof. Link this coldkey to an "
+            "account at the website, upload the logs with `conjectures logs upload`, then submit "
+            "again with the same payment.",
+            reason_code="CHAT_LOG_ACCOUNT_REQUIRED",
+        )
+    return await trajectory_store.require_deposit(
+        session, account_id=account.id, entry=entry, proof_digest=proof_sha256,
+        now=datetime.now(UTC),
+    )
+
+
 def _assert_payable_quote(quote, reward_target_id: str) -> None:
+    if not quote.available and quote.reason == "CHAT_LOG_REVIEW_UNAVAILABLE":
+        raise ServiceUnavailable("Required chat-log review is not open; this bounty is not accepting submissions.",
+                                 reason_code="CHAT_LOG_REVIEW_UNAVAILABLE")
     if not quote.available and quote.reason in {"ALREADY_SOLVED", "NOT_IN_BOUNTY_POOL"}:
         raise Conflict(
             "this bounty has already been solved",

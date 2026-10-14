@@ -70,7 +70,7 @@ def test_a_corrupt_or_poisoned_entry_is_never_used(tmp_path):
     path = store.path_for(plan.task_id)
     path.chmod(0o755)
     (path / "manifest.json").chmod(0o644)
-    manifest = (path / "manifest.json").read_text().replace('"timeout_seconds": 3600', '"timeout_seconds": 10')
+    manifest = (path / "manifest.json").read_text().replace('"timeout_seconds": 14400', '"timeout_seconds": 10')
     (path / "manifest.json").write_text(manifest)
     with pytest.raises(VerifierError):
         store.load(plan.task_id, expected_sha256=bundle.sha256)

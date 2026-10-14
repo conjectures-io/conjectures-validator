@@ -126,7 +126,7 @@ services:
     environment:
       # Named explicitly rather than inherited from .env, so this container cannot be
       # pointed at the proofs database by an environment that happens to set
-      # COMPETITION_DATABASE_URL for host-side use. `db` is the compose hostname; 5432 is
+      # COMPETITION_DATABASE_URL for host-side use. `conjectures_db` is the unique hostname; 5432 is
       # the in-network port regardless of what POSTGRES_PORT publishes on the host.
       COMPETITION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@conjectures_db:5432/${COMPETITION_POSTGRES_DB:-conjectures_competition}
     depends_on:

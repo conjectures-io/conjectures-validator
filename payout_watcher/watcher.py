@@ -89,7 +89,9 @@ class PayoutWatcher:
             if existing is not None:
                 self._require_same_watch(existing)
                 return existing
-            watch_from = await store.oldest_unresolved_at(session)
+            watch_from = await store.oldest_unresolved_at(session, **(
+                {"origin_coldkey": self.settings.origin_coldkey, "origin_hotkey": self.settings.origin_hotkey}
+                if self.settings.netuid == 66 else {}))
         if watch_from is None:
             return None
         watch_from = _utc(watch_from)
@@ -132,11 +134,17 @@ class PayoutWatcher:
 
     def _require_same_watch(self, cursor: PayoutWatchCursor) -> None:
         differences: list[str] = []
-        for field in ("network", "origin_coldkey", "origin_hotkey", "netuid"):
+        for field in ("network", "origin_coldkey", "netuid"):
             stored = getattr(cursor, field)
             configured = getattr(self.settings, field)
             if stored != configured:
                 differences.append(f"{field} {stored!r} vs {configured!r}")
+        # A pre-Arbos cursor retains the same finalized block boundary. Historical and
+        # current treasury delegations are both watched; unrelated hotkeys still fail closed.
+        if cursor.origin_hotkey not in self.settings.accepted_origin_hotkeys:
+            differences.append(
+                f"origin_hotkey {cursor.origin_hotkey!r} vs {self.settings.origin_hotkey!r}"
+            )
         if differences:
             raise SettingsError(
                 "the stored payout cursor does not match the command renderer: "
@@ -147,7 +155,7 @@ class PayoutWatcher:
     def _ours(self, observed: chain.ObservedPayout) -> bool:
         return (
             observed.origin_coldkey == self.settings.origin_coldkey
-            and observed.origin_hotkey == self.settings.origin_hotkey
+            and observed.origin_hotkey in self.settings.accepted_origin_hotkeys
             and observed.origin_netuid == self.settings.netuid
             and observed.destination_netuid == self.settings.netuid
         )
@@ -436,4 +444,3 @@ def _utc(value: dt.datetime) -> dt.datetime:
 
 
 __all__ = ["PayoutWatcher", "Scanned"]
-

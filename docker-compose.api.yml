@@ -43,8 +43,8 @@ services:
     environment:
       # --- Required ---------------------------------------------------------
       APP_MODE: ${APP_MODE:-DEV}
-      # Reaches Postgres by service name on the compose network. Not the host
-      # port: that is bound to loopback for operator tooling only.
+      # Use this stack's unique container name: other attached stacks also publish `db`.
+      # The host port is bound to loopback for operator tooling only.
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@conjectures_db:5432/${POSTGRES_DB}
       PAYMENT_RECIPIENT_SS58: ${PAYMENT_RECIPIENT_SS58:?set the treasury address in .env}
       PAYMENT_AMOUNT_RAO: ${PAYMENT_AMOUNT_RAO:-500000000}
@@ -53,7 +53,7 @@ services:
       BOUNTY_NETUID: ${BOUNTY_NETUID:-66}
       BOUNTY_POLICY_VERSION: ${BOUNTY_POLICY_VERSION:-linear-age-v3-locked}
       BOUNTY_CONSTANT_NUMERATOR: ${BOUNTY_CONSTANT_NUMERATOR:-1}
-      BOUNTY_CONSTANT_DENOMINATOR: ${BOUNTY_CONSTANT_DENOMINATOR:-20}
+      BOUNTY_CONSTANT_DENOMINATOR: ${BOUNTY_CONSTANT_DENOMINATOR:-40}
       BOUNTY_RAMP_SECONDS: ${BOUNTY_RAMP_SECONDS:-1296000}
       BOUNTY_MAX_SHARE_NUMERATOR: ${BOUNTY_MAX_SHARE_NUMERATOR:-1}
       BOUNTY_MAX_SHARE_DENOMINATOR: ${BOUNTY_MAX_SHARE_DENOMINATOR:-8}
@@ -67,7 +67,8 @@ services:
       TASK_ALLOWLIST_PATH: /opt/conjectures/tasks/allowlist.json
       TASK_POOL_ROOT: /opt/conjectures/tasks/pool
       PINS_LOCK_PATH: /opt/conjectures/pins.lock.json
-      SUBMISSION_TERMS_PATH: /opt/conjectures/docs/SUBMISSION_TERMS.md
+      # v8 lives under docs/policies; set SUBMISSION_TERMS_PATH in .env to publish it.
+      SUBMISSION_TERMS_PATH: ${SUBMISSION_TERMS_PATH:-/opt/conjectures/docs/SUBMISSION_TERMS.md}
 
       # --- Trust boundary ---------------------------------------------------
       # `queue` leaves accepted submissions UNVERIFIED for a worker in the other
@@ -149,6 +150,7 @@ services:
       - ../conjectures-tasks:/opt/conjectures/tasks:ro
       - ./pins.lock.json:/opt/conjectures/pins.lock.json:ro
       - ./docs/SUBMISSION_TERMS.md:/opt/conjectures/docs/SUBMISSION_TERMS.md:ro
+      - ./docs/policies:/opt/conjectures/docs/policies:ro
 
     depends_on:
       db:
@@ -197,7 +199,8 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 1G
+          # Five million lexical tokens approach 1 GiB before request/DB buffers.
+          memory: 2G
           pids: 512
         reservations:
           cpus: "0.5"
