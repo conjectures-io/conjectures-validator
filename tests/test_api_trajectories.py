@@ -441,11 +441,11 @@ def test_new_bounty_logs_are_due_before_the_proof_and_rejection_reopens_the_targ
                     record = await session.get(TrajectoryClaim, uuid.UUID(claim["id"]))
                     assert record.expires_at == record.created_at + dt.timedelta(days=90)
                     assert [e["action"] for e in record.history] == ["DEPOSITED", "SUBMITTED_WITH_PROOF"]
-                # Logs cannot be added or replaced after the proof.
+                # Nothing changes after the proof unless a reviewer asks for a new version.
                 fresh_upload_budget(kit)
                 late = await owner.post(f"/v1/me/submissions/{sid}/trajectory",
                                         **as_upload(relinked(p, submission_id=sid)))
-                assert late.status_code == 409 and late.json()["reason_code"] == "CHAT_LOGS_FIXED_AT_SUBMISSION"
+                assert late.status_code == 409 and late.json()["reason_code"] == "TRAJECTORY_REVISION_NOT_REQUESTED"
                 again = await owner.post(DEPOSITS, **as_upload(p))
                 assert again.status_code == 409 and again.json()["reason_code"] == "TRAJECTORY_ALREADY_SUBMITTED"
                 await reviewer(kit, admin)
@@ -459,11 +459,26 @@ def test_new_bounty_logs_are_due_before_the_proof_and_rejection_reopens_the_targ
                                                             reason_code="REVIEW_APPROVED", reviewer="fixture-reviewer")
                     await session.commit()
                     assert (await kit.services.pricing.quote(session, reward_target_id=target)).reason == "ALREADY_SOLVED"
+                # Incomplete logs can be sent back for a new version; the target stays held meanwhile.
                 changes = await admin.post(dpath, headers=same_origin(), json=review_body(
                     decision="NEEDS_CHANGES", state_version=claim["state_version"]))
-                assert changes.status_code == 409 and changes.json()["reason_code"] == "CHAT_LOGS_FIXED_AT_SUBMISSION"
+                assert changes.status_code == 200, changes.text
+                assert changes.json()["status"] == "NEEDS_CHANGES"
+                state = (await owner.get(f"/v1/me/submissions/{sid}/trajectory")).json()
+                assert state["eligible"] and state["eligibility_reason"] is None
+                async with kit.session() as session:
+                    assert (await kit.services.pricing.quote(session, reward_target_id=target)).reason == "ALREADY_SOLVED"
+                fresh_upload_budget(kit)
+                revised = await owner.post(f"/v1/me/submissions/{sid}/trajectory", **as_upload(
+                    relinked(p, submission_id=sid), state_version=changes.json()["state_version"]))
+                assert revised.status_code == 200, revised.text
+                claim = revised.json()
+                assert claim["status"] == "UNDER_REVIEW" and claim["revision"] == 2 and claim["amount_usd_cents"] == 0
+                async with kit.session() as session:
+                    record = await session.get(TrajectoryClaim, uuid.UUID(claim["id"]))
+                    assert record.history[-1]["action"] == "UPLOADED" and record.terms_version == TERMS_VERSION
                 rejected = await admin.post(dpath, headers=same_origin(), json=review_body(
-                    decision="REJECTED", state_version=claim["state_version"]))
+                    decision="REJECTED", revision=2, state_version=claim["state_version"]))
                 assert rejected.status_code == 200, rejected.text
                 async with kit.session() as session:
                     record = await session.get(TrajectoryClaim, uuid.UUID(claim["id"]))
@@ -477,7 +492,7 @@ def test_new_bounty_logs_are_due_before_the_proof_and_rejection_reopens_the_targ
                 # Another solver may now claim the target; once they do, the rejection is final.
                 await accepted(kit, rival, required=True, marker="rival-proof", email="rival@example.com")
                 appeal = await admin.post(f"/v1/admin/trajectories/{claim['id']}/reopen", headers=same_origin(), json={
-                    "action": "REOPEN_REVIEW", "expected_revision": 1,
+                    "action": "REOPEN_REVIEW", "expected_revision": 2,
                     "expected_state_version": rejected.json()["state_version"], "note": "Appeal of the rejected chat logs."})
                 assert appeal.status_code == 409 and appeal.json()["reason_code"] == "TRAJECTORY_TARGET_REASSIGNED"
                 fresh_upload_budget(kit)
