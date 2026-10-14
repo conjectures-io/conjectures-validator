@@ -33,6 +33,8 @@ from submission_api.trajectory_schema import (
 CLAIM_WINDOW_DAYS = 365
 AUDIT_RETENTION_DAYS = 7 * 365
 APPROVED = ("APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE")
+# A claim's package can be revised at a reviewer's request, up to this many versions in all.
+MAX_REVISIONS = 3
 # Final required-log outcomes that give up the bounty and reopen the target to other solvers.
 FORFEITED = ("REJECTED", "WITHDRAWN")
 CHAT_LOG_REQUIRED = "CHAT_LOG_REQUIRED"
@@ -82,8 +84,14 @@ async def opened_at(session):
     return await session.scalar(select(ChatLogProgram.opened_at).where(ChatLogProgram.id == 1))
 
 
-async def owned_submission(session, submission_id, account_id, *, lock=False):
-    query = select(Submission).where(Submission.id == submission_id, Submission.account_id == account_id)
+async def owned_submission(session, submission_id, account_id, *, lock=False, logs_owner=False):
+    """The caller's submission. With `logs_owner`, also one whose required logs the caller deposited:
+    a coldkey-signed proof records no account, but its logs belong to the account they came from."""
+    owner = Submission.account_id == account_id
+    if logs_owner:
+        owner = owner | ((Submission.bounty_policy_version == TREASURY_CHAT_POLICY) & select(TrajectoryClaim.id).where(
+            TrajectoryClaim.submission_id == Submission.id, TrajectoryClaim.account_id == account_id).exists())
+    query = select(Submission).where(Submission.id == submission_id, owner)
     if lock:
         # Refresh any earlier unlocked read: verification and review may have moved since.
         query = query.with_for_update().execution_options(populate_existing=True)
@@ -146,10 +154,14 @@ async def store_fingerprint(session, claim, fingerprint, seen):
 
 
 async def accept_package(session, *, submission, decision, prepared, account_id, now, amount_usd_cents, offer_start_at):
-    """Logs for a proof submitted before the program: uploaded later, but must predate it."""
+    """Logs uploaded after the proof: an earlier proof's bonus logs, or a requested revision of the
+    logs a bounty required. Either way the chat must show the proof before it was submitted."""
     package, raw, package_hash, fingerprint, consent, expected_state_version = prepared
+    # A revision of required logs may keep the deposit's empty link; the proof digest still binds it.
+    linked = (None if submission.bounty_policy_version == TREASURY_CHAT_POLICY
+              and package.manifest.submission_id is None else submission.id)
     check_package(package, raw, task_id=submission.task_id, task_bundle_sha256=submission.task_bundle_sha256,
-                  proof_digest=submission.proof_digest, submission_id=submission.id, now=now)
+                  proof_digest=submission.proof_digest, submission_id=linked, now=now)
     if package.proof_first_seen >= submission.created_at:
         raise Conflict("These need to be the original logs: the chat must show the final proof before it was submitted.",
                        reason_code="TRAJECTORY_AFTER_THE_FACT")
@@ -169,7 +181,7 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
             # A withdrawn identical package is a fresh revision with renewed explicit consent.
     elif expected_state_version is not None:
         raise Conflict("Claim changed; refresh before submitting.", reason_code="TRAJECTORY_STALE_REVIEW")
-    if existing and (existing.status not in ("NEEDS_CHANGES", "WITHDRAWN") or existing.revision >= 3):
+    if existing and (existing.status not in ("NEEDS_CHANGES", "WITHDRAWN") or existing.revision >= MAX_REVISIONS):
         raise Conflict("A new package requires a revision request or withdrawal, with at most three versions.",
                        reason_code="TRAJECTORY_ALREADY_SUBMITTED")
     seen = await session.get(TrajectoryFingerprint, fingerprint)
@@ -182,7 +194,8 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
         claim.package_digest = package_hash
         claim.revision += 1
         claim.status = "UNDER_REVIEW"
-        claim.proof_review_decision_id = decision.id
+        # Required logs may be revised before the proof itself is reviewed.
+        claim.proof_review_decision_id = decision.id if decision else None
         claim.reviewer_id = None
         claim.review_note = None
         claim.checklist = None

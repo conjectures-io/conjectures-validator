@@ -137,3 +137,16 @@ Owner decision after launch: chat logs are required for every open target, not o
 - Publish `docs/policies/submission-terms-v9.md` (`SUBMISSION_TERMS_VERSION=v9`) and
   `chat-log-terms-v2.md`; set `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256` to the v2 digest in
   `submission_api/trajectory_terms.py`, and ship the web's `data/trajectory` copy with it.
+
+## Requested revisions of required logs (October 14, 2026)
+
+Owner decision: incomplete required logs can be sent back instead of rejected.
+
+- A reviewer may decide `NEEDS_CHANGES` on required logs below the third version; the target
+  stays held. The contributor uploads a new version (`POST /v1/me/submissions/{id}/trajectory`,
+  from the browser or a CLI token, by the account that deposited the logs), which must still
+  show the proof before the submission's time. The third version must be approved or rejected.
+- V051 replaces `trajectory_required_logs_fixed` with `trajectory_deposit_first_version`.
+- Publish `docs/policies/submission-terms-v10.md` (`SUBMISSION_TERMS_VERSION=v10`,
+  `SUBMISSION_TERMS_EFFECTIVE_FROM=2026-10-14`) and `chat-log-terms-v3.md`, with
+  `TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256` set to the v3 digest and the web copy shipped with it.
