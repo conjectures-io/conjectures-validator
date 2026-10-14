@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import time
-from fastapi import APIRouter, Header, Path, Request, Response
+from fastapi import APIRouter, Depends, Header, Path, Request, Response
 from submission_api import compression_store as queries
 from submission_api import competition_sig, schemas_compression as schemas
-from submission_api.competitions import Competition, UnknownCompetition
+from submission_api.competitions import DEFLATE, Competition, UnknownCompetition
 from submission_api.dependencies import CompetitionSessionDep, CookieWriterDep, ServicesDep
 from submission_api.errors import (
     REASON_SUBMISSIONS_PAUSED,
@@ -32,17 +32,25 @@ SlugPath = Path(description="The competition's slug", max_length=64)
 HotkeyPath = Path(description="A subnet hotkey (ss58)", min_length=2, max_length=64)
 
 
-def resolve_competition(services: ServicesDep, slug: str) -> Competition:
-    """Resolve a slug, or 404.
+def resolve_competition(services: ServicesDep, slug: str, kind: str = DEFLATE) -> Competition:
+    """Resolve a slug of `kind`, or 404.
 
     404 rather than 400: an unknown slug is an address that does not exist here, and saying
     so is the same answer whether the caller typed it wrong or is probing for a competition
     this deployment does not serve.
+
+    A slug of another kind is the same 404. Every route here is DEFLATE's unless it says
+    otherwise, and a FloatLib slug reaching one -- `/v1/competitions/floatlib/pareto`, say --
+    names something FloatLib does not publish; answering it would run DEFLATE's queries
+    against FloatLib's database.
     """
     try:
-        return services.competitions.get(slug)
+        competition = services.competitions.get(slug)
     except UnknownCompetition as exc:
         raise NotFound(f"no competition {slug!r} is served here") from exc
+    if competition.kind != kind:
+        raise NotFound(f"no competition {slug!r} is served here")
+    return competition
 
 
 def refuse_if_paused(services: ServicesDep) -> None:
@@ -64,6 +72,20 @@ def refuse_if_paused(services: ServicesDep) -> None:
             "submissions are paused; see GET /v1/system/status",
             reason_code=REASON_SUBMISSIONS_PAUSED,
         )
+
+
+def refuse_if_closed(services: ServicesDep) -> None:
+    if not getattr(services.settings, "deflate_submissions_enabled", True):
+        raise Forbidden(
+            "Submissions for this competition are closed.", reason_code="SUBMISSIONS_CLOSED"
+        )
+
+
+def require_open_intake(request: Request, services: ServicesDep) -> None:
+    # A closed competition must answer before header validation, auth or multipart parsing.
+    resolve_competition(services, request.path_params["slug"])
+    refuse_if_closed(services)
+    refuse_if_paused(services)
 
 
 UPLOAD_SCHEMA = {
@@ -190,6 +212,7 @@ async def _queue(
     # structural backstop: a third write path added later reaches the queue through here,
     # and a guard only in the callers is one a new caller can forget. Checking a boolean
     # twice costs nothing; discovering the omission in production would not.
+    refuse_if_closed(services)
     refuse_if_paused(services)
 
     await queries.compatible(session)
@@ -254,6 +277,7 @@ async def _queue(
     status_code=201,
     summary="Submit, signed by a subnet hotkey",
     openapi_extra=UPLOAD_SCHEMA,
+    dependencies=[Depends(require_open_intake)],
 )
 async def submit(
     request: Request,
@@ -273,8 +297,9 @@ async def submit(
     allowlists no `X-Conjectures-*` header, which is what keeps this endpoint unreachable
     from a browser even on an allowlisted origin. See `competition_sig`.
     """
-    refuse_if_paused(services)
     competition = resolve_competition(services, slug)
+    refuse_if_closed(services)
+    refuse_if_paused(services)
     settings = services.settings
 
     await queries.compatible(session)
@@ -334,6 +359,7 @@ def _is_hex(value: str) -> bool:
     status_code=201,
     summary="Submit as a signed-in account",
     openapi_extra=UPLOAD_SCHEMA,
+    dependencies=[Depends(require_open_intake)],
 )
 async def submit_as_account(
     request: Request,
@@ -361,8 +387,9 @@ async def submit_as_account(
     account's coldkey cannot retroactively un-register anything -- so there is no window in
     which the two reads could disagree about the past.
     """
-    refuse_if_paused(services)
     competition = resolve_competition(services, slug)
+    refuse_if_closed(services)
+    refuse_if_paused(services)
     await queries.compatible(session)
     await _spend_ip(request, session, services)
     coldkey = principal.account.submission_coldkey

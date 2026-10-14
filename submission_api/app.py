@@ -61,7 +61,14 @@ from conjectures_subnet.db import (
 from conjectures_subnet.db.errors import DatabaseError
 from submission_api import __version__, errors
 from submission_api.auth import build_authenticator
-from submission_api.competitions import Competition, CompetitionRegistry
+from submission_api.competitions import (
+    DEFLATE,
+    FLOATLIB,
+    FLOATLIB_NAME,
+    FLOATLIB_SLUG,
+    Competition,
+    CompetitionRegistry,
+)
 from submission_api.credits import SubmissionTerms, parse_packages
 from submission_api.dependencies import Services
 from submission_api.github import (
@@ -90,6 +97,7 @@ from submission_api.routers import catalog as catalog_router
 from submission_api.routers import competitions as competitions_router
 from submission_api.routers import competition_reads
 from submission_api.routers import competitions_admin as competitions_admin_router
+from submission_api.routers import floatlib as floatlib_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
     admin,
@@ -133,8 +141,12 @@ attributed to conjectures.io — never a miner identity, proof bytes, or verifie
 """.strip()
 
 
-def competition_url(settings: Settings) -> str:
-    """The competition database's URL, refusing to be the proofs database's.
+def competition_url(settings: Settings, slug: str | None = None) -> str:
+    """A competition database's URL, refusing to be the proofs database's.
+
+    `slug`'s own `COMPETITION_<SLUG>_DATABASE_URL` when it has one; otherwise, for the
+    deployment's `COMPETITION_SLUG`, `COMPETITION_DATABASE_URL` and then the `POSTGRES_*`
+    fallback. `Settings.from_env` has already refused any other competition without a URL.
 
     The guard keeps the two-database split true at runtime rather than by convention. Both
     resolvers default to different database names, so it fires only where someone has pointed
@@ -145,7 +157,11 @@ def competition_url(settings: Settings) -> str:
     resolved. Comparing the raw environment variables would miss exactly the case worth
     catching: one set and the other left to its default.
     """
-    resolved = settings.competition_database_url or competition_database_url()
+    resolved = (
+        (settings.competition_database_url_for(slug) if slug is not None else "")
+        or settings.competition_database_url
+        or competition_database_url()
+    )
     if resolved == (settings.database_url or database_url()):
         raise SettingsError(
             "the competition database must not be the proofs database: "
@@ -153,6 +169,41 @@ def competition_url(settings: Settings) -> str:
             "put Alembic's schema into the database Flyway owns"
         )
     return resolved
+
+
+def build_competitions(settings: Settings) -> CompetitionRegistry:
+    """One entry, and one engine, per configured competition.
+
+    Refuses two competitions on one database for the same reason `competition_url` refuses
+    the proofs one: neither schema has a slug column, so two competitions sharing tables would
+    read and write each other's rows with nothing to tell them apart.
+    """
+    if not settings.competitions_enabled:
+        return CompetitionRegistry.empty()
+    urls: dict[str, str] = {}
+    for slug in settings.competition_slugs:
+        url = competition_url(settings, slug)
+        if (other := urls.get(url)) is not None:
+            raise SettingsError(
+                f"competitions {other!r} and {slug!r} resolve to the same database; "
+                "each competition must have its own"
+            )
+        urls[url] = slug
+    entries = []
+    for url, slug in urls.items():
+        engine = create_async_db_engine(url)
+        floatlib = slug == FLOATLIB_SLUG
+        entries.append(
+            Competition(
+                slug=slug,
+                name=FLOATLIB_NAME if floatlib else settings.competition_name,
+                speed_floor=settings.competition_speed_floor,
+                kind=FLOATLIB if floatlib else DEFLATE,
+                engine=engine,
+                sessions=async_session_factory(engine),
+            )
+        )
+    return CompetitionRegistry(tuple(entries))
 
 
 def build_services(
@@ -187,20 +238,17 @@ def build_services(
     # The URL comes from conjectures_subnet.db, so the API, the workers and Flyway can never
     # disagree about which database they are talking to.
     engine = create_async_db_engine(settings.database_url or database_url())
-    # The competition database, when this deployment has one. Two engines because two
-    # databases: Alembic owns that schema and Flyway owns this one, and nothing joins across
-    # them. Built here, beside the other, so both are disposed by the same lifespan.
-    competition_engine: AsyncEngine | None = None
-    competitions = CompetitionRegistry.empty()
-    if settings.competitions_enabled:
-        competition_engine = create_async_db_engine(competition_url(settings))
-        competitions = CompetitionRegistry.of(
-            Competition(
-                slug=settings.competition_slug,
-                name=settings.competition_name,
-                speed_floor=settings.competition_speed_floor,
-            )
-        )
+    # The competition databases, when this deployment has any: one engine per competition,
+    # because each competition's schema is its own and none of them carries a slug column.
+    # Alembic owns those schemas and Flyway owns this one, and nothing joins across them. Built
+    # here, beside the other, so all are disposed by the same lifespan.
+    competitions = build_competitions(settings)
+    # The DEFLATE competition's, or the first one's: what a competition route without a slug
+    # in its path reads -- `/v1/competitions` itself.
+    primary = next(
+        (c for c in competitions if c.kind == DEFLATE), next(iter(competitions), None)
+    )
+    competition_engine: AsyncEngine | None = primary.engine if primary else None
     balance_reader = (
         BittensorBalanceReader(
             network=settings.bittensor_network,
@@ -220,11 +268,7 @@ def build_services(
         engine=engine,
         sessions=async_session_factory(engine),
         competition_engine=competition_engine,
-        competition_sessions=(
-            async_session_factory(competition_engine)
-            if competition_engine is not None
-            else None
-        ),
+        competition_sessions=primary.sessions if primary else None,
         competitions=competitions,
         catalog=resolved_catalog,
         retired=resolved_retired,
@@ -357,8 +401,8 @@ def create_app(
             if services is None:
                 built = application.state.services
                 await built.engine.dispose()
-                if built.competition_engine is not None:
-                    await built.competition_engine.dispose()
+                for competition_engine in built.competitions.engines():
+                    await competition_engine.dispose()
                 # The chain payment verifier holds a websocket open between requests — see
                 # SubtensorTransferReader on why it is not opened per submission. Released here.
                 reader = getattr(built.payments, "reader", None)
@@ -489,6 +533,12 @@ def create_app(
     # has the literal segment /admin where a public route has /submissions, /competitors or
     # /me, so neither can match the other's paths. Public first only because that is the order
     # they are documented in.
+    #
+    # FloatLib's router first: its routes match only FloatLib's slugs (`{slug:floatlib}`), and
+    # every one of them has a DEFLATE route of the same shape that would otherwise answer it.
+    application.include_router(floatlib_router.router)
+    # FloatLib's `/health`, at the root where its own API serves it; see `routers/floatlib.py`.
+    application.include_router(floatlib_router.root_router)
     application.include_router(competitions_router.router)
     application.include_router(competition_reads.router)
     application.include_router(competitions_admin_router.router)

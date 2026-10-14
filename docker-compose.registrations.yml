@@ -8,7 +8,7 @@
 #   docker compose -f docker-compose.api.yml -f docker-compose.registrations.yml up -d --build
 #
 # An overlay for the same reasons docker-compose.watcher.yml is one: merged `-f` files are one
-# Compose project, so `db:5432` resolves and `depends_on` can gate on the migration in the
+# Compose project, so `conjectures_db:5432` resolves and `depends_on` can gate on the migration in the
 # other file. Deliberately no `name:` -- see the note at the top of the justfile.
 #
 # WITHOUT THIS SERVICE NOBODY CAN SUBMIT TO A COMPETITION. The API admits a hotkey only if the
@@ -62,7 +62,7 @@ services:
     env_file: .env
     environment:
       # The competition database, never the proofs one. Same URL migrate-competition uses.
-      COMPETITION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${COMPETITION_POSTGRES_DB:-conjectures_competition}
+      COMPETITION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@conjectures_db:5432/${COMPETITION_POSTGRES_DB:-conjectures_competition}
       APP_MODE: ${APP_MODE:-DEV}
 
       # --- Chain ------------------------------------------------------------

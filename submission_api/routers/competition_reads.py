@@ -21,6 +21,8 @@ from submission_api.pagination import (
     encode_parts,
     window,
 )
+from submission_api.competitions import DEFLATE
+from submission_api.routers import floatlib
 from submission_api.routers.competitions import resolve_competition
 from submission_api.settings import MAX_COMPETITION_FILE_BYTES
 
@@ -92,7 +94,8 @@ async def summary(competition, services, session):
     return s.Competition(
         slug=competition.slug,
         name=competition.name,
-        submissions_open=not services.settings.submissions_paused,
+        submissions_open=not services.settings.submissions_paused
+        and getattr(services.settings, "deflate_submissions_enabled", True),
         queue_depth=await store.queue_depth(session),
         current_snapshot_id=ctx.snapshot_id,
         description="Formally verified compression competition",
@@ -135,7 +138,11 @@ async def index(
     configured = services.competitions.competitions
     return s.Index(
         items=[
+            # Each from its own database: the injected session is DEFLATE's, so FloatLib opens
+            # its own (`routers/floatlib.py`).
             await summary(c, services, session)
+            if c.kind == DEFLATE
+            else await floatlib.listed(c, services)
             for c in window(configured, limit=limit, offset=offset)
         ],
         total=len(configured),
@@ -195,15 +202,19 @@ async def _ranked(session, predicates, params, chosen, sort, order):
     because a competition's submissions are counted in thousands.
     """
     rows = (
-        await session.execute(
-            text(
-                "SELECT id FROM submissions WHERE "
-                + " AND ".join(predicates)
-                + " ORDER BY submitted_at DESC, id DESC"
-            ),
-            params,
+        (
+            await session.execute(
+                text(
+                    "SELECT id FROM submissions WHERE "
+                    + " AND ".join(predicates)
+                    + " ORDER BY submitted_at DESC, id DESC"
+                ),
+                params,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     valued, missing = [], []
     for row_id in rows:
         item, score = chosen.get(str(row_id), (None, None))

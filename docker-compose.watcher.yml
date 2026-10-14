@@ -9,7 +9,7 @@
 #
 # An overlay, not a project of its own — the same arrangement docker-compose.worker.yml uses, and
 # for the same two reasons. Merged `-f` files form a single Compose project, so the watcher shares
-# the database's network (`db:5432` resolves) and `depends_on` can gate on the Flyway service in
+# the database's network (`conjectures_db:5432` resolves) and `depends_on` can gate on the Flyway service in
 # the other file. A standalone project would have neither.
 #
 # Deliberately no `name:`. The project name comes from whichever file is passed first, and
@@ -64,9 +64,9 @@ services:
 
     env_file: .env
     environment:
-      # `db`, not the published 127.0.0.1 port: that publish exists for host tools, and inside the
-      # project the database is reachable by service name.
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Use the unique container hostname; `db` can also resolve to another attached stack.
+      # The published loopback port is only for host tools.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@conjectures_db:5432/${POSTGRES_DB}
       APP_MODE: ${APP_MODE:-DEV}
 
       # --- What money this validator considers its own ----------------------
