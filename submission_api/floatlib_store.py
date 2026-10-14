@@ -120,7 +120,7 @@ async def champion_sha256(session, slot, history):
     return (await session.execute(text(query), {"slot": slot})).scalar_one_or_none()
 
 
-async def board(session, slot, champion_sha, champion_id):
+async def board(session, slot, champion_sha, champion_id, *, historical=False):
     """Each hotkey's best comparable accepted submission, fastest first, the champion leading."""
     where = "slot = :slot AND state = 'accepted' AND ratio IS NOT NULL"
     params = {"slot": slot}
@@ -150,7 +150,14 @@ async def board(session, slot, champion_sha, champion_id):
     champion = await get_submission(session, champion_id)
     if champion is None:
         return rows
-    return [champion, *(r for r in rows if r["hotkey"] != champion["hotkey"])]
+    return [
+        champion,
+        *(
+            r
+            for r in rows
+            if r["id"] != champion_id and (historical or r["hotkey"] != champion["hotkey"])
+        ),
+    ]
 
 
 async def get_submission(session, sid):
