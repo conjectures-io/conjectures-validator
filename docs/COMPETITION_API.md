@@ -1041,6 +1041,23 @@ FloatLib's `/health`, at the root where FloatLib's own API serves it, in the sam
 
 The board: the champion first, then every other hotkey's best accepted ratio against it, fastest first.
 
+Optional query parameter `champion_id` selects a champion's submission ID from `/champions`.
+Without it, the response is unchanged. For example,
+`GET /v1/competitions/floatlib/leaderboard?champion_id=42` returns champion #42 first,
+then each hotkey's best accepted submission measured against its promoted code hash.
+Unknown IDs, submissions never promoted, and champions from another board return 404;
+non-positive or malformed IDs return 422. There is no page pagination.
+
+On a historical board, `leader` identifies the selected reference, not today's champion.
+Actual promoted challengers carry their promotion date and `admission: "qualifies"`,
+including a successor from the reference champion's own hotkey. Other admission outcomes
+are null unless the retained scoring publication belongs to the selected champion;
+statistics are not recomputed. The `promotion_bar` and `qualifies` threshold flag retain
+their existing meaning using the latest published policy, not a reconstructed historical
+policy. Ratios are saved measurements against the selected code; they are not converted
+into ratios against today's champion. Use `/champions`'s `current` field to distinguish them.
+
+
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `slot` | string | `full` or the practice board's kernel |
@@ -1052,7 +1069,7 @@ The board: the champion first, then every other hotkey's best accepted ratio aga
 | `pays` | boolean | Whether the champion's author is paid: the full entry only |
 | `ranking[]` | array | `rank`, `submission`, `hotkey`, `ratio`, `qualifies` (at or below the bar), `admission`, `submitted_at`, `kernels`, `promoted_at` |
 
-`admission` is `leader` on the champion's row on every board; on the others it is the latest published scoring's outcome (`qualifies`, `not-significant`, `above-bar`, `no-evidence`), which scores only the full entry, so practice-board rows carry `null`. `kernels` is ns per operation for each kernel, summed over its timed input types: `{add, mul, sum, bmm}` on the full entry, the board's own kernel on a practice board. `promoted_at` is when the champion took over, on its row only.
+`admission` is `leader` on the champion's row on every board; on the others it is the latest published scoring's outcome (`qualifies`, `not-significant`, `above-bar`, `no-evidence`), which scores only the full entry, so practice-board rows carry `null`. `kernels` is ns per operation for each kernel, summed over its timed input types: `{add, mul, sum, bmm}` on the full entry, the board's own kernel on a practice board. `promoted_at` is when the champion took over, on its row only by default. Historical boards also include the promotion dates of promoted challengers.
 
 ### GET `/v1/competitions/{board}/champions`
 

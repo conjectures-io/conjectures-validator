@@ -72,7 +72,7 @@ class Ranking(BaseModel):
     # Nanoseconds per operation for each kernel -- add, mul, sum and bmm on the full entry, the
     # board's own kernel on a practice board -- the sum of its timed input types.
     kernels: dict[str, float] | None = None
-    # When the champion took over the board; null on every other row.
+    # Promotion date: normally only the leader; historical boards also identify promoted challengers.
     promoted_at: str | None = None
 
 

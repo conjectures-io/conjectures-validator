@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Path, Query
 from sqlalchemy.exc import InterfaceError, OperationalError
 from starlette.convertors import Convertor, register_url_convertor
 
@@ -259,19 +259,52 @@ async def root_health(services: ServicesDep):
 
 
 @router.get(SLUG + "/leaderboard", response_model=s.Leaderboard)
-async def leaderboard(board: BoardPath, services: ServicesDep, session: CompetitionSessionDep):
-    """One board: the champion first, then every other hotkey's best against it, fastest first."""
+async def leaderboard(
+    board: BoardPath,
+    services: ServicesDep,
+    session: CompetitionSessionDep,
+    champion_id: Annotated[
+        int | None, Query(ge=1, description="Champion submission ID from /champions")
+    ] = None,
+):
+    """The current board, or challengers measured against a selected past champion."""
     slot = board_of(services, board)
     await store.compatible(session)
     history = await store.promotions(session, slot)
     current = store.standing(history)
-    leader = current["id"] if current else None
-    champion_sha = await store.champion_sha256(session, slot, history)
-    rows = await store.board(session, slot, champion_sha, leader)
+    selected = current
+    if champion_id is not None:
+        selected = next((p for p in history if p["id"] == champion_id), None)
+        if selected is None:
+            raise NotFound("No such champion on this board")
+    historical = selected is not None and selected != current
+    leader = selected["id"] if selected else None
+    champion_sha = (
+        selected["promoted_sha256"]
+        if selected
+        else await store.champion_sha256(session, slot, history)
+    )
+    rows = await store.board(session, slot, champion_sha, leader, historical=historical)
     publication = await store.publication(session)
     policy = policy_of(publication)
     bar = promotion_bar(policy)
     published = outcomes(publication, slot)
+    promotions = {p["id"]: p for p in history}
+    if historical:
+        snapshot = publication[1] if publication else None
+        published_board = ((snapshot or {}).get("slots") or {}).get(slot)
+        if not isinstance(published_board, dict) or published_board.get("leader") != leader:
+            # Old scoring snapshots may have expired. Do not borrow current admission outcomes
+            # or rerun statistics; a promotion record still proves an actual takeover.
+            published = {}
+        published = {sid: outcome for sid, outcome in published.items() if outcome != "leader"}
+        published.update(
+            {
+                row["id"]: "qualifies"
+                for row in rows
+                if row["id"] != leader and row["id"] in promotions
+            }
+        )
     return s.Leaderboard(
         slot=slot,
         incumbent_sha256=await store.latest_incumbent(session, slot),
@@ -292,7 +325,11 @@ async def leaderboard(board: BoardPath, services: ServicesDep, session: Competit
                 admission="leader" if row["id"] == leader else published.get(row["id"]),
                 submitted_at=iso(row["submitted_at"]),
                 kernels=kernel_times(slot, row["classes"]),
-                promoted_at=iso(current["promoted_at"]) if row["id"] == leader else None,
+                promoted_at=(
+                    iso(promotions[row["id"]]["promoted_at"])
+                    if row["id"] == leader or (historical and row["id"] in promotions)
+                    else None
+                ),
             )
             for index, row in enumerate(rows, 1)
         ],

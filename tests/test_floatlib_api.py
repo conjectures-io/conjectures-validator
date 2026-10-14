@@ -611,3 +611,76 @@ def test_invalid_or_legacy_rank_policy_is_unknown(floatlib_db, shares):
     assert health.json()["rank_shares"] is None
     assert history.json()[0]["rank"] is None
     assert history.json()[0]["rank_share"] is None
+
+
+def test_selecting_current_champion_preserves_the_default_board(floatlib_db):
+    publish(floatlib_db)
+    default, selected = read(
+        floatlib_db,
+        "/v1/competitions/floatlib/leaderboard",
+        "/v1/competitions/floatlib/leaderboard?champion_id=1",
+    )
+    assert selected.status_code == 200
+    assert selected.json() == default.json()
+
+
+def promote_bob(db, *, same_hotkey=False):
+    execute(db, "UPDATE submissions SET ratio=0.96, digest=:digest WHERE id=2", digest="b" * 64)
+    if same_hotkey:
+        execute(db, "UPDATE submissions SET hotkey='alice' WHERE id=2")
+    execute(db, "INSERT INTO promotions (slot, submission_id, champion_sha256, promoted_at) "
+            "VALUES ('full', 2, :digest, :at)", digest="b" * 64, at=T0 + timedelta(minutes=15))
+
+
+@pytest.mark.parametrize("same_hotkey", [False, True])
+def test_historical_board_includes_the_promoted_successor(floatlib_db, same_hotkey):
+    promote_bob(floatlib_db, same_hotkey=same_hotkey)
+    execute(floatlib_db, "UPDATE submissions SET state='accepted', ratio=0.985, "
+            "champion_sha256=:sha WHERE id=4", sha=ALICE_DIGEST)
+    # This publication is for Bob, and its outcomes must not be attributed to Alice's board.
+    snapshot = json.loads(json.dumps(PUBLICATION))
+    snapshot["slots"]["full"]["leader"] = 2
+    snapshot["slots"]["full"]["items"].append(
+        {"submission_id": 4, "admission": "above-bar"}
+    )
+    publish(floatlib_db, snapshot)
+    current, past = read(
+        floatlib_db,
+        "/v1/competitions/floatlib/leaderboard",
+        "/v1/competitions/floatlib/leaderboard?champion_id=1",
+    )
+    assert current.json()["leader"] == 2
+    board = past.json()
+    assert past.status_code == 200, past.text
+    assert board["leader"] == 1 and board["champion_sha256"] == ALICE_DIGEST
+    champion, successor, challenger = board["ranking"]
+    assert champion["submission"] == 1 and champion["admission"] == "leader"
+    assert successor["submission"] == 2 and successor["ratio"] == 0.96
+    assert successor["admission"] == "qualifies"
+    assert successor["promoted_at"] == "2026-10-08T10:15:00Z"
+    assert challenger["submission"] == 4 and challenger["admission"] is None
+    assert [r["rank"] for r in board["ranking"]] == [1, 2, 3]
+
+
+@pytest.mark.parametrize("champion_id", [3, 5, 999])
+def test_selected_champion_must_have_been_promoted_on_this_board(floatlib_db, champion_id):
+    execute(floatlib_db, "INSERT INTO promotions (slot, submission_id, champion_sha256) "
+            "VALUES ('add', 5, :sha)", sha="e" * 64)
+    (response,) = read(
+        floatlib_db, f"/v1/competitions/floatlib/leaderboard?champion_id={champion_id}"
+    )
+    assert response.status_code == 404
+
+
+def test_explicitly_demoted_champion_remains_selectable(floatlib_db):
+    promote_bob(floatlib_db)
+    execute(floatlib_db, "UPDATE promotions SET demoted_at=:at WHERE submission_id=1", at=T0)
+    (response,) = read(floatlib_db, "/v1/competitions/floatlib/leaderboard?champion_id=1")
+    assert response.status_code == 200
+    assert response.json()["leader"] == 1
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "abc"])
+def test_champion_selection_rejects_invalid_ids(floatlib_db, value):
+    (response,) = read(floatlib_db, f"/v1/competitions/floatlib/leaderboard?champion_id={value}")
+    assert response.status_code == 422
