@@ -165,18 +165,25 @@ def test_hashed_but_non_generated_challenge_is_rejected(tmp_path):
     assert error.value.reason == ReasonCode.TRUSTED_FILE_MODIFIED
 
 
-def test_published_version_one_bundles_still_load_under_their_commitments():
+def test_published_headers_and_preserved_versions_load_under_their_commitments():
     from verifier.version_registry import VersionRegistry
 
     registry = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
     assert len(registry.versions) >= 550
     assert sum(record.state == "active" for record in registry.versions.values()) == 548
+    header_versions = set()
     for record in registry.versions.values():
         bundle = load_task_bundle(TASKS_ROOT / record.location)
-        assert bundle.manifest.adapter_version == 1
-        assert not bundle.files["SolutionHeader.lean.txt"].startswith(b"import Mathlib\n")
+        version = bundle.manifest.adapter_version
+        header_versions.add(version)
+        assert version in (1, 2)
+        if record.state == "active":
+            assert version == 2
+        for name in ("Challenge.lean", "SolutionHeader.lean.txt"):
+            assert bundle.files[name].startswith(b"import Mathlib\n") == (version == 2)
         assert bundle.sha256 == record.task_bundle_sha256
         assert bundle.manifest.task_id == record.task_id
+    assert header_versions == {1, 2}
 
 def test_published_header_cannot_gain_the_mathlib_import_in_place(tmp_path):
     task = copied_task(tmp_path)
