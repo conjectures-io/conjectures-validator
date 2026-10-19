@@ -205,6 +205,9 @@ class ObservedPayout:
     origin_netuid: int
     destination_netuid: int
     amount_rao: int
+    # The payout event's own TAO-equivalent `amount`, recorded for valuing the payout and for
+    # nothing else. Never compared with `amount_rao` or a reward event's Alpha amount.
+    tao_equivalent_rao: int | None = None
 
     @property
     def moved_hotkey(self) -> bool:
@@ -481,6 +484,7 @@ def payouts_in_events(
                 origin_netuid=origin_netuid,
                 destination_netuid=destination_netuid,
                 amount_rao=addition.alpha_rao,
+                tao_equivalent_rao=tao_equivalent,
             )
         )
     return found

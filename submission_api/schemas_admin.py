@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field
 
@@ -168,6 +169,35 @@ class AdminStageAttempt(Model):
     finished_at: datetime | None = None
 
 
+class AdminBindingDecision(Model):
+    """The decision currently in force on a submission: the latest non-advisory one.
+
+    Carried so the panel can correct it. `POST .../correction` takes this `review_decision_id` as
+    `supersedes_id`. The id can go stale without any panel action — an automatic decision, a
+    chat-log forfeit or an operator script can append a newer one — and a correction naming a
+    stale id answers 409 `REVIEW_CORRECTION_STALE` with the current id, so re-read and retry.
+
+    The reviewer and the internal `notes` are not here, for the reason `AdminDecision` gives.
+    """
+
+    review_decision_id: int
+    decision: Literal["APPROVED", "REJECTED"]
+    kind: Literal["HUMAN", "AUTOMATIC"] = Field(
+        description=(
+            "HUMAN: a reviewer decided. AUTOMATIC: recorded by policy, e.g. with manual review "
+            "disabled or a target already awarded. Either can be corrected"
+        )
+    )
+    reason_code: str
+    notes_public: str | None = None
+    policy_version: str
+    decided_at: datetime
+    supersedes_id: int | None = Field(
+        default=None,
+        description="The decision this one superseded; null for a first decision",
+    )
+
+
 class AdminReview(Model):
     """One submission awaiting a reward decision, with every assessment recorded against it.
 
@@ -202,7 +232,14 @@ class AdminReview(Model):
     report_available: bool = False
     # Carried so the detail endpoint can be opened on an already-decided submission without the
     # reviewer having to guess. The queue itself lists only `UNREVIEWED`.
-    manual_review_status: str
+    manual_review_status: Literal["UNREVIEWED", "APPROVED", "REJECTED"]
+    decision: AdminBindingDecision | None = Field(
+        default=None,
+        description=(
+            "The binding decision in force, with the id a correction must name; null while "
+            "UNREVIEWED"
+        ),
+    )
     attempts: tuple[AdminStageAttempt, ...] = ()
 
 
@@ -256,6 +293,7 @@ class AdminDecision(Model):
 
 
 __all__ = [
+    "AdminBindingDecision",
     "AdminCitation",
     "AdminDecision",
     "AdminFinding",

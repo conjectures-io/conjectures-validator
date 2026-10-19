@@ -16,8 +16,9 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -37,6 +38,15 @@ MAX_BACKOFF_SECONDS = 300.0
 # Doubling past this many steps cannot reach further than the ceiling above, and stopping the
 # exponent from growing keeps the shift bounded however long an outage lasts.
 _BACKOFF_CEILING_STEPS = 16
+# How old a finalized payout may be for the current Alpha/USD price to stand for its payout price.
+# Finality trails the best chain by well under a minute, and the watcher polls every few seconds,
+# so a live watcher records each payout within this window. A backlog, a restart after an outage or
+# a rescan does not, and those rows are recorded with no price rather than with a later one.
+PRICE_FRESHNESS = dt.timedelta(minutes=10)
+
+# Alpha/USD now, or None when it cannot be had. Must not raise: a price is decoration on a ledger
+# row, and the row is what has to be recorded.
+PriceSource = Callable[[], Awaitable[Decimal | None]]
 
 
 def _now() -> dt.datetime:
@@ -68,10 +78,12 @@ class PayoutWatcher:
         sessions: async_sessionmaker[AsyncSession],
         source: chain.PayoutSource,
         clock: Callable[[], dt.datetime] = _now,
+        price_source: PriceSource | None = None,
     ) -> None:
         self.settings = settings
         self.sessions = sessions
         self.source = source
+        self.price_source = price_source
         # Injected so the idle fast-forward's boundary is testable.  That boundary is wall-clock
         # by necessity -- it is a claim about rows that do not exist yet -- so a fake chain alone
         # cannot exercise it.
@@ -209,8 +221,11 @@ class PayoutWatcher:
             # transactions on purpose: a conflict raised while matching must not roll back the
             # record of what the chain actually did.  Re-recording is free -- `record_payout` is
             # idempotent on the reference -- so a crash between the two costs a replay, not a fact.
+            price = await self._price_for(observed)
             async with async_session_scope(self.sessions) as session:
-                payout_id = (await store.record_payout(session, observed)).id
+                payout_id = (
+                    await store.record_payout(session, observed, price=price)
+                ).id
             async with async_session_scope(self.sessions) as session:
                 update = await store.claim_payout(session, payout_id)
             if update is None:
@@ -242,6 +257,27 @@ class PayoutWatcher:
             await store.advance_cursor(
                 session, through_block=number, now=self.clock()
             )
+
+    async def _price_for(self, observed: chain.ObservedPayout) -> store.PayoutPrice | None:
+        """The current Alpha/USD price, if it can stand for this payout's price.
+
+        Only for a payout finalized within `PRICE_FRESHNESS` of now. Every failure is a missing
+        price, never a missing ledger row: the lookup runs before recording and outside its
+        transaction, and any exception is logged and dropped.
+        """
+        if self.price_source is None:
+            return None
+        now = _utc(self.clock())
+        if now - _utc(observed.block_timestamp) > PRICE_FRESHNESS:
+            return None
+        try:
+            alpha_usd = await self.price_source()
+            return None if alpha_usd is None else store.PayoutPrice(alpha_usd, now)
+        except Exception as exc:  # noqa: BLE001 - a price must never block the ledger
+            logger.warning(
+                "no Alpha/USD price recorded for payout %s: %s", observed.reference, exc
+            )
+            return None
 
     async def _reconcile_recent(self, scanned: Scanned) -> None:
         """Retry payouts recorded before the obligation that pays them existed.
@@ -443,4 +479,4 @@ def _utc(value: dt.datetime) -> dt.datetime:
     return value.replace(tzinfo=dt.UTC) if value.tzinfo is None else value.astimezone(dt.UTC)
 
 
-__all__ = ["PayoutWatcher", "Scanned"]
+__all__ = ["PRICE_FRESHNESS", "PayoutWatcher", "PriceSource", "Scanned"]

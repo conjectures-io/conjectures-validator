@@ -35,6 +35,7 @@ from conftest_api import (
     COLDKEY,
     MINER_COLDKEY,
     OTHER_MINER_COLDKEY,
+    RECIPIENT,
     TASK_ID,
     distinct_bundle,
     harness,
@@ -410,6 +411,15 @@ def test_split_payout_displays_both_shares_and_counts_only_observed_transfers():
             result = (await _get(kit, f"/v1/results/{submission_id}")).json()
             assert result["bounty_amount_rao"] == 900
             assert (await _get(kit, "/v1/results/stats")).json()["paid_out_rao"] == 751
+            # What was paid is the confirmed split, not the later amount of record: two
+            # transfers, so no single link at the top, and these legacy references have no
+            # chain position, so no link per transfer either.
+            payout = result["payout"]
+            assert payout["amount_rao"] == 751
+            assert sorted(t["amount_rao"] for t in payout["transfers"]) == [375, 376]
+            assert payout["extrinsic_url"] is None
+            assert {t["extrinsic_url"] for t in payout["transfers"]} == {None}
+            assert payout["amount_usd_at_payout"] is None
         finally:
             await kit.teardown()
 
@@ -628,6 +638,8 @@ def test_signed_public_credit_follows_a_result_from_review_to_the_solution():
             in_review = (await _get(kit, "/v1/results/in-review")).json()["items"][0]
             assert in_review["public_credit"] == credit.to_dict()
             assert in_review["solver_coldkey"] == MINER_COLDKEY
+            # The one name to credit: the signed authorship claim wins.
+            assert in_review["credited_name"] == "The Noether Research Team"
 
             await _certify(kit, submission_id)
             result = (await _get(kit, f"/v1/results/{submission_id}")).json()
@@ -636,6 +648,7 @@ def test_signed_public_credit_follows_a_result_from_review_to_the_solution():
             ).json()
             assert result["public_credit"] == credit.to_dict()
             assert solution["public_credit"] == credit.to_dict()
+            assert result["credited_name"] == solution["credited_name"] == credit.name
         finally:
             await kit.teardown()
 
@@ -1430,3 +1443,146 @@ def test_two_solvers_on_one_conjecture_are_each_credited_to_their_own_hotkey():
             await kit.teardown()
 
     run(scenario())
+
+
+# --- the payout behind a rewarded result -------------------------------------------------
+
+
+async def _reward_event_id(kit, submission_id: str) -> int:
+    async with kit.session() as session:
+        return await session.scalar(
+            select(RewardEvent.id).where(RewardEvent.submission_id == uuid.UUID(submission_id))
+        )
+
+
+def test_a_rewarded_result_publishes_what_was_paid_when_and_where():
+    """The payout comes from the finalized ledger row that settled it: its chain time, its
+    position as a taostats link, and the price the watcher recorded with it."""
+    from conjectures_subnet.db.models import TreasuryPayout, TreasuryPayoutState
+
+    paid_at = datetime(2026, 9, 12, 9, 1, 44, tzinfo=UTC)
+
+    async def scenario():
+        kit = await harness(bounty_usd=StaticAlphaUsdPriceReader(Decimal(50))).setup()
+        try:
+            submission_id = await _submit(kit, "payout-ledger")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id)
+            event_id = await _reward_event_id(kit, submission_id)
+            async with kit.session() as session:
+                session.add(
+                    TreasuryPayout(
+                        extrinsic_reference="5891203-12-40",
+                        block=5_891_203,
+                        block_timestamp=paid_at,
+                        extrinsic_index=12,
+                        event_index=40,
+                        origin_coldkey=RECIPIENT,
+                        origin_hotkey=RECIPIENT,
+                        destination_coldkey=COLDKEY,
+                        destination_hotkey=RECIPIENT,
+                        origin_netuid=66,
+                        destination_netuid=66,
+                        amount_rao=100_000_000,
+                        tao_equivalent_rao=40_000_000,
+                        alpha_usd=Decimal("2.5"),
+                        alpha_usd_observed_at=paid_at,
+                        status=TreasuryPayoutState.CLAIMED,
+                        reward_event_id=event_id,
+                    )
+                )
+                await session.commit()
+
+            for path in (f"/v1/results/{submission_id}", "/v1/results/certified"):
+                body = (await _get(kit, path)).json()
+                item = body if "id" in body else body["items"][0]
+                assert item["reward_status"] == "REWARDED"
+                payout = item["payout"]
+                assert payout["amount_rao"] == 100_000_000
+                # 0.1 Alpha at $2.50 when paid, whatever today's price ($50 here) says.
+                assert payout["amount_usd_at_payout"] == "0.25"
+                assert item["bounty_amount_usd"] == "5.00"
+                assert payout["paid_at"] == "2026-09-12T09:01:44Z"
+                # taostats names an extrinsic `<block>-<index>`, the index padded to four digits.
+                assert payout["extrinsic_url"] == "https://taostats.io/extrinsic/5891203-0012"
+                assert payout["transfers"] == [
+                    {
+                        "amount_rao": 100_000_000,
+                        "paid_at": "2026-09-12T09:01:44Z",
+                        "extrinsic_url": "https://taostats.io/extrinsic/5891203-0012",
+                    }
+                ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("stage", ["in_review", "approved_unpaid", "operator_paid"])
+def test_no_payout_is_published_before_a_finalized_chain_observed_transfer(stage):
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, f"payout-none-{stage}")
+            await _verify(kit, submission_id)
+            if stage == "approved_unpaid":
+                await _approve(kit, submission_id)
+            elif stage == "operator_paid":
+                # REWARDED on the row, but no chain observation behind it.
+                await _certify(kit, submission_id, chain_observed=False)
+            result = (await _get(kit, f"/v1/results/{submission_id}")).json()
+            assert result["payout"] is None
+            assert result["certified_at"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("reference", "expected_url"),
+    [
+        ("777-3-9", "https://taostats.io/extrinsic/777-0003"),
+        # An operator's free text on a legacy row locates nothing, and nothing is guessed.
+        ("0xpayout-legacy", None),
+    ],
+)
+def test_a_payout_without_a_ledger_row_links_its_own_canonical_reference_or_nothing(
+    reference, expected_url
+):
+    """A payout confirmed before the ledger existed has no `treasury_payouts` row; its event's
+    own reference is all there is to locate it by."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _submit(kit, f"payout-ref-{reference}")
+            await _verify(kit, submission_id)
+            await _certify(kit, submission_id)
+            async with kit.session() as session:
+                event = await session.get(RewardEvent, await _reward_event_id(kit, submission_id))
+                event.extrinsic_reference = reference
+                await session.commit()
+            payout = (await _get(kit, f"/v1/results/{submission_id}")).json()["payout"]
+            assert payout["amount_rao"] == 100_000_000
+            assert payout["extrinsic_url"] == expected_url
+            assert payout["amount_usd_at_payout"] is None  # no price was ever recorded
+            assert payout["paid_at"] is not None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_credited_name_prefers_signed_credit_then_the_display_name():
+    from types import SimpleNamespace
+
+    from submission_api.routers.results import credited_name
+
+    def row(credit, display):
+        return SimpleNamespace(public_credit_name=credit, solver_display_name=display)
+
+    assert credited_name(row("R. Smith and A. Lee", "rob")) == "R. Smith and A. Lee"
+    assert credited_name(row(None, "rob")) == "rob"
+    # Never the coldkey: an address is rendered differently, so it stays its own field.
+    assert credited_name(row(None, None)) is None

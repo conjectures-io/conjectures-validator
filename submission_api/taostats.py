@@ -28,10 +28,29 @@ from submission_api.rates import SOURCE_TAOSTATS, TaoUsdQuote
 RAO_PER_ALPHA = Decimal(1_000_000_000)
 USD_CENT = Decimal("0.01")
 
+# An extrinsic page. taostats names an extrinsic `<block>-<index>` with the index zero-padded to
+# four digits; a link built from an unpadded index, or from the three-part event reference this
+# codebase stores, does not resolve.
+TAOSTATS_EXTRINSIC_URL = "https://taostats.io/extrinsic/{block}-{index:04d}"
+
 TAOSTATS_TAO_PRICE_URL = "https://api.taostats.io/v1/price"
 TAOSTATS_SUBNET_POOL_URL = "https://api.taostats.io/v1/subnets/pools"
 
 logger = logging.getLogger(__name__)
+
+
+def extrinsic_url(block: int | None, extrinsic_index: int | None) -> str | None:
+    """The taostats page for one extrinsic, or None without a chain position."""
+    if block is None or extrinsic_index is None or block <= 0 or extrinsic_index < 0:
+        return None
+    return TAOSTATS_EXTRINSIC_URL.format(block=block, index=extrinsic_index)
+
+
+def usd_to_cent(dollars: Decimal | None) -> str | None:
+    """A dollar amount as the API renders every USD figure: a decimal string, to the cent."""
+    if dollars is None:
+        return None
+    return f"{dollars.quantize(USD_CENT, rounding=ROUND_HALF_UP):.2f}"
 
 
 class AlphaUsdPriceReader(Protocol):
@@ -293,4 +312,6 @@ __all__ = [
     "TaoStatsTaoUsdPriceReader",
     "UnavailableAlphaUsdPriceReader",
     "amount_usd",
+    "extrinsic_url",
+    "usd_to_cent",
 ]

@@ -103,14 +103,16 @@ and it writes nothing.
 ### Reviewer
 
 Session cookie plus the `REVIEWER` role on the account. A CLI bearer token cannot exercise the role
-however the account is set up — see `ACCOUNT_API.md` — so this surface is browser-only. Read-only,
-and never cached: every response sets `Cache-Control: no-store`, because these bodies are authorised
+however the account is set up — see `ACCOUNT_API.md` — so this surface is browser-only. Never
+cached: every response sets `Cache-Control: no-store`, because these bodies are authorised
 per caller and carry review material that is not published anywhere else.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/v1/admin/reviews` | Submissions awaiting a reward decision, each with every advisory assessment recorded against it. `status=decided` lists what review has already approved or rejected |
-| `GET` | `/v1/admin/reviews/{submission_id}` | One submission's full advisory record, decided or not |
+| `GET` | `/v1/admin/reviews/{submission_id}` | One submission's full advisory record, decided or not, with `decision`: the binding decision in force (`review_decision_id`, `decision`, `kind`, `reason_code`, `notes_public`, `policy_version`, `decided_at`, `supersedes_id`), null while `UNREVIEWED` |
+| `POST` | `/v1/admin/reviews/{submission_id}/decision` | Record the first binding decision. Needs a same-origin browser write |
+| `POST` | `/v1/admin/reviews/{submission_id}/correction` | Supersede the binding decision: `supersedes_id` is the `decision.review_decision_id` read above. A stale id answers `409 REVIEW_CORRECTION_STALE` with the current one; automatic decisions, chat-log forfeits and operator scripts also append decisions, so re-read and retry |
 | `POST` | `/v1/admin/invitations` | Issue an invitation link. **The only response that carries the code** |
 | `GET` | `/v1/admin/invitations` | Issued invitations with their counts, newest first and cursor-paginated, filterable by `active`/`expired`/`revoked`/`exhausted` |
 | `GET` | `/v1/admin/invitations/{id}` | One invitation, with who redeemed it and which ledger entry each use produced |

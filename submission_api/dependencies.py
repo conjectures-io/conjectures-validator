@@ -34,6 +34,7 @@ from submission_api.github import (
     ContributionMirror,
     UnavailableContributionMirror,
 )
+from submission_api.links import CatalogLinks
 from submission_api.google_identity import (
     DisabledGoogleCredentialVerifier,
     GoogleCredentialVerifier,
@@ -114,6 +115,9 @@ class Services:
     # invoice unpriceable and must refuse the sale.
     tmc_pay: InvoiceGateway = field(default_factory=UnavailableGateway)
     tao_usd: TaoUsdPriceReader = field(default_factory=UnavailableTaoUsdPriceReader)
+    # Source and bundle links for the catalog, from the pins and the tasks checkout. The default
+    # publishes none, for a service graph assembled without either.
+    links: CatalogLinks = field(default_factory=CatalogLinks.none)
     # Targets that have left the pool, kept readable so results already earned against them stay
     # citable. Separate from `catalog` on purpose: `catalog` is what a submission resolves
     # against, and nothing in this field can ever reach that path. Empty by default, so a test

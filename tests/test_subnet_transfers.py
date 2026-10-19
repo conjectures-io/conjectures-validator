@@ -164,6 +164,8 @@ def test_payout_uses_the_exact_alpha_from_the_companion_stake_event():
             origin_netuid=66,
             destination_netuid=66,
             amount_rao=1_044_286_814_577,
+            # The event's own TAO-equivalent amount, kept for valuing the payout only.
+            tao_equivalent_rao=400_000_000,
         )
     ]
     assert found[0].reference == "100-7-3"

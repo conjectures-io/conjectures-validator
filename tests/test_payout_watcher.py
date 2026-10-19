@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 import uuid
 from dataclasses import replace
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -894,3 +895,75 @@ def test_arbos_watcher_preserves_history_and_cursor_without_accepting_other_posi
 
     for changes in ({"network": "test"}, {"origin_coldkey": "other"}, {"netuid": 67}):
         assert replace(config, **changes).accepted_origin_hotkeys == (DEFAULT_ORIGIN_HOTKEY,)
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+@pytest.mark.parametrize(
+    ("case", "seen_after", "expected_price"),
+    [
+        # A live watcher records the payout within moments, so now's price is the payout price.
+        ("fresh", dt.timedelta(minutes=2), Decimal("1.25")),
+        # A backlog or rescan is too late for that: no price rather than a later one.
+        ("stale", dt.timedelta(hours=1), None),
+        # A failed lookup costs the price, never the ledger row or the settlement.
+        ("failing", dt.timedelta(minutes=2), None),
+    ],
+)
+def test_a_fresh_payout_is_recorded_with_its_price_and_a_late_one_without(
+    case, seen_after, expected_price
+):
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    calls = []
+
+    async def price_source():
+        calls.append(case)
+        if case == "failing":
+            raise RuntimeError("TaoStats is down")
+        return Decimal("1.25")
+
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        _, reward_id = seed_pending(sync_sessions)
+        payout = replace(observed_payout(), tao_equivalent_rao=400_000_000)
+        source = FakePayoutSource(finalized=102, best=102, payouts={102: (payout,)})
+        now = PAYOUT_TIME + seen_after
+        watcher = PayoutWatcher(
+            settings=settings(dsn),
+            sessions=async_session_factory(async_engine),
+            source=source,
+            clock=lambda: now,
+            price_source=price_source,
+        )
+
+        scanned = asyncio.run(watcher.scan_once())
+        assert scanned is not None and scanned.confirmed == 1
+        with sync_sessions() as session:
+            row = session.execute(select(TreasuryPayout)).scalar_one()
+        assert row.reward_event_id == reward_id
+        assert row.tao_equivalent_rao == 400_000_000
+        assert row.alpha_usd == expected_price
+        assert row.alpha_usd_observed_at == (now if expected_price is not None else None)
+        # A stale payout is not priced at all, so no request is made for it.
+        assert calls == ([] if case == "stale" else [case])
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+def test_a_price_is_refused_unless_finite_and_positive():
+    for bad in (Decimal(0), Decimal(-1), Decimal("NaN"), Decimal("Infinity")):
+        with pytest.raises(ValueError):
+            store.PayoutPrice(bad, START)
+
+
+def test_the_taostats_key_is_optional_for_the_watcher():
+    assert settings("postgresql+psycopg://unused").taostats_api_key == ""
+    keyed = PayoutWatcherSettings.from_env(
+        {"DATABASE_URL": "postgresql+psycopg://unused", "TAOSTATS_API_KEY": " key "}
+    )
+    assert keyed.taostats_api_key == "key"

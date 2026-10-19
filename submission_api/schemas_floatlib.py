@@ -98,8 +98,12 @@ class Champion(BaseModel):
     # rather than `demoted_at` says who holds the board.
     submission: int
     hotkey: str
-    # Against the champion it took over from.
+    # Against the champion it took over from: its total time over that champion's, lower faster.
     ratio: float | None = None
+    # Shipped kernels' time over this champion's, higher faster: 1 / the product of the ratios
+    # along the chain of champions each was timed against. Null when that chain is broken. Each
+    # link is its own bench run, so this is an estimate. See `floatlib_store.speedups`.
+    speedup_vs_shipped: float | None = None
     promoted_at: str
     # Set only when its own bench failed too often and it was demoted.
     demoted_at: str | None = None

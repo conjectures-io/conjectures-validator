@@ -76,6 +76,7 @@ from submission_api.github import (
     build_contribution_mirror,
 )
 from submission_api.google_identity import build_google_credential_verifier
+from submission_api.links import CatalogLinks
 from submission_api.mail import build_mail_sender
 from submission_api.middleware import (
     CrossOriginWriteGuard,
@@ -295,6 +296,7 @@ def build_services(
             confirmed_payout_grace_seconds=settings.bounty_balance_cache_seconds,
         ),
         pins=resolved_pins,
+        links=CatalogLinks.build(resolved_pins, tasks_root=settings.task_pool_root.parent),
         mail=build_mail_sender(settings),
         # Parsed at startup, so a malformed package spec or a bonus larger than its purchase
         # stops the process rather than reaching a pricing page.

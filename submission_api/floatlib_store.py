@@ -88,13 +88,52 @@ async def promotions(session, slot):
     rows = await session.execute(
         text("""
         SELECT p.id AS promotion_id, p.promoted_at, p.demoted_at,
-               p.champion_sha256 AS promoted_sha256, s.id, s.hotkey, s.ratio
+               p.champion_sha256 AS promoted_sha256, s.id, s.hotkey, s.ratio,
+               s.champion_sha256 AS timed_against
         FROM promotions p JOIN submissions s ON s.id = p.submission_id
         WHERE p.slot = :slot ORDER BY p.id DESC
     """),
         {"slot": slot},
     )
     return [dict(row) for row in rows.mappings()]
+
+
+def speedups(history):
+    """Each promotion's speed-up over the shipped kernels, by promotion id; None where unknown.
+
+    `ratio` is the promoted submission's total time over the code it was timed against
+    (`timed_against`), lower being faster. Chaining ratios in promotion order is wrong once a
+    champion has been demoted: the board falls back to an older champion, and the next challenger
+    is timed against that one. So the chain follows code hashes instead — a promotion's parent is
+    the latest earlier promotion of the code it was timed against, and the chain ends at the
+    shipped code, which the first promotion was timed against. The speed-up is 1 / the product of
+    the ratios along it.
+
+    None when the chain cannot be followed: a missing ratio, a reference that is neither shipped
+    nor an earlier promotion. Each link is a separate bench run, so the product is an estimate
+    whose noise compounds with the chain's length.
+    """
+    if not history:
+        return {}
+    ordered = sorted(history, key=lambda p: p["promotion_id"])
+    shipped = ordered[0]["timed_against"]
+    result = {}
+    for index, promotion in enumerate(ordered):
+        ratio = promotion["ratio"]
+        reference = promotion["timed_against"]
+        if ratio is None or ratio <= 0 or reference is None or shipped is None:
+            result[promotion["promotion_id"]] = None
+            continue
+        if reference == shipped:
+            base = 1.0
+        else:
+            parent = next(
+                (p for p in reversed(ordered[:index]) if p["promoted_sha256"] == reference),
+                None,
+            )
+            base = None if parent is None else result.get(parent["promotion_id"])
+        result[promotion["promotion_id"]] = None if base is None else base / ratio
+    return result
 
 
 def standing(history):

@@ -5,12 +5,17 @@ coldkey signature and is reading their own submission; these are served to anyon
 credential at all, and are rendered by a public website. The two sets have different rules, and
 mixing them in one module is how a field that belongs to one ends up on the other.
 
-**A result names its solver; nothing here reaches their money.** `PublicResult`,
-`InReviewResult` and `PublicSolution` publish `solver_display_name` and `solver_coldkey` by
-product decision — a result is credited to whoever produced it. The payment reference and the
-extrinsic remain absent from every model on this surface, and so does `Account.payout_coldkey`:
-`solver_coldkey` is the key a submission was *signed* with, never the destination rewards are
-sent to. That boundary is the one still enforced structurally.
+**A result names its solver, and what the treasury paid them; not what they paid.**
+`PublicResult`, `InReviewResult` and `PublicSolution` publish `solver_display_name` and
+`solver_coldkey` by product decision — a result is credited to whoever produced it. The incoming
+payment reference remains absent from every model on this surface, and so does
+`Account.payout_coldkey` as a field: `solver_coldkey` is the key a submission was *signed* with,
+never the destination rewards are sent to.
+
+`PublicResult.payout` publishes the outgoing payout of a rewarded result, by product decision, so
+"paid out" can be checked on a block explorer. Its `extrinsic_url` leads to a page that shows the
+destination coldkey; that is accepted. The field is built only from finalized, chain-observed
+payouts.
 
 V035 widened this surface, and it is worth stating rather than leaving to be discovered. The
 solver's account **display name** is now published ahead of the coldkey, where before only a
@@ -50,6 +55,63 @@ class Model(BaseModel):
 
 
 ItemT = TypeVar("ItemT")
+
+
+# --- Vocabularies --------------------------------------------------------------------------
+#
+# Every status this surface publishes, as a `Literal`, so the OpenAPI document carries the values
+# as an `enum` rather than in prose. A value added in the code without being added here fails
+# response validation in tests rather than reaching a client that switches on these;
+# `tests/test_public_vocabularies.py` holds the database-backed ones to their enums.
+
+VerificationStatus = Literal["UNVERIFIED", "VERIFIED", "REJECTED"]
+ManualReviewStatus = Literal["UNREVIEWED", "APPROVED", "REJECTED"]
+# FAILED is in the database enum and is read, but no production path writes it today.
+RewardStatus = Literal["INELIGIBLE", "ELIGIBLE", "REWARDED", "FAILED"]
+ReviewDecisionOutcome = Literal["APPROVED", "REJECTED"]
+TaskMode = Literal["formalized", "counterexample"]
+ActivityEvent = Literal["attempt", "verified", "rejected", "certified"]
+SystemState = Literal["ok", "degraded", "paused"]
+BountyReason = Literal[
+    "OPEN",
+    "CLAIM_HELD",
+    "ALREADY_SOLVED",
+    "NOT_IN_BOUNTY_POOL",
+    "TREASURY_RESERVED",
+    "CHAT_LOG_REVIEW_UNAVAILABLE",
+    "WITHDRAWN",
+]
+DisplayStatus = Literal[
+    "open",
+    "in_review",
+    "solved",
+    "formalization_defect",
+    "solved_elsewhere",
+    "withdrawn",
+    "on_hold",
+    "unfunded",
+    "submissions_paused",
+]
+
+DISPLAY_STATUS_DESCRIPTION = (
+    "One status to render, derived by the API from the bounty, the review queue, the pool and the "
+    "submissions switch so no client re-derives it. "
+    "open: accepting submissions with a funded bounty. "
+    "in_review: a Lean-verified submission is awaiting the reward decision. "
+    "solved: review approved a submission here; it holds the target (`solved_at`). "
+    "formalization_defect: review approved a submission that proved or refuted the published Lean "
+    "through a defect in the formalization; the target is closed, but the conjecture is not "
+    "solved. "
+    "solved_elsewhere: closed because the problem was resolved outside this platform. "
+    "withdrawn: permanently left the pool for another reason; see `retirement`. "
+    "on_hold: admission suspended pending review of a statement, source or resolution claim; "
+    "neither solved nor retired. "
+    "unfunded: open, but the treasury has nothing left to offer; submissions are refused. "
+    "submissions_paused: submissions are switched off, platform-wide or for this target. "
+    "Precedence, first match wins: solved / formalization_defect, in_review, submissions_paused, "
+    "unfunded, open. The last four appear only on live targets, the retired ones only on a "
+    "retired or held detail page, since the list carries live targets only"
+)
 
 
 # --- Pagination ----------------------------------------------------------------------------
@@ -148,10 +210,15 @@ class BountyInfo(Model):
     )
     policy_version: str
     available: bool
-    reason: str = Field(
+    reason: BountyReason = Field(
         description=(
-            "OPEN | CLAIM_HELD | ALREADY_SOLVED | NOT_IN_BOUNTY_POOL | WITHDRAWN. "
-            "WITHDRAWN means the conjecture has left the pool; see `retirement`"
+            "Why the bounty is or is not available. OPEN: funded and unclaimed. CLAIM_HELD: the "
+            "caller's own submission holds it (only on a caller-specific read). ALREADY_SOLVED: "
+            "review approved a submission that now holds it. NOT_IN_BOUNTY_POOL: not a priced "
+            "target. TREASURY_RESERVED: the treasury is fully committed, so the amount is zero. "
+            "CHAT_LOG_REVIEW_UNAVAILABLE: the target requires chat logs and their review is "
+            "switched off, so submissions are refused. WITHDRAWN: the conjecture has left the "
+            "pool; see `retirement`. Prefer `display_status` for rendering"
         )
     )
     as_of: datetime
@@ -272,7 +339,7 @@ class ConjectureTask(Model):
     task_id: str = Field(
         description="What a submission bundle names. Changes on every pin rotation"
     )
-    task_mode: str = Field(description="formalized | counterexample")
+    task_mode: TaskMode
     task_bundle_sha256: str
     attempts: int = Field(
         description="Paid verification attempts recorded against this task alone"
@@ -322,6 +389,22 @@ class ConjectureSummary(Model):
     )
     tasks: tuple[ConjectureTask, ...]
     bounty: BountyInfo
+    display_status: DisplayStatus = Field(description=DISPLAY_STATUS_DESCRIPTION)
+    added_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When this API first listed the target. Survives pin rotations; not a pin date, "
+            "since pins carry none. Null only for a retired target that was never served live"
+        ),
+    )
+    solved_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When review approved the submission that holds this target — solved means approved, "
+            "not paid; the payout time is the result's `certified_at`. Null unless "
+            "`display_status` is solved or formalization_defect"
+        ),
+    )
     attempts: int = Field(
         description="Paid verification attempts against this conjecture in either direction"
     )
@@ -336,6 +419,15 @@ class ConjectureTaskDetail(ConjectureTask):
     """
 
     challenge_lean: str
+    bundle_url: str | None = Field(
+        default=None,
+        description=(
+            "The task bundle's directory in the tasks repository, at the pinned tasks commit. "
+            "Taken from where the server loaded the bundle, so it is right for any tier and for "
+            "versioned tasks; never assemble it from `task_id`. Null on a retired conjecture, "
+            "whose bundle was deleted"
+        ),
+    )
     machine_contract: MachineContract | None = Field(
         default=None,
         description=(
@@ -422,6 +514,39 @@ class ConjectureDetail(Model):
     references: tuple[Reference, ...]
     tasks: tuple[ConjectureTaskDetail, ...]
     bounty: BountyInfo
+    display_status: DisplayStatus = Field(description=DISPLAY_STATUS_DESCRIPTION)
+    added_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When this API first listed the target. Survives pin rotations; not a pin date, "
+            "since pins carry none. Null only for a retired target that was never served live"
+        ),
+    )
+    solved_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When review approved the submission that holds this target — solved means approved, "
+            "not paid; the payout time is the result's `certified_at`. Null unless "
+            "`display_status` is solved or formalization_defect"
+        ),
+    )
+    source_url: str | None = Field(
+        default=None,
+        description=(
+            "The Lean source file upstream, at the commit the audited pin was built on. Not at "
+            "`repository_commit`: that commit is made locally by applying the audit patch and "
+            "does not exist upstream. Null when the source repository is not on GitHub"
+        ),
+    )
+    source_patched: bool | None = Field(
+        default=None,
+        description=(
+            "True when the audit patch changes this source file, so the statement at "
+            "`source_url` can differ from the audited one served here as `statement` and in "
+            "each task's `challenge_lean`. Null when the server could not read the patch it "
+            "was pinned with, so it cannot say"
+        ),
+    )
     retirement: RetirementInfo | None = Field(
         default=None,
         description=(
@@ -457,6 +582,13 @@ class Facet(Model):
 
 class ConjectureListResponse(Model):
     total: int = Field(description="Conjectures matching the filters, before paging")
+    submissions_open: bool = Field(
+        description=(
+            "Whether the platform accepts submissions at all; the same value as "
+            "`/v1/system/status`. False makes every item's `display_status` submissions_paused "
+            "unless a stronger status applies"
+        )
+    )
     items: tuple[ConjectureSummary, ...]
     facets: tuple[Facet, ...]
     repository_commit: str
@@ -477,7 +609,7 @@ class ConjectureVariantRef(Model):
     """
 
     slug: str = Field(description=SLUG_DESCRIPTION)
-    task_mode: str = Field(description="formalized | counterexample")
+    task_mode: TaskMode
     retired: bool = Field(
         default=False,
         description=(
@@ -593,6 +725,16 @@ class PinInfo(Model):
     toolchain: str | None = None
     version: str | None = None
     enabled: bool | None = None
+    base_commit: str | None = Field(
+        default=None,
+        description=(
+            "For a patched component: the upstream commit the audit patch is applied to. "
+            "`commit` is then derived locally and does not exist upstream"
+        ),
+    )
+    patch_sha256: str | None = Field(
+        default=None, description="For a patched component: the audit patch's digest"
+    )
 
 
 class PoolMeta(Model):
@@ -634,7 +776,12 @@ class PublicActivityItem(Model):
     that attempt is visible with its sender, which would undo the pseudonym.
     """
 
-    event: str = Field(description="attempt | verified | rejected | certified")
+    event: ActivityEvent = Field(
+        description=(
+            "The furthest state the submission reached. certified here means REWARDED, without "
+            "the on-chain check `/v1/results/certified` applies"
+        )
+    )
     occurred_at: datetime
     solver: str
 
@@ -691,11 +838,62 @@ class PublicReviewDecision(Model):
     record a publishable explanation.
     """
 
-    decision: str = Field(description="APPROVED | REJECTED")
+    decision: ReviewDecisionOutcome
     reason_code: str
     notes_public: str | None = None
     policy_version: str
     decided_at: datetime
+
+
+class PublicPayoutTransfer(Model):
+    """One finalized transfer from the treasury."""
+
+    amount_rao: int = Field(description="Subnet Alpha base units moved by this transfer")
+    paid_at: datetime = Field(description="The block's timestamp")
+    extrinsic_url: str | None = Field(
+        default=None,
+        description=(
+            "The extrinsic on taostats. For a multisig payout, the final approval that executed "
+            "it. Null for a legacy payout recorded without a chain position"
+        ),
+    )
+
+
+class PublicPayout(Model):
+    """What the treasury actually paid for a result, from finalized chain facts only."""
+
+    amount_rao: int = Field(
+        description=(
+            "Subnet Alpha base units paid, summed over `transfers`. Unlike "
+            "`bounty_amount_rao`, this is the paid amount, not the amount of record"
+        )
+    )
+    amount_usd_at_payout: str | None = Field(
+        default=None,
+        description=(
+            "`amount_rao` at the Alpha/USD price observed when each transfer was recorded, to the "
+            "cent. Null when any transfer was recorded without a price — every payout before "
+            "this field existed, and any the watcher saw late"
+        ),
+    )
+    paid_at: datetime = Field(description="When the last transfer of this payout finalized")
+    extrinsic_url: str | None = Field(
+        default=None,
+        description=(
+            "The extrinsic on taostats when the payout was one transfer; null when it was split "
+            "between co-solvers (see `transfers`) or has no chain position on record"
+        ),
+    )
+    transfers: tuple[PublicPayoutTransfer, ...] = Field(
+        description="Every transfer this payout was made of, oldest first; usually exactly one"
+    )
+
+
+CREDITED_NAME_DESCRIPTION = (
+    "The one name to credit this result to: `public_credit.name` when the submitter signed one, "
+    "otherwise `solver_display_name`. Null when neither is set — render `solver_coldkey`, "
+    "truncated, or a pseudonym. Never the coldkey itself, which wants different rendering"
+)
 
 
 class PublicResult(Model):
@@ -706,8 +904,9 @@ class PublicResult(Model):
     queued, rejected, in review, or paid out. The three `*_status` fields are how a client tells
     those apart; the timestamps below say when, and are null until the state they name is reached.
 
-    Credited to whoever submitted it and any public credit they signed. Nothing
-    here reaches that miner's funds: no paying coldkey, no payment reference, no extrinsic.
+    Credited to whoever submitted it and any public credit they signed. Nothing here reaches
+    the money the miner paid in: no paying coldkey, no payment reference. What the treasury paid
+    out is published on `payout`.
     """
 
     id: uuid.UUID
@@ -733,19 +932,20 @@ class PublicResult(Model):
         default=None,
         description="Opt-in public authorship signed with this submission",
     )
-    verification_status: str = Field(
+    credited_name: str | None = Field(default=None, description=CREDITED_NAME_DESCRIPTION)
+    verification_status: VerificationStatus = Field(
         description=(
             "Where Lean got to: UNVERIFIED (queued or running), VERIFIED, or REJECTED"
         )
     )
-    manual_review_status: str = Field(
+    manual_review_status: ManualReviewStatus = Field(
         description=(
             "The reward decision on a Lean-verified proof: UNREVIEWED, APPROVED, or REJECTED. "
             "APPROVED covers both a human approval and the recorded automatic decision when "
             "manual review is disabled"
         )
     )
-    reward_status: str = Field(
+    reward_status: RewardStatus = Field(
         description=(
             "Where the payout got to: INELIGIBLE, ELIGIBLE (owed, not yet paid), REWARDED "
             "(confirmed on chain), or FAILED"
@@ -784,11 +984,16 @@ class PublicResult(Model):
     certified_at: datetime | None = Field(
         default=None, description="When the payout for this result was confirmed on chain"
     )
-    bounty_amount_rao: int
+    bounty_amount_rao: int = Field(
+        description=(
+            "The amount of record: the locked bounty, or the current payout instruction's "
+            "amount once one exists. Not necessarily what was paid; see `payout`"
+        )
+    )
     bounty_amount_usd: str | None = Field(
         description=(
-            "Current USD display value of bounty_amount_rao from TaoStats; null when the "
-            "external rate is unavailable."
+            "Current USD display value of bounty_amount_rao from TaoStats — today's rate, not "
+            "the rate at payout; null when the external rate is unavailable."
         )
     )
     bounty_policy_version: str
@@ -815,6 +1020,14 @@ class PublicResult(Model):
             "Whether the proof is published for this result, at "
             "GET /v1/results/{id}/solution. True once review has approved the submission, so a "
             "result that is Lean-verified but still in review is listed here with no solution"
+        ),
+    )
+    payout: PublicPayout | None = Field(
+        default=None,
+        description=(
+            "What was actually paid, when, and where to check it on chain. Null unless "
+            "`reward_status` is REWARDED with a finalized, chain-observed payout — the same "
+            "evidence `certified_at` rests on"
         ),
     )
 
@@ -850,6 +1063,7 @@ class InReviewResult(Model):
         default=None,
         description="Opt-in public authorship signed with this submission",
     )
+    credited_name: str | None = Field(default=None, description=CREDITED_NAME_DESCRIPTION)
     slug: str = Field(description="The conjecture this result is against, as a stable slug")
     task_id: str
     display_title: str = Field(description=DISPLAY_TITLE_DESCRIPTION)
@@ -900,6 +1114,7 @@ class PublicSolution(Model):
         default=None,
         description="Opt-in public authorship signed with this submission",
     )
+    credited_name: str | None = Field(default=None, description=CREDITED_NAME_DESCRIPTION)
     slug: str = Field(description="The conjecture this proof closes, as a stable slug")
     filename: str = Field(description="The path the bytes occupy in the verified bundle")
     source: str = Field(description="The Lean source, verbatim as verified")
@@ -954,7 +1169,7 @@ class PinRotationWindow(Model):
 
 
 class SystemStatus(Model):
-    status: str = Field(description="ok | degraded | paused")
+    status: SystemState
     submissions_open: bool
     repository_commit: str
     queue_depths: QueueDepths
@@ -983,6 +1198,8 @@ __all__ = [
     "PoolMeta",
     "PublicActivityItem",
     "PublicCredit",
+    "PublicPayout",
+    "PublicPayoutTransfer",
     "PublicResult",
     "PublicReviewDecision",
     "PublicSolution",

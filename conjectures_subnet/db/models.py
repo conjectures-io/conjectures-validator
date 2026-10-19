@@ -23,6 +23,7 @@ from __future__ import annotations
 import datetime as dt
 import enum
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import (
     DDL,
@@ -36,6 +37,7 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    Numeric,
     SmallInteger,
     Text,
     UniqueConstraint,
@@ -2801,6 +2803,15 @@ class TreasuryPayout(Base):
     # Alpha in its integer base unit, from the companion StakeAdded event. The
     # payout event's own `amount` is TAO-equivalent and must not be stored here.
     amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # That TAO-equivalent `amount`, kept separately (V051): what the chain valued
+    # the moved Alpha at in that block. Never compared with `amount_rao`.
+    tao_equivalent_rao: Mapped[int | None] = mapped_column(BigInteger)
+    # Alpha/USD taken while recording a fresh payout, so a published payout can
+    # say what it was worth when paid. Null when no fresh price was taken (V051).
+    alpha_usd: Mapped[Decimal | None] = mapped_column(Numeric)
+    alpha_usd_observed_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     status: Mapped[TreasuryPayoutState] = mapped_column(
         TREASURY_PAYOUT_STATE,
@@ -2856,6 +2867,19 @@ class TreasuryPayout(Base):
             name="treasury_payout_destination_netuid_nonnegative",
         ),
         CheckConstraint("amount_rao > 0", name="treasury_payout_amount_positive"),
+        CheckConstraint(
+            "tao_equivalent_rao IS NULL OR tao_equivalent_rao > 0",
+            name="treasury_payout_tao_equivalent_positive",
+        ),
+        CheckConstraint(
+            "alpha_usd IS NULL OR (alpha_usd > 0 AND alpha_usd::TEXT NOT IN "
+            "('NaN', 'Infinity', '-Infinity'))",
+            name="treasury_payout_alpha_usd_positive",
+        ),
+        CheckConstraint(
+            "(alpha_usd IS NULL) = (alpha_usd_observed_at IS NULL)",
+            name="treasury_payout_alpha_usd_observed",
+        ),
         CheckConstraint(
             "note IS NULL OR length(note) BETWEEN 1 AND 500",
             name="treasury_payout_note_length",
