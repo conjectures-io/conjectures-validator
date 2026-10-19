@@ -9,16 +9,22 @@ environment runs.
 The website has its own CI/CD and is not covered here. The one point where the two meet is
 the API contract (section 6).
 
-Status, 2026-10-19: the dev-server deploy (phase 2) is implemented. It consists of
-[`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml), the server script and setup
-guide in [`deploy/ci/`](../../deploy/ci/README.md), and `just deploy-up`. It goes live once the
-server and the `dev` environment are set up. Production releases are recorded by
-[`production-release.yml`](../../.github/workflows/production-release.yml): it moves
-`deployed/production` and publishes a release with generated notes. Until phase 3 it is run
-by hand after each production deploy. The tags are protected by the rulesets in
-[`.github/rulesets/`](../../.github/rulesets/README.md). Production deploying from GitHub
-(phase 3 onward) is still a proposal. The rules for contributors and coding agents are in
-[`../DEPLOYING.md`](../DEPLOYING.md).
+Status, 2026-10-19: the pipeline is built for both environments.
+
+- [`deploy.yml`](../../.github/workflows/deploy.yml) deploys `dev` on every merge, and `main`
+  after an approval in the `production` environment. A production change in the `operator`
+  or `first` scope waits for an operator.
+- [`production-release.yml`](../../.github/workflows/production-release.yml) moves
+  `deployed/production` and publishes a release with generated notes.
+- [`back-merge.yml`](../../.github/workflows/back-merge.yml) opens `main` → `dev` PRs after
+  hotfixes.
+- The `release source` CI job checks where PRs into `main` come from.
+- [`.github/rulesets/`](../../.github/rulesets/README.md) holds the branch and tag rulesets.
+
+The dev server is set up. What is left is configuration: the production server and
+environment, the release GitHub App, and importing the rulesets
+([`deploy/ci/README.md`](../../deploy/ci/README.md#production)). The rules for contributors
+and coding agents are in [`../DEPLOYING.md`](../DEPLOYING.md).
 
 ---
 

@@ -5,13 +5,14 @@ describes how a change gets from a branch to the dev server and to production. T
 version: **a merged PR is the deploy**, and git tags show what each environment runs.
 
 The design and its reasons are in [`ci-cd/PLAN.md`](ci-cd/PLAN.md). Some steps depend on
-pipeline phases that are not live yet. They are marked **(phase N)**. Everything not marked
-applies today.
+settings that are not in place yet. They are marked **(rulesets)** (needs the branch and
+tag rulesets imported), **(production)** (needs the production server and environment set up)
+or **(App)** (needs the release GitHub App). Everything not marked applies today.
 
 | Environment | Branch | Server | Deployed by | Tag |
 | --- | --- | --- | --- | --- |
-| Dev (testnet 577) | `dev` | dev server | a merge into `dev`, automatically **(phase 2, built)** | `deployed/dev` |
-| Production (netuid 66) | `main` | production server | a merge into `main`, after one approval **(phase 3)** | `deployed/production` + release `vYYYY.MM.DD[.N]` |
+| Dev (testnet 577) | `dev` | dev server | a merge into `dev`, automatically | `deployed/dev` |
+| Production (netuid 66) | `main` | production server | a merge into `main`, after one approval **(production)** | `deployed/production` + release `vYYYY.MM.DD[.N]` |
 
 ---
 
@@ -54,8 +55,8 @@ gh pr checks <number> --watch
 
 - The PR body follows [`.github/pull_request_template.md`](../.github/pull_request_template.md).
   `gh pr create --body ...` does not fill in the template, so copy its headings.
-- A red check blocks the merge **(phase 1)**. Fix it on the branch.
-- After the merge, the dev server deploys itself **(phase 2)**:
+- A red check blocks the merge **(rulesets)**. Fix it on the branch.
+- After the merge, the dev server deploys itself:
   `gh run list --workflow deploy.yml --branch dev --limit 3`, then `gh run watch <id>`.
 
 ## What runs where
@@ -69,19 +70,25 @@ gh release view                                     # current production release
 gh release list --limit 10                          # production history
 ```
 
-`/healthz` also reports the running `commit` **(phase 1)**.
+On a server, the running API image is labelled with its commit:
+`docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' conjectures_api`.
 
 ## Releasing to production
 
 1. `gh pr create --base main --head dev --label "changelog: skip" --title "Release YYYY-MM-DD"`.
-2. `release-source` is red while `main` has commits that `dev` lacks **(phase 1)**. Merge the
-   open `main` → `dev` back-merge PR first.
-3. Merge with a merge commit. The deploy waits in the `production` environment. Its summary
-   shows the deploy scope (`app`, `migration` or `operator`) and any new migration files. One
-   approver approves it **(phase 3)**. Whoever started the deploy cannot approve it.
-4. Until production deploys from GitHub, whoever deploys it runs
+2. The `release source` check is red while `main` has commits that `dev` lacks. Merge the
+   open `main` → `dev` back-merge PR first. It is a required check **(rulesets)**.
+3. Merge with a merge commit. The Deploy run's `plan` summary shows the scope (`app`,
+   `migration`, `operator`, or `first` when production has no `deployed/production` tag yet)
+   and any new migration files.
+   - `app` or `migration`: the deploy waits in the `production` environment until one approver
+     approves it **(production)**. Whoever started the deploy cannot approve it.
+   - `operator` or `first`: nothing is deployed. An operator does the steps, then runs
+     `gh workflow run deploy.yml --ref main -f environment=production -f ref=<sha> -f operator_steps_done=true`,
+     which also waits for the approval.
+4. Before production deploys from GitHub, whoever deploys it by hand runs
    `gh workflow run production-release.yml -f ref=<deployed 40-hex sha>` right afterwards.
-   This records the deploy the same way the pipeline will.
+   This records the deploy the same way the pipeline does.
 5. After a successful deploy, the workflow moves `deployed/production` and creates the
    release `vYYYY.MM.DD` with generated notes: the PRs merged since the previous release,
    grouped by label, plus the deploy run link.
@@ -98,7 +105,7 @@ gh pr create --base main --label hotfix --title "Hotfix: <what>"
 ```
 
 Same approval and same release as a normal release. Afterwards, a bot opens the `main` →
-`dev` back-merge PR **(phase 4)**. Until then, open it yourself:
+`dev` back-merge PR **(App)**. Without the App, open it yourself:
 `gh pr create --base dev --head main --label "changelog: skip" --title "Back-merge main into dev"`.
 
 ## Rollback
@@ -108,8 +115,8 @@ Production rolls back to an earlier **release tag**. Dev rolls back to an earlie
 
 ```bash
 gh release list --limit 10                                                 # pick the release
-gh workflow run deploy.yml -f environment=production -f ref=v2026.10.18   # phase 3
-gh workflow run deploy.yml --ref dev -f sha=<40-hex sha on dev>             # phase 2
+gh workflow run deploy.yml --ref main -f environment=production -f ref=v2026.10.18   # (production)
+gh workflow run deploy.yml --ref dev -f environment=dev -f ref=<40-hex sha on dev>
 ```
 
 A production rollback still needs the approval. It moves `deployed/production` and marks
@@ -123,7 +130,7 @@ later `production`). It is installed on every deploy. Setup, and how to copy it 
 server, are in [`deploy/ci/README.md`](../deploy/ci/README.md#the-env-from-github).
 
 - To change a value, update the secret (the whole file), then redeploy:
-  `gh workflow run deploy.yml --ref dev`.
+  `gh workflow run deploy.yml --ref dev -f environment=dev`.
 - An edit made on the server is overwritten by the next deploy. The server keeps every
   previous `.env` in its backups.
 - A PR that adds a key to `.env.example` lists it under "Operator steps". The deploy summary
@@ -132,7 +139,7 @@ server, are in [`deploy/ci/README.md`](../deploy/ci/README.md#the-env-from-githu
 ## Operator changes
 
 An automatic deploy never makes the following changes. If a PR needs one, list it under
-"Operator steps", and the production deploy waits for an operator **(phase 3)**:
+"Operator steps", and the production deploy waits for an operator **(production)**:
 
 - changes under `verifier/`, `verification_worker/`, `lean/`, `Dockerfile`,
   `docker-compose.yml`, `deploy/worker/`, `deploy/db/` or `docker-compose.db.yml`. These
@@ -151,7 +158,7 @@ May:
   them, and open labelled PRs;
 - read CI and deploy runs (`gh pr checks`, `gh run list`, `gh run view --log-failed`), tags
   and releases;
-- dispatch a **dev** redeploy or rollback when a human asks for it **(phase 2)**.
+- dispatch a **dev** redeploy or rollback when a human asks for it.
 
 May not:
 - push to `dev` or `main`, merge its own PR unless a human asks it to, or approve a
@@ -161,5 +168,5 @@ May not:
 - create, move or delete `v*` or `deployed/*` tags, or create or edit releases by hand;
 - read, set or print the `DOTENV` secret or any server's `.env`;
 - change `.github/`, the justfile's deploy recipes or `deploy/` without stating it in the
-  PR (these have CODEOWNERS, **phase 1**), add `pull_request_target` to a workflow, or put
+  PR (CODEOWNERS for them is planned), add `pull_request_target` to a workflow, or put
   secrets in any file.
