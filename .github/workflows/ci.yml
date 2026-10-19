@@ -13,9 +13,14 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Called by deploy.yml on every push to `dev`, so a commit reaches the dev server only after
+  # these three gates pass on the merged result -- not just on the PR's head.
+  workflow_call:
 
 # A force-push should not leave the previous run burning CI minutes on a commit nobody will
 # merge. `main` is excluded from cancellation: its runs are the record of what was released.
+# When deploy.yml calls this workflow the group is the caller's (`ci-Deploy-refs/heads/dev`), so
+# a newer merge into `dev` cancels the older run's gates, and with them its deploy.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
