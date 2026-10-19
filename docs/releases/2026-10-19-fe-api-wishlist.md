@@ -48,7 +48,7 @@ the same values it always had. `docs/openapi.json` is the full contract for this
 
 ## Operator steps
 
-1. Migration `V051__treasury_payout_price.sql` (Flyway, additive: three nullable columns and three
+1. Migration `V052__treasury_payout_price.sql` (Flyway, additive: three nullable columns and three
    checks on `treasury_payouts`).
 2. Optional: give the payout watcher `TAOSTATS_API_KEY` (compose already passes it through) so new
    payouts carry `amount_usd_at_payout`.
