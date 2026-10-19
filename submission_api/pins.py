@@ -38,6 +38,9 @@ MAX_PINS_BYTES = 256 * 1024
 COMPONENT_ORDER = (
     "formal_conjectures",
     "mathlib",
+    # The task repository: where every bundle and the audit patch live. Published so a reader
+    # can find a bundle at the exact commit the pool was loaded from.
+    "tasks",
     "lean",
     "comparator",
     "lean4export",
@@ -47,7 +50,18 @@ COMPONENT_ORDER = (
 )
 
 # Per component, the scalar fields worth publishing. Everything else in the entry is dropped.
-COMPONENT_FIELDS = ("repository", "commit", "toolchain", "version", "enabled")
+COMPONENT_FIELDS = (
+    "repository",
+    "commit",
+    "toolchain",
+    "version",
+    "enabled",
+    # For a patched component (formal_conjectures): the upstream commit the audit patch is
+    # applied to, and that patch's digest. `commit` is then the derived local commit, which does
+    # not exist upstream, so a link to the source has to name `base_commit` instead.
+    "base_commit",
+    "patch_sha256",
+)
 
 
 class PinsError(RuntimeError):
@@ -64,6 +78,8 @@ class Pin:
     toolchain: str | None
     version: str | None
     enabled: bool | None
+    base_commit: str | None = None
+    patch_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +153,8 @@ def _pin(component: str, entry: Mapping[str, Any]) -> Pin:
         toolchain=scalar("toolchain"),
         version=scalar("version"),
         enabled=enabled if isinstance(enabled, bool) else None,
+        base_commit=scalar("base_commit"),
+        patch_sha256=scalar("patch_sha256"),
     )
 
 

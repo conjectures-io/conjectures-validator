@@ -95,8 +95,9 @@ router = APIRouter(
     tags=["admin"],
     # On the router, so a route added here later is gated by default rather than by remembering
     # to repeat the dependency. `routers/admin.py` annotates per route instead because its
-    # writes need `require_role_writer` and its reads do not; this router has no writes, so one
-    # dependency covers it and there is nothing an anonymous caller may read.
+    # writes need `require_role_writer` and its reads do not. Here one dependency covers every
+    # route, so there is nothing an anonymous caller may read; the decision and correction writes
+    # add `require_role_writer` on top of it.
     #
     # `require_role` also refuses to exercise REVIEWER from a CLI bearer token — see
     # `dependencies.BEARER_ROLES`. That is inherited rather than asked for, and it is right: a
@@ -363,7 +364,23 @@ def _review(
         review_policy_version=row.review_policy_version,
         report_available=row.report_available,
         manual_review_status=str(row.manual_review_status),
+        decision=_binding(row.review),
         attempts=tuple(_attempt(attempt) for attempt in attempts),
+    )
+
+
+def _binding(review: public_store.ReviewRow | None) -> admin.AdminBindingDecision | None:
+    if review is None:
+        return None
+    return admin.AdminBindingDecision(
+        review_decision_id=review.id,
+        decision=str(review.decision),
+        kind=str(review.kind),
+        reason_code=review.reason_code,
+        notes_public=review.notes_public,
+        policy_version=review.policy_version,
+        decided_at=review.decided_at,
+        supersedes_id=review.supersedes_id,
     )
 
 

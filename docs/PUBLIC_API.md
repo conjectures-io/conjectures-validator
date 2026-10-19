@@ -42,14 +42,20 @@ own database.
 
 Four rules, each enforced structurally rather than by convention.
 
-**Solver credit, but no money trail.** Every result names its solver through
-`solver_display_name` and `solver_coldkey`. A miner
+**Solver credit, and what was paid out, but not what the solver paid in.** Every result names its
+solver through `solver_display_name` and `solver_coldkey`, and `credited_name` resolves the one
+name to credit. A miner
 may also opt into `public_credit` with a name and optional HTTPS profile URL and ORCID. Those values
 are part of the signed request digest and are snapshotted on the submission; they are never
 looked up from a mutable account profile. Not published: the paying coldkey, payment reference, or
 funding extrinsic. [`../conjectures_subnet/db/public.py`](../conjectures_subnet/db/public.py) is the
 only query layer these endpoints use, and its row types have no column for those three payment
 values — a router cannot leak what it was never handed.
+
+The **outgoing** payout is published, by product decision: a rewarded result carries `payout`,
+with the amount, the chain time and a taostats link per finalized transfer, so "paid out" can be
+checked on chain. The explorer page shows the destination coldkey, which may be the account's
+payout coldkey; that is accepted. See [The payout behind a result](#the-payout-behind-a-result).
 
 > Publishing a solver identity weakens the activity pseudonyms below, and the two are no longer
 > independent. A verified result names its solver and carries `verified_at`; an activity event
@@ -152,8 +158,8 @@ So both fold into one conjecture, and the per-task facts live under `tasks`:
 
 | Level | Fields |
 | --- | --- |
-| Conjecture | `slug`, `title`, `statement`, `summary`, `category`, `classification`, `tier`, `ams_subjects`, `is_open`, `problem_id`, `reward_target_id`, `task_modes`, `attempts` |
-| Task (one per direction) | `task_id`, `task_mode`, `task_bundle_sha256`, `attempts`, and on the detail endpoint `challenge_lean` and `machine_contract` |
+| Conjecture | `slug`, `title`, `statement`, `summary`, `category`, `classification`, `tier`, `ams_subjects`, `is_open`, `problem_id`, `reward_target_id`, `task_modes`, `attempts`, `display_status`, `added_at`, `solved_at`, and on the detail endpoint `source_url` and `source_patched` |
+| Task (one per direction) | `task_id`, `task_mode`, `task_bundle_sha256`, `attempts`, and on the detail endpoint `challenge_lean`, `bundle_url` and `machine_contract` |
 
 `meta.conjectures` counts conjectures, so it is half what a task count would report.
 
@@ -397,6 +403,55 @@ Existing locked submissions retain their recorded amount, version, and inputs.
 Acceptance takes a serialized fresh quote, subtracting outstanding locks from the treasury balance,
 and fixes that amount for the submission.
 
+`bounty.reason` is one of `OPEN`, `CLAIM_HELD` (the caller's own submission holds it; only on a
+caller-specific quote, never in the catalog), `ALREADY_SOLVED`, `NOT_IN_BOUNTY_POOL`,
+`TREASURY_RESERVED` (the treasury is fully committed, so the amount is zero and intake refuses),
+`CHAT_LOG_REVIEW_UNAVAILABLE` (chat logs are required and their review is off, so intake refuses)
+and `WITHDRAWN` (retired; see `retirement`). The OpenAPI document publishes it as an enum, as it
+does every status on this surface.
+
+### Status, dates and links
+
+Each list item and detail page carries the one status a client renders, so no client re-derives it
+from `is_open`, `bounty.reason` and the system switch:
+
+| `display_status` | Means | Where it comes from |
+| --- | --- | --- |
+| `open` | Accepting submissions with a funded bounty | `OPEN` (or `CLAIM_HELD`) |
+| `in_review` | A Lean-verified submission awaits the reward decision | the review queue, per target |
+| `solved` | Review approved a submission here, which now holds the target | `ALREADY_SOLVED`, or a retirement coded `SOLVED` |
+| `formalization_defect` | Review approved a proof or refutation that went through a defect in the formal statement: the target is closed, but the conjecture is not solved | `ALREADY_SOLVED` whose approval is `FORMALIZATION_DEFECT_AWARD` |
+| `solved_elsewhere` | Closed because the problem was resolved outside this platform | retirement codes `SOLVED_EXTERNALLY`, `OWNER_ACCEPTED_PUBLICATION_CLOSURE`, `PRIOR_PUBLIC_PROOF` |
+| `withdrawn` | Permanently left the pool for another reason | any other retirement |
+| `on_hold` | Admission suspended pending review; neither solved nor retired | `pool_status: held` |
+| `unfunded` | Open, but the treasury has nothing to offer, so intake refuses | `TREASURY_RESERVED` |
+| `submissions_paused` | Submissions are off, platform-wide or for this target | `SUBMISSIONS_PAUSED`, or `CHAT_LOG_REVIEW_UNAVAILABLE` |
+
+For a live target the first match wins, in the order solved / formalization_defect, in_review,
+submissions_paused, unfunded, open. The list carries live targets only, so `solved_elsewhere`,
+`withdrawn` and `on_hold` appear only on a retired or held detail page. The list response also
+carries top-level `submissions_open`, the same value as `/v1/system/status`, so the catalog needs
+no second request.
+
+`added_at` is when this API first listed the target. It survives pin rotations and restarts and is
+the right key for "new"; it is not a pin date, because pins carry none. `solved_at` is when review
+approved the submission holding the target — **solved means approved, not paid**; the payout time
+is the result's `certified_at`. It is null unless `display_status` is `solved` or
+`formalization_defect`. A correction that rejects and later re-approves restarts it.
+
+The detail page also links what the server loaded, so no client assembles a URL:
+
+- `source_url` is the Lean file in the upstream repository at `pins[].base_commit`, the upstream
+  commit the audit patch is applied to. Not at `repository_commit`: that commit is derived locally
+  by applying the patch and does not exist upstream, so a link to it 404s. `source_patched` is true
+  when the audit patch changes that file, i.e. the upstream statement can differ from the audited
+  one served here; `source_url` is null for a file the patch creates. Both are null when the server
+  could not verify the pinned patch against its digest.
+- Each task's `bundle_url` is the bundle's directory in the tasks repository at the pinned tasks
+  commit (`pins[]` now includes `tasks`). It is taken from where the loader found the bundle — a
+  bundle directory is not derivable from its task id, and versioned tasks live under `versions/` —
+  and is null on a retired conjecture, whose bundle was deleted.
+
 ### Filters and facets
 
 `category`, `classification`, `task_mode`, `tier` and `ams_subject` are repeatable and ANDed
@@ -415,9 +470,10 @@ Facet counts follow the usual faceted-search rule: each facet is counted over th
 every filter **except its own**. Without that, selecting `category=research open` would collapse
 the category facet to one row and a reader could filter in but never out.
 
-Paging is `limit` (capped at 100) and `offset` (capped at 10000). Offset paging is safe here and
-only here: the catalog is a fixed list of a few hundred entries held in memory, so there is no scan
-to amortise and no insert to shift the window.
+Paging is `limit` (capped at 500, so the whole pool fits one page) and `offset` (capped at 10000).
+Offset paging is safe here and only here: the catalog is a fixed list of a few hundred entries held
+in memory, so there is no scan to amortise and no insert to shift the window, and the database work
+per request does not grow with `limit`.
 
 ## Paging
 
@@ -499,9 +555,55 @@ chain event is not certified. The feed also requires the confirmed reward row's 
 provenance, so a legacy or manually edited paid flag cannot certify a result. `in-review` means
 Lean-verified and awaiting the reward decision.
 
-Every `PublicResult` carries the payout's `bounty_amount_rao` and a current
+Every `PublicResult` carries the amount of record, `bounty_amount_rao`, and a current
 `bounty_amount_usd` display conversion using the same formula as catalog bounties. The USD value
-is null when TaoStats is unavailable and is not a historical fiat valuation of the payout.
+is null when TaoStats is unavailable and is not a historical fiat valuation of the payout; for that,
+read `payout`.
+
+`credited_name` is the one name to credit a result to: `public_credit.name` when the submitter
+signed one, otherwise `solver_display_name`, otherwise null. It is never the coldkey, which wants
+different rendering and stays its own field. Every result shape carries it.
+
+### The payout behind a result
+
+A rewarded result carries what the treasury actually paid:
+
+```json
+{
+  "reward_status": "REWARDED",
+  "bounty_amount_rao": 412000000000,
+  "payout": {
+    "amount_rao": 412000000000,
+    "amount_usd_at_payout": "118.40",
+    "paid_at": "2026-09-12T09:01:44Z",
+    "extrinsic_url": "https://taostats.io/extrinsic/5891203-0012",
+    "transfers": [
+      {
+        "amount_rao": 412000000000,
+        "paid_at": "2026-09-12T09:01:44Z",
+        "extrinsic_url": "https://taostats.io/extrinsic/5891203-0012"
+      }
+    ]
+  }
+}
+```
+
+`payout` is null unless `reward_status` is `REWARDED` with a finalized, chain-observed payout — the
+evidence `certified_at` rests on; never from a best-chain observation or an operator's paid flag.
+Amounts are Subnet 66 Alpha base units. `amount_rao` is what was paid, which can differ from
+`bounty_amount_rao` (a later payout instruction changes the amount of record, not the payment).
+`paid_at` and each transfer's time are the block's timestamp. A multisig payout links the final
+approval extrinsic that executed it.
+
+A payout split between co-solvers is several transfers: `transfers` lists each, `amount_rao` is
+their sum, and the top-level `extrinsic_url` is null because one link cannot name them all. A
+transfer recorded without a chain position (a legacy row with a free-text reference) has a null
+link rather than a guessed one.
+
+`amount_usd_at_payout` values each transfer at the Alpha/USD price the payout watcher recorded when
+it saw that transfer, which it does only while the transfer is at most ten minutes old. It is null
+for every payout recorded before this field existed, for one the watcher saw late, and for any
+deployment whose watcher has no `TAOSTATS_API_KEY`. No historical price is backfilled.
 
 For a reviewed result it also carries the latest binding decision:
 

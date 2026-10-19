@@ -347,11 +347,13 @@ async def champions(board: BoardPath, services: ServicesDep, session: Competitio
     shares = (rank_shares(policy) or []) if pays(policy, slot) else []
     eligible = [p for p in history if p["demoted_at"] is None][: len(shares)]
     ranks = {p["promotion_id"]: index for index, p in enumerate(eligible, 1)}
+    speedups = store.speedups(history)
     return [
         s.Champion(
             submission=p["id"],
             hotkey=p["hotkey"],
             ratio=p["ratio"],
+            speedup_vs_shipped=speedups.get(p["promotion_id"]),
             promoted_at=iso(p["promoted_at"]),
             demoted_at=iso(p["demoted_at"]) if p["demoted_at"] is not None else None,
             current=current is not None and p["promotion_id"] == current["promotion_id"],

@@ -9,7 +9,7 @@ Generated on 2026-09-25 from the OpenAPI schema of `deploy/dev-main-20260924` (d
 - **Base path:** `/v1/competitions`. All bodies are JSON unless noted; submits are `multipart/form-data`.
 - **Availability:** every route answers **503 `COMPETITIONS_UNAVAILABLE`** when the deployment has competitions switched off, and **503 `COMPETITION_SCHEMA_UNAVAILABLE`** when the competition database is older than migration 0011 of conjectures-optimisation-deflate. When the competition database cannot be reached, every route answers **503 `COMPETITION_UNAVAILABLE`**, matching `/readyz`, rather than a `500`.
 - **Scoring snapshots:** score fields come from the latest scoring pass the competition's weight setter published, or from the one named by `snapshot_id`. Before the first pass, `context.status` is `"not_ready"` and rankings are empty.
-- **Paging:** paged lists take `limit` (1–100, default 25) and an opaque `cursor`; pass back `next_cursor` unchanged. A cursor is bound to the filters and snapshot it was issued for.
+- **Paging:** paged lists take `limit` (1–100, default 25; `/pareto` up to 1000) and an opaque `cursor`; pass back `next_cursor` unchanged. A cursor is bound to the filters and snapshot it was issued for.
 - **Rate limit:** the global per-IP `/v1` limit applies (default 120 requests per 60 s), reported in `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers. The two submit routes also count, in Postgres across every replica, a per-address budget before any signature is checked and a per-hotkey budget once the hotkey is proven (see each route's refusals).
 - **Ids** are strings in responses (`"submission": "42"`) and integers in paths.
 - **Times** are ISO 8601 strings in UTC with an offset (`2026-09-24T14:07:50.192134+00:00`); the schema types them only as `string`.
@@ -732,7 +732,7 @@ Every scored point on the time × size plane from the snapshot; frontier points 
 | Name | In | Type | Required | Constraints |
 | --- | --- | --- | --- | --- |
 | `slug` | path | string | yes |  |
-| `limit` | query | integer | no | ≥ 1, ≤ 100, default `25` |
+| `limit` | query | integer | no | ≥ 1, ≤ 1000, default `25`. Larger than the other feeds: the plot reads every point, and the frontier is computed whole before it is sliced |
 | `cursor` | query | string \| null | no | max length 256 |
 | `snapshot_id` | query | integer \| null | no | ≥ 1 |
 
@@ -1073,7 +1073,9 @@ into ratios against today's champion. Use `/champions`'s `current` field to dist
 
 ### GET `/v1/competitions/{board}/champions`
 
-Every submission the board promoted, newest first, without pagination: `[{submission, hotkey, ratio, promoted_at, demoted_at, current, rank, rank_share}]`. `ratio` is against the champion it took over from. A newer promotion supersedes a champion without demoting it, and `demoted_at` records an explicit operator demotion, which hands the board back to the newest earlier champion not demoted -- so `current` says who holds the board.
+Every submission the board promoted, newest first, without pagination: `[{submission, hotkey, ratio, speedup_vs_shipped, promoted_at, demoted_at, current, rank, rank_share}]`. `ratio` is against the champion it took over from: its total time over that champion's, so lower is faster.
+
+`speedup_vs_shipped` is the shipped kernels' time over this champion's, so higher is faster: 1 divided by the product of the ratios along the chain of code each champion was timed against, ending at the shipped code the first promotion was timed against. The chain follows hashes, not promotion order, because after a demotion the next challenger is timed against the older champion the board fell back to. It is null when the chain is broken (a missing ratio, or a reference that is neither shipped nor an earlier promotion). Each link is its own bench run, so it is an estimate whose noise grows with the chain; clients should read it rather than multiply ratios themselves. A newer promotion supersedes a champion without demoting it, and `demoted_at` records an explicit operator demotion, which hands the board back to the newest earlier champion not demoted -- so `current` says who holds the board.
 
 `rank` is the reward rank (1 is the current champion), and `rank_share` is that rank's fraction of the slot winner share. These use the latest published `policy.rank_shares` and the current non-demoted promotion history. Missing ranks are not redistributed; a hotkey can hold multiple ranks. Both fields are null for older champions, unpaid practice boards, and publications without a valid rank policy. They describe the reward rule, not proof that an on-chain payout has occurred; pause withholding and the competition's emission share apply separately.
 

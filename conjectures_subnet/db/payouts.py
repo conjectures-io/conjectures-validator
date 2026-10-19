@@ -35,6 +35,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal
 
 from sqlalchemy import and_, func, or_, select, true
 from sqlalchemy.dialects.postgresql import insert
@@ -63,6 +64,18 @@ CHAIN_CLOCK_TOLERANCE = dt.timedelta(seconds=60)
 
 class PayoutConflict(RuntimeError):
     """Stored payout state contradicts the chain event being reconciled."""
+
+
+@dataclass(frozen=True)
+class PayoutPrice:
+    """Alpha/USD as observed while a fresh payout was recorded, and when it was observed."""
+
+    alpha_usd: Decimal
+    observed_at: dt.datetime
+
+    def __post_init__(self) -> None:
+        if not self.alpha_usd.is_finite() or self.alpha_usd <= 0:
+            raise ValueError("the Alpha USD price must be finite and positive")
 
 
 @dataclass(frozen=True)
@@ -456,13 +469,19 @@ async def _settle(
 
 
 async def record_payout(
-    session: AsyncSession, observed: ObservedPayout
+    session: AsyncSession,
+    observed: ObservedPayout,
+    *,
+    price: PayoutPrice | None = None,
 ) -> TreasuryPayout:
     """Record one finalized payout, returning the existing row if it is already known.
 
     Idempotent on `extrinsic_reference`, which is what lets the watcher re-read a block freely:
     a restart between recording a payout and advancing the cursor, or a deliberate rescan of
     history, lands on the unique index instead of recording one chain event twice.
+
+    `price` is written only with a new row. A re-read of a known payout keeps whatever price,
+    or absence of one, it was first recorded with: a rescan's "now" is not the payout's time.
     """
     statement = (
         insert(TreasuryPayout)
@@ -479,6 +498,9 @@ async def record_payout(
             origin_netuid=observed.origin_netuid,
             destination_netuid=observed.destination_netuid,
             amount_rao=observed.amount_rao,
+            tao_equivalent_rao=observed.tao_equivalent_rao,
+            alpha_usd=None if price is None else price.alpha_usd,
+            alpha_usd_observed_at=None if price is None else price.observed_at,
         )
         .on_conflict_do_nothing(index_elements=["extrinsic_reference"])
     )
@@ -681,6 +703,7 @@ __all__ = [
     "CHAIN_CLOCK_TOLERANCE",
     "PAYOUT_WATCHER",
     "PayoutConflict",
+    "PayoutPrice",
     "PayoutUpdate",
     "SubmittedPayout",
     "advance_cursor",

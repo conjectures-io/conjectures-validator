@@ -429,12 +429,17 @@ async def mine(
     )
 
 
+# The plot reads every point, and the handler builds them all before slicing whatever `limit` is,
+# so one page of up to a thousand costs the database nothing more than a page of a hundred.
+MAX_PARETO_PAGE_SIZE = 1000
+
+
 @router.get("/{slug}/pareto", response_model=s.ParetoPage)
 async def pareto(
     slug: str,
     services: ServicesDep,
     session: CompetitionSessionDep,
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(25, ge=1, le=MAX_PARETO_PAGE_SIZE),
     cursor: str | None = Query(None, max_length=256),
     snapshot_id: int | None = Query(None, ge=1),
 ):

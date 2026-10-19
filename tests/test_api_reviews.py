@@ -1163,3 +1163,54 @@ def test_reviewer_proof_refuses_missing_and_unverified_submissions():
         finally:
             await kit.teardown()
     run(scenario())
+
+
+def test_the_detail_carries_the_binding_decision_a_correction_names():
+    """The correction screen reads the id from the detail route, instead of having only the
+    response of the write that recorded it."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "binding")
+            detail_path = f"/v1/admin/reviews/{submission_id}"
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                undecided = (await http.get(detail_path)).json()
+                assert undecided["manual_review_status"] == "UNREVIEWED"
+                assert undecided["decision"] is None
+
+                recorded = await http.post(
+                    _decision_path(submission_id), json=APPROVAL, headers=WRITE
+                )
+                assert recorded.status_code == 201, recorded.text
+                decided = (await http.get(detail_path)).json()["decision"]
+                assert decided["review_decision_id"] == recorded.json()["review_decision_id"]
+                assert decided["decision"] == "APPROVED"
+                assert decided["kind"] == "HUMAN"
+                assert decided["reason_code"] == "REVIEW_APPROVED"
+                assert decided["supersedes_id"] is None
+                assert "notes" not in decided and "reviewer" not in decided
+
+                corrected = await http.post(
+                    f"{detail_path}/correction",
+                    json={
+                        "supersedes_id": decided["review_decision_id"],
+                        "decision": "REJECTED",
+                        "reason_code": "ADMITTED_DEPENDENCY",
+                        "notes_public": "The proof relies on an admitted lemma.",
+                        "notes": "Found on a second read.",
+                    },
+                    headers=WRITE,
+                )
+                assert corrected.status_code == 201, corrected.text
+                current = (await http.get(detail_path)).json()
+                assert current["manual_review_status"] == "REJECTED"
+                assert current["decision"]["review_decision_id"] == (
+                    corrected.json()["review_decision_id"]
+                )
+                assert current["decision"]["supersedes_id"] == decided["review_decision_id"]
+        finally:
+            await kit.teardown()
+
+    run(scenario())

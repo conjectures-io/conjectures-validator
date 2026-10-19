@@ -43,6 +43,7 @@ from fastapi import APIRouter, Path, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from conjectures_subnet.axiom import get_axiom
+from conjectures_subnet.transfers import parse_reference
 from conjectures_subnet.db import accounts as account_store
 from conjectures_subnet.db import credits as credit_store
 from conjectures_subnet.db import digests
@@ -88,17 +89,20 @@ from submission_api.settings import (
     RAO_PER_TAO,
     Settings,
 )
+from submission_api.taostats import extrinsic_url
 from verifier.bundle import SS58_ADDRESS
 
 router = APIRouter(prefix="/v1/me", tags=["account"])
+
+
+def _explorer_url(reference: str | None) -> str | None:
+    parsed = parse_reference(reference or "")
+    return None if parsed is None else extrinsic_url(parsed.block, parsed.extrinsic_index)
 
 REASON_TOO_MANY_CHALLENGES = "TOO_MANY_CHALLENGES"
 REASON_WALLET_NOT_LINKED = "WALLET_NOT_LINKED"
 REASON_NO_OPEN_DEPOSIT = "NO_OPEN_DEPOSIT"
 
-# Where a confirmed transfer can be looked up. A property of the network rather than of this
-# deployment, so it is a constant — and a null link is better than a wrong one.
-EXPLORER_TEMPLATE = "https://taostats.io/extrinsic/{reference}"
 
 # The per-purchase ceiling, taken from `credits` rather than restated. Both funding paths and
 # the package parser have to agree on this number, and the way they stay agreed is by there
@@ -1106,11 +1110,11 @@ async def list_rewards(
                 destination_coldkey=event.destination_coldkey,
                 destination_hotkey=event.destination_hotkey,
                 extrinsic_reference=event.extrinsic_reference,
-                explorer_url=(
-                    EXPLORER_TEMPLATE.format(reference=event.extrinsic_reference)
-                    if event.extrinsic_reference
-                    else None
-                ),
+                # Where the transfer can be looked up. The stored reference is
+                # `block-extrinsic-event`, which taostats does not resolve; the link names the
+                # extrinsic in taostats' own form, and is null rather than wrong for a reference
+                # with no chain position.
+                explorer_url=_explorer_url(event.extrinsic_reference),
                 submitted_block=event.submitted_block,
                 finalized_block=event.finalized_block,
                 failure_reason=event.failure_reason,

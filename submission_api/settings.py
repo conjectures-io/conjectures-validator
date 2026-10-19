@@ -149,6 +149,10 @@ DEFAULT_RATE_LIMIT_MAX_CLIENTS = 50_000
 
 DEFAULT_PAGE_SIZE = 25
 MAX_PAGE_SIZE = 100
+# The conjecture list alone may be read in larger pages. It is built in memory over a pool of a
+# few hundred targets, its database work does not grow with `limit`, and a client that filters in
+# the browser needs all of it; one page of 500 is cheaper than three of 100 for both sides.
+MAX_CATALOG_PAGE_SIZE = 500
 DEFAULT_ACTIVITY_ITEMS = 50
 MAX_ACTIVITY_ITEMS = 200
 
