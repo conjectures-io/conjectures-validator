@@ -11,8 +11,10 @@ For qualifying proofs submitted before launch, accepted logs earn an additional
 their terms. Every accepted log is licensed to Conjectures for sale to buyers; logs are never
 published openly. The owner approved these rules on October 12, 2026.
 
-Contributor terms are one plain-language page, [chat-log-terms-v2.md](chat-log-terms-v2.md)
-(v1 owner-reviewed October 13, 2026; v2 extends the requirement to every open bounty), with a single pinned assent statement
+Contributor terms are one plain-language page, [chat-log-terms-v4.md](chat-log-terms-v4.md)
+(v1 owner-reviewed October 13, 2026; v2 extends the requirement to every open bounty; v3 lets a
+reviewer ask for more required logs instead of rejecting them; v4 keeps the model's reasoning
+wherever the tool saved it as readable text, never decrypting what it withheld), with a single pinned assent statement
 ([assent-statements-v2.json](assent-statements-v2.json)). They take effect when intake opens.
 `python scripts/trajectory_assets.py` regenerates the package schema, the synthetic
 `example-package.zip`, the terms manifest and `submission_api/trajectory_terms.py` digests; copy

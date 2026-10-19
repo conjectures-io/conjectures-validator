@@ -292,6 +292,19 @@ down:
 restart:
     DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose }} up -d --force-recreate
 
+# What a GitHub Actions deploy runs (deploy/ci/conjectures-deploy), with the server's own
+# service list. Three steps rather than one `up`, because `up <service>` also recreates any
+# dependency whose configuration changed -- and `db` reads .env, so editing an unrelated key
+# would restart Postgres under every deploy. Here `db` is only started if it is down, the
+# Flyway one-shot runs on its own, and then exactly the named services are rebuilt.
+# GIT_COMMIT labels the api image, which is how the deploy checks the new code is serving.
+
+# Start db if down, apply migrations, then rebuild and recreate only the named services.
+deploy-up +services: _preflight
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose }} up -d --no-recreate db
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} {{ compose }} up --no-deps --exit-code-from migrate migrate
+    DOCKER_UID={{ uid }} DOCKER_GID={{ gid }} GIT_COMMIT="${GIT_COMMIT:-unknown}" {{ compose }} up -d --build --no-deps "$@"
+
 # Build the api stack's images without starting anything.
 build:
     {{ compose }} build

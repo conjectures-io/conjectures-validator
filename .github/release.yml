@@ -1,0 +1,19 @@
+# Categories for GitHub's generated release notes (`gh release create --generate-notes`).
+# Every production deploy creates a release; see docs/ci-cd/PLAN.md, section 5.
+changelog:
+  exclude:
+    labels:
+      - "changelog: skip"      # release (dev -> main) and back-merge (main -> dev) PRs
+  categories:
+    - title: Migrations
+      labels: ["migration"]
+    - title: API changes
+      labels: ["api"]
+    - title: Features
+      labels: ["feature", "enhancement"]
+    - title: Fixes
+      labels: ["fix", "bug", "hotfix"]
+    - title: Operations
+      labels: ["ops", "ci", "deploy"]
+    - title: Other changes
+      labels: ["*"]

@@ -2803,11 +2803,11 @@ class TreasuryPayout(Base):
     # Alpha in its integer base unit, from the companion StakeAdded event. The
     # payout event's own `amount` is TAO-equivalent and must not be stored here.
     amount_rao: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    # That TAO-equivalent `amount`, kept separately (V051): what the chain valued
+    # That TAO-equivalent `amount`, kept separately (V052): what the chain valued
     # the moved Alpha at in that block. Never compared with `amount_rao`.
     tao_equivalent_rao: Mapped[int | None] = mapped_column(BigInteger)
     # Alpha/USD taken while recording a fresh payout, so a published payout can
-    # say what it was worth when paid. Null when no fresh price was taken (V051).
+    # say what it was worth when paid. Null when no fresh price was taken (V052).
     alpha_usd: Mapped[Decimal | None] = mapped_column(Numeric)
     alpha_usd_observed_at: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True)

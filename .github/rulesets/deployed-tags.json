@@ -1,0 +1,17 @@
+{
+  "name": "Deployment tags (deployed/*)",
+  "target": "tag",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/tags/deployed/*"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "creation" },
+    { "type": "update" },
+    { "type": "deletion" }
+  ],
+  "bypass_actors": []
+}

@@ -104,3 +104,9 @@ CMD ["uvicorn", "submission_api.asgi:app", \
      "--workers", "1", \
      "--no-server-header", \
      "--timeout-keep-alive", "15"]
+
+# The commit this image was built from. Set by `just deploy-up`; the GitHub Actions deploy reads
+# it back from the running container to confirm the new code is the code serving. Last, because
+# every instruction after a changed label would miss the build cache.
+ARG GIT_COMMIT=unknown
+LABEL org.opencontainers.image.revision=$GIT_COMMIT

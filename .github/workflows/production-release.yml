@@ -1,0 +1,157 @@
+# Records a production deploy: moves the tag `deployed/production` and publishes a GitHub Release
+# `vYYYY.MM.DD[.N]` with notes GitHub generates from the PRs merged since the previous release.
+#
+# Until production deploys from GitHub Actions (docs/ci-cd/PLAN.md, phase 3), run this right after
+# a production deploy, naming the commit that was deployed:
+#
+#   gh workflow run production-release.yml -f ref=<sha on main>      # a new release
+#   gh workflow run production-release.yml -f ref=v2026.10.18        # rolled back to a release
+#
+# The production deploy job will call it the same way (workflow_call) once it exists.
+#
+# The tags are protected by .github/rulesets/: only the release GitHub App may create or move
+# them, so this workflow writes with that App's token when RELEASE_APP_ID is configured. Without
+# it, it falls back to GITHUB_TOKEN, which works only while the rulesets are not active.
+
+name: Production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Deployed commit on main (empty: the tip of main), or a release tag after a rollback"
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
+    secrets:
+      RELEASE_APP_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Token from the release GitHub App
+        id: app
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      # The input reaches the script only through `env:` and is checked against two exact shapes
+      # before it is used, so nothing typed into the dispatch form can become a command.
+      - name: Resolve the commit
+        id: target
+        shell: bash
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet origin
+          rollback_tag=""
+          if [[ -z "$INPUT_REF" ]]; then
+            sha="$(git rev-parse origin/main)"
+          elif [[ "$INPUT_REF" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$ ]]; then
+            git rev-parse -q --verify "refs/tags/$INPUT_REF" >/dev/null \
+              || { echo "::error::no release tag $INPUT_REF"; exit 1; }
+            sha="$(git rev-list -n 1 "refs/tags/$INPUT_REF")"
+            rollback_tag="$INPUT_REF"
+          elif [[ "$INPUT_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            sha="$INPUT_REF"
+          else
+            echo "::error::ref must be empty, a 40-character SHA on main, or a release tag vYYYY.MM.DD[.N]"
+            exit 1
+          fi
+          git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main"; exit 1; }
+          { echo "sha=$sha"; echo "rollback_tag=$rollback_tag"; } >> "$GITHUB_OUTPUT"
+
+      - name: Move deployed/production
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if gh api --silent -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/deployed/production" \
+               -f sha="$SHA" -F force=true 2>/dev/null; then
+            echo "moved deployed/production to $SHA"
+          else
+            gh api --silent -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref=refs/tags/deployed/production -f sha="$SHA"
+            echo "created deployed/production at $SHA"
+          fi
+
+      # A rollback publishes nothing new: the release it returned to becomes "Latest" again, so
+      # the next release's notes start from what was actually running.
+      - name: Mark the release returned to as Latest
+        if: steps.target.outputs.rollback_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          TAG: ${{ steps.target.outputs.rollback_tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --latest
+          echo "Rolled back: \`$TAG\` is Latest again, \`deployed/production\` points to it." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release with generated notes
+        if: steps.target.outputs.rollback_tag == ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          SHA: ${{ steps.target.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # The commit may already be a release (the workflow re-run, or dispatched twice).
+          existing="$(git tag --points-at "$SHA" --list 'v*' | head -n 1)"
+          if [[ -n "$existing" ]]; then
+            gh release edit "$existing" --latest
+            echo "\`${SHA:0:12}\` is already release \`$existing\`; marked it Latest." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          base="v$(date -u +%Y.%m.%d)"; tag="$base"; n=1
+          while git rev-parse -q --verify "refs/tags/$tag" >/dev/null; do n=$((n + 1)); tag="$base.$n"; done
+          # Notes run from the release marked Latest, which is the one production ran until now.
+          args=(--target "$SHA" --title "$tag" --generate-notes --latest)
+          if previous="$(gh release view --json tagName --jq .tagName 2>/dev/null)" && [[ -n "$previous" ]]; then
+            args+=(--notes-start-tag "$previous")
+          fi
+          gh release create "$tag" "${args[@]}"
+          migrations=""
+          if [[ -n "${previous:-}" ]]; then
+            migrations="$(git diff --name-only --diff-filter=A "refs/tags/$previous" "$SHA" -- deploy/migrate/sql)"
+          fi
+          {
+            gh release view "$tag" --json body --jq .body
+            echo
+            echo "---"
+            if [[ -n "$migrations" ]]; then
+              echo "**Migrations in this release:**"
+              while IFS= read -r file; do echo "- \`$file\`"; done <<<"$migrations"
+              echo
+            fi
+            echo "Deployed commit \`$SHA\`, recorded by $RUN_URL"
+          } > notes.md
+          gh release edit "$tag" --notes-file notes.md
+          echo "Published [\`$tag\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$tag) for \`${SHA:0:12}\`." >> "$GITHUB_STEP_SUMMARY"
