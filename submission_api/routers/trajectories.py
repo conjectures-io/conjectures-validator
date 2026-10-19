@@ -13,14 +13,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer
 
-from conjectures_subnet.db.models import REVIEWER_ROLE, RewardState, Submission
+from conjectures_subnet.db.models import REVIEWER_ROLE, ManualReviewState, RewardState, Submission
 from conjectures_subnet.db.submissions import latest_binding_decision
 from conjectures_subnet.db.trajectory_models import TrajectoryAccess, TrajectoryClaim
 from submission_api import trajectories as store
 from submission_api.dependencies import (
-    CookieWriterDep, PrincipalDep, ServicesDep, SessionDep, WriterDep, require_role, require_role_writer,
+    REASON_BROWSER_SESSION_REQUIRED, CookieWriterDep, PrincipalDep, ServicesDep, SessionDep, WriterDep,
+    require_role, require_role_writer,
 )
-from submission_api.errors import ApiError, BadRequest, Conflict, NotFound, PayloadTooLarge
+from submission_api.errors import ApiError, BadRequest, Conflict, Forbidden, NotFound, PayloadTooLarge
 from submission_api.sessions import Principal
 from submission_api.taskpool import TaskNotAllowed
 from submission_api.trajectory_schema import (
@@ -130,19 +131,28 @@ def required(submission):
     return submission.bounty_policy_version == store.TREASURY_CHAT_POLICY
 
 
-FIXED_AT_SUBMISSION = "Logs for this bounty were due with the proof and cannot be added or replaced."
+FIXED_AT_SUBMISSION = ("Logs for this bounty were submitted with the proof. A new version can be uploaded "
+                       "only when a reviewer asks for one.")
+
+
+def revision_reason(claim, now):
+    """Why the required logs cannot take a new version now, or None when a reviewer asked for one."""
+    if (claim is None or claim.status != "NEEDS_CHANGES" or claim.revision >= store.MAX_REVISIONS
+            or claim.expires_at <= now):
+        return FIXED_AT_SUBMISSION
+    return None
 
 
 @router.get("/me/submissions/{submission_id}/trajectory")
 async def status(submission_id: uuid.UUID, principal: PrincipalDep, services: ServicesDep,
                  session: SessionDep, response: Response):
     private(response)
-    submission = await store.owned_submission(session, submission_id, principal.account.id)
+    submission = await store.owned_submission(session, submission_id, principal.account.id, logs_owner=True)
     claim = await store.claim_for(session, submission_id)
     decision = await latest_binding_decision(session, submission_id)
     start_at = await store.opened_at(session) if services.settings.trajectory_bonus_enabled else None
     if required(submission):
-        reason = FIXED_AT_SUBMISSION
+        reason = revision_reason(claim, dt.datetime.now(dt.UTC))
     elif start_at is not None:
         reason = store.eligibility_reason(submission, decision, cutoff=claim.offer_start_at if claim else start_at,
                                           now=dt.datetime.now(dt.UTC), enforce_window=claim is None)
@@ -223,25 +233,39 @@ async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
         return await store.view(session, claim)
 
 
+async def logs_writer(submission_id: uuid.UUID, principal: WriterDep, session: SessionDep) -> Principal:
+    """A browser session, or a CLI token sending a revision of its own account's required logs.
+
+    Anything else from a CLI token is refused as it always was, before any parameter is read.
+    """
+    if principal.is_bearer:
+        try:
+            owned = await store.owned_submission(session, submission_id, principal.account.id, logs_owner=True)
+        except NotFound:
+            owned = None
+        if owned is None or not required(owned):
+            raise Forbidden("this change cannot be made from a CLI session; sign in at the website",
+                            reason_code=REASON_BROWSER_SESSION_REQUIRED)
+    return principal
+
+
 @router.post("/me/submissions/{submission_id}/trajectory")
-async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWriterDep,
+async def upload(submission_id: uuid.UUID, request: Request, principal: Annotated[Principal, Depends(logs_writer)],
                  services: ServicesDep, session: SessionDep, response: Response, terms_version: TermsVersion,
                  terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False,
                  expected_state_version: Annotated[int | None, Query(ge=1, le=2147483647)] = None):
-    """Bonus logs for a proof submitted before the program began. The body is the .zip package."""
+    """Logs uploaded after the proof, as a .zip body: bonus logs for a proof submitted before the
+    program began, or a new version of a bounty's required logs that a reviewer asked for.
+
+    A CLI token may send the second, because a coldkey-signed proof's logs can come from the CLI;
+    the bonus upload stays with the browser session.
+    """
     private(response)
+    account_id = principal.account.id  # rollback expires ORM objects; retain only this immutable ID.
     start_at = await opened(services, session)
     consent = consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted)
-    account_id = principal.account.id  # rollback expires ORM objects; retain only this immutable ID.
-    submission = await store.owned_submission(session, submission_id, account_id)
-    if required(submission):
-        raise Conflict(FIXED_AT_SUBMISSION, reason_code="CHAT_LOGS_FIXED_AT_SUBMISSION")
-    decision = await latest_binding_decision(session, submission_id)
-    existing = await store.claim_for(session, submission_id)
-    reason = store.eligibility_reason(submission, decision, cutoff=existing.offer_start_at if existing else start_at,
-                                      now=dt.datetime.now(dt.UTC), enforce_window=existing is None)
-    if reason:
-        raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
+    submission = await store.owned_submission(session, submission_id, account_id, logs_owner=True)
+    await revisable(session, submission, start_at)
     # Release the auth/precheck transaction and its connection before accepting a slow body.
     await session.rollback()
     if not hasattr(request.app.state, "trajectory_upload_budget"):
@@ -249,15 +273,12 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
     async with request.app.state.trajectory_upload_budget.hold(account_id):
         prepared = await received_package(request, consent, expected_state_version)
         # Recheck under the proof correction lock after all untrusted parsing and hashing.
-        submission = await store.owned_submission(session, submission_id, account_id, lock=True)
+        submission = await store.owned_submission(session, submission_id, account_id, lock=True, logs_owner=True)
         decision = await latest_binding_decision(session, submission_id)
         now = dt.datetime.now(dt.UTC)
         existing = await store.claim_for(session, submission_id)
         offer_start_at = existing.offer_start_at if existing else start_at
-        reason = store.eligibility_reason(submission, decision, cutoff=offer_start_at, now=now,
-                                          enforce_window=existing is None)
-        if reason:
-            raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
+        await revisable(session, submission, start_at)
         claim = await store.accept_package(session, submission=submission, decision=decision,
                                            prepared=prepared, account_id=account_id, now=now,
                                            amount_usd_cents=(existing.amount_usd_cents if existing else
@@ -265,6 +286,24 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: CookieWr
                                            offer_start_at=offer_start_at)
         await session.commit()
         return await store.view(session, claim)
+
+
+async def revisable(session, submission, start_at):
+    """Refuse an upload this proof cannot take now: required logs need a reviewer's request, and an
+    earlier proof's bonus logs need the proof to qualify."""
+    now = dt.datetime.now(dt.UTC)
+    existing = await store.claim_for(session, submission.id)
+    if required(submission):
+        if reason := revision_reason(existing, now):
+            raise Conflict(reason, reason_code="TRAJECTORY_REVISION_NOT_REQUESTED")
+        if submission.manual_review_status == ManualReviewState.REJECTED:
+            raise Conflict("This proof was rejected; its logs can no longer change.", reason_code="TRAJECTORY_INELIGIBLE")
+        return
+    decision = await latest_binding_decision(session, submission.id)
+    reason = store.eligibility_reason(submission, decision, cutoff=existing.offer_start_at if existing else start_at,
+                                      now=now, enforce_window=existing is None)
+    if reason:
+        raise Conflict(reason, reason_code="TRAJECTORY_INELIGIBLE")
 
 
 class StateVersion(StrictModel):
@@ -403,8 +442,9 @@ async def decide(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
     reviewable = claim.status == "UNDER_REVIEW" or (body.decision == "REJECTED" and claim.status in ("EXPIRED", "NEEDS_CHANGES"))
     if not reviewable or claim.revision != body.expected_revision:
         raise Conflict("This review is stale or already decided.", reason_code="TRAJECTORY_STALE_REVIEW")
-    if body.decision == "NEEDS_CHANGES" and claim.amount_usd_cents == 0:
-        raise Conflict(FIXED_AT_SUBMISSION + " Approve or reject them.", reason_code="CHAT_LOGS_FIXED_AT_SUBMISSION")
+    if body.decision == "NEEDS_CHANGES" and claim.amount_usd_cents == 0 and claim.revision >= store.MAX_REVISIONS:
+        raise Conflict("This is the last version these logs may have; approve or reject them.",
+                       reason_code="TRAJECTORY_LAST_REVISION")
     if body.decision == "REJECTED" and claim.amount_usd_cents == 0 and store.verification_pending(submission):
         raise Conflict("Decide these logs once the proof's automatic verification finishes.",
                        reason_code="TRAJECTORY_VERIFICATION_PENDING")

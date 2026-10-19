@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# The only command the GitHub Actions deploy key can run on a server. Installed as
+# /usr/local/sbin/conjectures-deploy and reached through a forced command in the deploy user's
+# authorized_keys (see deploy/ci/README.md):
+#
+#   restrict,command="sudo -n /usr/local/sbin/conjectures-deploy validator" ssh-ed25519 ...
+#
+# The caller chooses only the verb and the commit, through SSH_ORIGINAL_COMMAND:
+#
+#   status                         print the deployed commit
+#   deploy <sha> [run-id]          deploy <sha>, keeping this server's .env
+#   deploy-env <sha> [run-id]      deploy <sha> with the .env read from stdin
+#
+# Everything else -- which checkout, which branch, which services -- comes from
+# /etc/conjectures/deploy-<repo>.env on this server, so nothing a workflow sends can widen it.
+#
+# This output is shown in the GitHub Actions log, which is public for a public repository.
+# Nothing below may print a value from .env: key names only.
+
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+die() { echo "refused: $*" >&2; exit 2; }
+
+repo="${1:-}"
+[[ "$repo" =~ ^[a-z][a-z0-9-]*$ ]] || die "no repository name in the forced command"
+config="/etc/conjectures/deploy-$repo.env"
+[[ -f "$config" ]] || die "$config is missing"
+# shellcheck source=/dev/null
+source "$config"
+: "${CHECKOUT:?CHECKOUT is not set in $config}"
+: "${BRANCH:?BRANCH is not set in $config}"
+: "${DEPLOY_SERVICES:?DEPLOY_SERVICES is not set in $config}"
+: "${HEALTH_URL:=http://127.0.0.1:8000}"
+: "${HEALTH_TIMEOUT:=180}"
+: "${API_CONTAINER:=conjectures_api}"
+: "${BACKUP_DIR:=/root/prod_backups/deploys}"
+: "${ALLOW_ENV_FROM_GITHUB:=0}"
+: "${KEEP_BACKUPS:=10}"
+
+read -r verb sha run_id extra <<<"${SSH_ORIGINAL_COMMAND:-}"
+case "$verb" in
+  status) git -C "$CHECKOUT" rev-parse HEAD; exit 0 ;;
+  deploy | deploy-env) ;;
+  *) die "only 'status', 'deploy <sha> [run-id]' and 'deploy-env <sha> [run-id]'" ;;
+esac
+[[ "${sha:-}" =~ ^[0-9a-f]{40}$ ]] || die "the commit must be a full 40-character SHA"
+run_id="${run_id:-manual}"
+[[ "$run_id" =~ ^([0-9]+|manual)$ ]] || die "the run id must be digits"
+[[ -z "${extra:-}" ]] || die "unexpected arguments"
+if [[ "$verb" == deploy-env && "$ALLOW_ENV_FROM_GITHUB" != 1 ]]; then
+  die "this server keeps its own .env (ALLOW_ENV_FROM_GITHUB is not 1 in $config)"
+fi
+
+log_file="/var/log/conjectures-deploy-$repo.log"
+log() { printf '%s %s %s %s\n' "$(date -u +%FT%TZ)" "$1" "$run_id" "$2" >> "$log_file"; }
+step() { printf '\n==> %s\n' "$*"; }
+
+# --- the incoming .env ---------------------------------------------------------------------
+# Read before taking the lock, so a malformed file is refused without waiting for, or
+# disturbing, anything. Validated line by line; a bad line is reported by number, never shown.
+
+umask 077
+install -d -m 700 "$BACKUP_DIR" "$BACKUP_DIR/env" "$BACKUP_DIR/db"
+incoming=""
+if [[ "$verb" == deploy-env ]]; then
+  incoming="$(mktemp "$BACKUP_DIR/env/incoming.XXXXXX")"
+  trap 'rm -f "$incoming"' EXIT
+  head -c 65537 > "$incoming"
+  (( $(stat -c %s "$incoming") <= 65536 )) || die "the .env from GitHub is larger than 64 KiB"
+  [[ -s "$incoming" ]] || die "the .env from GitHub is empty; is the DOTENV secret set?"
+  # Secrets pasted on Windows or through some editors arrive with CRLF line endings.
+  sed -i 's/\r$//' "$incoming"
+  lineno=0; bad=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    lineno=$((lineno + 1))
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# || "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || bad+=("$lineno")
+  done < "$incoming"
+  (( ${#bad[@]} == 0 )) || die "the .env from GitHub has lines that are not KEY=value, comments or blank: line(s) ${bad[*]}"
+fi
+
+# --- one deploy per machine ----------------------------------------------------------------
+
+exec 9>/run/conjectures-deploy.lock
+flock -w 1800 9 || die "another deploy has held the lock for 30 minutes"
+
+cd "$CHECKOUT"
+# .env and other ignored files are allowed; tracked changes and untracked files are not.
+if [[ -n "$(git status --porcelain=v1 --untracked-files=normal)" ]]; then
+  echo "refused: $CHECKOUT has local changes:" >&2
+  git status --short >&2
+  exit 3
+fi
+
+step "fetching origin/$BRANCH"
+git fetch --no-tags --quiet origin "$BRANCH"
+git merge-base --is-ancestor "$sha" "origin/$BRANCH" 2>/dev/null || die "$sha is not on origin/$BRANCH"
+
+previous="$(git rev-parse HEAD)"
+# Fixed before the deploy runs in a subshell (below), so the restore path can find it.
+env_backup="$BACKUP_DIR/env/$(date -u +%Y%m%dT%H%M%SZ)-before-$sha.env"
+
+key_names() { grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$1" | tr -d = | sort -u; }
+
+install_env() {   # $1 = file to become .env, $2 = where to save the current one (empty: don't)
+  if [[ -f .env ]] && cmp -s "$1" .env; then
+    echo "    .env unchanged"
+    return
+  fi
+  if [[ -f .env ]]; then
+    # Not when restoring: the current .env is then the one that failed, and saving it here
+    # would overwrite the backup being restored.
+    [[ -z "$2" ]] || cp -p .env "$2"
+    added=$(comm -13 <(key_names .env) <(key_names "$1") | tr '\n' ' ')
+    removed=$(comm -23 <(key_names .env) <(key_names "$1") | tr '\n' ' ')
+    changed=$(comm -12 <(key_names .env) <(key_names "$1") | while read -r k; do
+      [[ "$(grep -E "^$k=" .env | tail -1)" == "$(grep -E "^$k=" "$1" | tail -1)" ]] || printf '%s ' "$k"
+    done)
+    echo "    .env keys added:   ${added:-none}"
+    echo "    .env keys removed: ${removed:-none}"
+    echo "    .env keys changed: ${changed:-none}"
+    install -m "$(stat -c %a .env)" -o "$(stat -c %u .env)" -g "$(stat -c %g .env)" "$1" .env.new
+  else
+    install -m 600 "$1" .env.new
+  fi
+  mv -f .env.new .env
+}
+
+backup_database() {
+  local dump
+  dump="$BACKUP_DIR/db/$(date -u +%Y%m%dT%H%M%SZ)-before-$1.dump"
+  step "migrations changed: backing up the database to $dump"
+  docker exec conjectures_db sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > "$dump"
+  # Names start with a UTC timestamp, so a plain sort is oldest first.
+  find "$BACKUP_DIR/db" -maxdepth 1 -name '*.dump' | sort | head -n -"$KEEP_BACKUPS" | xargs -r rm -f
+}
+
+wait_healthy() {   # $1 = commit that must be serving
+  local deadline=$((SECONDS + HEALTH_TIMEOUT)) revision
+  step "waiting for $HEALTH_URL/readyz and commit $1"
+  while (( SECONDS < deadline )); do
+    revision="$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$API_CONTAINER" 2>/dev/null || true)"
+    if [[ "$revision" == "$1" ]] && curl -fsS --max-time 5 "$HEALTH_URL/readyz" >/dev/null 2>&1; then
+      echo "    ready, serving $1"
+      return 0
+    fi
+    sleep 5
+  done
+  echo "    not ready after ${HEALTH_TIMEOUT}s (container revision: ${revision:-none})" >&2
+  curl -sS --max-time 5 "$HEALTH_URL/readyz" >&2 || true
+  return 1
+}
+
+deploy_to() {   # $1 = commit, $2 = .env file to install (may be empty), $3 = .env backup path
+  step "checking out $1"
+  git checkout --quiet --detach "$1"
+  if [[ -n "$2" ]]; then
+    step "installing .env"
+    install_env "$2" "${3:-}"
+  fi
+  step "task pool"
+  just _check-tasks >/dev/null 2>&1 || just pin-tasks
+  step "preflight"
+  just doctor
+  if [[ "$1" != "$previous" ]] && ! git diff --quiet "$previous" "$1" -- deploy/migrate/sql; then
+    backup_database "$1"
+  fi
+  step "migrating and recreating: $DEPLOY_SERVICES"
+  # shellcheck disable=SC2086 # a space-separated list of compose service names, on purpose
+  GIT_COMMIT="$1" just deploy-up $DEPLOY_SERVICES
+  wait_healthy "$1"
+  step ".env compared with .env.example"
+  just env-sync check || true
+}
+
+# Each attempt runs as a top-level subshell with errexit on. Inside an `if`, an `&&` or a function
+# called from either, bash ignores `set -e` -- even a `set -e` inside the subshell -- and a failed
+# step would not stop the deploy. Hence the explicit `set +e` / `$?` / `set -e` below.
+set +e
+( set -e; deploy_to "$sha" "$incoming" "$env_backup" )
+status=$?
+set -e
+if (( status == 0 )); then
+  log "$sha" ok
+  step "deployed $sha"
+  exit 0
+fi
+
+log "$sha" failed
+echo "" >&2
+echo "deploy of $sha failed; restoring $previous" >&2
+restore_env=""
+[[ -f "$env_backup" ]] && restore_env="$env_backup"
+set +e
+( set -e; deploy_to "$previous" "$restore_env" )
+status=$?
+set -e
+if (( status == 0 )); then
+  log "$previous" restored
+else
+  log "$previous" restore-failed
+  echo "restoring $previous failed too; an operator has to look at this server" >&2
+fi
+exit 1

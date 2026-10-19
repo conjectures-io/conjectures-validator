@@ -348,3 +348,86 @@ def test_coldkey_signed_proof_carries_logs_deposited_from_a_cli_session():
         finally:
             await kit.teardown()
     asyncio.run(scenario())
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason='private database required')
+def test_requested_revision_of_required_logs_can_come_from_the_cli():
+    from conftest_api import distinct_bundle
+    from conjectures_subnet.bounty import DynamicBountyPricer
+    from conjectures_subnet.db.models import ReviewOutcome
+    from conjectures_subnet.db import submissions as proof_store
+    from conjectures_subnet.db.trajectory_models import TrajectoryClaim
+    from test_api_accounts import client, same_origin
+    from test_api_cli_sessions import bearer, linked_account_with_cli_token
+    from test_api_reviews import _verify
+    from test_api_submissions import _post
+    from test_api_trajectories import (DEPOSITS, as_upload, fresh_upload_budget, kit_config, package_for,
+                                       review_body, reviewer)
+
+    def cli(upload, token):
+        return {**upload, 'headers': {**bearer(token), 'content-type': 'application/zip'}}
+
+    async def scenario():
+        kit = await kit_config().setup()
+        pricer = replace(kit.services.pricing,
+                         new_target_policy=DynamicBountyPricer.__dataclass_fields__['new_target_policy'].default)
+        kit.services = replace(kit.services, pricing=pricer)
+        kit.app.state.services = kit.services
+        try:
+            bundle, proof = distinct_bundle('cli-revision')
+            _, token = await linked_account_with_cli_token(kit)
+            package = package_for(proof, None)
+            async with await client(kit) as miner, await client(kit) as admin:
+                assert (await miner.post(DEPOSITS, **cli(as_upload(package), token))).status_code == 200
+                created = await _post(kit, bundle, proof_digest=proof)
+                assert created.status_code == 201, created.text
+                sid = created.json()['submission_id']
+                path = f'/v1/me/submissions/{sid}/trajectory'
+                # The proof records no account, but the logs' owner can follow them.
+                state = await miner.get(path, headers=bearer(token))
+                assert state.status_code == 200, state.text
+                assert state.json()['chat_logs_required'] and not state.json()['eligible']
+                await _verify(kit, sid)
+                async with kit.session() as session:
+                    await proof_store.record_human_decision(session, uuid.UUID(sid), decision=ReviewOutcome.APPROVED,
+                                                            reason_code='REVIEW_APPROVED', reviewer='fixture-reviewer')
+                    await session.commit()
+                await reviewer(kit, admin)
+                claim = state.json()['claim']
+                changes = await admin.post(f'/v1/admin/trajectories/{claim["id"]}/decision', headers=same_origin(),
+                                           json=review_body(decision='NEEDS_CHANGES', state_version=claim['state_version']))
+                assert changes.status_code == 200, changes.text
+
+                # A chat that shows the proof only after it was submitted is not the original.
+                async with kit.session() as session:
+                    sub = await session.get(Submission, uuid.UUID(sid))
+                    created_at = sub.created_at
+                    sub.created_at = created_at - timedelta(hours=3)
+                    await session.commit()
+                fresh_upload_budget(kit)
+                late = await miner.post(path, **cli(as_upload(package_for(proof, sid),
+                                                               state_version=changes.json()['state_version']), token))
+                assert late.status_code == 409 and late.json()['reason_code'] == 'TRAJECTORY_AFTER_THE_FACT'
+                async with kit.session() as session:
+                    sub = await session.get(Submission, uuid.UUID(sid))
+                    sub.created_at = created_at
+                    await session.commit()
+
+                fresh_upload_budget(kit)
+                revised = await miner.post(path, **cli(as_upload(package_for(proof, sid),
+                                                                  state_version=changes.json()['state_version']), token))
+                assert revised.status_code == 200, revised.text
+                assert revised.json()['status'] == 'UNDER_REVIEW' and revised.json()['revision'] == 2
+
+                # The third version is the last: a reviewer must then decide.
+                async with kit.session() as session:
+                    record = await session.scalar(select(TrajectoryClaim).where(TrajectoryClaim.id == uuid.UUID(claim['id'])))
+                    record.revision = 3
+                    await session.commit()
+                last = await admin.post(f'/v1/admin/trajectories/{claim["id"]}/decision', headers=same_origin(),
+                                        json=review_body(decision='NEEDS_CHANGES', revision=3,
+                                                         state_version=revised.json()['state_version']))
+                assert last.status_code == 409 and last.json()['reason_code'] == 'TRAJECTORY_LAST_REVISION'
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())

@@ -34,12 +34,17 @@ conjectures submissions show <id> --watch
 ```
 
 **Every open problem requires the AI chat logs that produced the proof**, uploaded before the
-proof is submitted and accepted by a reviewer ([submission terms v9](policies/submission-terms-v9.md),
-[chat-log terms](trajectories/chat-log-terms-v2.md)). Logs belong to the account your coldkey is
+proof is submitted and accepted by a reviewer ([submission terms v10](policies/submission-terms-v10.md),
+[chat-log terms](trajectories/chat-log-terms-v3.md)). Logs belong to the account your coldkey is
 linked to: run `conjectures auth register` once and `conjectures auth login`, then `logs upload`.
 A coldkey-signed submission finds the logs through that link; without them it is refused before
 the payment is spent, so upload and submit again with the same payment. Package the logs as
 [the agent instructions](trajectories/agent-instructions.md) describe.
+
+If a reviewer finds the logs incomplete they may ask for more rather than reject them. Upload a
+new version within 14 days with `conjectures logs upload <package.zip> --submission <id>` (or on
+the submission's page at the website), up to three versions in all. Each version must still be
+the original chats and show the proof before it was submitted.
 
 `check` never reads the proof: it is the zip, the manifest and a static policy scan. Whether the
 **proof** is correct is a different question, and only the verifier answers it — `verify` builds

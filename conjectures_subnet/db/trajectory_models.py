@@ -42,7 +42,7 @@ class TrajectoryClaim(Base):
     __table_args__ = (
         CheckConstraint("status IN ('DEPOSITED','UNDER_REVIEW','NEEDS_CHANGES','REJECTED','APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE','WITHDRAWN','EXPIRED','REVOKED_PROOF_CHANGED')", name="trajectory_status"),
         CheckConstraint("(status = 'DEPOSITED') = (submission_id IS NULL) AND (submission_id IS NOT NULL OR amount_usd_cents = 0)", name="trajectory_deposit"),
-        CheckConstraint("amount_usd_cents > 0 OR (revision = 1 AND status <> 'NEEDS_CHANGES')", name="trajectory_required_logs_fixed"),
+        CheckConstraint("status <> 'DEPOSITED' OR revision = 1", name="trajectory_deposit_first_version"),
         CheckConstraint("reviewer_id IS NULL OR reviewer_id <> account_id", name="trajectory_no_self_review"),
         CheckConstraint("amount_usd_cents IN (0, 25000, 50000)", name="trajectory_fixed_bonus"),
         CheckConstraint("(status <> 'APPROVED_BOUNTY_EVIDENCE' OR amount_usd_cents = 0) AND (status <> 'APPROVED_MANUAL_PAYMENT' OR amount_usd_cents IN (25000, 50000))", name="trajectory_approval_purpose"),

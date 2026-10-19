@@ -20,6 +20,13 @@ without that option preserve adapter 2. A downgrade to adapter 1 is refused.
 For the current source pool Mathlib is already imported transitively. This change makes that
 import explicit in the trusted header; it does not require solvers to add imports to proofs.
 
+The October 18, 2026 tasks pin activates adapter 2 for all 548 active bundles (274 targets).
+All 1,101 earlier versions remain available with their original bytes and admissions. The
+replacement manifests record the four-hour timeout already enforced in production. Source
+statements, dependency and environment identities, reward identities, and proof size limits
+are unchanged. The tasks repository records every old/new commitment in
+`history/releases/2026-10-18-mathlib-headers.json`.
+
 ## Preparing a header upgrade
 
 Use the existing registry-aware release builder in an isolated tasks clone and the pinned
