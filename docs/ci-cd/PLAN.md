@@ -12,8 +12,13 @@ the API contract (section 6).
 Status, 2026-10-19: the dev-server deploy (phase 2) is implemented. It consists of
 [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml), the server script and setup
 guide in [`deploy/ci/`](../../deploy/ci/README.md), and `just deploy-up`. It goes live once the
-server and the `dev` environment are set up. The production phases are still a proposal. The
-rules for contributors and coding agents are in [`../DEPLOYING.md`](../DEPLOYING.md).
+server and the `dev` environment are set up. Production releases are recorded by
+[`production-release.yml`](../../.github/workflows/production-release.yml): it moves
+`deployed/production` and publishes a release with generated notes. Until phase 3 it is run
+by hand after each production deploy. The tags are protected by the rulesets in
+[`.github/rulesets/`](../../.github/rulesets/README.md). Production deploying from GitHub
+(phase 3 onward) is still a proposal. The rules for contributors and coding agents are in
+[`../DEPLOYING.md`](../DEPLOYING.md).
 
 ---
 
@@ -280,10 +285,16 @@ into a server.
   that release "Latest" (`gh release edit <tag> --latest`). A rollback creates no new
   release. The next forward deploy compares its notes against the release that was actually
   live.
-- **Who can write tags.** A tag ruleset protects `v*` (no update, no deletion) and
-  `deployed/*` (no deletion; updates only by the bypass actor). The bypass actor is the
-  org's GitHub App, the same one that opens back-merge PRs (phase 4). The deploy workflow
-  writes tags with that App's token. Nobody else can move them.
+- **Who can write tags.** Two tag rulesets ([`.github/rulesets/`](../../.github/rulesets/README.md))
+  restrict creation, update and deletion of `v*` and `deployed/*`. The only bypass actor is
+  the org's release GitHub App, which will also open back-merge PRs (phase 4). The workflows
+  write tags with that App's token (`RELEASE_APP_ID` / `RELEASE_APP_KEY`). Nobody else can
+  create or move them. A workflow's built-in `GITHUB_TOKEN` cannot be put on a ruleset's
+  bypass list, which is why an App is needed.
+- **Until production deploys from GitHub,** whoever deploys production runs
+  `gh workflow run production-release.yml -f ref=<deployed sha>` straight afterwards, or
+  `-f ref=<release tag>` after a rollback. From phase 3 the production deploy job calls the
+  same workflow itself.
 - **Dev deploys get no release.** The moving tag and GitHub's Deployments history on the
   `dev` environment are enough.
 
@@ -356,8 +367,7 @@ For production, the same workflow gains:
 - the `production` environment;
 - `scripts/deploy_scope.py` and the operator gate;
 - release creation (section 5);
-- a GitHub App token in `record` once the tag rulesets exist. The dev pipeline uses
-  `GITHUB_TOKEN` with `contents: write` until then.
+- a call to `production-release.yml` (already built) from its `record` job.
 
 ## Appendix C: ruleset settings
 

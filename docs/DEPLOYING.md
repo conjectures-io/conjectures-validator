@@ -79,10 +79,13 @@ gh release list --limit 10                          # production history
 3. Merge with a merge commit. The deploy waits in the `production` environment. Its summary
    shows the deploy scope (`app`, `migration` or `operator`) and any new migration files. One
    approver approves it **(phase 3)**. Whoever started the deploy cannot approve it.
-4. After a successful deploy, the workflow moves `deployed/production` and creates the
+4. Until production deploys from GitHub, whoever deploys it runs
+   `gh workflow run production-release.yml -f ref=<deployed 40-hex sha>` right afterwards.
+   This records the deploy the same way the pipeline will.
+5. After a successful deploy, the workflow moves `deployed/production` and creates the
    release `vYYYY.MM.DD` with generated notes: the PRs merged since the previous release,
    grouped by label, plus the deploy run link.
-5. Agents do not approve production deploys. Give the human the run URL and the scope.
+6. Agents do not approve production deploys. Give the human the run URL and the scope.
 
 ## Hotfixes
 

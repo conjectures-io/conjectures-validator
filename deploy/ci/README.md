@@ -106,6 +106,12 @@ Settings → Environments → **New environment** → `dev`:
 
 Then delete `gha-validator-dev` and `gha-validator-dev.pub` from the workstation.
 
+**Tag protection** (repository-wide, not per environment): create the release GitHub App,
+set `RELEASE_APP_ID` and `RELEASE_APP_KEY`, then import the rulesets. The steps are in
+[`.github/rulesets/README.md`](../../.github/rulesets/README.md). Until the App is configured,
+`deploy.yml` moves `deployed/dev` with `GITHUB_TOKEN`. So configure the App before activating
+the rulesets, not after.
+
 ## The .env from GitHub
 
 Yes, the server's `.env` can live in GitHub: the whole file goes into **one** environment

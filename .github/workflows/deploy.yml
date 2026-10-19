@@ -174,12 +174,23 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The tag is protected by .github/rulesets/deployed-tags.json: only the release GitHub App
+      # may move it. Without RELEASE_APP_ID this falls back to GITHUB_TOKEN, which works only
+      # while that ruleset is not active.
+      - name: Token from the release GitHub App
+        id: app
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+
       # A moving tag: `git log -1 deployed/dev` answers "what runs on the dev server" without
       # logging in. The REST API rather than `git push`, so no checkout is needed.
       - name: Move deployed/dev
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           SHA: ${{ needs.plan.outputs.sha }}
         run: |
           set -euo pipefail
