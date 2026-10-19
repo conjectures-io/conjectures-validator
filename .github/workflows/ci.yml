@@ -11,10 +11,9 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
-  # Called by deploy.yml on every push to `dev`, so a commit reaches the dev server only after
-  # these three gates pass on the merged result -- not just on the PR's head.
+  # Called by deploy.yml on every push to `dev` and `main`, so a commit is deployed only after
+  # these gates pass on the merged result -- not just on the PR's head. That call is also the
+  # record for `main`, which is why there is no `push` trigger here: it would run everything twice.
   workflow_call:
 
 # A force-push should not leave the previous run burning CI minutes on a commit nobody will
@@ -34,6 +33,53 @@ env:
   PYTHON_VERSION: "3.12"
 
 jobs:
+  # Where a PR into `main` may come from. A required check on `main` (.github/rulesets/main.json):
+  #   dev       only while `main` has nothing `dev` lacks -- merge the main -> dev back-merge first;
+  #   hotfix/*  only when started from the current `main`;
+  #   anything else is refused.
+  # Skipped (which a required check counts as passing) for PRs into any other branch.
+  # `--no-merges`: the merge commit every release leaves on `main` is not a change.
+  release-source:
+    name: release source
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check the PR's source branch
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
+            echo "::error::main accepts PRs only from this repository's dev or hotfix/* branches"
+            exit 1
+          fi
+          git fetch --no-tags --quiet origin main
+          case "$HEAD_REF" in
+            dev)
+              missing="$(git rev-list --no-merges --format='%h %s' HEAD..origin/main | grep -v '^commit ' || true)"
+              if [[ -n "$missing" ]]; then
+                echo "::error::main has commits dev lacks; merge the main -> dev back-merge PR first"
+                printf '%s\n' "$missing"
+                exit 1
+              fi
+              ;;
+            hotfix/*)
+              git merge-base --is-ancestor origin/main HEAD \
+                || { echo "::error::$HEAD_REF does not start from the current main; rebase it onto origin/main"; exit 1; }
+              ;;
+            *)
+              echo "::error::main accepts PRs only from dev or hotfix/*, not from $HEAD_REF"
+              exit 1
+              ;;
+          esac
+          echo "ok: $HEAD_REF may go into main"
+
   lint:
     name: ruff
     runs-on: ubuntu-latest
