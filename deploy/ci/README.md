@@ -31,6 +31,10 @@ Run as root, from the release checkout (`/opt/conjectures-validator/current`).
 ```bash
 # 1. The account the key logs in as. It needs a real shell: sshd runs the forced command through it.
 adduser --system --group --shell /bin/bash --home /home/deploy deploy
+# adduser leaves the password field `!` (locked). With `UsePAM no`, sshd refuses every login to a
+# locked account, keys included ("User deploy not allowed because account is locked"). `*` is a
+# password no input can match, so password login stays impossible while key login works.
+usermod -p '*' deploy
 
 # 2. The script and its config.
 install -m 755 -o root -g root deploy/ci/conjectures-deploy /usr/local/sbin/conjectures-deploy
