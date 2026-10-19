@@ -36,6 +36,9 @@ services:
     build:
       context: .
       dockerfile: deploy/api/Dockerfile
+      args:
+        # Labels the image with the commit it was built from; see `just deploy-up`.
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
     image: conjectures-submission-api:local
     container_name: conjectures_api
     restart: unless-stopped
