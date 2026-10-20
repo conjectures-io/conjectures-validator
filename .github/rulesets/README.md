@@ -42,12 +42,26 @@ The order matters. With a ruleset active and no App configured, the workflows fa
    Create it, note the **App ID**, then generate a private key (a `.pem` download).
 2. **Install it** on `conjectures-io/conjectures-validator` only (the App's page → Install
    App).
-3. **Give the workflows its credentials.** Repository settings → Secrets and variables →
-   Actions:
-   - variable `RELEASE_APP_ID` = the App ID;
-   - secret `RELEASE_APP_KEY` = the whole `.pem` file.
+3. **Give the workflows its credentials.**
+   - Repository settings → Secrets and variables → Actions → *Variables*: `RELEASE_APP_ID` = the
+     App ID. Not secret.
+   - Repository settings → Environments → New environment → **`release`**. Under deployment
+     branches choose "Selected branches and tags" and add `dev` and `main`. No reviewers. Add
+     the environment secret `RELEASE_APP_KEY` = the whole `.pem` file.
 
    Then delete the `.pem` from your machine.
+
+   **Why an environment, not a repository secret.** Workflows from every branch can read a
+   repository secret, so anyone with write access could push a branch whose workflow uses the
+   key, and with it move release tags. An environment secret is only released to jobs running on
+   the branches the environment allows. Only `record` (on `dev`), `release` and `back-merge` (on
+   `main`) declare `environment: release`.
+
+   **Create `release` before these workflows reach `dev`.** A job naming an environment that
+   does not exist makes GitHub create it with no branch limit and no secret, and the App step
+   fails. If `RELEASE_APP_KEY` is currently a repository secret: create `release` with the
+   secret first, merge, check that the next deploy's `record` job succeeds, then delete the
+   repository secret.
 4. **Create the rulesets.**
    - In the UI: Repository settings → Rules → Rulesets → New ruleset → **Import a ruleset**,
      once per JSON file. Then open each *tag* ruleset → Bypass list → Add bypass → the App →
@@ -69,7 +83,17 @@ The order matters. With a ruleset active and no App configured, the workflows fa
 
    The required checks are tied to GitHub Actions (`integration_id` 15368), so a status with
    the same name posted by anything else does not satisfy them.
-5. **Check it.** A tag push from a laptop is refused, and the next deploy still moves
+5. **Delete branches after merge.** Repository settings → General → Pull Requests → tick
+   **"Automatically delete head branches"** (or
+   `gh api -X PATCH repos/conjectures-io/conjectures-validator -F delete_branch_on_merge=true`).
+   This is a repository setting; rulesets have no such rule.
+
+   **Only after `dev.json` is active.** Release PRs have `dev` as their head branch and
+   back-merge PRs have `main`. GitHub does not delete a branch that a ruleset protects from
+   deletion, and both `dev.json` and `main.json` (and today's "dont break main") restrict
+   deletion. With the setting on and `dev` unprotected, merging the next release PR would
+   delete `dev`.
+6. **Check it.** A tag push from a laptop is refused, and the next deploy still moves
    `deployed/dev`:
 
    ```bash

@@ -88,13 +88,10 @@ On a server, the running API image is labelled with its commit:
    - `operator` or `first`: nothing is deployed. An operator does the steps, then runs
      `gh workflow run deploy.yml --ref main -f environment=production -f ref=<sha> -f operator_steps_done=true`,
      which also waits for the approval.
-4. Before production deploys from GitHub, whoever deploys it by hand runs
-   `gh workflow run production-release.yml -f ref=<deployed 40-hex sha>` right afterwards.
-   This records the deploy the same way the pipeline does.
-5. After a successful deploy, the workflow moves `deployed/production` and creates the
+4. After a successful deploy, the workflow moves `deployed/production` and creates the
    release `vYYYY.MM.DD` with generated notes: the PRs merged since the previous release,
    grouped by label, plus the deploy run link.
-6. Agents do not approve production deploys. Give the human the run URL and the scope.
+5. Agents do not approve production deploys. Give the human the run URL and the scope.
 
 ## Hotfixes
 
@@ -171,4 +168,6 @@ May not:
 - read, set or print the `DOTENV` secret or any server's `.env`;
 - change `.github/`, the justfile's deploy recipes or `deploy/` without stating it in the
   PR (CODEOWNERS for them is planned), add `pull_request_target` to a workflow, or put
-  secrets in any file.
+  secrets in any file;
+- work with a token that can approve production deployments or change repository settings.
+  Whoever sets up an agent gives it a fine-grained token without those rights.
