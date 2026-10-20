@@ -49,21 +49,9 @@ def quote_formalization_defect_award(
     if timeout_seconds <= 0:
         raise ValueError("the TaoStats timeout must be positive")
 
-    tao = _get_one_record(
-        TAOSTATS_TAO_PRICE_URL,
-        params={"asset": "tao"},
-        api_key=api_key,
-        timeout_seconds=timeout_seconds,
+    alpha_usd = fetch_alpha_usd(
+        api_key=api_key, netuid=netuid, timeout_seconds=timeout_seconds
     )
-    pool = _get_one_record(
-        TAOSTATS_SUBNET_POOL_URL,
-        params={"netuid": netuid, "limit": 1},
-        api_key=api_key,
-        timeout_seconds=timeout_seconds,
-    )
-    tao_usd = _positive_decimal(tao["price"], field="TAO price")
-    alpha_tao = _positive_decimal(pool["price"], field="Subnet Alpha price")
-    alpha_usd = alpha_tao * tao_usd
     amount_rao = int(
         (FORMALIZATION_DEFECT_AWARD_USD * RAO_PER_ALPHA / alpha_usd).quantize(
             Decimal(1), rounding=ROUND_HALF_UP
@@ -86,6 +74,30 @@ def quote_formalization_defect_award(
             "rounding": "ROUND_HALF_UP to nearest integer Alpha rao",
         },
     )
+
+
+def fetch_alpha_usd(*, api_key: str, netuid: int, timeout_seconds: float = 10.0) -> Decimal:
+    """Subnet Alpha in USD now: TaoStats Alpha/TAO multiplied by TaoStats TAO/USD.
+
+    The one place both feeds are read and combined, shared by the defect-award quote and by the
+    payout watcher, which records it beside a fresh payout. Blocking; call it from a thread in
+    async code.
+    """
+    tao = _get_one_record(
+        TAOSTATS_TAO_PRICE_URL,
+        params={"asset": "tao"},
+        api_key=api_key,
+        timeout_seconds=timeout_seconds,
+    )
+    pool = _get_one_record(
+        TAOSTATS_SUBNET_POOL_URL,
+        params={"netuid": netuid, "limit": 1},
+        api_key=api_key,
+        timeout_seconds=timeout_seconds,
+    )
+    tao_usd = _positive_decimal(tao["price"], field="TAO price")
+    alpha_tao = _positive_decimal(pool["price"], field="Subnet Alpha price")
+    return alpha_tao * tao_usd
 
 
 def _get_one_record(
@@ -130,5 +142,6 @@ def _positive_decimal(value: object, *, field: str) -> Decimal:
 __all__ = [
     "DefectAwardQuote",
     "FORMALIZATION_DEFECT_POLICY_VERSION",
+    "fetch_alpha_usd",
     "quote_formalization_defect_award",
 ]

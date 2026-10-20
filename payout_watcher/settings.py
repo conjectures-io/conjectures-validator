@@ -72,6 +72,10 @@ class PayoutWatcherSettings:
     batch_blocks: int
     poll_seconds: float
     watcher_id: str
+    # Optional: empty disables the payout-time price (see `watcher.PRICE_FRESHNESS`). Nothing about
+    # recording or matching a payout depends on it.
+    taostats_api_key: str = ""
+    taostats_timeout_seconds: float = 10.0
 
     @property
     def accepted_origin_hotkeys(self) -> tuple[str, ...]:
@@ -121,6 +125,10 @@ class PayoutWatcherSettings:
             watcher_id=(
                 env.get("PAYOUT_WATCHER_ID", "").strip()
                 or f"{socket.gethostname()}/{os.getpid()}"
+            ),
+            taostats_api_key=env.get("TAOSTATS_API_KEY", "").strip(),
+            taostats_timeout_seconds=_positive_float(
+                env, "PAYOUT_TAOSTATS_TIMEOUT_SECONDS", 10.0, maximum=60
             ),
         )
 

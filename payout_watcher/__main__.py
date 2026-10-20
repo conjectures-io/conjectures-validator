@@ -8,12 +8,14 @@ import logging
 import signal
 import sys
 from collections.abc import Sequence
+from decimal import Decimal
 
 from conjectures_subnet import transfers as chain
 from conjectures_subnet.axiom import configure_logging, get_axiom
 from conjectures_subnet.db.engine import async_session_factory, create_async_db_engine
+from payout_notifier.pricing import fetch_alpha_usd
 from payout_watcher.settings import PayoutWatcherSettings, SettingsError
-from payout_watcher.watcher import PayoutWatcher
+from payout_watcher.watcher import PayoutWatcher, PriceSource
 
 logger = logging.getLogger("payout_watcher")
 
@@ -23,6 +25,22 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--once", action="store_true", help="run one scan pass and exit")
     parser.add_argument("--log-level", default="INFO")
     return parser
+
+
+def _price_source(settings: PayoutWatcherSettings) -> PriceSource | None:
+    """TaoStats Alpha/USD off the event loop, or None when no key is configured."""
+    if not settings.taostats_api_key:
+        return None
+
+    async def alpha_usd() -> Decimal:
+        return await asyncio.to_thread(
+            fetch_alpha_usd,
+            api_key=settings.taostats_api_key,
+            netuid=settings.netuid,
+            timeout_seconds=settings.taostats_timeout_seconds,
+        )
+
+    return alpha_usd
 
 
 async def _run(args: argparse.Namespace) -> int:
@@ -35,6 +53,7 @@ async def _run(args: argparse.Namespace) -> int:
         settings=settings,
         sessions=async_session_factory(engine),
         source=source,
+        price_source=_price_source(settings),
     )
     try:
         cursor = await watcher.resolve_cursor()

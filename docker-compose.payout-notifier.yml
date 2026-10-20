@@ -84,6 +84,11 @@ services:
       PAYOUT_WATCH_BATCH_BLOCKS: ${PAYOUT_WATCH_BATCH_BLOCKS:-200}
       PAYOUT_WATCH_POLL_SECONDS: ${PAYOUT_WATCH_POLL_SECONDS:-12}
       PAYOUT_WATCHER_ID: compose-payout-watcher-1
+      # Optional. Set, the watcher records Alpha/USD beside each payout it sees while fresh, which
+      # is what `payout.amount_usd_at_payout` on public results is computed from. Unset, payouts
+      # are recorded and matched exactly the same and publish no USD value.
+      TAOSTATS_API_KEY: ${TAOSTATS_API_KEY:-}
+      PAYOUT_TAOSTATS_TIMEOUT_SECONDS: ${PAYOUT_TAOSTATS_TIMEOUT_SECONDS:-10}
       HOME: /tmp
 
       AXIOM_TOKEN: ${AXIOM_TOKEN:-}

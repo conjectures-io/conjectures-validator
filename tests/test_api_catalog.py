@@ -406,7 +406,13 @@ def test_the_page_size_is_capped():
         kit = await harness(entries=pool()).setup()
         try:
             async with await _client(kit) as client:
-                too_big = await client.get("/v1/catalog/conjectures", params={"limit": 500})
+                # 500 is the catalog's own cap, above the shared one: a client filtering in the
+                # browser reads the whole pool in one page.
+                whole = await client.get("/v1/catalog/conjectures", params={"limit": 500})
+                assert whole.status_code == 200
+                assert whole.json()["limit"] == 500
+
+                too_big = await client.get("/v1/catalog/conjectures", params={"limit": 501})
                 assert too_big.status_code == 400
                 assert too_big.json()["reason_code"] == "MALFORMED_REQUEST"
 
@@ -747,6 +753,8 @@ def test_meta_never_publishes_the_elan_asset_digests():
                 "toolchain",
                 "version",
                 "enabled",
+                "base_commit",
+                "patch_sha256",
             }
         finally:
             await kit.teardown()
@@ -1640,6 +1648,226 @@ def test_research_description_names_the_index_list_detail_and_results():
             row = SimpleNamespace(reward_target_id="fc-target:Math15Catalog.source04")
             assert named_of(kit.services.index, row).display_title == expected
             assert detail["title"] == "Math15Catalog.source04"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+# --- display status, dates and links -----------------------------------------------------
+
+
+async def _verify_and_maybe_approve(kit, submission_id: str, *, approve: bool) -> None:
+    """Drive one submission to Lean-verified, and optionally through an approval."""
+    import json
+    import uuid
+    from datetime import UTC, datetime
+
+    from conjectures_subnet.db import submissions as store
+    from conjectures_subnet.db.models import Submission
+
+    async with kit.session() as session:
+        submission = await session.get(Submission, uuid.UUID(submission_id))
+        await store.record_verification_result(
+            session,
+            submission,
+            accepted=True,
+            reason_code="VERIFIED",
+            stage="COMPLETED",
+            verifier_version="verifier-1.2.3",
+            container_digest="sha256:" + "11" * 32,
+            sandbox_mode="landrun+seccomp",
+            checks={"lean_kernel_passed": True},
+            report=json.dumps({"accepted": True}).encode("utf-8"),
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
+        )
+        if approve:
+            await store.approve_automatically(session, submission)
+        await session.commit()
+
+
+def _status_of(body: dict, slug: str) -> tuple[str, str | None, str | None]:
+    item = next(item for item in body["items"] if item["slug"] == slug)
+    return item["display_status"], item["added_at"], item["solved_at"]
+
+
+def test_display_status_follows_a_target_from_open_through_review_to_solved():
+    """The API owns the status rule, so the list and the detail page agree at every step."""
+
+    async def scenario():
+        kit = await harness(entries=pool()).setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/conjectures")).json()
+            assert body["submissions_open"] is True
+            status, added_at, solved_at = _status_of(body, OPEN_DIRECT)
+            assert status == "open"
+            assert added_at is not None  # the first listing records it
+            assert solved_at is None
+
+            created = await _submit(kit, hotkey=MINER_COLDKEY, payment_reference="0xstatus-1")
+            assert created.status_code == 201, created.text
+            submission_id = created.json()["submission_id"]
+            # Paid but not yet verified: still open, nothing is waiting on review.
+            body = (await _get(kit, "/v1/catalog/conjectures")).json()
+            assert _status_of(body, OPEN_DIRECT)[0] == "open"
+
+            await _verify_and_maybe_approve(kit, submission_id, approve=False)
+            body = (await _get(kit, "/v1/catalog/conjectures")).json()
+            assert _status_of(body, OPEN_DIRECT)[0] == "in_review"
+            # Only the target with the proof in review moves.
+            assert _status_of(body, OPEN_ANSWER)[0] == "open"
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
+            assert detail["display_status"] == "in_review"
+            assert detail["solved_at"] is None
+
+            await _verify_and_maybe_approve(kit, submission_id, approve=True)
+            body = (await _get(kit, "/v1/catalog/conjectures")).json()
+            status, later_added_at, solved_at = _status_of(body, OPEN_DIRECT)
+            assert status == "solved"
+            assert solved_at is not None
+            # `added_at` survives every later read: it is the first listing, not the latest.
+            assert later_added_at == added_at
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
+            assert detail["display_status"] == "solved"
+            assert detail["solved_at"] == solved_at
+            assert detail["bounty"]["reason"] == "ALREADY_SOLVED"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_paused_submissions_show_on_the_list_and_on_every_open_target():
+    async def scenario():
+        kit = await harness(entries=pool(), SUBMISSIONS_PAUSED="true").setup()
+        try:
+            body = (await _get(kit, "/v1/catalog/conjectures")).json()
+            assert body["submissions_open"] is False
+            assert {item["display_status"] for item in body["items"]} == {"submissions_paused"}
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
+            assert detail["display_status"] == "submissions_paused"
+            # The flag is the one `/v1/system/status` reports.
+            status = (await _get(kit, "/v1/system/status")).json()
+            assert status["submissions_open"] is False
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_live_display_status_precedence():
+    from conjectures_subnet.db.public import TargetFacts
+    from submission_api.routers.catalog import live_display_status
+
+    nothing = TargetFacts()
+    waiting = TargetFacts(in_review=1)
+    defect = TargetFacts(solved_reason_code="FORMALIZATION_DEFECT_AWARD")
+    assert live_display_status("OPEN", nothing, submissions_open=True) == "open"
+    # Only a caller-specific quote says CLAIM_HELD; for everyone else the target reads open.
+    assert live_display_status("CLAIM_HELD", nothing, submissions_open=True) == "open"
+    assert live_display_status("ALREADY_SOLVED", waiting, submissions_open=False) == "solved"
+    assert (
+        live_display_status("ALREADY_SOLVED", defect, submissions_open=True)
+        == "formalization_defect"
+    )
+    assert live_display_status("OPEN", waiting, submissions_open=False) == "in_review"
+    assert live_display_status("OPEN", nothing, submissions_open=False) == "submissions_paused"
+    assert (
+        live_display_status("CHAT_LOG_REVIEW_UNAVAILABLE", nothing, submissions_open=True)
+        == "submissions_paused"
+    )
+    assert live_display_status("TREASURY_RESERVED", nothing, submissions_open=True) == "unfunded"
+
+
+@pytest.mark.parametrize(
+    ("reason_code", "pool_status", "expected"),
+    [
+        ("SOLVED + NOT_OPEN", "retired", "solved"),
+        ("SOLVED_EXTERNALLY", "retired", "solved_elsewhere"),
+        ("OWNER_ACCEPTED_PUBLICATION_CLOSURE", "retired", "solved_elsewhere"),
+        ("PRIOR_PUBLIC_PROOF", "held", "solved_elsewhere"),
+        ("HOLD_STATEMENT_SOURCE_DISCREPANCY", "held", "on_hold"),
+        ("HOLD_UNVERIFIED_RESOLUTION_CLAIM", "held", "on_hold"),
+        ("SOURCE_MISMATCH + EXPLOITABLE", "retired", "withdrawn"),
+    ],
+)
+def test_a_retired_target_status_comes_from_its_reason_and_pool_status(
+    reason_code, pool_status, expected
+):
+    from dataclasses import replace
+
+    from submission_api.routers.catalog import retired_display_status
+
+    item = replace(
+        _retired("Erdos1.erdos_1.variants.weaker", ERDOS_1),
+        reason_code=reason_code,
+        pool_status=pool_status,
+    )
+    assert retired_display_status(item) == expected
+
+
+def test_a_retired_detail_page_carries_its_display_status():
+    async def scenario():
+        kit = await harness(entries=mixed_pool(), retired=mixed_retired()).setup()
+        try:
+            slug = next(iter(mixed_retired().by_slug))
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{slug}")).json()
+            assert detail["bounty"]["reason"] == "WITHDRAWN"
+            assert detail["display_status"] == "solved"  # SOLVED + NOT_OPEN
+            # Nothing on this platform approved it here, so there is no approval time to report.
+            assert detail["solved_at"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_detail_links_the_upstream_source_and_the_bundle_it_was_loaded_from():
+    from pathlib import Path
+
+    from submission_api.links import CatalogLinks, PatchedFiles
+
+    entries = pool()
+    patched_path = entries[0].source.source_path
+    links = CatalogLinks(
+        source_base="https://github.com/google-deepmind/formal-conjectures",
+        source_commit="b" * 40,
+        patched=PatchedFiles(touched=frozenset({patched_path}), created=frozenset()),
+        tasks_base="https://github.com/conjectures-io/conjectures-tasks",
+        tasks_commit="t" * 40,
+        tasks_root=Path("/external-task-pool"),
+    )
+
+    async def scenario():
+        kit = await harness(entries=entries, links=links).setup()
+        try:
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
+            assert detail["source_url"] == (
+                "https://github.com/google-deepmind/formal-conjectures/blob/"
+                + "b" * 40 + "/" + patched_path
+            )
+            assert detail["source_patched"] is True
+            (task,) = detail["tasks"]
+            # From where the loader found the bundle, not from the task id.
+            assert task["bundle_url"] == (
+                "https://github.com/conjectures-io/conjectures-tasks/tree/"
+                + "t" * 40 + "/" + entries[0].task_dir.relative_to("/external-task-pool").as_posix()
+            )
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_without_links_the_detail_publishes_none_rather_than_guessing():
+    async def scenario():
+        kit = await harness(entries=pool()).setup()
+        try:
+            detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
+            assert detail["source_url"] is None
+            assert detail["source_patched"] is None
+            assert all(task["bundle_url"] is None for task in detail["tasks"])
         finally:
             await kit.teardown()
 

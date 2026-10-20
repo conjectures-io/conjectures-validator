@@ -53,6 +53,7 @@ from submission_api.github import UnavailableContributionMirror
 from submission_api.google_identity import build_google_credential_verifier
 from submission_api.mail import ConsoleSender
 from submission_api.payments import build_payment_verifier
+from submission_api.links import CatalogLinks
 from submission_api.pins import PinSet
 from submission_api.retired import RetiredIndex
 from submission_api.settings import Settings
@@ -286,6 +287,7 @@ def harness(
     tao_usd=None,
     contributions=None,
     competition_engine=None,
+    links=None,
     **overrides: str,
 ) -> Harness:
     """The API under test.
@@ -317,6 +319,9 @@ def harness(
     surface answers 503 rather than reaching a database, and — more to the point — proves it
     cannot fall through to the proofs engine, which is the one mistake the split exists to
     prevent. A test that wants the surface passes an engine built on the competition DSN.
+
+    `links` injects the catalog's `CatalogLinks`. The default publishes no source or bundle link,
+    because the harness has neither a GitHub pin worth linking nor a tasks checkout.
     """
     settings = build_settings(**overrides)
     verifier = payments or build_payment_verifier(settings)
@@ -398,6 +403,7 @@ def harness(
             if contributions is not None
             else UnavailableContributionMirror()
         ),
+        links=links if links is not None else CatalogLinks.none(),
     )
     return Harness(
         app=create_app(services=services), services=services, engine=engine, settings=settings

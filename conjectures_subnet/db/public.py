@@ -4,11 +4,18 @@ Separate from ``submissions`` because the audience is different and the rules th
 follow from that are worth enforcing in the query layer rather than trusting a
 router to remember. Two invariants hold for everything in this module:
 
-* **The solver identity is published; the money is not.** ``ResultRow`` names the solver
-  through ``solver_display_name`` and ``solver_coldkey``, and its optional public-credit
-  columns carry the name/profile/ORCID the submitter explicitly signed for publication.
-  Nothing here carries the payment reference or the extrinsic, and that boundary is enforced
-  structurally.
+* **The solver identity is published, and so is what the treasury paid; what the solver paid
+  is not.** ``ResultRow`` names the solver through ``solver_display_name`` and
+  ``solver_coldkey``, and its optional public-credit columns carry the name/profile/ORCID the
+  submitter explicitly signed for publication. Nothing here carries the *incoming* payment
+  reference or the paying coldkey, and that boundary is enforced structurally.
+
+  The *outgoing* payout is published, by product decision: ``ResultRow.payout`` carries the
+  amount, the chain time and the position of each finalized transfer for a rewarded result,
+  so "paid out" is checkable on a block explorer. That explorer page shows the destination
+  coldkey, which can be ``Account.payout_coldkey``; this module still never reads that column
+  itself, but the link leads to it. ``payout`` is built only from CONFIRMED, chain-observed
+  events (``_confirmed_payouts``), never from a best-chain or operator-entered one.
 
   NOTE, because V035 changed what is disclosed here and it is worth stating plainly: the
   solver's *account display name* is now published on every result that has one, ahead of the
@@ -40,11 +47,11 @@ instead — ``accepted_solution`` gates proof bytes on review approval, ``public
 report on Lean verification, and ``ReviewRow`` carries only the explicitly public half of a review
 decision.
 
-A page is read in five statements rather than one join with four lateral
+A page is read in a fixed handful of statements rather than one join with several lateral
 subqueries: the submissions for the page, then their latest verification runs,
-current payout amounts, confirmed payouts, and latest binding reviews, each by an
-indexed key over at most ``limit`` ids. It is not an N+1 — the count is fixed at
-five — and the intent
+current payout amounts, confirmed payouts and the transfers behind them, and latest
+binding reviews, each by an indexed key over at most ``limit`` ids. It is not an
+N+1 — the count does not grow with the page — and the intent
 survives being read six months from now.
 """
 
@@ -54,22 +61,26 @@ import uuid
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import BigInteger, Select, Text, and_, cast, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from conjectures_subnet.db.payout_instructions import instruction_enabled
+from conjectures_subnet.transfers import parse_reference
 from conjectures_subnet.db.models import (
     Account,
     ManualReviewState,
     PayoutState,
     Proof,
+    BountyTask,
     ReviewDecision,
     ReviewerKind,
     ReviewOutcome,
     RewardEvent,
     RewardState,
     Submission,
+    TreasuryPayout,
     VerificationRun,
     VerificationState,
 )
@@ -139,10 +150,11 @@ MAX_ACTIVITY_ROWS = 500
 class ResultRow:
     """One publishable result.
 
-    Every field here is either a property of the task, a property of the verdict, the money owed,
-    or the solver who submitted it. The paying coldkey, the payment reference and the extrinsic
-    are still absent by construction: a router cannot leak what it was never handed, and those
-    three lead to a miner's funds rather than to their public signing identity.
+    Every field here is either a property of the task, a property of the verdict, the money owed
+    or paid, or the solver who submitted it. The paying coldkey and the incoming payment
+    reference are still absent by construction: a router cannot leak what it was never handed,
+    and those lead to a miner's funds rather than to their public signing identity. The outgoing
+    payout is the exception, by decision — see ``payout``.
     """
 
     id: uuid.UUID
@@ -197,17 +209,73 @@ class ResultRow:
     # item, and so the router never re-derives the disclosure gate from `certified_at` — the two
     # are not the same test, and an approved-but-unpaid row would be got wrong by that shortcut.
     solution_available: bool
+    # What the treasury actually paid for this result, from finalized chain facts only. None
+    # unless the submission is REWARDED and a CONFIRMED, chain-observed payout exists — the same
+    # evidence `certified_at` rests on, so the two are null together.
+    payout: PayoutRow | None
 
 
 @dataclass(frozen=True)
 class ReviewRow:
-    """The allowlisted, publishable portion of one binding review decision."""
+    """The allowlisted, publishable portion of one binding review decision.
+
+    ``id``, ``supersedes_id`` and ``kind`` are carried for the reviewer panel, which needs the id
+    to address a correction. The public mapper in ``routers/results.py`` copies fields by name
+    and does not publish them.
+    """
 
     decision: ReviewOutcome
     reason_code: str
     notes_public: str | None
     policy_version: str
     decided_at: datetime
+    id: int
+    supersedes_id: int | None
+    kind: ReviewerKind
+
+
+@dataclass(frozen=True)
+class PayoutTransfer:
+    """One finalized transfer that paid (part of) a result.
+
+    ``block`` and ``extrinsic_index`` locate the outer extrinsic — for a multisig payout, the
+    final approval that executed it. Both are None for a legacy event whose reference cannot be
+    parsed into a chain position; the amount and time are still facts of record.
+    """
+
+    amount_rao: int
+    paid_at: datetime
+    block: int | None
+    extrinsic_index: int | None
+    # Alpha/USD observed by the watcher when it recorded the transfer, or None when no fresh
+    # price was available (see `treasury_payouts.alpha_usd`).
+    alpha_usd: Decimal | None
+
+
+@dataclass(frozen=True)
+class PayoutRow:
+    """The confirmed payout of one result: one transfer normally, several for a split."""
+
+    amount_rao: int
+    paid_at: datetime
+    transfers: tuple[PayoutTransfer, ...]
+
+    @property
+    def amount_usd_at_payout(self) -> Decimal | None:
+        """The paid Alpha valued at the price recorded with each transfer, unrounded.
+
+        None when any transfer lacks a price: a partial sum would understate the payout and read
+        as the whole of it.
+        """
+        if not self.transfers or any(item.alpha_usd is None for item in self.transfers):
+            return None
+        return sum(
+            (Decimal(item.amount_rao) * item.alpha_usd for item in self.transfers),
+            Decimal(0),
+        ) / RAO_PER_ALPHA
+
+
+RAO_PER_ALPHA = Decimal(1_000_000_000)
 
 
 @dataclass(frozen=True)
@@ -235,7 +303,8 @@ _PAYOUT = func.coalesce(
 
 
 def _payouts(*conditions: object):
-    """Per submission and payout: the summed amount, its policy, latest id and confirmation."""
+    """Per submission and payout: the summed amount, its policy, latest id and confirmation,
+    and the ids of the events that make it up."""
     return (
         select(
             RewardEvent.submission_id,
@@ -243,6 +312,7 @@ def _payouts(*conditions: object):
             func.max(RewardEvent.pricing_policy_version).label("pricing_policy_version"),
             func.max(RewardEvent.confirmed_at).label("confirmed_at"),
             func.max(RewardEvent.id).label("latest_id"),
+            func.array_agg(RewardEvent.id).label("event_ids"),
         )
         .where(*conditions)
         .group_by(RewardEvent.submission_id, _PAYOUT)
@@ -255,6 +325,7 @@ class _PayoutFacts:
     amount_rao: int
     policy_version: str
     confirmed_at: datetime
+    event_ids: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -411,8 +482,9 @@ async def all_results_page(
     * the proof bytes — ``accepted_solution`` still requires review approval, in the query;
     * the verifier report — ``report_available`` is false until Lean verifies the submission, and
       ``public_report`` enforces the same gate;
-    * the money — ``ResultRow`` has no column for the coldkey, the payment reference or the
-      extrinsic, so widening the row set cannot expose them.
+    * the money — ``ResultRow`` has no column for the paying coldkey or the incoming payment
+      reference, so widening the row set cannot expose them; ``payout`` is set only on a
+      REWARDED row with a finalized transfer, whichever feed lists it.
 
     One side effect worth knowing rather than guarding against: a failed attempt's existence and
     timing are now public, and the ``activity`` pseudonyms are correspondingly weaker for solvers
@@ -591,6 +663,14 @@ async def _decorate(
     runs = await _latest_runs(session, ids)
     current_payouts = await _current_payouts(session, ids)
     confirmed = await _confirmed_payouts(session, ids)
+    paid = await _paid_out(
+        session,
+        {
+            submission.id: confirmed[submission.id]
+            for submission in submissions
+            if submission.reward_status == RewardState.REWARDED and submission.id in confirmed
+        },
+    )
     reviews = await _latest_reviews(session, ids)
     rows = []
     for submission in submissions:
@@ -644,9 +724,74 @@ async def _decorate(
                 solution_available=(
                     submission.manual_review_status == ManualReviewState.APPROVED
                 ),
+                payout=paid.get(submission.id),
             )
         )
     return tuple(rows)
+
+
+async def _paid_out(
+    session: AsyncSession, confirmed: Mapping[uuid.UUID, _PayoutFacts]
+) -> Mapping[uuid.UUID, PayoutRow]:
+    """The transfers behind each result's confirmed payout, from the finalized ledger.
+
+    ``confirmed`` is already the one payout `certified_at` and `paid_out_rao` are taken from, so
+    the amount here is the amount those report. Each event is joined to the `treasury_payouts`
+    row that settled it for the true chain time and position. A payout confirmed before that
+    ledger existed (V041) and never re-bound has no row, so its position is parsed from the
+    event's own canonical reference and its time is the event's `confirmed_at`.
+    """
+    event_ids = {event_id for facts in confirmed.values() for event_id in facts.event_ids}
+    if not event_ids:
+        return {}
+    statement = (
+        select(
+            RewardEvent.id,
+            RewardEvent.amount_rao,
+            RewardEvent.confirmed_at,
+            RewardEvent.extrinsic_reference,
+            TreasuryPayout.block,
+            TreasuryPayout.extrinsic_index,
+            TreasuryPayout.block_timestamp,
+            TreasuryPayout.alpha_usd,
+        )
+        .outerjoin(TreasuryPayout, TreasuryPayout.reward_event_id == RewardEvent.id)
+        .where(RewardEvent.id.in_(event_ids))
+    )
+    transfers: dict[int, PayoutTransfer] = {}
+    for row in (await session.execute(statement)).all():
+        if row.block is not None:
+            block, extrinsic_index = row.block, row.extrinsic_index
+        else:
+            # `ObservedPayout.reference` is canonical; an operator's free-text reference on a
+            # legacy row has no chain position, and none is guessed for it.
+            parsed = parse_reference(row.extrinsic_reference or "")
+            block = None if parsed is None else parsed.block
+            extrinsic_index = None if parsed is None else parsed.extrinsic_index
+        transfers[row.id] = PayoutTransfer(
+            amount_rao=int(row.amount_rao),
+            paid_at=row.block_timestamp or row.confirmed_at,
+            block=block,
+            extrinsic_index=extrinsic_index,
+            alpha_usd=row.alpha_usd,
+        )
+    paid: dict[uuid.UUID, PayoutRow] = {}
+    for submission_id, facts in confirmed.items():
+        parts = tuple(
+            sorted(
+                (transfers[event_id] for event_id in facts.event_ids if event_id in transfers),
+                key=lambda item: (item.paid_at, item.block or 0, item.extrinsic_index or 0),
+            )
+        )
+        if not parts:
+            continue
+        paid[submission_id] = PayoutRow(
+            amount_rao=facts.amount_rao,
+            paid_at=max(item.paid_at for item in parts),
+            transfers=parts,
+        )
+    return paid
+
 
 
 async def _latest_reviews(
@@ -668,12 +813,15 @@ async def _latest_reviews(
         .scalar_subquery()
     )
     statement = select(
+        ReviewDecision.id,
         ReviewDecision.submission_id,
         ReviewDecision.decision,
         ReviewDecision.reason_code,
         ReviewDecision.notes_public,
         ReviewDecision.policy_version,
         ReviewDecision.created_at,
+        ReviewDecision.supersedes_id,
+        ReviewDecision.kind,
     ).where(ReviewDecision.id.in_(latest))
     return {
         row.submission_id: ReviewRow(
@@ -682,6 +830,9 @@ async def _latest_reviews(
             notes_public=row.notes_public,
             policy_version=row.policy_version,
             decided_at=row.created_at,
+            id=row.id,
+            supersedes_id=row.supersedes_id,
+            kind=row.kind,
         )
         for row in (await session.execute(statement)).all()
     }
@@ -774,6 +925,7 @@ async def _confirmed_payouts(
             amount_rao=int(row.amount_rao),
             policy_version=row.pricing_policy_version,
             confirmed_at=row.confirmed_at,
+            event_ids=tuple(row.event_ids or ()),
         )
         for row in (await session.execute(statement)).all()
         if row.confirmed_at is not None
@@ -921,6 +1073,94 @@ async def attempts_for_conjecture(session: AsyncSession, reward_target_id: str) 
         .where(Submission.reward_target_id == reward_target_id)
     )
     return (await session.execute(statement)).scalar_one()
+
+
+@dataclass(frozen=True)
+class TargetFacts:
+    """What the catalog says about a target's history, beyond its live bounty quote.
+
+    ``added_at`` is when the API first listed the target (``bounty_tasks.opened_at``), which
+    survives repins; it is not a pin date, because pins carry none. ``solved_at`` is when review
+    approved the submission that now holds the target — "solved" means approved, not paid, which
+    is also when the bounty quote turns ``ALREADY_SOLVED``. ``solved_reason_code`` is that
+    approval's reason, so a formalization-defect closure can be told apart from a solution.
+    """
+
+    added_at: datetime | None = None
+    solved_at: datetime | None = None
+    solved_reason_code: str | None = None
+    in_review: int = 0
+
+
+NO_TARGET_FACTS = TargetFacts()
+
+
+async def target_facts(
+    session: AsyncSession, reward_target_ids: Sequence[str]
+) -> Mapping[str, TargetFacts]:
+    """`TargetFacts` for each requested target, in three indexed reads whatever the count.
+
+    The holder is the one submission per target whose ``reward_status`` is not INELIGIBLE — the
+    rule ``submissions_reward_target_reward_unique`` enforces and the pricer's ``ALREADY_SOLVED``
+    reads — so ``solved_at`` and the quote cannot disagree about whether a target is solved.
+    Its ``solved_at`` is the start of the holder's current run of APPROVED binding decisions: a
+    correction that rejected and later re-approved it restarts the clock, while an
+    approved-to-approved correction of the reason does not move it.
+    """
+    targets = tuple(dict.fromkeys(reward_target_ids))
+    if not targets:
+        return {}
+    opened = dict(
+        (
+            await session.execute(
+                select(BountyTask.reward_target_id, BountyTask.opened_at).where(
+                    BountyTask.reward_target_id.in_(targets)
+                )
+            )
+        ).all()
+    )
+    in_review = dict(
+        (
+            await session.execute(
+                select(Submission.reward_target_id, func.count())
+                .where(Submission.reward_target_id.in_(targets), *IN_REVIEW)
+                .group_by(Submission.reward_target_id)
+            )
+        ).all()
+    )
+    decisions = (
+        await session.execute(
+            select(
+                Submission.reward_target_id,
+                ReviewDecision.decision,
+                ReviewDecision.reason_code,
+                ReviewDecision.created_at,
+            )
+            .join(ReviewDecision, ReviewDecision.submission_id == Submission.id)
+            .where(
+                Submission.reward_target_id.in_(targets),
+                Submission.reward_status != RewardState.INELIGIBLE,
+                ReviewDecision.kind != ReviewerKind.ADVISORY,
+            )
+            .order_by(Submission.reward_target_id, ReviewDecision.id)
+        )
+    ).all()
+    approved: dict[str, tuple[datetime | None, str | None]] = {}
+    for target, decision, reason_code, decided_at in decisions:
+        started, _ = approved.get(target, (None, None))
+        if decision == ReviewOutcome.APPROVED:
+            approved[target] = (started or decided_at, reason_code)
+        else:
+            approved[target] = (None, None)
+    return {
+        target: TargetFacts(
+            added_at=opened.get(target),
+            solved_at=approved.get(target, (None, None))[0],
+            solved_reason_code=approved.get(target, (None, None))[1],
+            in_review=int(in_review.get(target, 0)),
+        )
+        for target in targets
+    }
 
 
 # The solver identity an activity pseudonym is derived from, and the expression the distinct
@@ -1081,12 +1321,17 @@ __all__ = [
     "IN_REVIEW",
     "PUBLISHED",
     "MAX_ACTIVITY_ROWS",
+    "NO_TARGET_FACTS",
+    "RAO_PER_ALPHA",
     "ActivityRow",
+    "PayoutRow",
+    "PayoutTransfer",
     "QueueDepths",
     "ReviewRow",
     "ResultFilter",
     "ResultRow",
     "ResultStats",
+    "TargetFacts",
     "TaskActivity",
     "accepted_solution",
     "activity",
@@ -1105,4 +1350,5 @@ __all__ = [
     "public_result",
     "queue_depths",
     "result_stats",
+    "target_facts",
 ]

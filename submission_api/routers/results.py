@@ -3,9 +3,11 @@
 The strictest disclosure surface in the API. Three rules, each enforced structurally rather than
 by remembering to omit a field:
 
-* **Solver credit, but no money trail.** `conjectures_subnet.db.public.ResultRow` carries the
-  solver identity and optional signed public credit. It still has no payment reference
-  or extrinsic, so this module cannot publish those — it was never handed them.
+* **Solver credit, and the payout — but not the solver's own money.**
+  `conjectures_subnet.db.public.ResultRow` carries the solver identity and optional signed public
+  credit. It has no incoming payment reference or paying coldkey, so this module cannot publish
+  those — it was never handed them. What the treasury paid out *is* published, by decision, as
+  `payout`: amounts, chain times and taostats links for finalized transfers only.
 * **Proof bytes only after approval.** `Main.lean` is served by `/{id}/solution`, and only once
   review has approved the submission. An in-review result carries no artifact: the proof has
   passed the Lean kernel but not the reward decision, and handing the artifact out before that
@@ -64,7 +66,7 @@ from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound
 from submission_api.pagination import decode_cursor, encode_cursor
 from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Settings
-from submission_api.taostats import amount_usd
+from submission_api.taostats import amount_usd, extrinsic_url, usd_to_cent
 from verifier.bundle import PROOF_NAME
 
 router = APIRouter(prefix="/v1/results", tags=["results"])
@@ -181,6 +183,37 @@ def named_of(index: ConjectureIndex, row: public_store.ResultRow) -> Named:
     )
 
 
+def credited_name(row: public_store.ResultRow) -> str | None:
+    """The one name a result is credited to: signed public credit first, then the display name.
+
+    The rule lives here so no client re-derives it. Public credit is the explicit authorship
+    claim, signed with the submission; a display name is a handle. The coldkey is deliberately not
+    a fallback — it is an address and is rendered differently, so it stays its own field.
+    """
+    return row.public_credit_name or row.solver_display_name
+
+
+def _payout(payout: public_store.PayoutRow | None) -> public.PublicPayout | None:
+    if payout is None:
+        return None
+    transfers = tuple(
+        public.PublicPayoutTransfer(
+            amount_rao=item.amount_rao,
+            paid_at=_utc(item.paid_at),
+            extrinsic_url=extrinsic_url(item.block, item.extrinsic_index),
+        )
+        for item in payout.transfers
+    )
+    return public.PublicPayout(
+        amount_rao=payout.amount_rao,
+        amount_usd_at_payout=usd_to_cent(payout.amount_usd_at_payout),
+        paid_at=_utc(payout.paid_at),
+        # One link only when one transfer is the whole payout; a split has a link per part.
+        extrinsic_url=transfers[0].extrinsic_url if len(transfers) == 1 else None,
+        transfers=transfers,
+    )
+
+
 def _result(
     row: public_store.ResultRow,
     index: ConjectureIndex,
@@ -195,6 +228,7 @@ def _result(
         solver_display_name=row.solver_display_name,
         solver_coldkey=row.solver_coldkey,
         public_credit=None if credit is None else credit.to_dict(),
+        credited_name=credited_name(row),
         # Serialised as the enum's value, matching `/v1/submissions/{id}` and the account panel,
         # so a client reads one vocabulary of state names across the whole API.
         verification_status=str(row.verification_status),
@@ -227,6 +261,7 @@ def _result(
             )
         ),
         solution_available=row.solution_available,
+        payout=_payout(row.payout),
     )
 
 
@@ -244,6 +279,7 @@ def _in_review(
         solver_display_name=row.solver_display_name,
         solver_coldkey=row.solver_coldkey,
         public_credit=None if credit is None else credit.to_dict(),
+        credited_name=credited_name(row),
         slug=slug_of(row),
         task_id=row.task_id,
         display_title=named.display_title,
@@ -643,6 +679,7 @@ async def read_solution(
         solver_display_name=row.solver_display_name,
         solver_coldkey=row.solver_coldkey,
         public_credit=None if credit is None else credit.to_dict(),
+        credited_name=credited_name(row),
         slug=slug_of(row),
         # The name the bytes carry inside the verified bundle, from the module that enforces it,
         # so the published filename cannot drift from the one intake accepted.

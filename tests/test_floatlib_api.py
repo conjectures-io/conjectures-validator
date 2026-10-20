@@ -481,6 +481,8 @@ def test_champions_lists_every_champion_and_marks_the_one_holding_the_board(floa
         "submission": 1,
         "hotkey": "alice",
         "ratio": 0.8,
+        # Timed against the shipped code: 1 / 0.8.
+        "speedup_vs_shipped": 1.25,
         "promoted_at": "2026-10-08T10:05:00Z",
         "demoted_at": None,
         "current": True,
@@ -488,6 +490,45 @@ def test_champions_lists_every_champion_and_marks_the_one_holding_the_board(floa
         "rank_share": None,
     }
     assert practice.json() == []
+    # Bob was timed against Alice, so his chain runs through hers.
+    assert after.json()[0]["speedup_vs_shipped"] == pytest.approx(1.25 / 0.99)
+
+
+def test_speedup_follows_the_code_each_champion_was_timed_against(floatlib_db):
+    """After a demotion the board falls back to an older champion, and the next challenger is
+    timed against that one; chaining ratios in promotion order would credit it with the demoted
+    champion's gain."""
+    execute(
+        floatlib_db,
+        "INSERT INTO promotions (slot, submission_id, champion_sha256, promoted_at, demoted_at) "
+        "VALUES ('full', 2, :digest, :at, :demoted)",
+        digest="2" * 64,
+        at=T0 + timedelta(hours=1),
+        demoted=T0 + timedelta(hours=2),
+    )
+    # Carol challenges after Bob's demotion, so against Alice again, and is promoted.
+    execute(
+        floatlib_db,
+        "UPDATE submissions SET champion_sha256 = :alice, ratio = 0.9 WHERE id = 3",
+        alice=ALICE_DIGEST,
+    )
+    execute(
+        floatlib_db,
+        "INSERT INTO promotions (slot, submission_id, champion_sha256, promoted_at) "
+        "VALUES ('full', 3, :digest, :at)",
+        digest="3" * 64,
+        at=T0 + timedelta(hours=3),
+    )
+    (response,) = read(floatlib_db, "/v1/competitions/floatlib/champions")
+    speedups = {c["submission"]: c["speedup_vs_shipped"] for c in response.json()}
+    assert speedups[1] == pytest.approx(1.25)
+    assert speedups[2] == pytest.approx(1.25 / 0.99)
+    assert speedups[3] == pytest.approx(1.25 / 0.9)  # through Alice, not through Bob
+
+    # A champion timed against code that is neither shipped nor promoted has no chain.
+    execute(floatlib_db, "UPDATE submissions SET champion_sha256 = :x WHERE id = 3", x="9" * 64)
+    (broken,) = read(floatlib_db, "/v1/competitions/floatlib/champions")
+    assert {c["submission"]: c["speedup_vs_shipped"] for c in broken.json()}[3] is None
 
 
 def test_a_submission_reads_in_floatlibs_shape_and_only_under_its_own_slot(floatlib_db):

@@ -50,7 +50,8 @@ from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound, ServiceUnavailable
 from submission_api.pagination import SnapshotLimit, SnapshotOffset, window
 from submission_api.pins import PinSet
-from submission_api.retired import RetiredConjecture
+from submission_api.links import CatalogLinks
+from submission_api.retired import POOL_STATUS_HELD, RetiredConjecture
 # The reason codes belong to the TMC PAY surface; naming them again here would be a second
 # vocabulary for the same failures.
 from submission_api.routers import tmc_pay as tmc_pay_reasons
@@ -58,7 +59,7 @@ from submission_api.settings import (
     DEFAULT_ACTIVITY_ITEMS,
     DEFAULT_PAGE_SIZE,
     MAX_ACTIVITY_ITEMS,
-    MAX_PAGE_SIZE,
+    MAX_CATALOG_PAGE_SIZE,
     Settings,
 )
 from submission_api.taskpool import TaskEntry
@@ -179,6 +180,55 @@ def _bounty(quote: LiveBounty, *, alpha_usd: Decimal | None) -> public.BountyInf
     )
 
 
+# Retirement codes that mean the problem was resolved somewhere other than on this platform. A
+# `reason_code` can be composite (`SOLVED + NOT_OPEN`), so it is tokenised before matching.
+SOLVED_ELSEWHERE_CODES = frozenset(
+    {"PRIOR_PUBLIC_PROOF", "SOLVED_EXTERNALLY", "OWNER_ACCEPTED_PUBLICATION_CLOSURE"}
+)
+FORMALIZATION_DEFECT_CODE = "FORMALIZATION_DEFECT_AWARD"
+REASON_CODE_TOKEN = re.compile(r"[A-Z][A-Z0-9_]*")
+
+
+def live_display_status(
+    reason: str, facts: public_store.TargetFacts, *, submissions_open: bool
+) -> public.DisplayStatus:
+    """The one status a client renders for a live target. First match wins.
+
+    Solved beats everything: a holder exists and nothing more can be won. A proof awaiting review
+    beats a pause, because it is specific to this target and a pause is not. `CLAIM_HELD` reads as
+    open: it appears only on a caller-specific quote, which the catalog never asks for.
+    """
+    if reason == "ALREADY_SOLVED":
+        if facts.solved_reason_code == FORMALIZATION_DEFECT_CODE:
+            return "formalization_defect"
+        return "solved"
+    if facts.in_review:
+        return "in_review"
+    if not submissions_open or reason == "CHAT_LOG_REVIEW_UNAVAILABLE":
+        return "submissions_paused"
+    if reason in ("TREASURY_RESERVED", "NOT_IN_BOUNTY_POOL"):
+        return "unfunded"
+    return "open"
+
+
+def retired_display_status(item: RetiredConjecture) -> public.DisplayStatus:
+    """The status of a target that has left the pool, from its recorded reason and pool status."""
+    codes = set(REASON_CODE_TOKEN.findall(item.reason_code))
+    if codes & SOLVED_ELSEWHERE_CODES:
+        return "solved_elsewhere"
+    if "SOLVED" in codes:
+        return "solved"
+    if item.pool_status == POOL_STATUS_HELD:
+        return "on_hold"
+    return "withdrawn"
+
+
+def _solved_at(
+    status: public.DisplayStatus, facts: public_store.TargetFacts
+) -> datetime | None:
+    return facts.solved_at if status in ("solved", "formalization_defect") else None
+
+
 def _bounty_pool(
     snapshot: BountyPoolSnapshot, *, alpha_usd: Decimal | None
 ) -> public.BountyPoolInfo:
@@ -217,6 +267,8 @@ def _pins(pins: PinSet) -> tuple[public.PinInfo, ...]:
             toolchain=pin.toolchain,
             version=pin.version,
             enabled=pin.enabled,
+            base_commit=pin.base_commit,
+            patch_sha256=pin.patch_sha256,
         )
         for pin in pins.pins
     )
@@ -232,7 +284,7 @@ def _task(entry: TaskEntry, *, attempts: int) -> public.ConjectureTask:
 
 
 def _task_detail(
-    entry: TaskEntry, *, settings: Settings, attempts: int
+    entry: TaskEntry, *, settings: Settings, links: CatalogLinks, attempts: int
 ) -> public.ConjectureTaskDetail:
     return public.ConjectureTaskDetail(
         task_id=entry.task_id,
@@ -240,6 +292,7 @@ def _task_detail(
         task_bundle_sha256=entry.task_bundle_sha256,
         attempts=attempts,
         challenge_lean=entry.challenge_lean,
+        bundle_url=links.bundle_url(entry.task_dir),
         machine_contract=_machine_contract(entry, settings),
     )
 
@@ -248,11 +301,14 @@ def _summary(
     item: Conjecture,
     *,
     quote: LiveBounty,
+    facts: public_store.TargetFacts,
+    submissions_open: bool,
     attempts: int,
     by_task: Mapping[str, int],
     alpha_usd: Decimal | None,
 ) -> public.ConjectureSummary:
     name = conjectures.display_name(item)
+    status = live_display_status(quote.reason, facts, submissions_open=submissions_open)
     return public.ConjectureSummary(
         slug=item.slug,
         display_title=name.display_title,
@@ -272,6 +328,9 @@ def _summary(
             _task(entry, attempts=by_task.get(entry.task_id, 0)) for entry in item.tasks
         ),
         bounty=_bounty(quote, alpha_usd=alpha_usd),
+        display_status=status,
+        added_at=facts.added_at,
+        solved_at=_solved_at(status, facts),
         attempts=attempts,
     )
 
@@ -352,6 +411,7 @@ def _retired_detail(
     settings: Settings,
     attempts: int,
     by_task: Mapping[str, int],
+    facts: public_store.TargetFacts,
 ) -> public.ConjectureDetail:
     """A retired conjecture rendered as a detail page.
 
@@ -369,6 +429,8 @@ def _retired_detail(
     # display only. Keep the source declaration and immutable bundles untouched.
     category = ("research solved" if item.reason_code == "PRIOR_PUBLIC_PROOF"
                 else item.source.category)
+    status = retired_display_status(item)
+    links: CatalogLinks = services.links
     return public.ConjectureDetail(
         slug=item.slug,
         # Named by the same two functions a live conjecture is, so the two cannot drift: a reader
@@ -405,6 +467,11 @@ def _retired_detail(
             for task in item.tasks
         ),
         bounty=_withdrawn_bounty(settings),
+        display_status=status,
+        added_at=facts.added_at,
+        solved_at=_solved_at(status, facts),
+        source_url=links.source_url(item.source.source_path),
+        source_patched=links.source_patched(item.source.source_path),
         retirement=public.RetirementInfo(
             pool_status=item.pool_status,
             retired_on=item.retired_on,
@@ -446,7 +513,7 @@ async def list_conjectures(
     is_open: bool | None = None,
     q: Annotated[str | None, Query(max_length=conjectures.MAX_QUERY_LENGTH)] = None,
     sort: Annotated[str, Query(pattern="^[a-z]{1,16}$")] = conjectures.SORT_SLUG,
-    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    limit: Annotated[int, Query(ge=1, le=MAX_CATALOG_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
     offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
 ) -> public.ConjectureListResponse:
     settings = services.settings
@@ -473,18 +540,27 @@ async def list_conjectures(
         session,
         reward_target_ids=tuple(item.reward_target_id for item in page.items),
     )
+    # After the pricing read, so a target listed for the first time already has its
+    # `bounty_tasks` row and therefore an `added_at`.
+    facts = await public_store.target_facts(
+        session, tuple(item.reward_target_id for item in page.items)
+    )
     # The first pricing read registers any newly pinned stable targets. Subsequent reads are
     # no-ops, but this commit is what makes their original age survive a restart.
     await session.commit()
+    submissions_open = not settings.submissions_paused
     alpha_usd = await services.bounty_usd.alpha_usd() if page.items else None
 
     _cache(response, settings)
     return public.ConjectureListResponse(
         total=page.total,
+        submissions_open=submissions_open,
         items=tuple(
             _summary(
                 item,
                 quote=snapshot.quotes[item.reward_target_id],
+                facts=facts.get(item.reward_target_id, public_store.NO_TARGET_FACTS),
+                submissions_open=submissions_open,
                 attempts=attempts.get(item.reward_target_id, 0),
                 by_task=by_task,
                 alpha_usd=alpha_usd,
@@ -530,6 +606,7 @@ async def read_conjecture(
                 session, withdrawn.reward_target_id
             )
             by_task = await public_store.attempts_by_task(session)
+            facts = await public_store.target_facts(session, (withdrawn.reward_target_id,))
             await session.commit()
             _cache(response, settings)
             return _retired_detail(
@@ -538,6 +615,7 @@ async def read_conjecture(
                 settings=settings,
                 attempts=attempts,
                 by_task=by_task,
+                facts=facts.get(withdrawn.reward_target_id, public_store.NO_TARGET_FACTS),
             )
         return _redirect(services.index, slug, settings)
 
@@ -546,10 +624,17 @@ async def read_conjecture(
     quote = await services.pricing.quote(
         session, reward_target_id=item.reward_target_id
     )
+    facts = (
+        await public_store.target_facts(session, (item.reward_target_id,))
+    ).get(item.reward_target_id, public_store.NO_TARGET_FACTS)
     await session.commit()
     alpha_usd = await services.bounty_usd.alpha_usd()
     _cache(response, settings)
     name = conjectures.display_name(item)
+    status = live_display_status(
+        quote.reason, facts, submissions_open=not settings.submissions_paused
+    )
+    links: CatalogLinks = services.links
     return public.ConjectureDetail(
         slug=item.slug,
         display_title=name.display_title,
@@ -572,11 +657,19 @@ async def read_conjecture(
         references=tuple(_reference(value) for value in item.source.references),
         tasks=tuple(
             _task_detail(
-                entry, settings=settings, attempts=by_task.get(entry.task_id, 0)
+                entry,
+                settings=settings,
+                links=links,
+                attempts=by_task.get(entry.task_id, 0),
             )
             for entry in item.tasks
         ),
         bounty=_bounty(quote, alpha_usd=alpha_usd),
+        display_status=status,
+        added_at=facts.added_at,
+        solved_at=_solved_at(status, facts),
+        source_url=links.source_url(item.source.source_path),
+        source_patched=links.source_patched(item.source.source_path),
         submission_price_rao=settings.payment_amount_rao,
         attempts=attempts,
         repository_commit=services.index.repository_commit,
