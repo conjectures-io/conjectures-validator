@@ -1,0 +1,86 @@
+# After every push to `main`: if `main` now has a change `dev` lacks (a hotfix), open the
+# main -> dev back-merge PR, unless one is already open. A release (dev -> main) leaves only its
+# merge commit on `main`, which is not a change, so it opens nothing.
+#
+# The PR is opened with the release GitHub App's token, not GITHUB_TOKEN: GitHub runs no
+# workflows for events GITHUB_TOKEN causes, so a PR it opened would never get CI and could never
+# pass the required checks. Without RELEASE_APP_ID this workflow only reports what is missing.
+
+name: Back-merge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: back-merge
+  cancel-in-progress: false
+
+jobs:
+  open-pr:
+    name: open main -> dev PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Does dev lack anything from main?
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --quiet origin dev main
+          missing="$(git log --no-merges --format='- %h %s' origin/dev..origin/main)"
+          if [[ -z "$missing" ]]; then
+            echo "dev has everything main has"
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "## main has commits dev lacks"
+            echo
+            printf '%s\n' "$missing"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "$missing" > missing.md
+
+      - name: Token from the release GitHub App
+        id: app
+        if: steps.diff.outputs.needed == 'true' && vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+
+      - name: Open the back-merge PR
+        if: steps.diff.outputs.needed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::warning::RELEASE_APP_ID is not set, so no PR was opened. Open it by hand: gh pr create --base dev --head main --title 'Back-merge main into dev'"
+            exit 0
+          fi
+          open="$(gh pr list --base dev --head main --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$open" ]]; then
+            echo "back-merge PR #$open is already open"
+            exit 0
+          fi
+          {
+            echo "\`main\` has changes \`dev\` lacks. Merge this with **Create a merge commit** before the"
+            echo "next \`dev\` → \`main\` release: until then its \`release source\` check stays red."
+            echo
+            cat missing.md
+          } > body.md
+          url="$(gh pr create --base dev --head main --title "Back-merge main into dev" --body-file body.md)"
+          echo "opened $url"
+          # The label keeps the PR out of the release notes (.github/release.yml). Best effort:
+          # a missing label must not hide the PR that was just opened.
+          gh pr edit "$url" --add-label "changelog: skip" || echo "::notice::could not add the 'changelog: skip' label"

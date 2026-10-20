@@ -1,8 +1,9 @@
 # Deploys from GitHub Actions: server and GitHub setup
 
-`.github/workflows/deploy.yml` deploys `dev` to the dev server after every merge, and moves the
-tag `deployed/dev` to the commit it deployed. This page sets that up: once on the server, and
-once in GitHub. The design is in [`docs/ci-cd/PLAN.md`](../../docs/ci-cd/PLAN.md). The
+`.github/workflows/deploy.yml` deploys `dev` to the dev server after every merge, and `main` to
+production after an approval. It records each deploy in the tag `deployed/dev` or
+`deployed/production` (production also gets a GitHub Release). This page sets that up: once
+per server, and once in GitHub. The design is in [`docs/ci-cd/PLAN.md`](../../docs/ci-cd/PLAN.md). The
 day-to-day rules are in [`docs/DEPLOYING.md`](../../docs/DEPLOYING.md).
 
 ```
@@ -116,6 +117,41 @@ set `RELEASE_APP_ID` and `RELEASE_APP_KEY`, then import the rulesets. The steps 
 `deploy.yml` moves `deployed/dev` with `GITHUB_TOKEN`. So configure the App before activating
 the rulesets, not after.
 
+## Production
+
+The same script and the same steps, with these differences:
+
+- **Config** (`/etc/conjectures/deploy-validator.env`): `BRANCH=main`, and `DEPLOY_SERVICES`
+  set to exactly what production runs from compose today. Never include a process that signs
+  or writes to the chain. Start with `ALLOW_ENV_FROM_GITHUB=0`, so production keeps its own
+  `.env` until a `DOTENV` copy has been checked against it.
+- **Key:** a separate one (`gha-validator-production`), never the dev key.
+- **sshd:** the deploy job connects from GitHub's runners to the server's own address, not
+  through the CDN. Port 22 has to be reachable from them. If sshd runs with `UsePAM no`, the
+  `usermod -p '*' deploy` step above is required.
+- **Checkout:** clean, root-owned, origin on GitHub over https. The verification worker runs
+  from this checkout too. A deploy moves the code under it, but the worker keeps what it
+  imported until it restarts, and worker paths are always `operator` scope.
+- **GitHub environment `production`:**
+  - deployment branches: `main` only;
+  - required reviewers: at least two people, in different time zones;
+  - "Prevent self-review" on;
+  - the same three secrets (`DOTENV` optional).
+- **Release App:** `RELEASE_APP_ID` (variable) and `RELEASE_APP_KEY` (secret) at repository
+  level, not in an environment, because the release and back-merge jobs run outside one. See
+  [`.github/rulesets/README.md`](../../.github/rulesets/README.md).
+
+**The first production deploy.** It has no `deployed/production` tag to compare with, so it is
+scope `first` and waits for an operator.
+
+1. On the server, read what production runs: `git -C /opt/conjectures-validator/current rev-parse HEAD`.
+2. Record that as the baseline. This publishes the first release and starts
+   `deployed/production`, so later release notes have something to start from:
+   `gh workflow run production-release.yml -f ref=<that sha>`.
+3. The next merge into `main` is then compared with it. If it is still `operator` scope (it
+   will be while `main` has unreleased worker or verifier changes), do those steps, then
+   dispatch with `operator_steps_done=true`.
+
 ## The .env from GitHub
 
 Yes, the server's `.env` can live in GitHub: the whole file goes into **one** environment
@@ -154,7 +190,7 @@ Things to know:
   credentials, or copy it from the server as above. The server's backups hold every
   previous version.
 - **Changing the secret does not deploy anything.** Apply it with a redeploy:
-  `gh workflow run deploy.yml --ref dev`. Manual runs appear once `deploy.yml` is also on
+  `gh workflow run deploy.yml --ref dev -f environment=dev`. Manual runs appear once `deploy.yml` is also on
   `main`, because GitHub lists `workflow_dispatch` workflows from the default branch. Until
   then, re-run the latest Deploy run, which reads the secret's current value.
 - **Size.** A secret holds at most 48 KB. The `.env` is well below that.
@@ -169,7 +205,7 @@ Things to know:
 ```bash
 git fetch --tags --force && git log -1 --format='%h %s' deployed/dev   # what the dev server runs
 gh run list --workflow deploy.yml --limit 5                            # recent deploys
-gh workflow run deploy.yml --ref dev -f sha=<commit on dev>            # redeploy / roll back
+gh workflow run deploy.yml --ref dev -f environment=dev -f ref=<commit on dev>   # redeploy / roll back
 ```
 
 On the server, `/var/log/conjectures-deploy-validator.log` has one line per deploy:
