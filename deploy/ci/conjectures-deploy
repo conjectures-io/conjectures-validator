@@ -60,7 +60,12 @@ step() { printf '\n==> %s\n' "$*"; }
 # Read before taking the lock, so a malformed file is refused without waiting for, or
 # disturbing, anything. Validated line by line; a bad line is reported by number, never shown.
 
-umask 077
+# 022, not 077: every step below inherits this umask, and `just pin-tasks` checks out task files
+# that the API container reads as a non-root uid. Under 077 git wrote the changed ones root-only
+# and the API crash-looped on task-versions.json. Files that must stay private are created
+# private explicitly: the backup directories here, the dumps in backup_database, mktemp's 0600,
+# and .env through `install -m`.
+umask 022
 install -d -m 700 "$BACKUP_DIR" "$BACKUP_DIR/env" "$BACKUP_DIR/db"
 incoming=""
 if [[ "$verb" == deploy-env ]]; then
@@ -130,17 +135,37 @@ backup_database() {
   local dump
   dump="$BACKUP_DIR/db/$(date -u +%Y%m%dT%H%M%SZ)-before-$1.dump"
   step "migrations changed: backing up the database to $dump"
-  docker exec conjectures_db sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > "$dump"
+  ( umask 077; docker exec conjectures_db sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > "$dump" )
   # Names start with a UTC timestamp, so a plain sort is oldest first.
   find "$BACKUP_DIR/db" -maxdepth 1 -name '*.dump' | sort | head -n -"$KEEP_BACKUPS" | xargs -r rm -f
 }
 
+# A commit from before the pipeline: no `just deploy-up` recipe, and an api image without the
+# commit label. Only ever reached by restoring or rolling back to such a commit.
+predates_pipeline() { ! grep -q 'org.opencontainers.image.revision' deploy/api/Dockerfile; }
+
+# What `just deploy-up` does, for a commit whose justfile does not have it yet: start db only if it
+# is down, run the Flyway one-shot alone, then rebuild exactly the listed services. The -f order
+# and the DOCKER_UID/GID derivation are the justfile's.
+legacy_deploy_up() {
+  local compose=(docker compose -f docker-compose.api.yml)
+  export DOCKER_UID DOCKER_GID
+  DOCKER_UID="$(stat -c %u .)"; DOCKER_GID="$(stat -c %g .)"
+  "${compose[@]}" up -d --no-recreate db
+  "${compose[@]}" up --no-deps --exit-code-from migrate migrate
+  # shellcheck disable=SC2086 # a space-separated list of compose service names, on purpose
+  "${compose[@]}" up -d --build --no-deps $DEPLOY_SERVICES
+}
+
 wait_healthy() {   # $1 = commit that must be serving
-  local deadline=$((SECONDS + HEALTH_TIMEOUT)) revision
-  step "waiting for $HEALTH_URL/readyz and commit $1"
+  local deadline=$((SECONDS + HEALTH_TIMEOUT)) revision expected="$1"
+  # An image built from a commit before the label existed carries none; readiness alone decides.
+  if predates_pipeline; then expected=""; fi
+  step "waiting for $HEALTH_URL/readyz${expected:+ and commit $expected}"
   while (( SECONDS < deadline )); do
     revision="$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$API_CONTAINER" 2>/dev/null || true)"
-    if [[ "$revision" == "$1" ]] && curl -fsS --max-time 5 "$HEALTH_URL/readyz" >/dev/null 2>&1; then
+    [[ "$revision" == "<no value>" ]] && revision=""
+    if [[ "$revision" == "$expected" ]] && curl -fsS --max-time 5 "$HEALTH_URL/readyz" >/dev/null 2>&1; then
       echo "    ready, serving $1"
       return 0
     fi
@@ -166,8 +191,12 @@ deploy_to() {   # $1 = commit, $2 = .env file to install (may be empty), $3 = .e
     backup_database "$1"
   fi
   step "migrating and recreating: $DEPLOY_SERVICES"
-  # shellcheck disable=SC2086 # a space-separated list of compose service names, on purpose
-  GIT_COMMIT="$1" just deploy-up $DEPLOY_SERVICES
+  if predates_pipeline; then
+    legacy_deploy_up
+  else
+    # shellcheck disable=SC2086 # a space-separated list of compose service names, on purpose
+    GIT_COMMIT="$1" just deploy-up $DEPLOY_SERVICES
+  fi
   wait_healthy "$1"
   step ".env compared with .env.example"
   just env-sync check || true

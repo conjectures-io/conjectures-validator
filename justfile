@@ -457,6 +457,12 @@ pin-tasks: _check-docker _check-env
       find "$tree" -type d -exec chmod 755 {} +
       find "$tree" -type f -exec chmod 644 {} +
     done
+    # And everything else in the checkout, task-versions.json among it: git writes the files a
+    # checkout changes with the caller's umask, so under 077 they arrive root-only and the API dies
+    # with "cannot read task-versions.json". The task repository is public; nothing here is secret.
+    find "$root" -path "$root/.git" -prune -o \
+      \( -type d ! -perm -o=rx -exec chmod a+rx {} + \) -o \
+      \( -type f ! -perm -o=r -exec chmod a+r {} + \)
     echo "==> $root pinned at $commit"
 
 # Open a psql shell on the database.
@@ -829,10 +835,11 @@ _check-tasks:
     # having found a checkout that is present, pinned and complete — which reads like a missing
     # mount and is not one. Mode bits rather than a probe container, so the preflight stays
     # offline and needs no image built yet.
+    # The whole checkout, not only the pool and the allowlist: the API also reads
+    # task-versions.json at its root, and a deploy once left that one root-only.
     closed=$(
-      find "$root" -maxdepth 0 ! -perm -o=rx
-      find "$allow" -maxdepth 0 ! -perm -o=r
-      find "$pool" \( -type d ! -perm -o=rx \) -o \( -type f ! -perm -o=r \)
+      find "$root" -path "$root/.git" -prune -o \
+        \( -type d ! -perm -o=rx -print \) -o \( -type f ! -perm -o=r -print \)
     )
     if [[ -n "$closed" ]]; then
       echo "error: the api container runs as $api_user and cannot read:" >&2
