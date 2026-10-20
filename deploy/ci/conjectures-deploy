@@ -37,6 +37,13 @@ source "$config"
 : "${BACKUP_DIR:=/root/prod_backups/deploys}"
 : "${ALLOW_ENV_FROM_GITHUB:=0}"
 : "${KEEP_BACKUPS:=10}"
+: "${DEPLOY_COMPOSE_FILES:=}"
+# Paths only: no spaces or shell characters, since the list is split on whitespace.
+read -ra compose_files <<<"$DEPLOY_COMPOSE_FILES"   # split on whitespace, no globbing
+for _file in "${compose_files[@]}"; do
+  [[ "$_file" =~ ^[A-Za-z0-9_./-]+$ ]] || die "DEPLOY_COMPOSE_FILES may hold only plain paths: $_file"
+done
+export DEPLOY_COMPOSE_FILES   # read by `just deploy-up`
 
 read -r verb sha run_id extra <<<"${SSH_ORIGINAL_COMMAND:-}"
 case "$verb" in
@@ -148,7 +155,11 @@ predates_pipeline() { ! grep -q 'org.opencontainers.image.revision' deploy/api/D
 # is down, run the Flyway one-shot alone, then rebuild exactly the listed services. The -f order
 # and the DOCKER_UID/GID derivation are the justfile's.
 legacy_deploy_up() {
-  local compose=(docker compose -f docker-compose.api.yml)
+  local compose=(docker compose -f docker-compose.api.yml) file
+  for file in "${compose_files[@]}"; do
+    [[ -f "$file" ]] || { echo "DEPLOY_COMPOSE_FILES names $file, which does not exist" >&2; return 1; }
+    compose+=(-f "$file")
+  done
   export DOCKER_UID DOCKER_GID
   DOCKER_UID="$(stat -c %u .)"; DOCKER_GID="$(stat -c %g .)"
   "${compose[@]}" up -d --no-recreate db

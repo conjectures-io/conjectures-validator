@@ -297,15 +297,39 @@ into a server.
 - **Who can write tags.** Two tag rulesets ([`.github/rulesets/`](../../.github/rulesets/README.md))
   restrict creation, update and deletion of `v*` and `deployed/*`. The only bypass actor is
   the org's release GitHub App, which will also open back-merge PRs (phase 4). The workflows
-  write tags with that App's token (`RELEASE_APP_ID` / `RELEASE_APP_KEY`). Nobody else can
-  create or move them. A workflow's built-in `GITHUB_TOKEN` cannot be put on a ruleset's
-  bypass list, which is why an App is needed.
-- **Until production deploys from GitHub,** whoever deploys production runs
-  `gh workflow run production-release.yml -f ref=<deployed sha>` straight afterwards, or
-  `-f ref=<release tag>` after a rollback. From phase 3 the production deploy job calls the
-  same workflow itself.
+  write tags with that App's token. Nobody else can create or move them. A workflow's built-in
+  `GITHUB_TOKEN` cannot be put on a ruleset's bypass list, which is why an App is needed. The
+  App's key is a secret of the `release` environment, limited to `dev` and `main`, so a
+  workflow pushed to any other branch cannot use it.
+- **Only a deploy records a release.** `production-release.yml` has no manual trigger;
+  deploy.yml calls it after a successful production deploy or rollback.
 - **Dev deploys get no release.** The moving tag and GitHub's Deployments history on the
   `dev` environment are enough.
+
+## 5b. Security model
+
+A merged commit runs as root on its server. The deploy executes that commit's justfile and
+Dockerfiles, so every control is about who can get a commit onto `dev` or `main`, and who
+lets it through to production.
+
+| Boundary | Control |
+| --- | --- |
+| Forks and anonymous users | CI on `pull_request` only, never `pull_request_target`; a read-only token and no secrets; fork runs are never trusted to skip a deploy's CI |
+| Write access → `dev` / `main` | the branch rulesets: PRs only, required checks, no force-push; `release source` on `main` |
+| `main` → production | the `production` environment: required reviewers, "Prevent self-review", branch `main` only; its secrets are released only after approval |
+| A deploy skipping CI | only for a green ci.yml run on the head of the PR whose merge commit is being deployed |
+| The deploy key | a forced command that takes a commit SHA only and refuses one not on the server's branch; `restrict`; one key per server; host key pinned |
+| Server configuration | which services, which compose files and whether `.env` may come from GitHub live in a root-only file on the server, outside any PR's reach |
+| Release tags and `deployed/*` | tag rulesets; only the release App may write them; its key is a secret of the `release` environment (`dev` and `main` only) |
+| Third-party code in workflows | every action pinned to a commit; Dependabot proposes updates as PRs into `dev` |
+| Logs | public for a public repository; the workflows never print a secret, and the server script prints `.env` key names only |
+
+What stays with people:
+- Approvers review what they approve. A change to `.github/`, `deploy/` or the `justfile`
+  changes how deploys run.
+- Agents work with tokens that cannot approve production deployments or change repository
+  settings, never with an approver's or an admin's credentials.
+- Root SSH on the servers stays a break-glass path, not a deploy path.
 
 ## 6. API changes and the website
 

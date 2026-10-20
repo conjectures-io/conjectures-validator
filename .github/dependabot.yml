@@ -1,0 +1,15 @@
+# Keeps the commit-pinned actions in .github/workflows current. Pinning by commit stops a moved tag
+# from changing what runs; this brings the updates back as reviewable PRs instead.
+# Into `dev`, like every other change: `main` accepts PRs only from `dev` and hotfix/* branches.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    labels:
+      - ci
+    groups:
+      actions:
+        patterns: ["*"]

@@ -111,8 +111,8 @@ Settings → Environments → **New environment** → `dev`:
 
 Then delete `gha-validator-dev` and `gha-validator-dev.pub` from the workstation.
 
-**Tag protection** (repository-wide, not per environment): create the release GitHub App,
-set `RELEASE_APP_ID` and `RELEASE_APP_KEY`, then import the rulesets. The steps are in
+**Tag protection:** create the release GitHub App, set `RELEASE_APP_ID` (repository variable)
+and `RELEASE_APP_KEY` (secret of the `release` environment), then import the rulesets. The steps are in
 [`.github/rulesets/README.md`](../../.github/rulesets/README.md). Until the App is configured,
 `deploy.yml` moves `deployed/dev` with `GITHUB_TOKEN`. So configure the App before activating
 the rulesets, not after.
@@ -121,10 +121,15 @@ the rulesets, not after.
 
 The same script and the same steps, with these differences:
 
-- **Config** (`/etc/conjectures/deploy-validator.env`): `BRANCH=main`, and `DEPLOY_SERVICES`
-  set to exactly what production runs from compose today. Never include a process that signs
-  or writes to the chain. Start with `ALLOW_ENV_FROM_GITHUB=0`, so production keeps its own
-  `.env` until a `DOTENV` copy has been checked against it.
+- **Config** (`/etc/conjectures/deploy-validator.env`):
+  - `BRANCH=main`;
+  - `DEPLOY_SERVICES` set to what deploys should rebuild, never a process that signs or writes
+    to the chain or the credit ledger (the deposit watcher stays operator-managed);
+  - `DEPLOY_COMPOSE_FILES` naming every further file the running project was started with, as
+    `docker compose ls` lists them after `docker-compose.api.yml`, for example an overlay such
+    as `docker-compose.watcher.yml` and a host-only override. A deploy without them would
+    recreate services from a different configuration;
+  - `ALLOW_ENV_FROM_GITHUB=0`, so production's secrets stay on the server and out of GitHub.
 - **Key:** a separate one (`gha-validator-production`), never the dev key.
 - **sshd:** the deploy job connects from GitHub's runners to the server's own address, not
   through the CDN. Port 22 has to be reachable from them. If sshd runs with `UsePAM no`, the
@@ -137,20 +142,23 @@ The same script and the same steps, with these differences:
   - required reviewers: at least two people, in different time zones;
   - "Prevent self-review" on;
   - the same three secrets (`DOTENV` optional).
-- **Release App:** `RELEASE_APP_ID` (variable) and `RELEASE_APP_KEY` (secret) at repository
-  level, not in an environment, because the release and back-merge jobs run outside one. See
+- **Release App:** `RELEASE_APP_ID` (repository variable) and `RELEASE_APP_KEY` (secret of the
+  `release` environment, limited to `dev` and `main`). See
   [`.github/rulesets/README.md`](../../.github/rulesets/README.md).
 
 **The first production deploy.** It has no `deployed/production` tag to compare with, so it is
 scope `first` and waits for an operator.
 
-1. On the server, read what production runs: `git -C /opt/conjectures-validator/current rev-parse HEAD`.
-2. Record that as the baseline. This publishes the first release and starts
-   `deployed/production`, so later release notes have something to start from:
-   `gh workflow run production-release.yml -f ref=<that sha>`.
-3. The next merge into `main` is then compared with it. If it is still `operator` scope (it
-   will be while `main` has unreleased worker or verifier changes), do those steps, then
-   dispatch with `operator_steps_done=true`.
+1. The merge that brings the pipeline to `main` starts a Deploy run that stops at `plan`. Its
+   summary lists what to check.
+2. Confirm the server is ready (`ssh deploy@<server> status` prints the running commit), then
+   dispatch:
+   `gh workflow run deploy.yml --ref main -f environment=production -f ref=<sha> -f operator_steps_done=true`.
+3. Approve it in the `production` environment. When it succeeds, the `release` job creates
+   `deployed/production` and the first `vYYYY.MM.DD` release. Its notes start from the release
+   marked Latest before it.
+
+Every later deploy is compared with `deployed/production`.
 
 ## The .env from GitHub
 
