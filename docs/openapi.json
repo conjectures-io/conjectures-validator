@@ -18007,7 +18007,7 @@
         ]
       },
       "post": {
-        "description": "Bonus logs for a proof submitted before the program began. The body is the .zip package.",
+        "description": "Logs uploaded after the proof, as a .zip body: bonus logs for a proof submitted before the\nprogram began, or a new version of a bounty's required logs that a reviewer asked for.\n\nA CLI token may send the second, because a coldkey-signed proof's logs can come from the CLI;\nthe bonus upload stays with the browser session.",
         "operationId": "upload_v1_me_submissions__submission_id__trajectory_post",
         "parameters": [
           {
