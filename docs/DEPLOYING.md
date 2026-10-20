@@ -56,7 +56,9 @@ gh pr checks <number> --watch
 - The PR body follows [`.github/pull_request_template.md`](../.github/pull_request_template.md).
   `gh pr create --body ...` does not fill in the template, so copy its headings.
 - A red check blocks the merge **(rulesets)**. Fix it on the branch.
-- After the merge, the dev server deploys itself:
+- After the merge, the dev server deploys itself. CI is not run a second time when the merged
+  commit has exactly the contents your PR's green run tested. If another PR was merged into
+  `dev` in between, it runs again on the combined result. Follow the run:
   `gh run list --workflow deploy.yml --branch dev --limit 3`, then `gh run watch <id>`.
 
 ## What runs where

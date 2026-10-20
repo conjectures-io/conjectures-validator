@@ -44,9 +44,59 @@ permissions:
   contents: read
 
 jobs:
+  # Was this exact content already tested? CI's `record tested tree` job leaves an artifact named
+  # after the git tree every gate passed on. A merge whose tree matches one of those -- the base
+  # did not move between the PR's checks and its merge -- is the bytes CI already approved, so
+  # running CI again would prove nothing. Only artifacts from a successful ci.yml run on a
+  # pull_request from this repository count: a fork's PR runs the fork's copy of the workflow.
+  # Any doubt, including an API error, means CI runs.
+  tested:
+    name: already tested?
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run_ci: ${{ steps.lookup.outputs.run_ci }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Look for a green PR run on this tree
+        id: lookup
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          tree="$(git rev-parse 'HEAD^{tree}')"
+          run_ci=true
+          ids="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=ci-passed-$tree&per_page=30" \
+                   --jq '.artifacts[] | select(.expired | not) | .workflow_run.id' 2>/dev/null)" \
+            || { echo "::warning::could not list artifacts; running CI"; ids=""; }
+          for id in $ids; do
+            [[ "$id" =~ ^[0-9]+$ ]] || continue
+            info="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" \
+                      --jq '[.path, .event, .conclusion, .head_repository.full_name, .html_url] | @tsv' 2>/dev/null)" || continue
+            IFS=$'\t' read -r path event conclusion repo url <<<"$info"
+            if [[ "$path" == .github/workflows/ci.yml && "$event" == pull_request \
+                  && "$conclusion" == success && "$repo" == "$GITHUB_REPOSITORY" ]]; then
+              run_ci=false
+              echo "CI skipped: tree \`$tree\` passed every gate in $url" >> "$GITHUB_STEP_SUMMARY"
+              echo "tree $tree already passed CI in $url"
+              break
+            fi
+          done
+          if [[ "$run_ci" == true ]]; then
+            echo "No green PR run tested tree \`$tree\` (the base moved after the PR's checks, or they never finished): running CI." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "run_ci=$run_ci" >> "$GITHUB_OUTPUT"
+
   ci:
     name: CI
-    if: github.event_name == 'push'
+    needs: [tested]
+    if: >-
+      !cancelled() && github.event_name == 'push' && needs.tested.outputs.run_ci != 'false'
     uses: ./.github/workflows/ci.yml
 
   plan:
@@ -212,13 +262,16 @@ jobs:
             echo "::warning::this change touches paths that production deploys only through an operator"
           fi
 
+  # CI either passed here, or was skipped for one of exactly two reasons: a manual run (a commit
+  # already on the branch, or a release tag), or `tested` found a green PR run on this tree.
   deploy:
     name: deploy
-    needs: [ci, plan]
+    needs: [tested, ci, plan]
     if: >-
-      always() && needs.plan.result == 'success' &&
-      (needs.ci.result == 'success' || needs.ci.result == 'skipped') &&
-      needs.plan.outputs.gated != 'true'
+      !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.gated != 'true' &&
+      (needs.ci.result == 'success' ||
+       (needs.ci.result == 'skipped' &&
+        (github.event_name == 'workflow_dispatch' || needs.tested.outputs.run_ci == 'false')))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # production: required reviewers approve here, before the job (and its secrets) starts.

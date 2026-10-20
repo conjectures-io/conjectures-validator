@@ -379,3 +379,39 @@ jobs:
           python-version: "3.12"
       - run: python staged/collatz-partials-20261012/check_semantics.py
       - run: python staged/collatz-partials-20261012/check_c13_plausibility.py
+
+  # Records the exact contents every gate above passed on: an artifact named after the git tree
+  # of the commit CI tested (for a PR, GitHub's merge of the PR into its base). deploy.yml looks
+  # the deployed commit's tree up and skips running CI again when a green PR run already tested
+  # exactly those bytes -- which is the case whenever the base did not move between the PR's
+  # checks and its merge. Only on pull_request: when deploy.yml calls this workflow, it already
+  # knows the result.
+  #
+  # Runs only if every gate passed; `release source` is allowed to be skipped (PRs not into main).
+  record-tested-tree:
+    name: record tested tree
+    needs: [release-source, lint, test, schema-drift, collatz-semantics]
+    if: >-
+      always() && github.event_name == 'pull_request' &&
+      needs.lint.result == 'success' && needs.test.result == 'success' &&
+      needs.schema-drift.result == 'success' && needs.collatz-semantics.result == 'success' &&
+      (needs.release-source.result == 'success' || needs.release-source.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Name the tested tree
+        id: tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          tree="$(git rev-parse 'HEAD^{tree}')"
+          printf 'tree %s\ncommit %s\nrun %s\n' "$tree" "$GITHUB_SHA" "$GITHUB_RUN_ID" > tested.txt
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          echo "All gates passed on tree \`$tree\`." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-passed-${{ steps.tree.outputs.tree }}
+          path: tested.txt
+          retention-days: 14

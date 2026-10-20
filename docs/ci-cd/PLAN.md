@@ -19,6 +19,9 @@ Status, 2026-10-19: the pipeline is built for both environments.
 - [`back-merge.yml`](../../.github/workflows/back-merge.yml) opens `main` → `dev` PRs after
   hotfixes.
 - The `release source` CI job checks where PRs into `main` come from.
+- A deploy runs CI only when no green PR run tested exactly the same content. CI records the
+  git tree it passed on, and a merge whose base did not move after the PR's checks has that
+  same tree.
 - [`.github/rulesets/`](../../.github/rulesets/README.md) holds the branch and tag rulesets.
 
 The dev server is set up. What is left is configuration: the production server and
