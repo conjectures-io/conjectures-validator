@@ -1,13 +1,9 @@
 # Records a production deploy: moves the tag `deployed/production` and publishes a GitHub Release
 # `vYYYY.MM.DD[.N]` with notes GitHub generates from the PRs merged since the previous release.
+# After a rollback (`ref` is a release tag) it marks that release Latest instead.
 #
-# Until production deploys from GitHub Actions (docs/ci-cd/PLAN.md, phase 3), run this right after
-# a production deploy, naming the commit that was deployed:
-#
-#   gh workflow run production-release.yml -f ref=<sha on main>      # a new release
-#   gh workflow run production-release.yml -f ref=v2026.10.18        # rolled back to a release
-#
-# The production deploy job will call it the same way (workflow_call) once it exists.
+# Called only by deploy.yml, after a production deploy succeeded. There is deliberately no manual
+# trigger: one would let anyone with write access record a production deploy that never happened.
 #
 # The tags are protected by .github/rulesets/: only the release GitHub App may create or move
 # them, so this workflow writes with that App's token when RELEASE_APP_ID is configured. Without
@@ -16,20 +12,11 @@
 name: Production release
 
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: "Deployed commit on main (empty: the tip of main), or a release tag after a rollback"
-        required: false
-        default: ""
   workflow_call:
     inputs:
       ref:
         type: string
         required: true
-    secrets:
-      RELEASE_APP_KEY:
-        required: false
 
 permissions:
   contents: read
@@ -42,18 +29,21 @@ jobs:
   release:
     name: release
     runs-on: ubuntu-latest
+    # The release App's private key is a secret of the `release` environment, which only `dev` and
+    # `main` may use: a workflow pushed to any other branch cannot read it.
+    environment: release
     permissions:
       contents: write
     steps:
       - name: Token from the release GitHub App
         id: app
         if: vars.RELEASE_APP_ID != ''
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_KEY }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: main
           fetch-depth: 0

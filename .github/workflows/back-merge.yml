@@ -24,8 +24,11 @@ jobs:
   open-pr:
     name: open main -> dev PR
     runs-on: ubuntu-latest
+    # The release App's private key is a secret of the `release` environment, which only `dev` and
+    # `main` may use: a workflow pushed to any other branch cannot read it.
+    environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
@@ -52,7 +55,7 @@ jobs:
       - name: Token from the release GitHub App
         id: app
         if: steps.diff.outputs.needed == 'true' && vars.RELEASE_APP_ID != ''
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_KEY }}
