@@ -179,6 +179,12 @@ wait_healthy() {   # $1 = commit that must be serving
 deploy_to() {   # $1 = commit, $2 = .env file to install (may be empty), $3 = .env backup path
   step "checking out $1"
   git checkout --quiet --detach "$1"
+  # Tracked files are public and must be readable to the containers that mount them (the api
+  # mounts pins.lock.json and docs/SUBMISSION_TERMS.md as uid 10002). Runs of this script before
+  # its umask fix wrote every file a checkout changed as 0600, and git leaves an unchanged file's
+  # mode alone, so this repairs those too. Symlinks are skipped: chmod would follow them.
+  # shellcheck disable=SC2016 # $f expands in the inner sh, as intended
+  git ls-files -z | xargs -0 -r sh -c 'for f; do [ -L "$f" ] || [ ! -f "$f" ] || chmod a+r "$f"; done' sh
   if [[ -n "$2" ]]; then
     step "installing .env"
     install_env "$2" "${3:-}"
