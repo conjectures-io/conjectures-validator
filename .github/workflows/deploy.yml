@@ -315,10 +315,14 @@ jobs:
             ssh_deploy "deploy $SHA $GITHUB_RUN_ID" < /dev/null
           fi
 
+  # `!cancelled()` and an explicit check of `deploy`, not the implicit success(): that one fails
+  # whenever any job upstream was skipped -- and `ci` is skipped on every manual run and whenever
+  # `tested` finds a green PR run -- so the tag would not move after a successful deploy.
   record-dev:
     name: record
     needs: [plan, deploy]
-    if: needs.plan.outputs.environment == 'dev'
+    if: >-
+      !cancelled() && needs.deploy.result == 'success' && needs.plan.outputs.environment == 'dev'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -358,7 +362,9 @@ jobs:
   record-production:
     name: release
     needs: [plan, deploy]
-    if: needs.plan.outputs.environment == 'production'
+    if: >-
+      !cancelled() && needs.deploy.result == 'success' &&
+      needs.plan.outputs.environment == 'production'
     permissions:
       contents: write
     uses: ./.github/workflows/production-release.yml
