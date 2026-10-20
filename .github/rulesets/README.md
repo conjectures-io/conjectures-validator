@@ -5,7 +5,7 @@ imports. They take effect only once they are created in the repository settings.
 
 | File | Applies to | Rules |
 | --- | --- | --- |
-| [`dev.json`](dev.json) | branch `dev` | changes only through a PR; required checks `ruff`, `pytest`, `schema drift`, `Collatz statement checks`; merge or squash; no force-push, no deletion |
+| [`dev.json`](dev.json) | branch `dev` | changes only through a PR; merged through a **merge queue** (merge commits, up to 5 entries per group, 60-minute check timeout; CI runs on `merge_group`); required checks `ruff`, `pytest`, `schema drift`, `Collatz statement checks`; merge or squash; no force-push, no deletion |
 | [`main.json`](main.json) | branch `main` | the same, plus the required check `release source` (only `dev` or `hotfix/*`, and only while `dev` has everything `main` has); merge commits only |
 | [`release-tags.json`](release-tags.json) | tags `v*` (one per production release) | restrict creation, update and deletion |
 | [`deployed-tags.json`](deployed-tags.json) | tags `deployed/dev`, `deployed/production` | restrict creation, update and deletion |

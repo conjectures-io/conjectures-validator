@@ -44,17 +44,20 @@ permissions:
   contents: read
 
 jobs:
-  # Was this exact content already tested? CI's `record tested tree` job leaves an artifact named
-  # after the git tree every gate passed on. A merge whose tree matches one of those -- the base
-  # did not move between the PR's checks and its merge -- is the bytes CI already approved, so
-  # running CI again would prove nothing.
+  # Was this exact content already tested? Two kinds of run can vouch for a push, and any doubt,
+  # including an API error, means CI runs:
   #
-  # Only one run can vouch for a push: a successful ci.yml pull_request run, from this
-  # repository, on the head commit of the PR whose merge commit *is* the pushed commit. A PR runs
-  # its own copy of ci.yml, so a run on any other PR -- or a fork's -- could have uploaded the
-  # artifact without testing anything; the PR that produced this merge had its ci.yml reviewed
-  # with the rest of its diff. A direct push has no such PR. Any doubt, including an API error,
-  # means CI runs.
+  #   1. The merge queue (dev): a successful ci.yml merge_group run on exactly the pushed commit.
+  #      The queue tests the PR merged onto the branch's current tip and then lands that very
+  #      commit, so the run tested the bytes being deployed -- the strongest evidence there is.
+  #   2. A PR merged without the queue: a successful ci.yml pull_request run on the head of the
+  #      PR whose merge commit *is* the pushed commit, whose `record tested tree` artifact names
+  #      the pushed commit's tree. The tree matches when the base did not move between the PR's
+  #      checks and its merge. A PR runs its own copy of ci.yml, so a run on any other PR -- or a
+  #      fork's -- proves nothing; the PR that produced this merge had its ci.yml reviewed with
+  #      the rest of its diff.
+  #
+  # Both runs must come from this repository. A direct push has neither.
   tested:
     name: already tested?
     if: github.event_name == 'push'
@@ -68,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Look for a green run on the PR that produced this merge
+      - name: Look for a green run that tested this commit
         id: lookup
         shell: bash
         env:
@@ -76,14 +79,27 @@ jobs:
         run: |
           set -uo pipefail
           tree="$(git rev-parse 'HEAD^{tree}')"
-          run_ci=true
-          finish() {
-            [[ "$run_ci" == false ]] || echo "$1: running CI." >> "$GITHUB_STEP_SUMMARY"
-            echo "run_ci=$run_ci" >> "$GITHUB_OUTPUT"
+          finish() {   # $1 = run_ci, $2 = summary line
+            if [[ "$1" == false ]]; then echo "CI skipped: $2" >> "$GITHUB_STEP_SUMMARY"
+            else echo "$2: running CI." >> "$GITHUB_STEP_SUMMARY"; fi
+            echo "run_ci=$1" >> "$GITHUB_OUTPUT"
             exit 0
           }
-          pr_head="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls"                        --jq ".[] | select(.merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\") | .head.sha"                        2>/dev/null | head -n 1)" || pr_head=""
-          [[ "$pr_head" =~ ^[0-9a-f]{40}$ ]] || finish "No merged PR has \`${GITHUB_SHA:0:12}\` as its merge commit (a direct push, or the API did not answer)"
+
+          # 1. The merge queue tested exactly this commit.
+          queue_run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=merge_group&status=success&per_page=20" \
+                         --jq ".workflow_runs[] | select(.path == \".github/workflows/ci.yml\" and .conclusion == \"success\" and .head_repository.full_name == \"$GITHUB_REPOSITORY\") | .html_url" \
+                         2>/dev/null | head -n 1)" || queue_run=""
+          if [[ -n "$queue_run" ]]; then
+            finish false "the merge queue tested exactly \`${GITHUB_SHA:0:12}\` in $queue_run"
+          fi
+
+          # 2. The PR that produced this merge tested the same tree.
+          pr_head="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+                       --jq ".[] | select(.merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\") | .head.sha" \
+                       2>/dev/null | head -n 1)" || pr_head=""
+          [[ "$pr_head" =~ ^[0-9a-f]{40}$ ]] \
+            || finish true "No merge-queue run on \`${GITHUB_SHA:0:12}\`, and no merged PR has it as its merge commit (a direct push, or the API did not answer)"
           ids="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=ci-passed-$tree&per_page=30" \
                    --jq '.artifacts[] | select(.expired | not) | .workflow_run.id' 2>/dev/null)" \
             || { echo "::warning::could not list artifacts"; ids=""; }
@@ -94,13 +110,10 @@ jobs:
             IFS=$'\t' read -r path event conclusion repo head url <<<"$info"
             if [[ "$path" == .github/workflows/ci.yml && "$event" == pull_request && "$conclusion" == success \
                   && "$repo" == "$GITHUB_REPOSITORY" && "$head" == "$pr_head" ]]; then
-              run_ci=false
-              echo "CI skipped: tree \`$tree\` passed every gate in $url, on the head of the PR merged as \`${GITHUB_SHA:0:12}\`" >> "$GITHUB_STEP_SUMMARY"
-              echo "tree $tree already passed CI in $url"
-              break
+              finish false "tree \`$tree\` passed every gate in $url, on the head of the PR merged as \`${GITHUB_SHA:0:12}\`"
             fi
           done
-          finish "No green run on the merged PR's head tested tree \`$tree\` (the base moved after the PR's checks, or they never finished)"
+          finish true "No green run on the merged PR's head tested tree \`$tree\` (the base moved after the PR's checks, or they never finished)"
 
   ci:
     name: CI
