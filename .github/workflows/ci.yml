@@ -11,6 +11,11 @@ name: CI
 
 on:
   pull_request:
+  # The merge queue on `dev` (.github/rulesets/dev.json) tests each entry -- the PR merged onto
+  # the queue's current tip -- before it lands, and waits for the required checks on that run.
+  # Without this trigger they never report and every entry times out of the queue. What the
+  # queue tested is exactly the commit pushed to `dev`, which deploy.yml relies on to skip CI.
+  merge_group:
   # Called by deploy.yml on every push to `dev` and `main`, so a commit is deployed only after
   # these gates pass on the merged result -- not just on the PR's head. That call is also the
   # record for `main`, which is why there is no `push` trigger here: it would run everything twice.

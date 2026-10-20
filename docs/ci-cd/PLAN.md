@@ -19,9 +19,10 @@ Status, 2026-10-19: the pipeline is built for both environments.
 - [`back-merge.yml`](../../.github/workflows/back-merge.yml) opens `main` → `dev` PRs after
   hotfixes.
 - The `release source` CI job checks where PRs into `main` come from.
-- A deploy runs CI only when no green PR run tested exactly the same content. CI records the
-  git tree it passed on, and a merge whose base did not move after the PR's checks has that
-  same tree.
+- A deploy runs CI only when nothing already tested exactly what it deploys. On `dev` the
+  merge queue tests the very commit that lands. A PR merged without the queue (into `main`)
+  counts when its green run tested the same git tree, which holds when the base did not move
+  after the PR's checks.
 - [`.github/rulesets/`](../../.github/rulesets/README.md) holds the branch and tag rulesets.
 
 The dev server is set up. What is left is configuration: the production server and
@@ -317,7 +318,7 @@ lets it through to production.
 | Forks and anonymous users | CI on `pull_request` only, never `pull_request_target`; a read-only token and no secrets; fork runs are never trusted to skip a deploy's CI |
 | Write access → `dev` / `main` | the branch rulesets: PRs only, required checks, no force-push; `release source` on `main` |
 | `main` → production | the `production` environment: required reviewers, "Prevent self-review", branch `main` only; its secrets are released only after approval |
-| A deploy skipping CI | only for a green ci.yml run on the head of the PR whose merge commit is being deployed |
+| A deploy skipping CI | only for a green ci.yml merge-queue run on exactly the deployed commit, or a green run on the head of the PR whose merge commit is being deployed and whose tested tree matches |
 | The deploy key | a forced command that takes a commit SHA only and refuses one not on the server's branch; `restrict`; one key per server; host key pinned |
 | Server configuration | which services, which compose files and whether `.env` may come from GitHub live in a root-only file on the server, outside any PR's reach |
 | Release tags and `deployed/*` | tag rulesets; only the release App may write them; its key is a secret of the `release` environment (`dev` and `main` only) |

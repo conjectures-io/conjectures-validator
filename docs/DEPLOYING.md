@@ -56,9 +56,12 @@ gh pr checks <number> --watch
 - The PR body follows [`.github/pull_request_template.md`](../.github/pull_request_template.md).
   `gh pr create --body ...` does not fill in the template, so copy its headings.
 - A red check blocks the merge **(rulesets)**. Fix it on the branch.
-- After the merge, the dev server deploys itself. CI is not run a second time when the merged
-  commit has exactly the contents your PR's green run tested. If another PR was merged into
-  `dev` in between, it runs again on the combined result. Follow the run:
+- `dev` merges through a merge queue. Once the checks are green, choose "Merge when ready"
+  (`gh pr merge <number> --merge --auto`). The queue merges your PR onto the current tip of
+  `dev`, runs CI on exactly that commit, and lands it only if CI passes. A PR whose queue
+  checks fail is taken out of the queue; fix it and queue it again.
+- After the merge, the dev server deploys itself. CI does not run a second time: the merge
+  queue already tested exactly the commit that landed. Follow the run:
   `gh run list --workflow deploy.yml --branch dev --limit 3`, then `gh run watch <id>`.
 
 ## What runs where
