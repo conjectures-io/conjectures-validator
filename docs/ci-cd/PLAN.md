@@ -14,8 +14,8 @@ Status, 2026-10-19: the pipeline is built for both environments.
 - [`deploy.yml`](../../.github/workflows/deploy.yml) deploys `dev` on every merge, and `main`
   after an approval in the `production` environment. A production change in the `operator`
   or `first` scope waits for an operator.
-- [`production-release.yml`](../../.github/workflows/production-release.yml) moves
-  `deployed/production` and publishes a release with generated notes.
+- After a successful production deploy, its `release` job moves `deployed/production` and
+  publishes a release with generated notes.
 - [`back-merge.yml`](../../.github/workflows/back-merge.yml) opens `main` → `dev` PRs after
   hotfixes.
 - The `release source` CI job checks where PRs into `main` come from.
@@ -302,8 +302,8 @@ into a server.
   `GITHUB_TOKEN` cannot be put on a ruleset's bypass list, which is why an App is needed. The
   App's key is a secret of the `release` environment, limited to `dev` and `main`, so a
   workflow pushed to any other branch cannot use it.
-- **Only a deploy records a release.** `production-release.yml` has no manual trigger;
-  deploy.yml calls it after a successful production deploy or rollback.
+- **Only a deploy records a release.** The `release` job in deploy.yml runs only after a
+  successful production deploy or rollback; nothing else creates releases.
 - **Dev deploys get no release.** The moving tag and GitHub's Deployments history on the
   `dev` environment are enough.
 
@@ -401,7 +401,7 @@ For production, the same workflow gains:
 - the `production` environment;
 - `scripts/deploy_scope.py` and the operator gate;
 - release creation (section 5);
-- a call to `production-release.yml` (already built) from its `record` job.
+- the `release` job, which records each successful deploy.
 
 ## Appendix C: ruleset settings
 
