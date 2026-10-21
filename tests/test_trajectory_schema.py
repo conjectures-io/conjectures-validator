@@ -44,7 +44,7 @@ def test_published_schema_example_and_pinned_terms():
     schema = json.loads((ROOT / "docs/trajectories/chat-log-package.schema.json").read_text())
     assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == package_schema()
     assert TERMS_SHA256 == "sha256:" + hashlib.sha256(
-        (ROOT / "docs/trajectories/chat-log-terms-v4.md").read_bytes()).hexdigest()
+        (ROOT / "docs/trajectories/chat-log-terms-v5.md").read_bytes()).hexdigest()
 
 
 @pytest.mark.parametrize("change", [
@@ -147,7 +147,9 @@ def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
 
 def test_terms_assent_and_example_are_plain_and_pinned():
     assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
-    terms = (ROOT / "docs/trajectories/chat-log-terms-v4.md").read_text()
+    terms = (ROOT / "docs/trajectories/chat-log-terms-v5.md").read_text()
+    assert "You have removed" not in terms
+    assert "Anything from other people is included with\ntheir permission." in terms
     for promise in ("Every open problem requires logs", "before you submit the\nproof",
                     "up to three versions in all", "within 14 days of the request",
                     "reasoning wherever\nyour tool saved it as readable text", "do not try to decrypt or recreate it",
@@ -225,6 +227,10 @@ def test_chat_log_launch_must_publish_the_terms_version_it_names():
     v11 = {**v10, "SUBMISSION_TERMS_VERSION": "v11"}
     path = str(root / "docs/policies/submission-terms-v11.md")
     assert Settings.from_env(production_env(**v11, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
+    v12 = {**v11, "SUBMISSION_TERMS_VERSION": "v12", "SUBMISSION_TERMS_EFFECTIVE_FROM": "2026-10-21"}
+    path = str(root / "docs/policies/submission-terms-v12.md")
+    assert Settings.from_env(production_env(**v12, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
+    assert f"../trajectories/{TERMS_VERSION}.md" in Path(path).read_text()
     # The v7 file labelled v8 is refused rather than published under the wrong version.
     with pytest.raises(SettingsError, match="must state the configured"):
         Settings.from_env(production_env(**launch, SUBMISSION_TERMS_PATH=str(root / "docs/SUBMISSION_TERMS.md")))
