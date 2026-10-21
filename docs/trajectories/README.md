@@ -11,10 +11,11 @@ For qualifying proofs submitted before launch, accepted logs earn an additional
 their terms. Every accepted log is licensed to Conjectures for sale to buyers; logs are never
 published openly. The owner approved these rules on October 12, 2026.
 
-Contributor terms are one plain-language page, [chat-log-terms-v4.md](chat-log-terms-v4.md)
+Contributor terms are one plain-language page, [chat-log-terms-v5.md](chat-log-terms-v5.md)
 (v1 owner-reviewed October 13, 2026; v2 extends the requirement to every open bounty; v3 lets a
 reviewer ask for more required logs instead of rejecting them; v4 keeps the model's reasoning
-wherever the tool saved it as readable text, never decrypting what it withheld), with a single pinned assent statement
+wherever the tool saved it as readable text, never decrypting what it withheld; v5 removes the
+instruction to redact logs before uploading), with a single pinned assent statement
 ([assent-statements-v2.json](assent-statements-v2.json)). They take effect when intake opens.
 `python scripts/trajectory_assets.py` regenerates the package schema, the synthetic
 `example-package.zip`, the terms manifest and `submission_api/trajectory_terms.py` digests; copy
@@ -64,7 +65,7 @@ export digest or share link) and duplicate review remain human work.
 
 Reviewers attest two things before accepting (`Checklist` in `routers/trajectories.py`):
 these are the original chat logs that produced the proof, not a recreation; and the
-contributor owns the proof with no credentials or others' personal information left in. Accepting also requires a current human `REVIEW_APPROVED`
+contributor owns the proof, is allowed to share the logs, and the logs contain no live credentials. Accepting also requires a current human `REVIEW_APPROVED`
 decision on the proof, which the claim binds.
 
 - New-bounty logs can be accepted or rejected, never sent back for changes. Rejection waits
