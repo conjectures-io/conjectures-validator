@@ -17,8 +17,8 @@ The branch rulesets ask for no approving review on the PR. Production's approval
 The tag rulesets' bypass list starts empty, so nobody can create or move those tags. A
 **GitHub App** is then added as the only bypass actor. The workflows write the tags with that
 App's token:
-- `deploy.yml` moves `deployed/dev`;
-- `production-release.yml` moves `deployed/production` and publishes the release;
+- `deploy.yml` moves `deployed/dev` (its `record` job), and moves `deployed/production` and
+  publishes the release (its `release` job);
 - `back-merge.yml` opens the `main` → `dev` PR.
 
 The App is needed because the workflows' built-in `GITHUB_TOKEN` cannot be added to a
