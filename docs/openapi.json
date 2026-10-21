@@ -10496,6 +10496,7 @@
                   "qualifies",
                   "not-significant",
                   "above-bar",
+                  "regressed",
                   "no-evidence"
                 ],
                 "type": "string"
