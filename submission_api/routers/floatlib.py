@@ -67,7 +67,9 @@ BoardPath = Annotated[
 DEFAULT_PROMOTION_BAR = 0.97
 # The one file a FloatLib submission is, and its cap there.
 KERNEL_FILE = {"name": "Kernel.lean", "max_bytes": 256_000}
-ADMISSIONS = frozenset({"leader", "qualifies", "not-significant", "above-bar", "no-evidence"})
+ADMISSIONS = frozenset(
+    {"leader", "qualifies", "not-significant", "above-bar", "regressed", "no-evidence"}
+)
 
 
 def iso(value: datetime) -> str:

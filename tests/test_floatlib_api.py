@@ -371,6 +371,16 @@ def test_the_full_board_leads_with_its_champion_and_carries_kernel_times(floatli
     assert [r["rank"] for r in board["ranking"]] == [1, 2]
 
 
+def test_a_regressed_outcome_is_published(floatlib_db):
+    # Suite scoring's admission adds `regressed`; the board shows it rather than dropping it.
+    snapshot = json.loads(json.dumps(PUBLICATION))
+    snapshot["slots"]["full"]["items"][1]["admission"] = "regressed"
+    publish(floatlib_db, snapshot)
+    (response,) = read(floatlib_db, "/v1/competitions/floatlib/leaderboard")
+    assert response.status_code == 200, response.text
+    assert response.json()["ranking"][1]["admission"] == "regressed"
+
+
 def test_a_practice_board_reads_its_own_slot_and_pays_nothing(floatlib_db):
     publish(floatlib_db)
     (response,) = read(floatlib_db, "/v1/competitions/floatlib-add/leaderboard")

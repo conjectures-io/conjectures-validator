@@ -1069,7 +1069,7 @@ into ratios against today's champion. Use `/champions`'s `current` field to dist
 | `pays` | boolean | Whether the champion's author is paid: the full entry only |
 | `ranking[]` | array | `rank`, `submission`, `hotkey`, `ratio`, `qualifies` (at or below the bar), `admission`, `submitted_at`, `kernels`, `promoted_at` |
 
-`admission` is `leader` on the champion's row on every board; on the others it is the latest published scoring's outcome (`qualifies`, `not-significant`, `above-bar`, `no-evidence`), which scores only the full entry, so practice-board rows carry `null`. `kernels` is ns per operation for each kernel, summed over its timed input types: `{add, mul, sum, bmm}` on the full entry, the board's own kernel on a practice board. `promoted_at` is when the champion took over, on its row only by default. Historical boards also include the promotion dates of promoted challengers.
+`admission` is `leader` on the champion's row on every board; on the others it is the latest published scoring's outcome (`qualifies`, `not-significant`, `above-bar`, `regressed`, `no-evidence`; `regressed` means a suite-scored entry was slower than the champion on some kernel and input group by more than the regression guard), which scores only the full entry, so practice-board rows carry `null`. `kernels` is ns per operation for each kernel, summed over its timed input types: `{add, mul, sum, bmm}` on the full entry, the board's own kernel on a practice board. `promoted_at` is when the champion took over, on its row only by default. Historical boards also include the promotion dates of promoted challengers.
 
 ### GET `/v1/competitions/{board}/champions`
 

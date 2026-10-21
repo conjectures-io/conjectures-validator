@@ -9,7 +9,9 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-Admission = Literal["leader", "qualifies", "not-significant", "above-bar", "no-evidence"]
+Admission = Literal[
+    "leader", "qualifies", "not-significant", "above-bar", "regressed", "no-evidence"
+]
 
 
 class AdmissionRule(BaseModel):
