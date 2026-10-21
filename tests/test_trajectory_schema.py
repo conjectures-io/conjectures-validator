@@ -227,6 +227,10 @@ def test_chat_log_launch_must_publish_the_terms_version_it_names():
     v11 = {**v10, "SUBMISSION_TERMS_VERSION": "v11"}
     path = str(root / "docs/policies/submission-terms-v11.md")
     assert Settings.from_env(production_env(**v11, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
+    v12 = {**v11, "SUBMISSION_TERMS_VERSION": "v12", "SUBMISSION_TERMS_EFFECTIVE_FROM": "2026-10-21"}
+    path = str(root / "docs/policies/submission-terms-v12.md")
+    assert Settings.from_env(production_env(**v12, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
+    assert f"../trajectories/{TERMS_VERSION}.md" in Path(path).read_text()
     # The v7 file labelled v8 is refused rather than published under the wrong version.
     with pytest.raises(SettingsError, match="must state the configured"):
         Settings.from_env(production_env(**launch, SUBMISSION_TERMS_PATH=str(root / "docs/SUBMISSION_TERMS.md")))
