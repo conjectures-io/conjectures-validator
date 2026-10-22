@@ -109,6 +109,23 @@ def test_archive_size_boundaries(monkeypatch):
         schema._entries(archive)
 
 
+def test_event_line_read_is_bounded_before_decompression(monkeypatch):
+    from submission_api import trajectory_schema as schema
+    monkeypatch.setattr(schema, "MAX_EVENT_LINE_BYTES", 32)
+    reads = []
+    class Source(io.BytesIO):
+        def readline(self, size=-1):
+            reads.append(size)
+            assert size == 35
+            return super().readline(size)
+    archive = SimpleNamespace(open=lambda info: Source(b"x" * info))
+    with pytest.raises(PackageError, match="a line is too large"):
+        list(schema._lines(archive, 1000, "events.jsonl"))
+    assert reads == [35]
+    archive = SimpleNamespace(open=lambda info: Source(b"x" * 32 + b"\r\n" + b"ok\n"))
+    assert list(schema._lines(archive, None, "events.jsonl")) == [(1, b"x" * 32), (2, b"ok")]
+
+
 def _without(raw: bytes, suffix: str) -> bytes:
     source, out = zipfile.ZipFile(io.BytesIO(raw)), io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:

@@ -163,7 +163,13 @@ def _json_file(archive, info, file):
 
 def _lines(archive, info, file):
     with archive.open(info) as source:
-        for number, raw in enumerate(source, 1):
+        number = 0
+        # A malformed single line can otherwise inflate the entire 2 GiB archive into RAM
+        # before the line limit runs. Allow the content limit plus CRLF, then one sentinel byte.
+        while raw := source.readline(MAX_EVENT_LINE_BYTES + 3):
+            number += 1
+            if len(raw) > MAX_EVENT_LINE_BYTES + 2:
+                raise PackageError("a line is too large", file=file, line=number)
             raw = raw.rstrip(b"\r\n")
             if not raw:
                 raise PackageError("blank lines are not allowed", file=file, line=number)
