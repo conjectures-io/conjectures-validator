@@ -8,7 +8,12 @@ import pytest
 
 pytest.importorskip("sqlalchemy", reason="the FloatLib store needs sqlalchemy")
 
-from submission_api.floatlib_store import LEGACY, benchmark_of, speedups  # noqa: E402
+from submission_api.floatlib_store import (  # noqa: E402
+    LEGACY,
+    SPEEDUP_ANCHORS,
+    benchmark_of,
+    speedups,
+)
 
 SHIPPED = "0" * 64
 SUITE = "scoring-v2-test"
@@ -67,3 +72,11 @@ def test_the_benchmark_is_read_from_the_verdict():
     assert benchmark_of(None) == LEGACY
     assert benchmark_of("not json") == LEGACY
     assert benchmark_of("[1, 2]") == LEGACY
+
+
+def test_every_recorded_anchor_names_a_suite_and_a_kernel_hash():
+    # A typo here would silently leave a chain broken; a legacy anchor would mask the legacy chain.
+    for (benchmark, sha256), value in SPEEDUP_ANCHORS.items():
+        assert benchmark != LEGACY and benchmark
+        assert len(sha256) == 64 and all(c in "0123456789abcdef" for c in sha256)
+        assert 0 < value < 10_000
