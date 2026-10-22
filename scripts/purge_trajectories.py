@@ -19,12 +19,14 @@ import datetime as dt
 from sqlalchemy import delete, exists, func, or_, select
 from sqlalchemy.orm import defer
 from submission_api import trajectories as store
+from submission_api.trajectory_uploads import purge_expired
 from conjectures_subnet.db import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.trajectory_models import TrajectoryClaim
 from conjectures_subnet.db.models import RewardEvent, Submission
 
 
 async def purge(session):
+    await purge_expired(session)
     # Logs uploaded for a new bounty whose proof never followed are deleted outright.
     unsubmitted = (
         await session.execute(

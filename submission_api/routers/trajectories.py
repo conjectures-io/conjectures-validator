@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import time
 import uuid
 
 import anyio
@@ -17,11 +18,13 @@ from conjectures_subnet.db.models import REVIEWER_ROLE, ManualReviewState, Rewar
 from conjectures_subnet.db.submissions import latest_binding_decision
 from conjectures_subnet.db.trajectory_models import TrajectoryAccess, TrajectoryClaim
 from submission_api import trajectories as store
+from submission_api import trajectory_uploads as uploads
 from submission_api.dependencies import (
     REASON_BROWSER_SESSION_REQUIRED, CookieWriterDep, PrincipalDep, ServicesDep, SessionDep, WriterDep,
     require_role, require_role_writer,
 )
-from submission_api.errors import ApiError, BadRequest, Conflict, Forbidden, NotFound, PayloadTooLarge
+from submission_api.errors import ApiError, BadRequest, Conflict, Forbidden, NotFound, PayloadTooLarge, TooManyRequests
+from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.sessions import Principal
 from submission_api.taskpool import TaskNotAllowed
 from submission_api.trajectory_schema import (
@@ -46,7 +49,7 @@ class PrivateHeadersMiddleware:
 
     async def __call__(self, scope, receive, send):
         path = scope.get("path", "")
-        sensitive = path.startswith(("/v1/admin/trajectories", "/v1/admin/trajectory-", "/v1/me/chat-log-deliveries", "/v1/me/chat-log-deposits")) or (
+        sensitive = path.startswith(("/v1/admin/trajectories", "/v1/admin/trajectory-", "/v1/me/chat-log-deliveries", "/v1/me/chat-log-deposits", "/v1/me/chat-log-uploads")) or (
             path.startswith("/v1/me/submissions/") and "/trajectory" in path) or (
             path.startswith(("/v1/me/submissions/", "/v1/admin/reviews/", "/v1/results/")) and "/pdfs" in path)
         if scope["type"] != "http" or not sensitive:
@@ -179,11 +182,16 @@ def consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted
                                  assent_statements_sha256=assent_statements_sha256, accepted=accepted))
 
 
-async def received_package(request, consent, expected_state_version=None):
+async def received_package(request, consent, expected_state_version=None, *, session=None, account_id=None, upload_id=None):
     """Bounded receipt of the zip and its checks, inside the caller's upload budget, with no open transaction."""
     try:
-        with anyio.fail_after(120):
-            raw = await bounded_json(request, MAX_UPLOAD_BYTES, PACKAGE_MEDIA_TYPES)
+        with anyio.fail_after(600):
+            if upload_id is None:
+                raw = await bounded_json(request, MAX_UPLOAD_BYTES, PACKAGE_MEDIA_TYPES)
+            else:
+                await bounded_json(request, 0, PACKAGE_MEDIA_TYPES)
+                raw = await uploads.read(session, upload_id, account_id)
+                await session.rollback()  # No connection held while parsing the assembled ZIP.
         return await anyio.to_thread.run_sync(prepare_upload, raw, consent, expected_state_version)
     except TimeoutError:
         raise ApiError("Upload timed out; retry with a complete file.", status_code=408,
@@ -193,10 +201,63 @@ async def received_package(request, consent, expected_state_version=None):
                          reason_code="TRAJECTORY_INVALID", extra={"validation_errors": package_errors(error)}) from None
 
 
+@router.post("/me/chat-log-uploads")
+async def start_upload(request: Request, principal: WriterDep, services: ServicesDep, session: SessionDep,
+                       response: Response, byte_length: Annotated[int, Query(ge=1, le=MAX_PACKAGE_BYTES)],
+                       terms_version: TermsVersion, terms_sha256: TermsDigest,
+                       assent_statements_sha256: TermsDigest, accepted: bool = False):
+    private(response)
+    await opened(services, session)
+    consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted)
+    if not hasattr(request.app.state, "trajectory_start_budget"):
+        request.app.state.trajectory_start_budget = SlidingWindowLimiter(limit=6, window_seconds=900, max_clients=10000)
+    if not request.app.state.trajectory_start_budget.check(str(principal.account.id), time.monotonic()).allowed:
+        raise TooManyRequests("Chat-log upload budget exhausted; retry later.", reason_code="TRAJECTORY_RATE_LIMIT")
+    result = await uploads.start(session, principal.account.id, byte_length)
+    await session.commit()
+    return result
+
+
+@router.put("/me/chat-log-uploads/{upload_id}")
+async def upload_part(upload_id: uuid.UUID, request: Request, principal: WriterDep, services: ServicesDep,
+                      session: SessionDep, response: Response, offset: Annotated[int, Query(ge=0, lt=MAX_PACKAGE_BYTES)]):
+    private(response)
+    await opened(services, session)
+    account_id = principal.account.id
+    await uploads.owned(session, upload_id, account_id)
+    await session.rollback()
+    if not hasattr(request.app.state, "trajectory_part_slots"):
+        request.app.state.trajectory_part_slots = anyio.Semaphore(4)
+    slots = request.app.state.trajectory_part_slots
+    try:
+        slots.acquire_nowait()
+    except anyio.WouldBlock:
+        raise TooManyRequests("Chat-log uploads are busy; retry shortly.", reason_code="TRAJECTORY_BUSY") from None
+    try:
+        with anyio.fail_after(120):
+            raw = await bounded_json(request, uploads.CHUNK_BYTES, PACKAGE_MEDIA_TYPES)
+        result = await uploads.append(session, upload_id, account_id, offset, raw)
+        await session.commit()
+        return result
+    except TimeoutError:
+        raise ApiError("Upload part timed out; retry this part.", status_code=408,
+                       reason_code="TRAJECTORY_TIMEOUT") from None
+    finally:
+        slots.release()
+
+
+@router.delete("/me/chat-log-uploads/{upload_id}", status_code=204)
+async def discard_upload(upload_id: uuid.UUID, principal: WriterDep, session: SessionDep, response: Response):
+    private(response)
+    await uploads.discard(session, upload_id, principal.account.id)
+    await session.commit()
+
+
 @router.post("/me/chat-log-deposits")
 async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
                   session: SessionDep, response: Response, terms_version: TermsVersion,
-                  terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False):
+                  terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False,
+                  upload_id: uuid.UUID | None = None):
     """Logs for a bounty that requires them, uploaded before the proof, which must follow
     within 24 hours. The request body is the .zip package; consent rides in the query.
 
@@ -212,7 +273,7 @@ async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
     async with request.app.state.trajectory_upload_budget.hold(account_id):
-        prepared = await received_package(request, consent)
+        prepared = await received_package(request, consent, session=session, account_id=account_id, upload_id=upload_id)
         package = prepared[0].manifest
         try:
             entry = services.catalog.resolve(package.task_id, package.task_bundle_sha256)
@@ -229,6 +290,8 @@ async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
         claim = await store.deposit_package(session, entry=entry, prepared=prepared, account_id=account_id,
                                             now=dt.datetime.now(dt.UTC),
                                             review_policy_version=services.settings.review_policy_version)
+        if upload_id is not None:
+            await uploads.discard(session, upload_id, account_id)
         await session.commit()
         return await store.view(session, claim)
 
@@ -253,7 +316,8 @@ async def logs_writer(submission_id: uuid.UUID, principal: WriterDep, session: S
 async def upload(submission_id: uuid.UUID, request: Request, principal: Annotated[Principal, Depends(logs_writer)],
                  services: ServicesDep, session: SessionDep, response: Response, terms_version: TermsVersion,
                  terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False,
-                 expected_state_version: Annotated[int | None, Query(ge=1, le=2147483647)] = None):
+                 expected_state_version: Annotated[int | None, Query(ge=1, le=2147483647)] = None,
+                 upload_id: uuid.UUID | None = None):
     """Logs uploaded after the proof, as a .zip body: bonus logs for a proof submitted before the
     program began, or a new version of a bounty's required logs that a reviewer asked for.
 
@@ -271,7 +335,8 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: Annotate
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
     async with request.app.state.trajectory_upload_budget.hold(account_id):
-        prepared = await received_package(request, consent, expected_state_version)
+        prepared = await received_package(request, consent, expected_state_version,
+                                           session=session, account_id=account_id, upload_id=upload_id)
         # Recheck under the proof correction lock after all untrusted parsing and hashing.
         submission = await store.owned_submission(session, submission_id, account_id, lock=True, logs_owner=True)
         decision = await latest_binding_decision(session, submission_id)
@@ -284,6 +349,8 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: Annotate
                                            amount_usd_cents=(existing.amount_usd_cents if existing else
                                                await anyio.to_thread.run_sync(store.amount_for, services, submission)),
                                            offer_start_at=offer_start_at)
+        if upload_id is not None:
+            await uploads.discard(session, upload_id, account_id)
         await session.commit()
         return await store.view(session, claim)
 

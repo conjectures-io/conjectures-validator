@@ -11,10 +11,11 @@ For qualifying proofs submitted before launch, accepted logs earn an additional
 their terms. Every accepted log is licensed to Conjectures for sale to buyers; logs are never
 published openly. The owner approved these rules on October 12, 2026.
 
-Contributor terms are one plain-language page, [chat-log-terms-v4.md](chat-log-terms-v4.md)
+Contributor terms are one plain-language page, [chat-log-terms-v5.md](chat-log-terms-v5.md)
 (v1 owner-reviewed October 13, 2026; v2 extends the requirement to every open bounty; v3 lets a
 reviewer ask for more required logs instead of rejecting them; v4 keeps the model's reasoning
-wherever the tool saved it as readable text, never decrypting what it withheld), with a single pinned assent statement
+wherever the tool saved it as readable text, never decrypting what it withheld; v5 removes the
+instruction to redact logs before uploading), with a single pinned assent statement
 ([assent-statements-v2.json](assent-statements-v2.json)). They take effect when intake opens.
 `python scripts/trajectory_assets.py` regenerates the package schema, the synthetic
 `example-package.zip`, the terms manifest and `submission_api/trajectory_terms.py` digests; copy
@@ -33,7 +34,7 @@ to the frontend's `data/trajectory/` and verify the hashes together.
 | License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
 | Buyers | May use, including for training and evaluation, but may not publish the logs openly |
 | Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
-| Format | One .zip package up to 64 MiB (512 MiB unpacked, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
+| Format | One .zip package up to 256 MiB (2 GiB unpacked, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
 
 ## Contributor instructions
 
@@ -52,7 +53,7 @@ to the frontend's `data/trajectory/` and verify the hashes together.
    chat produced the proof.
 
 The server reads the zip in memory and never extracts it. It refuses unsafe paths, links,
-encrypted entries, more than 20,000 files or 512 MiB unpacked, and checks: the required files
+encrypted entries, more than 20,000 files or 2 GiB unpacked, and checks: the required files
 are present; `manifest.json` has the format and the four linkage values; `events.jsonl` parses
 with unique ids, known roles, and timestamps no later than export; `artifact-index.json` entries
 link real events and included files match their hashes; exactly one final proof matches the
@@ -60,11 +61,47 @@ proof digest and is linked to a dated event (before the submission time for earl
 README.md, episodes.jsonl and sample.html are not inspected and never rendered by the site. Timestamps in a file can be forged, so provenance (provider
 export digest or share link) and duplicate review remain human work.
 
+## Large uploads
+
+The website sends files larger than 8 MiB in parts automatically. The uploader still selects
+one ZIP. V053 raises the stored-package bound to 256 MiB and adds private temporary upload
+and part tables. The expanded archive is capped at 2 GiB; the 20,000-entry limit still applies.
+
+API clients can POST `/v1/me/chat-log-uploads?byte_length=N` with the usual consent query
+parameters. The response supplies `id`, `chunk_bytes` (8 MiB) and `expires_at`. PUT consecutive
+parts to `/v1/me/chat-log-uploads/{id}?offset=N`, using a ZIP content type. Each part must have
+exactly `chunk_bytes` bytes except the last. Repeating the same offset and bytes is idempotent.
+Finish by POSTing to the usual deposit or submission trajectory endpoint with the same consent,
+`upload_id={id}`, an empty ZIP body, and the usual revision state token when required.
+DELETE `/v1/me/chat-log-uploads/{id}` cancels a transfer. Ownership and normal submission
+eligibility are checked again at finalization; staging never creates a claim or spends a credit.
+
+There are at most eight staged uploads across workers, one per account, expiring after 30
+minutes. Starting again replaces that account's previous staging. Each worker permits six
+starts per account per 15 minutes, four incoming parts at once, a 120-second deadline per part,
+and one final package validation at once. The existing intake quotas apply at finalization.
+Apply V053 and deploy the API before rebuilding the website. The API container has a 4 GiB
+memory limit for the loaded catalog, package validation and PostgreSQL transfer buffers. The API role must own or have
+SELECT/INSERT/UPDATE/DELETE on the two new private tables; payout roles need no new grants.
+
+At the origin proxy, put this block before the general `/v1/` location (the server's proxy
+headers are inherited). The website's 8 MiB parts also fit the public edge's smaller body cap:
+
+```nginx
+location ~ ^/v1/me/(chat-log-uploads(?:/[^/]+)?|chat-log-deposits|submissions/[^/]+/trajectory)$ {
+    client_max_body_size 256m;
+    proxy_request_buffering off;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 600s;
+    proxy_pass http://127.0.0.1:8000;
+}
+```
+
 ## Review
 
 Reviewers attest two things before accepting (`Checklist` in `routers/trajectories.py`):
 these are the original chat logs that produced the proof, not a recreation; and the
-contributor owns the proof with no credentials or others' personal information left in. Accepting also requires a current human `REVIEW_APPROVED`
+contributor owns the proof, is allowed to share the logs, and the logs contain no live credentials. Accepting also requires a current human `REVIEW_APPROVED`
 decision on the proof, which the claim binds.
 
 - New-bounty logs can be accepted or rejected, never sent back for changes. Rejection waits
@@ -91,7 +128,7 @@ decision on the proof, which the claim binds.
 - Session-cookie owner upload with the existing origin guard; CLI tokens cannot upload or
   review. Prechecks are released before the bounded body stream. One upload per worker at a
   time, at most one per account, three successful uploads per hour and six failed attempts per
-  15 minutes, 60-second body deadline. Per-worker limits need a shared edge limit across replicas.
+  15 minutes, 600-second direct-upload body deadline. Per-worker limits need a shared edge limit across replicas.
 - Reviewer queue/download uses `REVIEWER`; decisions add the role-write and origin guard.
   Downloads are attachment, `nosniff`, sandbox CSP and `no-store`, and commit an access record
   before releasing bytes. Queue/status responses never contain package text.
@@ -105,7 +142,8 @@ decision on the proof, which the claim binds.
 ## Retention job
 
 Schedule `python scripts/purge_trajectories.py` daily with an explicit `DATABASE_URL` and alert
-on failures. It deletes unsubmitted deposits after 24 hours, removes package bytes of
+on failures. It also deletes expired temporary upload parts; starting an upload sweeps those
+parts immediately, and successful intake or explicit cancellation removes them. It deletes unsubmitted deposits after 24 hours, removes package bytes of
 non-accepted claims after 90 days (pending ones become `EXPIRED`), and deletes minimal records
 of non-accepted claims after seven years unless a required-evidence record backs a reward
 event. Accepted logs are never purged: they are the licensed sale inventory. Backups need the
