@@ -14,6 +14,8 @@ contract (`deploy/platform/CONTRACT.md` there), restated in the queries below:
 
 from __future__ import annotations
 
+import json
+
 from sqlalchemy import text
 
 from submission_api.errors import ServiceUnavailable
@@ -89,16 +91,52 @@ async def promotions(session, slot):
         text("""
         SELECT p.id AS promotion_id, p.promoted_at, p.demoted_at,
                p.champion_sha256 AS promoted_sha256, s.id, s.hotkey, s.ratio,
-               s.champion_sha256 AS timed_against
+               s.champion_sha256 AS timed_against, s.report
         FROM promotions p JOIN submissions s ON s.id = p.submission_id
         WHERE p.slot = :slot ORDER BY p.id DESC
     """),
         {"slot": slot},
     )
-    return [dict(row) for row in rows.mappings()]
+    history = []
+    for row in rows.mappings():
+        promotion = dict(row)
+        promotion["benchmark"] = benchmark_of(promotion.pop("report"))
+        history.append(promotion)
+    return history
 
 
-def speedups(history):
+# The fixed twelve classes FloatLib scored on before its suites: what a verdict without a suite
+# was timed on.
+LEGACY = "legacy"
+
+# Measured speed-ups over the shipped kernels, by benchmark and the promoted Kernel.lean's sha256.
+# A benchmark change breaks the chain of ratios (each link is timed on one benchmark); an anchor
+# restarts it on the new one: that promotion's speed-up is the measured value, and later
+# promotions on the same benchmark chain from it. Each is one operator bench run of the kernel
+# against the shipped one on that benchmark, recorded here with how it was measured.
+SPEEDUP_ANCHORS: dict[tuple[str, str], float] = {
+    # #265, the first champion timed on this suite, against the shipped kernels on it: one PROD
+    # gate --bench run per seed on 2026-10-22, ratios 0.4615 (11), 0.4459 (23), 0.4506 (37);
+    # 1 / their geometric mean.
+    (
+        "scoring-v2-2026-10",
+        "494ebfa20c8d8f0f6b93eac4684579f6382f8ee21b767c787b9da924d15fc5fe",
+    ): 2.209,
+}
+
+
+def benchmark_of(report):
+    """The benchmark a verdict was timed on: its suite's version, or `LEGACY` without one."""
+    try:
+        suite = json.loads(report).get("suite") if report else None
+    except (ValueError, AttributeError):
+        suite = None
+    if isinstance(suite, dict) and suite.get("version"):
+        return str(suite["version"])
+    return LEGACY
+
+
+def speedups(history, anchors=None):
     """Each promotion's speed-up over the shipped kernels, by promotion id; None where unknown.
 
     `ratio` is the promoted submission's total time over the code it was timed against
@@ -109,16 +147,27 @@ def speedups(history):
     shipped code, which the first promotion was timed against. The speed-up is 1 / the product of
     the ratios along it.
 
+    Every link must be timed on the promotion's own benchmark (`benchmark`): a ratio from a
+    suite times nothing on the legacy classes, so a chain does not cross a benchmark change.
+    There, an anchor in `anchors` (default `SPEEDUP_ANCHORS`) restarts it with a measured value;
+    without one the promotion and those chained from it have none.
+
     None when the chain cannot be followed: a missing ratio, a reference that is neither shipped
-    nor an earlier promotion. Each link is a separate bench run, so the product is an estimate
-    whose noise compounds with the chain's length.
+    nor an earlier promotion, or a parent on another benchmark with no anchor. Each link is a
+    separate bench run, so the product is an estimate whose noise compounds with the chain's length.
     """
     if not history:
         return {}
+    anchors = SPEEDUP_ANCHORS if anchors is None else anchors
     ordered = sorted(history, key=lambda p: p["promotion_id"])
     shipped = ordered[0]["timed_against"]
     result = {}
     for index, promotion in enumerate(ordered):
+        benchmark = promotion.get("benchmark", LEGACY)
+        anchored = anchors.get((benchmark, promotion["promoted_sha256"]))
+        if anchored is not None:
+            result[promotion["promotion_id"]] = anchored
+            continue
         ratio = promotion["ratio"]
         reference = promotion["timed_against"]
         if ratio is None or ratio <= 0 or reference is None or shipped is None:
@@ -131,7 +180,8 @@ def speedups(history):
                 (p for p in reversed(ordered[:index]) if p["promoted_sha256"] == reference),
                 None,
             )
-            base = None if parent is None else result.get(parent["promotion_id"])
+            same = parent is not None and parent.get("benchmark", LEGACY) == benchmark
+            base = result.get(parent["promotion_id"]) if same else None
         result[promotion["promotion_id"]] = None if base is None else base / ratio
     return result
 

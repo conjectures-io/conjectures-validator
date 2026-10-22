@@ -1751,6 +1751,17 @@
             ],
             "title": "Ratio"
           },
+          "speedup_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedup Basis"
+          },
           "speedup_vs_shipped": {
             "anyOf": [
               {
