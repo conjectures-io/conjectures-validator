@@ -2,7 +2,7 @@
 #
 #   dev         automatic. Moves the tag `deployed/dev`.
 #   production  waits for an approval in the `production` environment. Moves `deployed/production`
-#               and publishes a GitHub Release with generated notes (production-release.yml).
+#               and publishes a GitHub Release with generated notes (its `release` job).
 #               A change that touches operator paths (the verifier, the worker, Lean, the
 #               database stack) is not deployed automatically: an operator does the manual steps,
 #               then dispatches this workflow with operator_steps_done.
@@ -384,16 +384,110 @@ jobs:
           echo "Tagged \`deployed/dev\` → \`${SHA:0:12}\`" >> "$GITHUB_STEP_SUMMARY"
 
   # Moves deployed/production and publishes the release (or, after a rollback, marks the release
-  # returned to as Latest). The App key comes from the `release` environment inside that workflow:
-  # an environment secret cannot be passed through a workflow call.
+  # returned to as Latest). An ordinary job, like `record` above, and deliberately not a reusable
+  # workflow: a called workflow's job did not receive the `release` environment's secret, so the
+  # first production deploy succeeded and then could not record itself.
   record-production:
     name: release
     needs: [plan, deploy]
     if: >-
       !cancelled() && needs.deploy.result == 'success' &&
       needs.plan.outputs.environment == 'production'
+    runs-on: ubuntu-latest
+    # The release App's private key is a secret of the `release` environment, which only `dev` and
+    # `main` may use: a workflow pushed to any other branch cannot read it.
+    environment: release
     permissions:
       contents: write
-    uses: ./.github/workflows/production-release.yml
-    with:
-      ref: ${{ needs.plan.outputs.rollback_tag || needs.plan.outputs.sha }}
+    concurrency:
+      group: production-release
+      cancel-in-progress: false
+    steps:
+      - name: Token from the release GitHub App
+        id: app
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+
+      # The commit and the rollback tag were resolved and checked by `plan`.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch the release tags
+        shell: bash
+        run: git fetch --tags --force --quiet origin
+
+      - name: Move deployed/production
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if gh api --silent -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/deployed/production" \
+               -f sha="$SHA" -F force=true 2>/dev/null; then
+            echo "moved deployed/production to $SHA"
+          else
+            gh api --silent -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref=refs/tags/deployed/production -f sha="$SHA"
+            echo "created deployed/production at $SHA"
+          fi
+
+      # A rollback publishes nothing new: the release it returned to becomes "Latest" again, so
+      # the next release's notes start from what was actually running.
+      - name: Mark the release returned to as Latest
+        if: needs.plan.outputs.rollback_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          TAG: ${{ needs.plan.outputs.rollback_tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --latest
+          echo "Rolled back: \`$TAG\` is Latest again, \`deployed/production\` points to it." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release with generated notes
+        if: needs.plan.outputs.rollback_tag == ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # The commit may already be a release (the workflow re-run, or dispatched twice).
+          existing="$(git tag --points-at "$SHA" --list 'v*' | head -n 1)"
+          if [[ -n "$existing" ]]; then
+            gh release edit "$existing" --latest
+            echo "\`${SHA:0:12}\` is already release \`$existing\`; marked it Latest." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          base="v$(date -u +%Y.%m.%d)"; tag="$base"; n=1
+          while git rev-parse -q --verify "refs/tags/$tag" >/dev/null; do n=$((n + 1)); tag="$base.$n"; done
+          # Notes run from the release marked Latest, which is the one production ran until now.
+          args=(--target "$SHA" --title "$tag" --generate-notes --latest)
+          if previous="$(gh release view --json tagName --jq .tagName 2>/dev/null)" && [[ -n "$previous" ]]; then
+            args+=(--notes-start-tag "$previous")
+          fi
+          gh release create "$tag" "${args[@]}"
+          migrations=""
+          if [[ -n "${previous:-}" ]]; then
+            migrations="$(git diff --name-only --diff-filter=A "refs/tags/$previous" "$SHA" -- deploy/migrate/sql)"
+          fi
+          {
+            gh release view "$tag" --json body --jq .body
+            echo
+            echo "---"
+            if [[ -n "$migrations" ]]; then
+              echo "**Migrations in this release:**"
+              while IFS= read -r file; do echo "- \`$file\`"; done <<<"$migrations"
+              echo
+            fi
+            echo "Deployed commit \`$SHA\`, recorded by $RUN_URL"
+          } > notes.md
+          gh release edit "$tag" --notes-file notes.md
+          echo "Published [\`$tag\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$tag) for \`${SHA:0:12}\`." >> "$GITHUB_STEP_SUMMARY"

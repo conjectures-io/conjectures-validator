@@ -138,7 +138,7 @@ def check_package(summary, raw, *, task_id, task_bundle_sha256, proof_digest, su
     if package.exported_at > now + dt.timedelta(minutes=5):
         raise Conflict("Export time is in the future.", reason_code="TRAJECTORY_TIME_INVALID")
     if len(raw) > MAX_PACKAGE_BYTES:
-        raise Conflict("The package exceeds 64 MB.", reason_code="TRAJECTORY_SIZE")
+        raise Conflict("The package exceeds 256 MiB.", reason_code="TRAJECTORY_SIZE")
 
 
 async def store_fingerprint(session, claim, fingerprint, seen):

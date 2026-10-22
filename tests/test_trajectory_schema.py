@@ -44,7 +44,7 @@ def test_published_schema_example_and_pinned_terms():
     schema = json.loads((ROOT / "docs/trajectories/chat-log-package.schema.json").read_text())
     assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == package_schema()
     assert TERMS_SHA256 == "sha256:" + hashlib.sha256(
-        (ROOT / "docs/trajectories/chat-log-terms-v4.md").read_bytes()).hexdigest()
+        (ROOT / "docs/trajectories/chat-log-terms-v5.md").read_bytes()).hexdigest()
 
 
 @pytest.mark.parametrize("change", [
@@ -83,8 +83,47 @@ def test_required_files_paths_and_zip_safety():
     for name in ("../escape.txt", "/abs.txt"):
         with pytest.raises(PackageError, match="unsafe path"):
             parse_package(_with(raw, name, b"x"))
-    with pytest.raises(PackageError, match="exceeds 64 MiB"):
-        parse_package(b"x" * (64 * 1024 * 1024 + 1))
+    with pytest.raises(PackageError, match="exceeds 256 MiB"):
+        class Oversized(bytes):
+            def __len__(self):
+                return 256 * 1024 * 1024 + 1
+        parse_package(Oversized())
+
+
+def test_archive_size_boundaries(monkeypatch):
+    from submission_api import trajectory_schema as schema
+    assert schema.MAX_PACKAGE_BYTES == 256 * 1024 * 1024
+    assert schema.MAX_UNPACKED_BYTES == 2 * 1024 * 1024 * 1024
+    raw = build_package(example())
+    monkeypatch.setattr(schema, "MAX_PACKAGE_BYTES", len(raw))
+    assert parse_package(raw).events == 10
+    monkeypatch.setattr(schema, "MAX_PACKAGE_BYTES", len(raw) - 1)
+    with pytest.raises(PackageError, match="exceeds 256 MiB"):
+        parse_package(raw)
+    info = zipfile.ZipInfo("supporting-file.bin")
+    info.file_size = schema.MAX_UNPACKED_BYTES
+    archive = SimpleNamespace(infolist=lambda: [info])
+    assert schema._entries(archive)[info.filename] == info
+    info.file_size += 1
+    with pytest.raises(PackageError, match="more than 2 GiB"):
+        schema._entries(archive)
+
+
+def test_event_line_read_is_bounded_before_decompression(monkeypatch):
+    from submission_api import trajectory_schema as schema
+    monkeypatch.setattr(schema, "MAX_EVENT_LINE_BYTES", 32)
+    reads = []
+    class Source(io.BytesIO):
+        def readline(self, size=-1):
+            reads.append(size)
+            assert size == 35
+            return super().readline(size)
+    archive = SimpleNamespace(open=lambda info: Source(b"x" * info))
+    with pytest.raises(PackageError, match="a line is too large"):
+        list(schema._lines(archive, 1000, "events.jsonl"))
+    assert reads == [35]
+    archive = SimpleNamespace(open=lambda info: Source(b"x" * 32 + b"\r\n" + b"ok\n"))
+    assert list(schema._lines(archive, None, "events.jsonl")) == [(1, b"x" * 32), (2, b"ok")]
 
 
 def _without(raw: bytes, suffix: str) -> bytes:
@@ -147,7 +186,9 @@ def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
 
 def test_terms_assent_and_example_are_plain_and_pinned():
     assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
-    terms = (ROOT / "docs/trajectories/chat-log-terms-v4.md").read_text()
+    terms = (ROOT / "docs/trajectories/chat-log-terms-v5.md").read_text()
+    assert "You have removed" not in terms
+    assert "Anything from other people is included with\ntheir permission." in terms
     for promise in ("Every open problem requires logs", "before you submit the\nproof",
                     "up to three versions in all", "within 14 days of the request",
                     "reasoning wherever\nyour tool saved it as readable text", "do not try to decrypt or recreate it",
@@ -168,7 +209,7 @@ def test_agent_instructions_cover_every_checked_field_and_stay_neutral():
     for name in ("README.md", "events.jsonl", "episodes.jsonl", "sample.html", "artifact-index.json",
                  "manifest.json", "validation.json", "chat-log-package.zip", "conjectures-chat-log/v2"):
         assert name in guide, name
-    for rule in ("[REDACTED]", "real timestamp", "hidden chain of thought", "64 MB", "readable text",
+    for rule in ("[REDACTED]", "real timestamp", "hidden chain of thought", "256 MiB", "readable text",
                  "encrypted or withheld"):
         assert rule in guide, rule
     for word in ("owner", "licens", "permission", "legal", "broker", "sell", "buyer", "Codex", "Claude"):
@@ -225,6 +266,10 @@ def test_chat_log_launch_must_publish_the_terms_version_it_names():
     v11 = {**v10, "SUBMISSION_TERMS_VERSION": "v11"}
     path = str(root / "docs/policies/submission-terms-v11.md")
     assert Settings.from_env(production_env(**v11, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
+    v12 = {**v11, "SUBMISSION_TERMS_VERSION": "v12", "SUBMISSION_TERMS_EFFECTIVE_FROM": "2026-10-21"}
+    path = str(root / "docs/policies/submission-terms-v12.md")
+    assert Settings.from_env(production_env(**v12, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
+    assert f"../trajectories/{TERMS_VERSION}.md" in Path(path).read_text()
     # The v7 file labelled v8 is refused rather than published under the wrong version.
     with pytest.raises(SettingsError, match="must state the configured"):
         Settings.from_env(production_env(**launch, SUBMISSION_TERMS_PATH=str(root / "docs/SUBMISSION_TERMS.md")))

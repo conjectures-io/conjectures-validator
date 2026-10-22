@@ -156,8 +156,8 @@ cached input is part of input, and parallel runtimes do not sum to elapsed wall-
 
 ## 5. Deliver
 
-One folder, zipped as `chat-log-package.zip` (at most 64 MiB, the 64 MB upload limit;
-512 MiB unpacked and 20,000 ZIP entries), containing:
+One folder, zipped as `chat-log-package.zip` (at most 256 MiB zipped,
+2 GiB unpacked and 20,000 ZIP entries), containing:
 
 - `README.md`: problem, outcome, contents, key episodes and evidence limits.
 - `events.jsonl`: the full observable record.

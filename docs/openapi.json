@@ -16637,6 +16637,23 @@
               "title": "Accepted",
               "type": "boolean"
             }
+          },
+          {
+            "in": "query",
+            "name": "upload_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Upload Id"
+            }
           }
         ],
         "responses": {
@@ -16668,6 +16685,198 @@
           }
         ],
         "summary": "Deposit",
+        "tags": [
+          "trajectories"
+        ]
+      }
+    },
+    "/v1/me/chat-log-uploads": {
+      "post": {
+        "operationId": "start_upload_v1_me_chat_log_uploads_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "byte_length",
+            "required": true,
+            "schema": {
+              "maximum": 268435456,
+              "minimum": 1,
+              "title": "Byte Length",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "terms_version",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Terms Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "terms_sha256",
+            "required": true,
+            "schema": {
+              "maxLength": 71,
+              "title": "Terms Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assent_statements_sha256",
+            "required": true,
+            "schema": {
+              "maxLength": 71,
+              "title": "Assent Statements Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accepted",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Accepted",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CliBearerToken": []
+          },
+          {
+            "BrowserSession": []
+          }
+        ],
+        "summary": "Start Upload",
+        "tags": [
+          "trajectories"
+        ]
+      }
+    },
+    "/v1/me/chat-log-uploads/{upload_id}": {
+      "delete": {
+        "operationId": "discard_upload_v1_me_chat_log_uploads__upload_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CliBearerToken": []
+          },
+          {
+            "BrowserSession": []
+          }
+        ],
+        "summary": "Discard Upload",
+        "tags": [
+          "trajectories"
+        ]
+      },
+      "put": {
+        "operationId": "upload_part_v1_me_chat_log_uploads__upload_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": true,
+            "schema": {
+              "exclusiveMaximum": 268435456,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CliBearerToken": []
+          },
+          {
+            "BrowserSession": []
+          }
+        ],
+        "summary": "Upload Part",
         "tags": [
           "trajectories"
         ]
@@ -18087,6 +18296,23 @@
                 }
               ],
               "title": "Expected State Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "upload_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Upload Id"
             }
           }
         ],
