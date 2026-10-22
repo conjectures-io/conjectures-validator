@@ -354,6 +354,7 @@ async def champions(board: BoardPath, services: ServicesDep, session: Competitio
             hotkey=p["hotkey"],
             ratio=p["ratio"],
             speedup_vs_shipped=speedups.get(p["promotion_id"]),
+            speedup_basis=p["benchmark"] if speedups.get(p["promotion_id"]) is not None else None,
             promoted_at=iso(p["promoted_at"]),
             demoted_at=iso(p["demoted_at"]) if p["demoted_at"] is not None else None,
             current=current is not None and p["promotion_id"] == current["promotion_id"],

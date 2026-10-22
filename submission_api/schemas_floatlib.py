@@ -101,9 +101,13 @@ class Champion(BaseModel):
     # Against the champion it took over from: its total time over that champion's, lower faster.
     ratio: float | None = None
     # Shipped kernels' time over this champion's, higher faster: 1 / the product of the ratios
-    # along the chain of champions each was timed against. Null when that chain is broken. Each
-    # link is its own bench run, so this is an estimate. See `floatlib_store.speedups`.
+    # along the chain of champions each was timed against. Null when that chain is broken,
+    # including where it would cross a benchmark change with no measured anchor. Each link is its
+    # own bench run, so this is an estimate. See `floatlib_store.speedups`.
     speedup_vs_shipped: float | None = None
+    # The benchmark `speedup_vs_shipped` is measured on: "legacy" for the fixed classes, otherwise
+    # the suite's version. Figures on different benchmarks are not comparable. Null with it.
+    speedup_basis: str | None = None
     promoted_at: str
     # Set only when its own bench failed too often and it was demoted.
     demoted_at: str | None = None
