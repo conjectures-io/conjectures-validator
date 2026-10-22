@@ -34,6 +34,7 @@ from submission_api.competitions import (
     UnknownCompetition,
 )
 from submission_api.dependencies import get_services
+from submission_api import floatlib_store as store_module
 from submission_api.errors import ApiError, api_error_handler
 from submission_api.routers import competition_reads, competitions as intake, floatlib
 from submission_api.settings import SettingsError
@@ -483,6 +484,7 @@ def test_champions_lists_every_champion_and_marks_the_one_holding_the_board(floa
         "ratio": 0.8,
         # Timed against the shipped code: 1 / 0.8.
         "speedup_vs_shipped": 1.25,
+        "speedup_basis": "legacy",
         "promoted_at": "2026-10-08T10:05:00Z",
         "demoted_at": None,
         "current": True,
@@ -529,6 +531,50 @@ def test_speedup_follows_the_code_each_champion_was_timed_against(floatlib_db):
     execute(floatlib_db, "UPDATE submissions SET champion_sha256 = :x WHERE id = 3", x="9" * 64)
     (broken,) = read(floatlib_db, "/v1/competitions/floatlib/champions")
     assert {c["submission"]: c["speedup_vs_shipped"] for c in broken.json()}[3] is None
+
+
+def test_a_speedup_does_not_chain_across_a_benchmark_change(floatlib_db, monkeypatch):
+    """Bob was timed on a suite against Alice's legacy-timed code: his ratio says nothing about
+    the legacy classes, so without a measured anchor he has no speed-up; with one, he and the
+    suite champions after him do, labelled with the suite."""
+    suite = json.dumps({"suite": {"version": "scoring-v2-test", "sha256": "e" * 64}})
+    execute(
+        floatlib_db,
+        "UPDATE submissions SET report = :report WHERE id IN (2, 3)",
+        report=suite,
+    )
+    execute(
+        floatlib_db,
+        "INSERT INTO promotions (slot, submission_id, champion_sha256, promoted_at) "
+        "VALUES ('full', 2, :digest, :at)",
+        digest="2" * 64,
+        at=T0 + timedelta(hours=1),
+    )
+    execute(
+        floatlib_db,
+        "UPDATE submissions SET champion_sha256 = :bob, ratio = 0.5 WHERE id = 3",
+        bob="2" * 64,
+    )
+    execute(
+        floatlib_db,
+        "INSERT INTO promotions (slot, submission_id, champion_sha256, promoted_at) "
+        "VALUES ('full', 3, :digest, :at)",
+        digest="3" * 64,
+        at=T0 + timedelta(hours=2),
+    )
+    (response,) = read(floatlib_db, "/v1/competitions/floatlib/champions")
+    by_id = {c["submission"]: c for c in response.json()}
+    assert (by_id[1]["speedup_vs_shipped"], by_id[1]["speedup_basis"]) == (1.25, "legacy")
+    for sub in (2, 3):
+        assert (by_id[sub]["speedup_vs_shipped"], by_id[sub]["speedup_basis"]) == (None, None)
+
+    monkeypatch.setattr(store_module, "SPEEDUP_ANCHORS", {("scoring-v2-test", "2" * 64): 3.0})
+    (anchored,) = read(floatlib_db, "/v1/competitions/floatlib/champions")
+    by_id = {c["submission"]: c for c in anchored.json()}
+    assert (by_id[2]["speedup_vs_shipped"], by_id[2]["speedup_basis"]) == (3.0, "scoring-v2-test")
+    assert by_id[3]["speedup_vs_shipped"] == pytest.approx(3.0 / 0.5)
+    assert by_id[3]["speedup_basis"] == "scoring-v2-test"
+    assert by_id[1]["speedup_vs_shipped"] == 1.25
 
 
 def test_a_submission_reads_in_floatlibs_shape_and_only_under_its_own_slot(floatlib_db):
