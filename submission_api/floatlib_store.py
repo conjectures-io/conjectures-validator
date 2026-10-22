@@ -114,7 +114,15 @@ LEGACY = "legacy"
 # restarts it on the new one: that promotion's speed-up is the measured value, and later
 # promotions on the same benchmark chain from it. Each is one operator bench run of the kernel
 # against the shipped one on that benchmark, recorded here with how it was measured.
-SPEEDUP_ANCHORS: dict[tuple[str, str], float] = {}
+SPEEDUP_ANCHORS: dict[tuple[str, str], float] = {
+    # #265, the first champion timed on this suite, against the shipped kernels on it: one PROD
+    # gate --bench run per seed on 2026-10-22, ratios 0.4615 (11), 0.4459 (23), 0.4506 (37);
+    # 1 / their geometric mean.
+    (
+        "scoring-v2-2026-10",
+        "494ebfa20c8d8f0f6b93eac4684579f6382f8ee21b767c787b9da924d15fc5fe",
+    ): 2.209,
+}
 
 
 def benchmark_of(report):
