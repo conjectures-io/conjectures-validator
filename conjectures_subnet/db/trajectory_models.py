@@ -49,7 +49,7 @@ class TrajectoryClaim(Base):
         CheckConstraint("amount_usd_cents = 0 OR proof_review_decision_id IS NOT NULL", name="trajectory_historical_decision"),
         CheckConstraint("state_version > 0", name="trajectory_state_version"),
         CheckConstraint("revision BETWEEN 1 AND 3", name="trajectory_revision_bound"),
-        CheckConstraint("package IS NULL OR octet_length(package) <= 67108864", name="trajectory_package_bound"),
+        CheckConstraint("package IS NULL OR octet_length(package) <= 268435456", name="trajectory_package_bound"),
         CheckConstraint("package IS NULL OR pg_catalog.sha256(package) = package_digest", name="trajectory_package_hash"),
         CheckConstraint("terms_version LIKE 'chat-log-terms-%'", name="trajectory_terms"),
         CheckConstraint("expires_at > created_at AND audit_expires_at > expires_at", name="trajectory_retention"),
@@ -57,6 +57,30 @@ class TrajectoryClaim(Base):
         Index("trajectory_account_idx", "account_id", "created_at"),
         Index("trajectory_queue_idx", "status", "created_at"),
         Index("trajectory_one_approved_target", "reward_target_id", unique=True, postgresql_where=text("status IN ('APPROVED_MANUAL_PAYMENT','APPROVED_BOUNTY_EVIDENCE')")),
+    )
+
+
+class TrajectoryUpload(Base):
+    __tablename__ = "trajectory_uploads"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), unique=True, nullable=False)
+    byte_length: Mapped[int] = mapped_column(Integer, nullable=False)
+    received_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    __table_args__ = (
+        CheckConstraint("byte_length BETWEEN 1 AND 268435456", name="trajectory_upload_size"),
+        CheckConstraint("received_bytes BETWEEN 0 AND byte_length", name="trajectory_upload_received"),
+    )
+
+
+class TrajectoryUploadChunk(Base):
+    __tablename__ = "trajectory_upload_chunks"
+    upload_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("trajectory_uploads.id", ondelete="CASCADE"), primary_key=True)
+    byte_offset: Mapped[int] = mapped_column(Integer, primary_key=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    __table_args__ = (
+        CheckConstraint("byte_offset >= 0 AND byte_offset % 8388608 = 0", name="trajectory_chunk_offset"),
+        CheckConstraint("octet_length(data) BETWEEN 1 AND 8388608", name="trajectory_chunk_size"),
     )
 
 

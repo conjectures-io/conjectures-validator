@@ -83,8 +83,30 @@ def test_required_files_paths_and_zip_safety():
     for name in ("../escape.txt", "/abs.txt"):
         with pytest.raises(PackageError, match="unsafe path"):
             parse_package(_with(raw, name, b"x"))
-    with pytest.raises(PackageError, match="exceeds 64 MiB"):
-        parse_package(b"x" * (64 * 1024 * 1024 + 1))
+    with pytest.raises(PackageError, match="exceeds 256 MiB"):
+        class Oversized(bytes):
+            def __len__(self):
+                return 256 * 1024 * 1024 + 1
+        parse_package(Oversized())
+
+
+def test_archive_size_boundaries(monkeypatch):
+    from submission_api import trajectory_schema as schema
+    assert schema.MAX_PACKAGE_BYTES == 256 * 1024 * 1024
+    assert schema.MAX_UNPACKED_BYTES == 2 * 1024 * 1024 * 1024
+    raw = build_package(example())
+    monkeypatch.setattr(schema, "MAX_PACKAGE_BYTES", len(raw))
+    assert parse_package(raw).events == 10
+    monkeypatch.setattr(schema, "MAX_PACKAGE_BYTES", len(raw) - 1)
+    with pytest.raises(PackageError, match="exceeds 256 MiB"):
+        parse_package(raw)
+    info = zipfile.ZipInfo("supporting-file.bin")
+    info.file_size = schema.MAX_UNPACKED_BYTES
+    archive = SimpleNamespace(infolist=lambda: [info])
+    assert schema._entries(archive)[info.filename] == info
+    info.file_size += 1
+    with pytest.raises(PackageError, match="more than 2 GiB"):
+        schema._entries(archive)
 
 
 def _without(raw: bytes, suffix: str) -> bytes:
@@ -170,7 +192,7 @@ def test_agent_instructions_cover_every_checked_field_and_stay_neutral():
     for name in ("README.md", "events.jsonl", "episodes.jsonl", "sample.html", "artifact-index.json",
                  "manifest.json", "validation.json", "chat-log-package.zip", "conjectures-chat-log/v2"):
         assert name in guide, name
-    for rule in ("[REDACTED]", "real timestamp", "hidden chain of thought", "64 MB", "readable text",
+    for rule in ("[REDACTED]", "real timestamp", "hidden chain of thought", "256 MiB", "readable text",
                  "encrypted or withheld"):
         assert rule in guide, rule
     for word in ("owner", "licens", "permission", "legal", "broker", "sell", "buyer", "Codex", "Claude"):
