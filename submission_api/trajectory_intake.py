@@ -44,7 +44,7 @@ def prepare_upload(raw: bytes, consent: dict, expected_state_version=None):
 
 
 class UploadBudget:
-    """One 64-MiB package check at a time per worker; no waiting requests hold a DB connection.
+    """One 256-MiB package check at a time per worker; no waiting requests hold a DB connection.
 
     Process-local limits complement the deployment's IP limiter. Replicas need a shared edge
     limit for a global quota. Failed attempts, including invalid exports, spend a separate budget.

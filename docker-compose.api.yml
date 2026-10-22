@@ -203,7 +203,8 @@ services:
         limits:
           cpus: "2.0"
           # Five million lexical tokens approach 1 GiB before request/DB buffers.
-          memory: 2G
+          # Large ZIP validation and PostgreSQL transfer coexist with the loaded catalog.
+          memory: 4G
           pids: 512
         reservations:
           cpus: "0.5"

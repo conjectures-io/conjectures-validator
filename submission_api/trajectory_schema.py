@@ -21,8 +21,8 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
 FORMAT = "conjectures-chat-log/v2"
-MAX_PACKAGE_BYTES = 64 * 1024 * 1024
-MAX_UNPACKED_BYTES = 512 * 1024 * 1024
+MAX_PACKAGE_BYTES = 256 * 1024 * 1024
+MAX_UNPACKED_BYTES = 2 * 1024 * 1024 * 1024
 MAX_FILES = 20_000
 MAX_JSON_FILE_BYTES = 32 * 1024 * 1024
 MAX_EVENT_LINE_BYTES = 64 * 1024 * 1024
@@ -136,7 +136,7 @@ def _entries(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
             raise PackageError("duplicate path in the package")
         unpacked += info.file_size
         if unpacked > MAX_UNPACKED_BYTES:
-            raise PackageError("the package unpacks to more than 512 MiB")
+            raise PackageError("the package unpacks to more than 2 GiB")
         if not info.is_dir():
             names[info.filename] = info
     return names
@@ -163,7 +163,13 @@ def _json_file(archive, info, file):
 
 def _lines(archive, info, file):
     with archive.open(info) as source:
-        for number, raw in enumerate(source, 1):
+        number = 0
+        # A malformed single line can otherwise inflate the entire 2 GiB archive into RAM
+        # before the line limit runs. Allow the content limit plus CRLF, then one sentinel byte.
+        while raw := source.readline(MAX_EVENT_LINE_BYTES + 3):
+            number += 1
+            if len(raw) > MAX_EVENT_LINE_BYTES + 2:
+                raise PackageError("a line is too large", file=file, line=number)
             raw = raw.rstrip(b"\r\n")
             if not raw:
                 raise PackageError("blank lines are not allowed", file=file, line=number)
@@ -175,7 +181,7 @@ def _lines(archive, info, file):
 def parse_package(raw: bytes) -> PackageSummary:
     """Check a zip package held in memory; memory beyond the zip is bounded by one line or file."""
     if len(raw) > MAX_PACKAGE_BYTES:
-        raise PackageError("package exceeds 64 MiB")
+        raise PackageError("package exceeds 256 MiB")
     try:
         archive = zipfile.ZipFile(io.BytesIO(raw))
         names = _entries(archive)
@@ -308,9 +314,9 @@ SAFE_SEMANTIC_ERRORS = frozenset((
     'invalid JSON',
     'links are not allowed in the package',
     'nonfinite JSON',
-    'package exceeds 64 MiB',
+    'package exceeds 256 MiB',
     'the package is missing a required file',
-    'the package unpacks to more than 512 MiB',
+    'the package unpacks to more than 2 GiB',
     'the zip could not be read',
     'too many files in the package',
     'unsafe path in the package',
