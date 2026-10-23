@@ -2110,6 +2110,11 @@
         "additionalProperties": false,
         "description": "One conjecture in full, with every task issued against it.\n\nThe statement, docstring, category and classification are properties of the conjecture and\nare published once. The Lean source and the machine contract are properties of a *task* — one\nper attack direction — and live under `tasks`.",
         "properties": {
+          "accepting_submissions": {
+            "description": "Whether intake accepts a submission to this target right now: submissions are switched on platform-wide and the bounty is payable (`bounty.available`). Decide whether to offer a submit action from this, not from `display_status`, which shows the stronger of two facts: an `in_review` target still accepts submissions when this is true, and refuses them when this is false. Leaves out what depends on the caller: credits, a linked coldkey and, when the bounty's `policy_version` requires chat logs, a chat-log deposit made beforehand. Always false on a retired or held target",
+            "title": "Accepting Submissions",
+            "type": "boolean"
+          },
           "added_at": {
             "anyOf": [
               {
@@ -2270,6 +2275,11 @@
             "title": "Submission Price Rao",
             "type": "integer"
           },
+          "submissions_open": {
+            "description": "Whether the platform accepts submissions at all; the same value as `/v1/system/status` and the list's `submissions_open`",
+            "title": "Submissions Open",
+            "type": "boolean"
+          },
           "summary": {
             "anyOf": [
               {
@@ -2344,6 +2354,8 @@
           "tasks",
           "bounty",
           "display_status",
+          "accepting_submissions",
+          "submissions_open",
           "submission_price_rao",
           "attempts",
           "repository_commit",
@@ -2544,6 +2556,11 @@
         "additionalProperties": false,
         "description": "One conjecture as it appears in a list. No Lean source, no full statement.\n\nOne entry per conjecture, not per task: the two attack directions are folded into `tasks`.",
         "properties": {
+          "accepting_submissions": {
+            "description": "Whether intake accepts a submission to this target right now: submissions are switched on platform-wide and the bounty is payable (`bounty.available`). Decide whether to offer a submit action from this, not from `display_status`, which shows the stronger of two facts: an `in_review` target still accepts submissions when this is true, and refuses them when this is false. Leaves out what depends on the caller: credits, a linked coldkey and, when the bounty's `policy_version` requires chat logs, a chat-log deposit made beforehand. Always false on a retired or held target",
+            "title": "Accepting Submissions",
+            "type": "boolean"
+          },
           "added_at": {
             "anyOf": [
               {
@@ -2703,6 +2720,7 @@
           "tasks",
           "bounty",
           "display_status",
+          "accepting_submissions",
           "attempts"
         ],
         "title": "ConjectureSummary",
