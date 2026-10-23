@@ -76,7 +76,12 @@ DEFAULT_BOUNTY_MAX_SHARE_DENOMINATOR = 8
 DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS = 60
 DEFAULT_BITTENSOR_NETWORK = "finney"
 DEFAULT_BOUNTY_NETUID = 66
-DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS = 60
+# Each refresh is two TaoStats requests (TAO/USD and the subnet pool), made whenever a priced read
+# finds the cache expired, so a server with steady traffic spends 2 per window: at 60 s that was
+# about 86,000 a month and emptied a 10,000-credit key in under four days. 600 s keeps it near
+# 8,600, leaving room for the payout workers' reads and restarts, and a USD display figure that is
+# ten minutes old is still a fair one. A failed read is cached for the same window.
+DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS = 600
 
 POLICY_VERSION = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
 
