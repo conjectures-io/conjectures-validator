@@ -2,7 +2,18 @@
 
 FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
 
+# Reject the compromised eMudhra chains even when a base image or mirror has an old CA bundle.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt$|!&|' \
+              -e 's|^mozilla/Comodo_AAA_Services_root.crt$|!&|' /etc/ca-certificates.conf \
+    && /usr/sbin/update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements-service.lock ./
+# Bootstrap pip against the patched system store; pip also bundles its own CA certificates.
+RUN PIP_CERT=/etc/ssl/certs/ca-certificates.crt python -m pip install --no-cache-dir --upgrade pip==26.2.2
+
 RUN pip install --no-cache-dir --constraint requirements-service.lock \
       SQLAlchemy greenlet 'psycopg[binary]' \
     && rm -f requirements-service.lock

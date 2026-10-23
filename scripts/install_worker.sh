@@ -103,6 +103,9 @@ fi
 # script's shebang, so after a release is relocated `bin/pip` names an interpreter that no longer
 # exists. `bin/python` is a symlink and survives the move, and running pip as a module needs no
 # shebang — so a moved environment is reused rather than rebuilt or, worse, silently broken.
+# pip has its own CA bundle; bootstrap the security update using the system trust store.
+PIP_CERT="${PIP_CERT:-/etc/ssl/certs/ca-certificates.crt}" \
+  "$RELEASE/.venv/bin/python" -m pip install --quiet --upgrade pip==26.2.2
 "$RELEASE/.venv/bin/python" -m pip install --quiet \
   --constraint "$RELEASE/requirements-service.lock" \
   SQLAlchemy greenlet 'psycopg[binary]'
