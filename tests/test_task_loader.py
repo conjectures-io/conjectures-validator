@@ -10,6 +10,7 @@ from verifier.hashing import sha256_file
 from verifier.repository import tasks_repository_root
 from verifier.task_generator import MAX_SUBMISSION_BYTES, task_id
 from verifier.task_loader import load_task, load_task_bundle, verify_trusted_hashes
+from verifier.task_pool import DEFAULT_TIER_TASK_COUNT
 
 from conftest import recommit_trusted_files, relabel_adapter_version
 
@@ -170,7 +171,7 @@ def test_published_headers_and_preserved_versions_load_under_their_commitments()
 
     registry = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
     assert len(registry.versions) >= 550
-    assert sum(record.state == "active" for record in registry.versions.values()) == 548
+    assert sum(record.state == "active" for record in registry.versions.values()) == DEFAULT_TIER_TASK_COUNT
     header_versions = set()
     for record in registry.versions.values():
         bundle = load_task_bundle(TASKS_ROOT / record.location)
