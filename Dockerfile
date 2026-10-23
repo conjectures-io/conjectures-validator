@@ -14,6 +14,9 @@ LABEL org.conjectures.ubuntu-snapshot=20261006T000000Z
 RUN apt-get -o APT::Update::Error-Mode=any -o Acquire::https::CaInfo=/usr/share/keyrings/ubuntu-snapshot-root.crt update --snapshot 20261006T000000Z && apt-get -o Acquire::https::CaInfo=/usr/share/keyrings/ubuntu-snapshot-root.crt install --snapshot 20261006T000000Z -y --no-install-recommends \
       ca-certificates curl git build-essential zstd python3 \
       golang-go cargo pkg-config libssl-dev tini \
+    && sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt$|!&|' \
+              -e 's|^mozilla/Comodo_AAA_Services_root.crt$|!&|' /etc/ca-certificates.conf \
+    && /usr/sbin/update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/fc-verifier
