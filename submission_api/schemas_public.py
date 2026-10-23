@@ -114,6 +114,16 @@ DISPLAY_STATUS_DESCRIPTION = (
 )
 
 
+ACCEPTING_SUBMISSIONS_DESCRIPTION = (
+    "Whether intake accepts a submission to this target right now: submissions are switched on "
+    "platform-wide and the bounty is payable (`bounty.available`). Decide whether to offer a "
+    "submit action from this, not from `display_status`, which shows the stronger of two facts: "
+    "an `in_review` target still accepts submissions when this is true, and refuses them when "
+    "this is false. Leaves out what depends on the caller: credits, a linked coldkey and, when "
+    "the bounty's `policy_version` requires chat logs, a chat-log deposit made beforehand. "
+    "Always false on a retired or held target"
+)
+
 # --- Pagination ----------------------------------------------------------------------------
 
 
@@ -390,6 +400,7 @@ class ConjectureSummary(Model):
     tasks: tuple[ConjectureTask, ...]
     bounty: BountyInfo
     display_status: DisplayStatus = Field(description=DISPLAY_STATUS_DESCRIPTION)
+    accepting_submissions: bool = Field(description=ACCEPTING_SUBMISSIONS_DESCRIPTION)
     added_at: datetime | None = Field(
         default=None,
         description=(
@@ -515,6 +526,13 @@ class ConjectureDetail(Model):
     tasks: tuple[ConjectureTaskDetail, ...]
     bounty: BountyInfo
     display_status: DisplayStatus = Field(description=DISPLAY_STATUS_DESCRIPTION)
+    accepting_submissions: bool = Field(description=ACCEPTING_SUBMISSIONS_DESCRIPTION)
+    submissions_open: bool = Field(
+        description=(
+            "Whether the platform accepts submissions at all; the same value as "
+            "`/v1/system/status` and the list's `submissions_open`"
+        )
+    )
     added_at: datetime | None = Field(
         default=None,
         description=(

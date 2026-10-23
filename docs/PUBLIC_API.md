@@ -158,7 +158,7 @@ So both fold into one conjecture, and the per-task facts live under `tasks`:
 
 | Level | Fields |
 | --- | --- |
-| Conjecture | `slug`, `title`, `statement`, `summary`, `category`, `classification`, `tier`, `ams_subjects`, `is_open`, `problem_id`, `reward_target_id`, `task_modes`, `attempts`, `display_status`, `added_at`, `solved_at`, and on the detail endpoint `source_url` and `source_patched` |
+| Conjecture | `slug`, `title`, `statement`, `summary`, `category`, `classification`, `tier`, `ams_subjects`, `is_open`, `problem_id`, `reward_target_id`, `task_modes`, `attempts`, `display_status`, `accepting_submissions`, `added_at`, `solved_at`, and on the detail endpoint `submissions_open`, `source_url` and `source_patched` |
 | Task (one per direction) | `task_id`, `task_mode`, `task_bundle_sha256`, `attempts`, and on the detail endpoint `challenge_lean`, `bundle_url` and `machine_contract` |
 
 `meta.conjectures` counts conjectures, so it is half what a task count would report.
@@ -431,7 +431,17 @@ For a live target the first match wins, in the order solved / formalization_defe
 submissions_paused, unfunded, open. The list carries live targets only, so `solved_elsewhere`,
 `withdrawn` and `on_hold` appear only on a retired or held detail page. The list response also
 carries top-level `submissions_open`, the same value as `/v1/system/status`, so the catalog needs
-no second request.
+no second request; the detail page carries it too.
+
+**Whether to offer a submit action is `accepting_submissions`, not `display_status`.** The status
+shows the strongest fact about a target, and `in_review` outranks the reasons intake refuses: a
+target can read `in_review` while its bounty is `CHAT_LOG_REVIEW_UNAVAILABLE`. A proof awaiting
+review does not close a target, so on an `in_review` target intake takes another submission when
+`accepting_submissions` is true; if the earlier proof is approved, the later one earns no bounty.
+`accepting_submissions` is `submissions_open` and `bounty.available` together, the checks intake
+makes before it looks at the caller. It leaves out what depends on the caller — credits, a linked
+coldkey and, when the bounty's `policy_version` is `linear-age-v3-chat-logs`, a chat-log deposit made
+beforehand — and is always false on a retired or held target.
 
 `added_at` is when this API first listed the target. It survives pin rotations and restarts and is
 the right key for "new"; it is not a pin date, because pins carry none. `solved_at` is when review
