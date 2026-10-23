@@ -29,7 +29,7 @@ RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 274
+DEFAULT_TIER_SIZE = 290
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = 219
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
@@ -49,10 +49,12 @@ GREENS_OPEN_PROBLEMS_SOURCE_FAMILY = "greens-open-problems"
 WIKIPEDIA_SOURCE_FAMILY = "wikipedia"
 MILLENNIUM_SOURCE_FAMILY = "millennium"
 RESEARCH_TARGETS_SOURCE_FAMILY = "research-targets"
+HISTORICAL_OPEN_SOURCE_FAMILY = "historical-open"
 # Classical named sources share the retained-status evidence in `classical-status-audit.json`.
 CLASSICAL_SOURCE_FAMILIES = frozenset({WIKIPEDIA_SOURCE_FAMILY, MILLENNIUM_SOURCE_FAMILY})
-NAMED_SOURCE_FAMILIES = CLASSICAL_SOURCE_FAMILIES | {RESEARCH_TARGETS_SOURCE_FAMILY}
+NAMED_SOURCE_FAMILIES = CLASSICAL_SOURCE_FAMILIES | {RESEARCH_TARGETS_SOURCE_FAMILY, HISTORICAL_OPEN_SOURCE_FAMILY}
 SOURCE_FAMILY_PREFIXES = {
+    HISTORICAL_OPEN_SOURCE_FAMILY: "FormalConjectures/HistoricalOpen/",
     WIKIPEDIA_SOURCE_FAMILY: "FormalConjectures/Wikipedia/",
     MILLENNIUM_SOURCE_FAMILY: "FormalConjectures/Millennium/",
     RESEARCH_TARGETS_SOURCE_FAMILY: "FormalConjectures/ResearchTargets/",
@@ -64,6 +66,7 @@ SOURCE_FAMILY_THEOREM_PREFIXES = {
     GREENS_OPEN_PROBLEMS_SOURCE_FAMILY: "Green",
 }
 SOURCE_FAMILY_STATUSES = {
+    HISTORICAL_OPEN_SOURCE_FAMILY: frozenset({"open"}),
     WIKIPEDIA_SOURCE_FAMILY: frozenset({"open"}),
     MILLENNIUM_SOURCE_FAMILY: frozenset({"open"}),
     RESEARCH_TARGETS_SOURCE_FAMILY: frozenset({"open"}),
@@ -72,6 +75,23 @@ SOURCE_FAMILY_STATUSES = {
 }
 # Named source identities are explicit: a similar filename or namespace is not admission.
 NAMED_SOURCE_NAMESPACES = {
+    'FormalConjectures/HistoricalOpen/HajosCycleDecomposition.lean': 'FullOldProblemsCatalog.HajosCycleDecomposition',
+    'FormalConjectures/HistoricalOpen/BergeFulkerson.lean': 'FullOldProblemsCatalog.BergeFulkerson',
+    'FormalConjectures/HistoricalOpen/VizingIndependence.lean': 'FullOldProblemsCatalog.VizingIndependence',
+    'FormalConjectures/HistoricalOpen/ChvatalToughness.lean': 'FullOldProblemsCatalog.ChvatalToughness',
+    'FormalConjectures/HistoricalOpen/LovaszHamiltonPath.lean': 'FullOldProblemsCatalog.LovaszHamiltonPath',
+    'FormalConjectures/HistoricalOpen/KotzigPerfectFactorization.lean': 'FullOldProblemsCatalog.KotzigPerfectFactorization',
+    'FormalConjectures/HistoricalOpen/SidonSubsetAsymptotic.lean': 'FullOldProblemsCatalog.SidonSubsetAsymptotic',
+    'FormalConjectures/HistoricalOpen/TutteFiveFlow.lean': 'FullOldProblemsCatalog.TutteFiveFlow',
+    'FormalConjectures/HistoricalOpen/TutteThreeFlow.lean': 'FullOldProblemsCatalog.TutteThreeFlow',
+    'FormalConjectures/HistoricalOpen/RiddellErdosProgressionRatio.lean': 'FullOldProblemsCatalog.RiddellErdosProgressionRatio',
+    'FormalConjectures/HistoricalOpen/ErdosCriticalMinimumDegree.lean': 'FullOldProblemsCatalog.ErdosCriticalMinimumDegree',
+    'FormalConjectures/HistoricalOpen/ErdosPurdyDegenerateQuadruples.lean': 'FullOldProblemsCatalog.ErdosPurdyDegenerateQuadruples',
+    'FormalConjectures/HistoricalOpen/MarcusDeOliveira.lean': 'FullOldProblemsCatalog.MarcusDeOliveira',
+    'FormalConjectures/HistoricalOpen/MinkowskiInhomogeneousProduct.lean': 'FullOldProblemsCatalog.MinkowskiInhomogeneousProduct',
+    'FormalConjectures/HistoricalOpen/MarcusBlockPermanent.lean': 'FullOldProblemsCatalog.MarcusBlockPermanent',
+    'FormalConjectures/HistoricalOpen/WangHadamardPermanentNonvanishing.lean': 'FullOldProblemsCatalog.WangHadamardPermanentNonvanishing',
+
     "FormalConjectures/Millennium/RiemannHypothesis.lean": "RiemannHypothesis",
     "FormalConjectures/ResearchTargets/Math15.lean": "Math15Catalog",
     "FormalConjectures/ResearchTargets/Math30.lean": "Math30Catalog",
@@ -141,6 +161,17 @@ ACTIVATED_RESEARCH_TARGETS: frozenset[str] = frozenset(
         "Math30Catalog.source30",
     }
 )
+# These full historical statements are admitted only by exact source/declaration pairs.
+# The separate status file binds their claim and duplicate screen to the selection audit.
+HISTORICAL_OPEN_TARGETS = frozenset(
+    namespace + ".conjecture"
+    for path, namespace in NAMED_SOURCE_NAMESPACES.items()
+    if path.startswith(SOURCE_FAMILY_PREFIXES[HISTORICAL_OPEN_SOURCE_FAMILY])
+)
+HISTORICAL_STATUS_LOCATOR = (
+    "https://github.com/conjectures-io/conjectures-tasks/blob/main/"
+    "tiers/tier-1/historical-open-status-audit.json"
+)
 SOURCE_STATUS_SPECS = (
     {
         "family": ERDOS_SOURCE_FAMILY,
@@ -163,6 +194,10 @@ SOURCE_STATUS_SPECS += (
         "locator": RESEARCH_TARGET_DECISIONS_LOCATOR,
         "revision_kind": "sha256",
     },
+)
+SOURCE_STATUS_SPECS += (
+    {"family": HISTORICAL_OPEN_SOURCE_FAMILY, "locator": HISTORICAL_STATUS_LOCATOR,
+     "revision_kind": "sha256"},
 )
 EXCLUDED_SOURCE_PREFIXES: tuple[str, ...] = ()
 FEASIBILITY_SIGNALS = frozenset(
@@ -384,6 +419,7 @@ def _valid_source_identity(
             and source_path == f"{SOURCE_FAMILY_PREFIXES[family]}{problem_number}.lean"
             and namespace is not None
             and theorem.startswith(namespace + ".")
+            and (family != HISTORICAL_OPEN_SOURCE_FAMILY or theorem in HISTORICAL_OPEN_TARGETS)
         )
     if type(problem_number) is not int or problem_number <= 0:
         return False
@@ -558,6 +594,39 @@ def load_selection_audit(path: Path) -> SelectionAudit:
                 for entry in named_entries
             ):
                 raise ValueError("named target lacks a matching retained status review")
+        historical_entries = tuple(
+            entry for entry in entries if entry.source_family == HISTORICAL_OPEN_SOURCE_FAMILY
+        )
+        if historical_entries:
+            evidence_bytes = path.with_name("historical-open-status-audit.json").read_bytes()
+            evidence_hash = sha256_bytes(evidence_bytes).removeprefix("sha256:")
+            if any(
+                item["revision"] != evidence_hash
+                for item in value["source_status_sources"]
+                if item["family"] == HISTORICAL_OPEN_SOURCE_FAMILY
+            ):
+                raise ValueError("historical status evidence digest does not match")
+            evidence = json.loads(evidence_bytes)
+            if (not isinstance(evidence, dict)
+                    or type(evidence.get("schema_version")) is not int
+                    or evidence["schema_version"] != 1):
+                raise ValueError("historical status evidence schema is invalid")
+            candidates = evidence.get("candidates")
+            if not isinstance(candidates, list) or not all(
+                isinstance(item, dict) and isinstance(item.get("theorem"), str)
+                for item in candidates
+            ):
+                raise ValueError("historical status evidence candidates are invalid")
+            reviewed = {item["theorem"]: item for item in candidates}
+            if len(reviewed) != len(candidates) or any(
+                entry.theorem not in reviewed
+                or reviewed[entry.theorem].get("source_path") != entry.source_path
+                or reviewed[entry.theorem].get("disposition") != "retain_provisionally_open"
+                or reviewed[entry.theorem].get("full_original_question") is not True
+                or reviewed[entry.theorem].get("full_resolution_claim_found") is not False
+                for entry in historical_entries
+            ):
+                raise ValueError("historical target lacks a matching full-problem status review")
         research_entries = tuple(
             entry for entry in entries if entry.source_family == RESEARCH_TARGETS_SOURCE_FAMILY
         )

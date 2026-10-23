@@ -99773,6 +99773,631 @@
       "contains_sorry_in_value": false,
       "declaration_kind": "theorem",
       "depends_on_sorry": true,
+      "docstring": "All finite bridgeless cubic multigraphs; six perfect matchings; each edge exactly twice. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.BergeFulkerson",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://arxiv.org/abs/2607.29511)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/BergeFulkerson.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.BergeFulkerson.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:d51935831b42924fdc48380dacee5f1f14c97ea0818e4465a651661750db1fd0",
+      "type_pretty": "FullOldProblems.BergeFulkerson"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "A universal positive real threshold for Hamiltonicity of all tough simple graphs of order at least three. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.ChvatalToughness",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://arxiv.org/abs/2506.12684)",
+        "[Source 2](https://doi.org/10.1016/j.disc.2026.115364)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/ChvatalToughness.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.ChvatalToughness.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:5fc61d67d09a65f7a6d08321da0a16195972d71ebc61f6ccaca2a36817772da0",
+      "type_pretty": "FullOldProblems.ChvatalToughness"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "There is epsilon > 0 and arbitrarily large n with an n-vertex edge-critical four-chromatic simple graph of minimum degree at least epsilon*n. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.ErdosCriticalMinimumDegree",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://doi.org/10.1080/16073606.1993.9631741)",
+        "[Source 2](https://www.erdosproblems.com/1032)",
+        "[Source 3](https://www.erdosproblems.com/forum/thread/1032)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/ErdosCriticalMinimumDegree.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.ErdosCriticalMinimumDegree.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:19ff1ee8b703c8efc3dff563936254774e8117f48f95e1209e1d593c9b040685",
+      "type_pretty": "FullOldProblems.ErdosCriticalMinimumDegree"
+    },
+    {
+      "ams_subjects": [
+        52
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "For every epsilon > 0, all sufficiently large finite planar sets A have at most |A|^(3+epsilon) four-point subsets with fewer than six distinct pair distances. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.ErdosPurdyDegenerateQuadruples",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://users.renyi.hu/~p_erdos/1971-20.pdf)",
+        "[Source 2](https://www.erdosproblems.com/1087)",
+        "[Source 3](https://www.erdosproblems.com/forum/thread/1087)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/ErdosPurdyDegenerateQuadruples.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.ErdosPurdyDegenerateQuadruples.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:4c1995d161a3dd11565f99b7cb730a85933491292a185fcf09f1452dcb78e481",
+      "type_pretty": "FullOldProblems.ErdosPurdyDegenerateQuadruples"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "All finite nonempty simple even graphs; exact floor((n-1)/2) bound. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.HajosCycleDecomposition",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://arxiv.org/abs/1706.04334)",
+        "[Source 2](https://arxiv.org/abs/2610.07840v2)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/HajosCycleDecomposition.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.HajosCycleDecomposition.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:626c3135aaa0a4dd062d58e28a10cbba9d253e086e05aa81ac4fca62d032d41a",
+      "type_pretty": "FullOldProblems.HajosCycleDecomposition"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every even n >= 4; K_n partitions into n-1 perfect matchings with every pair Hamiltonian. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.KotzigPerfectFactorization",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://arxiv.org/html/2607.09459)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/KotzigPerfectFactorization.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.KotzigPerfectFactorization.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:23e4321afc12fdcdde699b0af3a54b730ce30eac7f79d0d93aa41d06fb3f7afd",
+      "type_pretty": "FullOldProblems.KotzigPerfectFactorization"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every connected finite vertex-transitive graph has a Hamilton path. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.LovaszHamiltonPath",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://arxiv.org/abs/2609.38135v2)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/LovaszHamiltonPath.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.LovaszHamiltonPath.conjecture",
+      "transitive_axioms": [
+        "sorryAx",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:0b183e26a06f7da156f5cfd6af1fb581e854492816f4deb0143497951ffe7cab",
+      "type_pretty": "FullOldProblems.LovaszHamiltonPath"
+    },
+    {
+      "ams_subjects": [
+        15
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "For every complex Hermitian PSD block matrix A, permanent(A) >= permanent([permanent(A_ij)]); with block size >= 2 and positive definite diagonal blocks, equality iff every off-diagonal block is zero. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.MarcusBlockPermanent",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://arxiv.org/html/2202.01867v1)",
+        "[Source 2](https://yair-lavi.com/mincs-list/conjecture-9/index.html)",
+        "[Source 3](https://doi.org/10.1080/00029890.1965.11970575)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/MarcusBlockPermanent.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.MarcusBlockPermanent.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:3cea3965a3dca3c5e49d76698817b492adca7ada5c3ea79c99b796b2ccc972b4",
+      "type_pretty": "FullOldProblems.MarcusBlockPermanent"
+    },
+    {
+      "ams_subjects": [
+        15
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "For all complex normal matrices A,B of every positive order, det(A+B) lies in the real convex hull of products of pairwise sums over all permutations of their complete eigenvalue lists. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.MarcusDeOliveira",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://doi.org/10.3390/math13050711)",
+        "[Source 2](https://www.mat.uc.pt/preprints/ps/p2611.pdf)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/MarcusDeOliveira.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.MarcusDeOliveira.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:5682f29a37c0bb726c768c3734016229faa54c1f07b28834ca1f084b134804d3",
+      "type_pretty": "FullOldProblems.MarcusDeOliveira"
+    },
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every nonsingular real n-by-n matrix A and real shift b admit an integer z with product_i |(Az-b)_i| <= |det A|/2^n, in every positive dimension. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.MinkowskiInhomogeneousProduct",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://doi.org/10.1112/S0025579300000863)",
+        "[Source 2](https://insa.nic.in/writereaddata/UpLoadedFiles/IJPAM/Vol46_2015_3_ART05.pdf)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/MinkowskiInhomogeneousProduct.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.MinkowskiInhomogeneousProduct.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:c9fca64c2d03a7d20d080b0ab069e8791906aab1537da234333cc400b7318a58",
+      "type_pretty": "FullOldProblems.MinkowskiInhomogeneousProduct"
+    },
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "For every fixed k >= 3, R_k(N)/G_k(N) tends to 1, where R_k is the maximum progression-free subset size in [1,N] and G_k is the minimum such maximum across all N-element integer sets. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.RiddellErdosProgressionRatio",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://www.numdam.org/article/AST_1975__24-25__295_0.pdf#page=14)",
+        "[Source 2](https://www.erdosproblems.com/201)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/RiddellErdosProgressionRatio.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.RiddellErdosProgressionRatio.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:4c054b8b7241e02eb6f833da213577b4522f5160f27d08e9422aa8255eda6680",
+      "type_pretty": "FullOldProblems.RiddellErdosProgressionRatio"
+    },
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Sharp universal asymptotic l(N) ~ sqrt(N) for arbitrary finite real sets; both bounds encoded. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.SidonSubsetAsymptotic",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://www.renyi.hu/~p_erdos/1973-21.pdf#page=4)",
+        "[Source 2](https://arxiv.org/abs/2605.03181)",
+        "[Source 3](https://www.erdosproblems.com/530)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/SidonSubsetAsymptotic.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.SidonSubsetAsymptotic.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:0372deb2fa32ecb2d5fbd3125ef9a7be27a436b4edd1b6042af3f8e03d661e1a",
+      "type_pretty": "FullOldProblems.SidonSubsetAsymptotic"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every finite bridgeless multigraph has a nowhere-zero integer 5-flow. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.TutteFiveFlow",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://dwest.web.illinois.edu/openp/tut5flow.html)",
+        "[Source 2](https://arxiv.org/abs/2601.12036)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/TutteFiveFlow.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.TutteFiveFlow.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:c99864a4fdbf6cb91718c05c718b8d84a36b13ccf4ae9a4dc5b5ac55f7512cc1",
+      "type_pretty": "FullOldProblems.TutteFiveFlow"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every finite 4-edge-connected multigraph has a nowhere-zero integer 3-flow. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.TutteThreeFlow",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://arxiv.org/abs/2011.02140)",
+        "[Source 2](https://arxiv.org/abs/2609.08377)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/TutteThreeFlow.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.TutteThreeFlow.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:4381897b3d80fbd2a0e4a169f77542ec6258f90fff88965cbf5f30e3ad5ad753",
+      "type_pretty": "FullOldProblems.TutteThreeFlow"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every connected Delta-critical finite simple graph; independence number at most n/2. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.VizingIndependence",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://www.ort.shu.edu.cn/CN/10.15960/j.cnki.issn.1007-6093.2025.01.019)",
+        "[Source 2](https://arxiv.org/abs/1805.05996)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/VizingIndependence.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.VizingIndependence.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:cd84514cb0217103e69a8e93901bdb55fc04fa935f7811d5d6709600bd3b2c6a",
+      "type_pretty": "FullOldProblems.VizingIndependence"
+    },
+    {
+      "ams_subjects": [
+        15
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every real sign Hadamard matrix of order > 2 has nonzero permanent; encoded over integers, without a Sylvester or circulant restriction. See the sources in the module documentation. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.WangHadamardPermanentNonvanishing",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://doi.org/10.1007/BF02760844)",
+        "[Source 2](https://users.monash.edu.au/~iwanless/papers/wangconjLAMA.pdf)",
+        "[Source 3](https://yair-lavi.com/mincs-list/problem-5/index.html)",
+        "[Source 4](https://arxiv.org/abs/1802.08001)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/WangHadamardPermanentNonvanishing.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "FullOldProblemsCatalog.WangHadamardPermanentNonvanishing.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:7ffca3ce495f615e44f8bafb96cef55149d1d4214cf5970127676b8fc6cf5b80",
+      "type_pretty": "FullOldProblems.WangHadamardPermanentNonvanishing"
+    },
+    {
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
       "docstring": "If `x` is a fusible number and `y` is its successor, then the interval `[x + 1, y + 1)` can be\ndivided into intervals `[ℓₙ, ℓₙ₊₁)`, such that the fusible numbers in `[ℓₙ, ℓₙ₊₁)` are obtained by\nfusing the `n + 1`st successor of `x` with a fusible number.\nThis formalization differs from Conjecture 7.1 in the paper in four ways:\n(1) it is obtained from Conjecture 7.1 by plugging in `n + 1` into `n`, which simplifies the expressions\n  and removes the need to assume `n ≥ 1`;\n(2) the `n + 1`st successor `s^(n+1)(x)` is replaced by the explicit value `x + (2 - 1 / 2 ^ n) * m`;\n(3) instead of defining `y` to be the successor of `x`, we assert that there is no fusible number\n  strictly between `x` and `y`;\n(4) instead of using `∃ z, IsFusible z ∧ q = s^(n+1)(x) ~ z` we use the value of `z` determined by the equality,\n  namely `z = 2 * q - 1 - s^(n+1)(x)`, and it is easy to see `z ∈ [x + 1 - m / 2 ^ n, x + 1)` as required. ",
       "finite_constructors": [],
       "formal_proof_kind": null,
@@ -205454,10 +206079,10 @@
       "type_pretty": "3 ∉ additionChainSteps 7"
     }
   ],
-  "extraction_duration_ms": 43729,
-  "generated_by": "lean/CatalogExtractor.lean",
+  "extraction_duration_ms": 10294,
+  "generated_by": "lean/CatalogExtractor.lean (16 new modules) + unchanged pinned baseline catalog",
   "lean_toolchain": "leanprover/lean4:v4.35.0-rc2",
   "mathlib_commit": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
-  "repository_commit": "4b69a7dca3e731dd1f28cb523b9ebd2ea32527f4",
+  "repository_commit": "1ccfff4d629fe099ad8102f1ce0a97566f342edc",
   "schema_version": 1
 }
