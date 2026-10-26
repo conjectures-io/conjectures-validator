@@ -81,15 +81,9 @@ Other reason codes include `NOT_REGISTERED`, `REGISTRATION_BEFORE_CUTOFF`,
 
 ## Polling
 
-`GET /v1/competitions/torchlean/submissions/{id}` returns reception time, hotkey, source hash,
-intake mode, proof state/stage/reason, and recorded board evaluations. Proof states are
-`queued`, `running`, `proved`, `rejected`. `proved` means the proof passed; board evaluations
-may still be pending. A nonexistent ID returns 404. No source bytes, worker credentials,
-claim tokens or lease internals are returned.
+The public read API is documented in [TORCHLEAN_READ_API.md](TORCHLEAN_READ_API.md).
+Submission status includes proof state, derived processing state and per-board evaluation progress.
 
-`GET /v1/competitions/torchlean` and the existing competition index expose the upload file limit,
-submission availability and basic queue depth. Full board/reward/history endpoints, browser
-session uploads, and the CLI's report/leaderboard routes are separate follow-up work.
 
 ## Development uploads
 

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import time
-from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel
 from sqlalchemy import text
-from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy.exc import InterfaceError, OperationalError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from submission_api import competition_sig, torchlean_store as store
@@ -18,7 +17,6 @@ from submission_api.competitions import TORCHLEAN, Competition
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import (
     Forbidden,
-    NotFound,
     ServiceUnavailable,
     TooManyRequests,
     Unauthorized,
@@ -26,10 +24,9 @@ from submission_api.errors import (
 from submission_api.login import verify_signature
 from submission_api.middleware import client_address
 from submission_api.routers.competitions import refuse_if_paused, resolve_competition
-from submission_api.kernel_upload import MAX_FILE_BYTES, read_kernel
-from submission_api import schemas_compression as catalog
+from submission_api.kernel_upload import read_kernel
 
-router = APIRouter(prefix="/v1/competitions/torchlean", tags=["torchlean"])
+router = APIRouter(tags=["torchlean"])
 
 
 class TorchLeanAccepted(BaseModel):
@@ -39,18 +36,6 @@ class TorchLeanAccepted(BaseModel):
     proof_state: Literal["queued"] = "queued"
     status_url: str
     intake_mode: Literal["subnet", "dev"]
-
-
-class TorchLeanSubmissionView(BaseModel):
-    id: int
-    hotkey: str
-    source_sha256: str
-    submitted_at: datetime
-    proof_state: Literal["queued", "running", "proved", "rejected"]
-    stage: str | None
-    reason: str | None
-    intake_mode: Literal["subnet", "dev"]
-    evaluations: list[dict]
 
 
 def require_open(services: ServicesDep):
@@ -69,6 +54,13 @@ async def torchlean_session(services: ServicesDep):
     async with competition.sessions() as session:
         try:
             yield session
+        except ProgrammingError as exc:
+            if getattr(exc.orig, "sqlstate", None) not in ("42501", "42703", "42P01"):
+                raise
+            raise ServiceUnavailable(
+                "TorchLean schema or API grants need updating.",
+                reason_code="COMPETITION_SCHEMA_UNAVAILABLE",
+            ) from exc
         except (OperationalError, InterfaceError) as exc:
             raise ServiceUnavailable(
                 "The TorchLean database is unreachable.", reason_code="COMPETITION_UNAVAILABLE"
@@ -102,7 +94,7 @@ async def spend(services, subject, limit):
 
 
 @router.post(
-    "/submissions",
+    "/v1/competitions/torchlean/submissions",
     status_code=201,
     response_model=TorchLeanAccepted,
     dependencies=[Depends(require_open)],
@@ -176,76 +168,13 @@ async def submit(
     )
 
 
-@router.get("/submissions/{submission_id}", response_model=TorchLeanSubmissionView)
-async def submission(submission_id: int, services: ServicesDep, session: TorchLeanSession):
-    await store.compatible(session)
-    row = (
-        (
-            await session.execute(
-                text("""
-        SELECT id,hotkey,source_sha256,submitted_at,state AS proof_state,stage,reason,intake_mode
-        FROM submissions WHERE id=:id
-    """),
-                {"id": submission_id},
-            )
-        )
-        .mappings()
-        .first()
-    )
-    if row is None:
-        raise NotFound("No such TorchLean submission")
-    evaluations = (
-        (
-            await session.execute(
-                text("""
-        SELECT id,board,generation,state,reference_promotion_id,reference_hash,config_hash,
-               decision,completed_at FROM evaluations WHERE submission_id=:id ORDER BY id
-    """),
-                {"id": submission_id},
-            )
-        )
-        .mappings()
-        .all()
-    )
-    return TorchLeanSubmissionView(**dict(row), evaluations=[dict(e) for e in evaluations])
-
-
 async def listed(competition: Competition, services):
-    if competition.sessions is None:
-        raise ServiceUnavailable("TorchLean database is not configured")
-    try:
-        async with competition.sessions() as session:
-            await store.compatible(session)
-            queued = await session.scalar(
-                text("""
-                SELECT count(*) FROM submissions s WHERE s.state IN ('queued','running')
-                OR (s.state='proved' AND EXISTS(SELECT 1 FROM evaluations e
-                    WHERE e.submission_id=s.id AND e.state='pending'))
-            """)
-            )
-    except (OperationalError, InterfaceError) as exc:
-        raise ServiceUnavailable(
-            "The TorchLean database is unreachable.", reason_code="COMPETITION_UNAVAILABLE"
-        ) from exc
-    return catalog.Competition(
-        slug="torchlean",
-        name=competition.name,
-        description="Proved exact torchlean kernels, evaluated on model-family boards",
-        submissions_open=services.settings.torchlean_submissions_enabled
-        and not services.settings.submissions_paused,
-        queue_depth=queued,
-        current_snapshot_id=None,
-        policy=None,
-        execution_limits={},
-        files=[{"name": "Kernel.lean", "max_bytes": MAX_FILE_BYTES}],
-        metric_definitions=[
-            {"key": "ratio", "label": "Time / champion", "unit": "ratio", "better": "lower"}
-        ],
-        policy_status="unknown",
-        context=catalog.Context(status="not_ready", freshness="unknown"),
-    )
+    from submission_api.routers.torchlean_public import listed as public_listing
+
+    return await public_listing(competition, services)
 
 
-@router.get("", response_model=catalog.Competition)
-async def detail(services: ServicesDep):
-    return await listed(resolve_competition(services, "torchlean", TORCHLEAN), services)
+# This router owns the complete TorchLean surface and is registered before legacy slug routes.
+from submission_api.routers.torchlean_public import router as public_router  # noqa: E402
+
+router.include_router(public_router, prefix="/v1/competitions/torchlean")

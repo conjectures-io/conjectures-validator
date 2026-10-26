@@ -71,7 +71,7 @@ def engines():
 @pytest.fixture
 def database(engines):
     with engines.owner.begin() as c:
-        c.exec_driver_sql("TRUNCATE sources,registrations,submissions CASCADE")
+        c.exec_driver_sql("TRUNCATE sources,registrations,submissions,coordinator_state CASCADE")
     with engines.api.begin() as c:
         c.exec_driver_sql("TRUNCATE competition_intake_limits")
     return engines
