@@ -9661,6 +9661,131 @@
         "title": "TmcPayPurchase",
         "type": "object"
       },
+      "TorchLeanAccepted": {
+        "properties": {
+          "competition": {
+            "default": "torchlean",
+            "title": "Competition",
+            "type": "string"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "proof_state": {
+            "const": "queued",
+            "default": "queued",
+            "title": "Proof State",
+            "type": "string"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "status_url": {
+            "title": "Status Url",
+            "type": "string"
+          },
+          "submission": {
+            "title": "Submission",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission",
+          "source_sha256",
+          "status_url",
+          "intake_mode"
+        ],
+        "title": "TorchLeanAccepted",
+        "type": "object"
+      },
+      "TorchLeanSubmissionView": {
+        "properties": {
+          "evaluations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          },
+          "hotkey": {
+            "title": "Hotkey",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "proof_state": {
+            "enum": [
+              "queued",
+              "running",
+              "proved",
+              "rejected"
+            ],
+            "title": "Proof State",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "hotkey",
+          "source_sha256",
+          "submitted_at",
+          "proof_state",
+          "stage",
+          "reason",
+          "intake_mode",
+          "evaluations"
+        ],
+        "title": "TorchLeanSubmissionView",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -13625,6 +13750,149 @@
         "summary": "Submit",
         "tags": [
           "competitions"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean": {
+      "get": {
+        "operationId": "detail_v1_competitions_torchlean_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Competition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Detail",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/submissions": {
+      "post": {
+        "operationId": "submit_v1_competitions_torchlean_submissions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Conjectures-Hotkey",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Hotkey",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Timestamp",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Timestamp",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Signature",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Signature",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "Kernel.lean": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "Kernel.lean"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/submissions/{submission_id}": {
+      "get": {
+        "operationId": "submission_v1_competitions_torchlean_submissions__submission_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanSubmissionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submission",
+        "tags": [
+          "torchlean"
         ]
       }
     },

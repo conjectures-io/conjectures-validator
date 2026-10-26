@@ -17,7 +17,7 @@ from sqlalchemy import text
 
 from conjectures_subnet.axiom import get_axiom
 from submission_api import __version__, schemas
-from submission_api.competitions import DEFLATE, FLOATLIB
+from submission_api.competitions import DEFLATE, FLOATLIB, TORCHLEAN
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import ServiceUnavailable
 
@@ -55,7 +55,9 @@ async def readyz(services: ServicesDep, session: SessionDep) -> schemas.Readines
     for slug, kind, engine in probes:
         try:
             async with engine.connect() as conn:
-                if kind == FLOATLIB:
+                if kind == TORCHLEAN:
+                    from submission_api.torchlean_store import compatible
+                elif kind == FLOATLIB:
                     from submission_api.floatlib_store import compatible
                 else:
                     from submission_api.compression_store import compatible

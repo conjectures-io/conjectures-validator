@@ -1,0 +1,7 @@
+{
+  "0001_job_protocol.sql": "f066310cbd74dd53bfc56bce1ecc3ee5e05e412c7763ba13fa792542e863ddbd",
+  "platform_api.sql": "7ea82b86028b26011ac763cb8638ef51eddb9ad0ebc3babf5ca31e92c110669e",
+  "0001_worker_roles.sql": "a38bc9d602f6e9f4cf802592aad49eeef121fcf3414971a573b65ee50ad01ed4",
+  "0002_dev_intake.sql": "2f55bcc31a06945d91e14149d80de8706300e395820193b08690e0867c62e522",
+  "0001_schema.sql": "a4c4aa7b0bdf3bce7bc2c29fbb4e422e8973f192fa605100b6afbffc28196271"
+}
