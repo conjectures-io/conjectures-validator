@@ -9661,6 +9661,1384 @@
         "title": "TmcPayPurchase",
         "type": "object"
       },
+      "TorchLeanAccepted": {
+        "properties": {
+          "competition": {
+            "default": "torchlean",
+            "title": "Competition",
+            "type": "string"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "proof_state": {
+            "const": "queued",
+            "default": "queued",
+            "title": "Proof State",
+            "type": "string"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "status_url": {
+            "title": "Status Url",
+            "type": "string"
+          },
+          "submission": {
+            "title": "Submission",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission",
+          "source_sha256",
+          "status_url",
+          "intake_mode"
+        ],
+        "title": "TorchLeanAccepted",
+        "type": "object"
+      },
+      "TorchLeanAdmission": {
+        "properties": {
+          "gain_lower": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain Lower"
+          },
+          "guard_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guard Passed"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "title": "TorchLeanAdmission",
+        "type": "object"
+      },
+      "TorchLeanBoard": {
+        "properties": {
+          "config_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Hash"
+          },
+          "current_promotion_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Promotion Id"
+          },
+          "environments": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanEnvironment"
+            },
+            "title": "Environments",
+            "type": "array"
+          },
+          "guard_limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guard Limit"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "models": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Models",
+            "type": "object"
+          },
+          "pause_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause Reason"
+          },
+          "paused": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused"
+          },
+          "promotion_bar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Bar"
+          },
+          "reward_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Share"
+          }
+        },
+        "required": [
+          "id",
+          "config_hash",
+          "models",
+          "reward_share",
+          "promotion_bar",
+          "guard_limit",
+          "environments",
+          "current_promotion_id",
+          "paused",
+          "pause_reason"
+        ],
+        "title": "TorchLeanBoard",
+        "type": "object"
+      },
+      "TorchLeanBoards": {
+        "properties": {
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanBoard"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
+          "configuration_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Hash"
+          },
+          "publication_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication Hash"
+          }
+        },
+        "required": [
+          "configuration_hash",
+          "publication_hash",
+          "boards"
+        ],
+        "title": "TorchLeanBoards",
+        "type": "object"
+      },
+      "TorchLeanChallenger": {
+        "properties": {
+          "admission": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admission"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "evaluation_id": {
+            "title": "Evaluation Id",
+            "type": "integer"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "hotkey": {
+            "title": "Hotkey",
+            "type": "string"
+          },
+          "promotion_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Id"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "submission": {
+            "title": "Submission",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission",
+          "hotkey",
+          "source_sha256",
+          "evaluation_id",
+          "generation",
+          "state",
+          "ratio",
+          "admission",
+          "completed_at",
+          "promotion_id"
+        ],
+        "title": "TorchLeanChallenger",
+        "type": "object"
+      },
+      "TorchLeanChampion": {
+        "properties": {
+          "competition_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Competition Fraction"
+          },
+          "config_hash": {
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "disqualified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disqualified At"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "hotkey": {
+            "title": "Hotkey",
+            "type": "string"
+          },
+          "promoted_at": {
+            "format": "date-time",
+            "title": "Promoted At",
+            "type": "string"
+          },
+          "promotion_id": {
+            "title": "Promotion Id",
+            "type": "integer"
+          },
+          "rank_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Share"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          },
+          "reward_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Rank"
+          },
+          "source_available": {
+            "title": "Source Available",
+            "type": "boolean"
+          },
+          "source_disqualified": {
+            "title": "Source Disqualified",
+            "type": "boolean"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "submission": {
+            "title": "Submission",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "promotion_id",
+          "generation",
+          "config_hash",
+          "submission",
+          "hotkey",
+          "source_sha256",
+          "ratio",
+          "promoted_at",
+          "current",
+          "disqualified_at",
+          "source_disqualified",
+          "reward_rank",
+          "rank_share",
+          "competition_fraction",
+          "source_available"
+        ],
+        "title": "TorchLeanChampion",
+        "type": "object"
+      },
+      "TorchLeanChampions": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "champions": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanChampion"
+            },
+            "title": "Champions",
+            "type": "array"
+          },
+          "publication_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication Hash"
+          }
+        },
+        "required": [
+          "board",
+          "active",
+          "publication_hash",
+          "champions"
+        ],
+        "title": "TorchLeanChampions",
+        "type": "object"
+      },
+      "TorchLeanEnvironment": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "weight"
+        ],
+        "title": "TorchLeanEnvironment",
+        "type": "object"
+      },
+      "TorchLeanEvaluation": {
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config_hash": {
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TorchLeanAdmission"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generation": {
+            "description": "Retry/replanning generation of this submission on this board",
+            "title": "Generation",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/TorchLeanJobCounts"
+          },
+          "reference_hash": {
+            "title": "Reference Hash",
+            "type": "string"
+          },
+          "reference_promotion_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Promotion Id"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "completed",
+              "superseded"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "board",
+          "generation",
+          "state",
+          "reference_promotion_id",
+          "reference_hash",
+          "config_hash",
+          "created_at",
+          "completed_at",
+          "decision",
+          "jobs"
+        ],
+        "title": "TorchLeanEvaluation",
+        "type": "object"
+      },
+      "TorchLeanEvaluationReport": {
+        "properties": {
+          "admission_policy": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Admission Policy",
+            "type": "object"
+          },
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "cells": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Cells",
+            "type": "object"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config_hash": {
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TorchLeanAdmission"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generation": {
+            "description": "Retry/replanning generation of this submission on this board",
+            "title": "Generation",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/TorchLeanJobCounts"
+          },
+          "measurements": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanMeasurement"
+            },
+            "title": "Measurements",
+            "type": "array"
+          },
+          "reference_hash": {
+            "title": "Reference Hash",
+            "type": "string"
+          },
+          "reference_promotion_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Promotion Id"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "completed",
+              "superseded"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "timing": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Timing",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "board",
+          "generation",
+          "state",
+          "reference_promotion_id",
+          "reference_hash",
+          "config_hash",
+          "created_at",
+          "completed_at",
+          "decision",
+          "jobs",
+          "cells",
+          "timing",
+          "admission_policy",
+          "measurements"
+        ],
+        "title": "TorchLeanEvaluationReport",
+        "type": "object"
+      },
+      "TorchLeanHealth": {
+        "properties": {
+          "benchmarking": {
+            "title": "Benchmarking",
+            "type": "integer"
+          },
+          "competition_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unknown until the competition publishes its validator-weight share",
+            "title": "Competition Share"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "paused_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Policy"
+          },
+          "policy_ready": {
+            "title": "Policy Ready",
+            "type": "boolean"
+          },
+          "proving": {
+            "title": "Proving",
+            "type": "integer"
+          },
+          "publication_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication Hash"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "rank_shares": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Shares"
+          },
+          "waiting": {
+            "title": "Waiting",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ok",
+          "policy_ready",
+          "queued",
+          "proving",
+          "waiting",
+          "benchmarking",
+          "rank_shares",
+          "paused_policy",
+          "publication_hash"
+        ],
+        "title": "TorchLeanHealth",
+        "type": "object"
+      },
+      "TorchLeanJobCounts": {
+        "properties": {
+          "cancelled": {
+            "default": 0,
+            "title": "Cancelled",
+            "type": "integer"
+          },
+          "completed": {
+            "default": 0,
+            "title": "Completed",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "queued": {
+            "default": 0,
+            "title": "Queued",
+            "type": "integer"
+          },
+          "running": {
+            "default": 0,
+            "title": "Running",
+            "type": "integer"
+          }
+        },
+        "title": "TorchLeanJobCounts",
+        "type": "object"
+      },
+      "TorchLeanLeaderboard": {
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "challengers": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanChallenger"
+            },
+            "title": "Challengers",
+            "type": "array"
+          },
+          "config_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Hash"
+          },
+          "configuration_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Hash"
+          },
+          "reference": {
+            "$ref": "#/components/schemas/TorchLeanReference"
+          }
+        },
+        "required": [
+          "board",
+          "config_hash",
+          "configuration_hash",
+          "reference",
+          "challengers"
+        ],
+        "title": "TorchLeanLeaderboard",
+        "type": "object"
+      },
+      "TorchLeanMeasurement": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "error_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Kind"
+          },
+          "guards": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guards"
+          },
+          "identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity"
+          },
+          "repetitions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repetitions"
+          },
+          "rounds": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TorchLeanRound"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounds"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment",
+          "seed",
+          "state",
+          "attempts",
+          "started_at",
+          "completed_at",
+          "error_kind",
+          "identity",
+          "repetitions",
+          "rounds",
+          "score",
+          "guards"
+        ],
+        "title": "TorchLeanMeasurement",
+        "type": "object"
+      },
+      "TorchLeanObservation": {
+        "properties": {
+          "candidate_checksum": {
+            "title": "Candidate Checksum",
+            "type": "integer"
+          },
+          "candidate_ns": {
+            "title": "Candidate Ns",
+            "type": "number"
+          },
+          "reference_checksum": {
+            "title": "Reference Checksum",
+            "type": "integer"
+          },
+          "reference_ns": {
+            "title": "Reference Ns",
+            "type": "number"
+          }
+        },
+        "required": [
+          "reference_ns",
+          "candidate_ns",
+          "reference_checksum",
+          "candidate_checksum"
+        ],
+        "title": "TorchLeanObservation",
+        "type": "object"
+      },
+      "TorchLeanOverview": {
+        "properties": {
+          "boards": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          },
+          "current_snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Snapshot Id"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "execution_limits": {
+            "additionalProperties": true,
+            "title": "Execution Limits",
+            "type": "object"
+          },
+          "files": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "max_file_bytes": {
+            "default": 256000,
+            "title": "Max File Bytes",
+            "type": "integer"
+          },
+          "metric_definitions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Metric Definitions",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy"
+          },
+          "policy_status": {
+            "title": "Policy Status",
+            "type": "string"
+          },
+          "queue_depth": {
+            "title": "Queue Depth",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "submissions_open": {
+            "title": "Submissions Open",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "submissions_open",
+          "queue_depth",
+          "current_snapshot_id",
+          "description",
+          "files",
+          "metric_definitions",
+          "policy",
+          "policy_status",
+          "execution_limits",
+          "context",
+          "boards"
+        ],
+        "title": "TorchLeanOverview",
+        "type": "object"
+      },
+      "TorchLeanReference": {
+        "properties": {
+          "promotion_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Id"
+          },
+          "shipped": {
+            "title": "Shipped",
+            "type": "boolean"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "submission": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission"
+          }
+        },
+        "required": [
+          "promotion_id",
+          "submission",
+          "source_sha256",
+          "shipped"
+        ],
+        "title": "TorchLeanReference",
+        "type": "object"
+      },
+      "TorchLeanReport": {
+        "properties": {
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanEvaluationReport"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          },
+          "submission": {
+            "$ref": "#/components/schemas/TorchLeanSubmission"
+          }
+        },
+        "required": [
+          "submission",
+          "evaluations"
+        ],
+        "title": "TorchLeanReport",
+        "type": "object"
+      },
+      "TorchLeanRound": {
+        "properties": {
+          "cells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TorchLeanObservation"
+            },
+            "title": "Cells",
+            "type": "object"
+          },
+          "reference_first": {
+            "title": "Reference First",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reference_first",
+          "cells"
+        ],
+        "title": "TorchLeanRound",
+        "type": "object"
+      },
+      "TorchLeanSubmission": {
+        "properties": {
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanEvaluation"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          },
+          "hotkey": {
+            "title": "Hotkey",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "processing_state": {
+            "enum": [
+              "queued",
+              "proving",
+              "waiting",
+              "benchmarking",
+              "completed",
+              "rejected",
+              "disqualified"
+            ],
+            "title": "Processing State",
+            "type": "string"
+          },
+          "proof_state": {
+            "enum": [
+              "queued",
+              "running",
+              "proved",
+              "rejected"
+            ],
+            "title": "Proof State",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "source_available": {
+            "title": "Source Available",
+            "type": "boolean"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "hotkey",
+          "source_sha256",
+          "submitted_at",
+          "proof_state",
+          "processing_state",
+          "stage",
+          "reason",
+          "intake_mode",
+          "source_available",
+          "evaluations"
+        ],
+        "title": "TorchLeanSubmission",
+        "type": "object"
+      },
+      "TorchLeanSubmissionPage": {
+        "properties": {
+          "submissions": {
+            "items": {
+              "$ref": "#/components/schemas/TorchLeanSubmission"
+            },
+            "title": "Submissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "submissions"
+        ],
+        "title": "TorchLeanSubmissionPage",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -13625,6 +15003,460 @@
         "summary": "Submit",
         "tags": [
           "competitions"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean": {
+      "get": {
+        "operationId": "detail_v1_competitions_torchlean_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Detail",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/boards": {
+      "get": {
+        "operationId": "boards_v1_competitions_torchlean_boards_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanBoards"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Boards",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/champions": {
+      "get": {
+        "operationId": "champions_v1_competitions_torchlean_champions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "board",
+            "required": false,
+            "schema": {
+              "default": "overall",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Board",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanChampions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Champions",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/health": {
+      "get": {
+        "operationId": "health_v1_competitions_torchlean_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanHealth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/leaderboard": {
+      "get": {
+        "description": "One reference/configuration only. Older groups can be selected by their config hash.",
+        "operationId": "leaderboard_v1_competitions_torchlean_leaderboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "board",
+            "required": false,
+            "schema": {
+              "default": "overall",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Board",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "promotion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Promotion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "config_hash",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Config Hash"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanLeaderboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leaderboard",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/submissions": {
+      "get": {
+        "operationId": "submissions_v1_competitions_torchlean_submissions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "proving",
+                    "waiting",
+                    "benchmarking",
+                    "completed",
+                    "rejected",
+                    "disqualified"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanSubmissionPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submissions",
+        "tags": [
+          "torchlean"
+        ]
+      },
+      "post": {
+        "operationId": "submit_v1_competitions_torchlean_submissions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Conjectures-Hotkey",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Hotkey",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Timestamp",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Timestamp",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Signature",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Signature",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "Kernel.lean": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "Kernel.lean"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/submissions/{submission_id}": {
+      "get": {
+        "operationId": "submission_v1_competitions_torchlean_submissions__submission_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanSubmission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submission",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/submissions/{submission_id}/report": {
+      "get": {
+        "operationId": "report_v1_competitions_torchlean_submissions__submission_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report",
+        "tags": [
+          "torchlean"
+        ]
+      }
+    },
+    "/v1/competitions/torchlean/submissions/{submission_id}/source": {
+      "get": {
+        "description": "Only former champions whose source is no longer current on any board are public.",
+        "operationId": "source_v1_competitions_torchlean_submissions__submission_id__source_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source",
+        "tags": [
+          "torchlean"
         ]
       }
     },

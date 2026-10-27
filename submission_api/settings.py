@@ -74,7 +74,7 @@ DEFAULT_BOUNTY_MAX_AGE_WEIGHT = 60
 DEFAULT_BOUNTY_MAX_SHARE_NUMERATOR = 1
 DEFAULT_BOUNTY_MAX_SHARE_DENOMINATOR = 8
 DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS = 60
-DEFAULT_BITTENSOR_NETWORK = "finney"
+DEFAULT_BITTORCHLEAN_NETWORK = "finney"
 DEFAULT_BOUNTY_NETUID = 66
 DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS = 60
 
@@ -305,7 +305,7 @@ DEFAULT_DEPOSIT_HOURS = 24
 # `local`, because a verifier pointed at a development chain would refuse every real payment.
 # Shared with the deposit watcher under the same variable names, so one setting configures both and
 # they cannot end up reading different chains.
-DEFAULT_BITTENSOR_NETWORK = "finney"
+DEFAULT_BITTORCHLEAN_NETWORK = "finney"
 
 # One single credit, and two deals: pay for five get one free, pay for ten get three free.
 # `credits.parse_packages` refuses anything paying for more than
@@ -592,7 +592,7 @@ def _competition_slugs(environ: Mapping[str, str], competition_slug: str) -> tup
     slugs = tuple(s.strip() for s in raw.split(",") if s.strip()) or (competition_slug,)
     if len(set(slugs)) != len(slugs):
         raise SettingsError(f"COMPETITIONS lists a competition twice: {raw!r}")
-    known = (competition_slug, "floatlib")
+    known = (competition_slug, "floatlib", "torchlean")
     for slug in slugs:
         if slug not in known:
             raise SettingsError(
@@ -970,6 +970,9 @@ class Settings:
     floatlib_submissions_enabled: bool = False
     floatlib_registration_cutoff: datetime | None = None
     floatlib_check_deflate_usage: bool = False
+    torchlean_submissions_enabled: bool = False
+    torchlean_registration_cutoff: datetime | None = None
+    torchlean_dev_skip_registration: bool = False
     competition_slugs: tuple[str, ...] = ()
     # Each competition's own database URL, from `COMPETITION_<SLUG>_DATABASE_URL`, as
     # (slug, url) pairs. A slug missing here is `competition_slug` falling back to
@@ -1008,6 +1011,8 @@ class Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
+        if production and _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False):
+            raise SettingsError("TORCHLEAN_DEV_SKIP_REGISTRATION is forbidden in production")
         trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
         # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
         if production and trajectory_bonus_enabled:
@@ -1123,9 +1128,9 @@ class Settings:
                 "BOUNTY_CONSTANT_NUMERATOR / BOUNTY_CONSTANT_DENOMINATOR must not exceed "
                 "BOUNTY_MAX_SHARE_NUMERATOR / BOUNTY_MAX_SHARE_DENOMINATOR"
             )
-        bittensor_network = env.get("BITTENSOR_NETWORK", DEFAULT_BITTENSOR_NETWORK).strip()
+        bittensor_network = env.get("BITTORCHLEAN_NETWORK", DEFAULT_BITTORCHLEAN_NETWORK).strip()
         if not bittensor_network or len(bittensor_network) > 255 or "\x00" in bittensor_network:
-            raise SettingsError("BITTENSOR_NETWORK must contain 1 to 255 non-NUL characters")
+            raise SettingsError("BITTORCHLEAN_NETWORK must contain 1 to 255 non-NUL characters")
         taostats_api_key = env.get("TAOSTATS_API_KEY", "").strip()
         if len(taostats_api_key) > 512 or any(ord(char) < 32 for char in taostats_api_key):
             raise SettingsError(
@@ -1610,7 +1615,29 @@ class Settings:
                     "FLOATLIB_CHECK_DEFLATE_USAGE requires DEFLATE configured with uploads disabled"
                 )
 
+        torchlean_uploads = _flag(env, "TORCHLEAN_SUBMISSIONS_ENABLED", False)
+        torchlean_dev = _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False)
+        torchlean_cutoff = None
+        if raw := env.get("TORCHLEAN_REGISTRATION_CUTOFF", "").strip():
+            try:
+                torchlean_cutoff = datetime.fromisoformat(raw)
+                if torchlean_cutoff.tzinfo is None:
+                    raise ValueError("timezone required")
+                torchlean_cutoff = torchlean_cutoff.astimezone(UTC)
+            except ValueError as exc:
+                raise SettingsError(
+                    "TORCHLEAN_REGISTRATION_CUTOFF must be an ISO-8601 timestamp with timezone"
+                ) from exc
+        if torchlean_uploads:
+            if not competitions_enabled or "torchlean" not in competition_slugs:
+                raise SettingsError("TORCHLEAN_SUBMISSIONS_ENABLED requires TorchLean configured")
+            if torchlean_cutoff is None and not torchlean_dev:
+                raise SettingsError("TORCHLEAN_REGISTRATION_CUTOFF is required for TorchLean uploads")
+
         return cls(
+            torchlean_submissions_enabled=torchlean_uploads,
+            torchlean_registration_cutoff=torchlean_cutoff,
+            torchlean_dev_skip_registration=torchlean_dev,
             deflate_submissions_enabled=deflate_uploads,
             floatlib_submissions_enabled=floatlib_uploads,
             floatlib_registration_cutoff=cutoff,
@@ -1660,7 +1687,7 @@ class Settings:
                 env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
             ),
             bittensor_network=bittensor_network,
-            bittensor_archive_network=env.get("BITTENSOR_ARCHIVE_NETWORK", "").strip(),
+            bittensor_archive_network=env.get("BITTORCHLEAN_ARCHIVE_NETWORK", "").strip(),
             bounty_wallet_coldkey=bounty_wallet_coldkey,
             bounty_wallet_hotkey=bounty_wallet_hotkey,
             bounty_netuid=_positive_int(
