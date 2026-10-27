@@ -455,3 +455,61 @@ def test_full_application_dispatches_torchlean_before_legacy_routes(database):
                 await engine.dispose()
 
     asyncio.run(run())
+
+
+# --- Axiom events -------------------------------------------------------------------------
+
+
+@pytest.fixture
+def recorder(monkeypatch):
+    from test_api_observability import Recorder
+
+    collected = Recorder()
+    monkeypatch.setattr("submission_api.routers.torchlean.get_axiom", lambda: collected)
+    return collected
+
+
+def test_an_accepted_upload_is_reported_with_its_identity_and_never_its_file(database, recorder):
+    register(database)
+    r = post(database)
+    assert r.status_code == 201, r.text
+    (event,) = recorder.events
+    assert event == {
+        "severity": "info",
+        "source": "api-competitions",
+        "event_type": "submission_accepted",
+        "competition": "torchlean",
+        "submission_id": r.json()["submission"],
+        "intake_mode": "subnet",
+        "hotkey": ALICE.ss58_address,
+        "source_sha256": hashlib.sha256(KERNEL).hexdigest(),
+        "kernel_bytes": len(KERNEL),
+    }
+
+
+def test_a_refused_upload_is_reported_with_its_reason_code(database, recorder):
+    r = post(database)
+    assert r.status_code == 402
+    (event,) = recorder.of_type("submission_rejected")
+    assert (event["severity"], event["reason_code"], event["http_status"]) == (
+        "warning",
+        "NOT_REGISTERED",
+        402,
+    )
+    assert event["source_sha256"] == hashlib.sha256(KERNEL).hexdigest()
+    assert recorder.of_type("submission_accepted") == []
+
+
+def test_a_refusal_before_the_file_is_read_names_no_file(database, recorder):
+    r = post(database, provided=headers(timestamp=int(time.time()) - 3600))
+    assert r.status_code == 401
+    (event,) = recorder.of_type("submission_rejected")
+    assert event["reason_code"] == "SIGNATURE_EXPIRED"
+    assert event["source_sha256"] is None and event["kernel_bytes"] is None
+
+
+def test_our_own_refusal_is_an_error(database, recorder):
+    r = post(database, torchlean_dev_skip_registration=True, production=True)
+    assert r.status_code == 503
+    (event,) = recorder.of_type("submission_rejected")
+    assert event["severity"] == "error" and event["http_status"] == 503

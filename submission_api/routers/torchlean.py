@@ -12,10 +12,12 @@ from sqlalchemy import text
 from sqlalchemy.exc import InterfaceError, OperationalError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from conjectures_subnet.axiom import get_axiom
 from submission_api import competition_sig, torchlean_store as store
 from submission_api.competitions import TORCHLEAN, Competition
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import (
+    ApiError,
     Forbidden,
     ServiceUnavailable,
     TooManyRequests,
@@ -122,50 +124,79 @@ async def submit(
     timestamp: int = Header(..., alias="X-Conjectures-Timestamp"),
     signature: str = Header(..., alias="X-Conjectures-Signature"),
 ) -> TorchLeanAccepted:
-    settings = services.settings
-    address = client_address(
-        request.scope, settings.trusted_proxy_hops, settings.trusted_proxy_peers
-    )
-    await spend(services, "ip:" + address, settings.competition_ip_rate_per_minute)
-    if abs(int(time.time()) - timestamp) > settings.competition_signature_window_seconds:
-        raise Unauthorized(
-            "The signed timestamp is outside the freshness window.", reason_code="SIGNATURE_EXPIRED"
-        )
+    # What a refusal can name: the claimed hotkey is unverified until the signature checks.
+    attempt = {"hotkey": hotkey, "source_sha256": None, "kernel_bytes": None}
     try:
-        signed = bytes.fromhex(signature.removeprefix("0x"))
-        if len(signed) != 64 or not 2 <= len(hotkey) <= 64:
-            raise ValueError("invalid signature")
-    except ValueError as exc:
-        raise Unauthorized("Malformed hotkey signature.") from exc
-    kernel = await read_kernel(request)
-    digest = hashlib.sha256(kernel).hexdigest()
-    verify_signature(
-        address=hotkey,
-        message=competition_sig.submit_message(
-            competition="torchlean", digest=digest, hotkey=hotkey, timestamp=timestamp
-        ),
-        signature=signed,
-    )
-    await spend(services, "hotkey:" + hotkey, settings.competition_rate_per_minute)
-    await store.compatible(session)
-    dev = settings.torchlean_dev_skip_registration
-    # Backstop for injected service graphs as well as environment validation.
-    if dev and settings.production:
-        raise ServiceUnavailable("TorchLean dev registration bypass is unavailable in production")
-    sid = await store.enqueue(
-        session,
-        hotkey=hotkey,
-        kernel=kernel,
-        digest=digest,
-        cutoff=settings.torchlean_registration_cutoff,
-        dev=dev,
-    )
-    return TorchLeanAccepted(
-        submission=sid,
-        source_sha256=digest,
-        intake_mode="dev" if dev else "subnet",
-        status_url=f"/v1/competitions/torchlean/submissions/{sid}",
-    )
+        settings = services.settings
+        address = client_address(
+            request.scope, settings.trusted_proxy_hops, settings.trusted_proxy_peers
+        )
+        await spend(services, "ip:" + address, settings.competition_ip_rate_per_minute)
+        if abs(int(time.time()) - timestamp) > settings.competition_signature_window_seconds:
+            raise Unauthorized(
+                "The signed timestamp is outside the freshness window.",
+                reason_code="SIGNATURE_EXPIRED",
+            )
+        try:
+            signed = bytes.fromhex(signature.removeprefix("0x"))
+            if len(signed) != 64 or not 2 <= len(hotkey) <= 64:
+                raise ValueError("invalid signature")
+        except ValueError as exc:
+            raise Unauthorized("Malformed hotkey signature.") from exc
+        kernel = await read_kernel(request)
+        digest = hashlib.sha256(kernel).hexdigest()
+        attempt.update(source_sha256=digest, kernel_bytes=len(kernel))
+        verify_signature(
+            address=hotkey,
+            message=competition_sig.submit_message(
+                competition="torchlean", digest=digest, hotkey=hotkey, timestamp=timestamp
+            ),
+            signature=signed,
+        )
+        await spend(services, "hotkey:" + hotkey, settings.competition_rate_per_minute)
+        await store.compatible(session)
+        dev = settings.torchlean_dev_skip_registration
+        # Backstop for injected service graphs as well as environment validation.
+        if dev and settings.production:
+            raise ServiceUnavailable(
+                "TorchLean dev registration bypass is unavailable in production"
+            )
+        sid = await store.enqueue(
+            session,
+            hotkey=hotkey,
+            kernel=kernel,
+            digest=digest,
+            cutoff=settings.torchlean_registration_cutoff,
+            dev=dev,
+        )
+        # After `enqueue` committed. Ids, hotkey and digest, never the file.
+        get_axiom().info(
+            source="api-competitions",
+            event_type="submission_accepted",
+            competition="torchlean",
+            submission_id=sid,
+            intake_mode="dev" if dev else "subnet",
+            **attempt,
+        )
+        return TorchLeanAccepted(
+            submission=sid,
+            source_sha256=digest,
+            intake_mode="dev" if dev else "subnet",
+            status_url=f"/v1/competitions/torchlean/submissions/{sid}",
+        )
+    except ApiError as problem:
+        # Refusals raised before the handler runs (closed, paused, database unreachable) are on
+        # `request_completed` only; these are the ones that got far enough to name a file.
+        # Ours (5xx) are errors, the miner's (4xx) warnings, as on the request stream.
+        (get_axiom().error if problem.status_code >= 500 else get_axiom().warn)(
+            source="api-competitions",
+            event_type="submission_rejected",
+            competition="torchlean",
+            reason_code=problem.reason_code,
+            http_status=problem.status_code,
+            **attempt,
+        )
+        raise
 
 
 async def listed(competition: Competition, services):
