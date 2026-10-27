@@ -74,7 +74,7 @@ DEFAULT_BOUNTY_MAX_AGE_WEIGHT = 60
 DEFAULT_BOUNTY_MAX_SHARE_NUMERATOR = 1
 DEFAULT_BOUNTY_MAX_SHARE_DENOMINATOR = 8
 DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS = 60
-DEFAULT_BITTORCHLEAN_NETWORK = "finney"
+DEFAULT_BITTENSOR_NETWORK = "finney"
 DEFAULT_BOUNTY_NETUID = 66
 DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS = 60
 
@@ -305,7 +305,7 @@ DEFAULT_DEPOSIT_HOURS = 24
 # `local`, because a verifier pointed at a development chain would refuse every real payment.
 # Shared with the deposit watcher under the same variable names, so one setting configures both and
 # they cannot end up reading different chains.
-DEFAULT_BITTORCHLEAN_NETWORK = "finney"
+DEFAULT_BITTENSOR_NETWORK = "finney"
 
 # One single credit, and two deals: pay for five get one free, pay for ten get three free.
 # `credits.parse_packages` refuses anything paying for more than
@@ -1128,9 +1128,9 @@ class Settings:
                 "BOUNTY_CONSTANT_NUMERATOR / BOUNTY_CONSTANT_DENOMINATOR must not exceed "
                 "BOUNTY_MAX_SHARE_NUMERATOR / BOUNTY_MAX_SHARE_DENOMINATOR"
             )
-        bittensor_network = env.get("BITTORCHLEAN_NETWORK", DEFAULT_BITTORCHLEAN_NETWORK).strip()
+        bittensor_network = env.get("BITTENSOR_NETWORK", DEFAULT_BITTENSOR_NETWORK).strip()
         if not bittensor_network or len(bittensor_network) > 255 or "\x00" in bittensor_network:
-            raise SettingsError("BITTORCHLEAN_NETWORK must contain 1 to 255 non-NUL characters")
+            raise SettingsError("BITTENSOR_NETWORK must contain 1 to 255 non-NUL characters")
         taostats_api_key = env.get("TAOSTATS_API_KEY", "").strip()
         if len(taostats_api_key) > 512 or any(ord(char) < 32 for char in taostats_api_key):
             raise SettingsError(
@@ -1687,7 +1687,7 @@ class Settings:
                 env, "PAYMENT_AMOUNT_RAO", DEFAULT_SUBMISSION_PRICE_RAO
             ),
             bittensor_network=bittensor_network,
-            bittensor_archive_network=env.get("BITTORCHLEAN_ARCHIVE_NETWORK", "").strip(),
+            bittensor_archive_network=env.get("BITTENSOR_ARCHIVE_NETWORK", "").strip(),
             bounty_wallet_coldkey=bounty_wallet_coldkey,
             bounty_wallet_hotkey=bounty_wallet_hotkey,
             bounty_netuid=_positive_int(
