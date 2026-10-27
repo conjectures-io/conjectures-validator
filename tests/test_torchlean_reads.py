@@ -278,7 +278,7 @@ def test_source_only_after_last_board_is_lost_and_by_hash(database):
     assert get(database, f"/submissions/{plain}/source").status_code == 403
 
 
-def job(db, eid, sha, *, environment="amd64", state="completed"):
+def job(db, eid, sha, *, environment="amd64", state="completed", request=None):
     result = {
         "provenance": {"identity": "a" * 64, "machine": "PRIVATE_HOST_PATH"},
         "repetitions": {"mlp:b1:normal": 10},
@@ -302,7 +302,7 @@ def job(db, eid, sha, *, environment="amd64", state="completed"):
         db,
         """INSERT INTO benchmark_jobs(request_hash,request,candidate_hash,reference_hash,
                  environment,lease_seconds,retry_seconds,state,result,owner,token,claimant,lease_until)
-                 VALUES (:hash,'{}',:hash,:ref,:env,120,60,:state,CAST(:result AS jsonb),
+                 VALUES (:hash,CAST(:request AS jsonb),:hash,:ref,:env,120,60,:state,CAST(:result AS jsonb),
                  CASE WHEN :state='running' THEN 'SECRET' END,
                  CASE WHEN :state='running' THEN 'SECRET' END,
                  CASE WHEN :state='running' THEN 'SECRET' END,
@@ -312,6 +312,7 @@ def job(db, eid, sha, *, environment="amd64", state="completed"):
         env=environment,
         state=state,
         result=json.dumps(result) if state == "completed" else None,
+        request=json.dumps(request or {}),
     ).scalar_one()
     execute(
         db,
@@ -439,6 +440,44 @@ def test_report_preserves_stored_admission_instead_of_recomputing(database):
     assert evaluation["decision"]["gain_lower"] == 0.01
     assert evaluation["measurements"][0]["score"] == 0.96
     assert evaluation["measurements"][0]["guards"] == {"mlp:b1:normal": 0.96}
+
+
+def test_report_names_the_workloads_a_multi_seed_job_timed(database):
+    configure(database)
+    sid, sha = submit(database, "multi-seed")
+    eid = evaluate(database, sid)
+    plan = [
+        {"id": "s0", "seed": 11, "profile": "typical", "weight": 0.25, "private": "SECRET"},
+        {"id": "s1", "seed": 12, "profile": "typical", "weight": 0.25},
+    ]
+    job(database, eid, sha, request={"workloads": plan, "cells": ["mlp:b1:normal"]})
+    sid2, sha2 = submit(database, "single-seed")
+    job(database, evaluate(database, sid2), sha2)
+    response = get(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    measurement = response.json()["evaluations"][0]["measurements"][0]
+    assert measurement["workloads"] == [
+        {"id": "s0", "seed": 11, "profile": "typical", "weight": 0.25},
+        {"id": "s1", "seed": 12, "profile": "typical", "weight": 0.25},
+    ]
+    assert "SECRET" not in response.text
+    single = get(database, f"/submissions/{sid2}/report").json()
+    assert single["evaluations"][0]["measurements"][0]["workloads"] is None
+
+
+def test_a_paid_board_missing_from_the_weights_reports_no_fraction(database):
+    configure(database)
+    a, _ = submit(database, "unweighted-king")
+    pa = promote(database, a)
+    configure(database, {"mlp": [king(pa, a)]})
+    execute(
+        database,
+        "UPDATE coordinator_state SET publication=publication #- '{rewards,board_weights,mlp}'",
+    )
+    response = get(database, "/champions?board=mlp")
+    assert response.status_code == 200, response.text
+    (champion,) = response.json()["champions"]
+    assert champion["reward_rank"] == 1 and champion["competition_fraction"] is None
 
 
 def test_removed_board_history_remains_readable(database):

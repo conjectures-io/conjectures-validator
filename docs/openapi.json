@@ -10689,6 +10689,20 @@
           "state": {
             "title": "State",
             "type": "string"
+          },
+          "workloads": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TorchLeanWorkload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workloads"
           }
         },
         "required": [
@@ -11037,6 +11051,34 @@
           "submissions"
         ],
         "title": "TorchLeanSubmissionPage",
+        "type": "object"
+      },
+      "TorchLeanWorkload": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "seed",
+          "profile",
+          "weight"
+        ],
+        "title": "TorchLeanWorkload",
         "type": "object"
       },
       "ValidationError": {
