@@ -90,6 +90,9 @@ services:
       # raises the effective global rate by the same factor.
       RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
       RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      # The website's server rendering pages from the host (trusted peer, no
+      # X-Forwarded-For) gets its own bucket of this size. 0 shares the visitor one.
+      RATE_LIMIT_INTERNAL_REQUESTS: ${RATE_LIMIT_INTERNAL_REQUESTS:-5000}
       # 0 ignores X-Forwarded-For and uses the peer address. Set this to the real
       # hop count once a reverse proxy or CDN is in front, or every visitor
       # collapses onto one rate-limit budget.
