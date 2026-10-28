@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-6cd829f0-erdos282-erdos-282-029ba5a2e590616f4f9f6a6a82a0b4d9-problem",
+  "task_id": "fc-v2-erdos282-erdos-282-1afb4cd132a5f2ba58cfff6d-formalized",
+  "repository_commit": "6cd829f0ab173b10c8d375642f7564729ee29bc9",
+  "source_theorem": "Erdos282.erdos_282",
+  "task_mode": "formalized",
+  "task_bundle_sha256": "sha256:6ed5a4d653dbb5d1e5b22b53edd9a3bf215f7b86c0f28db7b7fb3cbee3665fbf",
+  "submission_sha256": "sha256:ad777397fec00027e82304d9b5261e1d75154822b50b4581b5c9e6e0c64f8cf7",
+  "accepted": false,
+  "stage": "RUN_COMPARATOR",
+  "reason_code": "STATEMENT_MISMATCH",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": true,
+    "source_type_hash_valid": true,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": true,
+    "challenge_built": true,
+    "solution_built": true,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 108205,
+  "comparator_exit_code": 1,
+  "stdout_tail": "Building Challenge\n\u26a0 [9202/9203] Replayed Challenge\nwarning: Challenge.lean:7:8: declaration uses `sorry`\nwarning: Challenge.lean:11:0: This file has no module docstring (`/-! ... -/`). Add one after the imports to document the file.\n\nNote: This linter can be disabled with `set_option linter.style.moduleDocstring false`\nBuild completed successfully (9203 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Challenge\nBuilding Solution\n\u26a0 [9202/9203] Built Solution (9.2s)\nwarning: Solution.lean:5:0: This file has no module docstring (`/-! ... -/`). Add one after the imports to document the file.\n\nNote: This linter can be disabled with `set_option linter.style.moduleDocstring false`\nBuild completed successfully (9203 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Solution\n",
+  "stderr_tail": "uncaught exception: Challenge and solution theorem statement do not match: 'Bounty.target'\n",
+  "workspace_retained": false,
+  "sandbox_mode": "landrun+seccomp",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "Erdos282-erdos_282-formalized-wrong-statement",
+  "passed": true,
+  "seconds": 108.219
+}

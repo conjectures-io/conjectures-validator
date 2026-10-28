@@ -417,6 +417,12 @@ python -m verifier catalog build \
 python -m verifier catalog stats --catalog data/catalog.json
 ```
 
+The checked-in October 28 candidate catalog covers 570 rebuilt modules: the 328 requested
+Erdős files and every retained production target module. Its prepared pool has 554 targets
+and 1,108 bundles. See the [admission review](docs/review-decisions/2026-10-28-erdos-expansion/README.md)
+for exclusions, production compatibility, and validation. This candidate has not been deployed;
+the full-repository catalog command above extends beyond the validated release scope.
+
 Generate one target or a category batch:
 
 ```bash

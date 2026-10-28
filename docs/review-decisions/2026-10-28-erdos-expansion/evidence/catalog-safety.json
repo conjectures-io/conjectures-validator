@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "checks": [
+    "transitive sorry through a chosen witness rejected",
+    "question value rejected even with a concrete answer definition",
+    "ordinary proposition preserved"
+  ]
+}

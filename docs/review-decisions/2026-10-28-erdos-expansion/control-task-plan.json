@@ -1,0 +1,117 @@
+{
+  "repository_commit": "6cd829f0ab173b10c8d375642f7564729ee29bc9",
+  "tasks": [
+    {
+      "task_id": "fc-v2-erdos1004-erdos-1004-ae6d145f0ad9b98a531e0d63-formalized",
+      "theorem": "Erdos1004.erdos_1004",
+      "mode": "formalized",
+      "location": "versions/fc-v2-erdos1004-erdos-1004-ae6d145f0ad9b98a531e0d63-formalized",
+      "build_provenance_sha256": "sha256:99ad8c4e75d09f862f32defbfb2ea2cf597f3cc0245ef6c9671853941870f405"
+    },
+    {
+      "task_id": "fc-v2-erdos1004-erdos-1004-dc25a3d27543b0692f2ba430-counterexample",
+      "theorem": "Erdos1004.erdos_1004",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-erdos1004-erdos-1004-dc25a3d27543b0692f2ba430-counterexample",
+      "build_provenance_sha256": "sha256:99ad8c4e75d09f862f32defbfb2ea2cf597f3cc0245ef6c9671853941870f405"
+    },
+    {
+      "task_id": "fc-v2-parts-i-aba228c4ec057075a48f56e8-formalized",
+      "theorem": "Erdos1154.erdos_1154.parts.i",
+      "mode": "formalized",
+      "location": "versions/fc-v2-parts-i-aba228c4ec057075a48f56e8-formalized",
+      "build_provenance_sha256": "sha256:4af640b7aa6df4b736f785fdb7274e321cefa2b22eec555db44114649b7c784a"
+    },
+    {
+      "task_id": "fc-v2-parts-i-f03a5751ba8df96150bb47af-counterexample",
+      "theorem": "Erdos1154.erdos_1154.parts.i",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-parts-i-f03a5751ba8df96150bb47af-counterexample",
+      "build_provenance_sha256": "sha256:4af640b7aa6df4b736f785fdb7274e321cefa2b22eec555db44114649b7c784a"
+    },
+    {
+      "task_id": "fc-v2-erdos282-erdos-282-1afb4cd132a5f2ba58cfff6d-formalized",
+      "theorem": "Erdos282.erdos_282",
+      "mode": "formalized",
+      "location": "versions/fc-v2-erdos282-erdos-282-1afb4cd132a5f2ba58cfff6d-formalized",
+      "build_provenance_sha256": "sha256:ae6b2251fa82c00738dcc240aafbfdf7e71afcb2eb33cc25166b5c5fb8b418e5"
+    },
+    {
+      "task_id": "fc-v2-erdos282-erdos-282-5e8a165f65858e94ea5ee7fb-counterexample",
+      "theorem": "Erdos282.erdos_282",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-erdos282-erdos-282-5e8a165f65858e94ea5ee7fb-counterexample",
+      "build_provenance_sha256": "sha256:ae6b2251fa82c00738dcc240aafbfdf7e71afcb2eb33cc25166b5c5fb8b418e5"
+    },
+    {
+      "task_id": "fc-v2-erdos5-erdos-5-ca7506f55b2e3fe2c78a19c8-formalized",
+      "theorem": "Erdos5.erdos_5",
+      "mode": "formalized",
+      "location": "versions/fc-v2-erdos5-erdos-5-ca7506f55b2e3fe2c78a19c8-formalized",
+      "build_provenance_sha256": "sha256:9207090bd125ef6c1d473ff7b43ba67021f1ded6327741eb352543ca5224ec5b"
+    },
+    {
+      "task_id": "fc-v2-erdos5-erdos-5-c46ab1db55d0618675fc31c5-counterexample",
+      "theorem": "Erdos5.erdos_5",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-erdos5-erdos-5-c46ab1db55d0618675fc31c5-counterexample",
+      "build_provenance_sha256": "sha256:9207090bd125ef6c1d473ff7b43ba67021f1ded6327741eb352543ca5224ec5b"
+    },
+    {
+      "task_id": "fc-v2-erdos564-erdos-564-2fcc7d2615b4eefb082330f4-formalized",
+      "theorem": "Erdos564.erdos_564",
+      "mode": "formalized",
+      "location": "versions/fc-v2-erdos564-erdos-564-2fcc7d2615b4eefb082330f4-formalized",
+      "build_provenance_sha256": "sha256:961e6624cb06f28d5429ff69482ebc5955e3ff9fefe746e8cf61cb5b72e87b5c"
+    },
+    {
+      "task_id": "fc-v2-erdos564-erdos-564-e03dda3bb9f9f82e6c63b1a9-counterexample",
+      "theorem": "Erdos564.erdos_564",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-erdos564-erdos-564-e03dda3bb9f9f82e6c63b1a9-counterexample",
+      "build_provenance_sha256": "sha256:961e6624cb06f28d5429ff69482ebc5955e3ff9fefe746e8cf61cb5b72e87b5c"
+    },
+    {
+      "task_id": "fc-v2-variants-average-2ce7bf60992340a0da26ea03-formalized",
+      "theorem": "Erdos604.erdos_604.variants.average",
+      "mode": "formalized",
+      "location": "versions/fc-v2-variants-average-2ce7bf60992340a0da26ea03-formalized",
+      "build_provenance_sha256": "sha256:4a3e72390cb3c63f254270559c39a3a326a9cc23c55cdedc2969d635834305e6"
+    },
+    {
+      "task_id": "fc-v2-variants-average-fb17c364aa87a14205c8c38f-counterexample",
+      "theorem": "Erdos604.erdos_604.variants.average",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-variants-average-fb17c364aa87a14205c8c38f-counterexample",
+      "build_provenance_sha256": "sha256:4a3e72390cb3c63f254270559c39a3a326a9cc23c55cdedc2969d635834305e6"
+    },
+    {
+      "task_id": "fc-v2-parts-ii-169fc11042da5eb778782dc0-formalized",
+      "theorem": "Erdos65.erdos_65.parts.ii",
+      "mode": "formalized",
+      "location": "versions/fc-v2-parts-ii-169fc11042da5eb778782dc0-formalized",
+      "build_provenance_sha256": "sha256:068db3c27a8b4ae033d966e1dcfe860c5cc290373cf8aa0cf079c7921836d188"
+    },
+    {
+      "task_id": "fc-v2-parts-ii-5fede29e5409b2fc10c99924-counterexample",
+      "theorem": "Erdos65.erdos_65.parts.ii",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-parts-ii-5fede29e5409b2fc10c99924-counterexample",
+      "build_provenance_sha256": "sha256:068db3c27a8b4ae033d966e1dcfe860c5cc290373cf8aa0cf079c7921836d188"
+    },
+    {
+      "task_id": "fc-v2-parts-i-1317ea3a5365244a85c1abcb-formalized",
+      "theorem": "Erdos918.erdos_918.parts.i",
+      "mode": "formalized",
+      "location": "versions/fc-v2-parts-i-1317ea3a5365244a85c1abcb-formalized",
+      "build_provenance_sha256": "sha256:53a15504e76a6ee3d38b0a936886714c5137e250d589905de17eeaf3e152d872"
+    },
+    {
+      "task_id": "fc-v2-parts-i-9e661a6579f60946a7eb5b64-counterexample",
+      "theorem": "Erdos918.erdos_918.parts.i",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-parts-i-9e661a6579f60946a7eb5b64-counterexample",
+      "build_provenance_sha256": "sha256:53a15504e76a6ee3d38b0a936886714c5137e250d589905de17eeaf3e152d872"
+    }
+  ]
+}

@@ -1,0 +1,3571 @@
+[
+  {
+    "number": 5,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos5.erdos_5"
+    ],
+    "target_decisions": {
+      "Erdos5.erdos_5": "eligible",
+      "Erdos5.erdos_5.variants.dense": "exclude_duplicate",
+      "Erdos5.erdos_5.variants.limit_point_set": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 7,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos7.erdos_7"
+    ],
+    "target_decisions": {
+      "Erdos7.erdos_7": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 12,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos12.erdos_12.parts.iii": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 13,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos13.erdos_13.variants.general"
+    ],
+    "target_decisions": {
+      "Erdos13.erdos_13.variants.general": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 15,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos15.erdos_15": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 19,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos19.erdos_19"
+    ],
+    "target_decisions": {
+      "Erdos19.erdos_19": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 20,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos20.erdos_20": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 21,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos21.erdos_21.variants.three_n"
+    ],
+    "target_decisions": {
+      "Erdos21.erdos_21.variants.three_n": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 33,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos33.erdos_33": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 36,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos36.erdos_36": "exclude_unfilled_statement",
+      "Erdos36.erdos_36.variants.lower": "exclude_unfilled_statement",
+      "Erdos36.erdos_36.variants.upper": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 40,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos40.erdos_40.variants.weaker"
+    ],
+    "target_decisions": {
+      "Erdos40.erdos_40": "exclude_unfilled_statement",
+      "Erdos40.erdos_40.variants.weaker": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 49,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos49.erdos_49.variants.primes_maximal"
+    ],
+    "target_decisions": {
+      "Erdos49.erdos_49.variants.primes_maximal": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 59,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos59.erdos_59.variants.big_o",
+      "Erdos59.erdos_59.variants.c4"
+    ],
+    "target_decisions": {
+      "Erdos59.erdos_59.variants.big_o": "eligible",
+      "Erdos59.erdos_59.variants.c4": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 60,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos60.erdos_60"
+    ],
+    "target_decisions": {
+      "Erdos60.erdos_60": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 64,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos64.erdos_64": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 65,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos65.erdos_65.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos65.erdos_65.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 70,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos70.erdos_70"
+    ],
+    "target_decisions": {
+      "Erdos70.erdos_70": "eligible",
+      "Erdos70.erdos_70.variants.omega_one": "hold_resolution_claim",
+      "Erdos70.erdos_70.variants.omega_times_two_four": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 74,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos74.erdos_74.variants.sqrt": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 75,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos75.erdos_75": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 77,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos77.erdos_77": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 78,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos78.erdos_78",
+      "Erdos78.erdos_78.variants.strongly_explicit"
+    ],
+    "target_decisions": {
+      "Erdos78.erdos_78": "eligible",
+      "Erdos78.erdos_78.variants.strongly_explicit": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 80,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos80.erdos_80.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos80.erdos_80.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 81,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos81.erdos_81": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 86,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos86.erdos_86"
+    ],
+    "target_decisions": {
+      "Erdos86.erdos_86": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 87,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos87.erdos_87.parts.i",
+      "Erdos87.erdos_87.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos87.erdos_87.parts.i": "eligible",
+      "Erdos87.erdos_87.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 94,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos94.erdos_94.variants.regular_ngon"
+    ],
+    "target_decisions": {
+      "Erdos94.erdos_94.variants.regular_ngon": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 97,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos97.erdos_97": "hold_resolution_claim",
+      "Erdos97.erdos_97.variants.k_equidistant": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 101,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos101.erdos_101": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 102,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos102.erdos_102",
+      "Erdos102.erdos_102.variants.five"
+    ],
+    "target_decisions": {
+      "Erdos102.erdos_102": "eligible",
+      "Erdos102.erdos_102.variants.five": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 103,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos103.erdos_103",
+      "Erdos103.erdos_103.variants.two_le"
+    ],
+    "target_decisions": {
+      "Erdos103.erdos_103": "eligible",
+      "Erdos103.erdos_103.variants.two_le": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 104,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos104.erdos_104"
+    ],
+    "target_decisions": {
+      "Erdos104.erdos_104": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 111,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos111.erdos_111",
+      "Erdos111.erdos_111.variants.erdos_conjecture"
+    ],
+    "target_decisions": {
+      "Erdos111.erdos_111": "eligible",
+      "Erdos111.erdos_111.variants.erdos_conjecture": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 114,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos114.erdos_114"
+    ],
+    "target_decisions": {
+      "Erdos114.erdos_114": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 123,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos123.erdos_123.variants.powers_2_3_5_snug": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 125,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos125.erdos_125.variants.positive_upper_density"
+    ],
+    "target_decisions": {
+      "Erdos125.erdos_125.variants.positive_upper_density": "eligible",
+      "Erdos125.erdos_125.variants.zero_density": "exclude_duplicate",
+      "Erdos125.erdos_125.variants.zero_lower_positive_upper_density": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 133,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos133.erdos_133.variants.asymptotic": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 138,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos138.erdos_138.variants.quotient"
+    ],
+    "target_decisions": {
+      "Erdos138.erdos_138.variants.quotient": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 142,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos142.erdos_142": "exclude_unfilled_statement",
+      "Erdos142.erdos_142.variants.isTheta": "exclude_unfilled_statement",
+      "Erdos142.erdos_142.variants.lower": "exclude_prior_retirement",
+      "Erdos142.erdos_142.variants.three": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 147,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos147.erdos_147.variants.janzer_conjecture"
+    ],
+    "target_decisions": {
+      "Erdos147.erdos_147.variants.janzer_conjecture": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 148,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos148.erdos_148": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 151,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos151.erdos_151",
+      "Erdos151.erdos_151.variants.cliqueFree_four"
+    ],
+    "target_decisions": {
+      "Erdos151.erdos_151": "eligible",
+      "Erdos151.erdos_151.variants.cliqueFree_four": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 159,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos159.erdos_159"
+    ],
+    "target_decisions": {
+      "Erdos159.erdos_159": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 160,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos160.erdos_160.better_lower": "exclude_unfilled_statement",
+      "Erdos160.erdos_160.better_upper": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 161,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos161.erdos_161.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos161.erdos_161.parts.i": "exclude_unfilled_statement",
+      "Erdos161.erdos_161.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 162,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos162.erdos_162": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 165,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos165.erdos_165.variants.conjecture"
+    ],
+    "target_decisions": {
+      "Erdos165.erdos_165": "exclude_unfilled_statement",
+      "Erdos165.erdos_165.variants.conjecture": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 170,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos170.erdos170": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 173,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos173.erdos_173"
+    ],
+    "target_decisions": {
+      "Erdos173.erdos_173": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 174,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos174.erdos_174.variants.leader_russell_walters"
+    ],
+    "target_decisions": {
+      "Erdos174.erdos_174": "exclude_unfilled_statement",
+      "Erdos174.erdos_174.variants.graham": "hold_resolution_claim",
+      "Erdos174.erdos_174.variants.leader_russell_walters": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 188,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos188.erdos_188": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 189,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos189.erdos_189.variants.parallelogram"
+    ],
+    "target_decisions": {
+      "Erdos189.erdos_189.variants.parallelogram": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 195,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos195.erdos_195": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 197,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos197.erdos_197": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 203,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos203.erdos_203": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 205,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos205.erdos_205.variants.odd_counterexamples"
+    ],
+    "target_decisions": {
+      "Erdos205.erdos_205.variants.odd_counterexamples": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 211,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos211.erdos_211.variants.one_sixth"
+    ],
+    "target_decisions": {
+      "Erdos211.erdos_211.variants.one_sixth": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 217,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos217.erdos_217": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 252,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos252.erdos_252": "exclude_prior_retirement",
+      "Erdos252.erdos_252.variants.k_ge_five": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 261,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos261.erdos_261.parts.ii",
+      "Erdos261.erdos_261.parts.iii"
+    ],
+    "target_decisions": {
+      "Erdos261.erdos_261.parts.ii": "eligible",
+      "Erdos261.erdos_261.parts.iii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 267,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos267.erdos_267.variants.generalisation_ratio_limit_to_infinity"
+    ],
+    "target_decisions": {
+      "Erdos267.erdos_267.variants.generalisation_ratio_limit_to_infinity": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 270,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos270.erdos_270.variants.monotone"
+    ],
+    "target_decisions": {
+      "Erdos270.erdos_270.variants.monotone": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 273,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos273.erdos_273": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 276,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos276.erdos_276": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 279,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos279.erdos_279": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 282,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos282.erdos_282",
+      "Erdos282.erdos_282.variants.graham",
+      "Erdos282.erdos_282.variants.sq"
+    ],
+    "target_decisions": {
+      "Erdos282.erdos_282": "eligible",
+      "Erdos282.erdos_282.variants.general": "exclude_unfilled_statement",
+      "Erdos282.erdos_282.variants.graham": "eligible",
+      "Erdos282.erdos_282.variants.sq": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 288,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos288.erdos_288.variants.exists_k_gt_2",
+      "Erdos288.erdos_288.variants.i2_card_eq_1",
+      "Erdos288.erdos_288.variants.k_intervals"
+    ],
+    "target_decisions": {
+      "Erdos288.erdos_288": "exclude_prior_retirement",
+      "Erdos288.erdos_288.variants.exists_k_gt_2": "eligible",
+      "Erdos288.erdos_288.variants.i2_card_eq_1": "eligible",
+      "Erdos288.erdos_288.variants.k_intervals": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 295,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos295.erdos_295"
+    ],
+    "target_decisions": {
+      "Erdos295.erdos_295": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 302,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos302.erdos_302.parts.i": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 308,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos308.erdos_308.variants.all_N"
+    ],
+    "target_decisions": {
+      "Erdos308.erdos_308.variants.all_N": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 311,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos311.erdos_311"
+    ],
+    "target_decisions": {
+      "Erdos311.erdos_311": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 312,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos312.erdos_312": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 319,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos319.erdos_319": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 321,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos321.erdos_321": "exclude_unfilled_statement",
+      "Erdos321.erdos_321.variants.isBigO": "exclude_unfilled_statement",
+      "Erdos321.erdos_321.variants.isLittleO": "exclude_unfilled_statement",
+      "Erdos321.erdos_321.variants.isTheta": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 322,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos322.erdos_322"
+    ],
+    "target_decisions": {
+      "Erdos322.erdos_322": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 326,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos326.erdos_326"
+    ],
+    "target_decisions": {
+      "Erdos326.erdos_326": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 329,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos329.erdos_329.variants.converse_implication"
+    ],
+    "target_decisions": {
+      "Erdos329.erdos_329": "exclude_unfilled_statement",
+      "Erdos329.erdos_329.variants.converse_implication": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 332,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos332.erdos_332": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 338,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos338.erdos_338.variants.basis_after_finite_removal",
+      "Erdos338.erdos_338.variants.bounded_by_order",
+      "Erdos338.erdos_338.variants.same_order_after_finite_removal"
+    ],
+    "target_decisions": {
+      "Erdos338.erdos_338": "exclude_unfilled_statement",
+      "Erdos338.erdos_338.variants.basis_after_finite_removal": "eligible",
+      "Erdos338.erdos_338.variants.bounded_by_order": "eligible",
+      "Erdos338.erdos_338.variants.eq_order": "exclude_unfilled_statement",
+      "Erdos338.erdos_338.variants.same_order_after_finite_removal": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 342,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos342.erdos_342.parts.i",
+      "Erdos342.erdos_342.parts.ii",
+      "Erdos342.erdos_342.parts.iii"
+    ],
+    "target_decisions": {
+      "Erdos342.erdos_342.parts.i": "eligible",
+      "Erdos342.erdos_342.parts.ii": "eligible",
+      "Erdos342.erdos_342.parts.iii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 344,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos344.erdos_344.variants.sqrt_two"
+    ],
+    "target_decisions": {
+      "Erdos344.erdos_344.variants.sqrt_two": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 345,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos345.erdos_345"
+    ],
+    "target_decisions": {
+      "Erdos345.erdos_345": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 349,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos349.erdos_349.variants.floor_3_halves_even",
+      "Erdos349.erdos_349.variants.floor_3_halves_odd"
+    ],
+    "target_decisions": {
+      "Erdos349.complete_for_alpha_in_Ioo_one_to_goldenRatio": "hold_resolution_claim",
+      "Erdos349.erdos_349": "exclude_unfilled_statement",
+      "Erdos349.erdos_349.variants.floor_3_halves_even": "eligible",
+      "Erdos349.erdos_349.variants.floor_3_halves_odd": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 352,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos352.erdos_352": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 358,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos358.erdos_358.variants.prime_set",
+      "Erdos358.erdos_358.variants.prime_set_density_representation"
+    ],
+    "target_decisions": {
+      "Erdos358.erdos_358.variants.prime_set": "eligible",
+      "Erdos358.erdos_358.variants.prime_set_density_representation": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 361,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos361.erdos_361": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 365,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos365.erdos_365.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos365.erdos_365.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 367,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos367.erdos_367.parts.i"
+    ],
+    "target_decisions": {
+      "Erdos367.erdos_367.parts.i": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 368,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos368.erdos_368.lower_bound",
+      "Erdos368.erdos_368.upper_bound"
+    ],
+    "target_decisions": {
+      "Erdos368.erdos_368.lower_bound": "eligible",
+      "Erdos368.erdos_368.upper_bound": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 377,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos377.erdos_377": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 382,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos382.erdos_382.parts.i",
+      "Erdos382.erdos_382.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos382.erdos_382.parts.i": "eligible",
+      "Erdos382.erdos_382.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 387,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos387.erdos_387.variants.schinzel"
+    ],
+    "target_decisions": {
+      "Erdos387.erdos_387.variants.schinzel": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 388,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos388.erdos_388",
+      "Erdos388.erdos_388.variants.general"
+    ],
+    "target_decisions": {
+      "Erdos388.erdos_388": "eligible",
+      "Erdos388.erdos_388.variants.classification": "exclude_unfilled_statement",
+      "Erdos388.erdos_388.variants.general": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 389,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos389.erdos_389"
+    ],
+    "target_decisions": {
+      "Erdos389.erdos_389": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 390,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos390.erdos_390": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 393,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos393.erdos_393",
+      "Erdos393.erdos_393.variants.infinitely_often_one"
+    ],
+    "target_decisions": {
+      "Erdos393.erdos_393": "eligible",
+      "Erdos393.erdos_393.variants.infinitely_often_one": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 394,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos394.erdos_394.variants.factorial_gap_conjecture",
+      "Erdos394.erdos_394.variants.hall_conjecture"
+    ],
+    "target_decisions": {
+      "Erdos394.erdos_394.variants.factorial_gap_conjecture": "eligible",
+      "Erdos394.erdos_394.variants.hall_conjecture": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 408,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos408.erdos_408.parts.i",
+      "Erdos408.erdos_408.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos408.erdos_408.parts.i": "eligible",
+      "Erdos408.erdos_408.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 417,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos417.erdos_417.parts.i",
+      "Erdos417.erdos_417.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos417.erdos_417.parts.i": "eligible",
+      "Erdos417.erdos_417.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 418,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos418.erdos_418.variants.density",
+      "Erdos418.erdos_418.variants.odd_noncototient"
+    ],
+    "target_decisions": {
+      "Erdos418.erdos_418.variants.density": "eligible",
+      "Erdos418.erdos_418.variants.odd_noncototient": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 420,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos420.erdos_420.parts.i",
+      "Erdos420.erdos_420.parts.ii",
+      "Erdos420.erdos_420.parts.iii"
+    ],
+    "target_decisions": {
+      "Erdos420.erdos_420.parts.i": "eligible",
+      "Erdos420.erdos_420.parts.ii": "eligible",
+      "Erdos420.erdos_420.parts.iii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 422,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos422.erdos_422",
+      "Erdos422.erdos_422.variants.surjective",
+      "Erdos422.erdos_422.variants.well_defined"
+    ],
+    "target_decisions": {
+      "Erdos422.erdos_422": "eligible",
+      "Erdos422.erdos_422.variants.growth_rate": "exclude_unfilled_statement",
+      "Erdos422.erdos_422.variants.surjective": "eligible",
+      "Erdos422.erdos_422.variants.well_defined": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 423,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos423.erdos_423"
+    ],
+    "target_decisions": {
+      "Erdos423.erdos_423": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 424,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos424.erdos_424.variants.exact_density"
+    ],
+    "target_decisions": {
+      "Erdos424.erdos_424.variants.exact_density": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 425,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos425.erdos_425.parts.i",
+      "Erdos425.erdos_425.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos425.erdos_425.parts.i": "eligible",
+      "Erdos425.erdos_425.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 430,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos430.erdos_430"
+    ],
+    "target_decisions": {
+      "Erdos430.erdos_430": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 436,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos436.erdos_436.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos436.erdos_436.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 450,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos450.erdos_450": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 452,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos452.erdos_452": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 457,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos457.erdos_457.variants.one_sub"
+    ],
+    "target_decisions": {
+      "Erdos457.erdos_457.variants.one_sub": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 461,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos461.erdos_461"
+    ],
+    "target_decisions": {
+      "Erdos461.erdos_461": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 462,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos462.erdos_462"
+    ],
+    "target_decisions": {
+      "Erdos462.erdos_462": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 467,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos467.erdos_467"
+    ],
+    "target_decisions": {
+      "Erdos467.erdos_467": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 470,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos470.erdos_470.parts.i",
+      "Erdos470.erdos_470.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos470.erdos_470.parts.i": "eligible",
+      "Erdos470.erdos_470.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 472,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos472.erdos_472"
+    ],
+    "target_decisions": {
+      "Erdos472.erdos_472": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 473,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos473.erdos_473.variants.finite"
+    ],
+    "target_decisions": {
+      "Erdos473.erdos_473.variants.finite": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 477,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos477.erdos_477.variants.X_pow_three": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 478,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos478.erdos_478"
+    ],
+    "target_decisions": {
+      "Erdos478.erdos_478": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 483,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos483.erdos_483"
+    ],
+    "target_decisions": {
+      "Erdos483.erdos_483": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 488,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos488.erdos_488": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 490,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos490.erdos_490.variants.limit"
+    ],
+    "target_decisions": {
+      "Erdos490.erdos_490.variants.limit": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 500,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos500.erdos_500.variants.turan_conjecture"
+    ],
+    "target_decisions": {
+      "Erdos500.erdos_500": "exclude_unfilled_statement",
+      "Erdos500.erdos_500.variants.asymptotic": "exclude_unfilled_statement",
+      "Erdos500.erdos_500.variants.turan_conjecture": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 501,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos501.erdos_501": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 503,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos503.erdos_503": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 506,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos506.erdos_506": "exclude_unfilled_statement",
+      "Erdos506.erdos_506.variants.small_n": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 507,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos507.erdos_507.equivalent": "exclude_unfilled_statement",
+      "Erdos507.erdos_507.lower": "exclude_unfilled_statement",
+      "Erdos507.erdos_507.upper": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 508,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos508.HadwigerNelsonProblem": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 509,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos509.erdos_509"
+    ],
+    "target_decisions": {
+      "Erdos509.erdos_509": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 510,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos510.erdos_510": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 513,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos513.erdos_513": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 536,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos536.erdos_536": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 538,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos538.erdos_538": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 539,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos539.erdos_539": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 542,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos542.erdos_542.variants.one_add_little_o",
+      "Erdos542.erdos_542.variants.only_two"
+    ],
+    "target_decisions": {
+      "Erdos542.erdos_542.variants.one_add_little_o": "eligible",
+      "Erdos542.erdos_542.variants.only_two": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 544,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos544.erdos_544.parts.i",
+      "Erdos544.erdos_544.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos544.erdos_544.parts.i": "eligible",
+      "Erdos544.erdos_544.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 545,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos545.erdos_545"
+    ],
+    "target_decisions": {
+      "Erdos545.erdos_545": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 551,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos551.erdos_551": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 552,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos552.erdos_552.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos552.erdos_552.parts.i": "exclude_unfilled_statement",
+      "Erdos552.erdos_552.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 554,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos554.erdos_554",
+      "Erdos554.erdos_554.variants.n_eq_two"
+    ],
+    "target_decisions": {
+      "Erdos554.erdos_554": "eligible",
+      "Erdos554.erdos_554.variants.n_eq_two": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 555,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos555.erdos_555": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 556,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos556.erdos_556"
+    ],
+    "target_decisions": {
+      "Erdos556.erdos_556": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 560,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos560.erdos_560.variants.conlon_fox_wigderson"
+    ],
+    "target_decisions": {
+      "Erdos560.erdos_560": "exclude_unfilled_statement",
+      "Erdos560.erdos_560.variants.conlon_fox_wigderson": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 561,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos561.erdos_561"
+    ],
+    "target_decisions": {
+      "Erdos561.erdos_561": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 562,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos562.erdos_562"
+    ],
+    "target_decisions": {
+      "Erdos562.erdos_562": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 563,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos563.erdos_563"
+    ],
+    "target_decisions": {
+      "Erdos563.erdos_563": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 564,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos564.erdos_564"
+    ],
+    "target_decisions": {
+      "Erdos564.erdos_564": "eligible"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 566,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos566.erdos_566"
+    ],
+    "target_decisions": {
+      "Erdos566.erdos_566": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 567,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos567.erdos_567.parts.ii",
+      "Erdos567.erdos_567.parts.iii"
+    ],
+    "target_decisions": {
+      "Erdos567.erdos_567.parts.i": "exclude_prior_retirement",
+      "Erdos567.erdos_567.parts.ii": "eligible",
+      "Erdos567.erdos_567.parts.iii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 568,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos568.erdos_568"
+    ],
+    "target_decisions": {
+      "Erdos568.erdos_568": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 569,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos569.erdos_569": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 572,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos572.erdos_572"
+    ],
+    "target_decisions": {
+      "Erdos572.erdos_572": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 573,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos573.erdos_573"
+    ],
+    "target_decisions": {
+      "Erdos573.erdos_573": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 583,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos583.erdos_583"
+    ],
+    "target_decisions": {
+      "Erdos583.erdos_583": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 588,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos588.erdos_588"
+    ],
+    "target_decisions": {
+      "Erdos588.erdos_588": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 592,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos592.erdos_592": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 593,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos593.erdos_593": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 595,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos595.erdos_595": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 596,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos596.erdos_596": "exclude_unfilled_statement",
+      "Erdos596.erdos_596.variants.K4_K3_exceptional_iff": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 597,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos597.erdos_597.variants.finite"
+    ],
+    "target_decisions": {
+      "Erdos597.erdos_597": "hold_resolution_claim",
+      "Erdos597.erdos_597.variants.finite": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 598,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos598.erdos_598"
+    ],
+    "target_decisions": {
+      "Erdos598.erdos_598": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 601,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos601.erdos_601.variants.omega_1_omega_plus_2",
+      "Erdos601.erdos_601.variants.universal"
+    ],
+    "target_decisions": {
+      "Erdos601.erdos_601": "exclude_unfilled_statement",
+      "Erdos601.erdos_601.variants.omega_1_omega_plus_2": "eligible",
+      "Erdos601.erdos_601.variants.universal": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 602,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos602.erdos_602"
+    ],
+    "target_decisions": {
+      "Erdos602.erdos_602": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 604,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos604.erdos_604.variants.average",
+      "Erdos604.erdos_604.variants.sqrt_log"
+    ],
+    "target_decisions": {
+      "Erdos604.erdos_604.variants.average": "eligible",
+      "Erdos604.erdos_604.variants.sqrt_log": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 609,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos609.erdos_609": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 614,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos614.erdos_614": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 616,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos616.erdos_616": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 623,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos623.erdos_623"
+    ],
+    "target_decisions": {
+      "Erdos623.erdos_623": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 626,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos626.erdos_626.parts.i",
+      "Erdos626.erdos_626.parts.ii",
+      "Erdos626.erdos_626.variants.h_even_conjecture",
+      "Erdos626.erdos_626.variants.h_odd_conjecture"
+    ],
+    "target_decisions": {
+      "Erdos626.erdos_626.parts.i": "eligible",
+      "Erdos626.erdos_626.parts.ii": "eligible",
+      "Erdos626.erdos_626.variants.h_even_conjecture": "eligible",
+      "Erdos626.erdos_626.variants.h_odd_conjecture": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 627,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos627.erdos_627"
+    ],
+    "target_decisions": {
+      "Erdos627.erdos_627": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 628,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos628.erdos_628"
+    ],
+    "target_decisions": {
+      "Erdos628.erdos_628": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 629,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos629.erdos_629": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 640,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos640.erdos_640"
+    ],
+    "target_decisions": {
+      "Erdos640.erdos_640": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 642,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos642.erdos_642"
+    ],
+    "target_decisions": {
+      "Erdos642.erdos_642": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 643,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos643.erdos_643.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos643.erdos_643.parts.i": "exclude_unfilled_statement",
+      "Erdos643.erdos_643.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 644,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos644.erdos_644.parts.i",
+      "Erdos644.erdos_644.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos644.erdos_644.parts.i": "eligible",
+      "Erdos644.erdos_644.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 649,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos649.erdos_649.variants.tong_question"
+    ],
+    "target_decisions": {
+      "Erdos649.erdos_649.variants.tong_question": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 654,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos654.erdos_654.parts.ii",
+      "Erdos654.erdos_654.variants.general_position",
+      "Erdos654.erdos_654.variants.general_position_one_sub_eps"
+    ],
+    "target_decisions": {
+      "Erdos654.erdos_654.parts.ii": "eligible",
+      "Erdos654.erdos_654.variants.erdos_pach": "hold_statement_dispute",
+      "Erdos654.erdos_654.variants.general_position": "eligible",
+      "Erdos654.erdos_654.variants.general_position_one_sub_eps": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 655,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos655.erdos_655.variants.general_position"
+    ],
+    "target_decisions": {
+      "Erdos655.erdos_655.variants.general_position": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 657,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos657.erdos_657",
+      "Erdos657.erdos_657.variants.higher_dim"
+    ],
+    "target_decisions": {
+      "Erdos657.erdos_657": "eligible",
+      "Erdos657.erdos_657.variants.higher_dim": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 660,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos660.erdos_660"
+    ],
+    "target_decisions": {
+      "Erdos660.erdos_660": "eligible",
+      "Erdos660.erdos_660.variants.Er75f": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 661,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos661.erdos_661",
+      "Erdos661.erdos_661.variants.little_o_distinct_distances"
+    ],
+    "target_decisions": {
+      "Erdos661.erdos_661": "eligible",
+      "Erdos661.erdos_661.variants.little_o_distinct_distances": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 663,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos663.erdos_663"
+    ],
+    "target_decisions": {
+      "Erdos663.erdos_663": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 664,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos664.erdos_664.variants.block_design"
+    ],
+    "target_decisions": {
+      "Erdos664.erdos_664.variants.block_design": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 665,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos665.erdos_665"
+    ],
+    "target_decisions": {
+      "Erdos665.erdos_665": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 667,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos667.erdos_667"
+    ],
+    "target_decisions": {
+      "Erdos667.erdos_667": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 668,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos668.erdos_668.parts.i"
+    ],
+    "target_decisions": {
+      "Erdos668.erdos_668.parts.i": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 669,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos669.erdos_669.parts.i": "exclude_unfilled_statement",
+      "Erdos669.erdos_669.parts.ii": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 670,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos670.erdos_670"
+    ],
+    "target_decisions": {
+      "Erdos670.erdos_670": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 675,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos675.erdos_675.parts.i"
+    ],
+    "target_decisions": {
+      "Erdos675.erdos_675.parts.i": "eligible",
+      "Erdos675.erdos_675.parts.ii": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 676,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos676.erdos_676"
+    ],
+    "target_decisions": {
+      "Erdos676.erdos_676": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 679,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos679.erdos_679.parts.i"
+    ],
+    "target_decisions": {
+      "Erdos679.erdos_679.parts.i": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 683,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos683.erdos_683.variant.exp_sqrt"
+    ],
+    "target_decisions": {
+      "Erdos683.erdos_683": "exclude_prior_retirement",
+      "Erdos683.erdos_683.variant.exp_sqrt": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 685,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos685.erdos_685.parts.i",
+      "Erdos685.erdos_685.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos685.erdos_685.parts.i": "eligible",
+      "Erdos685.erdos_685.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 687,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos687.erdos_687.parts.iii",
+      "Erdos687.erdos_687.variants.maier_pomerance"
+    ],
+    "target_decisions": {
+      "Erdos687.erdos_687.parts.i": "exclude_unfilled_statement",
+      "Erdos687.erdos_687.parts.iii": "eligible",
+      "Erdos687.erdos_687.variants.maier_pomerance": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 691,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos691.erdos_691": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 692,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos692.erdos_692.parts.ii": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 694,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos694.erdos_694.variants.carmichael": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 700,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos700.erdos_700.parts.iii"
+    ],
+    "target_decisions": {
+      "Erdos700.erdos_700.parts.i": "exclude_unfilled_statement",
+      "Erdos700.erdos_700.parts.ii": "exclude_prior_retirement",
+      "Erdos700.erdos_700.parts.iii": "eligible",
+      "Erdos700.erdos_700.variants.prime_power_divisor": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 701,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos701.erdos_701": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 704,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos704.erdos_704.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos704.erdos_704.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 706,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos706.erdos_706"
+    ],
+    "target_decisions": {
+      "Erdos706.erdos_706": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 709,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos709.erdos_709": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 710,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos710.erdos_710": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 711,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos711.erdos_711.parts.i"
+    ],
+    "target_decisions": {
+      "Erdos711.erdos_711.parts.i": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 712,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos712.erdos_712": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 713,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos713.erdos_713.parts.i",
+      "Erdos713.erdos_713.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos713.erdos_713.parts.i": "eligible",
+      "Erdos713.erdos_713.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 714,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos714.erdos_714"
+    ],
+    "target_decisions": {
+      "Erdos714.erdos_714": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 719,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos719.erdos_719"
+    ],
+    "target_decisions": {
+      "Erdos719.erdos_719": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 725,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos725.erdos_725": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 727,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos727.erdos_727"
+    ],
+    "target_decisions": {
+      "Erdos727.erdos_727": "eligible",
+      "Erdos727.erdos_727.variants.k_2": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 731,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos731.erdos_731": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 732,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos732.erdos_732.parts.i": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 734,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos734.erdos_734"
+    ],
+    "target_decisions": {
+      "Erdos734.erdos_734": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 740,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos740.erdos_740": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 741,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos741.erdos_741.variants.lower"
+    ],
+    "target_decisions": {
+      "Erdos741.erdos_741.variants.lower": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 742,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos742.erdos_742": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 743,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos743.erdos_743": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 757,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos757.erdos_757": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 761,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos761.erdos_761.parts.i",
+      "Erdos761.erdos_761.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos761.erdos_761.parts.i": "eligible",
+      "Erdos761.erdos_761.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 766,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos766.erdos_766.parts.ii",
+      "Erdos766.erdos_766.variants.minExtremalNumber_strictMonoOn"
+    ],
+    "target_decisions": {
+      "Erdos766.erdos_766.parts.i": "exclude_unfilled_statement",
+      "Erdos766.erdos_766.parts.ii": "eligible",
+      "Erdos766.erdos_766.variants.minExtremalNumber_estimate": "exclude_unfilled_statement",
+      "Erdos766.erdos_766.variants.minExtremalNumber_strictMonoOn": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 769,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos769.erdos_769.variants.growth_rate"
+    ],
+    "target_decisions": {
+      "Erdos769.erdos_769.variants.growth_rate": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 773,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos773.erdos_773"
+    ],
+    "target_decisions": {
+      "Erdos773.erdos_773": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 782,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos782.erdos_782.parts.i",
+      "Erdos782.erdos_782.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos782.erdos_782.parts.i": "eligible",
+      "Erdos782.erdos_782.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 785,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos785.erdos_785.variants.chen_conjecture": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 786,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos786.erdos_786.parts.i": "hold_resolution_claim",
+      "Erdos786.erdos_786.parts.ii": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 787,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos787.erdos_787": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 802,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos802.erdos_802": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 805,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos805.erdos_805.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos805.erdos_805.parts.i": "exclude_unfilled_statement",
+      "Erdos805.erdos_805.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 810,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos810.erdos_810"
+    ],
+    "target_decisions": {
+      "Erdos810.erdos_810": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 813,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos813.erdos_813.variants.upper"
+    ],
+    "target_decisions": {
+      "Erdos813.erdos_813": "exclude_duplicate",
+      "Erdos813.erdos_813.variants.upper": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 819,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos819.erdos_819": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 820,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos820.erdos_820",
+      "Erdos820.erdos_820.variants.log_log_exponent"
+    ],
+    "target_decisions": {
+      "Erdos820.erdos_820": "eligible",
+      "Erdos820.erdos_820.variants.log_log_exponent": "eligible",
+      "Erdos820.erdos_820.variants.two_pow_upper": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 824,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos824.erdos_824.variants.squarefree"
+    ],
+    "target_decisions": {
+      "Erdos824.erdos_824.variants.squarefree": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 826,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos826.erdos_826": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 827,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos827.erdos_827": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 830,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos830.erdos_830.parts.i",
+      "Erdos830.erdos_830.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos830.erdos_830.parts.i": "eligible",
+      "Erdos830.erdos_830.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 837,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos837.erdos_837": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 839,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos839.erdos_839.parts.i",
+      "Erdos839.erdos_839.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos839.erdos_839.parts.i": "eligible",
+      "Erdos839.erdos_839.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 840,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos840.erdos_840": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 850,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos850.erdos_850": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 852,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos852.erdos_852.parts.i",
+      "Erdos852.erdos_852.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos852.erdos_852.parts.i": "eligible",
+      "Erdos852.erdos_852.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 854,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos854.erdos_854.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos854.erdos_854.parts.i": "exclude_unfilled_statement",
+      "Erdos854.erdos_854.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 855,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos855.erdos_855"
+    ],
+    "target_decisions": {
+      "Erdos855.erdos_855": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 856,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos856.erdos_856": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 857,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos857.erdos_857": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 860,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos860.erdos_860": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 864,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos864.erdos_864"
+    ],
+    "target_decisions": {
+      "Erdos864.erdos_864": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 865,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos865.erdos_865.variants.sos"
+    ],
+    "target_decisions": {
+      "Erdos865.erdos_865.variants.sos": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 872,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos872.erdos_872.parts.i": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 878,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos878.erdos_878.parts.vi"
+    ],
+    "target_decisions": {
+      "Erdos878.erdos_878.parts.iv": "exclude_unfilled_statement",
+      "Erdos878.erdos_878.parts.v": "exclude_unfilled_statement",
+      "Erdos878.erdos_878.parts.vi": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 881,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos881.erdos_881": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 883,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos883.erdos_883.parts.i": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 887,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos887.erdos_887.parts.i": "exclude_unfilled_statement",
+      "Erdos887.erdos_887.parts.ii": "hold_existing"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 895,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos895.erdos_895.variants.hindman"
+    ],
+    "target_decisions": {
+      "Erdos895.erdos_895.variants.hindman": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 897,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos897.erdos_897.variants.parts.i": "exclude_statement_discrepancy",
+      "Erdos897.erdos_897.variants.parts.ii": "exclude_statement_discrepancy"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 901,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos901.erdos_901": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 902,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos902.erdos_902": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 906,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos906.erdos_906": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 911,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos911.erdos_911"
+    ],
+    "target_decisions": {
+      "Erdos911.erdos_911": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 918,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos918.erdos_918.parts.i",
+      "Erdos918.erdos_918.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos918.erdos_918.parts.i": "eligible",
+      "Erdos918.erdos_918.parts.ii": "eligible",
+      "Erdos918.erdos_918.variants.all_subgraphs.parts.i": "exclude_duplicate",
+      "Erdos918.erdos_918.variants.all_subgraphs.parts.ii": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 934,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos934.erdos_934": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 938,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos938.erdos_938": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 939,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos939.erdos_939": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 940,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos940.erdos_940",
+      "Erdos940.erdos_940.variants.large_integers"
+    ],
+    "target_decisions": {
+      "Erdos940.erdos_940": "eligible",
+      "Erdos940.erdos_940.variants.large_integers": "eligible",
+      "Erdos940.erdos_940.variants.three_cubes": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 955,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos955.erdos_955"
+    ],
+    "target_decisions": {
+      "Erdos955.erdos_955": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 959,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos959.erdos_959": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 961,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos961.erdos_961": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 967,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos967.erdos_967.variants.finite",
+      "Erdos967.erdos_967.variants.two_three_five"
+    ],
+    "target_decisions": {
+      "Erdos967.erdos_967.variants.finite": "eligible",
+      "Erdos967.erdos_967.variants.two_three_five": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 969,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos969.erdos_969": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 971,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos971.erdos_971": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 976,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos976.erdos_976.parts.i",
+      "Erdos976.erdos_976.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos976.erdos_976": "exclude_unfilled_statement",
+      "Erdos976.erdos_976.parts.i": "eligible",
+      "Erdos976.erdos_976.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 977,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos977.erdos_977.variants.factorial"
+    ],
+    "target_decisions": {
+      "Erdos977.erdos_977.variants.factorial": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 995,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos995.erdos_995": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 996,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos996.erdos_996": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1002,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1002.erdos_1002": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1004,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1004.erdos_1004"
+    ],
+    "target_decisions": {
+      "Erdos1004.erdos_1004": "eligible"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1013,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1013.erdos_1013.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos1013.erdos_1013.parts.i": "exclude_unfilled_statement",
+      "Erdos1013.erdos_1013.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1017,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1017.erdos_1017.lower_bound": "exclude_unfilled_statement",
+      "Erdos1017.erdos_1017.upper_bound": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1020,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1020.erdos_1020"
+    ],
+    "target_decisions": {
+      "Erdos1020.erdos_1020": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1029,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1029.erdos_1029"
+    ],
+    "target_decisions": {
+      "Erdos1029.erdos_1029": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1030,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1030.erdos_1030"
+    ],
+    "target_decisions": {
+      "Erdos1030.erdos_1030": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1035,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1035.erdos_1035"
+    ],
+    "target_decisions": {
+      "Erdos1035.erdos_1035": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1038,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1038.erdos_1038.parts.i": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1044,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1044.erdos_1044.variants.fixed_degree"
+    ],
+    "target_decisions": {
+      "Erdos1044.erdos_1044.variants.fixed_degree": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1050,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1050.erdos_1050.variants.transcendental"
+    ],
+    "target_decisions": {
+      "Erdos1050.erdos_1050.variants.transcendental": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1052,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1052.erdos_1052": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1053,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1053.erdos_1053",
+      "Erdos1053.erdos_1053.variants.guy"
+    ],
+    "target_decisions": {
+      "Erdos1053.erdos_1053": "eligible",
+      "Erdos1053.erdos_1053.variants.guy": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1055,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1055.erdos_1055": "exclude_prior_retirement",
+      "Erdos1055.erdos_1055.variants.erdos_limit": "exclude_prior_retirement",
+      "Erdos1055.erdos_1055.variants.selfridge_limit": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1059,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1059.erdos_1059": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1061,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1061.erdos_1061": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1063,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1063.erdos_1063.better_upper": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1065,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1065.erdos_1065.parts.i": "exclude_prior_retirement",
+      "Erdos1065.erdos_1065.parts.ii": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1066,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1066.erdos_1066.variants.higher_dim"
+    ],
+    "target_decisions": {
+      "Erdos1066.erdos_1066": "exclude_unfilled_statement",
+      "Erdos1066.erdos_1066.variants.higher_dim": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1074,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1074.erdos_1074.variants.EHSNumbers_one"
+    ],
+    "target_decisions": {
+      "Erdos1074.erdos_1074.parts.i": "exclude_prior_retirement",
+      "Erdos1074.erdos_1074.parts.ii": "exclude_unfilled_statement",
+      "Erdos1074.erdos_1074.parts.iii": "exclude_prior_retirement",
+      "Erdos1074.erdos_1074.parts.iv": "exclude_unfilled_statement",
+      "Erdos1074.erdos_1074.variants.EHSNumbers_one": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1075,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1075.erdos_1075": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1083,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1083.erdos_1083"
+    ],
+    "target_decisions": {
+      "Erdos1083.erdos_1083": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1086,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1086.erdos_1086": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1087,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1087.erdos_1087": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1088,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1088.erdos_1088"
+    ],
+    "target_decisions": {
+      "Erdos1088.erdos_1088": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1093,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1093.erdos_1093.parts.i"
+    ],
+    "target_decisions": {
+      "Erdos1093.erdos_1093.parts.i": "eligible",
+      "Erdos1093.erdos_1093.parts.ii": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1109,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1109.erdos_1109",
+      "Erdos1109.erdos_1109.variants.polylog"
+    ],
+    "target_decisions": {
+      "Erdos1109.erdos_1109": "eligible",
+      "Erdos1109.erdos_1109.variants.polylog": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1110,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1110.erdos_1110": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1111,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1111.erdos_1111"
+    ],
+    "target_decisions": {
+      "Erdos1111.erdos_1111": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1122,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1122.erdos_1122": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1139,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1139.erdos_1139": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1145,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1145.erdos_1145"
+    ],
+    "target_decisions": {
+      "Erdos1145.erdos_1145": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1146,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1146.erdos_1146": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1154,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1154.erdos_1154.parts.i",
+      "Erdos1154.erdos_1154.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos1154.erdos_1154.parts.i": "eligible",
+      "Erdos1154.erdos_1154.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1157,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1157.erdos_1157": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1158,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1158.erdos_1158"
+    ],
+    "target_decisions": {
+      "Erdos1158.erdos_1158": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1159,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1159.erdos_1159"
+    ],
+    "target_decisions": {
+      "Erdos1159.erdos_1159": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1162,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1162.erdos_1162": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1167,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1167.erdos_1167.variants.infinite_targets"
+    ],
+    "target_decisions": {
+      "Erdos1167.erdos_1167": "hold_statement_dispute",
+      "Erdos1167.erdos_1167.variants.binary_colors": "hold_statement_dispute",
+      "Erdos1167.erdos_1167.variants.infinite_targets": "eligible",
+      "Erdos1167.erdos_1167.variants.r_eq_two": "hold_statement_dispute"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1168,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1168.erdos_1168"
+    ],
+    "target_decisions": {
+      "Erdos1168.erdos_1168": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1169,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1169.erdos_1169"
+    ],
+    "target_decisions": {
+      "Erdos1169.erdos_1169": "eligible",
+      "Erdos1169.erdos_1169.variants.finite_blue_target": "exclude_duplicate"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1171,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1171.erdos_1171"
+    ],
+    "target_decisions": {
+      "Erdos1171.erdos_1171": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1173,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1173.erdos_1173"
+    ],
+    "target_decisions": {
+      "Erdos1173.erdos_1173": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1174,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1174.erdos_1174.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos1174.erdos_1174.parts.i": "exclude_duplicate",
+      "Erdos1174.erdos_1174.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1176,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1176.erdos_1176"
+    ],
+    "target_decisions": {
+      "Erdos1176.erdos_1176": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1178,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1178.erdos_1178"
+    ],
+    "target_decisions": {
+      "Erdos1178.erdos_1178": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1180,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1180.erdos_1180.variants.optimal"
+    ],
+    "target_decisions": {
+      "Erdos1180.erdos_1180.variants.optimal": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1186,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1186.erdos_1186": "exclude_unfilled_statement",
+      "Erdos1186.erdos_1186.variants.prs_conjecture": "hold_resolution_claim"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1189,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1189.erdos_1189.parts.i": "exclude_unfilled_statement",
+      "Erdos1189.erdos_1189.parts.ii": "exclude_unfilled_statement",
+      "Erdos1189.erdos_1189.parts.iii": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1191,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1191.erdos_1191.parts.i",
+      "Erdos1191.erdos_1191.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos1191.erdos_1191.parts.i": "eligible",
+      "Erdos1191.erdos_1191.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1199,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1199.erdos_1199": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  },
+  {
+    "number": 1201,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1201.erdos_1201"
+    ],
+    "target_decisions": {
+      "Erdos1201.erdos_1201": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1204,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1204.erdos_1204.parts.i"
+    ],
+    "target_decisions": {
+      "Erdos1204.erdos_1204.parts.i": "eligible",
+      "Erdos1204.erdos_1204.parts.ii": "exclude_unfilled_statement"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1206,
+    "disposition": "admitted_targets",
+    "admitted_targets": [
+      "Erdos1206.erdos_1206.parts.i",
+      "Erdos1206.erdos_1206.parts.ii"
+    ],
+    "target_decisions": {
+      "Erdos1206.erdos_1206.parts.i": "eligible",
+      "Erdos1206.erdos_1206.parts.ii": "eligible"
+    },
+    "previously_fully_blocked": false
+  },
+  {
+    "number": 1210,
+    "disposition": "excluded_from_release",
+    "admitted_targets": [],
+    "target_decisions": {
+      "Erdos1210.erdos_1210": "exclude_prior_retirement",
+      "Erdos1210.erdos_1210.variants.er80_correction": "exclude_prior_retirement"
+    },
+    "previously_fully_blocked": true
+  }
+]

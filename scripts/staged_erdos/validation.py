@@ -23,10 +23,16 @@ def compile_challenge(paths, lake, env, timeout):
 
 
 class StagedValidator:
-    def __init__(self, project: Path):
+    def __init__(self, project: Path, dependency_index=None):
         from verifier.environment import tool_path
 
         self.project = project
+        self.dependency_index = dependency_index
+        self.trees = None
+        if dependency_index is not None:
+            from verifier.task_versions import SourceTrees
+
+            self.trees = SourceTrees.for_project(project)
         self.lake = tool_path(project, "lake")
         self.local = local()
         self.lock = Lock()
@@ -71,9 +77,21 @@ class StagedValidator:
             mode=mode,
             env=env,
             timeout_seconds=600,
+            closure_roots=self.trees.local_roots() if self.trees is not None else None,
         )
         if inspected["source_hash"] != declaration.type_hash or not inspected["matches"]:
             raise ValueError("compiled target or source type differs from catalog")
+        if self.dependency_index is not None:
+            from verifier.task_versions import check_inspected_closure
+
+            check_inspected_closure(
+                inspected["closure"],
+                trees=self.trees,
+                environment=self.dependency_index.environment,
+                declaration=declaration,
+                expected_dependency_sha256=self.dependency_index.dependencies[declaration.theorem].sha256,
+                expected_build_provenance_sha256=self.dependency_index.provenance[declaration.theorem].sha256,
+            )
         if (
             inspected["source_category"] != "research open"
             or inspected["source_declaration_kind"] != "theorem"

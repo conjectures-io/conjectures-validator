@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "admitted_targets": 264,
+  "unchanged_printed_statements": 258,
+  "helper_rename_only": [
+    {
+      "theorem": "Erdos604.erdos_604.variants.average",
+      "upstream_type": "∃ C,\n  0 < C ∧\n    ∀ᶠ (n : ℕ) in Filter.atTop,\n      ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n        A.card = n → C * ↑n ^ 2 / √(Real.log ↑n) ≤ ↑(∑ x ∈ A, distinctDistancesFrom A x)",
+      "production_type": "∃ C,\n  0 < C ∧\n    ∀ᶠ (n : ℕ) in Filter.atTop,\n      ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n        A.card = n → C * ↑n ^ 2 / √(Real.log ↑n) ≤ ↑(∑ x ∈ A, distinctDistancesFromOther A x)"
+    },
+    {
+      "theorem": "Erdos654.erdos_654.parts.ii",
+      "upstream_type": "∃ c > 0,\n  ∀ᶠ (n : ℕ) in Filter.atTop,\n    ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n      A.card = n → EuclideanGeometry.NoFourConcyclic ↑A → ∃ x ∈ A, (1 / 3 + c) * ↑n < ↑(distinctDistancesFrom A x)",
+      "production_type": "∃ c > 0,\n  ∀ᶠ (n : ℕ) in Filter.atTop,\n    ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n      A.card = n → EuclideanGeometry.NoFourConcyclic ↑A → ∃ x ∈ A, (1 / 3 + c) * ↑n < ↑(distinctDistancesFromOther A x)"
+    },
+    {
+      "theorem": "Erdos654.erdos_654.variants.general_position",
+      "upstream_type": "∃ c > 0,\n  ∀ᶠ (n : ℕ) in Filter.atTop,\n    ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n      A.card = n → EuclideanGeometry.InGeneralPosition ↑A → ∃ x ∈ A, (1 / 3 + c) * ↑n < ↑(distinctDistancesFrom A x)",
+      "production_type": "∃ c > 0,\n  ∀ᶠ (n : ℕ) in Filter.atTop,\n    ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n      A.card = n →\n        EuclideanGeometry.InGeneralPosition ↑A → ∃ x ∈ A, (1 / 3 + c) * ↑n < ↑(distinctDistancesFromOther A x)"
+    },
+    {
+      "theorem": "Erdos654.erdos_654.variants.general_position_one_sub_eps",
+      "upstream_type": "∀ ε > 0,\n  ∀ᶠ (n : ℕ) in Filter.atTop,\n    ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n      A.card = n → EuclideanGeometry.InGeneralPosition ↑A → ∃ x ∈ A, (1 - ε) * ↑n < ↑(distinctDistancesFrom A x)",
+      "production_type": "∀ ε > 0,\n  ∀ᶠ (n : ℕ) in Filter.atTop,\n    ∀ (A : Finset (EuclideanSpace ℝ (Fin 2))),\n      A.card = n → EuclideanGeometry.InGeneralPosition ↑A → ∃ x ∈ A, (1 - ε) * ↑n < ↑(distinctDistancesFromOther A x)"
+    },
+    {
+      "theorem": "Erdos661.erdos_661.variants.little_o_distinct_distances",
+      "upstream_type": "(fun n => ↑(Erdos661.minimalCrossDistances (EuclideanSpace ℝ (Fin 2)) n)) =o[Filter.atTop] fun n =>\n  ↑(minimalDistinctDistances (EuclideanSpace ℝ (Fin 2)) (2 * n))",
+      "production_type": "(fun n => ↑(Erdos661.minimalCrossDistances (EuclideanSpace ℝ (Fin 2)) n)) =o[Filter.atTop] fun n =>\n  ↑(minimalDistinctDistancesIn (EuclideanSpace ℝ (Fin 2)) (2 * n))"
+    },
+    {
+      "theorem": "Erdos1083.erdos_1083",
+      "upstream_type": "∀ (d : ℕ),\n  3 ≤ d →\n    ∃ o,\n      o =o[Filter.atTop] 1 ∧\n        ∀ᶠ (n : ℕ) in Filter.atTop, ↑(minimalDistinctDistances (EuclideanSpace ℝ (Fin d)) n) = ↑n ^ (2 / ↑d - o n)",
+      "production_type": "∀ (d : ℕ),\n  3 ≤ d →\n    ∃ o,\n      o =o[Filter.atTop] 1 ∧\n        ∀ᶠ (n : ℕ) in Filter.atTop, ↑(minimalDistinctDistancesIn (EuclideanSpace ℝ (Fin d)) n) = ↑n ^ (2 / ↑d - o n)"
+    }
+  ],
+  "reason": "Keep the original production geometry helper definitions intact for existing rewards. Preserve the newer upstream helpers under distinct names for new targets. Compare printed statements modulo whitespace and these explicit identifier renames; this check supplements definition review and is not a formal equivalence proof across Lean versions."
+}

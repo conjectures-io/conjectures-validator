@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "commit": "6cd829f0ab173b10c8d375642f7564729ee29bc9",
+  "tree": "64c282014626ed0bd00471afd440c5627aa91cc6",
+  "base": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
+  "patch_sha256": "d8b976c3a914cc605fa1d4786477556b51d740ac822ce91aa39bebdc38ad56b6",
+  "method": "Clean base checkout; git apply --check and --index; same deterministic commit-tree recipe as scripts/pin_dependencies.sh."
+}

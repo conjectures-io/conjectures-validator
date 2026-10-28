@@ -130,7 +130,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(ERDOS_SOURCE_PREFIX)
         for item in selected
-    ) == MINIMUM_ERDOS_TASKS
+    ) == 483
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
@@ -142,7 +142,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 226
+    assert len({item.source_path for item in selected}) == 441
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -342,12 +342,17 @@ OCTOBER_HOLDS = {
     "Erdos564.erdos_564",
     "Erdos887.erdos_887.parts.ii",
 }
+OCTOBER_REINSTATEMENTS = {
+    "Erdos1004.erdos_1004",
+    "Erdos282.erdos_282",
+    "Erdos564.erdos_564",
+}
 
 
 @pytest.mark.needs_checkouts
 def test_october_exits_leave_admission_and_their_old_tasks_stay_readable():
     retired_now = OCTOBER_EXTERNAL_SOLUTIONS | OCTOBER_OWNER_CLOSURES
-    exits = retired_now | OCTOBER_HOLDS
+    exits = retired_now | (OCTOBER_HOLDS - OCTOBER_REINSTATEMENTS)
     policy = json.loads((TASKS_ROOT / "allowlist.json").read_text(encoding="utf-8"))
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
     held = load_held_sources(TIER_METADATA / "held-source-theorems.json")
@@ -357,10 +362,19 @@ def test_october_exits_leave_admission_and_their_old_tasks_stay_readable():
     retirement_log = (TIER_METADATA / "RETIREMENTS.md").read_text(encoding="utf-8")
     hold_log = (TIER_METADATA / "HOLDS.md").read_text(encoding="utf-8")
 
-    assert len(exits) == 19
+    assert len(exits) == 16
     assert retired_now <= retired.theorems
     # A hold is not a retirement: the held names are refused through their own list only.
-    assert held.theorems == OCTOBER_HOLDS | {"Math30Catalog.source22"}
+    review = json.loads((TIER_METADATA / "erdos-admission-audit.json").read_text())
+    new_holds = {
+        row["theorem"] for row in review["targets"]
+        if row["decision"] in {
+            "hold_resolution_claim", "hold_statement_dispute", "exclude_statement_discrepancy"
+        }
+    }
+    assert held.theorems == (OCTOBER_HOLDS - OCTOBER_REINSTATEMENTS) | {"Math30Catalog.source22"} | new_holds
+    assert OCTOBER_REINSTATEMENTS <= set(targets.theorems)
+    assert OCTOBER_REINSTATEMENTS.isdisjoint(held.theorems)
     assert held.theorems.isdisjoint(retired.theorems)
     assert all(hold.reason_code in HOLD_REASON_CODES for hold in held.holds)
     assert all(hold.held_on == "2026-10-06" for hold in held.holds if hold.theorem in OCTOBER_HOLDS)
@@ -371,10 +385,7 @@ def test_october_exits_leave_admission_and_their_old_tasks_stay_readable():
         "sha256:8212d9ec59d89064b56f940bf51a9af36699a95555f245f9a8360c26a3efbd1f",
     } <= retired.type_hashes
     assert {
-        "sha256:c5ce7570c520daced747e3045c85bdd574afe40897cce40d5a5f7d7c67d90664",
         "sha256:c0a204ad0ab84a91a8d339a473e94935cedf04eeb35b57e802858d7479fbdb47",
-        "sha256:cd135cd026b706b808d2bc82d9a0c68331f01bdd960c495dcf9d7b8c84e5fc3d",
-        "sha256:9d83ba030098650ee699b48e716cdf5f446226673c02b02f5b9e6af5c7e5b092",
         "sha256:869e68472c87758ed735ec9905e981c1948591269bcdf19fd92574021681991e",
     } <= held.type_hashes
     assert exits.isdisjoint(targets.theorems)
@@ -387,7 +398,10 @@ def test_october_exits_leave_admission_and_their_old_tasks_stay_readable():
         assert (
             f"`{theorem}` — 2026-10-06 — `{OWNER_ACCEPTED_CLOSURE_REASON_CODE} (" in retirement_log
         )
-    assert all(f"`{theorem}`" in hold_log for theorem in OCTOBER_HOLDS)
+    assert all(f"`{theorem}`" in hold_log for theorem in OCTOBER_HOLDS - OCTOBER_REINSTATEMENTS)
+    assert all(f"`{theorem}`" not in hold_log for theorem in OCTOBER_REINSTATEMENTS)
+    historical_holds = (TIER_METADATA / "HOLDS-2026-10-06.md").read_text(encoding="utf-8")
+    assert all(f"`{theorem}`" in historical_holds for theorem in OCTOBER_HOLDS)
     assert all(f"`{theorem}`" not in retirement_log for theorem in OCTOBER_HOLDS)
 
     # The display payload keeps the tasks the previous release offered for every exit, labelled
@@ -460,7 +474,8 @@ def test_retired_conjectures_are_readable_but_never_admissible():
     }
     assert by_status[POOL_STATUS_RETIRED] | by_status[POOL_STATUS_HELD] == theorems
     assert by_status[POOL_STATUS_RETIRED] <= sources.theorems
-    assert by_status[POOL_STATUS_HELD] == held.theorems
+    # New candidates can be held before ever having a published bundle to display.
+    assert by_status[POOL_STATUS_HELD] <= held.theorems
     assert theorems.isdisjoint(row["theorem"] for row in policy["allowed_source_theorems"])
     assert all(
         theorems.isdisjoint(row["theorems"]) for row in policy["allowed_task_bundles"]
