@@ -122,6 +122,7 @@ def service(database, **settings):
         competition_rate_per_minute=100,
         trusted_proxy_hops=0,
         trusted_proxy_peers=(),
+        cursor_secret="test-cursor-secret",
     )
     for k, v in settings.items():
         setattr(config, k, v)

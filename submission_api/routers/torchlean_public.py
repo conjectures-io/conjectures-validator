@@ -15,8 +15,10 @@ from submission_api.competitions import TORCHLEAN, Competition
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import Forbidden
 from submission_api.kernel_upload import MAX_FILE_BYTES
+from submission_api.routers._account import decode_id_cursor, encode_id_cursor
 from submission_api.routers.competitions import resolve_competition
 from submission_api.routers.torchlean import TorchLeanSession, torchlean_session
+from submission_api.settings import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 
 router = APIRouter()
 BoardQuery = Annotated[str, Query(pattern=r"^[a-z][a-z0-9_]*$", max_length=64)]
@@ -128,10 +130,21 @@ async def champions(session: ReadSession, board: BoardQuery = "overall"):
 
 @router.get("/submissions", response_model=s.TorchLeanSubmissionPage)
 async def submissions(
+    services: ServicesDep,
     session: ReadSession,
     state: Annotated[s.TorchLeanProcessingState | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
 ):
-    return s.TorchLeanSubmissionPage(submissions=await store.submissions(session, processing=state))
+    """One page, newest first; pass `next_cursor` back as `cursor` with the same `state`."""
+    before = decode_id_cursor(services.settings, cursor)
+    page = await store.submissions(session, processing=state, before=before, limit=limit + 1)
+    more = len(page) > limit
+    page = page[:limit]
+    return s.TorchLeanSubmissionPage(
+        submissions=page,
+        next_cursor=encode_id_cursor(services.settings, page[-1].id) if more else None,
+    )
 
 
 @router.get("/submissions/{submission_id}", response_model=s.TorchLeanSubmission)

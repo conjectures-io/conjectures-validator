@@ -141,7 +141,8 @@ async def evaluations(session, ids):
     )
 
 
-async def submissions(session, *, sid=None, processing=None):
+async def submissions(session, *, sid=None, processing=None, before=None, limit=None):
+    # Newest first by id, which only grows: `before` is the last id of the previous page.
     data = await rows(
         session,
         f"""
@@ -149,11 +150,14 @@ async def submissions(session, *, sid=None, processing=None):
           SELECT s.id,s.hotkey,s.source_sha256,s.submitted_at,s.state AS proof_state,
             s.stage,s.reason,s.intake_mode,{PROCESSING} AS processing_state
           FROM submissions s WHERE (CAST(:sid AS bigint) IS NULL OR s.id=CAST(:sid AS bigint))
+            AND (CAST(:before AS bigint) IS NULL OR s.id<CAST(:before AS bigint))
         ) q WHERE (CAST(:processing AS text) IS NULL OR processing_state=CAST(:processing AS text))
-        ORDER BY submitted_at DESC,id DESC
+        ORDER BY id DESC LIMIT CAST(:limit AS bigint)
     """,
         sid=sid,
         processing=processing,
+        before=before,
+        limit=limit,
     )
     if sid is not None and not data:
         raise NotFound("No such TorchLean submission")

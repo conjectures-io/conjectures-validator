@@ -58,7 +58,10 @@ class TorchLeanSubmission(BaseModel):
 
 
 class TorchLeanSubmissionPage(BaseModel):
+    """Newest first. `next_cursor` fetches the next page and is null on the last one."""
+
     submissions: list[TorchLeanSubmission]
+    next_cursor: str | None = None
 
 
 class TorchLeanEnvironment(BaseModel):

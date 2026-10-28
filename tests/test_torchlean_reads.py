@@ -323,6 +323,31 @@ def job(db, eid, sha, *, environment="amd64", state="completed", request=None):
     )
 
 
+def test_submission_list_pages_newest_first_with_signed_cursors(database):
+    configure(database)
+    ids = [submit(database, f"entry-{i}")[0] for i in range(5)]
+    queued = submit(database, "waiting-proof", "queued")[0]
+    first = get(database, "/submissions?limit=2")
+    assert first.status_code == 200, first.text
+    assert [s["id"] for s in first.json()["submissions"]] == [queued, ids[4]]
+    cursor = first.json()["next_cursor"]
+    second = get(database, f"/submissions?limit=2&cursor={cursor}").json()
+    assert [s["id"] for s in second["submissions"]] == [ids[3], ids[2]]
+    last = get(database, f"/submissions?limit=2&cursor={second['next_cursor']}").json()
+    assert [s["id"] for s in last["submissions"]] == [ids[1], ids[0]]
+    assert last["next_cursor"] is None
+    # A filtered page is full when later rows are filtered out, and ends where the filter does.
+    waiting = get(database, "/submissions?state=waiting&limit=4").json()
+    assert [s["id"] for s in waiting["submissions"]] == ids[:0:-1]
+    rest = get(database, f"/submissions?state=waiting&limit=4&cursor={waiting['next_cursor']}")
+    assert [s["id"] for s in rest.json()["submissions"]] == [ids[0]]
+    assert rest.json()["next_cursor"] is None
+    assert get(database, "/submissions").json()["next_cursor"] is None
+    tampered = get(database, f"/submissions?cursor={cursor[:-2]}xx")
+    assert tampered.status_code == 400 and tampered.json()["reason_code"] == "INVALID_CURSOR"
+    assert get(database, "/submissions?limit=101").status_code == 422
+
+
 def test_progress_reports_and_queue_filters_without_worker_secrets(database):
     configure(database)
     sid, sha = submit(database, "candidate")

@@ -11038,7 +11038,19 @@
         "type": "object"
       },
       "TorchLeanSubmissionPage": {
+        "description": "Newest first. `next_cursor` fetches the next page and is null on the last one.",
         "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
           "submissions": {
             "items": {
               "$ref": "#/components/schemas/TorchLeanSubmission"
@@ -15238,6 +15250,7 @@
     },
     "/v1/competitions/torchlean/submissions": {
       "get": {
+        "description": "One page, newest first; pass `next_cursor` back as `cursor` with the same `state`.",
         "operationId": "submissions_v1_competitions_torchlean_submissions_get",
         "parameters": [
           {
@@ -15263,6 +15276,35 @@
                 }
               ],
               "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
             }
           }
         ],
