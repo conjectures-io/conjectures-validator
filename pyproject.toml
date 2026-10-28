@@ -35,7 +35,7 @@ service = [
     # competition handlers call `request.form()` themselves, *after* the rate limit and the
     # signature check, rather than declaring `File()` parameters that FastAPI would parse
     # during dependency resolution and therefore ahead of both.
-    "python-multipart==0.0.20",
+    "python-multipart==0.0.31",
 ]
 subnet = ["bittensor==11.0.0"]
 # Database access only. The proofs schema's migrations are plain SQL applied by
@@ -55,6 +55,20 @@ db = [
 # models are the source of truth and Alembic generates the deploy path from them,
 # which is why a migration tool appears here and nowhere else.
 competition = ["formal-conjectures-verifier[db]", "alembic==1.20.0"]
+# Distributed traces to Axiom over OTLP/HTTP. Only the API image installs it: the
+# verification worker runs next to hostile Lean and stays on the standard-library event
+# transport, and a process without these packages gets a no-op tracer from
+# `conjectures_subnet.tracing`, so nothing imports them unconditionally. wrapt is named
+# because the instrumentation accepts anything below 3, and the newest release was too
+# fresh to take on the day this was added.
+tracing = [
+    "opentelemetry-api==1.45.1",
+    "opentelemetry-sdk==1.45.1",
+    "opentelemetry-exporter-otlp-proto-http==1.45.1",
+    "opentelemetry-instrumentation-httpx==0.66b1",
+    "opentelemetry-instrumentation-sqlalchemy==0.66b1",
+    "wrapt==2.5.0",
+]
 
 [project.scripts]
 fc-verifier = "verifier.cli:main"

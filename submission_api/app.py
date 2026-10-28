@@ -46,6 +46,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from conjectures_subnet.axiom import attach_axiom_handler, get_axiom
+from conjectures_subnet.tracing import configure_tracing, shutdown_tracing
 from conjectures_subnet.bounty import (
     BittensorBalanceReader,
     CachedBalanceReader,
@@ -371,6 +372,11 @@ def create_app(
         # the bridge here rather than calling `configure_logging` the way the workers' entry
         # points do — there is no `basicConfig` of ours to make.
         attach_axiom_handler(source="api")
+        # Before the service graph too, for a different reason: it instruments SQLAlchemy's engine
+        # constructors and httpx's transports, so it has to run before the engines and clients
+        # below exist. On wherever Axiom events are (AXIOM_TOKEN + AXIOM_DATASET) and the image has
+        # the packages; a no-op otherwise.
+        configure_tracing(service_name="conjectures-api")
         if not hasattr(application.state, "services"):
             application.state.services = build_services(resolved_settings)
         get_axiom().info(
@@ -435,6 +441,7 @@ def create_app(
             # before the process exits. `atexit` would do it too; doing it here means it happens
             # while the loop is still running rather than during interpreter shutdown.
             get_axiom().close()
+            shutdown_tracing()
 
     application = FastAPI(
         title="conjectures.io Subnet 66 submission API",

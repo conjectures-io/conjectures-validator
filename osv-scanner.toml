@@ -1,0 +1,12 @@
+# Advisories this repository has looked at and accepted, read by OSV-Scanner for the lockfiles
+# beside it (requirements-service.hashes, requirements-service.lock). See
+# .github/actions/osv-scan/action.yml and SECURITY.md, "Dependency advisories".
+#
+# Every entry needs a reason a reviewer can check and an expiry, so an acceptance is revisited
+# rather than becoming permanent by default. An expired entry stops applying and the scan fails
+# again, which is the point. For example:
+#
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2026-12-31T00:00:00Z
+# reason = "Only reachable through X, which this service never calls; fixed upstream in 1.2.3, waiting on Y."

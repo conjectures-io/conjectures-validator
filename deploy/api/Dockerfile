@@ -39,14 +39,17 @@ WORKDIR /src
 # The lockfile alone first, so a code edit does not invalidate the dependency layer.
 #
 # The direct dependencies are named here and their versions come from the constraint file, which
-# is the same pinned set `pyproject.toml`'s `service` and `db` extras resolve to. Listed
-# explicitly rather than installed via `.[service]` because that would need the project source
-# in this layer, and then every code edit would reinstall bittensor.
-COPY requirements-service.lock ./
+# is the same pinned set `pyproject.toml`'s `service`, `db` and `tracing` extras resolve to.
+# Listed explicitly rather than installed via `.[service]` because that would need the project
+# source in this layer, and then every code edit would reinstall bittensor.
+#
+# `--require-hashes`: every file pip fetches has to match the sha256 recorded when the lock was
+# generated (scripts/lock_dependencies.sh), so a substituted artifact fails the build.
+COPY requirements-service.hashes ./
 # Bootstrap pip against the patched system store; pip also bundles its own CA certificates.
 RUN PIP_CERT=/etc/ssl/certs/ca-certificates.crt python -m pip install --no-cache-dir --upgrade pip==26.2.2
 
-RUN pip install --constraint requirements-service.lock \
+RUN pip install --require-hashes --constraint requirements-service.hashes \
       fastapi \
       python-multipart \
       uvicorn \
@@ -56,7 +59,13 @@ RUN pip install --constraint requirements-service.lock \
       SQLAlchemy \
       greenlet \
       "psycopg[binary]" \
-      bittensor
+      bittensor \
+      opentelemetry-api \
+      opentelemetry-sdk \
+      opentelemetry-exporter-otlp-proto-http \
+      opentelemetry-instrumentation-httpx \
+      opentelemetry-instrumentation-sqlalchemy \
+      wrapt
 
 # Then the project itself. `--no-deps`: every dependency is already installed at its pinned
 # version above, and resolving again could pull something the lockfile did not sanction.

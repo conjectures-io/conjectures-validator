@@ -374,6 +374,98 @@ def test_both_credentials_build_a_real_client():
         client.close()
 
 
+@pytest.mark.parametrize(
+    ("revision", "expected"),
+    [("4467d8f", "4467d8f"), ("", None), ("unknown", None)],
+)
+def test_the_revision_is_stamped_on_every_event_when_the_deployment_names_one(
+    revision, expected
+):
+    """`unknown` is compose's placeholder when nothing set GIT_COMMIT, so it is not a release."""
+    client = create_axiom_client_from_env(
+        {"AXIOM_TOKEN": "xaat-x", "AXIOM_DATASET": "events", "CONJECTURES_REVISION": revision}
+    )
+    try:
+        assert isinstance(client, AxiomClient)
+        event = client._envelope(
+            severity=Severity.INFO, source="api", event_type="log_record", details={}
+        )
+    finally:
+        client.close()
+    assert event.get("revision") == expected
+
+
+def test_a_detail_cannot_displace_the_revision():
+    with FakeAxiom(revision="4467d8f") as fake:
+        fake.sink.info(source="api", event_type="log_record", revision="attacker-chosen")
+        event = fake.events()[0]
+    assert event["revision"] == "4467d8f"
+
+
+# --- the heartbeat --------------------------------------------------------------------------
+
+
+def test_the_heartbeat_reports_what_was_shipped_and_dropped_since_the_last_one():
+    with FakeAxiom(queue_size=1) as fake:
+        fake.client.report_heartbeats(source="verification-worker", interval_seconds=0.2)
+        # A queue of one, filled faster than the thread drains it: some of these are dropped.
+        for _ in range(50):
+            fake.sink.info(source="verification-worker", event_type="log_record")
+        deadline = time.monotonic() + FLUSH_TIMEOUT_SECONDS
+        beats: list[dict[str, Any]] = []
+        while time.monotonic() < deadline and len(beats) < 2:
+            beats = [
+                item
+                for item in fake.events(at_least=1)
+                if item["event_type"] == "telemetry_heartbeat"
+            ]
+            time.sleep(0.05)
+    assert len(beats) >= 2, "the drain thread sent fewer than two heartbeats"
+    first = beats[0]
+    assert first["source"] == "verification-worker"
+    assert first["severity"] == "info"
+    assert first["environ"] == "pytest"
+    assert first["dropped"] > 0
+    assert first["sent"] >= 0
+    assert first["interval_s"] >= 0.2
+    # Deltas, not totals: nothing was dropped after the burst.
+    assert beats[-1]["dropped"] == 0
+
+
+def test_no_heartbeat_until_a_process_names_itself_or_after_it_is_turned_off():
+    with FakeAxiom() as fake:
+        fake.sink.info(source="api", event_type="log_record")
+        fake.events()
+        time.sleep(0.2)
+        assert not [e for e in fake.events() if e["event_type"] == "telemetry_heartbeat"]
+
+        fake.client.report_heartbeats(source="api", interval_seconds=0)
+        time.sleep(0.2)
+        assert not [e for e in fake.events() if e["event_type"] == "telemetry_heartbeat"]
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"), [("", 60.0), ("15", 15.0), ("0", 0.0), ("-3", 60.0), ("often", 60.0)]
+)
+def test_attaching_the_bridge_starts_the_heartbeat_from_the_environment(raw, expected):
+    seen: list[tuple[str, float]] = []
+
+    class Spy(Axiom):
+        def report_heartbeats(self, *, source, interval_seconds):
+            seen.append((source, interval_seconds))
+
+    with FakeAxiom() as fake:
+        target = logging.getLogger("test-heartbeat-bridge")
+        handler = attach_axiom_handler(
+            source="deposit-watcher",
+            logger=target,
+            environ={"AXIOM_HEARTBEAT_SECONDS": raw},
+            axiom=Spy(fake.client),
+        )
+        target.removeHandler(handler)
+    assert seen == [("deposit-watcher", expected)]
+
+
 # --- the logging bridge ---------------------------------------------------------------------
 
 

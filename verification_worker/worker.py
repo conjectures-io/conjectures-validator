@@ -115,6 +115,9 @@ class VerificationWorker:
             task_id=claim.task_id,
             attempt=claim.attempts,
             owner=self.settings.owner,
+            # Intake to claim. With `duration_ms` on the verdict, the two add up to the time a
+            # paid submission took to get its answer, which is the number a miner experiences.
+            queued_ms=claim.queued_ms,
         )
 
         # Task, digest and intake problem identity all come from the row, not the request: a
@@ -259,6 +262,7 @@ class VerificationWorker:
             verifier_version=run.verifier_version,
             container_digest=run.container_digest,
             duration_ms=round((finished_at - started_at).total_seconds() * 1000, 3),
+            queued_ms=claim.queued_ms,
         )
         return Processed(
             submission_id=claim.submission_id,

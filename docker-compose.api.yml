@@ -133,8 +133,16 @@ services:
       AXIOM_TOKEN: ${AXIOM_TOKEN:-}
       AXIOM_DATASET: ${AXIOM_DATASET:-}
       AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      # The commit the container was created from: `just deploy-up` sets GIT_COMMIT, and a
+      # deploy recreates the container, so this is the code the process loaded. Stamped on
+      # every Axiom event as `revision`.
+      CONJECTURES_REVISION: ${GIT_COMMIT:-unknown}
       AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
       AXIOM_REQUEST_EVENTS: ${AXIOM_REQUEST_EVENTS:-all}
+      # Traces, to a dataset of their own (docs/OBSERVABILITY.md, "Traces"): on with events, to
+      # <AXIOM_DATASET>-traces unless this names another or says `off`. The ingest token is reused. The ratio samples whole traces, 0.0 to 1.0.
+      AXIOM_TRACES_DATASET: ${AXIOM_TRACES_DATASET:-}
+      AXIOM_TRACES_SAMPLE_RATIO: ${AXIOM_TRACES_SAMPLE_RATIO:-1.0}
 
     ports:
       # Loopback by default. TLS, HTTP/2 and HTTP/3 terminate at the edge — this
