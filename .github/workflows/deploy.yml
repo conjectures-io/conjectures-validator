@@ -39,6 +39,10 @@ on:
         description: "Production: the operator steps listed in the plan summary are done"
         type: boolean
         default: false
+      accept_advisories:
+        description: "Deploy even though the dependency audit found known vulnerabilities (an emergency fix or rollback)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -287,11 +291,53 @@ jobs:
 
   # CI either passed here, or was skipped for one of exactly two reasons: a manual run (a commit
   # already on the branch, or a release tag), or `tested` found a green PR run on this tree.
+  # Known vulnerabilities in what is about to be deployed, checked now rather than when its PR went
+  # green: an advisory published in between must stop the deploy, and this runs on every deploy,
+  # including the ones that skip `ci`. Before the production approval, so a reviewer is never
+  # asked to approve something this would refuse.
+  #
+  # The scan action comes from this run's own checkout -- the branch tip -- and scans the target
+  # commit's lockfile, so a rollback to a commit from before the action existed still gets
+  # audited. A target with no hashed lock yet is scanned through its plain one.
+  audit:
+    name: dependency audit
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          path: target
+
+      - name: Choose the lockfile
+        id: lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f target/requirements-service.hashes ]]; then
+            echo "path=target/requirements-service.hashes" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=target/requirements-service.lock" >> "$GITHUB_OUTPUT"
+          fi
+          # No config to copy: the scanner reads the osv-scanner.toml beside the lockfile, so the
+          # target's own acceptances apply to the target's own lock.
+
+      # An emergency fix or rollback may have to ship over a known advisory. The input says so
+      # on the record, and the summary still lists every finding.
+      - uses: ./.github/actions/osv-scan
+        continue-on-error: ${{ inputs.accept_advisories == true }}
+        with:
+          title: Python dependencies of ${{ needs.plan.outputs.sha }}
+          lockfiles: ${{ steps.lock.outputs.path }}
+
   deploy:
     name: deploy
-    needs: [tested, ci, plan]
+    needs: [tested, ci, plan, audit]
     if: >-
       !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.gated != 'true' &&
+      needs.audit.result == 'success' &&
       (needs.ci.result == 'success' ||
        (needs.ci.result == 'skipped' &&
         (github.event_name == 'workflow_dispatch' || needs.tested.outputs.run_ci == 'false')))
@@ -337,6 +383,47 @@ jobs:
           else
             ssh_deploy "deploy $SHA $GITHUB_RUN_ID" < /dev/null
           fi
+
+      # A marker on every Axiom chart that reads these datasets, at the moment the new code started
+      # serving, linking back to this run. "Did the errors start with the deploy" becomes a look
+      # at the chart. Optional and never fatal: unset is skipped, and a failed annotation costs a
+      # marker, not a deploy that has already happened.
+      - name: Mark the deploy in Axiom
+        continue-on-error: true
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ needs.plan.outputs.environment }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          ROLLBACK_TAG: ${{ needs.plan.outputs.rollback_tag }}
+          SCOPE: ${{ needs.plan.outputs.scope }}
+          # A token allowed to create annotations; not the ingest token on the server.
+          AXIOM_ANNOTATION_TOKEN: ${{ secrets.AXIOM_ANNOTATION_TOKEN }}
+          # Comma-separated: the events dataset and the traces dataset, as the server's .env names them.
+          DATASETS: ${{ vars.AXIOM_ANNOTATION_DATASETS }}
+          AXIOM_URL: ${{ vars.AXIOM_URL || 'https://api.axiom.co' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$AXIOM_ANNOTATION_TOKEN" || -z "$DATASETS" ]]; then
+            echo "AXIOM_ANNOTATION_TOKEN or AXIOM_ANNOTATION_DATASETS is not set on $ENVIRONMENT; no annotation"
+            exit 0
+          fi
+          IFS=',' read -r -a names <<<"$DATASETS"
+          for name in "${names[@]}"; do
+            [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "::warning::AXIOM_ANNOTATION_DATASETS has an invalid name"; exit 0; }
+          done
+          title="deploy ${SHA:0:12} to $ENVIRONMENT"
+          [[ -z "$ROLLBACK_TAG" ]] || title="rollback to $ROLLBACK_TAG on $ENVIRONMENT"
+          payload="$(jq -n \
+            --arg type "deploy-$ENVIRONMENT" --arg title "$title" --arg url "$RUN_URL" \
+            --arg description "commit $SHA, scope $SCOPE" --arg datasets "$DATASETS" \
+            '{type: $type, title: $title, description: $description, url: $url,
+              datasets: ($datasets | split(","))}')"
+          curl --proto '=https' -fsS -o /dev/null -X POST "$AXIOM_URL/v2/annotations" \
+            -H "Authorization: Bearer $AXIOM_ANNOTATION_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload"
+          echo "Annotated $DATASETS: $title"
 
   # `!cancelled()` and an explicit check of `deploy`, not the implicit success(): that one fails
   # whenever any job upstream was skipped -- and `ci` is skipped on every manual run and whenever

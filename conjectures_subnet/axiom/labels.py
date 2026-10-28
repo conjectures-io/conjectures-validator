@@ -105,6 +105,12 @@ EventType: TypeAlias = Literal[
     # A process that refused to start. Distinct from `unexpected_error`: nothing was retried,
     # and the fix is a configuration change rather than an investigation.
     "service_misconfigured",
+    # The transport reporting on itself, every `AXIOM_HEARTBEAT_SECONDS`: events shipped,
+    # dropped and failed since the last one. Two jobs. A gap in the dataset is only trustworthy
+    # when something says how big it was, and a process that is idle -- an API nobody is calling,
+    # a worker with an empty queue -- otherwise emits nothing, so its silence and its death look
+    # the same. This is the row whose absence means the latter.
+    "telemetry_heartbeat",
     # --- HTTP -------------------------------------------------------------------------------
     # One per answered request, whatever the status. `severity` and `status` carry the outcome,
     # so a single event type keeps "how many requests, how fast, how many failed" one query.

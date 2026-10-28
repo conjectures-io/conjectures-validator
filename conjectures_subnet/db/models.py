@@ -3393,3 +3393,12 @@ from conjectures_subnet.db import bounty_policy  # noqa: F401
 from conjectures_subnet.db import trajectory_fulfillment  # noqa: F401
 
 from conjectures_subnet.db import submission_pdfs  # noqa: F401
+
+
+class CompetitionIntakeLimit(Base):
+    """One current fixed-window request counter per competition/client."""
+    __tablename__ = "competition_intake_limits"
+    subject: Mapped[str] = mapped_column(Text, primary_key=True)
+    window_start: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    hits: Mapped[int] = mapped_column(Integer)
+    __table_args__ = (CheckConstraint("hits >= 1", name="ck_competition_intake_hits"),)

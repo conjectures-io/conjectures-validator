@@ -42,3 +42,6 @@ scripts/generated/
 AGENTS.md
 CLAUDE.md
 
+
+# Competition-owned SQL snapshots needed by TorchLean API tests.
+!tests/fixtures/tensor_schema/*.sql

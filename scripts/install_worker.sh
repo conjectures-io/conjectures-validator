@@ -106,8 +106,9 @@ fi
 # pip has its own CA bundle; bootstrap the security update using the system trust store.
 PIP_CERT="${PIP_CERT:-/etc/ssl/certs/ca-certificates.crt}" \
   "$RELEASE/.venv/bin/python" -m pip install --quiet --upgrade pip==26.2.2
-"$RELEASE/.venv/bin/python" -m pip install --quiet \
-  --constraint "$RELEASE/requirements-service.lock" \
+# Hash-checked, like the images: a file whose sha256 the lock did not record is refused.
+"$RELEASE/.venv/bin/python" -m pip install --quiet --require-hashes \
+  --constraint "$RELEASE/requirements-service.hashes" \
   SQLAlchemy greenlet 'psycopg[binary]'
 chown -R root:root "$RELEASE/.venv"
 

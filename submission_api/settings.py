@@ -592,7 +592,7 @@ def _competition_slugs(environ: Mapping[str, str], competition_slug: str) -> tup
     slugs = tuple(s.strip() for s in raw.split(",") if s.strip()) or (competition_slug,)
     if len(set(slugs)) != len(slugs):
         raise SettingsError(f"COMPETITIONS lists a competition twice: {raw!r}")
-    known = (competition_slug, "floatlib")
+    known = (competition_slug, "floatlib", "torchlean")
     for slug in slugs:
         if slug not in known:
             raise SettingsError(
@@ -970,6 +970,9 @@ class Settings:
     floatlib_submissions_enabled: bool = False
     floatlib_registration_cutoff: datetime | None = None
     floatlib_check_deflate_usage: bool = False
+    torchlean_submissions_enabled: bool = False
+    torchlean_registration_cutoff: datetime | None = None
+    torchlean_dev_skip_registration: bool = False
     competition_slugs: tuple[str, ...] = ()
     # Each competition's own database URL, from `COMPETITION_<SLUG>_DATABASE_URL`, as
     # (slug, url) pairs. A slug missing here is `competition_slug` falling back to
@@ -1008,6 +1011,8 @@ class Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
+        if production and _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False):
+            raise SettingsError("TORCHLEAN_DEV_SKIP_REGISTRATION is forbidden in production")
         trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
         # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
         if production and trajectory_bonus_enabled:
@@ -1610,7 +1615,29 @@ class Settings:
                     "FLOATLIB_CHECK_DEFLATE_USAGE requires DEFLATE configured with uploads disabled"
                 )
 
+        torchlean_uploads = _flag(env, "TORCHLEAN_SUBMISSIONS_ENABLED", False)
+        torchlean_dev = _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False)
+        torchlean_cutoff = None
+        if raw := env.get("TORCHLEAN_REGISTRATION_CUTOFF", "").strip():
+            try:
+                torchlean_cutoff = datetime.fromisoformat(raw)
+                if torchlean_cutoff.tzinfo is None:
+                    raise ValueError("timezone required")
+                torchlean_cutoff = torchlean_cutoff.astimezone(UTC)
+            except ValueError as exc:
+                raise SettingsError(
+                    "TORCHLEAN_REGISTRATION_CUTOFF must be an ISO-8601 timestamp with timezone"
+                ) from exc
+        if torchlean_uploads:
+            if not competitions_enabled or "torchlean" not in competition_slugs:
+                raise SettingsError("TORCHLEAN_SUBMISSIONS_ENABLED requires TorchLean configured")
+            if torchlean_cutoff is None and not torchlean_dev:
+                raise SettingsError("TORCHLEAN_REGISTRATION_CUTOFF is required for TorchLean uploads")
+
         return cls(
+            torchlean_submissions_enabled=torchlean_uploads,
+            torchlean_registration_cutoff=torchlean_cutoff,
+            torchlean_dev_skip_registration=torchlean_dev,
             deflate_submissions_enabled=deflate_uploads,
             floatlib_submissions_enabled=floatlib_uploads,
             floatlib_registration_cutoff=cutoff,

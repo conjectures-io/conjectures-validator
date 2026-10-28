@@ -46,6 +46,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from conjectures_subnet.axiom import attach_axiom_handler, get_axiom
+from conjectures_subnet.tracing import configure_tracing, shutdown_tracing
 from conjectures_subnet.bounty import (
     BittensorBalanceReader,
     CachedBalanceReader,
@@ -66,6 +67,8 @@ from submission_api.competitions import (
     FLOATLIB,
     FLOATLIB_NAME,
     FLOATLIB_SLUG,
+    TORCHLEAN,
+    TORCHLEAN_NAME,
     Competition,
     CompetitionRegistry,
 )
@@ -98,6 +101,7 @@ from submission_api.routers import catalog as catalog_router
 from submission_api.routers import competitions as competitions_router
 from submission_api.routers import competition_reads
 from submission_api.routers import competitions_admin as competitions_admin_router
+from submission_api.routers import torchlean as torchlean_router
 from submission_api.routers import floatlib as floatlib_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
@@ -197,9 +201,13 @@ def build_competitions(settings: Settings) -> CompetitionRegistry:
         entries.append(
             Competition(
                 slug=slug,
-                name=FLOATLIB_NAME if floatlib else settings.competition_name,
+                name=FLOATLIB_NAME
+                if floatlib
+                else TORCHLEAN_NAME
+                if slug == TORCHLEAN
+                else settings.competition_name,
                 speed_floor=settings.competition_speed_floor,
-                kind=FLOATLIB if floatlib else DEFLATE,
+                kind=FLOATLIB if floatlib else TORCHLEAN if slug == TORCHLEAN else DEFLATE,
                 engine=engine,
                 sessions=async_session_factory(engine),
             )
@@ -364,6 +372,11 @@ def create_app(
         # the bridge here rather than calling `configure_logging` the way the workers' entry
         # points do — there is no `basicConfig` of ours to make.
         attach_axiom_handler(source="api")
+        # Before the service graph too, for a different reason: it instruments SQLAlchemy's engine
+        # constructors and httpx's transports, so it has to run before the engines and clients
+        # below exist. On wherever Axiom events are (AXIOM_TOKEN + AXIOM_DATASET) and the image has
+        # the packages; a no-op otherwise.
+        configure_tracing(service_name="conjectures-api")
         if not hasattr(application.state, "services"):
             application.state.services = build_services(resolved_settings)
         get_axiom().info(
@@ -428,6 +441,7 @@ def create_app(
             # before the process exits. `atexit` would do it too; doing it here means it happens
             # while the loop is still running rather than during interpreter shutdown.
             get_axiom().close()
+            shutdown_tracing()
 
     application = FastAPI(
         title="conjectures.io Subnet 66 submission API",
@@ -538,6 +552,7 @@ def create_app(
     #
     # FloatLib's router first: its routes match only FloatLib's slugs (`{slug:floatlib}`), and
     # every one of them has a DEFLATE route of the same shape that would otherwise answer it.
+    application.include_router(torchlean_router.router)
     application.include_router(floatlib_router.router)
     # FloatLib's `/health`, at the root where its own API serves it; see `routers/floatlib.py`.
     application.include_router(floatlib_router.root_router)
