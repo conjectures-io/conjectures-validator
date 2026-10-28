@@ -978,6 +978,22 @@ that cannot be spoofed, and it is correct for a directly exposed process. Gettin
 the limiter in both directions: trusting an untrusted header lets one client mint unlimited keys,
 and ignoring a real one collapses every visitor behind a CDN onto a single budget.
 
+### The website's own server
+
+The website renders public pages (ISR) by calling this API from the host. A cached render has no
+visitor to forward, so those calls carry no `X-Forwarded-For` and all of them resolve to the one
+peer address nginx also connects from. In a visitor-sized bucket, a crawler walking uncached pages
+exhausts it for the whole site.
+
+nginx always appends `X-Forwarded-For`, so a request from a `TRUSTED_PROXY_PEERS` address that has
+none came from the host itself. Those requests go to a separate bucket of
+`RATE_LIMIT_INTERNAL_REQUESTS` per window. It is a larger ceiling, not an exemption: if anything
+else ever reaches the API from a trusted peer without the header, the worst it gets is that budget.
+The bucket applies only when both `TRUSTED_PROXY_HOPS` and `TRUSTED_PROXY_PEERS` are set; without
+peers any direct caller could qualify by leaving the header off. Every nginx `location` that proxies
+to the API must set `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or its
+visitors are counted as the website's server.
+
 ## Configuration
 
 See [`../.env.example`](../.env.example) for the annotated set.
@@ -991,6 +1007,7 @@ See [`../.env.example`](../.env.example) for the annotated set.
 | `RATE_LIMIT_REQUESTS` | `120` | Per client, per window, **per replica** |
 | `RATE_LIMIT_WINDOW_SECONDS` | `60` | |
 | `RATE_LIMIT_MAX_CLIENTS` | `50000` | Bounds the limiter's own memory |
+| `RATE_LIMIT_INTERNAL_REQUESTS` | `5000` | Per window, for a trusted peer with no `X-Forwarded-For`; `0` shares the visitor bucket |
 | `TRUSTED_PROXY_HOPS` | `0` | `0` ignores `X-Forwarded-For` entirely |
 | `PUBLIC_CACHE_SECONDS` | `60` | `0` sends `no-store` |
 | `ALT_SVC` | `h3=":443"; ma=86400` in `PROD` | Describes the edge, not this process |
