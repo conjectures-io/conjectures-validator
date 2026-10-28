@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer
 
-from conjectures_subnet.db.models import REVIEWER_ROLE, ManualReviewState, RewardState, Submission
+from conjectures_subnet.db.models import REVIEWER_ROLE, ManualReviewState, RewardState, Submission, VerificationState
 from conjectures_subnet.db.submissions import latest_binding_decision
 from conjectures_subnet.db.trajectory_models import TrajectoryAccess, TrajectoryClaim
 from submission_api import trajectories as store
@@ -488,6 +488,34 @@ async def locked_claim(session, claim_id):
     claim = await session.scalar(select(TrajectoryClaim).options(defer(TrajectoryClaim.package))
         .where(TrajectoryClaim.id == claim_id).execution_options(populate_existing=True).with_for_update())
     return submission, claim
+
+
+class ProofConfirmation(StateVersion):
+    note: ReviewNote
+
+
+@router.post("/admin/trajectories/{claim_id}/confirm-proof")
+async def confirm_proof(claim_id: uuid.UUID, request: Request, principal: ReviewerWriter,
+                        session: SessionDep, response: Response):
+    private(response)
+    try:
+        body = ProofConfirmation.model_validate_json(await bounded_json(request, 16384))
+    except ValidationError:
+        raise BadRequest("Include a current state version and the mathematical review evidence.") from None
+    submission, claim = await locked_claim(session, claim_id)
+    check_version(claim, body.expected_state_version)
+    if principal.account.id == claim.account_id:
+        raise Conflict("A contributor cannot confirm their own proof.")
+    if (submission.verification_status != VerificationState.VERIFIED or
+            submission.manual_review_status != ManualReviewState.UNREVIEWED or
+            claim.amount_usd_cents != 0 or claim.status not in ("UNDER_REVIEW", "NEEDS_CHANGES")):
+        raise Conflict("Only a verified proof awaiting required documentation can be confirmed.")
+    if any(event.get("action") == "PROOF_CONFIRMED" for event in claim.history):
+        raise Conflict("This proof has already been confirmed.")
+    store.audit(claim, action="PROOF_CONFIRMED", actor=principal.account.id,
+                now=dt.datetime.now(dt.UTC), extra={"note": body.note})
+    await session.commit()
+    return await store.view(session, claim)
 
 
 @router.post("/admin/trajectories/{claim_id}/decision")
