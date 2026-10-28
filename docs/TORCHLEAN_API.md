@@ -79,6 +79,17 @@ Other reason codes include `NOT_REGISTERED`, `REGISTRATION_BEFORE_CUTOFF`,
 `COMPETITION_SCHEMA_UNAVAILABLE`. Errors use the platform's problem response
 `{type, title, status, detail, reason_code}`, with optional extra fields.
 
+## Events
+
+Every request is on Axiom's `request_completed` stream (source `api-competitions`) with its
+status and `reason_code`. Uploads that reach the handler also emit `submission_accepted`
+(submission ID, hotkey, source digest, size, intake mode) or `submission_rejected` (reason code,
+HTTP status, the claimed hotkey and, once the file was read, its digest and size), all tagged
+`competition: torchlean`. A miner's refusal is a warning and ours (5xx) an error. Refusals
+raised before the handler (closed, paused, database unreachable) appear only on
+`request_completed`. The file itself is never sent. The coordinator's events are listed in the
+competition repository's `docs/OPERATIONS.md`.
+
 ## Polling
 
 The public read API is documented in [TORCHLEAN_READ_API.md](TORCHLEAN_READ_API.md).

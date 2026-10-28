@@ -58,7 +58,10 @@ class TorchLeanSubmission(BaseModel):
 
 
 class TorchLeanSubmissionPage(BaseModel):
+    """Newest first. `next_cursor` fetches the next page and is null on the last one."""
+
     submissions: list[TorchLeanSubmission]
+    next_cursor: str | None = None
 
 
 class TorchLeanEnvironment(BaseModel):
@@ -167,6 +170,14 @@ class TorchLeanRound(BaseModel):
     cells: dict[str, TorchLeanObservation]
 
 
+class TorchLeanWorkload(BaseModel):
+    # One of a seed's workloads under the multi-seed plan; cells are keyed "<id>|<cell>".
+    id: str
+    seed: int
+    profile: str
+    weight: float
+
+
 class TorchLeanMeasurement(BaseModel):
     environment: str
     seed: int
@@ -178,6 +189,8 @@ class TorchLeanMeasurement(BaseModel):
     # Explicit fields only: the raw worker payload may contain host paths or claim metadata.
     identity: str | None
     repetitions: dict[str, int] | None
+    # Null for single-workload plans, which time each cell once per round.
+    workloads: list[TorchLeanWorkload] | None = None
     rounds: list[TorchLeanRound] | None
     score: float | None
     guards: dict[str, float] | None

@@ -141,7 +141,8 @@ async def evaluations(session, ids):
     )
 
 
-async def submissions(session, *, sid=None, processing=None):
+async def submissions(session, *, sid=None, processing=None, before=None, limit=None):
+    # Newest first by id, which only grows: `before` is the last id of the previous page.
     data = await rows(
         session,
         f"""
@@ -149,11 +150,14 @@ async def submissions(session, *, sid=None, processing=None):
           SELECT s.id,s.hotkey,s.source_sha256,s.submitted_at,s.state AS proof_state,
             s.stage,s.reason,s.intake_mode,{PROCESSING} AS processing_state
           FROM submissions s WHERE (CAST(:sid AS bigint) IS NULL OR s.id=CAST(:sid AS bigint))
+            AND (CAST(:before AS bigint) IS NULL OR s.id<CAST(:before AS bigint))
         ) q WHERE (CAST(:processing AS text) IS NULL OR processing_state=CAST(:processing AS text))
-        ORDER BY submitted_at DESC,id DESC
+        ORDER BY id DESC LIMIT CAST(:limit AS bigint)
     """,
         sid=sid,
         processing=processing,
+        before=before,
+        limit=limit,
     )
     if sid is not None and not data:
         raise NotFound("No such TorchLean submission")
@@ -321,7 +325,9 @@ async def champions(session, snapshot, board):
         index = ranks.get(p["promotion_id"])
         paid = not p["disqualified"] and index is not None and index < len(shares)
         share = shares[index] if paid else None
-        fraction = share * policy["board_weights"][board] if paid else None
+        # A board the publication no longer weights (removed from the config) pays nothing known.
+        weight = policy.get("board_weights", {}).get(board)
+        fraction = share * weight if paid and weight is not None else None
         if (
             fraction is not None
             and board_state.get("paused")
@@ -366,7 +372,8 @@ async def report(session, sid):
         session,
         """
        SELECT ej.evaluation_id,ej.environment,ej.seed,j.state,j.attempts,j.started_at,j.completed_at,
-         j.result,j.error->>'kind' AS error_kind FROM evaluation_jobs ej
+         j.result,j.request->'workloads' AS workloads,j.error->>'kind' AS error_kind
+       FROM evaluation_jobs ej
        JOIN benchmark_jobs j ON j.id=ej.job_id WHERE ej.evaluation_id IN
          (SELECT id FROM evaluations WHERE submission_id=:sid)
        ORDER BY ej.evaluation_id,ej.environment,ej.seed
@@ -407,6 +414,12 @@ async def report(session, sid):
                     },
                     identity=value.get("provenance", {}).get("identity"),
                     repetitions=value.get("repetitions"),
+                    workloads=[
+                        s.TorchLeanWorkload(**{k: w[k] for k in s.TorchLeanWorkload.model_fields})
+                        for w in j["workloads"]
+                    ]
+                    if j["workloads"] is not None
+                    else None,
                     rounds=[
                         s.TorchLeanRound(
                             reference_first=r["reference_first"],

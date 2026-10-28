@@ -12,7 +12,7 @@ competition databases return 503. The OpenAPI snapshot describes the exact respo
 | `/leaderboard?board=mlp` | Current reference and challengers evaluated against it under the active benchmark configuration. |
 | `/leaderboard?board=mlp&promotion_id=21` | Challenger history against that promotion on that board. Optional `config_hash` selects a particular benchmark configuration. |
 | `/champions?board=mlp` | All promotions newest first, current status, disqualification, reward rank/share, fraction of the competition allocation and source availability. |
-| `/submissions?state=queued` | Submission list; optional processing-state filter. Includes identity, reception time, source availability and per-board progress. |
+| `/submissions?state=queued&limit=25` | Submission list, newest first, one page at a time: `limit` 1–100 (default 25); pass the response's `next_cursor` back as `cursor` with the same `state`, until it is null. Optional processing-state filter. Includes identity, reception time, source availability and per-board progress. |
 | `/submissions/45` | One submission, proof state/stage/reason and evaluations with job counts and stored decisions. |
 | `/submissions/45/report` | Submission plus per-evaluation policy, per-device/seed measurements, calibrated repetitions, paired cell timings/checksums, stored scores and guards. |
 | `/submissions/45/source` | Raw `Kernel.lean` attachment, only for former champions whose source is no longer current on any board; otherwise 403 `SOURCE_WITHHELD`. |
