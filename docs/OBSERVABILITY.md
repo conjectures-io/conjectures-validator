@@ -10,8 +10,10 @@ one event shape, three labels that make it queryable:
 | `source` | Which area of the system spoke? | `api-submissions`, `deposit-watcher`, … (below) |
 | `event_type` | What happened? | `verdict_recorded`, `transfer_credited`, … (below) |
 
-plus `environ` (the deployment tag), `_time` (stamped by the producer, not at ingest), a
-`request_id` when one is in scope, and whatever fields the call site added.
+plus `environ` (the deployment tag), `revision` (the commit the process runs, when the deployment
+says), `_time` (stamped by the producer, not at ingest), a `request_id` when one is in scope,
+`trace_id` and `span_id` inside a traced request (see "Traces"), and whatever fields the call site
+added.
 
 The vocabulary is closed. `conjectures_subnet/axiom/labels.py` declares every `source` and
 `event_type` as a `Literal`, and `tests/test_axiom.py::test_every_emitted_label_is_declared` parses
@@ -35,6 +37,10 @@ cannot end up writing to different datasets. `.env.example` carries the annotate
 | `AXIOM_URL` | `https://api.axiom.co` | The API base. `https://api.eu.axiom.co` for the EU region. |
 | `AXIOM_LOG_LEVEL` | `INFO` | Severity floor for the stdlib-logging bridge. |
 | `AXIOM_REQUEST_EVENTS` | `all` | `all`, `failures` or `off` — how much of the HTTP surface produces a per-request event. |
+| `AXIOM_HEARTBEAT_SECONDS` | `60` | How often each process sends `telemetry_heartbeat`. `0` turns it off. |
+| `AXIOM_TRACES_DATASET` | `<AXIOM_DATASET>-traces` | The dataset traces land in (API only); `off` turns tracing off while events stay on. See "Traces". |
+| `AXIOM_TRACES_SAMPLE_RATIO` | `1.0` | The share of requests traced, `0.0`–`1.0`. Whole traces are kept or dropped. |
+| `CONJECTURES_REVISION` | — | Set by compose from `GIT_COMMIT`; stamped on every event as `revision`. Not set by hand. |
 
 Both credentials are required together. A token with no dataset and a dataset with no token are
 each a half-finished configuration, and guessing a dataset name would send a deployment's events
@@ -106,7 +112,8 @@ start with a path filter.
 
 Grouped by the area that raises them. `labels.py` is the source of truth.
 
-- **Lifecycle** — `service_started`, `service_stopped`, `service_misconfigured`
+- **Lifecycle** — `service_started`, `service_stopped`, `service_misconfigured`,
+  `telemetry_heartbeat`
 - **HTTP** — `request_completed`, `readiness_degraded`
 - **Intake** — `submission_accepted`, `submission_rejected`, `payment_accepted`, `payment_rejected`
 - **Intents** — `intent_opened`, `intent_bundle_stored`, `intent_committed`
@@ -244,3 +251,104 @@ a log line can be shipped.
 
 `AxiomClientInterface` is the seam. Swapping in `axiom-py`, or an OTLP exporter, means writing one
 more implementation of it and changing `env_factory.py`.
+
+Traces are the one exception, and a bounded one. They need the OpenTelemetry SDK and its OTLP
+exporter, which are the `tracing` extra; only the API image installs it. Every other process
+imports `conjectures_subnet.tracing` and gets a no-op, so the verification worker's environment is
+unchanged. See "Traces".
+
+## Which release, and when it went out
+
+Every event carries `revision`, the commit its process runs. Compose passes `GIT_COMMIT` (set by
+`just deploy-up`) into each container as `CONJECTURES_REVISION`, and a deploy recreates the
+container, so the value is the code the process loaded — right even for the worker and watcher
+images, whose code arrives on a bind mount rather than in the image. A container started without
+`GIT_COMMIT` reports no `revision` at all rather than `unknown`.
+
+```
+['conjectures-validator']
+| where severity in ("error", "critical")
+| summarize count() by revision, source
+```
+
+Each deploy also leaves an **annotation** on every chart that reads the events and traces datasets:
+`deploy.yml` posts one after the deploy step, linking to the run. It is optional and never fails a
+deploy; it needs `AXIOM_ANNOTATION_TOKEN` (a token allowed to create annotations, not the ingest
+token) as an environment secret and `AXIOM_ANNOTATION_DATASETS` (comma-separated dataset names) as
+an environment variable.
+
+## The heartbeat
+
+Every process that attaches the logging bridge sends `telemetry_heartbeat` once a minute
+(`AXIOM_HEARTBEAT_SECONDS`), from the thread that ships everything else. It carries what was
+`sent`, `dropped` and `failed` since the previous one — deltas, so they sum per bin and a restart
+does not read as a negative rate — plus `queued` and `interval_s`. Two uses:
+
+- **How big is the gap.** `dropped` and `failed` are the events the dataset is missing.
+- **Silent or dead.** An idle API and a worker with an empty queue emit nothing else, so this is
+  the row whose absence means the process is gone.
+
+```
+['conjectures-validator']
+| where event_type == "telemetry_heartbeat"
+| summarize last_seen = max(_time), dropped = sum(dropped), failed = sum(failed)
+    by source, environ
+```
+
+A monitor on "no `telemetry_heartbeat` from `source` for ten minutes" covers the processes the
+deposit-watcher silence monitor does not.
+
+## Time to verdict
+
+`submission_claimed` and `verdict_recorded` both carry `queued_ms`: milliseconds from intake to the
+claim, on the database's clock, earlier attempts included. With the verdict's `duration_ms`, it is
+the time a paid submission waited for its answer:
+
+```
+['conjectures-validator']
+| where event_type == "verdict_recorded" and applied == true
+| extend time_to_verdict_ms = queued_ms + duration_ms
+| summarize p50 = percentile(time_to_verdict_ms, 50), p95 = percentile(time_to_verdict_ms, 95)
+    by bin(_time, 1h)
+```
+
+A rising `queued_ms` with a flat `duration_ms` is a worker shortage, not slow proofs.
+
+## Traces
+
+The API exports **OpenTelemetry traces** wherever it sends events: no further setting turns them
+on. They go to a dataset of their own, `<AXIOM_DATASET>-traces` (`conjectures-validator-traces`
+for the usual `conjectures-validator`), which has to be created in Axiom as an Events dataset;
+until it exists the exports are rejected, a throttled warning in the log, and events are
+unaffected. `AXIOM_TRACES_DATASET` overrides the name, and `off` turns tracing off. Like events,
+every deployment can share the one dataset: `AXIOM_ENVIRON` is on every span as the resource
+attribute `deployment.environment.name`. They are sent over OTLP/HTTP to `<AXIOM_URL>/v1/traces` with the ingest
+token. A trace is one request: a server span named by the route template —
+`GET /v1/results/{slug}` — with the SQL statements and the outbound HTTP calls it waited on nested
+under it. That tree is what Axiom's trace viewer and its **critical path** read: which of the
+spans a slow request was actually waiting on.
+
+`conjectures_subnet/tracing.py` holds all of it, and the rules are the request stream's rules:
+
+- **No path, no query string.** Spans are named by the route template, never the requested path.
+  Every URL attribute any instrumentation sets is stripped of its query (and any credentials in
+  the authority) before export. SQL is recorded as the statement text, with its bind parameters
+  left out.
+- **No propagation.** A client's `traceparent` is ignored, as its `X-Request-Id` is, and outbound
+  calls to GitHub, TaoStats, Brevo or TMC PAY carry no trace context.
+- **Only a request starts a trace.** A query or an HTTP call with no parent span — a background
+  poll, a startup check — is dropped rather than exported as a one-span trace.
+- **Sampled whole.** `AXIOM_TRACES_SAMPLE_RATIO` keeps or drops a whole trace, never part of one.
+- **Not fail-closed, and bounded.** Unset, unparseable or unreachable costs the traces, never the
+  API. Spans are batched on their own thread with a bounded queue, and the exporter's own failure
+  logs are throttled to one a minute so a revoked token cannot flood the events dataset.
+
+**From an event to its trace.** Every event emitted inside a sampled request span — the handler's
+log records and `request_completed` — carries `trace_id` and `span_id`; the server span carries the
+request's id as the span attribute `conjectures.request_id`. `unexpected_error` is emitted by
+Starlette's outermost handler, after the span has closed, so it carries no `trace_id`; find its
+trace by searching the traces dataset for that attribute with the event's `request_id`.
+
+The verification worker, the watchers and the emissions worker do not trace yet. Their images do
+not carry the packages, and a pass would first need a span of its own to parent its queries —
+`WORK_ATTRIBUTE` is the marker that lets such a span start a trace.

@@ -111,6 +111,22 @@ jobs:
         continue-on-error: true
         run: ruff format --check --diff .
 
+  # Every pinned Python package against the OSV advisory database. The lock is the whole runtime
+  # set -- the images install nothing it does not list -- so a clean scan of it is a clean scan
+  # of what ships. deploy.yml runs the same scan again at deploy time, because an advisory can be
+  # published between a green PR and its deploy; nightly-security.yml runs it against what is
+  # deployed now. Accept an advisory in osv-scanner.toml, with a reason and an expiry.
+  dependency-audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/osv-scan
+        with:
+          title: Python dependencies (requirements-service.hashes)
+          lockfiles: requirements-service.hashes
+
   test:
     name: pytest
     runs-on: ubuntu-latest
@@ -159,7 +175,7 @@ jobs:
           python -m pip install --disable-pip-version-check --upgrade pip
           python -m pip install \
             --constraint requirements-service.lock \
-            -e '.[dev,service,subnet,db,competition]'
+            -e '.[dev,service,subnet,db,competition,tracing]'
           python -m pip check
 
       # The suite skips its database tests when no DSN is set, which is right on a laptop and
@@ -395,10 +411,11 @@ jobs:
   # Runs only if every gate passed; `release source` is allowed to be skipped (PRs not into main).
   record-tested-tree:
     name: record tested tree
-    needs: [release-source, lint, test, schema-drift, collatz-semantics]
+    needs: [release-source, lint, dependency-audit, test, schema-drift, collatz-semantics]
     if: >-
       always() && github.event_name == 'pull_request' &&
-      needs.lint.result == 'success' && needs.test.result == 'success' &&
+      needs.lint.result == 'success' && needs.dependency-audit.result == 'success' &&
+      needs.test.result == 'success' &&
       needs.schema-drift.result == 'success' && needs.collatz-semantics.result == 'success' &&
       (needs.release-source.result == 'success' || needs.release-source.result == 'skipped')
     runs-on: ubuntu-latest

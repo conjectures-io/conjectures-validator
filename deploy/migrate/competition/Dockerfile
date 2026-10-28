@@ -6,7 +6,9 @@
 # There is no equivalent image for the proofs database and there should not be: those
 # migrations are plain SQL, so the stock flyway/flyway image plus a read-only bind mount
 # is the whole runner. This one exists because these revisions import the models.
-FROM python:3.12-slim
+# The same digest as the other python-slim images, so Dependabot moves them together and the
+# nightly image scan reads one base rather than whatever the tag pointed at on build day.
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -15,10 +17,14 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Dependency layer, cached across source edits. Only what alembic/env.py imports:
-# alembic, SQLAlchemy (the models) and the driver. Pinned to the same versions
-# pyproject.toml resolves, so the image and a developer's venv migrate identically.
-RUN pip install --no-cache-dir \
-      "alembic==1.20.0" "SQLAlchemy==2.0.51" "psycopg[binary]==3.3.4"
+# alembic, SQLAlchemy (the models) and the driver, at the versions the lock records -- the
+# same ones a developer's venv resolves, so the two migrate identically. `--require-hashes`
+# extends to Mako and MarkupSafe, which Alembic pulls in and nothing here names.
+COPY requirements-service.hashes ./
+RUN python -m pip install --no-cache-dir --upgrade pip==26.2.2 \
+    && pip install --no-cache-dir --require-hashes --constraint requirements-service.hashes \
+      alembic SQLAlchemy "psycopg[binary]" \
+    && rm -f requirements-service.hashes
 
 # The models are the schema's source of truth. The whole package comes rather than just
 # competition/ + db/engine.py: env.py resolves the URL through competition_database_url(),

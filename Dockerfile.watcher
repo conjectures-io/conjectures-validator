@@ -33,13 +33,15 @@ RUN apt-get update \
 #
 # The project itself is not installed: its code arrives on the bind mount, and a wheel in
 # site-packages would shadow it confusingly.
-COPY requirements-service.lock ./
+COPY requirements-service.hashes ./
 # Bootstrap pip against the patched system store; pip also bundles its own CA certificates.
 RUN PIP_CERT=/etc/ssl/certs/ca-certificates.crt python -m pip install --no-cache-dir --upgrade pip==26.2.2
 
-RUN pip install --no-cache-dir --constraint requirements-service.lock \
+# `--require-hashes`: every file pip fetches has to match the sha256 recorded when the lock was
+# generated (scripts/lock_dependencies.sh), so a substituted artifact fails the build.
+RUN pip install --no-cache-dir --require-hashes --constraint requirements-service.hashes \
       SQLAlchemy greenlet 'psycopg[binary]' bittensor \
-    && rm -f requirements-service.lock
+    && rm -f requirements-service.hashes
 
 # Unprivileged, and a uid of its own: 10001 belongs to the verifier image and 10101 to the
 # verification worker. Two different processes sharing a uid makes a mount that crosses them look

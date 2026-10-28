@@ -107,6 +107,10 @@ services:
       AXIOM_TOKEN: ${AXIOM_TOKEN:-}
       AXIOM_DATASET: ${AXIOM_DATASET:-}
       AXIOM_ENVIRON: ${AXIOM_ENVIRON:-compose}
+      # The commit the container was created from: `just deploy-up` sets GIT_COMMIT, and a
+      # deploy recreates the container, so this is the code the process loaded. Stamped on
+      # every Axiom event as `revision`.
+      CONJECTURES_REVISION: ${GIT_COMMIT:-unknown}
       AXIOM_LOG_LEVEL: ${AXIOM_LOG_LEVEL:-INFO}
 
     volumes:

@@ -11,12 +11,14 @@ RUN apt-get update \
     && /usr/sbin/update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-service.lock ./
+COPY requirements-service.hashes ./
 # Bootstrap pip against the patched system store; pip also bundles its own CA certificates.
 RUN PIP_CERT=/etc/ssl/certs/ca-certificates.crt python -m pip install --no-cache-dir --upgrade pip==26.2.2
 
-RUN pip install --no-cache-dir --constraint requirements-service.lock bittensor \
-    && rm -f requirements-service.lock
+# `--require-hashes`: every file pip fetches has to match the sha256 recorded when the lock was
+# generated (scripts/lock_dependencies.sh), so a substituted artifact fails the build.
+RUN pip install --no-cache-dir --require-hashes --constraint requirements-service.hashes bittensor \
+    && rm -f requirements-service.hashes
 
 RUN useradd --create-home --shell /usr/sbin/nologin --uid 10103 emissions
 

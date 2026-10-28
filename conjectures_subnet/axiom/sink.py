@@ -24,6 +24,7 @@ from conjectures_subnet.axiom.client import AxiomClientInterface
 from conjectures_subnet.axiom.context import current_correlation_id
 from conjectures_subnet.axiom.env_factory import create_axiom_client_from_env
 from conjectures_subnet.axiom.labels import EventType, Severity, Source
+from conjectures_subnet.tracing import current_trace_ids
 
 
 class Axiom:
@@ -103,21 +104,29 @@ class Axiom:
             **fields,
         )
 
+    def report_heartbeats(self, *, source: Source, interval_seconds: float) -> None:
+        """Have the transport report on itself under `source`. See `telemetry_heartbeat`."""
+        self._client.report_heartbeats(source=source, interval_seconds=interval_seconds)
+
     def close(self) -> None:
         """Flush queued events. Called at exit by the transport; explicit here for tests."""
         self._client.close()
 
     @staticmethod
     def _details(fields: dict[str, Any]) -> dict[str, Any]:
-        """Add the ambient correlation id, when there is one, without the call site knowing.
+        """Add the ambient correlation id and trace, when there are some, without the call site knowing.
 
         A field the caller passed wins: a handler that knows the id it wants recorded has better
-        information than the context variable.
+        information than the context. The trace ids are what lead from an event to the request's
+        trace in the traces dataset; see `conjectures_subnet.tracing`.
         """
+        ambient: dict[str, Any] = current_trace_ids()
         correlation = current_correlation_id()
-        if correlation is None or "request_id" in fields:
+        if correlation is not None:
+            ambient["request_id"] = correlation
+        if not ambient:
             return fields
-        return {"request_id": correlation, **fields}
+        return {**ambient, **fields}
 
 
 @lru_cache(maxsize=1)

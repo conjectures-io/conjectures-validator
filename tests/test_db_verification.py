@@ -171,6 +171,9 @@ def test_a_claim_leases_the_row_so_a_second_worker_skips_it():
             assert first.submission_id == submission_id
             assert first.task_bundle_sha256 == TASK_DIGEST
             assert first.attempts == 1
+            # Intake to claim, on the database's clock: just submitted, so small and not negative.
+            assert first.queued_ms is not None
+            assert 0 <= first.queued_ms < 60_000
             # The claim committed, so the lease — not a held row lock — is what excludes the
             # next worker. This is the whole reason the lease exists.
             assert await kit.claim(owner=OTHER_OWNER) is None
@@ -545,6 +548,34 @@ def test_the_worker_claims_verifies_and_records():
             await kit.teardown()
 
     run(scenario())
+
+
+def test_the_claim_and_the_verdict_report_how_long_the_miner_waited(monkeypatch):
+    """`queued_ms` on both events, the same value: intake to claim, from the claim's own row."""
+    events: list[tuple[str, dict]] = []
+
+    class Recorder:
+        def info(self, *, source, event_type, **fields):
+            events.append((event_type, fields))
+
+        warn = error = critical = info
+
+    monkeypatch.setattr("verification_worker.worker.get_axiom", lambda: Recorder())
+
+    async def scenario():
+        kit = await Kit.setup()
+        try:
+            await kit.submit()
+            await worker(kit, FakeRunner(payload=report())).process_one()
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+    by_type = {event_type: fields for event_type, fields in events}
+    claimed, verdict = by_type["submission_claimed"], by_type["verdict_recorded"]
+    assert isinstance(claimed["queued_ms"], float)
+    assert claimed["queued_ms"] >= 0
+    assert verdict["queued_ms"] == claimed["queued_ms"]
 
 
 def test_a_rejected_proof_is_terminal_and_never_reward_eligible():

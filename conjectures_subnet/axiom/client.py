@@ -30,6 +30,7 @@ import json
 import logging
 import queue
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -88,6 +89,9 @@ class AxiomClientInterface(ABC):
     def close(self) -> None:
         """Flush what is queued and stop. Idempotent; safe to call on a no-op client."""
 
+    def report_heartbeats(self, *, source: Source, interval_seconds: float) -> None:
+        """Emit `telemetry_heartbeat` under `source` every interval. A no-op unless overridden."""
+
     @property
     def enabled(self) -> bool:
         """Whether events actually go anywhere. False for the no-op client."""
@@ -131,6 +135,7 @@ class AxiomClient(AxiomClientInterface):
         dataset: str,
         token: str,
         environ: str = "default",
+        revision: str | None = None,
         api_url: str = AXIOM_API_URL,
         queue_size: int = DEFAULT_QUEUE_SIZE,
         batch_events: int = DEFAULT_BATCH_EVENTS,
@@ -146,6 +151,7 @@ class AxiomClient(AxiomClientInterface):
         self._dataset = dataset
         self._token = token
         self._environ = environ
+        self._revision = revision or None
         self._url = (
             f"{api_url.rstrip('/')}/v1/datasets/"
             f"{urllib.parse.quote(dataset, safe='')}/ingest"
@@ -164,6 +170,12 @@ class AxiomClient(AxiomClientInterface):
         self._dropped = 0
         self._failed = 0
         self._failure_streak = 0
+        # Off until an entry point names the process: a heartbeat has to say whose it is, and the
+        # transport has no source of its own. See `report_heartbeats`.
+        self._heartbeat_source: Source | None = None
+        self._heartbeat_seconds = 0.0
+        self._last_heartbeat = time.monotonic()
+        self._reported = (0, 0, 0)
 
         self._thread = threading.Thread(
             target=self._drain, name="axiom-ingest", daemon=True
@@ -213,8 +225,12 @@ class AxiomClient(AxiomClientInterface):
 
         The envelope fields are written last so a details key called `source` or `severity`
         cannot displace the label the query language depends on.
+
+        `revision` is the commit the process runs, when the deployment says so
+        (`CONJECTURES_REVISION`). It turns "did this start with the last deploy" from a timestamp
+        comparison into `summarize count() by revision`.
         """
-        return {
+        envelope = {
             **details,
             "_time": datetime.now(UTC).isoformat(),
             "severity": str(severity),
@@ -222,6 +238,50 @@ class AxiomClient(AxiomClientInterface):
             "event_type": event_type,
             "environ": self._environ,
         }
+        if self._revision is not None:
+            envelope["revision"] = self._revision
+        return envelope
+
+    def report_heartbeats(self, *, source: Source, interval_seconds: float) -> None:
+        """Start emitting `telemetry_heartbeat` under `source`. Zero or less stops it.
+
+        Built and sent by the drain thread itself rather than queued by a timer, so the beat says
+        the thread that ships everything else is alive -- a heartbeat from anywhere else could
+        keep arriving while the transport was wedged. The last call wins; a process has one source.
+        """
+        self._heartbeat_source = source if interval_seconds > 0 else None
+        self._heartbeat_seconds = max(0.0, interval_seconds)
+        self._last_heartbeat = time.monotonic()
+
+    def _heartbeat(self) -> dict[str, Any] | None:
+        """The heartbeat event, when one is due. Counts are deltas since the previous one.
+
+        Deltas rather than running totals, so a dashboard sums them per bin and a restart -- which
+        resets every counter -- does not read as a negative rate.
+        """
+        source = self._heartbeat_source
+        if source is None:
+            return None
+        now = time.monotonic()
+        elapsed = now - self._last_heartbeat
+        if elapsed < self._heartbeat_seconds:
+            return None
+        sent, dropped, failed = self._sent, self._dropped, self._failed
+        last_sent, last_dropped, last_failed = self._reported
+        self._reported = (sent, dropped, failed)
+        self._last_heartbeat = now
+        return self._envelope(
+            severity=Severity.INFO,
+            source=source,
+            event_type="telemetry_heartbeat",
+            details={
+                "sent": sent - last_sent,
+                "dropped": dropped - last_dropped,
+                "failed": failed - last_failed,
+                "queued": self._queue.qsize(),
+                "interval_s": round(elapsed, 3),
+            },
+        )
 
     # --- consumer side ----------------------------------------------------------------------
 
@@ -236,6 +296,10 @@ class AxiomClient(AxiomClientInterface):
             else:
                 if item is not _SHUTDOWN:
                     pending.append(item)
+
+            heartbeat = self._heartbeat()
+            if heartbeat is not None:
+                pending.append(heartbeat)
 
             stopping = item is _SHUTDOWN or self._stop.is_set()
             if stopping:
