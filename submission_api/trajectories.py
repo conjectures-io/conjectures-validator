@@ -329,6 +329,7 @@ async def view(session, claim):
         "status": effective, "amount_usd_cents": claim.amount_usd_cents,
         "payment_status": "NOT_APPLICABLE" if claim.amount_usd_cents == 0 else (payment.status if payment else "NOT_ISSUED"),
         "payment_id": str(payment.id) if payment else None,
+        "proof_confirmed": any(event.get("action") == "PROOF_CONFIRMED" for event in claim.history),
         "chat_logs_required": claim.amount_usd_cents == 0, "revision": claim.revision,
         "state_version": claim.state_version, "offer_start_at": claim.offer_start_at,
         "package_sha256": "sha256:" + claim.package_digest.hex(), "terms_version": claim.terms_version,
