@@ -19,7 +19,12 @@ pytest.importorskip("httpx", reason="submission API tests need the service extra
 
 from conftest_api import PINS_JSON, RECIPIENT, REPOSITORY_COMMIT, build_settings, harness, postgres_dsn
 
-from submission_api.middleware import API_CSP, client_address
+from submission_api.middleware import (
+    API_CSP,
+    RateLimitMiddleware,
+    client_address,
+    is_internal_caller,
+)
 from submission_api.pins import PinSet, PinsError, assert_agrees_with_catalog
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.routers.system import STATUS_DEGRADED, STATUS_OK, STATUS_PAUSED, pin_rotation_window
@@ -655,6 +660,75 @@ def test_trusted_peers_are_read_as_addresses_or_ranges():
 def test_a_trusted_peer_that_is_not_an_address_refuses_to_start():
     with pytest.raises(SettingsError, match="TRUSTED_PROXY_PEERS"):
         build_settings(TRUSTED_PROXY_PEERS="frontend.example")
+
+
+# --- the website's own server ----------------------------------------------------------------
+
+
+def test_a_trusted_peer_without_a_forwarding_header_is_the_host_itself():
+    """nginx always appends the header, so its absence means the website's server called."""
+    assert is_internal_caller(_scope("10.0.0.1"), 1, PEERS) is True
+    assert is_internal_caller(_scope("10.0.0.1", "203.0.113.9"), 1, PEERS) is False
+
+
+def test_an_untrusted_peer_without_the_header_is_an_ordinary_client():
+    """A direct caller cannot reach the internal budget by leaving the header off."""
+    assert is_internal_caller(_scope("192.0.2.77"), 1, PEERS) is False
+
+
+def test_the_internal_budget_needs_both_proxy_settings():
+    # No peers: any direct caller could qualify. No hops: every visitor arrives without a
+    # trusted header, so all of them would.
+    assert is_internal_caller(_scope("10.0.0.1"), 1, ()) is False
+    assert is_internal_caller(_scope("10.0.0.1"), 0, PEERS) is False
+
+
+def _limited(internal_limiter: SlidingWindowLimiter | None):
+    async def ok(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    return RateLimitMiddleware(
+        ok,
+        limiter=SlidingWindowLimiter(limit=2, window_seconds=60, max_clients=100),
+        trusted_proxy_hops=1,
+        trusted_proxy_peers=PEERS,
+        internal_limiter=internal_limiter,
+    )
+
+
+def _status(app, peer: str, forwarded: str | None = None) -> int:
+    scope = {**_scope(peer, forwarded), "path": "/v1/catalog/meta", "method": "GET"}
+    sent = []
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    run(app(scope, receive, send))
+    return sent[0]["status"]
+
+
+def test_the_website_server_gets_its_own_larger_budget():
+    """A crawler through the website must not exhaust a visitor-sized bucket for everyone."""
+    app = _limited(SlidingWindowLimiter(limit=5, window_seconds=60, max_clients=100))
+    assert [_status(app, "10.0.0.1") for _ in range(6)] == [200] * 5 + [429]
+    # A visitor behind the same proxy keeps its own budget and is not charged for those.
+    assert [_status(app, "10.0.0.1", "203.0.113.9") for _ in range(3)] == [200, 200, 429]
+
+
+def test_without_an_internal_budget_the_website_server_shares_the_visitor_one():
+    app = _limited(None)
+    assert [_status(app, "10.0.0.1") for _ in range(3)] == [200, 200, 429]
+
+
+def test_the_internal_budget_is_configurable_and_can_be_turned_off():
+    assert build_settings().rate_limit_internal_requests == 5000
+    assert build_settings(RATE_LIMIT_INTERNAL_REQUESTS="0").rate_limit_internal_requests == 0
+    with pytest.raises(SettingsError, match="RATE_LIMIT_INTERNAL_REQUESTS"):
+        build_settings(RATE_LIMIT_INTERNAL_REQUESTS="-1")
 
 
 # --- pins --------------------------------------------------------------------------------

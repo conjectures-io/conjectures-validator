@@ -143,6 +143,10 @@ CORS_MAX_AGE_SECONDS = 600
 
 DEFAULT_RATE_LIMIT_REQUESTS = 120
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60
+# The website's own server, calling from the host with no X-Forwarded-For (see
+# `middleware.is_internal_caller`). One bucket serves every page it renders, so it is about fourteen
+# times production's per-visitor 360: still a ceiling on what a crawler can drive through it.
+DEFAULT_RATE_LIMIT_INTERNAL_REQUESTS = 5000
 # The limiter is in-process, so its table is a memory budget an attacker controls the keys of.
 # Bounded here rather than trusted to stay small.
 DEFAULT_RATE_LIMIT_MAX_CLIENTS = 50_000
@@ -835,6 +839,9 @@ class Settings:
     rate_limit_requests: int
     rate_limit_window_seconds: int
     rate_limit_max_clients: int
+    # Per window, for a trusted peer that sent no `X-Forwarded-For`. Zero puts those calls back
+    # in the per-client bucket.
+    rate_limit_internal_requests: int
     # How many rightmost `X-Forwarded-For` entries this deployment put there itself. Zero means
     # the header is not trusted at all and the peer address is used.
     trusted_proxy_hops: int
@@ -1756,6 +1763,13 @@ class Settings:
                 "RATE_LIMIT_MAX_CLIENTS",
                 DEFAULT_RATE_LIMIT_MAX_CLIENTS,
                 maximum=5_000_000,
+            ),
+            rate_limit_internal_requests=_bounded_int(
+                env,
+                "RATE_LIMIT_INTERNAL_REQUESTS",
+                DEFAULT_RATE_LIMIT_INTERNAL_REQUESTS,
+                minimum=0,
+                maximum=1_000_000,
             ),
             trusted_proxy_hops=_bounded_int(env, "TRUSTED_PROXY_HOPS", 0, minimum=0, maximum=8),
             trusted_proxy_peers=_networks(env, "TRUSTED_PROXY_PEERS"),

@@ -476,6 +476,15 @@ def create_app(
             ),
             trusted_proxy_hops=resolved_settings.trusted_proxy_hops,
             trusted_proxy_peers=resolved_settings.trusted_proxy_peers,
+            internal_limiter=(
+                SlidingWindowLimiter(
+                    limit=resolved_settings.rate_limit_internal_requests,
+                    window_seconds=resolved_settings.rate_limit_window_seconds,
+                    max_clients=resolved_settings.rate_limit_max_clients,
+                )
+                if resolved_settings.rate_limit_internal_requests
+                else None
+            ),
         )
     # Between the limiter and CORS: a refused write should still carry the CORS grant so the
     # browser reports the 403 rather than an opaque CORS error.

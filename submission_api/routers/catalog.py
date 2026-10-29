@@ -202,6 +202,8 @@ def live_display_status(
         if facts.solved_reason_code == FORMALIZATION_DEFECT_CODE:
             return "formalization_defect"
         return "solved"
+    if facts.documentation_pending:
+        return "solved_documentation_pending"
     if facts.in_review:
         return "in_review"
     if not submissions_open or reason == "CHAT_LOG_REVIEW_UNAVAILABLE":

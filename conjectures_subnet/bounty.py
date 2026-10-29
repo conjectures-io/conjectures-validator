@@ -352,12 +352,23 @@ class DynamicBountyPricer:
             )
         ).all()
         holders = {str(row[0]): row[1] for row in holder_rows}
+        from conjectures_subnet.db.proof_status import documentation_pending
+
+        pending_rows = (await session.execute(
+            select(Submission.reward_target_id, Submission.id)
+            .where(Submission.reward_target_id.in_(self.reward_target_ids), *documentation_pending())
+            .order_by(Submission.created_at, Submission.id)
+        )).all()
+        pending = {}
+        for target, submission_id in pending_rows:
+            pending.setdefault(str(target), submission_id)
         claimant_map = dict(claimants or {})
 
         open_targets = [
             target
             for target in self.reward_target_ids
-            if target not in holders or claimant_map.get(target) == holders[target]
+            if (target not in holders or claimant_map.get(target) == holders[target])
+            and (target not in pending or claimant_map.get(target) == pending[target])
         ]
         weights = {
             target: calculate_age_weight(
@@ -464,6 +475,13 @@ class DynamicBountyPricer:
                     reason="ALREADY_SOLVED",
                     as_of=now,
                     inputs=base_inputs,
+                )
+                continue
+
+            if target in pending and claimant_map.get(target) != pending[target]:
+                quotes[target] = LiveBounty(
+                    amount_rao=None, policy_version=policy_version, available=False,
+                    reason="SOLVED_DOCUMENTATION_PENDING", as_of=now, inputs=base_inputs,
                 )
                 continue
 
