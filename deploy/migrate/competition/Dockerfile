@@ -16,6 +16,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# The base is pinned by digest, so the distribution's security fixes published since that digest
+# was cut reach the image only here. The nightly image scan reads the result.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 # Dependency layer, cached across source edits. Only what alembic/env.py imports:
 # alembic, SQLAlchemy (the models) and the driver, at the versions the lock records -- the
 # same ones a developer's venv resolves, so the two migrate identically. `--require-hashes`
@@ -24,7 +30,8 @@ COPY requirements-service.hashes ./
 RUN python -m pip install --no-cache-dir --upgrade pip==26.2.2 \
     && pip install --no-cache-dir --require-hashes --constraint requirements-service.hashes \
       alembic SQLAlchemy "psycopg[binary]" \
-    && rm -f requirements-service.hashes
+    && rm -f requirements-service.hashes \
+    && rm -f /usr/local/lib/python3.12/ensurepip/_bundled/pip-*.whl
 
 # The models are the schema's source of truth. The whole package comes rather than just
 # competition/ + db/engine.py: env.py resolves the URL through competition_database_url(),
