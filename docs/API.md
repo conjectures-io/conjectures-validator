@@ -446,7 +446,7 @@ The API configures no database of its own. It reuses the validator's shared stor
 | `BOUNTY_BALANCE_CACHE_SECONDS` | `60` | Maximum chain-read frequency per API process |
 | `BITTENSOR_NETWORK` | `finney` | Network used for the finalized Alpha-stake read |
 | `TAOSTATS_API_KEY` | — | Enables `bounty.amount_usd`; sent only to the TaoStats price endpoints |
-| `TAOSTATS_PRICE_CACHE_SECONDS` | `60` | Maximum TaoStats price-read frequency per API process |
+| `TAOSTATS_PRICE_CACHE_SECONDS` | `600` | Maximum TaoStats price-read frequency per API process; each read costs two TaoStats credits, so a busy server spends about 8,600 a month |
 | `SUBMISSIONS_PAUSED` | `false` | Refuses intake with `503 SUBMISSIONS_PAUSED`; reported on `/v1/system/status` |
 
 The public read surface adds its own variables; they are documented in
