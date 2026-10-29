@@ -172,7 +172,7 @@ def test_development_gets_working_defaults_without_configuration():
     # No Alt-Svc outside production: the developer's edge speaks no HTTP/3.
     assert settings.alt_svc == ""
     assert settings.taostats_api_key == ""
-    assert settings.taostats_price_cache_seconds == 60
+    assert settings.taostats_price_cache_seconds == 600
 
 
 def test_the_pin_rotation_window_is_configured_as_a_utc_clock_time():

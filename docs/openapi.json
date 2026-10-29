@@ -9763,6 +9763,16 @@
               }
             ],
             "title": "Score"
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TorchLeanTimeout"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "TorchLeanAdmission",
@@ -9919,6 +9929,24 @@
           "boards"
         ],
         "title": "TorchLeanBoards",
+        "type": "object"
+      },
+      "TorchLeanCellTime": {
+        "properties": {
+          "checksum": {
+            "title": "Checksum",
+            "type": "integer"
+          },
+          "ns": {
+            "title": "Ns",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ns",
+          "checksum"
+        ],
+        "title": "TorchLeanCellTime",
         "type": "object"
       },
       "TorchLeanChallenger": {
@@ -10582,6 +10610,20 @@
             "title": "Attempts",
             "type": "integer"
           },
+          "calibration": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration"
+          },
           "completed_at": {
             "anyOf": [
               {
@@ -10608,6 +10650,27 @@
               }
             ],
             "title": "Error Kind"
+          },
+          "evidence_truncated": {
+            "default": false,
+            "description": "The worker's evidence was too large to keep",
+            "title": "Evidence Truncated",
+            "type": "boolean"
+          },
+          "finished": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TorchLeanCellTime"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The cells the stopped run had finished",
+            "title": "Finished"
           },
           "guards": {
             "anyOf": [
@@ -10647,6 +10710,24 @@
               }
             ],
             "title": "Repetitions"
+          },
+          "round_in_progress": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/TorchLeanCellTime"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per side, the cells of the round that was stopped",
+            "title": "Round In Progress"
           },
           "rounds": {
             "anyOf": [
@@ -10692,6 +10773,16 @@
           "state": {
             "title": "State",
             "type": "string"
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TorchLeanTimeout"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "workloads": {
             "anyOf": [
@@ -10940,6 +11031,24 @@
         "title": "TorchLeanRound",
         "type": "object"
       },
+      "TorchLeanSideRuns": {
+        "properties": {
+          "finished": {
+            "title": "Finished",
+            "type": "integer"
+          },
+          "mean_seconds": {
+            "title": "Mean Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "finished",
+          "mean_seconds"
+        ],
+        "title": "TorchLeanSideRuns",
+        "type": "object"
+      },
       "TorchLeanSubmission": {
         "properties": {
           "evaluations": {
@@ -11066,6 +11175,187 @@
           "submissions"
         ],
         "title": "TorchLeanSubmissionPage",
+        "type": "object"
+      },
+      "TorchLeanTimeout": {
+        "description": "How an entry ran out of time. A measured result, not an error: the outcome is `timed-out`.",
+        "properties": {
+          "allowance_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowance Seconds"
+          },
+          "budget_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Seconds"
+          },
+          "cell": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The `<workload>|<cell>` that was running",
+            "title": "Cell"
+          },
+          "cells_finished": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cells Finished"
+          },
+          "cells_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cells Total"
+          },
+          "elapsed_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Seconds"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`invocation`: one run passed its own cap (`run_seconds`); `budget`: the paired rounds used up the shared `benchmark_seconds`, and the entry's runs took longer on average",
+            "title": "Limit"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`benchmark`, or `build` for a native build",
+            "title": "Phase"
+          },
+          "rounds_completed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounds Completed"
+          },
+          "rounds_planned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounds Planned"
+          },
+          "running": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The side that was running when time ran out",
+            "title": "Running"
+          },
+          "runs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TorchLeanSideRuns"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per side, the paired runs that finished and their mean time; a budget timeout is blamed by time per run, not by total, as one side may have finished one run more",
+            "title": "Runs"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "stopped_after_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How long the stopped run had gone: a lower bound on that run's time",
+            "title": "Stopped After Seconds"
+          }
+        },
+        "title": "TorchLeanTimeout",
         "type": "object"
       },
       "TorchLeanWorkload": {

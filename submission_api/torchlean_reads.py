@@ -108,7 +108,22 @@ def current(history):
 
 
 def admission(value):
-    return s.TorchLeanAdmission(**{k: value.get(k) for k in s.TorchLeanAdmission.model_fields}) if value else None
+    if not value:
+        return None
+    fields = {k: value.get(k) for k in s.TorchLeanAdmission.model_fields}
+    fields["timeout"] = timeout(fields["timeout"])
+    return s.TorchLeanAdmission(**fields)
+
+
+def timeout(value):
+    return s.TorchLeanTimeout(**{k: value.get(k) for k in s.TorchLeanTimeout.model_fields}) if isinstance(value, dict) else None
+
+
+def cell_times(rows):
+    # The worker's `[ns, checksum]` pairs, named.
+    if not isinstance(rows, dict):
+        return None
+    return {name: s.TorchLeanCellTime(ns=row[0], checksum=row[1]) for name, row in rows.items()}
 
 
 def evaluation(row):
@@ -372,7 +387,9 @@ async def report(session, sid):
         session,
         """
        SELECT ej.evaluation_id,ej.environment,ej.seed,j.state,j.attempts,j.started_at,j.completed_at,
-         j.result,j.request->'workloads' AS workloads,j.error->>'kind' AS error_kind
+         j.result,j.request->'workloads' AS workloads,j.error->>'kind' AS error_kind,
+         j.error->'timeout' AS timeout,j.error->'partial' AS partial,
+         coalesce(j.error->>'truncated','false')::boolean AS truncated
        FROM evaluation_jobs ej
        JOIN benchmark_jobs j ON j.id=ej.job_id WHERE ej.evaluation_id IN
          (SELECT id FROM evaluations WHERE submission_id=:sid)
@@ -389,6 +406,10 @@ async def report(session, sid):
             if j["evaluation_id"] != e.id:
                 continue
             value = j["result"] or {}
+            # A failed job keeps what the worker had measured before it stopped.
+            partial = j["partial"] if isinstance(j["partial"], dict) else {}
+            measured = value or partial
+            stopped = j["timeout"] if isinstance(j["timeout"], dict) else {}
             # A stale payload on a failed job remains diagnostic evidence, never a fresh score.
             diagnostic = next(
                 (
@@ -413,7 +434,7 @@ async def report(session, sid):
                         )
                     },
                     identity=value.get("provenance", {}).get("identity"),
-                    repetitions=value.get("repetitions"),
+                    repetitions=measured.get("repetitions"),
                     workloads=[
                         s.TorchLeanWorkload(**{k: w[k] for k in s.TorchLeanWorkload.model_fields})
                         for w in j["workloads"]
@@ -430,12 +451,22 @@ async def report(session, sid):
                                 for name, obs in r["cells"].items()
                             },
                         )
-                        for r in value["rounds"]
+                        for r in measured["rounds"]
                     ]
-                    if value.get("rounds") is not None
+                    if measured.get("rounds") is not None
                     else None,
                     score=diagnostic.get("score"),
                     guards=diagnostic.get("guards"),
+                    timeout=timeout(j["timeout"]),
+                    calibration=partial.get("calibration"),
+                    round_in_progress={
+                        side: cell_times(rows)
+                        for side, rows in partial["round_in_progress"].items()
+                    }
+                    if isinstance(partial.get("round_in_progress"), dict)
+                    else None,
+                    finished=cell_times(stopped.get("finished")),
+                    evidence_truncated=j["truncated"],
                 )
             )
         result.append(

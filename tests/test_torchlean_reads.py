@@ -278,7 +278,7 @@ def test_source_only_after_last_board_is_lost_and_by_hash(database):
     assert get(database, f"/submissions/{plain}/source").status_code == 403
 
 
-def job(db, eid, sha, *, environment="amd64", state="completed", request=None):
+def job(db, eid, sha, *, environment="amd64", state="completed", request=None, error=None):
     result = {
         "provenance": {"identity": "a" * 64, "machine": "PRIVATE_HOST_PATH"},
         "repetitions": {"mlp:b1:normal": 10},
@@ -301,8 +301,10 @@ def job(db, eid, sha, *, environment="amd64", state="completed", request=None):
     jid = execute(
         db,
         """INSERT INTO benchmark_jobs(request_hash,request,candidate_hash,reference_hash,
-                 environment,lease_seconds,retry_seconds,state,result,owner,token,claimant,lease_until)
+                 environment,lease_seconds,retry_seconds,state,result,error,owner,token,claimant,
+                 lease_until)
                  VALUES (:hash,CAST(:request AS jsonb),:hash,:ref,:env,120,60,:state,CAST(:result AS jsonb),
+                 CAST(:error AS jsonb),
                  CASE WHEN :state='running' THEN 'SECRET' END,
                  CASE WHEN :state='running' THEN 'SECRET' END,
                  CASE WHEN :state='running' THEN 'SECRET' END,
@@ -313,6 +315,7 @@ def job(db, eid, sha, *, environment="amd64", state="completed", request=None):
         state=state,
         result=json.dumps(result) if state == "completed" else None,
         request=json.dumps(request or {}),
+        error=json.dumps(error) if error is not None else None,
     ).scalar_one()
     execute(
         db,
@@ -488,6 +491,115 @@ def test_report_names_the_workloads_a_multi_seed_job_timed(database):
     assert "SECRET" not in response.text
     single = get(database, f"/submissions/{sid2}/report").json()
     assert single["evaluations"][0]["measurements"][0]["workloads"] is None
+
+
+def decide(db, eid, **decision):
+    # The decision exactly as the coordinator stores it, with no bootstrap strata.
+    execute(
+        db,
+        "UPDATE evaluations SET decision=CAST(:d AS jsonb) WHERE id=:id",
+        id=eid,
+        d=json.dumps(decision),
+    )
+
+
+TIMEOUT = {
+    "phase": "benchmark",
+    "limit": "budget",
+    "running": "reference",
+    "allowance_seconds": 25.7,
+    "budget_seconds": 1200,
+    "elapsed_seconds": 1199.9,
+    "stopped_after_seconds": 25.7,
+    "runs": {
+        "reference": {"finished": 3, "mean_seconds": 130.1},
+        "candidate": {"finished": 2, "mean_seconds": 197.4},
+    },
+    "cell": "mlp:b1:normal",
+    "cells_finished": 0,
+    "cells_total": 1,
+}
+
+
+def test_a_timed_out_entry_reports_its_timeout_and_what_it_measured(database):
+    configure(database)
+    sid, sha = submit(database, "too-slow")
+    eid = evaluate(database, sid)
+    summary = TIMEOUT | {"environment": "amd64", "seed": 42, "rounds_completed": 1}
+    decide(
+        database,
+        eid,
+        outcome="timed-out",
+        reason="benchmark-timeout: …",
+        score=None,
+        timeout=summary | {"x": "SECRET"},
+    )
+    observation = {
+        "reference_ns": 100,
+        "candidate_ns": 300,
+        "reference_checksum": 7,
+        "candidate_checksum": 7,
+    }
+    error = {
+        "kind": "candidate",
+        "reason": "benchmark-timeout: PRIVATE_HOST_PATH",
+        "timeout": TIMEOUT | {"side": "candidate", "finished": {}, "private": "SECRET"},
+        "partial": {
+            "calibration": {"mlp:b1:normal": 101},
+            "repetitions": {"mlp:b1:normal": 10},
+            "rounds": [{"reference_first": True, "cells": {"mlp:b1:normal": observation}}],
+            "round_in_progress": {"candidate": {"mlp:b1:normal": [300, 7]}},
+            "rounds_planned": 11,
+            "private": "SECRET",
+        },
+    }
+    job(database, eid, sha, state="failed", error=error)
+    detail = get(database, f"/submissions/{sid}")
+    assert detail.status_code == 200, detail.text
+    decision = detail.json()["evaluations"][0]["decision"]
+    assert decision["outcome"] == "timed-out" and decision["score"] is None
+    assert decision["timeout"] == summary | {"rounds_planned": None}
+    response = get(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    assert "SECRET" not in response.text and "PRIVATE_HOST_PATH" not in response.text
+    measured = response.json()["evaluations"][0]["measurements"][0]
+    assert (measured["state"], measured["error_kind"]) == ("failed", "candidate")
+    assert measured["timeout"] == TIMEOUT | {
+        "environment": None,
+        "seed": None,
+        "rounds_completed": None,
+        "rounds_planned": None,
+    }
+    assert measured["calibration"] == {"mlp:b1:normal": 101}
+    assert measured["repetitions"] == {"mlp:b1:normal": 10}
+    assert measured["rounds"][0]["cells"]["mlp:b1:normal"]["candidate_ns"] == 300
+    assert measured["round_in_progress"] == {
+        "candidate": {"mlp:b1:normal": {"ns": 300, "checksum": 7}}
+    }
+    assert measured["finished"] == {}
+    assert measured["evidence_truncated"] is False
+
+
+def test_a_failure_without_evidence_reports_none(database):
+    configure(database)
+    sid, sha = submit(database, "crashed")
+    eid = evaluate(database, sid)
+    decide(database, eid, outcome="benchmark-failed", reason="crash", score=None)
+    job(
+        database,
+        eid,
+        sha,
+        state="failed",
+        error={"kind": "candidate", "reason": "crash", "truncated": True},
+    )
+    response = get(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    evaluation = response.json()["evaluations"][0]
+    assert evaluation["decision"]["timeout"] is None
+    measured = evaluation["measurements"][0]
+    assert measured["rounds"] is None and measured["timeout"] is None
+    assert measured["round_in_progress"] is None and measured["finished"] is None
+    assert measured["evidence_truncated"] is True
 
 
 def test_a_paid_board_missing_from_the_weights_reports_no_fraction(database):
