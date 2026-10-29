@@ -224,6 +224,35 @@ def test_a_request_is_one_trace_named_by_its_route(spans, recorder, upstream):
         assert span.context.trace_id == server.context.trace_id
 
 
+def test_the_db_modules_engines_record_each_statement(spans, monkeypatch):
+    # The API's engines come from `conjectures_subnet.db.engine`, imported long before tracing is
+    # configured. A name imported from sqlalchemy there would be the unwrapped constructor, and
+    # the only database span left would be `connect` -- which is what production showed.
+    from conjectures_subnet.db import engine as db_engine
+
+    engine = db_engine.create_db_engine("sqlite://")
+    assert tracing._state is not None
+    with tracing.server_span("GET"):
+        with engine.connect() as connection:
+            connection.execute(sqlalchemy.text("SELECT 1"))
+
+    statements = [
+        span.attributes.get("db.statement")
+        for span in finished(spans)
+        if span.kind == SpanKind.CLIENT and span.name != "connect"
+    ]
+    assert statements == ["SELECT 1"]
+
+    # The async constructor has no sqlite driver here; that it is looked up at call time, where
+    # the instrumentation wraps it, is what matters.
+    made: list[str] = []
+    monkeypatch.setattr(
+        sqlalchemy.ext.asyncio, "create_async_engine", lambda url, **_: made.append(url)
+    )
+    db_engine.create_async_db_engine("postgresql+psycopg://h/db")
+    assert made == ["postgresql+psycopg://h/db"]
+
+
 def test_no_span_carries_the_path_or_a_query_string(spans, recorder, upstream):
     client(build_app(recorder, upstream=upstream)).get("/v1/results/erdos-1?token=secret")
 
