@@ -510,7 +510,11 @@ TIMEOUT = {
     "allowance_seconds": 25.7,
     "budget_seconds": 1200,
     "elapsed_seconds": 1199.9,
-    "used_seconds": {"reference": 410.2, "candidate": 789.7},
+    "stopped_after_seconds": 25.7,
+    "runs": {
+        "reference": {"finished": 3, "mean_seconds": 130.1},
+        "candidate": {"finished": 2, "mean_seconds": 197.4},
+    },
     "cell": "mlp:b1:normal",
     "cells_finished": 0,
     "cells_total": 1,

@@ -19,6 +19,11 @@ class TorchLeanJobCounts(BaseModel):
     cancelled: int = 0
 
 
+class TorchLeanSideRuns(BaseModel):
+    finished: int
+    mean_seconds: float
+
+
 class TorchLeanTimeout(BaseModel):
     """How an entry ran out of time. A measured result, not an error: the outcome is `timed-out`."""
 
@@ -26,14 +31,19 @@ class TorchLeanTimeout(BaseModel):
     limit: str | None = Field(
         None,
         description="`invocation`: one run passed its own cap (`run_seconds`); `budget`: the paired "
-        "rounds used up the shared `benchmark_seconds`, and the entry had used more of it",
+        "rounds used up the shared `benchmark_seconds`, and the entry's runs took longer on average",
     )
     running: str | None = Field(None, description="The side that was running when time ran out")
     allowance_seconds: float | None = None
     budget_seconds: float | None = None
     elapsed_seconds: float | None = None
-    used_seconds: dict[str, float] | None = Field(
-        None, description="Each side's time in the paired rounds"
+    stopped_after_seconds: float | None = Field(
+        None, description="How long the stopped run had gone: a lower bound on that run's time"
+    )
+    runs: dict[str, TorchLeanSideRuns] | None = Field(
+        None,
+        description="Per side, the paired runs that finished and their mean time; a budget timeout "
+        "is blamed by time per run, not by total, as one side may have finished one run more",
     )
     cell: str | None = Field(None, description="The `<workload>|<cell>` that was running")
     cells_finished: int | None = None
