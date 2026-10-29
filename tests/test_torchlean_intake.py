@@ -44,6 +44,7 @@ def engines():
             "0001_job_protocol.sql",
             "0001_worker_roles.sql",
             "0002_dev_intake.sql",
+            "0003_failure_evidence.sql",
         ]:
             c.exec_driver_sql((COMP / name).read_text(), execution_options={"no_parameters": True})
         c.exec_driver_sql(

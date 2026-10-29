@@ -36,6 +36,19 @@ Admission fields (`outcome`, `score`, `gain_lower`, `guard_passed`, optional `re
 coordinator decisions. `gain_lower` is a one-sided bound, not a two-sided confidence interval.
 Pending data is null, empty lists mean no records. The API never runs bootstrap or re-scores timings.
 
+An entry that ran out of time is `timed-out`, a measured result with no score; `benchmark-failed`
+means the run itself failed (a crash, a failed native build, invalid output). A `timed-out`
+decision carries `timeout`: the `phase`, the `limit` (`invocation`, one run's own cap, or `budget`,
+the shared measurement budget), the allowance, the cell that was running, how many cells and rounds
+had finished, the environment and seed, and `runs`: per side, how many paired runs finished and
+their mean time. A budget timeout is the entry's when its runs take longer on average; totals are
+not compared, since one side may have finished one run more. `stopped_after_seconds` is how long
+the stopped run had gone, a lower bound on that run's time. Decisions taken before
+competition migration `tensor_0003` know only the phase, limit, allowance, environment and seed.
+In the report, a failed job's measurement shows what the worker had measured before it stopped:
+`repetitions` and the completed `rounds`, plus `calibration`, `round_in_progress` and the stopped
+run's `finished` cells; `evidence_truncated` says the worker's evidence was too large to keep.
+
 Reward ranks/shares come from the current coordinator publication. `competition_fraction` is
 board allocation × rank share, or zero when that board is paused with treasury policy. It is
 not an on-chain payment guarantee: registration eligibility and chain publication are separate.

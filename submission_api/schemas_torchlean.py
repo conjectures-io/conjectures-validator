@@ -19,12 +19,49 @@ class TorchLeanJobCounts(BaseModel):
     cancelled: int = 0
 
 
+class TorchLeanSideRuns(BaseModel):
+    finished: int
+    mean_seconds: float
+
+
+class TorchLeanTimeout(BaseModel):
+    """How an entry ran out of time. A measured result, not an error: the outcome is `timed-out`."""
+
+    phase: str | None = Field(None, description="`benchmark`, or `build` for a native build")
+    limit: str | None = Field(
+        None,
+        description="`invocation`: one run passed its own cap (`run_seconds`); `budget`: the paired "
+        "rounds used up the shared `benchmark_seconds`, and the entry's runs took longer on average",
+    )
+    running: str | None = Field(None, description="The side that was running when time ran out")
+    allowance_seconds: float | None = None
+    budget_seconds: float | None = None
+    elapsed_seconds: float | None = None
+    stopped_after_seconds: float | None = Field(
+        None, description="How long the stopped run had gone: a lower bound on that run's time"
+    )
+    runs: dict[str, TorchLeanSideRuns] | None = Field(
+        None,
+        description="Per side, the paired runs that finished and their mean time; a budget timeout "
+        "is blamed by time per run, not by total, as one side may have finished one run more",
+    )
+    cell: str | None = Field(None, description="The `<workload>|<cell>` that was running")
+    cells_finished: int | None = None
+    cells_total: int | None = None
+    environment: str | None = None
+    seed: int | None = None
+    rounds_completed: int | None = None
+    rounds_planned: int | None = None
+
+
 class TorchLeanAdmission(BaseModel):
     outcome: str | None = None
     score: float | None = None
     gain_lower: float | None = None
     guard_passed: bool | None = None
     reason: str | None = None
+    # Decisions recorded before timeouts were kept say only what the reason did.
+    timeout: TorchLeanTimeout | None = None
 
 
 class TorchLeanEvaluation(BaseModel):
@@ -165,6 +202,11 @@ class TorchLeanObservation(BaseModel):
     candidate_checksum: int
 
 
+class TorchLeanCellTime(BaseModel):
+    ns: float
+    checksum: int
+
+
 class TorchLeanRound(BaseModel):
     reference_first: bool
     cells: dict[str, TorchLeanObservation]
@@ -194,6 +236,18 @@ class TorchLeanMeasurement(BaseModel):
     rounds: list[TorchLeanRound] | None
     score: float | None
     guards: dict[str, float] | None
+    # A failed job's evidence: `repetitions` and `rounds` above are then what it had completed.
+    timeout: TorchLeanTimeout | None = None
+    calibration: dict[str, float] | None = None
+    round_in_progress: dict[str, dict[str, TorchLeanCellTime]] | None = Field(
+        None, description="Per side, the cells of the round that was stopped"
+    )
+    finished: dict[str, TorchLeanCellTime] | None = Field(
+        None, description="The cells the stopped run had finished"
+    )
+    evidence_truncated: bool = Field(
+        False, description="The worker's evidence was too large to keep"
+    )
 
 
 class TorchLeanEvaluationReport(TorchLeanEvaluation):

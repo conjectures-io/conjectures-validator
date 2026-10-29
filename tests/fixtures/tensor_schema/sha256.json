@@ -3,5 +3,6 @@
   "platform_api.sql": "4425e8e5a72de504cfb247a8c345f89bea5a6a8ada0408f07d712f6d4ccceaec",
   "0001_worker_roles.sql": "a38bc9d602f6e9f4cf802592aad49eeef121fcf3414971a573b65ee50ad01ed4",
   "0002_dev_intake.sql": "2f55bcc31a06945d91e14149d80de8706300e395820193b08690e0867c62e522",
-  "0001_schema.sql": "a4c4aa7b0bdf3bce7bc2c29fbb4e422e8973f192fa605100b6afbffc28196271"
+  "0001_schema.sql": "a4c4aa7b0bdf3bce7bc2c29fbb4e422e8973f192fa605100b6afbffc28196271",
+  "0003_failure_evidence.sql": "a0f31b58d24cea2332c290e7c9fe28feafc6028c5ca20004fc2b1544b6bcf1ef"
 }
