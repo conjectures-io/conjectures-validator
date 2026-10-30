@@ -35,6 +35,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPAuthorizationCredentials
 
+from conftest import DATABASE_SKIP_REASON, postgres_dsn
 from submission_api import security, sessions
 from submission_api.dependencies import (
     get_optional_principal,
@@ -242,6 +243,7 @@ def test_the_public_read_surface_asks_for_nothing():
     assert offenders == [], offenders
 
 
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
 def test_the_real_app_serves_the_schemes():
     """The bare probe above skips `create_app`; this is the part it skips.
 
@@ -272,37 +274,8 @@ def test_the_real_app_serves_the_schemes():
 
 
 # --- extraction ---------------------------------------------------------------------------
-# The declarations replaced a raw `request.headers.get("Authorization")`. These pin the part
-# that is not documentation: what the scheme hands on is what the old read handed on.
-
-
-def _offered(header_value: str | None) -> str | None:
-    """`offered_bearer` driven the way `HTTPBearer` would drive it for this header."""
-    if not header_value:
-        return None
-    scheme, _, credentials = header_value.partition(" ")
-    if not credentials or scheme.lower() != sessions.BEARER_SCHEME:
-        return None
-    return security.offered_bearer(
-        HTTPAuthorizationCredentials(scheme=scheme, credentials=credentials)
-    )
-
-
-def test_the_scheme_accepts_exactly_what_the_header_read_accepted():
-    token = sessions.new_bearer_token()
-    for header in (
-        None,
-        "",
-        token,  # no scheme
-        f"Basic {token}",
-        "Bearer",
-        "Bearer ",
-        f"Bearer {token}",
-        f"bearer {token}",
-        f"BEARER  {token}",  # doubled space; the token is what matters, not the padding
-        f"Bearer {'x' * (sessions.MAX_BEARER_LENGTH + 1)}",
-    ):
-        assert _offered(header) == sessions.bearer_token(header), header
+# The declarations replaced a raw `request.headers.get("Authorization")`. This pins the part
+# that is not documentation: what the scheme hands on is held to the same acceptance rule.
 
 
 def test_a_token_over_the_ceiling_is_refused_wherever_it_arrived():

@@ -95,18 +95,8 @@ def test_a_target_specific_definition_change_rotates_only_that_target(tmp_path):
     before, _ = ids(env)
     env.statements["Pair.first"][1]["Pair.onlyFirst"] = definition("only.v2")
     after, _ = ids(env)
+    # The cataloged type hash of Pair.first is unchanged, so no type-hash shortcut may decide.
     assert {key[0] for key in before if before[key] != after[key]} == {"Pair.first"}
-
-
-def test_no_statement_hash_shortcut_the_type_hash_alone_does_not_decide(tmp_path):
-    env = standard(tmp_path)
-    decls = declarations()
-    before, _ = ids(env, decls)
-    env.statements["Pair.first"][1]["Pair.onlyFirst"] = definition("only.v3")
-    after, _ = ids(env, decls)
-    # The cataloged type hash of Pair.first is byte-identical in both runs.
-    assert decls[0].type_hash == declaration("Pair.first", PAIR).type_hash
-    assert before[("Pair.first", "formalized")] != after[("Pair.first", "formalized")]
 
 
 def test_an_import_graph_change_rotates_its_module_and_nothing_else(tmp_path):

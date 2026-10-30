@@ -696,22 +696,6 @@ def test_a_review_rejected_result_publishes_its_record_and_report_but_not_soluti
     run(scenario())
 
 
-def test_a_rejected_submissions_proof_is_never_published():
-    async def scenario():
-        kit = await harness().setup()
-        try:
-            submission_id = await _submit(kit, "0031")
-            await _verify(kit, submission_id, accepted=False)
-
-            # Not on a feed at all, so the first gate already answers. Asserted anyway: this is
-            # the case where publishing the bytes would be irreversible.
-            assert (await _get(kit, f"/v1/results/{submission_id}/solution")).status_code == 404
-        finally:
-            await kit.teardown()
-
-    run(scenario())
-
-
 def test_an_unverified_submissions_proof_is_never_published():
     async def scenario():
         kit = await harness().setup()

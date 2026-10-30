@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import text
 
 from test_torchlean_intake import database as database, engines as engines
+from test_torchlean_intake import roles_lock as roles_lock
 from test_torchlean_intake import execute, post, service
 
 CONFIG = "c" * 64

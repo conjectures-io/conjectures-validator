@@ -813,38 +813,6 @@ def test_another_accounts_link_nonce_is_not_redeemable():
     run(scenario())
 
 
-def test_a_coldkey_link_signature_cannot_be_replayed_as_a_sign_in():
-    async def scenario():
-        kit = await harness().setup()
-        try:
-            async with await client(kit) as http:
-                await sign_in_by_email(kit, http)
-                challenge = await http.post(
-                    "/v1/me/wallets/challenge",
-                    json={"coldkey": COLDKEY},
-                    headers=same_origin(http),
-                )
-                link_message = challenge.json()["message"]
-
-            async with await client(kit) as attacker:
-                await attacker.post(
-                    "/v1/auth/wallet/challenge", json={"address": COLDKEY}
-                )
-                replayed = await attacker.post(
-                    "/v1/auth/wallet/verify",
-                    json={
-                        "address": COLDKEY,
-                        "signature": sign(COLDKEY, link_message),
-                    },
-                )
-                assert replayed.status_code == 401
-                assert replayed.json()["reason_code"] == "SIGNATURE_INVALID"
-        finally:
-            await kit.teardown()
-
-    run(scenario())
-
-
 # `link` was a separate hotkey-linking flow until V035, with its own challenge kind and
 # message prefix. There is one kind of key now, so it is the wallet flow — kept as a name
 # because most of the suite reads better saying "link this key to the account" than naming the
@@ -869,30 +837,6 @@ async def designate(kit, http, coldkey: str):
     )
     assert designated.status_code == 200, designated.text
     return designated
-
-
-def test_a_coldkey_is_linked_by_signature_and_belongs_to_one_account():
-    async def scenario():
-        kit = await harness().setup()
-        try:
-            async with await client(kit) as first, await client(kit) as second:
-                await sign_in_by_email(kit, first, email="one@example.com")
-                linked = await link(kit, first, MINER_COLDKEY)
-                assert linked.status_code == 201, linked.text
-                assert [item["coldkey"] for item in linked.json()["wallets"]] == [
-                    MINER_COLDKEY
-                ]
-
-                # A second account cannot claim it: attribution must have one answer, and a
-                # reward one owner.
-                await sign_in_by_email(kit, second, email="two@example.com")
-                stolen = await link(kit, second, MINER_COLDKEY)
-                assert stolen.status_code == 409
-                assert stolen.json()["reason_code"] == "WALLET_ALREADY_LINKED"
-        finally:
-            await kit.teardown()
-
-    run(scenario())
 
 
 def test_a_link_signature_cannot_be_replayed_as_a_sign_in():

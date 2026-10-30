@@ -55,11 +55,17 @@ def run(coroutine):
 async def _get(kit, path: str, **params):
     from httpx import ASGITransport, AsyncClient
 
-    async with AsyncClient(
-        transport=ASGITransport(app=kit.app, raise_app_exceptions=True),
-        base_url="http://validator.test",
-    ) as client:
-        return await client.get(path, params=params or None)
+    # The page, list and meta reads all query the database, so each kit builds its own schema
+    # rather than inheriting whatever an earlier test left behind.
+    await kit.setup()
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=kit.app, raise_app_exceptions=True),
+            base_url="http://validator.test",
+        ) as client:
+            return await client.get(path, params=params or None)
+    finally:
+        await kit.teardown()
 
 
 def retired_index() -> RetiredIndex:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from database_guard import IDENTITY_ENV, DatabaseGuardError, verified_dsn
+from database_guard import IDENTITY_ENV, DatabaseGuardError, verified_dsn, worker_dsn
 
 DSN = "postgresql+psycopg://fixture@/fixture-db"
 FIXTURE_ID = "7693752834671001646"
@@ -151,3 +151,16 @@ def test_no_test_module_falls_back_to_the_removed_shared_dsn():
             for alias in node.names
         }
         assert not removed & imported, path.name
+
+
+def test_an_xdist_worker_database_changes_only_the_database_name():
+    """`isolate_worker` creates databases on whatever server this names, so it must be the one
+    `verified_dsn` proved: a socket directory given as `?host=` survives the rename."""
+    socket = "postgresql+psycopg://fixture:pw@/fixture-db?host=/run/private-fixture"
+    assert worker_dsn(socket, "gw3") == (
+        "postgresql+psycopg://fixture:pw@/fixture-db-gw3?host=%2Frun%2Fprivate-fixture"
+    )
+    tcp = "postgresql+psycopg://fixture:pw@127.0.0.1:55433/conjectures-pytest"
+    assert worker_dsn(tcp, "gw0") == (
+        "postgresql+psycopg://fixture:pw@127.0.0.1:55433/conjectures-pytest-gw0"
+    )

@@ -32,7 +32,28 @@ COMP = Path(__file__).parent / "fixtures/tensor_schema"
 
 
 @pytest.fixture(scope="module")
-def engines():
+def roles_lock():
+    """`platform_api` and the tensor permission groups are roles, and roles are cluster-wide.
+
+    Under `pytest -n` every worker's database shares them, and `engines` creates and drops them,
+    so one module at a time holds the cluster. Advisory locks are scoped to a database, so this
+    one is taken in `postgres`, which every worker reaches. NullPool: closing the connection must
+    end the session, which is what releases the lock.
+    """
+    comp = competition_dsn()
+    if not comp:
+        pytest.skip("requires a declared private PostgreSQL fixture")
+    lock = sa.create_engine(sa.engine.make_url(comp).set(database="postgres"), poolclass=sa.NullPool)
+    try:
+        with lock.connect() as held:
+            held.exec_driver_sql("SELECT pg_advisory_lock(hashtext('conjectures-tests:torchlean'))")
+            yield
+    finally:
+        lock.dispose()
+
+
+@pytest.fixture(scope="module")
+def engines(roles_lock):
     comp, central = competition_dsn(), postgres_dsn()
     if not comp or not central:
         pytest.skip("requires a declared private PostgreSQL fixture")
