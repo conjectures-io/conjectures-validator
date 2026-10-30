@@ -312,33 +312,38 @@ class DynamicBountyPricer:
         # changed balance or solved-target set still changes the response immediately.
         now = now.astimezone(UTC).replace(second=0, microsecond=0)
 
-        await session.execute(
-            pg_insert(BountyTask)
-            .values(
-                [
-                    {
-                        "reward_target_id": target,
-                        "opened_at": now,
-                        "pricing_policy": self.new_target_policy,
-                        "start_share_numerator": self.constant_numerator,
-                        "start_share_denominator": self.constant_denominator,
-                    }
-                    for target in self.reward_target_ids
-                ]
-            )
-            .on_conflict_do_nothing(index_elements=[BountyTask.reward_target_id])
-        )
-        opened_rows = (
+        opened_query = select(
+            BountyTask.reward_target_id,
+            BountyTask.opened_at,
+            BountyTask.pricing_policy,
+            BountyTask.start_share_numerator,
+            BountyTask.start_share_denominator,
+        ).where(BountyTask.reward_target_id.in_(configured | set(requested)))
+        opened_rows = (await session.execute(opened_query)).all()
+        # A configured target is opened the first time any quote sees it. Only the ones not open
+        # yet are inserted: this runs on every catalog read, and offering all ~250 rows each time
+        # was a 58 KB statement that, once they exist, inserted nothing. The conflict clause still
+        # covers two readers opening the same new target at once.
+        already_open = {str(row[0]) for row in opened_rows}
+        unopened = [target for target in self.reward_target_ids if target not in already_open]
+        if unopened:
             await session.execute(
-                select(
-                    BountyTask.reward_target_id,
-                    BountyTask.opened_at,
-                    BountyTask.pricing_policy,
-                    BountyTask.start_share_numerator,
-                    BountyTask.start_share_denominator,
-                ).where(BountyTask.reward_target_id.in_(set(self.reward_target_ids) | set(requested)))
+                pg_insert(BountyTask)
+                .values(
+                    [
+                        {
+                            "reward_target_id": target,
+                            "opened_at": now,
+                            "pricing_policy": self.new_target_policy,
+                            "start_share_numerator": self.constant_numerator,
+                            "start_share_denominator": self.constant_denominator,
+                        }
+                        for target in unopened
+                    ]
+                )
+                .on_conflict_do_nothing(index_elements=[BountyTask.reward_target_id])
             )
-        ).all()
+            opened_rows = (await session.execute(opened_query)).all()
         opened_at = {str(row[0]): _utc(row[1]) for row in opened_rows}
         target_policies = {str(row[0]): str(row[2]) for row in opened_rows}
         start_share = {str(row[0]): (int(row[3]), int(row[4])) for row in opened_rows}
