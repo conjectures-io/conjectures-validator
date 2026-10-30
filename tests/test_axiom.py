@@ -91,7 +91,10 @@ class FakeAxiom:
         self._server = socketserver.TCPServer(("127.0.0.1", 0), _Collector)
         self._server.calls = []  # type: ignore[attr-defined]
         self._server.status = status  # type: ignore[attr-defined]
-        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread = threading.Thread(
+            # `shutdown` waits out one poll; the default 0.5s made every test pay it.
+            target=self._server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
+        )
         self._client_options = client_options
 
     def __enter__(self) -> FakeAxiom:
