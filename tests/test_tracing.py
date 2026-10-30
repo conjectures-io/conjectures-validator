@@ -253,6 +253,24 @@ def test_the_db_modules_engines_record_each_statement(spans, monkeypatch):
     assert made == ["postgresql+psycopg://h/db"]
 
 
+def test_a_long_statement_is_cut_to_the_attribute_limit(spans):
+    from conjectures_subnet.db import engine as db_engine
+
+    engine = db_engine.create_db_engine("sqlite://")
+    padding = ", ".join(f"{i} AS c{i}" for i in range(1000))  # ~13 KB of SQL
+    with tracing.server_span("GET"):
+        with engine.connect() as connection:
+            connection.execute(sqlalchemy.text(f"SELECT {padding}"))
+
+    (statement,) = [
+        span.attributes["db.statement"]
+        for span in finished(spans)
+        if span.kind == SpanKind.CLIENT and span.name != "connect"
+    ]
+    assert len(statement) == tracing.MAX_ATTRIBUTE_LENGTH
+    assert statement.startswith("SELECT 0 AS c0")
+
+
 def test_no_span_carries_the_path_or_a_query_string(spans, recorder, upstream):
     client(build_app(recorder, upstream=upstream)).get("/v1/results/erdos-1?token=secret")
 

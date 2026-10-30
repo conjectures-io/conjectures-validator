@@ -59,6 +59,7 @@ DEFAULT_SAMPLE_RATIO: Final = 1.0
 TRACES_DATASET_SUFFIX: Final = "-traces"
 _OFF: Final = frozenset({"off", "none", "false", "0"})
 EXPORT_TIMEOUT_SECONDS: Final = 10.0
+MAX_ATTRIBUTE_LENGTH: Final = 2048
 THROTTLE_SECONDS: Final = 60.0
 
 # Set on a span that may start a trace without being a server span: a worker's pass, a poll.
@@ -151,7 +152,7 @@ def _build(
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
     from opentelemetry.propagators.composite import CompositePropagator
     from opentelemetry.sdk.resources import Resource
-    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace import SpanLimits, TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 
@@ -167,6 +168,10 @@ def _build(
     provider = TracerProvider(
         resource=Resource.create(attributes),
         sampler=ParentBased(root=_root_sampler(TraceIdRatioBased(ratio))),
+        # A multi-row INSERT renders one placeholder group per row, and a statement is exported
+        # whole on every span it runs in: one such statement was 58 KB per catalog read. The
+        # head of a statement is what identifies it, so longer values are cut.
+        span_limits=SpanLimits(max_attribute_length=MAX_ATTRIBUTE_LENGTH),
         # Our own provider, never the global one: OpenTelemetry allows the global to be set once
         # per process, and everything here passes this provider explicitly instead.
         shutdown_on_exit=True,
