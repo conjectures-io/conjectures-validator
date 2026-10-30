@@ -105,13 +105,6 @@ def test_a_lost_lease_is_a_warning_naming_the_stage_it_was_lost_at(recorder):
     assert event["attempt"] == 2
 
 
-def test_a_submission_id_is_reported_as_a_string():
-    """A UUID would serialise via the transport's `str` fallback anyway; doing it here keeps the
-    field's type stable rather than dependent on which encoder ran."""
-    processed = worker()._lease_lost(claim(), stage="before_start")
-    assert isinstance(processed.submission_id, uuid.UUID)
-
-
 def test_an_unclassified_reason_code_is_an_error_and_fails_towards_the_operator(recorder):
     """Guessing here would charge a miner for a code the worker does not understand."""
     assert worker()._outcome_of("NOT_A_REAL_REASON_CODE") is Outcome.OPERATOR

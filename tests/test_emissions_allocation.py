@@ -37,13 +37,6 @@ def metagraph(**placements: int) -> list[str]:
 # ── the split ──────────────────────────────────────────────────────────────
 
 
-def test_the_split_totals_one_hundred_percent():
-    # Also asserted at import, so a bad edit cannot reach an epoch; restated here so the
-    # failure names this rule rather than surfacing as a collection error.
-    total = allocation.TREASURY_BPS + sum(allocation.COMPETITION_BPS.values())
-    assert total == allocation.BASIS_POINTS
-
-
 def test_a_competition_with_no_reviewed_share_is_paid_nothing():
     assert allocation.share("a-competition-nobody-approved") == 0.0
 

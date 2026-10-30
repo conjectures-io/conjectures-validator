@@ -609,8 +609,15 @@ def test_oversized_bundle_is_rejected():
 
 
 def test_compression_bomb_is_rejected():
+    # A bomb declares a small size, so neither the declared-size nor the ratio check sees it:
+    # only the bounded decompression does.
     entries = archive().entries
-    entries[1] = replace(entries[1], data=b"\x00" * (bundle_module.MAX_SUBMISSION_BYTES + 1))
+    entries[1] = replace(
+        entries[1],
+        data=b"\x00" * (2 * bundle_module.MAX_SUBMISSION_BYTES),
+        file_size=10,
+        local_file_size=10,
+    )
     assert rejection(Archive(entries=entries).build()) is ReasonCode.BUNDLE_TOO_LARGE
 
 
