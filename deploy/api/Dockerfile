@@ -13,7 +13,10 @@
 FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90 AS builder
 
 # Reject the compromised eMudhra chains even when a base image or mirror has an old CA bundle.
+# `upgrade` first: the base is pinned by digest, so the distribution's security fixes published
+# since that digest was cut reach the image only here. The nightly image scan reads the result.
 RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends ca-certificates \
     && sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt$|!&|' \
               -e 's|^mozilla/Comodo_AAA_Services_root.crt$|!&|' /etc/ca-certificates.conf \
@@ -81,7 +84,10 @@ RUN pip install --no-deps .
 FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
 
 # Reject the compromised eMudhra chains even when a base image or mirror has an old CA bundle.
+# `upgrade` first: the base is pinned by digest, so the distribution's security fixes published
+# since that digest was cut reach the image only here. The nightly image scan reads the result.
 RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends ca-certificates \
     && sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt$|!&|' \
               -e 's|^mozilla/Comodo_AAA_Services_root.crt$|!&|' /etc/ca-certificates.conf \
