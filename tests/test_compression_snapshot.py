@@ -81,3 +81,55 @@ def test_only_skipped_passes_means_no_snapshot_rather_than_a_crash():
 def test_a_skipped_pass_cannot_be_selected_by_id():
     assert _run([(1, PUBLISHED), (2, "null")], 2) is None
     assert _run([(1, PUBLISHED), (2, "null")], 1)["id"] == 1
+
+
+def test_a_pass_is_parsed_once_and_reloaded_when_its_row_or_scores_change():
+    """The cache saves the reload, and never serves a pass that has since changed."""
+    dsn = postgres_dsn()
+    assert dsn is not None
+    schema = f"snap_{uuid.uuid4().hex[:10]}"
+    observed = '{"policy": {"version": "v"}, "items": [], "observed_submissions": []}'
+
+    async def scenario():
+        engine = create_async_engine(dsn, connect_args={"options": f"-csearch_path={schema}"})
+
+        async def read():
+            async with AsyncSession(engine) as session:
+                return await store.snapshot(session)
+
+        async def change(sql):
+            async with engine.begin() as conn:
+                await conn.execute(sa.text(sql))
+
+        try:
+            await change(f'CREATE SCHEMA "{schema}"')
+            for statement in filter(str.strip, TABLES.split(";")):
+                await change(statement)
+            await change(
+                "INSERT INTO weight_sets (id, dry_run, accepted, api_snapshot) "
+                f"VALUES (1, true, false, '{observed}'::jsonb)"
+            )
+
+            first, second = await read(), await read()
+            assert second["api_snapshot"] is first["api_snapshot"]  # parsed once
+            assert "freshness" not in first and second is not first
+
+            # Freshness is per request, and must not leak into the shared entry.
+            await change("INSERT INTO submissions (id, state, hotkey) VALUES (7, 'accepted', 'hk')")
+            assert (await read())["freshness"] == "stale"
+            await change("DELETE FROM submissions")
+            assert "freshness" not in await read()
+
+            await change("UPDATE weight_sets SET accepted = true WHERE id = 1")
+            assert (await read())["accepted"] is True
+
+            await change(
+                "INSERT INTO score_snapshots (weight_set_id, submission_id, on_frontier) "
+                "VALUES (1, 7, true)"
+            )
+            assert [row["submission_id"] for row in (await read())["scores"]] == [7]
+        finally:
+            await change(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+            await engine.dispose()
+
+    asyncio.run(scenario())
