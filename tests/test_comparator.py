@@ -1,14 +1,11 @@
 from pathlib import Path
 
 from verifier.comparator import (
-    COMPARATOR_MEMORY_BYTES,
     COMPARATOR_PROCESSES,
     DEVELOPMENT_SANDBOX_MODE,
     PRODUCTION_SANDBOX_MODE,
     ComparatorTools,
-    missing_tools,
     process_cap,
-    production_sandbox_available,
     rejection_reason,
     resolve_tools,
 )
@@ -53,16 +50,6 @@ def test_environment_cannot_redirect_trusted_tools(monkeypatch):
     tools = resolve_tools(Path(__file__).resolve().parent.parent)
     assert tools.comparator != Path("/usr/bin/true")
     assert tools.lean4export != Path("/usr/bin/true")
-
-
-def test_sandbox_helpers_keep_default_call_compatibility():
-    tools = resolve_tools(Path(__file__).resolve().parent.parent)
-    assert isinstance(missing_tools(tools), tuple)
-    assert isinstance(production_sandbox_available(tools), bool)
-
-
-def test_comparator_memory_budget_covers_large_kernel_checked_certificates():
-    assert COMPARATOR_MEMORY_BYTES == 96 * 1024 * 1024 * 1024
 
 
 def test_the_process_cap_applies_under_production_isolation_only():

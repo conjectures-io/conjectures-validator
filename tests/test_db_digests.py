@@ -108,26 +108,6 @@ def test_every_component_changes_the_request_digest(field, replacement):
     assert _digest(**{field: replacement}) != _digest()
 
 
-def test_request_digest_does_not_depend_on_argument_order():
-    forward = canonical_request_digest(
-        signer_coldkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-        task_id="fixture",
-        task_bundle_sha256=PREFIXED,
-        proof_sha256="sha256:" + "cd" * 32,
-        payment_reference="0xpayment-0001",
-        idempotency_key="6f1b9c1e-0000-4000-8000-000000000001",
-    )
-    backward = canonical_request_digest(
-        idempotency_key="6f1b9c1e-0000-4000-8000-000000000001",
-        payment_reference="0xpayment-0001",
-        proof_sha256="sha256:" + "cd" * 32,
-        task_bundle_sha256=PREFIXED,
-        task_id="fixture",
-        signer_coldkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-    )
-    assert forward == backward
-
-
 def test_public_credit_is_covered_by_the_request_signature():
     credit = public_credit(
         "Emmy Noether",

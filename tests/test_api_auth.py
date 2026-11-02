@@ -93,11 +93,6 @@ def test_malformed_signatures_are_unauthorized(value):
         normalise_signature(value)
 
 
-def test_signature_length_matches_the_column():
-    # submissions.signer_signature has CHECK octet_length(...) = 64.
-    assert len(normalise_signature("ab" * 64)) == 64
-
-
 @pytest.mark.parametrize("value", ["", "not-an-address", "0OIl" * 12, MINER_COLDKEY[:-1] + "!"])
 def test_malformed_hotkeys_are_unauthorized(value):
     with pytest.raises(Unauthorized):

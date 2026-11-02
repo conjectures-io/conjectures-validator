@@ -341,9 +341,13 @@ jobs:
       #   PYTHONPATH=$PWD pytest -m "not integration and not subnet_integration"
       #
       # Anything that fails there needs `needs_checkouts` and does not have it.
+      #
+      # `-n auto` runs one pytest-xdist worker per CPU. Each worker gets its own proofs and
+      # competition databases on the verified service cluster (`database_guard.isolate_worker`),
+      # because the database tests drop and rebuild whole schemas.
       - name: Test
         run: |
-          pytest -q -m "not integration and not subnet_integration and not needs_checkouts"
+          pytest -q -n auto -m "not integration and not subnet_integration and not needs_checkouts"
 
   schema-drift:
     name: schema drift

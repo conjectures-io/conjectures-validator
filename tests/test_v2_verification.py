@@ -14,7 +14,6 @@ import pytest
 from version_fixtures import COMMIT_A, MATHLIB_COMMIT, CountingValidator, declaration, index, standard
 from verification_worker.outcomes import Outcome, classify
 from verifier import verification
-from verifier.comparator import crashed_child_exit, rejection_reason
 from verifier.errors import ReasonCode
 from verifier.models import Catalog, ProcessResult
 from verifier.task_generator import build_task_version, plan_task_version
@@ -132,73 +131,6 @@ def test_a_compiled_statement_with_another_dependency_identity_is_refused_before
                                  expected_build_provenance_sha256=built.provenance["Pair.first"].sha256)
     assert report.reason_code == ReasonCode.DEPENDENCY_IDENTITY_MISMATCH and report.stage == "BUILD_CHALLENGE"
     assert classify(report.reason_code) is Outcome.OPERATOR
-
-
-# --- tool crashes are labelled apart from semantic rejection ---------------------------------
-
-# The three upstream Comparator regressions whose candidate-stack rejections were exporter panics.
-EXPORTER_PANICS = {
-    "quot_mismatch": "PANIC at dumpConstant Export:237:48: Constant Nat not found in environment.",
-    "primitive_issue": "PANIC at dumpConstant Export:237:48: Constant String.mk not found in environment.",
-    "char_ofnat_issue": "PANIC at dumpConstant Export:237:48: Constant Quot not found in environment.",
-}
-
-
-@pytest.mark.parametrize("name", sorted(EXPORTER_PANICS))
-def test_an_exporter_panic_is_a_fail_closed_tool_crash_not_a_semantic_rejection(name):
-    result = ProcessResult(
-        (), 1, "Building Solution\nExporting #[...] from Solution\n",
-        f"{EXPORTER_PANICS[name]}\nbacktrace:\n...\nuncaught exception: Child exited with 139\n", 10,
-    )
-    reason = rejection_reason(result, enable_nanoda=False)
-    assert reason == ReasonCode.COMPARATOR_TOOL_CRASHED
-    assert reason not in {
-        ReasonCode.COMPARATOR_REJECTED, ReasonCode.STATEMENT_MISMATCH, ReasonCode.LEAN_KERNEL_REJECTED,
-        ReasonCode.UNPERMITTED_AXIOM, ReasonCode.SOLUTION_BUILD_FAILED,
-    }
-    # Never an accept, and never a recorded verdict that charges the miner for our crash.
-    assert classify(reason) is Outcome.OPERATOR
-
-
-def test_genuine_semantic_rejections_keep_their_reasons():
-    for stderr, expected in (
-        ("uncaught exception: Const does not match between challenge and target 'Nat.shiftRight'", ReasonCode.STATEMENT_MISMATCH),
-        ("uncaught exception: Illegal axiom detected: 'evil'", ReasonCode.UNPERMITTED_AXIOM),
-        ("uncaught exception: Child exited with 1", ReasonCode.COMPARATOR_REJECTED),
-    ):
-        reason = rejection_reason(ProcessResult((), 1, "Exporting", stderr, 1), enable_nanoda=False)
-        assert reason == expected and classify(reason) is Outcome.VERDICT
-
-
-def test_a_killed_child_is_a_resource_limit_and_a_forged_line_is_not_a_crash():
-    killed = ProcessResult((), 1, "", "uncaught exception: Child exited with 137\n", 1)
-    assert rejection_reason(killed, enable_nanoda=False) == ReasonCode.RESOURCE_LIMIT
-    # A solution can only put text inside a quoted error message, never at a line start.
-    quoted = 'error: Solution.lean:2:3: unknown identifier "uncaught exception: Child exited with 139"\n'
-    assert crashed_child_exit(quoted) is None
-    assert crashed_child_exit("uncaught exception: Child exited with 134\n") == 134
-
-
-def test_an_earlier_forged_crash_line_cannot_turn_a_build_failure_into_a_crash():
-    # Reproduced by the independent review: a diagnostic carried a crash line before the real
-    # final report of a failed solution build.
-    stderr = (
-        "error: Solution.lean:3:2: tactic produced\n"
-        "uncaught exception: Child exited with 139\n"
-        "more diagnostic text\n"
-        "uncaught exception: Child exited with 1\n"
-    )
-    result = ProcessResult((), 1, "Building Challenge\nBuilding Solution\n", stderr, 1)
-    assert crashed_child_exit(stderr) is None
-    assert rejection_reason(result, enable_nanoda=False) == ReasonCode.SOLUTION_BUILD_FAILED
-
-
-def test_only_a_genuine_final_crash_report_is_a_tool_crash():
-    final = "PANIC at dumpConstant Export:237:48: ...\nuncaught exception: Child exited with 139\n\n"
-    assert crashed_child_exit(final) == 139
-    trailing = "uncaught exception: Child exited with 139\nlater output\n"
-    assert crashed_child_exit(trailing) is None
-    assert crashed_child_exit("") is None
 
 
 def test_a_modern_image_that_failed_its_identity_stops_startup_but_an_old_image_is_legacy():

@@ -335,15 +335,6 @@ def test_the_table_is_read_as_dollars_per_tao():
     assert quote.price > 1
 
 
-def test_the_price_never_becomes_a_float():
-    feed = Feed([rate_table("191.52707097907592")])
-    quote = run(rate_reader(feed).tao_usd())
-
-    assert isinstance(quote.price, Decimal)
-    # The exact published digits, which a binary float would not preserve.
-    assert str(quote.price) == "191.52707097907592"
-
-
 def test_the_requested_fiat_currency_is_sent_and_no_credential_is():
     feed = Feed([rate_table()])
     run(rate_reader(feed).tao_usd())

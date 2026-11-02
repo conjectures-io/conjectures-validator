@@ -16,7 +16,7 @@ dependencies = []
 # back to httpx with a deprecation warning. Only tests/test_api_observability.py uses that
 # client — every other API test drives the app through httpx.ASGITransport directly — so this
 # belongs here rather than in `service`, which never constructs a TestClient.
-dev = ["pytest>=8.2", "pytest-cov>=5", "httpx2>=2.10"]
+dev = ["pytest>=8.2", "pytest-cov>=5", "pytest-xdist>=3.6", "httpx2>=2.10"]
 service = [
     "formal-conjectures-verifier[db,subnet]",
     "fastapi==0.139.2",

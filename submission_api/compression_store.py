@@ -197,16 +197,13 @@ def with_bounty(result):
 PUBLISHED = "jsonb_typeof(api_snapshot) = 'object'"
 
 
-async def snapshot(session, sid=None):
-    if sid is None:
-        sql = f"SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE {PUBLISHED} ORDER BY id DESC LIMIT 1"
-        params = {}
-    else:
-        sql = f"SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE id=:id AND {PUBLISHED}"
-        params = {"id": sid}
-    row = (await session.execute(text(sql), params)).mappings().first()
-    if row is None:
-        return None
+async def _load_snapshot(session, sid):
+    row = (
+        await session.execute(
+            text("SELECT id, created_at, dry_run, accepted, api_snapshot FROM weight_sets WHERE id=:id"),
+            {"id": sid},
+        )
+    ).mappings().one()
     result = dict(row)
     result["scores"] = [
         dict(r)
@@ -216,11 +213,46 @@ async def snapshot(session, sid=None):
         aggregation_id, admission_check_id, hotkey, baseline_key, on_frontier,
         pareto_weight, improvement_weight, combined_weight, payable_weight, burn_reason
         FROM score_snapshots WHERE weight_set_id=:id ORDER BY submission_id"""),
-                {"id": row["id"]},
+                {"id": sid},
             )
         ).mappings()
     ]
-    with_bounty(result)
+    return with_bounty(result)
+
+
+# Parsed passes, so a read does not fetch and decode the whole `api_snapshot` on every request.
+# Every competition read loads it, a 404 included, and on production they took ~1.3 s at the
+# median while holding a pooled connection; scraper bursts then ran the competition pool dry and
+# requests failed at its 30 s timeout. Keyed by everything that
+# can change what a reload would return -- the row's version (`xmin` moves on any UPDATE, such as
+# `accepted` flipping) and its score count, in case scores land after the row -- and by the
+# database and schema, which differ between deployments' and tests' identical ids. Entries are
+# shared between requests and must be treated as read-only; `snapshot` copies the top level,
+# where the per-request freshness goes.
+_SNAPSHOTS: dict[tuple, dict] = {}
+_SNAPSHOTS_KEPT = 8
+
+
+async def snapshot(session, sid=None):
+    head = f"""SELECT w.id, w.xmin::text AS version,
+        (SELECT count(*) FROM score_snapshots s WHERE s.weight_set_id = w.id) AS scored,
+        current_database() AS db, current_schema() AS schema, inet_server_addr()::text AS host
+        FROM weight_sets w WHERE {PUBLISHED}"""
+    if sid is None:
+        sql, params = head + " ORDER BY w.id DESC LIMIT 1", {}
+    else:
+        sql, params = head + " AND w.id=:id", {"id": sid}
+    found = (await session.execute(text(sql), params)).mappings().first()
+    if found is None:
+        return None
+    key = tuple(found[name] for name in ("host", "db", "schema", "id", "version", "scored"))
+    cached = _SNAPSHOTS.get(key)
+    if cached is None:
+        cached = await _load_snapshot(session, found["id"])
+        while len(_SNAPSHOTS) >= _SNAPSHOTS_KEPT:
+            _SNAPSHOTS.pop(next(iter(_SNAPSHOTS)))
+        _SNAPSHOTS[key] = cached
+    result = dict(cached)
     observed = result["api_snapshot"].get("observed_submissions")
     if observed is not None:
         live = [

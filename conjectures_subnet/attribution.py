@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
+from conjectures_subnet.public_names import name_problem
+
 
 MAX_CREDIT_HEADER_CHARS = 4096
 MAX_CREDIT_NAME_CHARS = 128
@@ -49,11 +51,17 @@ def public_credit(
     name: str | None,
     url: str | None = None,
     orcid: str | None = None,
+    *,
+    name_characters: bool = True,
 ) -> PublicCredit | None:
     """Validate one all-null or fully attributable public-credit snapshot.
 
     Values are rejected rather than silently trimmed or Unicode-normalized.  The exact strings a
     miner sees and signs are therefore the exact strings stored and later published.
+
+    ``name_characters`` applies the character allowlist in `public_names`.  Off only for a
+    snapshot already stored: rows signed before the allowlist existed are re-read here on every
+    results page, and refusing one there would turn a published result into an error.
     """
 
     if name is None:
@@ -71,6 +79,8 @@ def public_credit(
         raise ValueError("public credit name must use NFC Unicode normalization")
     if any(unicodedata.category(character).startswith("C") for character in name):
         raise ValueError("public credit name must not contain control or formatting characters")
+    if name_characters and (problem := name_problem(name)) is not None:
+        raise ValueError(f"public credit name {problem}")
 
     checked_url = _profile_url(url)
     checked_orcid = _orcid(orcid)
@@ -84,6 +94,7 @@ def public_credit_from_values(value: object) -> PublicCredit | None:
         getattr(value, "public_credit_name", None),
         getattr(value, "public_credit_url", None),
         getattr(value, "public_credit_orcid", None),
+        name_characters=False,
     )
 
 

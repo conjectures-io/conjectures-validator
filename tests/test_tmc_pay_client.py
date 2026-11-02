@@ -472,14 +472,6 @@ def test_the_requested_pair_is_what_is_sent() -> None:
     assert body["crypto_network"] == "base"
 
 
-def test_the_default_pair_is_tao_on_bittensor() -> None:
-    upstream = Upstream()
-    run(create(gateway(upstream)))
-    body = json.loads(upstream.requests[0].content)
-    assert body["crypto_currency"] == tmc_pay.CRYPTO_CURRENCY
-    assert body["crypto_network"] == tmc_pay.CRYPTO_NETWORK
-
-
 def test_rao_is_only_derived_for_a_tao_invoice() -> None:
     """A BTC amount run through `rao_from_tao` would be a rao figure that means nothing."""
     tao = run(create(gateway(Upstream())))

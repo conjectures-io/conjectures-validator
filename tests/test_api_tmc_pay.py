@@ -2228,6 +2228,154 @@ def test_a_webhook_recovers_an_order_whose_invoice_id_never_arrived():
     run(scenario())
 
 
+def test_the_short_first_quote_arriving_mid_requote_is_answered_and_left_alone():
+    """TMC PAY sends `created` the moment an invoice exists, so the short first attempt of a
+    purchase being requoted can arrive while the order has no invoice yet. It names the order's own
+    `external_id` and does not cover the credits; `attach_invoice` refusing it used to escape as a
+    500.
+    """
+
+    async def scenario():
+        kit = await kit_with(FakeGateway([])).setup()
+        try:
+            async with buyer(kit) as (http, account):
+                account_id = uuid.UUID(account["id"])
+                async with kit.session() as session:
+                    order = await order_store.create_order(
+                        session,
+                        account_id=account_id,
+                        credits_requested=1,
+                        credit_price_rao=CREDIT_PRICE_RAO,
+                        external_id="credits-requoting",
+                    )
+                    order_id = order.id
+                    await session.commit()
+
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="short",
+                        crypto_amount="0.49",
+                        external_id="credits-requoting",
+                    )
+                )
+                answered = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert answered.status_code == 200
+                assert answered.json()["status"] == "superseded"
+
+                async with kit.session() as session:
+                    stored = await order_store.get_order(session, order_id, account_id)
+                    deliveries = await order_store.deliveries_for(session, order_id, limit=5)
+                # The requote in flight is what attaches an invoice, not this delivery.
+                assert stored.invoice_id is None
+                assert stored.status == TmcPayOrderState.NEW
+                assert stored.needs_review is False
+                assert [d.outcome for d in deliveries] == [order_store.OUTCOME_SUPERSEDED]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_the_abandoned_first_quote_never_speaks_for_the_requoted_order():
+    """Once the requote is attached, the abandoned invoice is still matched by `external_id`. Its
+    status must not become the order's, and money paid to it is a case for an operator.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                invoice_body(invoice_id="short", crypto_amount="0.49"),
+                invoice_body(invoice_id="good", crypto_amount="0.5"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                assert order["invoice_id"] == "good"
+                first_key = gateway.created[0]["external_id"]
+
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="short",
+                        status="expired",
+                        crypto_amount="0.49",
+                        external_id=first_key,
+                    )
+                )
+                answered = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert answered.json()["status"] == "superseded"
+                body = (await http.get(f"{ORDERS}/{order['id']}")).json()
+                assert body["status"] == "CREATED"
+                assert body["needs_review"] is False
+
+                raw, headers = signed(
+                    invoice_body(
+                        invoice_id="short",
+                        status="confirmed",
+                        crypto_amount="0.49",
+                        external_id=first_key,
+                    )
+                )
+                answered = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert answered.json()["status"] == "superseded"
+                body = (await http.get(f"{ORDERS}/{order['id']}")).json()
+                assert body["invoice_id"] == "good"
+                assert body["status"] == "CREATED"
+                assert body["credits_credited"] == 0
+                assert body["needs_review"] is True
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 0
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_delivery_that_fails_to_apply_is_recorded_and_processed_on_redelivery(monkeypatch):
+    """An authentic delivery that raises is answered 200, kept as FAILED, and not a duplicate."""
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="inv-1", crypto_amount="0.5")])
+        kit = await kit_with(gateway).setup()
+
+        async def explode(*_args, **_kwargs):
+            raise RuntimeError("the write nobody anticipated")
+
+        try:
+            async with buyer(kit) as (http, _):
+                order = await _order_for(http, credits_=1)
+                order_id = uuid.UUID(order["id"])
+                raw, headers = signed(
+                    invoice_body(invoice_id="inv-1", status="confirmed", crypto_amount="0.5")
+                )
+
+                monkeypatch.setattr(order_store, "settle", explode)
+                answered = await http.post(WEBHOOK, content=raw, headers=headers)
+                monkeypatch.undo()
+                assert answered.status_code == 200
+                assert answered.json()["status"] == "failed"
+                async with kit.session() as session:
+                    deliveries = await order_store.deliveries_for(session, order_id, limit=5)
+                assert [d.outcome for d in deliveries] == [order_store.OUTCOME_FAILED]
+
+                # The same delivery id again: processed, because it never was.
+                answered = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert answered.json()["status"] == "credited"
+                body = (await http.get(f"{ORDERS}/{order['id']}")).json()
+                assert body["credits_credited"] == 1
+                # Flagged by the failure, and an operator clears it, not a later success.
+                assert body["needs_review"] is True
+
+                # And a third time is a duplicate, as any processed delivery is.
+                answered = await http.post(WEBHOOK, content=raw, headers=headers)
+                assert answered.json()["status"] == "duplicate"
+                assert (await http.get("/v1/me/credits")).json()["credits_available"] == 1
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 # --- Reading and reconciling -------------------------------------------------------------
 
 

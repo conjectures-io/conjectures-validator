@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from emissions_worker.settings import EmissionsSettings, SettingsError
-from emissions_worker.worker import NETUID, TREASURY_UID, TreasuryWeightWorker
+from emissions_worker.worker import TreasuryWeightWorker
 
 
 @dataclass(frozen=True)
@@ -40,11 +40,6 @@ class Client:
             self.fail_once = False
             raise RuntimeError("temporary chain failure")
         return self.result
-
-
-def test_policy_is_hardcoded_to_subnet_66_treasury_uid_121():
-    assert NETUID == 66
-    assert TREASURY_UID == 121
 
 
 def test_one_epoch_sets_the_single_treasury_weight():

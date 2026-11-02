@@ -64,7 +64,8 @@ now="$(python3 -c 'import datetime as d; print(d.datetime.now(d.UTC).strftime("%
 exemptions=(
   # 2026.10.19 drops the compromised eMudhra and Comodo AAA roots (see SECURITY.md).
   "certifi=$now"
-  # 0.6.5 fixes four ASN.1 decoder denial-of-service advisories blocking the release.
+  # 0.6.5 fixes four quadratic-time decoding DoS advisories (GHSA-2qm8-x737-gmw5,
+  # GHSA-9m75-vc3g-4x39, GHSA-fm9c-5rcf-2q5p, GHSA-mm57-4v3p-rchx). Remove after 2026-11-10.
   "pyasn1=$now"
 )
 exemption_args=()

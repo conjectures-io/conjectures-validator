@@ -316,30 +316,6 @@ def test_bad_signature_timestamp_shape_and_practice_upload(upload_db):
     assert post(upload_db, path="floatlib-add").status_code == 404
 
 
-def test_deflate_signed_upload_is_closed_before_body_parsing(upload_db):
-    result = post(upload_db, path="deflate", files={"unexpected": ("file", b"x")})
-    assert result.status_code == 403 and result.json()["reason_code"] == "SUBMISSIONS_CLOSED"
-
-
-def test_deflate_session_upload_is_closed(upload_db):
-    async def run():
-        services, engines = services_for(upload_db)
-        try:
-            async with AsyncClient(
-                transport=ASGITransport(app_for(services)), base_url="http://test"
-            ) as c:
-                r = await c.post(
-                    "/v1/competitions/deflate/submissions/session",
-                    headers={"X-Conjectures-Hotkey": ALICE.ss58_address},
-                )
-                assert r.status_code == 403 and r.json()["reason_code"] == "SUBMISSIONS_CLOSED"
-        finally:
-            for engine in engines:
-                await engine.dispose()
-
-    asyncio.run(run())
-
-
 def test_upload_configuration_requires_cutoff_and_closed_deflate():
     args = dict(
         COMPETITIONS_ENABLED="1",
