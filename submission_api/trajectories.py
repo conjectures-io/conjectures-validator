@@ -18,6 +18,8 @@ from conjectures_subnet.db.models import (
     ReviewDecision, ReviewOutcome, RewardEvent, Submission, VerificationState,
 )
 from conjectures_subnet.bounty_policy import TREASURY_CHAT_POLICY, legacy_chat_bonus_cents
+from verifier.task_loader import load_task_bundle
+from verifier.task_registry import TASK_ID
 from verifier.task_store import TaskVersionStore
 from verifier.task_versions import is_v2_task_id
 from verifier.errors import VerifierError
@@ -397,13 +399,18 @@ def amount_for(services, submission):
     expected = "sha256:" + bytes(submission.task_bundle_sha256).hex()
     if entry is not None and entry.task_bundle_sha256 == expected:
         return legacy_chat_bonus_cents(entry.manifest.source_module)
-    if is_v2_task_id(submission.task_id):
-        try:
+    bundle = None
+    try:
+        if is_v2_task_id(submission.task_id):
             bundle = TaskVersionStore(services.settings.task_pool_root.parent / "versions").load(
                 submission.task_id, expected_sha256=expected)
-        except (VerifierError, OSError):
-            bundle = None  # Missing/corrupt archives cannot establish the historical tier.
-        if bundle is not None:
-            return legacy_chat_bonus_cents(bundle.manifest.source_module)
+        elif TASK_ID.fullmatch(submission.task_id):
+            bundle = load_task_bundle(
+                services.settings.task_pool_root.parent / "history" / "legacy" / submission.task_id)
+    except (VerifierError, OSError):
+        pass  # Missing/corrupt archives cannot establish the historical tier.
+    if (bundle is not None and bundle.manifest.task_id == submission.task_id
+            and bundle.sha256 == expected):
+        return legacy_chat_bonus_cents(bundle.manifest.source_module)
     raise Conflict("The original task bundle is required to classify this historical bonus.",
                    reason_code="TRAJECTORY_SOURCE_UNAVAILABLE")

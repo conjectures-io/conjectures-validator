@@ -325,6 +325,32 @@ def tao_from_rao(amount_rao: int) -> str:
     return rendered or "0"
 
 
+def tao_per_fiat_unit(exchange_rate: str | None) -> Decimal | None:
+    """The TAO one fiat unit buys, read off a **TAO** invoice's `exchange_rate`, or None.
+
+    TMC PAY publishes `exchange_rate` as the price of one unit of the invoice's crypto in fiat —
+    `"225.8872026439443"` on a TAO invoice, `"1.0"` on a USDT one, `"78562.29"` on a BTC one — so
+    `crypto_amount = fiat_amount / exchange_rate`. Every quote here is arithmetic in the other
+    orientation, TAO per fiat unit, and this reciprocal is the one place the two meet.
+
+    Reading the rate the other way round is what sold credits for cents: a TAO rate of 225 taken as
+    225 TAO per dollar priced a credit at a thousandth of a cent, and a USDT rate of 1.0 taken as a
+    TAO rate priced 0.25 TAO at $0.25. Hence also "TAO invoice": another currency's rate prices
+    that currency, and says nothing about TAO.
+
+    None for anything that is not a finite, positive number. Never raises on upstream text.
+    """
+    if exchange_rate is None:
+        return None
+    try:
+        fiat_per_tao = Decimal(exchange_rate.strip())
+    except (InvalidOperation, AttributeError):
+        return None
+    if not fiat_per_tao.is_finite() or fiat_per_tao <= 0:
+        return None
+    return Decimal(1) / fiat_per_tao
+
+
 def quote_fiat_amount(
     required_rao: int,
     *,
@@ -334,10 +360,11 @@ def quote_fiat_amount(
 ) -> str:
     """The fiat amount to ask for, so the invoice locks at least `required_rao`.
 
-    TMC PAY quotes in fiat and derives the crypto amount from a rate it locks at creation:
-    `crypto_amount = fiat_amount * exchange_rate`, where the rate is crypto per one fiat unit.
-    So the fiat figure is what this integration controls and the TAO figure is what it needs,
-    which makes this an inversion — plus two deliberate biases:
+    TMC PAY quotes in fiat and derives the crypto amount from a rate it locks at creation.
+    `crypto_per_fiat_unit` is that rate as TAO per one fiat unit — the reciprocal of the
+    `exchange_rate` TMC PAY reports, see `tao_per_fiat_unit`. So the fiat figure is what this
+    integration controls and the TAO figure is what it needs, which makes this an inversion — plus
+    two deliberate biases:
 
     * **Rounded up, always.** Quantising to the currency's minor unit has to go somewhere, and
       down means selling a credit for less than `CREDIT_PRICE_RAO`. The overshoot is at most one
@@ -405,16 +432,15 @@ def quote_ceiling(
     Returns None when the invoice's `exchange_rate` is not a usable number, which is not a pricing
     problem and must not be retried as one.
     """
-    try:
-        rate = Decimal(exchange_rate.strip())
-    except (InvalidOperation, AttributeError):
-        return None
-    if not rate.is_finite() or rate <= 0:
+    rate = tao_per_fiat_unit(exchange_rate)
+    if rate is None:
         return None
     if slippage_bps < 0:
         raise ValueError("acceptable slippage cannot be negative")
     allowance = Decimal(required_rao) * Decimal(10_000 + slippage_bps) / Decimal(10_000)
-    # One minor unit of fiat is `minor_unit * rate` TAO, which is that many rao.
+    # One minor unit of fiat is `minor_unit * rate` TAO, which is that many rao. With the rate the
+    # wrong way round this was a cent times 225 — over two TAO of "rounding" on every invoice, which
+    # is a ceiling that never refused anything.
     minor_unit_rao = Decimal(1).scaleb(-decimals) * rate * RAO_PER_TAO
     return int((allowance + minor_unit_rao).to_integral_value(rounding=ROUND_CEILING))
 
@@ -1128,4 +1154,5 @@ __all__ = [
     "signature_matches",
     "signed_message",
     "tao_from_rao",
+    "tao_per_fiat_unit",
 ]
