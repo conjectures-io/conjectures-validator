@@ -40,8 +40,9 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Response, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from conjectures_subnet import public_names
 from conjectures_subnet.axiom import get_axiom
 from conjectures_subnet.transfers import parse_reference
 from conjectures_subnet.db import accounts as account_store
@@ -123,6 +124,13 @@ class Payload(BaseModel):
 
 class ProfilePatch(Payload):
     display_name: str | None = Field(default=None, min_length=1, max_length=64)
+
+    # Shown next to results and in search, so held to `public_names`: no markup, no control or
+    # bidi characters, trimmed and NFC-normalised before it is stored.
+    @field_validator("display_name")
+    @classmethod
+    def _a_name_others_can_read(cls, value: str | None) -> str | None:
+        return None if value is None else public_names.display_name(value)
 
 
 class ColdkeyChallengeRequest(Payload):

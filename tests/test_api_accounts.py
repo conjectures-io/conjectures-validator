@@ -432,6 +432,39 @@ def test_signing_in_again_retires_the_previous_session():
 # would refuse the miner CLI.
 
 
+def test_a_display_name_carrying_markup_is_refused_and_a_padded_one_is_tidied():
+    """The name an account on dev and production actually set, and the ordinary case beside it."""
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            async with await client(kit) as http:
+                await sign_in_by_email(kit, http, "names@example.com")
+                refused = await http.patch(
+                    "/v1/me",
+                    json={"display_name": "<img src=x onerror=alert(document.domain)>"},
+                    headers=same_origin(http),
+                )
+                assert refused.status_code == 400
+                assert (await http.get("/v1/me")).json()["display_name"] is None
+
+                tidied = await http.patch(
+                    "/v1/me", json={"display_name": "  Ada Lovelace "}, headers=same_origin(http)
+                )
+                assert tidied.status_code == 200
+                assert tidied.json()["display_name"] == "Ada Lovelace"
+
+                cleared = await http.patch(
+                    "/v1/me", json={"display_name": None}, headers=same_origin(http)
+                )
+                assert cleared.status_code == 200
+                assert cleared.json()["display_name"] is None
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_cookie_write_that_proves_nothing_is_refused():
     """The header check fails closed for an ambient credential.
 
