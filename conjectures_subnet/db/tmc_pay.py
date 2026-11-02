@@ -115,10 +115,12 @@ class ObservedRate:
 async def latest_exchange_rate(
     session: AsyncSession, *, fiat_currency: str
 ) -> ObservedRate | None:
-    """The most recent rate TMC PAY locked for this currency, if any order has one.
+    """The most recent TAO rate TMC PAY locked in this fiat currency, if any order has one.
 
-    Scoped to the currency because a rate is meaningless without one: a EUR rate seeding a USD
-    quote is the same mistake as using a USD feed for a EUR merchant, just in the other direction.
+    Scoped to both sides of the pair because a rate is meaningless without them. A EUR rate seeding
+    a USD quote is the same mistake as using a USD feed for a EUR merchant. And a USDT invoice's
+    rate is the price of a USDT, about 1.0: read as a TAO rate it priced the next purchase at $0.25
+    a credit, which is how credits were sold below price — so only TAO invoices count.
     """
     statement = (
         select(
@@ -129,6 +131,7 @@ async def latest_exchange_rate(
         .where(
             TmcPayOrder.exchange_rate.is_not(None),
             TmcPayOrder.fiat_currency == fiat_currency,
+            TmcPayOrder.crypto_currency == TAO_CURRENCY,
         )
         .order_by(TmcPayOrder.created_at.desc())
         .limit(1)

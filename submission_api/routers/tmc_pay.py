@@ -530,7 +530,7 @@ async def create_order(
     # Both resolved before the order row exists, so a purchase that cannot be priced — or names a
     # pair TMC PAY does not accept — leaves nothing behind to explain.
     pair = await _resolve_pair(payload, services)
-    seed = await _seed_rate(session, services, settings, now=now)
+    seed = await _seed_rate(session, services, settings, now=now, banded=pair.is_tao)
 
     external_id = f"credits-{uuid.uuid4()}"
     order = await order_store.create_order(
@@ -639,6 +639,7 @@ async def _seed_rate(
     settings: Settings,
     *,
     now: dt.datetime,
+    banded: bool,
 ) -> RateSeed:
     """The best available estimate of the rate TMC PAY is about to lock.
 
@@ -661,11 +662,17 @@ async def _seed_rate(
 
     An external feed is demoted below a stale local rate whenever the merchant currency is not the
     one it can price, because being in the right currency matters more than being recent.
+
+    **Those last two rungs need the band.** `banded` says whether the invoice this seed prices will
+    be checked against the credit price — true for TAO, false for every other pair, whose fiat
+    figure *is* the contract and is accepted as asked. A stale or wrong-currency seed is a wasted
+    round trip under the band and a wrong price without it, so an unbanded purchase gets a fresh
+    local rate or a feed in the merchant's own currency, or no sale.
     """
     observed = await order_store.latest_exchange_rate(
         session, fiat_currency=settings.tmc_pay_fiat_currency
     )
-    local = _positive_decimal(observed.exchange_rate) if observed is not None else None
+    local = tmc_pay.tao_per_fiat_unit(observed.exchange_rate) if observed is not None else None
     if local is not None and observed is not None:
         age = (now - observed.observed_at).total_seconds()
         if age <= settings.tmc_pay_rate_ttl_seconds:
@@ -673,12 +680,18 @@ async def _seed_rate(
 
     can_price = settings.tmc_pay_fiat_currency == EXTERNAL_RATE_CURRENCY
     quote = await services.tao_usd.tao_usd()
-    # `exchange_rate` is crypto per one fiat unit, so a price *per TAO* is its reciprocal. Decimal
-    # throughout: this is money, and a float here would round the price.
+    # Every feed reports dollars per TAO and a quote wants TAO per dollar, so the reciprocal.
+    # Decimal throughout: this is money, and a float here would round the price.
     external = Decimal(1) / quote.price if quote is not None else None
 
     if external is not None and quote is not None and can_price:
         return RateSeed(external, quote.source)
+    if not banded:
+        raise ServiceUnavailable(
+            "no current TAO exchange rate is available to price this currency; retry shortly "
+            "or pay in TAO",
+            reason_code=REASON_NO_RATE,
+        )
     if local is not None:
         logger.info(
             "seeding a TMC PAY quote from a stale locked rate; the quote band will correct it"
@@ -699,17 +712,6 @@ async def _seed_rate(
         "retry shortly",
         reason_code=REASON_NO_RATE,
     )
-
-
-def _positive_decimal(value: str | None) -> Decimal | None:
-    """A finite, positive `Decimal`, or None. Never raises on stored or upstream text."""
-    if not value:
-        return None
-    try:
-        parsed = Decimal(value.strip())
-    except InvalidOperation:
-        return None
-    return parsed if parsed.is_finite() and parsed > 0 else None
 
 
 @dataclass(frozen=True)
@@ -822,8 +824,12 @@ async def _quote_invoice(
             # Asking for a different amount would not change any of those.
             break
         # The rate this invoice actually locked. Exact, so the next attempt is not a guess — and it
-        # corrects an estimate that was too high as readily as one that was too low.
-        crypto_per_fiat_unit = Decimal(invoice.exchange_rate)
+        # corrects an estimate that was too high as readily as one that was too low. Only a TAO
+        # invoice gets here, and `_invoice_problem` has already refused one whose rate is unusable.
+        locked = tmc_pay.tao_per_fiat_unit(invoice.exchange_rate)
+        if locked is None:  # pragma: no cover - refused above as not repriceable
+            break
+        crypto_per_fiat_unit = locked
 
     await _fail(session, order, reason=failure)
     raise ServiceUnavailable(
