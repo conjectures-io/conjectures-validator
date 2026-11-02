@@ -1271,6 +1271,10 @@ async def receive_webhook(
     TMC PAY marks a non-2xx delivery failed and does not retry automatically, so a 4xx spent on
     "already processed" or "not our invoice" only creates work for an operator. The refusals that
     do go out are the two an operator needs to see: a bad signature and a missing delivery id.
+
+    An authentic delivery that fails to apply is answered 200 too, once the failure is recorded —
+    see `_failed`. Those used to escape as 500s, which told TMC PAY our server was broken while
+    leaving no trace here at all: the rollback took the delivery row with it.
     """
     settings = services.settings
     if not settings.tmc_pay_enabled:
@@ -1367,10 +1371,12 @@ async def receive_webhook(
         return {"status": "duplicate"}
 
     order = await order_store.find_by_invoice(session, invoice.invoice_id)
+    by_external_id = False
     if order is None and invoice.external_id:
         # The recovery path: the invoice was created but its id never reached this side. The
         # `external_id` echoed here is the one this side minted, so the order is still findable.
         order = await order_store.find_by_external_id(session, invoice.external_id)
+        by_external_id = order is not None
     if order is None:
         logger.warning(
             "TMC PAY webhook names invoice %s, which no order here claims", invoice.invoice_id
@@ -1392,50 +1398,199 @@ async def receive_webhook(
             claimed=True,
         )
 
-    if order.invoice_id is None:
-        # Found by `external_id`. Fill in what the lost create-response would have recorded, so
-        # the order becomes payable and pollable like any other. The invoice is checked against
-        # the order first: `attach_invoice` refuses one that does not cover the credits.
-        await order_store.attach_invoice(
+    # Read before anything can roll back: a rollback expires every attribute on `order`.
+    order_id = order.id
+    try:
+        if by_external_id and order.invoice_id is not None:
+            # Matched by `external_id`, yet the order already sells a different invoice. The first
+            # quote attempt carries the order's own `external_id` and a requote does not, so this
+            # is the abandoned attempt — and its status says nothing about the invoice the buyer
+            # was actually shown.
+            return await _superseded(
+                session,
+                response,
+                webhook_id=webhook_id,
+                invoice=invoice,
+                order_id=order_id,
+                reason=f"the order sells invoice {order.invoice_id}",
+            )
+        if order.invoice_id is None:
+            # Found by `external_id`. Fill in what the lost create-response would have recorded,
+            # so the order becomes payable and pollable like any other. The invoice is checked
+            # against the order first: `attach_invoice` refuses one that does not cover the
+            # credits — most often the short first attempt of a purchase that is being requoted
+            # right now, whose `created` event can arrive before the requote finishes.
+            try:
+                await order_store.attach_invoice(
+                    session,
+                    order,
+                    invoice_id=invoice.invoice_id,
+                    merchant_id=invoice.merchant_id,
+                    status=_state(invoice.status),
+                    fiat_amount=invoice.fiat_amount,
+                    fiat_currency=invoice.fiat_currency,
+                    exchange_rate=invoice.exchange_rate,
+                    commission_amount=invoice.commission_amount,
+                    crypto_amount_rao=invoice.crypto_amount_rao,
+                    crypto_amount=invoice.crypto_amount,
+                    crypto_currency=invoice.crypto_currency,
+                    crypto_network=invoice.crypto_network,
+                    deposit_address=invoice.deposit_address,
+                    invoice_expires_at=invoice.expires_at,
+                    hosted_invoice_url=invoice.hosted_invoice_url,
+                )
+            except ValueError as exc:
+                # Raised before anything is written, so the session is still usable.
+                return await _superseded(
+                    session,
+                    response,
+                    webhook_id=webhook_id,
+                    invoice=invoice,
+                    order_id=order_id,
+                    reason=str(exc),
+                )
+
+        before = order.credited_ledger_id
+        order = await apply_invoice(
             session,
             order,
-            invoice_id=invoice.invoice_id,
-            merchant_id=invoice.merchant_id,
-            status=_state(invoice.status),
-            fiat_amount=invoice.fiat_amount,
-            fiat_currency=invoice.fiat_currency,
-            exchange_rate=invoice.exchange_rate,
-            commission_amount=invoice.commission_amount,
-            crypto_amount_rao=invoice.crypto_amount_rao,
-            crypto_amount=invoice.crypto_amount,
-            crypto_currency=invoice.crypto_currency,
-            crypto_network=invoice.crypto_network,
-            deposit_address=invoice.deposit_address,
-            invoice_expires_at=invoice.expires_at,
-            hosted_invoice_url=invoice.hosted_invoice_url,
+            invoice,
+            settings=settings,
+            now=_now(),
+            event_id=webhook_id,
+            source="webhook",
         )
+        outcome = (
+            order_store.OUTCOME_CREDITED
+            if before is None and order.credited_ledger_id is not None
+            else order_store.OUTCOME_RECORDED
+        )
+        await order_store.note_delivery_outcome(
+            session, webhook_id=webhook_id, outcome=outcome, order_id=order.id
+        )
+        await session.commit()
+    except Exception as exc:
+        return await _failed(
+            session,
+            response,
+            webhook_id=webhook_id,
+            invoice=invoice,
+            event=event,
+            order_id=order_id,
+            exc=exc,
+        )
+    _no_store(response)
+    return {"status": outcome.lower()}
 
-    before = order.credited_ledger_id
-    order = await apply_invoice(
-        session,
-        order,
-        invoice,
-        settings=settings,
-        now=_now(),
-        event_id=webhook_id,
-        source="webhook",
+
+# Statuses under which no money has reached the invoice. Anything else on an invoice its order does
+# not sell means somebody paid the wrong one, which only a person can settle with TMC PAY.
+_NO_MONEY_STATUSES = frozenset(
+    {tmc_pay.STATUS_CREATED, tmc_pay.STATUS_EXPIRED, tmc_pay.STATUS_CANCELLED}
+)
+
+
+async def _superseded(
+    session: AsyncSession,
+    response: Response,
+    *,
+    webhook_id: str,
+    invoice: tmc_pay.Invoice,
+    order_id: uuid.UUID,
+    reason: str,
+) -> dict[str, str]:
+    """Record a delivery for an invoice its order does not sell, and answer 200.
+
+    The order is left exactly as it is. A requote in flight finishes on its own; an order already
+    selling the requoted invoice keeps that invoice's status rather than the abandoned one's.
+    """
+    paid = invoice.status not in _NO_MONEY_STATUSES
+    if paid:
+        await order_store.flag_for_review(session, order_id)
+    logger.warning(
+        "TMC PAY webhook for invoice %s (%s) not applied to order %s: %s",
+        invoice.invoice_id,
+        invoice.status,
+        order_id,
+        reason,
     )
-    outcome = (
-        order_store.OUTCOME_CREDITED
-        if before is None and order.credited_ledger_id is not None
-        else order_store.OUTCOME_RECORDED
+    get_axiom().warn(
+        source="api",
+        event_type="tmc_pay_webhook_superseded",
+        order_id=str(order_id),
+        invoice_id=invoice.invoice_id,
+        external_id=invoice.external_id,
+        invoice_status=invoice.status,
+        needs_review=paid,
     )
     await order_store.note_delivery_outcome(
-        session, webhook_id=webhook_id, outcome=outcome, order_id=order.id
+        session,
+        webhook_id=webhook_id,
+        outcome=order_store.OUTCOME_SUPERSEDED,
+        order_id=order_id,
     )
     await session.commit()
     _no_store(response)
-    return {"status": outcome.lower()}
+    return {"status": order_store.OUTCOME_SUPERSEDED.lower()}
+
+
+async def _failed(
+    session: AsyncSession,
+    response: Response,
+    *,
+    webhook_id: str,
+    invoice: tmc_pay.Invoice,
+    event: str | None,
+    order_id: uuid.UUID,
+    exc: Exception,
+) -> dict[str, str]:
+    """Record a signed delivery that could not be applied, flag its order, and answer 200.
+
+    Not a 500: the delivery is authentic, and TMC PAY does not retry, so a 5xx tells the processor
+    our server is broken and reaches nobody here. What does reach someone is the FAILED delivery
+    row, `needs_review` on the order and the Axiom error — and the reconciler re-reads the invoice
+    from TMC PAY regardless. The row stays reclaimable (`claim_delivery`), so a redelivery is
+    processed rather than taken for a duplicate.
+
+    If even recording fails — the database is gone, most likely — the original error propagates and
+    the 500 is honest.
+    """
+    logger.error(
+        "a signed TMC PAY webhook for invoice %s could not be applied to order %s",
+        invoice.invoice_id,
+        order_id,
+        exc_info=exc,
+    )
+    try:
+        await session.rollback()
+        if await order_store.claim_delivery(
+            session,
+            webhook_id=webhook_id,
+            invoice_id=invoice.invoice_id,
+            event=event,
+            status=invoice.status,
+        ):
+            await order_store.note_delivery_outcome(
+                session,
+                webhook_id=webhook_id,
+                outcome=order_store.OUTCOME_FAILED,
+                order_id=order_id,
+            )
+        await order_store.flag_for_review(session, order_id)
+        await session.commit()
+    except Exception:
+        logger.exception("could not record the failed TMC PAY delivery %s", webhook_id)
+        raise exc from None
+    get_axiom().error(
+        source="api",
+        event_type="tmc_pay_webhook_failed",
+        order_id=str(order_id),
+        invoice_id=invoice.invoice_id,
+        invoice_status=invoice.status,
+        error=f"{type(exc).__name__}: {exc}"[:500],
+    )
+    _no_store(response)
+    return {"status": order_store.OUTCOME_FAILED.lower()}
 
 
 async def _answer(
