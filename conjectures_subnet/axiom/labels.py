@@ -233,6 +233,12 @@ EventType: TypeAlias = Literal[
     "tmc_pay_webhook_rejected",
     # A correctly signed delivery for an invoice no order here claims.
     "tmc_pay_webhook_unmatched",
+    # A signed delivery for an invoice its order does not sell: an abandoned requote attempt, or
+    # one that does not cover the credits. `needs_review` is set when money moved on it.
+    "tmc_pay_webhook_superseded",
+    # A signed delivery whose application raised. Recorded and answered 200; the order, when known,
+    # is flagged for review and the reconciler is the recovery.
+    "tmc_pay_webhook_failed",
     # One reconciliation pass that found something: orders read, credited, unreadable.
     "tmc_pay_reconciled",
     # --- contribution mirror ------------------------------------------------------------------
