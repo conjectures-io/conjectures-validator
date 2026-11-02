@@ -95,12 +95,22 @@ async def enqueue(session, *, hotkey, kernel, digest, cutoff, dev=False):
                 "This registration has already been used for a TorchLean submission.",
                 reason_code="NO_ENTITLEMENT",
             )
-    await session.execute(
-        text("""
-        INSERT INTO sources(sha256,content) VALUES (:digest,:content) ON CONFLICT DO NOTHING
-    """),
-        {"digest": digest, "content": kernel},
-    )
+    try:
+        await session.execute(
+            text("""
+            INSERT INTO sources(sha256,content) VALUES (:digest,:content) ON CONFLICT DO NOTHING
+        """),
+            {"digest": digest, "content": kernel},
+        )
+    except IntegrityError as exc:
+        constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+        if constraint == "ck_sources_size":
+            await session.rollback()
+            raise ServiceUnavailable(
+                "TorchLean database cannot store this source size; apply tensor_0004.",
+                reason_code="COMPETITION_SCHEMA_UNAVAILABLE",
+            ) from exc
+        raise
     stored = await session.scalar(
         text("SELECT content FROM sources WHERE sha256=:digest"), {"digest": digest}
     )

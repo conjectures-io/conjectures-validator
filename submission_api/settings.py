@@ -756,6 +756,9 @@ def _cors_origins(environ: Mapping[str, str], key: str, *, production: bool) -> 
 # Each of the two submitted competition files. Generous on purpose: the largest reference
 # submission is under 20 KB, so anything approaching this is not a parser and a proof.
 MAX_COMPETITION_FILE_BYTES = 512 * 1024
+# Public admission policy can change without changing the workers' fixed 4 MiB ceiling.
+MAX_TORCHLEAN_SOURCE_BYTES = 4 * 1024 * 1024
+DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -982,6 +985,7 @@ class Settings:
     floatlib_submissions_enabled: bool = False
     floatlib_registration_cutoff: datetime | None = None
     floatlib_check_deflate_usage: bool = False
+    torchlean_max_source_bytes: int = DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES
     torchlean_submissions_enabled: bool = False
     torchlean_registration_cutoff: datetime | None = None
     torchlean_dev_skip_registration: bool = False
@@ -1029,11 +1033,11 @@ class Settings:
         # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
         if production and trajectory_bonus_enabled:
             from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
+
             if "draft" in TERMS_VERSION:
                 raise SettingsError("chat-log intake cannot launch with draft terms")
             if env.get("TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256") != TERMS_SHA256:
                 raise SettingsError("chat-log launch requires the owner-approved terms digest")
-
 
         authenticator = _choice(
             env,
@@ -1415,10 +1419,14 @@ class Settings:
                 "REVIEW_POLICY_VERSION=v4; earlier contracts remain on existing submissions"
             )
 
-        if production and trajectory_bonus_enabled and (
-            not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7"
+        if (
+            production
+            and trajectory_bonus_enabled
+            and (not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7")
         ):
-            raise SettingsError("trajectory launch requires explicit final versioned submission terms")
+            raise SettingsError(
+                "trajectory launch requires explicit final versioned submission terms"
+            )
         if production and trajectory_bonus_enabled:
             # The published file must itself be that version, so v7 text cannot go out as v8.
             try:
@@ -1644,9 +1652,18 @@ class Settings:
             if not competitions_enabled or "torchlean" not in competition_slugs:
                 raise SettingsError("TORCHLEAN_SUBMISSIONS_ENABLED requires TorchLean configured")
             if torchlean_cutoff is None and not torchlean_dev:
-                raise SettingsError("TORCHLEAN_REGISTRATION_CUTOFF is required for TorchLean uploads")
+                raise SettingsError(
+                    "TORCHLEAN_REGISTRATION_CUTOFF is required for TorchLean uploads"
+                )
 
         return cls(
+            torchlean_max_source_bytes=_bounded_int(
+                env,
+                "TORCHLEAN_MAX_SOURCE_BYTES",
+                DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES,
+                minimum=1,
+                maximum=MAX_TORCHLEAN_SOURCE_BYTES,
+            ),
             torchlean_submissions_enabled=torchlean_uploads,
             torchlean_registration_cutoff=torchlean_cutoff,
             torchlean_dev_skip_registration=torchlean_dev,
