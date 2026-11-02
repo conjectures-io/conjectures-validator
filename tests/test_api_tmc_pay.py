@@ -127,7 +127,7 @@ def invoice_body(
     confirmed_at: str | None = None,
     crypto_currency: str = "TAO",
     crypto_network: str = "bittensor",
-    exchange_rate: str = "0.0025",
+    exchange_rate: str = "400",
     hosted_invoice_url: str | None = "https://pay.test/invoice/hosted-token-1",
     deposit_address: str | None = None,
 ) -> dict:
@@ -1320,7 +1320,7 @@ async def _attach(session, order, *, invoice_id: str, fiat_currency: str = "USD"
         status=order_store.TmcPayOrderState.CREATED,
         fiat_amount="200.00",
         fiat_currency=fiat_currency,
-        exchange_rate="0.0025",
+        exchange_rate="400",
         commission_amount="2.00",
         crypto_amount_rao=CREDIT_PRICE_RAO,
         deposit_address=DEPOSIT_ADDRESS,
@@ -2369,7 +2369,7 @@ def test_expiring_lapsed_orders_leaves_anything_that_might_hold_money():
                         status=state,
                         fiat_amount="200.00",
                         fiat_currency="USD",
-                        exchange_rate="0.0025",
+                        exchange_rate="400",
                         commission_amount=None,
                         crypto_amount_rao=CREDIT_PRICE_RAO,
                         deposit_address=DEPOSIT_ADDRESS,
@@ -2494,32 +2494,33 @@ def test_the_reconciler_writes_nothing_on_a_dry_run():
 def test_the_quote_ceiling_is_the_configured_slippage_plus_one_minor_unit():
     """Two parts, different in kind: slippage is policy, the cent is arithmetic.
 
-    At 0.0025 TAO per USD and two decimals, one cent is 25 000 rao. So a 0.5 TAO purchase at zero
-    slippage may cost at most 500 025 000 rao — the cent, and nothing else.
+    At an `exchange_rate` of 400 — TMC PAY's dollars per TAO, so 0.0025 TAO per USD — and two
+    decimals, one cent is 25 000 rao. So a 0.5 TAO purchase at zero slippage may cost at most
+    500 025 000 rao — the cent, and nothing else.
     """
     assert (
         tmc_pay.quote_ceiling(
-            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=0, decimals=2
+            CREDIT_PRICE_RAO, exchange_rate="400", slippage_bps=0, decimals=2
         )
         == CREDIT_PRICE_RAO + 25_000
     )
     # Slippage widens it by exactly the basis points asked for, on top of the cent.
     assert (
         tmc_pay.quote_ceiling(
-            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=100, decimals=2
+            CREDIT_PRICE_RAO, exchange_rate="400", slippage_bps=100, decimals=2
         )
         == CREDIT_PRICE_RAO * 10_100 // 10_000 + 25_000
     )
     assert (
         tmc_pay.quote_ceiling(
-            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=250, decimals=2
+            CREDIT_PRICE_RAO, exchange_rate="400", slippage_bps=250, decimals=2
         )
         == CREDIT_PRICE_RAO * 10_250 // 10_000 + 25_000
     )
     # A zero-decimal currency's minor unit is a whole unit, so the arithmetic part is much larger.
     assert (
         tmc_pay.quote_ceiling(
-            CREDIT_PRICE_RAO, exchange_rate="0.0025", slippage_bps=0, decimals=0
+            CREDIT_PRICE_RAO, exchange_rate="400", slippage_bps=0, decimals=0
         )
         == CREDIT_PRICE_RAO + 2_500_000
     )
@@ -2713,16 +2714,16 @@ def test_the_next_quote_is_seeded_from_the_rate_tmc_pay_itself_locked():
     will price the next one — spread, rounding and all — already in the merchant's currency. So the
     second purchase must price from it and not from TaoStats.
 
-    The two are deliberately far apart here: TaoStats says $400/TAO (0.0025 TAO per USD) while the
-    invoice locked 0.005 TAO per USD ($200/TAO). One credit is therefore $200 if seeded externally
-    and $100 if seeded from the invoice, so the fiat amount alone says which was used.
+    The two are deliberately far apart here: TaoStats says $400/TAO while the invoice locked an
+    `exchange_rate` of 200 ($200/TAO). One credit is therefore $200 if seeded externally and $100
+    if seeded from the invoice, so the fiat amount alone says which was used.
     """
 
     async def scenario():
         gateway = FakeGateway(
             [
-                invoice_body(invoice_id="first", crypto_amount="0.5", exchange_rate="0.005"),
-                invoice_body(invoice_id="second", crypto_amount="0.5", exchange_rate="0.005"),
+                invoice_body(invoice_id="first", crypto_amount="0.5", exchange_rate="200"),
+                invoice_body(invoice_id="second", crypto_amount="0.5", exchange_rate="200"),
             ]
         )
         kit = await kit_with(gateway).setup()
@@ -2750,8 +2751,8 @@ def test_a_zero_rate_ttl_always_asks_the_external_feed():
     async def scenario():
         gateway = FakeGateway(
             [
-                invoice_body(invoice_id="first", crypto_amount="0.5", exchange_rate="0.005"),
-                invoice_body(invoice_id="second", crypto_amount="0.5", exchange_rate="0.005"),
+                invoice_body(invoice_id="first", crypto_amount="0.5", exchange_rate="200"),
+                invoice_body(invoice_id="second", crypto_amount="0.5", exchange_rate="200"),
             ]
         )
         kit = await kit_with(gateway, TMC_PAY_RATE_TTL_SECONDS="0").setup()
@@ -2780,7 +2781,7 @@ def test_a_locked_rate_keeps_credits_on_sale_through_a_taostats_outage():
 
     async def scenario():
         gateway = FakeGateway(
-            [invoice_body(invoice_id="fresh", crypto_amount="0.5", exchange_rate="0.0025")]
+            [invoice_body(invoice_id="fresh", crypto_amount="0.5", exchange_rate="400")]
         )
         kit = await kit_with(gateway, tao_usd=None).setup()
         try:
@@ -2802,13 +2803,116 @@ def test_a_locked_rate_keeps_credits_on_sale_through_a_taostats_outage():
                         status=TmcPayOrderState.EXPIRED,
                         fiat_amount="200.00",
                         fiat_currency="USD",
-                        exchange_rate="0.0025",
+                        exchange_rate="400",
                         commission_amount=None,
                         crypto_amount_rao=CREDIT_PRICE_RAO,
                         deposit_address=DEPOSIT_ADDRESS,
                         invoice_expires_at=dt.datetime.now(dt.UTC),
                     )
                     await session.commit()
+
+                sold = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
+                assert sold.status_code == 201, sold.text
+                assert gateway.created[0]["fiat_amount"] == "200.00"
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_tmc_pays_exchange_rate_is_dollars_per_tao():
+    """The orientation every quote depends on, pinned with production's own numbers.
+
+    Order 269e211d: $56.62 for 0.2507 TAO, `exchange_rate` "225.8872026439443". Read as TAO per
+    dollar, that rate priced a 0.25 TAO credit at a thousandth of a cent and a ceiling's "one cent
+    of rounding" at over two TAO.
+    """
+    rate = tmc_pay.tao_per_fiat_unit("225.8872026439443")
+    assert rate is not None
+    assert (Decimal("56.62") * rate).quantize(Decimal("0.0001")) == Decimal("0.2507")
+    assert tmc_pay.tao_per_fiat_unit("400") == Decimal("0.0025")
+    for unusable in (None, "", "abc", "0", "-1", "NaN", "Infinity"):
+        assert tmc_pay.tao_per_fiat_unit(unusable) is None
+
+    # A cent at $225.89/TAO is about 44 270 rao, so that is all the ceiling adds at zero slippage.
+    ceiling = tmc_pay.quote_ceiling(
+        CREDIT_PRICE_RAO, exchange_rate="225.8872026439443", slippage_bps=0, decimals=2
+    )
+    assert ceiling is not None
+    assert CREDIT_PRICE_RAO < ceiling < CREDIT_PRICE_RAO + 50_000
+
+
+def test_a_stablecoin_invoice_never_prices_the_next_purchase():
+    """The underpricing: a USDT or USDC invoice's `exchange_rate` is the price of that coin, ~1.0.
+
+    Taken as a TAO rate it priced the next purchase — in any currency — at $1 per TAO, so a 0.5 TAO
+    credit was offered for $0.50 and a stablecoin invoice for that amount was accepted as asked.
+    Every purchase here must cost the TAO price, $200 at the test's $400/TAO.
+    """
+
+    async def scenario():
+        gateway = FakeGateway(
+            [
+                usdc_invoice("stable-first"),
+                usdc_invoice("stable-second"),
+                invoice_body(invoice_id="tao-after", crypto_amount="0.5"),
+            ]
+        )
+        kit = await kit_with(gateway).setup()
+        try:
+            async with buyer(kit, "stable-seed@example.com") as (http, _):
+                for _ in range(2):
+                    created = await http.post(
+                        ORDERS,
+                        json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                        headers=same_origin(),
+                    )
+                    assert created.status_code == 201, created.text
+                tao = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
+                assert tao.status_code == 201, tao.text
+
+                assert [item["fiat_amount"] for item in gateway.created] == [
+                    "200.00",
+                    "200.00",
+                    "200.00",
+                ]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
+def test_a_stablecoin_purchase_is_not_priced_from_a_stale_rate():
+    """Without the band, a stale seed is a wrong price rather than a wasted invoice.
+
+    A TAO purchase may still price from an old locked rate during a feed outage, because a wrong
+    estimate is requoted. A stablecoin invoice is accepted for whatever was asked, so it waits for a
+    current rate instead.
+    """
+
+    async def scenario():
+        gateway = FakeGateway([invoice_body(invoice_id="tao-stale-seed", crypto_amount="0.5")])
+        kit = await kit_with(gateway, tao_usd=None, TMC_PAY_RATE_TTL_SECONDS="0").setup()
+        try:
+            async with buyer(kit, "stale-stable@example.com") as (http, account):
+                async with kit.session() as session:
+                    earlier = await order_store.create_order(
+                        session,
+                        account_id=uuid.UUID(account["id"]),
+                        credits_requested=1,
+                        credit_price_rao=CREDIT_PRICE_RAO,
+                        external_id="credits-stale-seed",
+                    )
+                    await _attach(session, earlier, invoice_id="inv-stale-seed")
+                    await session.commit()
+
+                refused = await http.post(
+                    ORDERS,
+                    json={"credits": 1, "crypto_currency": "USDC", "crypto_network": "base"},
+                    headers=same_origin(),
+                )
+                assert refused.status_code == 503
+                assert gateway.created == []
 
                 sold = await http.post(ORDERS, json={"credits": 1}, headers=same_origin(http))
                 assert sold.status_code == 201, sold.text
