@@ -143,7 +143,7 @@ async def submit(
                 raise ValueError("invalid signature")
         except ValueError as exc:
             raise Unauthorized("Malformed hotkey signature.") from exc
-        kernel = await read_kernel(request)
+        kernel = await read_kernel(request, max_file_bytes=settings.torchlean_max_source_bytes)
         digest = hashlib.sha256(kernel).hexdigest()
         attempt.update(source_sha256=digest, kernel_bytes=len(kernel))
         verify_signature(
