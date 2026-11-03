@@ -11,6 +11,7 @@ COMPETITIONS_ENABLED=1
 COMPETITIONS=torchlean
 COMPETITION_TORCHLEAN_DATABASE_URL=postgresql+psycopg://platform_api:URL_ENCODED_PASSWORD@torchlean-db:5432/torchlean
 TORCHLEAN_SUBMISSIONS_ENABLED=1
+TORCHLEAN_MAX_SOURCE_BYTES=1048576
 TORCHLEAN_REGISTRATION_CUTOFF=2026-10-26T00:00:00Z
 DEFLATE_SUBMISSIONS_ENABLED=0
 FLOATLIB_SUBMISSIONS_ENABLED=0
@@ -21,15 +22,25 @@ Uploads default to disabled. `SUBMISSIONS_PAUSED` also pauses torchlean intake.
 The bounty routes and their authentication/payment rules remain separate.
 
 Before enabling uploads, apply central Flyway migrations through **V054**, competition
-Alembic migrations through **tensor_0002**, and re-run the competition repository's
+Alembic migrations through **tensor_0004**, and re-run the competition repository's
 `deploy/platform/grant.sh`. These are separate databases and separate migration owners.
 The central API never migrates the competition database.
 
 ## Signed upload
 
 `POST /v1/competitions/torchlean/submissions` takes exactly one multipart file part named
-`Kernel.lean`: nonempty UTF-8, at most **256000 bytes**. The API bounds the full incoming body
-before multipart parsing. It does not compile the file during the request.
+`Kernel.lean`: nonempty UTF-8, at most **1 MiB (1,048,576 bytes) by default**.
+`TORCHLEAN_MAX_SOURCE_BYTES` configures the upload limit (1–4,194,304 bytes); invalid values
+refuse API startup. The full incoming body is bounded to twice this limit before multipart
+parsing. The API does not compile the file during the request.
+
+The competition DB, gate, auditor and CLI have a separate fixed 4 MiB ceiling. Deploy their
+updated release and apply `tensor_0004` before enabling larger API uploads. A source-size
+constraint from an old schema returns 503 `COMPETITION_SCHEMA_UNAVAILABLE`, not a miner rejection.
+Once that rollout is complete, changing this API setting within 4 MiB needs only an API restart;
+workers, native caches, audit coverage and the DB schema are unaffected. Lowering the upload
+limit does not remove or invalidate previously accepted larger sources. FloatLib retains its
+existing 256,000-byte limit.
 
 Headers:
 

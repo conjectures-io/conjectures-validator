@@ -66,6 +66,7 @@ def engines(roles_lock):
             "0001_worker_roles.sql",
             "0002_dev_intake.sql",
             "0003_failure_evidence.sql",
+            "0004_source_size.sql",
         ]:
             c.exec_driver_sql((COMP / name).read_text(), execution_options={"no_parameters": True})
         c.exec_driver_sql(
@@ -80,7 +81,9 @@ def engines(roles_lock):
                 Path(__file__).parents[1] / "deploy/migrate/sql/V054__competition_intake_limits.sql"
             ).read_text()
         )
-    url = sa.engine.make_url(comp).set(username="platform_api", password="private_torchlean_api_test")
+    url = sa.engine.make_url(comp).set(
+        username="platform_api", password="private_torchlean_api_test"
+    )
     yield SimpleNamespace(
         owner=owner, api=api, comp=url.render_as_string(hide_password=False), central=central
     )
@@ -134,6 +137,7 @@ def service(database, **settings):
     c = create_async_engine(database.comp)
     a = create_async_engine(database.central)
     config = SimpleNamespace(
+        torchlean_max_source_bytes=1024 * 1024,
         torchlean_submissions_enabled=True,
         torchlean_dev_skip_registration=False,
         torchlean_registration_cutoff=T0 - timedelta(seconds=1),
@@ -153,7 +157,12 @@ def service(database, **settings):
         sessions=async_sessionmaker(a),
         competitions=CompetitionRegistry.of(
             Competition(
-                "torchlean", "TorchLean", 8, kind=TORCHLEAN, engine=c, sessions=async_sessionmaker(c)
+                "torchlean",
+                "TorchLean",
+                8,
+                kind=TORCHLEAN,
+                engine=c,
+                sessions=async_sessionmaker(c),
             )
         ),
     )
@@ -285,7 +294,9 @@ def test_bad_auth_does_not_store_work(database, change):
     assert execute(database, "SELECT count(*) FROM sources").scalar_one() == 0
 
 
-@pytest.mark.parametrize("kernel,status", [(b"", 400), (b"\xff", 400), (b"x" * 256001, 413)])
+@pytest.mark.parametrize(
+    "kernel,status", [(b"", 400), (b"\xff", 400), (b"x" * (1024 * 1024 + 1), 413)]
+)
 def test_invalid_kernel(database, kernel, status):
     register(database)
     assert post(database, kernel).status_code == status
@@ -311,7 +322,9 @@ def test_dev_bypass_is_signed_tagged_and_does_not_fake_registration(database):
     row = execute(database, "SELECT registration_id,intake_mode FROM submissions").one()
     assert row.registration_id is None and row.intake_mode == "dev"
     assert execute(database, "SELECT count(*) FROM registrations").scalar_one() == 0
-    assert post(database, KERNEL + b"-- new", torchlean_dev_skip_registration=True).status_code == 201
+    assert (
+        post(database, KERNEL + b"-- new", torchlean_dev_skip_registration=True).status_code == 201
+    )
     assert post(database, torchlean_dev_skip_registration=True).status_code == 409
     assert (
         post(
@@ -536,3 +549,44 @@ def test_our_own_refusal_is_an_error(database, recorder):
     assert r.status_code == 503
     (event,) = recorder.of_type("submission_rejected")
     assert event["severity"] == "error" and event["http_status"] == 503
+
+
+@pytest.mark.parametrize("size", [1024 * 1024, 2 * 1024 * 1024, 4 * 1024 * 1024])
+def test_signed_upload_is_stored_at_the_configured_size_boundary(database, size):
+    register(database)
+    kernel = b"-" * size
+    response = post(database, kernel, torchlean_max_source_bytes=size)
+    assert response.status_code == 201, response.text
+    assert execute(database, "SELECT content FROM sources").scalar_one() == kernel
+    assert post(database, kernel + b"x", torchlean_max_source_bytes=size).status_code == 413
+
+
+def test_lowering_upload_limit_keeps_existing_sources_and_entitlements(database):
+    register(database)
+    kernel = b"-" * (1024 * 1024)
+    assert post(database, kernel).status_code == 201
+    # A smaller public cap changes admission only; old champion/source rows remain intact.
+    assert post(database, kernel, torchlean_max_source_bytes=1024).status_code == 413
+    assert execute(database, "SELECT content FROM sources").scalar_one() == kernel
+    register(database, block=200, at=T0 + timedelta(days=1))
+    assert post(database, b"x" * 1025, torchlean_max_source_bytes=1024).status_code == 413
+    assert post(database, KERNEL, torchlean_max_source_bytes=1024).status_code == 201
+
+
+def test_unmigrated_size_constraint_returns_actionable_unavailable(database):
+    register(database)
+    execute(
+        database,
+        "ALTER TABLE sources DROP CONSTRAINT ck_sources_size, ADD CONSTRAINT ck_sources_size CHECK (octet_length(content) BETWEEN 1 AND 256000)",
+    )
+    try:
+        response = post(database, b"-" * (1024 * 1024))
+        assert response.status_code == 503, response.text
+        assert response.json()["reason_code"] == "COMPETITION_SCHEMA_UNAVAILABLE"
+        assert "tensor_0004" in response.json()["detail"]
+        assert execute(database, "SELECT count(*) FROM submissions").scalar_one() == 0
+    finally:
+        execute(
+            database,
+            "ALTER TABLE sources DROP CONSTRAINT ck_sources_size, ADD CONSTRAINT ck_sources_size CHECK (octet_length(content) BETWEEN 1 AND 4194304)",
+        )
