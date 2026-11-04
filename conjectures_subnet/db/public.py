@@ -1090,6 +1090,7 @@ class TargetFacts:
     solved_at: datetime | None = None
     solved_reason_code: str | None = None
     in_review: int = 0
+    documentation_pending: int = 0
 
 
 NO_TARGET_FACTS = TargetFacts()
@@ -1098,7 +1099,7 @@ NO_TARGET_FACTS = TargetFacts()
 async def target_facts(
     session: AsyncSession, reward_target_ids: Sequence[str]
 ) -> Mapping[str, TargetFacts]:
-    """`TargetFacts` for each requested target, in three indexed reads whatever the count.
+    """`TargetFacts` for each requested target, in four indexed reads whatever the count.
 
     The holder is the one submission per target whose ``reward_status`` is not INELIGIBLE — the
     rule ``submissions_reward_target_reward_unique`` enforces and the pricer's ``ALREADY_SOLVED``
@@ -1128,6 +1129,13 @@ async def target_facts(
             )
         ).all()
     )
+    from conjectures_subnet.db.proof_status import documentation_pending
+
+    pending = dict((await session.execute(
+        select(Submission.reward_target_id, func.count())
+        .where(Submission.reward_target_id.in_(targets), *documentation_pending())
+        .group_by(Submission.reward_target_id)
+    )).all())
     decisions = (
         await session.execute(
             select(
@@ -1158,6 +1166,7 @@ async def target_facts(
             solved_at=approved.get(target, (None, None))[0],
             solved_reason_code=approved.get(target, (None, None))[1],
             in_review=int(in_review.get(target, 0)),
+            documentation_pending=int(pending.get(target, 0)),
         )
         for target in targets
     }

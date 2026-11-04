@@ -1,0 +1,88 @@
+# Known-vulnerability scan with OSV-Scanner, shared by CI, the deploy gate and the nightly scan so
+# the three cannot disagree about which scanner, which version or which advisories count.
+#
+# The scanner is a pinned release binary checked against a sha256 recorded here, not an action
+# and not `latest`. A security scanner runs with the job's token and sees the whole checkout;
+# scanner and scanner-action tags have been hijacked before, and a moved tag must not change
+# what runs here. Bumping it is a reviewed edit of the two values below, like every other pin.
+#
+# Advisories are accepted, with a reason and an expiry, in osv-scanner.toml at the repository
+# root, which the scanner reads for any lockfile beside it.
+name: OSV scan
+description: Scan lockfiles (blocking) or container images (report-only) for known vulnerabilities
+
+inputs:
+  lockfiles:
+    description: Newline-separated pip requirement files to scan. Findings fail the step.
+    required: false
+    default: ""
+  image:
+    description: A local image to scan for OS and language packages. Findings are reported only.
+    required: false
+    default: ""
+  title:
+    description: Heading for this scan in the job summary.
+    required: false
+    default: Known vulnerabilities
+
+runs:
+  using: composite
+  steps:
+    - name: Install OSV-Scanner
+      shell: bash
+      env:
+        OSV_VERSION: v2.7.0
+        OSV_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+      run: |
+        set -euo pipefail
+        dir="$RUNNER_TEMP/osv-scanner"
+        mkdir -p "$dir"
+        curl --proto '=https' --tlsv1.2 -fsSL -o "$dir/osv-scanner" \
+          "https://github.com/google/osv-scanner/releases/download/$OSV_VERSION/osv-scanner_linux_amd64"
+        echo "$OSV_SHA256  $dir/osv-scanner" | sha256sum --check --strict
+        chmod +x "$dir/osv-scanner"
+        echo "$dir" >> "$GITHUB_PATH"
+
+    - name: Scan
+      shell: bash
+      env:
+        LOCKFILES: ${{ inputs.lockfiles }}
+        IMAGE: ${{ inputs.image }}
+        TITLE: ${{ inputs.title }}
+      run: |
+        set -euo pipefail
+        report="$RUNNER_TEMP/osv-report.md"
+        args=()
+        if [[ -n "$IMAGE" ]]; then
+          args=(scan image "$IMAGE")
+        else
+          while IFS= read -r lockfile; do
+            [[ -z "$lockfile" ]] && continue
+            [[ -f "$lockfile" ]] || { echo "::error::no lockfile $lockfile"; exit 1; }
+            args+=(-L "requirements.txt:$lockfile")
+          done <<<"$LOCKFILES"
+          (( ${#args[@]} )) || { echo "::error::nothing to scan"; exit 1; }
+          args=(scan source "${args[@]}")
+        fi
+        # Exit 1 means findings; anything else non-zero is the scanner failing, which must not
+        # pass as a clean result.
+        status=0
+        osv-scanner "${args[@]}" --format markdown --output-file "$report" || status=$?
+        {
+          echo "### $TITLE"
+          echo
+          if (( status == 0 )); then echo "No known vulnerabilities."; else cat "$report"; fi
+          echo
+        } >> "$GITHUB_STEP_SUMMARY"
+        if (( status > 1 )); then
+          echo "::error::osv-scanner failed (exit $status)"
+          exit "$status"
+        fi
+        if (( status == 1 )); then
+          if [[ -n "$IMAGE" ]]; then
+            echo "::warning title=$TITLE::known vulnerabilities in $IMAGE (see the job summary)"
+          else
+            echo "::error title=$TITLE::known vulnerabilities in a lockfile (see the job summary). Upgrade with scripts/lock_dependencies.sh --upgrade-package <name>, or accept with a reason and an expiry in osv-scanner.toml."
+            exit 1
+          fi
+        fi

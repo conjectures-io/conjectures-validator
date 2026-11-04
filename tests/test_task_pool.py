@@ -190,7 +190,7 @@ def test_checked_in_task_pool_is_paired_single_tier_and_allowlisted():
         TIER_METADATA / "held-source-theorems.json"
     ).sha256
     assert tier_policy["minimum_erdos_tasks"] == MINIMUM_ERDOS_TASKS
-    assert tier_policy["source_families"] == ["erdos", "greens-open-problems", "millennium", "research-targets", "wikipedia"]
+    assert tier_policy["source_families"] == ["erdos", "greens-open-problems", "historical-open", "millennium", "research-targets", "wikipedia"]
     assert tier_policy["task_scope"] == TASK_POOL_TASK_SCOPE
     assert tier_policy["multi_target_tasks"] == 0
     assert tier_policy["excluded_source_prefixes"] == list(EXCLUDED_SOURCE_PREFIXES)

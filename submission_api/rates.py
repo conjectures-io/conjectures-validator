@@ -202,9 +202,9 @@ class TmcPayRatesPriceReader:
         {"fiat_currency": "USD", "rates": {"TAO": "191.52707097907592", "USDC": "1.0", ...}}
 
     So the TAO entry is dollars per TAO, which is exactly what `TaoUsdQuote.price` means and the
-    same orientation as the other readers. It is the *reciprocal* of an invoice's `exchange_rate`,
-    which TMC PAY publishes as crypto per fiat unit — `routers/tmc_pay._seed_rate` performs that
-    inversion, in one place, for whichever source answered.
+    same orientation as the other readers — and as a TAO invoice's own `exchange_rate`, which TMC
+    PAY also publishes as fiat per crypto unit. A quote wants the reciprocal, TAO per dollar;
+    `routers/tmc_pay._seed_rate` takes it for whichever source answered.
 
     **The currency is verified, not assumed.** `fiat` is sent explicitly and the response's
     `fiat_currency` has to agree, so a default changing upstream cannot turn a EUR table into a

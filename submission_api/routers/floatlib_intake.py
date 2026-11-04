@@ -12,20 +12,18 @@ from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import InterfaceError, OperationalError, TimeoutError as PoolTimeout
-from starlette.requests import Request as MultipartRequest
 
 from submission_api import competition_sig, floatlib_store as store, schemas_floatlib as schemas
 from submission_api.competitions import FLOATLIB
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import (
-    BadRequest,
     Conflict,
     Forbidden,
-    PayloadTooLarge,
     PaymentRequired,
     ServiceUnavailable,
     Unauthorized,
 )
+from submission_api.kernel_upload import read_kernel
 from submission_api.login import verify_signature
 from submission_api.routers.competitions import (
     _spend,
@@ -36,8 +34,6 @@ from submission_api.routers.competitions import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-MAX_FILE_BYTES = 256_000
-MAX_BODY_BYTES = 2 * MAX_FILE_BYTES
 DEFLATE_TIMEOUT_SECONDS = 3
 
 
@@ -55,41 +51,6 @@ async def full_session(services: ServicesDep):
 
 
 FloatlibSessionDep = Annotated[AsyncSession, Depends(full_session)]
-
-
-async def read_kernel(request: Request) -> bytes:
-    # Bound the actual stream, including multipart overhead, before the parser spools files.
-    body = bytearray()
-    async for chunk in request.stream():
-        if len(body) + len(chunk) > MAX_BODY_BYTES:
-            raise PayloadTooLarge("FloatLib upload body is too large")
-        body.extend(chunk)
-
-    async def receive():
-        return {"type": "http.request", "body": bytes(body), "more_body": False}
-
-    parsed = MultipartRequest(request.scope, receive=receive)
-    try:
-        async with parsed.form(max_files=1, max_fields=0) as form:
-            if len(form.multi_items()) != 1 or set(form) != {"Kernel.lean"}:
-                raise BadRequest("Expected exactly one file, Kernel.lean")
-            part = form["Kernel.lean"]
-            if not hasattr(part, "read"):
-                raise BadRequest("Kernel.lean must be a file")
-            kernel = await part.read(MAX_FILE_BYTES + 1)
-    except (BadRequest, PayloadTooLarge):
-        raise
-    except Exception as exc:  # noqa: BLE001 - malformed multipart input
-        raise BadRequest("Expected exactly one file, Kernel.lean") from exc
-    if len(kernel) > MAX_FILE_BYTES:
-        raise PayloadTooLarge(f"Kernel.lean must be at most {MAX_FILE_BYTES} bytes")
-    if not kernel:
-        raise BadRequest("Kernel.lean must be non-empty")
-    try:
-        kernel.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise BadRequest("Kernel.lean must be UTF-8 text") from exc
-    return kernel
 
 
 async def used_in_deflate(services, hotkey, registered_at) -> bool:

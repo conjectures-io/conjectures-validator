@@ -92,6 +92,28 @@ def client_address(
     return _normalised_address(chain[-trusted_hops]) or fallback
 
 
+def is_internal_caller(
+    scope: Scope, trusted_hops: int, trusted_peers: tuple[ProxyNetwork, ...]
+) -> bool:
+    """Whether this request came from the host itself rather than through the proxy.
+
+    The website's server renders public pages (ISR) by calling this API from the host, with no
+    visitor to name, so it sends no `X-Forwarded-For` and `client_address` bills every such call
+    to the one peer address the proxy also connects from. The proxy always appends the header,
+    so a trusted peer that sent none is not the proxy speaking for a visitor.
+
+    Both settings are required. Without `trusted_peers` any direct caller could qualify by
+    leaving the header off, and with `trusted_hops=0` the header is not read at all, so every
+    visitor behind the proxy would be "internal".
+    """
+    if trusted_hops <= 0 or not trusted_peers:
+        return False
+    peer = scope.get("client")
+    if not peer or not _within(peer[0], trusted_peers):
+        return False
+    return not _header(scope, b"x-forwarded-for")
+
+
 def _within(address: str, networks: tuple[ProxyNetwork, ...]) -> bool:
     try:
         parsed = ipaddress.ip_address(address)
@@ -190,6 +212,10 @@ class RateLimitMiddleware:
 
     A refusal is RFC 9457 `application/problem+json` with `reason_code: RATE_LIMITED`, matching
     every other failure this API produces, and carries `Retry-After`.
+
+    `internal_limiter`, when given, is the separate and larger budget for the website's own
+    server (see `is_internal_caller`). Without it those calls share one visitor-sized bucket,
+    which a crawler walking uncached pages exhausts for the whole site.
     """
 
     def __init__(
@@ -199,11 +225,13 @@ class RateLimitMiddleware:
         limiter: SlidingWindowLimiter,
         trusted_proxy_hops: int,
         trusted_proxy_peers: tuple[ProxyNetwork, ...] = (),
+        internal_limiter: SlidingWindowLimiter | None = None,
         prefix: str = PUBLIC_PREFIX,
         exempt: Iterable[str] = RATE_LIMIT_EXEMPT,
     ) -> None:
         self._app = app
         self._limiter = limiter
+        self._internal_limiter = internal_limiter
         self._trusted_proxy_hops = trusted_proxy_hops
         self._trusted_proxy_peers = trusted_proxy_peers
         self._prefix = prefix
@@ -224,7 +252,12 @@ class RateLimitMiddleware:
             await self._app(scope, receive, send)
             return
 
-        decision = self._limiter.check(
+        limiter = self._limiter
+        if self._internal_limiter is not None and is_internal_caller(
+            scope, self._trusted_proxy_hops, self._trusted_proxy_peers
+        ):
+            limiter = self._internal_limiter
+        decision = limiter.check(
             client_address(scope, self._trusted_proxy_hops, self._trusted_proxy_peers),
             time.monotonic(),
         )
@@ -512,4 +545,5 @@ __all__ = [
     "SecurityHeadersMiddleware",
     "client_address",
     "cors_options",
+    "is_internal_caller",
 ]

@@ -1,0 +1,101 @@
+# What is running now, against today's advisories. CI and the deploy gate scan a commit on its way
+# in; an advisory published the day after a deploy reaches neither, so this asks every night.
+#
+#   deployed-dependencies  the lock of the commit each environment runs (its deployed/* tag).
+#                          Fails on a finding, so the run goes red and GitHub notifies.
+#   images                 the service images, built from what production runs, scanned for OS
+#                          and language packages. Report-only: the base images carry advisories
+#                          with no fixed package yet, and a job that is always red is a job nobody
+#                          reads. The summary lists them; Dependabot moves the base digests.
+#
+# The verifier image (the root Dockerfile) is not built here: it compiles Mathlib, which takes
+# longer than this job should, and its trust boundary is reviewed with the operator steps.
+
+name: Nightly security scan
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployed-dependencies:
+    name: deployed dependencies (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, production]
+    steps:
+      # The scan action from the default branch, the lock from what the environment runs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check out what ${{ matrix.environment }} runs
+        id: deployed
+        shell: bash
+        env:
+          TAG: deployed/${{ matrix.environment }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet origin
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "No $TAG tag: nothing is recorded as deployed." >> "$GITHUB_STEP_SUMMARY"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sha="$(git rev-list -n 1 "refs/tags/$TAG")"
+          git worktree add --detach target "$sha" >/dev/null
+          lock=target/requirements-service.hashes
+          [[ -f "$lock" ]] || lock=target/requirements-service.lock
+          { echo "present=true"; echo "sha=$sha"; echo "lock=$lock"; } >> "$GITHUB_OUTPUT"
+
+      - if: steps.deployed.outputs.present == 'true'
+        uses: ./.github/actions/osv-scan
+        with:
+          title: ${{ matrix.environment }} runs ${{ steps.deployed.outputs.sha }}
+          lockfiles: ${{ steps.deployed.outputs.lock }}
+
+  images:
+    name: image ${{ matrix.image.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: api, dockerfile: deploy/api/Dockerfile }
+          - { name: watcher, dockerfile: Dockerfile.watcher }
+          - { name: verification-worker, dockerfile: Dockerfile.worker }
+          - { name: emissions, dockerfile: Dockerfile.emissions }
+          - { name: payout-notifier, dockerfile: Dockerfile.payout-notifier }
+          - { name: competition-migrate, dockerfile: deploy/migrate/competition/Dockerfile }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build from what production runs
+        shell: bash
+        env:
+          DOCKERFILE: ${{ matrix.image.dockerfile }}
+          NAME: ${{ matrix.image.name }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet origin
+          ref=HEAD
+          if git rev-parse -q --verify refs/tags/deployed/production >/dev/null; then
+            ref="$(git rev-list -n 1 refs/tags/deployed/production)"
+          fi
+          git worktree add --detach target "$ref" >/dev/null
+          if [[ ! -f "target/$DOCKERFILE" ]]; then
+            echo "$DOCKERFILE does not exist at ${ref:0:12}; nothing to scan" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          docker build --quiet -f "target/$DOCKERFILE" -t "scan/$NAME:nightly" target
+          echo "IMAGE=scan/$NAME:nightly" >> "$GITHUB_ENV"
+
+      - if: env.IMAGE != ''
+        uses: ./.github/actions/osv-scan
+        with:
+          title: Image ${{ matrix.image.name }}
+          image: ${{ env.IMAGE }}

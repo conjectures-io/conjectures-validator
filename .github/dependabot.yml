@@ -1,6 +1,11 @@
 # Keeps the commit-pinned actions in .github/workflows current. Pinning by commit stops a moved tag
 # from changing what runs; this brings the updates back as reviewable PRs instead.
 # Into `dev`, like every other change: `main` accepts PRs only from `dev` and hotfix/* branches.
+#
+# Python packages are deliberately not here. The lock is generated with a release cooldown and
+# hashes by scripts/lock_dependencies.sh, and a Dependabot edit to one file would leave the other
+# disagreeing with it. Advisories against it are caught by the osv-scan gates instead (CI, every
+# deploy, nightly against what is deployed).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -12,4 +17,28 @@ updates:
       - ci
     groups:
       actions:
+        patterns: ["*"]
+
+  # The base images are pinned by digest, so a security rebuild upstream reaches them only through
+  # a PR moving the digest. Same tag only -- ubuntu 24.04 stays 24.04, python 3.12 stays 3.12; a
+  # new release line is a decision, not a refresh. The verifier image (the root Dockerfile) is
+  # among them: its PR touches an operator path, and deploys only after the operator steps.
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /deploy/api
+      - /deploy/migrate/competition
+    target-branch: dev
+    schedule:
+      interval: weekly
+    # The same cooldown the Python lock uses: let a new digest age before taking it.
+    cooldown:
+      default-days: 14
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    labels:
+      - ci
+    groups:
+      base-images:
         patterns: ["*"]

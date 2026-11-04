@@ -530,7 +530,7 @@ async def create_order(
     # Both resolved before the order row exists, so a purchase that cannot be priced — or names a
     # pair TMC PAY does not accept — leaves nothing behind to explain.
     pair = await _resolve_pair(payload, services)
-    seed = await _seed_rate(session, services, settings, now=now)
+    seed = await _seed_rate(session, services, settings, now=now, banded=pair.is_tao)
 
     external_id = f"credits-{uuid.uuid4()}"
     order = await order_store.create_order(
@@ -639,6 +639,7 @@ async def _seed_rate(
     settings: Settings,
     *,
     now: dt.datetime,
+    banded: bool,
 ) -> RateSeed:
     """The best available estimate of the rate TMC PAY is about to lock.
 
@@ -661,11 +662,17 @@ async def _seed_rate(
 
     An external feed is demoted below a stale local rate whenever the merchant currency is not the
     one it can price, because being in the right currency matters more than being recent.
+
+    **Those last two rungs need the band.** `banded` says whether the invoice this seed prices will
+    be checked against the credit price — true for TAO, false for every other pair, whose fiat
+    figure *is* the contract and is accepted as asked. A stale or wrong-currency seed is a wasted
+    round trip under the band and a wrong price without it, so an unbanded purchase gets a fresh
+    local rate or a feed in the merchant's own currency, or no sale.
     """
     observed = await order_store.latest_exchange_rate(
         session, fiat_currency=settings.tmc_pay_fiat_currency
     )
-    local = _positive_decimal(observed.exchange_rate) if observed is not None else None
+    local = tmc_pay.tao_per_fiat_unit(observed.exchange_rate) if observed is not None else None
     if local is not None and observed is not None:
         age = (now - observed.observed_at).total_seconds()
         if age <= settings.tmc_pay_rate_ttl_seconds:
@@ -673,12 +680,18 @@ async def _seed_rate(
 
     can_price = settings.tmc_pay_fiat_currency == EXTERNAL_RATE_CURRENCY
     quote = await services.tao_usd.tao_usd()
-    # `exchange_rate` is crypto per one fiat unit, so a price *per TAO* is its reciprocal. Decimal
-    # throughout: this is money, and a float here would round the price.
+    # Every feed reports dollars per TAO and a quote wants TAO per dollar, so the reciprocal.
+    # Decimal throughout: this is money, and a float here would round the price.
     external = Decimal(1) / quote.price if quote is not None else None
 
     if external is not None and quote is not None and can_price:
         return RateSeed(external, quote.source)
+    if not banded:
+        raise ServiceUnavailable(
+            "no current TAO exchange rate is available to price this currency; retry shortly "
+            "or pay in TAO",
+            reason_code=REASON_NO_RATE,
+        )
     if local is not None:
         logger.info(
             "seeding a TMC PAY quote from a stale locked rate; the quote band will correct it"
@@ -699,17 +712,6 @@ async def _seed_rate(
         "retry shortly",
         reason_code=REASON_NO_RATE,
     )
-
-
-def _positive_decimal(value: str | None) -> Decimal | None:
-    """A finite, positive `Decimal`, or None. Never raises on stored or upstream text."""
-    if not value:
-        return None
-    try:
-        parsed = Decimal(value.strip())
-    except InvalidOperation:
-        return None
-    return parsed if parsed.is_finite() and parsed > 0 else None
 
 
 @dataclass(frozen=True)
@@ -822,8 +824,12 @@ async def _quote_invoice(
             # Asking for a different amount would not change any of those.
             break
         # The rate this invoice actually locked. Exact, so the next attempt is not a guess — and it
-        # corrects an estimate that was too high as readily as one that was too low.
-        crypto_per_fiat_unit = Decimal(invoice.exchange_rate)
+        # corrects an estimate that was too high as readily as one that was too low. Only a TAO
+        # invoice gets here, and `_invoice_problem` has already refused one whose rate is unusable.
+        locked = tmc_pay.tao_per_fiat_unit(invoice.exchange_rate)
+        if locked is None:  # pragma: no cover - refused above as not repriceable
+            break
+        crypto_per_fiat_unit = locked
 
     await _fail(session, order, reason=failure)
     raise ServiceUnavailable(
@@ -1271,6 +1277,10 @@ async def receive_webhook(
     TMC PAY marks a non-2xx delivery failed and does not retry automatically, so a 4xx spent on
     "already processed" or "not our invoice" only creates work for an operator. The refusals that
     do go out are the two an operator needs to see: a bad signature and a missing delivery id.
+
+    An authentic delivery that fails to apply is answered 200 too, once the failure is recorded —
+    see `_failed`. Those used to escape as 500s, which told TMC PAY our server was broken while
+    leaving no trace here at all: the rollback took the delivery row with it.
     """
     settings = services.settings
     if not settings.tmc_pay_enabled:
@@ -1367,10 +1377,12 @@ async def receive_webhook(
         return {"status": "duplicate"}
 
     order = await order_store.find_by_invoice(session, invoice.invoice_id)
+    by_external_id = False
     if order is None and invoice.external_id:
         # The recovery path: the invoice was created but its id never reached this side. The
         # `external_id` echoed here is the one this side minted, so the order is still findable.
         order = await order_store.find_by_external_id(session, invoice.external_id)
+        by_external_id = order is not None
     if order is None:
         logger.warning(
             "TMC PAY webhook names invoice %s, which no order here claims", invoice.invoice_id
@@ -1392,50 +1404,199 @@ async def receive_webhook(
             claimed=True,
         )
 
-    if order.invoice_id is None:
-        # Found by `external_id`. Fill in what the lost create-response would have recorded, so
-        # the order becomes payable and pollable like any other. The invoice is checked against
-        # the order first: `attach_invoice` refuses one that does not cover the credits.
-        await order_store.attach_invoice(
+    # Read before anything can roll back: a rollback expires every attribute on `order`.
+    order_id = order.id
+    try:
+        if by_external_id and order.invoice_id is not None:
+            # Matched by `external_id`, yet the order already sells a different invoice. The first
+            # quote attempt carries the order's own `external_id` and a requote does not, so this
+            # is the abandoned attempt — and its status says nothing about the invoice the buyer
+            # was actually shown.
+            return await _superseded(
+                session,
+                response,
+                webhook_id=webhook_id,
+                invoice=invoice,
+                order_id=order_id,
+                reason=f"the order sells invoice {order.invoice_id}",
+            )
+        if order.invoice_id is None:
+            # Found by `external_id`. Fill in what the lost create-response would have recorded,
+            # so the order becomes payable and pollable like any other. The invoice is checked
+            # against the order first: `attach_invoice` refuses one that does not cover the
+            # credits — most often the short first attempt of a purchase that is being requoted
+            # right now, whose `created` event can arrive before the requote finishes.
+            try:
+                await order_store.attach_invoice(
+                    session,
+                    order,
+                    invoice_id=invoice.invoice_id,
+                    merchant_id=invoice.merchant_id,
+                    status=_state(invoice.status),
+                    fiat_amount=invoice.fiat_amount,
+                    fiat_currency=invoice.fiat_currency,
+                    exchange_rate=invoice.exchange_rate,
+                    commission_amount=invoice.commission_amount,
+                    crypto_amount_rao=invoice.crypto_amount_rao,
+                    crypto_amount=invoice.crypto_amount,
+                    crypto_currency=invoice.crypto_currency,
+                    crypto_network=invoice.crypto_network,
+                    deposit_address=invoice.deposit_address,
+                    invoice_expires_at=invoice.expires_at,
+                    hosted_invoice_url=invoice.hosted_invoice_url,
+                )
+            except ValueError as exc:
+                # Raised before anything is written, so the session is still usable.
+                return await _superseded(
+                    session,
+                    response,
+                    webhook_id=webhook_id,
+                    invoice=invoice,
+                    order_id=order_id,
+                    reason=str(exc),
+                )
+
+        before = order.credited_ledger_id
+        order = await apply_invoice(
             session,
             order,
-            invoice_id=invoice.invoice_id,
-            merchant_id=invoice.merchant_id,
-            status=_state(invoice.status),
-            fiat_amount=invoice.fiat_amount,
-            fiat_currency=invoice.fiat_currency,
-            exchange_rate=invoice.exchange_rate,
-            commission_amount=invoice.commission_amount,
-            crypto_amount_rao=invoice.crypto_amount_rao,
-            crypto_amount=invoice.crypto_amount,
-            crypto_currency=invoice.crypto_currency,
-            crypto_network=invoice.crypto_network,
-            deposit_address=invoice.deposit_address,
-            invoice_expires_at=invoice.expires_at,
-            hosted_invoice_url=invoice.hosted_invoice_url,
+            invoice,
+            settings=settings,
+            now=_now(),
+            event_id=webhook_id,
+            source="webhook",
         )
+        outcome = (
+            order_store.OUTCOME_CREDITED
+            if before is None and order.credited_ledger_id is not None
+            else order_store.OUTCOME_RECORDED
+        )
+        await order_store.note_delivery_outcome(
+            session, webhook_id=webhook_id, outcome=outcome, order_id=order.id
+        )
+        await session.commit()
+    except Exception as exc:
+        return await _failed(
+            session,
+            response,
+            webhook_id=webhook_id,
+            invoice=invoice,
+            event=event,
+            order_id=order_id,
+            exc=exc,
+        )
+    _no_store(response)
+    return {"status": outcome.lower()}
 
-    before = order.credited_ledger_id
-    order = await apply_invoice(
-        session,
-        order,
-        invoice,
-        settings=settings,
-        now=_now(),
-        event_id=webhook_id,
-        source="webhook",
+
+# Statuses under which no money has reached the invoice. Anything else on an invoice its order does
+# not sell means somebody paid the wrong one, which only a person can settle with TMC PAY.
+_NO_MONEY_STATUSES = frozenset(
+    {tmc_pay.STATUS_CREATED, tmc_pay.STATUS_EXPIRED, tmc_pay.STATUS_CANCELLED}
+)
+
+
+async def _superseded(
+    session: AsyncSession,
+    response: Response,
+    *,
+    webhook_id: str,
+    invoice: tmc_pay.Invoice,
+    order_id: uuid.UUID,
+    reason: str,
+) -> dict[str, str]:
+    """Record a delivery for an invoice its order does not sell, and answer 200.
+
+    The order is left exactly as it is. A requote in flight finishes on its own; an order already
+    selling the requoted invoice keeps that invoice's status rather than the abandoned one's.
+    """
+    paid = invoice.status not in _NO_MONEY_STATUSES
+    if paid:
+        await order_store.flag_for_review(session, order_id)
+    logger.warning(
+        "TMC PAY webhook for invoice %s (%s) not applied to order %s: %s",
+        invoice.invoice_id,
+        invoice.status,
+        order_id,
+        reason,
     )
-    outcome = (
-        order_store.OUTCOME_CREDITED
-        if before is None and order.credited_ledger_id is not None
-        else order_store.OUTCOME_RECORDED
+    get_axiom().warn(
+        source="api",
+        event_type="tmc_pay_webhook_superseded",
+        order_id=str(order_id),
+        invoice_id=invoice.invoice_id,
+        external_id=invoice.external_id,
+        invoice_status=invoice.status,
+        needs_review=paid,
     )
     await order_store.note_delivery_outcome(
-        session, webhook_id=webhook_id, outcome=outcome, order_id=order.id
+        session,
+        webhook_id=webhook_id,
+        outcome=order_store.OUTCOME_SUPERSEDED,
+        order_id=order_id,
     )
     await session.commit()
     _no_store(response)
-    return {"status": outcome.lower()}
+    return {"status": order_store.OUTCOME_SUPERSEDED.lower()}
+
+
+async def _failed(
+    session: AsyncSession,
+    response: Response,
+    *,
+    webhook_id: str,
+    invoice: tmc_pay.Invoice,
+    event: str | None,
+    order_id: uuid.UUID,
+    exc: Exception,
+) -> dict[str, str]:
+    """Record a signed delivery that could not be applied, flag its order, and answer 200.
+
+    Not a 500: the delivery is authentic, and TMC PAY does not retry, so a 5xx tells the processor
+    our server is broken and reaches nobody here. What does reach someone is the FAILED delivery
+    row, `needs_review` on the order and the Axiom error — and the reconciler re-reads the invoice
+    from TMC PAY regardless. The row stays reclaimable (`claim_delivery`), so a redelivery is
+    processed rather than taken for a duplicate.
+
+    If even recording fails — the database is gone, most likely — the original error propagates and
+    the 500 is honest.
+    """
+    logger.error(
+        "a signed TMC PAY webhook for invoice %s could not be applied to order %s",
+        invoice.invoice_id,
+        order_id,
+        exc_info=exc,
+    )
+    try:
+        await session.rollback()
+        if await order_store.claim_delivery(
+            session,
+            webhook_id=webhook_id,
+            invoice_id=invoice.invoice_id,
+            event=event,
+            status=invoice.status,
+        ):
+            await order_store.note_delivery_outcome(
+                session,
+                webhook_id=webhook_id,
+                outcome=order_store.OUTCOME_FAILED,
+                order_id=order_id,
+            )
+        await order_store.flag_for_review(session, order_id)
+        await session.commit()
+    except Exception:
+        logger.exception("could not record the failed TMC PAY delivery %s", webhook_id)
+        raise exc from None
+    get_axiom().error(
+        source="api",
+        event_type="tmc_pay_webhook_failed",
+        order_id=str(order_id),
+        invoice_id=invoice.invoice_id,
+        invoice_status=invoice.status,
+        error=f"{type(exc).__name__}: {exc}"[:500],
+    )
+    _no_store(response)
+    return {"status": order_store.OUTCOME_FAILED.lower()}
 
 
 async def _answer(

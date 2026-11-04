@@ -1692,6 +1692,10 @@ def _status_of(body: dict, slug: str) -> tuple[str, str | None, str | None]:
     return item["display_status"], item["added_at"], item["solved_at"]
 
 
+def _accepting(body: dict, slug: str) -> bool:
+    return next(item for item in body["items"] if item["slug"] == slug)["accepting_submissions"]
+
+
 def test_display_status_follows_a_target_from_open_through_review_to_solved():
     """The API owns the status rule, so the list and the detail page agree at every step."""
 
@@ -1704,6 +1708,7 @@ def test_display_status_follows_a_target_from_open_through_review_to_solved():
             assert status == "open"
             assert added_at is not None  # the first listing records it
             assert solved_at is None
+            assert _accepting(body, OPEN_DIRECT) is True
 
             created = await _submit(kit, hotkey=MINER_COLDKEY, payment_reference="0xstatus-1")
             assert created.status_code == 201, created.text
@@ -1715,10 +1720,14 @@ def test_display_status_follows_a_target_from_open_through_review_to_solved():
             await _verify_and_maybe_approve(kit, submission_id, approve=False)
             body = (await _get(kit, "/v1/catalog/conjectures")).json()
             assert _status_of(body, OPEN_DIRECT)[0] == "in_review"
+            # A proof awaiting review does not close the target: intake still takes another.
+            assert _accepting(body, OPEN_DIRECT) is True
             # Only the target with the proof in review moves.
             assert _status_of(body, OPEN_ANSWER)[0] == "open"
             detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
             assert detail["display_status"] == "in_review"
+            assert detail["accepting_submissions"] is True
+            assert detail["submissions_open"] is True
             assert detail["solved_at"] is None
 
             await _verify_and_maybe_approve(kit, submission_id, approve=True)
@@ -1732,6 +1741,8 @@ def test_display_status_follows_a_target_from_open_through_review_to_solved():
             assert detail["display_status"] == "solved"
             assert detail["solved_at"] == solved_at
             assert detail["bounty"]["reason"] == "ALREADY_SOLVED"
+            assert detail["accepting_submissions"] is False
+            assert _accepting(body, OPEN_DIRECT) is False
         finally:
             await kit.teardown()
 
@@ -1745,8 +1756,11 @@ def test_paused_submissions_show_on_the_list_and_on_every_open_target():
             body = (await _get(kit, "/v1/catalog/conjectures")).json()
             assert body["submissions_open"] is False
             assert {item["display_status"] for item in body["items"]} == {"submissions_paused"}
+            assert {item["accepting_submissions"] for item in body["items"]} == {False}
             detail = (await _get(kit, f"/v1/catalog/conjectures/{OPEN_DIRECT}")).json()
             assert detail["display_status"] == "submissions_paused"
+            assert detail["submissions_open"] is False
+            assert detail["accepting_submissions"] is False
             # The flag is the one `/v1/system/status` reports.
             status = (await _get(kit, "/v1/system/status")).json()
             assert status["submissions_open"] is False
@@ -1778,6 +1792,37 @@ def test_live_display_status_precedence():
         == "submissions_paused"
     )
     assert live_display_status("TREASURY_RESERVED", nothing, submissions_open=True) == "unfunded"
+
+
+@pytest.mark.parametrize(
+    ("available", "reason", "submissions_open", "expected"),
+    [
+        (True, "OPEN", True, True),
+        (True, "OPEN", False, False),
+        (False, "CHAT_LOG_REVIEW_UNAVAILABLE", True, False),
+        (False, "TREASURY_RESERVED", True, False),
+        (False, "ALREADY_SOLVED", True, False),
+        (False, "NOT_IN_BOUNTY_POOL", True, False),
+    ],
+)
+def test_accepting_submissions_is_what_intake_answers_before_the_caller(
+    available, reason, submissions_open, expected
+):
+    """The display status can read in_review while intake refuses; this field cannot."""
+    from datetime import UTC, datetime
+
+    from conjectures_subnet.bounty import LiveBounty
+    from submission_api.routers.catalog import accepting_submissions
+
+    quote = LiveBounty(
+        amount_rao=1_000 if available else None,
+        policy_version="linear-age-v3-chat-logs",
+        available=available,
+        reason=reason,
+        as_of=datetime.now(UTC),
+        inputs={},
+    )
+    assert accepting_submissions(quote, submissions_open=submissions_open) is expected
 
 
 @pytest.mark.parametrize(
@@ -1815,6 +1860,8 @@ def test_a_retired_detail_page_carries_its_display_status():
             detail = (await _get(kit, f"/v1/catalog/conjectures/{slug}")).json()
             assert detail["bounty"]["reason"] == "WITHDRAWN"
             assert detail["display_status"] == "solved"  # SOLVED + NOT_OPEN
+            assert detail["accepting_submissions"] is False
+            assert detail["submissions_open"] is True
             # Nothing on this platform approved it here, so there is no approval time to report.
             assert detail["solved_at"] is None
         finally:

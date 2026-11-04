@@ -168,6 +168,36 @@ below Landlock ABI 4 instead of accepting `--best-effort` degradation on older A
    PostgreSQL. Docker access must be through the local Unix socket; never configure a remote Docker
    daemon for the production worker.
 
+## Dependency advisories
+
+The Python runtime set is one generated lock, in two forms, written together by
+`scripts/lock_dependencies.sh`:
+
+- `requirements-service.hashes` pins every package with the sha256 of every published file. Every
+  image and `scripts/install_worker.sh` installs with `pip --require-hashes` against it, so an
+  artifact substituted on the index, a mirror or in transit fails the build instead of shipping.
+- `requirements-service.lock` is the same pins without hashes, for editable development installs
+  and CI, which pip refuses in hash-checking mode.
+
+A resolve may only pick a release that has been public for 14 days (`LOCK_COOLDOWN_DAYS`). Most
+malicious uploads are yanked within days, and the cooldown means this lock is never the first to
+take one. An exemption — a security fix that cannot wait, such as the `certifi` release that drops
+the compromised eMudhra and Comodo AAA roots — is listed in the script with its reason.
+
+Known vulnerabilities are checked with OSV-Scanner, a release binary pinned by version and sha256
+in `.github/actions/osv-scan/action.yml`, at three points:
+
+1. **Every PR** (`ci.yml`, `dependency audit`): a finding fails the check.
+2. **Every deploy** (`deploy.yml`, `audit`), against the commit being deployed and before the
+   production approval, because an advisory can be published between a green PR and its deploy.
+   A dispatch with `accept_advisories` deploys over a finding — for an emergency fix or a rollback —
+   and the run's summary still lists it.
+3. **Nightly** (`nightly-security.yml`), against the lock of what each environment runs now, and
+   report-only against the service images built from production's commit, for OS packages.
+
+An advisory that does not apply is accepted in `osv-scanner.toml`, with a reason a reviewer can
+check and an expiry. Dependabot moves the digest-pinned base images within their release line.
+
 ## Residual risks and non-goals
 
 - The Lean kernel, Comparator, `lean4export`, Landlock/seccomp implementation, Linux/container

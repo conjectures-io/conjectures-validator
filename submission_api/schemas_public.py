@@ -76,6 +76,7 @@ BountyReason = Literal[
     "OPEN",
     "CLAIM_HELD",
     "ALREADY_SOLVED",
+    "SOLVED_DOCUMENTATION_PENDING",
     "NOT_IN_BOUNTY_POOL",
     "TREASURY_RESERVED",
     "CHAT_LOG_REVIEW_UNAVAILABLE",
@@ -84,6 +85,7 @@ BountyReason = Literal[
 DisplayStatus = Literal[
     "open",
     "in_review",
+    "solved_documentation_pending",
     "solved",
     "formalization_defect",
     "solved_elsewhere",
@@ -98,6 +100,8 @@ DISPLAY_STATUS_DESCRIPTION = (
     "submissions switch so no client re-derives it. "
     "open: accepting submissions with a funded bounty. "
     "in_review: a Lean-verified submission is awaiting the reward decision. "
+    "solved_documentation_pending: a reviewer confirmed the solution; documentation and reward "
+    "approval remain pending, and further submissions cannot earn a reward. "
     "solved: review approved a submission here; it holds the target (`solved_at`). "
     "formalization_defect: review approved a submission that proved or refuted the published Lean "
     "through a defect in the formalization; the target is closed, but the conjecture is not "
@@ -108,11 +112,21 @@ DISPLAY_STATUS_DESCRIPTION = (
     "neither solved nor retired. "
     "unfunded: open, but the treasury has nothing left to offer; submissions are refused. "
     "submissions_paused: submissions are switched off, platform-wide or for this target. "
-    "Precedence, first match wins: solved / formalization_defect, in_review, submissions_paused, "
+    "Precedence, first match wins: solved / formalization_defect, solved_documentation_pending, in_review, submissions_paused, "
     "unfunded, open. The last four appear only on live targets, the retired ones only on a "
     "retired or held detail page, since the list carries live targets only"
 )
 
+
+ACCEPTING_SUBMISSIONS_DESCRIPTION = (
+    "Whether intake accepts a submission to this target right now: submissions are switched on "
+    "platform-wide and the bounty is payable (`bounty.available`). Decide whether to offer a "
+    "submit action from this, not from `display_status`, which shows the stronger of two facts: "
+    "an `in_review` target still accepts submissions when this is true, and refuses them when "
+    "this is false. Leaves out what depends on the caller: credits, a linked coldkey and, when "
+    "the bounty's `policy_version` requires chat logs, a chat-log deposit made beforehand. "
+    "Always false on a retired or held target"
+)
 
 # --- Pagination ----------------------------------------------------------------------------
 
@@ -214,7 +228,9 @@ class BountyInfo(Model):
         description=(
             "Why the bounty is or is not available. OPEN: funded and unclaimed. CLAIM_HELD: the "
             "caller's own submission holds it (only on a caller-specific read). ALREADY_SOLVED: "
-            "review approved a submission that now holds it. NOT_IN_BOUNTY_POOL: not a priced "
+            "review approved a submission that now holds it. SOLVED_DOCUMENTATION_PENDING: "
+            "a confirmed proof awaits documentation; further submissions cannot earn a reward. "
+            "NOT_IN_BOUNTY_POOL: not a priced "
             "target. TREASURY_RESERVED: the treasury is fully committed, so the amount is zero. "
             "CHAT_LOG_REVIEW_UNAVAILABLE: the target requires chat logs and their review is "
             "switched off, so submissions are refused. WITHDRAWN: the conjecture has left the "
@@ -390,6 +406,7 @@ class ConjectureSummary(Model):
     tasks: tuple[ConjectureTask, ...]
     bounty: BountyInfo
     display_status: DisplayStatus = Field(description=DISPLAY_STATUS_DESCRIPTION)
+    accepting_submissions: bool = Field(description=ACCEPTING_SUBMISSIONS_DESCRIPTION)
     added_at: datetime | None = Field(
         default=None,
         description=(
@@ -515,6 +532,13 @@ class ConjectureDetail(Model):
     tasks: tuple[ConjectureTaskDetail, ...]
     bounty: BountyInfo
     display_status: DisplayStatus = Field(description=DISPLAY_STATUS_DESCRIPTION)
+    accepting_submissions: bool = Field(description=ACCEPTING_SUBMISSIONS_DESCRIPTION)
+    submissions_open: bool = Field(
+        description=(
+            "Whether the platform accepts submissions at all; the same value as "
+            "`/v1/system/status` and the list's `submissions_open`"
+        )
+    )
     added_at: datetime | None = Field(
         default=None,
         description=(

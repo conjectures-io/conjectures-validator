@@ -47,7 +47,7 @@ SOURCES = {
 }
 
 
-# The tier-1 policy of the pinned tasks release (03d9c665, unchanged since 5c79584), so these
+# The tier-1 policy of the pinned 16-problem historical release, so these
 # tests need no tasks checkout and run in CI. Only `pool_size`, the counts and
 # `minimum_erdos_tasks` are rewritten per publication; every other field is the release's own.
 # `test_the_policy_fixture_is_the_pinned_tasks_policy` checks it against a real checkout.
@@ -56,27 +56,40 @@ TIER_1_POLICY = {
     "compiled_target_validation": True,
     "excluded_source_prefixes": [],
     "grouping": "none-single-target-v1",
-    "held_source_theorems_sha256": "sha256:1c3909dae5c76fa3f52b62abc148fee340b64abba9e091c34007ac3f7ae6eeb8",
+    "held_source_theorems_sha256": "sha256:2202c930f001a692ef6dc05b1fe9a94b553870c418252cc0335b82ef3e423a94",
     "minimum_erdos_tasks": 219,
-    "modes": ["formalized", "counterexample"],
+    "modes": [
+        "formalized",
+        "counterexample"
+    ],
     "multi_target_tasks": 0,
     "one_reward_per_problem": True,
     "one_reward_per_reward_target": True,
     "outcomes_per_problem": 2,
-    "pool_size": 548,
-    "retired_conjectures_sha256": "sha256:0be4afdf7486d30d3776807178913a458a883ce1ac0ee8d45b6a371ee69319c4",
-    "retired_source_theorems_sha256": "sha256:cf69ed257c7ab910fc2a1923ccab7b8823c315723a9dc32cecd17bf9f42552fe",
-    "reward_target_count": 274,
+    "pool_size": 580,
+    "retired_conjectures_sha256": "sha256:0aa556dc0cce810f5a548dd6745d44416cc68e39f3106989c36bf5f530ec7981",
+    "retired_source_theorems_sha256": "sha256:f1c54c19ac2dc66253c77e8146b2c5599463f6436aa65426d6db4d86cd78a837",
+    "reward_target_count": 290,
     "reward_target_policy": "stable-theorem-target-v1",
     "selection": "audited-direct-propositions-v2",
-    "selection_audit_sha256": "sha256:3feab2204867cdc3907b083cf86dec8a7a5d8dc6eca74f452fe5872475c3a09a",
+    "selection_audit_sha256": "sha256:aeac6782710258b7f2e4686f35e5b954fd229d4f46455fcff0762988e1ac3e11",
     "source_category": "research open",
-    "source_families": ["erdos", "greens-open-problems", "millennium", "research-targets", "wikipedia"],
-    "source_theorem_count": 274,
-    "target_relations": {"counterexample": "logical-negation", "formalized": "definitionally-equal"},
+    "source_families": [
+        "erdos",
+        "greens-open-problems",
+        "historical-open",
+        "millennium",
+        "research-targets",
+        "wikipedia"
+    ],
+    "source_theorem_count": 290,
+    "target_relations": {
+        "counterexample": "logical-negation",
+        "formalized": "definitionally-equal"
+    },
     "task_groups_sha256": "sha256:9dc69f266ef1d3628dd08d6071763650941570be48c4f504e53794ddb8c584b6",
     "task_scope": "direct_proposition",
-    "task_targets_sha256": "sha256:bafe013415251159e5f30dc3158fe4b282ab6b0082dbbbc6075fad644bce20b4",
+    "task_targets_sha256": "sha256:b6f91565a174cc134f1d23892a53d250ff16e71849bf051eabf38b33d9c47176"
 }
 
 

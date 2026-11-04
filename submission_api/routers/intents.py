@@ -541,7 +541,7 @@ async def confirm_intent(
     if not quote.available and quote.reason == "CHAT_LOG_REVIEW_UNAVAILABLE":
         raise Conflict("Required chat-log review is not open; this bounty is not accepting submissions.",
                        reason_code="CHAT_LOG_REVIEW_UNAVAILABLE")
-    if not quote.available and quote.reason in {"ALREADY_SOLVED", "NOT_IN_BOUNTY_POOL"}:
+    if not quote.available and quote.reason in {"ALREADY_SOLVED", "SOLVED_DOCUMENTATION_PENDING", "NOT_IN_BOUNTY_POOL"}:
         raise Conflict(
             "this bounty has already been solved",
             reason_code="BOUNTY_CLOSED",

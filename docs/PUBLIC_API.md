@@ -158,7 +158,7 @@ So both fold into one conjecture, and the per-task facts live under `tasks`:
 
 | Level | Fields |
 | --- | --- |
-| Conjecture | `slug`, `title`, `statement`, `summary`, `category`, `classification`, `tier`, `ams_subjects`, `is_open`, `problem_id`, `reward_target_id`, `task_modes`, `attempts`, `display_status`, `added_at`, `solved_at`, and on the detail endpoint `source_url` and `source_patched` |
+| Conjecture | `slug`, `title`, `statement`, `summary`, `category`, `classification`, `tier`, `ams_subjects`, `is_open`, `problem_id`, `reward_target_id`, `task_modes`, `attempts`, `display_status`, `accepting_submissions`, `added_at`, `solved_at`, and on the detail endpoint `submissions_open`, `source_url` and `source_patched` |
 | Task (one per direction) | `task_id`, `task_mode`, `task_bundle_sha256`, `attempts`, and on the detail endpoint `challenge_lean`, `bundle_url` and `machine_contract` |
 
 `meta.conjectures` counts conjectures, so it is half what a task count would report.
@@ -431,7 +431,17 @@ For a live target the first match wins, in the order solved / formalization_defe
 submissions_paused, unfunded, open. The list carries live targets only, so `solved_elsewhere`,
 `withdrawn` and `on_hold` appear only on a retired or held detail page. The list response also
 carries top-level `submissions_open`, the same value as `/v1/system/status`, so the catalog needs
-no second request.
+no second request; the detail page carries it too.
+
+**Whether to offer a submit action is `accepting_submissions`, not `display_status`.** The status
+shows the strongest fact about a target, and `in_review` outranks the reasons intake refuses: a
+target can read `in_review` while its bounty is `CHAT_LOG_REVIEW_UNAVAILABLE`. A proof awaiting
+review does not close a target, so on an `in_review` target intake takes another submission when
+`accepting_submissions` is true; if the earlier proof is approved, the later one earns no bounty.
+`accepting_submissions` is `submissions_open` and `bounty.available` together, the checks intake
+makes before it looks at the caller. It leaves out what depends on the caller — credits, a linked
+coldkey and, when the bounty's `policy_version` is `linear-age-v3-chat-logs`, a chat-log deposit made
+beforehand — and is always false on a retired or held target.
 
 `added_at` is when this API first listed the target. It survives pin rotations and restarts and is
 the right key for "new"; it is not a pin date, because pins carry none. `solved_at` is when review
@@ -968,6 +978,22 @@ that cannot be spoofed, and it is correct for a directly exposed process. Gettin
 the limiter in both directions: trusting an untrusted header lets one client mint unlimited keys,
 and ignoring a real one collapses every visitor behind a CDN onto a single budget.
 
+### The website's own server
+
+The website renders public pages (ISR) by calling this API from the host. A cached render has no
+visitor to forward, so those calls carry no `X-Forwarded-For` and all of them resolve to the one
+peer address nginx also connects from. In a visitor-sized bucket, a crawler walking uncached pages
+exhausts it for the whole site.
+
+nginx always appends `X-Forwarded-For`, so a request from a `TRUSTED_PROXY_PEERS` address that has
+none came from the host itself. Those requests go to a separate bucket of
+`RATE_LIMIT_INTERNAL_REQUESTS` per window. It is a larger ceiling, not an exemption: if anything
+else ever reaches the API from a trusted peer without the header, the worst it gets is that budget.
+The bucket applies only when both `TRUSTED_PROXY_HOPS` and `TRUSTED_PROXY_PEERS` are set; without
+peers any direct caller could qualify by leaving the header off. Every nginx `location` that proxies
+to the API must set `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or its
+visitors are counted as the website's server.
+
 ## Configuration
 
 See [`../.env.example`](../.env.example) for the annotated set.
@@ -981,6 +1007,7 @@ See [`../.env.example`](../.env.example) for the annotated set.
 | `RATE_LIMIT_REQUESTS` | `120` | Per client, per window, **per replica** |
 | `RATE_LIMIT_WINDOW_SECONDS` | `60` | |
 | `RATE_LIMIT_MAX_CLIENTS` | `50000` | Bounds the limiter's own memory |
+| `RATE_LIMIT_INTERNAL_REQUESTS` | `5000` | Per window, for a trusted peer with no `X-Forwarded-For`; `0` shares the visitor bucket |
 | `TRUSTED_PROXY_HOPS` | `0` | `0` ignores `X-Forwarded-For` entirely |
 | `PUBLIC_CACHE_SECONDS` | `60` | `0` sends `no-store` |
 | `ALT_SVC` | `h3=":443"; ma=86400` in `PROD` | Describes the edge, not this process |

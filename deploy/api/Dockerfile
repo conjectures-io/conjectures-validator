@@ -12,6 +12,17 @@
 
 FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90 AS builder
 
+# Reject the compromised eMudhra chains even when a base image or mirror has an old CA bundle.
+# `upgrade` first: the base is pinned by digest, so the distribution's security fixes published
+# since that digest was cut reach the image only here. The nightly image scan reads the result.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt$|!&|' \
+              -e 's|^mozilla/Comodo_AAA_Services_root.crt$|!&|' /etc/ca-certificates.conf \
+    && /usr/sbin/update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
@@ -31,11 +42,17 @@ WORKDIR /src
 # The lockfile alone first, so a code edit does not invalidate the dependency layer.
 #
 # The direct dependencies are named here and their versions come from the constraint file, which
-# is the same pinned set `pyproject.toml`'s `service` and `db` extras resolve to. Listed
-# explicitly rather than installed via `.[service]` because that would need the project source
-# in this layer, and then every code edit would reinstall bittensor.
-COPY requirements-service.lock ./
-RUN pip install --constraint requirements-service.lock \
+# is the same pinned set `pyproject.toml`'s `service`, `db` and `tracing` extras resolve to.
+# Listed explicitly rather than installed via `.[service]` because that would need the project
+# source in this layer, and then every code edit would reinstall bittensor.
+#
+# `--require-hashes`: every file pip fetches has to match the sha256 recorded when the lock was
+# generated (scripts/lock_dependencies.sh), so a substituted artifact fails the build.
+COPY requirements-service.hashes ./
+# Bootstrap pip against the patched system store; pip also bundles its own CA certificates.
+RUN PIP_CERT=/etc/ssl/certs/ca-certificates.crt python -m pip install --no-cache-dir --upgrade pip==26.2.2
+
+RUN pip install --require-hashes --constraint requirements-service.hashes \
       fastapi \
       python-multipart \
       uvicorn \
@@ -45,7 +62,13 @@ RUN pip install --constraint requirements-service.lock \
       SQLAlchemy \
       greenlet \
       "psycopg[binary]" \
-      bittensor
+      bittensor \
+      opentelemetry-api \
+      opentelemetry-sdk \
+      opentelemetry-exporter-otlp-proto-http \
+      opentelemetry-instrumentation-httpx \
+      opentelemetry-instrumentation-sqlalchemy \
+      wrapt
 
 # Then the project itself. `--no-deps`: every dependency is already installed at its pinned
 # version above, and resolving again could pull something the lockfile did not sanction.
@@ -59,6 +82,17 @@ RUN pip install --no-deps .
 # --- Runtime -------------------------------------------------------------------------------
 
 FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+
+# Reject the compromised eMudhra chains even when a base image or mirror has an old CA bundle.
+# `upgrade` first: the base is pinned by digest, so the distribution's security fixes published
+# since that digest was cut reach the image only here. The nightly image scan reads the result.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt$|!&|' \
+              -e 's|^mozilla/Comodo_AAA_Services_root.crt$|!&|' /etc/ca-certificates.conf \
+    && /usr/sbin/update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin \

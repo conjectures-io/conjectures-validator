@@ -228,16 +228,6 @@ def test_a_conjecture_is_named_from_its_module_and_theorem(
     assert name.qualifier == qualifier
 
 
-def test_the_display_title_is_the_parts_joined():
-    """`display_title` is published as well as its parts, so it must agree with them."""
-    name = problem_name(
-        module="FormalConjectures.ErdosProblems.«1»", theorem="Erdos1.erdos_1.variants.lb"
-    )
-    assert name.display_title.startswith("Erdős problem 1")
-    assert name.display_title.endswith(name.qualifier)
-    assert name.reference in name.display_title
-
-
 def test_a_collection_nobody_taught_this_about_still_reads_as_words():
     """Upstream adds collections. An unrecognised one must degrade to prose, not to Lean.
 

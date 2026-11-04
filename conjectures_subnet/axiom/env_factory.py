@@ -17,6 +17,9 @@ Environment:
 * `AXIOM_URL`      — the API base, for the EU region (`https://api.eu.axiom.co`) or a proxy.
 * `AXIOM_LOG_LEVEL` — the severity floor for the stdlib-logging bridge. Read by `handler.py`.
 * `AXIOM_REQUEST_EVENTS` — how much of the HTTP surface to report. Read by the API middleware.
+* `AXIOM_HEARTBEAT_SECONDS` — how often `telemetry_heartbeat` is sent. Read by `handler.py`.
+* `CONJECTURES_REVISION` — the commit this process runs, stamped on every event as `revision`.
+                     Set by compose from `GIT_COMMIT`; absent means the field is left off.
 """
 
 from __future__ import annotations
@@ -51,6 +54,11 @@ def create_axiom_client_from_env(
     dataset = env.get("AXIOM_DATASET", "").strip()
     deployment = env.get("AXIOM_ENVIRON", "").strip() or DEFAULT_ENVIRON
     api_url = env.get("AXIOM_URL", "").strip() or AXIOM_API_URL
+    # `unknown` is what compose substitutes when nothing set GIT_COMMIT; reporting it would make
+    # every local run look like one release.
+    revision = env.get("CONJECTURES_REVISION", "").strip()
+    if revision == "unknown":
+        revision = ""
 
     if not token:
         log.debug("AXIOM_TOKEN is not set; Axiom ingestion is disabled")
@@ -64,6 +72,7 @@ def create_axiom_client_from_env(
             dataset=dataset,
             token=token,
             environ=deployment,
+            revision=revision or None,
             api_url=api_url,
         )
     except Exception:  # noqa: BLE001 — see the module docstring on why this is not fatal
@@ -74,9 +83,10 @@ def create_axiom_client_from_env(
     # No token, no URL: the dataset and the deployment tag are what an operator needs to confirm
     # they are looking at the right stream.
     log.info(
-        "Axiom ingestion enabled (dataset=%s environ=%s)",
+        "Axiom ingestion enabled (dataset=%s environ=%s revision=%s)",
         dataset,
         deployment,
+        revision or "-",
     )
     return client
 

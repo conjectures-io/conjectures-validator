@@ -70,6 +70,47 @@ def test_catalog_changes_and_repins_do_not_change_a_targets_share_or_opening_dat
     asyncio.run(scenario())
 
 
+def test_a_quote_inserts_only_the_targets_not_yet_open():
+    """Every catalog read quotes, so once the targets are open a quote must not write at all."""
+    from sqlalchemy import event
+
+    async def scenario():
+        kit = await harness().setup()
+        inserts: list[tuple[str, object]] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            if statement.lstrip().upper().startswith("INSERT INTO BOUNTY_TASKS"):
+                inserts.append((statement, parameters))
+
+        try:
+            pricer = kit.services.pricing
+            target = pricer.reward_target_ids[0]
+            async with kit.session() as session:
+                engine = session.bind.sync_engine
+                event.listen(engine, "before_cursor_execute", record)
+                try:
+                    await pricer.quote(session, reward_target_id=target)
+                    assert len(inserts) == 1  # the first quote opens every configured target
+                    await session.commit()
+
+                    inserts.clear()
+                    await pricer.quote(session, reward_target_id=target)
+                    assert inserts == []
+
+                    grown = replace(pricer, reward_target_ids=(*pricer.reward_target_ids, "fc-target:Fixture.late"))
+                    await grown.quote(session, reward_target_id=target)
+                    ((statement, parameters),) = inserts
+                    assert list(parameters.values()).count("fc-target:Fixture.late") == 1
+                    assert target not in parameters.values()  # one row, the new target's
+                    assert (await session.get(BountyTask, "fc-target:Fixture.late")) is not None
+                finally:
+                    event.remove(engine, "before_cursor_execute", record)
+        finally:
+            await kit.teardown()
+
+    asyncio.run(scenario())
+
+
 def test_a_future_opening_date_uses_the_starting_share():
     async def scenario():
         kit = await harness().setup()

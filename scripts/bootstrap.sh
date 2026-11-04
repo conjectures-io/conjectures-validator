@@ -46,6 +46,10 @@ export PATH="$ELAN_HOME/bin:$PATH"
 step "create the virtualenv"
 python3 -m venv "$ROOT/.venv"
 
+# pip has its own CA bundle; bootstrap the security update using the system trust store.
+PIP_CERT="${PIP_CERT:-/etc/ssl/certs/ca-certificates.crt}" \
+  "$ROOT/.venv/bin/python" -m pip install --upgrade pip==26.2.2
+
 step "install the verifier package"
 if [[ "$miner" = 1 ]]; then
   "$ROOT/.venv/bin/pip" install -e .

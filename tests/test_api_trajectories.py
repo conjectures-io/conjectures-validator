@@ -833,3 +833,75 @@ def test_requested_revision_after_initial_claim_window_and_changed_cutoff(monkey
         finally:
             await kit.teardown()
     asyncio.run(scenario())
+
+
+def test_confirmed_proof_closes_reward_intake_without_approving_documentation():
+    async def scenario():
+        from conjectures_subnet.db.public import target_facts
+        from conjectures_subnet.db.models import ManualReviewState, RewardState
+        from submission_api.routers.catalog import live_display_status
+
+        kit = await kit_config(opened_at=dt.datetime(2026, 1, 1, tzinfo=dt.UTC)).setup()
+        with_new_bounties(kit)
+        try:
+            async with await client(kit) as http:
+                await keyless_account(kit, http)
+                bundle, proof_hash = distinct_bundle("confirmed-documentation-pending", coldkey=None)
+                deposit = await http.post(DEPOSITS, **as_upload(package_for(proof_hash, None)))
+                assert deposit.status_code == 200, deposit.text
+                result = await http.post(SESSION, params=params(bundle_sha256=_digest(bundle)),
+                                         content=bundle, headers=zip_headers(http))
+                assert result.status_code == 201, result.text
+                sid = result.json()["submission"]["id"]
+                await _verify(kit, sid)
+                async with kit.session() as session:
+                    claim = await session.scalar(select(TrajectoryClaim).where(TrajectoryClaim.submission_id == uuid.UUID(sid)))
+                    cid, version, target = claim.id, claim.state_version, claim.reward_target_id
+                    quote = await kit.services.pricing.quote(session, reward_target_id=target)
+                    facts = (await target_facts(session, [target]))[target]
+                    assert live_display_status(quote.reason, facts, submissions_open=True) == "in_review"
+                path = f"/v1/admin/trajectories/{cid}/confirm-proof"
+                body = {"expected_state_version": version, "note": "Statement and mathematical proof reviewed; documentation still pending."}
+                assert (await http.post(path, json=body, headers=same_origin())).status_code == 403
+                await reviewer(kit, http)
+                confirmed = await http.post(path, json=body, headers=same_origin())
+                assert confirmed.status_code == 200, confirmed.text
+                assert confirmed.json()["proof_confirmed"] is True
+                assert confirmed.json()["status"] == "UNDER_REVIEW"
+                assert (await http.post(path, json=body, headers=same_origin())).status_code == 409
+                async with kit.session() as session:
+                    proof = await session.get(Submission, uuid.UUID(sid))
+                    assert proof.manual_review_status == ManualReviewState.UNREVIEWED
+                    assert proof.reward_status == RewardState.INELIGIBLE
+                    quote = await kit.services.pricing.quote(session, reward_target_id=target)
+                    assert quote.available is False
+                    assert quote.reason == "SOLVED_DOCUMENTATION_PENDING"
+                    facts = (await target_facts(session, [target]))[target]
+                    assert live_display_status(quote.reason, facts, submissions_open=True) == "solved_documentation_pending"
+                    assert await session.scalar(select(func.count()).select_from(RewardEvent)) == 0
+                    # Losing the reward for missing logs does not make a confirmed proof unsolved.
+                    from submission_api.trajectories import forfeit_bounty
+                    forfeiture = await forfeit_bounty(session, proof, reviewer="fixture-reviewer",
+                                                      notes="Required documentation was not accepted.")
+                    await session.commit()
+                    forfeiture_id = forfeiture.id
+                async with kit.session() as session:
+                    facts = (await target_facts(session, [target]))[target]
+                    assert facts.documentation_pending == 1
+                    quote = await kit.services.pricing.quote(session, reward_target_id=target)
+                    assert quote.available is False
+                    # A later mathematical rejection supersedes confirmation.
+                    await proof_store.correct_human_decision(
+                        session, uuid.UUID(sid), supersedes_id=forfeiture_id,
+                        decision=ReviewOutcome.REJECTED, reason_code="WRONG_STATEMENT",
+                        reviewer="fixture-reviewer", notes="Statement review found a mathematical mismatch.",
+                        notes_public="Statement review found a mathematical mismatch.")
+                    await session.commit()
+                async with kit.session() as session:
+                    facts = (await target_facts(session, [target]))[target]
+                    assert facts.documentation_pending == 0
+                    quote = await kit.services.pricing.quote(session, reward_target_id=target)
+                    assert quote.reason != "SOLVED_DOCUMENTATION_PENDING"
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())

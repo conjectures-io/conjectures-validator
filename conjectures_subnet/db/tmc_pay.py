@@ -89,6 +89,11 @@ OUTCOME_CREDITED = "CREDITED"  # the order moved to a paid state and credits wer
 OUTCOME_RECORDED = "RECORDED"  # the status was applied; no credits were due
 OUTCOME_IGNORED = "IGNORED"  # already applied, or nothing to do
 OUTCOME_UNKNOWN = "UNKNOWN"  # no order here matches this invoice
+# The order matched by `external_id`, but this invoice is not the one it sells: an abandoned requote
+# attempt, or one that does not cover the credits. Never applied to the order.
+OUTCOME_SUPERSEDED = "SUPERSEDED"
+# Applying the delivery raised. Reclaimable, so a redelivery of the same id is processed again.
+OUTCOME_FAILED = "FAILED"
 
 
 @dataclass(frozen=True)
@@ -115,10 +120,12 @@ class ObservedRate:
 async def latest_exchange_rate(
     session: AsyncSession, *, fiat_currency: str
 ) -> ObservedRate | None:
-    """The most recent rate TMC PAY locked for this currency, if any order has one.
+    """The most recent TAO rate TMC PAY locked in this fiat currency, if any order has one.
 
-    Scoped to the currency because a rate is meaningless without one: a EUR rate seeding a USD
-    quote is the same mistake as using a USD feed for a EUR merchant, just in the other direction.
+    Scoped to both sides of the pair because a rate is meaningless without them. A EUR rate seeding
+    a USD quote is the same mistake as using a USD feed for a EUR merchant. And a USDT invoice's
+    rate is the price of a USDT, about 1.0: read as a TAO rate it priced the next purchase at $0.25
+    a credit, which is how credits were sold below price — so only TAO invoices count.
     """
     statement = (
         select(
@@ -129,6 +136,7 @@ async def latest_exchange_rate(
         .where(
             TmcPayOrder.exchange_rate.is_not(None),
             TmcPayOrder.fiat_currency == fiat_currency,
+            TmcPayOrder.crypto_currency == TAO_CURRENCY,
         )
         .order_by(TmcPayOrder.created_at.desc())
         .limit(1)
@@ -678,6 +686,11 @@ async def claim_delivery(
     The `add` happens **inside** the savepoint deliberately. Added outside it, the pending object
     survives the rollback and the next flush re-attempts the same doomed insert — which surfaces
     much later, as a `PendingRollbackError` on an unrelated statement.
+
+    A delivery recorded as `OUTCOME_FAILED` is claimed again rather than reported as a repeat: it
+    was never applied, so a redelivery is the recovery, not a duplicate. The conditional UPDATE is
+    what keeps two concurrent redeliveries from both taking it — the second waits on the row lock
+    and then finds the outcome no longer FAILED.
     """
     delivery = TmcPayWebhookDelivery(
         webhook_id=webhook_id,
@@ -698,7 +711,15 @@ async def claim_delivery(
         # Raised instead, which fails the request and leaves TMC PAY's own delivery record unacked.
         if violated_constraint(exc) != DELIVERY_ID_INDEX:
             raise
-        return False
+        reclaimed = await session.execute(
+            update(TmcPayWebhookDelivery)
+            .where(
+                TmcPayWebhookDelivery.webhook_id == webhook_id,
+                TmcPayWebhookDelivery.outcome == OUTCOME_FAILED,
+            )
+            .values(outcome=OUTCOME_IGNORED, invoice_id=invoice_id, event=event, status=status)
+        )
+        return bool(reclaimed.rowcount)
     return True
 
 
@@ -720,6 +741,16 @@ async def note_delivery_outcome(
     )
 
 
+async def flag_for_review(session: AsyncSession, order_id: uuid.UUID) -> None:
+    """Set `needs_review` by id, for a caller whose ORM instance expired with a rollback.
+
+    Only ever sets it, like every other writer of the flag: an operator clears it deliberately.
+    """
+    await session.execute(
+        update(TmcPayOrder).where(TmcPayOrder.id == order_id).values(needs_review=True)
+    )
+
+
 async def deliveries_for(
     session: AsyncSession, order_id: uuid.UUID, *, limit: int
 ) -> Sequence[TmcPayWebhookDelivery]:
@@ -736,8 +767,10 @@ __all__ = [
     "LIVE_ORDER_STATES",
     "OPEN_ORDER_STATES",
     "OUTCOME_CREDITED",
+    "OUTCOME_FAILED",
     "OUTCOME_IGNORED",
     "OUTCOME_RECORDED",
+    "OUTCOME_SUPERSEDED",
     "OUTCOME_UNKNOWN",
     "ObservedRate",
     "SettledOrder",

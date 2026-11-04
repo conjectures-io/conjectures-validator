@@ -129,6 +129,68 @@ def verified_dsn(
     return dsn
 
 
+COMPETITION_ALEMBIC_INI = "deploy/migrate/competition/alembic.ini"
+
+
+def worker_dsn(dsn: str, worker: str) -> str:
+    """`dsn` with only the database name changed, to one private to the pytest-xdist `worker`.
+
+    Every other parameter is kept as parsed, so a socket directory given as `?host=` still names
+    the server that was verified; cutting the string at its last "/" would not.
+    """
+    from sqlalchemy.engine import make_url
+
+    url = make_url(dsn)
+    return url.set(database=f"{url.database}-{worker}").render_as_string(hide_password=False)
+
+
+def isolate_worker(worker: str) -> None:
+    """Give this pytest-xdist worker its own proofs and competition databases.
+
+    The database tests drop and rebuild whole schemas, so workers sharing one database would
+    destroy each other's state. Each worker instead gets `<database>-<worker>` on the same
+    fixture cluster: created fresh here, the competition one migrated to head the way CI migrates
+    the shared one, and the environment repointed at them before any test reads its DSN. Both
+    the shared DSN and the worker's are proven by `verified_dsn` first, so this can only ever
+    create databases on the declared fixture.
+    """
+    import psycopg
+    from sqlalchemy.engine import make_url
+
+    for variable in ("FC_POSTGRES_DSN", "FC_COMPETITION_POSTGRES_DSN"):
+        shared = verified_dsn(variable)
+        if shared is None:
+            continue
+        own = worker_dsn(shared, worker)
+        name = make_url(own).database
+        libpq = shared.replace("postgresql+psycopg://", "postgresql://", 1)
+        with psycopg.connect(libpq, autocommit=True, connect_timeout=5) as connection:
+            connection.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+            connection.execute(f'CREATE DATABASE "{name}"')
+        os.environ[variable] = own
+        verified_dsn(variable)
+        if variable == "FC_COMPETITION_POSTGRES_DSN":
+            _migrate_competition(own)
+
+
+def _migrate_competition(url: str) -> None:
+    from alembic import command
+    from alembic.config import Config
+
+    config = Config(COMPETITION_ALEMBIC_INI)
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+    # env.py reads the URL from the environment; restore it so no test inherits this one.
+    previous = os.environ.get("COMPETITION_DATABASE_URL")
+    os.environ["COMPETITION_DATABASE_URL"] = url
+    try:
+        command.upgrade(config, "head")
+    finally:
+        if previous is None:
+            os.environ.pop("COMPETITION_DATABASE_URL", None)
+        else:
+            os.environ["COMPETITION_DATABASE_URL"] = previous
+
+
 @cache
 def postgres_dsn() -> str | None:
     """The proofs-schema test DSN, verified; None skips the database tests."""
@@ -145,6 +207,7 @@ __all__ = [
     "IDENTITY_ENV",
     "DatabaseGuardError",
     "competition_dsn",
+    "isolate_worker",
     "postgres_dsn",
     "verified_dsn",
 ]

@@ -76,7 +76,12 @@ DEFAULT_BOUNTY_MAX_SHARE_DENOMINATOR = 8
 DEFAULT_BOUNTY_BALANCE_CACHE_SECONDS = 60
 DEFAULT_BITTENSOR_NETWORK = "finney"
 DEFAULT_BOUNTY_NETUID = 66
-DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS = 60
+# Each refresh is two TaoStats requests (TAO/USD and the subnet pool), made whenever a priced read
+# finds the cache expired, so a server with steady traffic spends 2 per window: at 60 s that was
+# about 86,000 a month and emptied a 10,000-credit key in under four days. 600 s keeps it near
+# 8,600, leaving room for the payout workers' reads and restarts, and a USD display figure that is
+# ten minutes old is still a fair one. A failed read is cached for the same window.
+DEFAULT_TAOSTATS_PRICE_CACHE_SECONDS = 600
 
 POLICY_VERSION = re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$")
 
@@ -143,6 +148,10 @@ CORS_MAX_AGE_SECONDS = 600
 
 DEFAULT_RATE_LIMIT_REQUESTS = 120
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60
+# The website's own server, calling from the host with no X-Forwarded-For (see
+# `middleware.is_internal_caller`). One bucket serves every page it renders, so it is about fourteen
+# times production's per-visitor 360: still a ceiling on what a crawler can drive through it.
+DEFAULT_RATE_LIMIT_INTERNAL_REQUESTS = 5000
 # The limiter is in-process, so its table is a memory budget an attacker controls the keys of.
 # Bounded here rather than trusted to stay small.
 DEFAULT_RATE_LIMIT_MAX_CLIENTS = 50_000
@@ -592,7 +601,7 @@ def _competition_slugs(environ: Mapping[str, str], competition_slug: str) -> tup
     slugs = tuple(s.strip() for s in raw.split(",") if s.strip()) or (competition_slug,)
     if len(set(slugs)) != len(slugs):
         raise SettingsError(f"COMPETITIONS lists a competition twice: {raw!r}")
-    known = (competition_slug, "floatlib")
+    known = (competition_slug, "floatlib", "torchlean")
     for slug in slugs:
         if slug not in known:
             raise SettingsError(
@@ -747,6 +756,9 @@ def _cors_origins(environ: Mapping[str, str], key: str, *, production: bool) -> 
 # Each of the two submitted competition files. Generous on purpose: the largest reference
 # submission is under 20 KB, so anything approaching this is not a parser and a proof.
 MAX_COMPETITION_FILE_BYTES = 512 * 1024
+# Public admission policy can change without changing the workers' fixed 4 MiB ceiling.
+MAX_TORCHLEAN_SOURCE_BYTES = 4 * 1024 * 1024
+DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -835,6 +847,9 @@ class Settings:
     rate_limit_requests: int
     rate_limit_window_seconds: int
     rate_limit_max_clients: int
+    # Per window, for a trusted peer that sent no `X-Forwarded-For`. Zero puts those calls back
+    # in the per-client bucket.
+    rate_limit_internal_requests: int
     # How many rightmost `X-Forwarded-For` entries this deployment put there itself. Zero means
     # the header is not trusted at all and the peer address is used.
     trusted_proxy_hops: int
@@ -970,6 +985,10 @@ class Settings:
     floatlib_submissions_enabled: bool = False
     floatlib_registration_cutoff: datetime | None = None
     floatlib_check_deflate_usage: bool = False
+    torchlean_max_source_bytes: int = DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES
+    torchlean_submissions_enabled: bool = False
+    torchlean_registration_cutoff: datetime | None = None
+    torchlean_dev_skip_registration: bool = False
     competition_slugs: tuple[str, ...] = ()
     # Each competition's own database URL, from `COMPETITION_<SLUG>_DATABASE_URL`, as
     # (slug, url) pairs. A slug missing here is `competition_slug` falling back to
@@ -1008,15 +1027,17 @@ class Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
+        if production and _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False):
+            raise SettingsError("TORCHLEAN_DEV_SKIP_REGISTRATION is forbidden in production")
         trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
         # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
         if production and trajectory_bonus_enabled:
             from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
+
             if "draft" in TERMS_VERSION:
                 raise SettingsError("chat-log intake cannot launch with draft terms")
             if env.get("TRAJECTORY_LAUNCH_APPROVED_TERMS_SHA256") != TERMS_SHA256:
                 raise SettingsError("chat-log launch requires the owner-approved terms digest")
-
 
         authenticator = _choice(
             env,
@@ -1398,10 +1419,14 @@ class Settings:
                 "REVIEW_POLICY_VERSION=v4; earlier contracts remain on existing submissions"
             )
 
-        if production and trajectory_bonus_enabled and (
-            not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7"
+        if (
+            production
+            and trajectory_bonus_enabled
+            and (not env.get("SUBMISSION_TERMS_PATH", "").strip() or terms_version == "v7")
         ):
-            raise SettingsError("trajectory launch requires explicit final versioned submission terms")
+            raise SettingsError(
+                "trajectory launch requires explicit final versioned submission terms"
+            )
         if production and trajectory_bonus_enabled:
             # The published file must itself be that version, so v7 text cannot go out as v8.
             try:
@@ -1610,7 +1635,38 @@ class Settings:
                     "FLOATLIB_CHECK_DEFLATE_USAGE requires DEFLATE configured with uploads disabled"
                 )
 
+        torchlean_uploads = _flag(env, "TORCHLEAN_SUBMISSIONS_ENABLED", False)
+        torchlean_dev = _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False)
+        torchlean_cutoff = None
+        if raw := env.get("TORCHLEAN_REGISTRATION_CUTOFF", "").strip():
+            try:
+                torchlean_cutoff = datetime.fromisoformat(raw)
+                if torchlean_cutoff.tzinfo is None:
+                    raise ValueError("timezone required")
+                torchlean_cutoff = torchlean_cutoff.astimezone(UTC)
+            except ValueError as exc:
+                raise SettingsError(
+                    "TORCHLEAN_REGISTRATION_CUTOFF must be an ISO-8601 timestamp with timezone"
+                ) from exc
+        if torchlean_uploads:
+            if not competitions_enabled or "torchlean" not in competition_slugs:
+                raise SettingsError("TORCHLEAN_SUBMISSIONS_ENABLED requires TorchLean configured")
+            if torchlean_cutoff is None and not torchlean_dev:
+                raise SettingsError(
+                    "TORCHLEAN_REGISTRATION_CUTOFF is required for TorchLean uploads"
+                )
+
         return cls(
+            torchlean_max_source_bytes=_bounded_int(
+                env,
+                "TORCHLEAN_MAX_SOURCE_BYTES",
+                DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES,
+                minimum=1,
+                maximum=MAX_TORCHLEAN_SOURCE_BYTES,
+            ),
+            torchlean_submissions_enabled=torchlean_uploads,
+            torchlean_registration_cutoff=torchlean_cutoff,
+            torchlean_dev_skip_registration=torchlean_dev,
             deflate_submissions_enabled=deflate_uploads,
             floatlib_submissions_enabled=floatlib_uploads,
             floatlib_registration_cutoff=cutoff,
@@ -1729,6 +1785,13 @@ class Settings:
                 "RATE_LIMIT_MAX_CLIENTS",
                 DEFAULT_RATE_LIMIT_MAX_CLIENTS,
                 maximum=5_000_000,
+            ),
+            rate_limit_internal_requests=_bounded_int(
+                env,
+                "RATE_LIMIT_INTERNAL_REQUESTS",
+                DEFAULT_RATE_LIMIT_INTERNAL_REQUESTS,
+                minimum=0,
+                maximum=1_000_000,
             ),
             trusted_proxy_hops=_bounded_int(env, "TRUSTED_PROXY_HOPS", 0, minimum=0, maximum=8),
             trusted_proxy_peers=_networks(env, "TRUSTED_PROXY_PEERS"),

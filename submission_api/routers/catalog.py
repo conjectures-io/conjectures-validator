@@ -202,6 +202,8 @@ def live_display_status(
         if facts.solved_reason_code == FORMALIZATION_DEFECT_CODE:
             return "formalization_defect"
         return "solved"
+    if facts.documentation_pending:
+        return "solved_documentation_pending"
     if facts.in_review:
         return "in_review"
     if not submissions_open or reason == "CHAT_LOG_REVIEW_UNAVAILABLE":
@@ -209,6 +211,16 @@ def live_display_status(
     if reason in ("TREASURY_RESERVED", "NOT_IN_BOUNTY_POOL"):
         return "unfunded"
     return "open"
+
+
+def accepting_submissions(quote: LiveBounty, *, submissions_open: bool) -> bool:
+    """What intake answers for this target before it looks at the caller.
+
+    The pause switch and `_assert_payable` / `_assert_payable_quote`, in the same order. Not
+    derived from `live_display_status`: its precedence puts `in_review` above a pause and a
+    refused bounty, so the status alone cannot say whether a submit button would work.
+    """
+    return submissions_open and quote.available
 
 
 def retired_display_status(item: RetiredConjecture) -> public.DisplayStatus:
@@ -329,6 +341,7 @@ def _summary(
         ),
         bounty=_bounty(quote, alpha_usd=alpha_usd),
         display_status=status,
+        accepting_submissions=accepting_submissions(quote, submissions_open=submissions_open),
         added_at=facts.added_at,
         solved_at=_solved_at(status, facts),
         attempts=attempts,
@@ -468,6 +481,8 @@ def _retired_detail(
         ),
         bounty=_withdrawn_bounty(settings),
         display_status=status,
+        accepting_submissions=False,
+        submissions_open=not settings.submissions_paused,
         added_at=facts.added_at,
         solved_at=_solved_at(status, facts),
         source_url=links.source_url(item.source.source_path),
@@ -631,9 +646,8 @@ async def read_conjecture(
     alpha_usd = await services.bounty_usd.alpha_usd()
     _cache(response, settings)
     name = conjectures.display_name(item)
-    status = live_display_status(
-        quote.reason, facts, submissions_open=not settings.submissions_paused
-    )
+    submissions_open = not settings.submissions_paused
+    status = live_display_status(quote.reason, facts, submissions_open=submissions_open)
     links: CatalogLinks = services.links
     return public.ConjectureDetail(
         slug=item.slug,
@@ -666,6 +680,8 @@ async def read_conjecture(
         ),
         bounty=_bounty(quote, alpha_usd=alpha_usd),
         display_status=status,
+        accepting_submissions=accepting_submissions(quote, submissions_open=submissions_open),
+        submissions_open=submissions_open,
         added_at=facts.added_at,
         solved_at=_solved_at(status, facts),
         source_url=links.source_url(item.source.source_path),

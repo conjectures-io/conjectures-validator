@@ -46,6 +46,10 @@ SELF_LOGGER: Final = "conjectures_subnet.axiom"
 
 DEFAULT_LOG_FORMAT: Final = "%(asctime)s %(levelname)s %(name)s %(message)s"
 
+# Once a minute: often enough that a silent-process monitor can alert within a few minutes, and
+# at roughly 1,400 rows per process per day, too few to matter to the dataset.
+DEFAULT_HEARTBEAT_SECONDS: Final = 60.0
+
 # Logger name to the area that owns it. Matched on dotted prefixes, longest first, so the entries
 # below are a base and a logger named `submission_api.routers.intents` resolves through `api`
 # without needing its own line.
@@ -211,6 +215,23 @@ def _level_from_env(environ: Mapping[str, str], key: str, default: int) -> int:
     return resolved
 
 
+def _seconds_from_env(environ: Mapping[str, str], key: str, default: float) -> float:
+    """A non-negative number of seconds from the environment, or the default. Never raises."""
+    raw = environ.get(key, "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        value = -1.0
+    if value < 0 or value != value:  # NaN compares unequal to itself
+        logging.getLogger(SELF_LOGGER).warning(
+            "%s=%r is not a number of seconds; using %s", key, raw, default
+        )
+        return default
+    return value
+
+
 def attach_axiom_handler(
     *,
     source: Source,
@@ -223,10 +244,20 @@ def attach_axiom_handler(
     Skipped entirely when the process has no Axiom credentials — a handler that formats every
     record only to hand it to a no-op is pure cost — and skipped when one is already attached, so
     a second entry point in the same process (a test, a `--check` run) does not double every event.
+
+    Also where the heartbeat starts, because this is the one call every entry point makes with
+    the name of the process it is: `AXIOM_HEARTBEAT_SECONDS`, 60 by default, 0 for none.
     """
     sink = axiom if axiom is not None else get_axiom()
     if not sink.enabled:
         return None
+    env = os.environ if environ is None else environ
+    sink.report_heartbeats(
+        source=source,
+        interval_seconds=_seconds_from_env(
+            env, "AXIOM_HEARTBEAT_SECONDS", DEFAULT_HEARTBEAT_SECONDS
+        ),
+    )
     target = logger if logger is not None else logging.getLogger()
     existing = next(
         (item for item in target.handlers if isinstance(item, AxiomLogHandler)), None
@@ -235,9 +266,7 @@ def attach_axiom_handler(
         return existing
     handler = AxiomLogHandler(
         default_source=source,
-        level=_level_from_env(
-            os.environ if environ is None else environ, "AXIOM_LOG_LEVEL", logging.INFO
-        ),
+        level=_level_from_env(env, "AXIOM_LOG_LEVEL", logging.INFO),
         axiom=axiom,
     )
     target.addHandler(handler)

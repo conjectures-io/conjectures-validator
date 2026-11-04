@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 # Database tests are destructive, so the suite never discovers a server: there is no default DSN
@@ -11,6 +12,7 @@ from database_guard import (
     IDENTITY_ENV,
     DatabaseGuardError,
     competition_dsn,
+    isolate_worker,
     postgres_dsn,
 )
 from verifier.hashing import hash_named_files, pretty_json
@@ -40,6 +42,14 @@ __all__ = [
     "manifest",
     "postgres_dsn",
 ]
+
+
+def pytest_configure(config) -> None:
+    # Under `pytest -n`, each worker is its own process with its own databases; see
+    # `database_guard.isolate_worker`. Runs before collection, so before any DSN is read.
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if worker:
+        isolate_worker(worker)
 
 
 def declaration(

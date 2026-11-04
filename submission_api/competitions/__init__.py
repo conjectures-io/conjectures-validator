@@ -53,10 +53,12 @@ DEFAULT_NAME: Final = "DEFLATE"
 # see the bar before spending an hour of validator time finding out.
 DEFAULT_SPEED_FLOOR: Final = 8.0
 
-Kind = Literal["deflate", "floatlib"]
+Kind = Literal["deflate", "floatlib", "torchlean"]
 DEFLATE: Final = "deflate"
 FLOATLIB: Final = "floatlib"
-KINDS: Final = (DEFLATE, FLOATLIB)
+TORCHLEAN: Final = "torchlean"
+TORCHLEAN_NAME: Final = "TorchLean kernels"
+KINDS: Final = (DEFLATE, FLOATLIB, TORCHLEAN)
 
 # FloatLib's slug and boards, as `conjectures-optimisation-float-kernels` names them
 # (`validator/service/sig.py`): the competition's own slug is the paid full entry, each
@@ -97,6 +99,8 @@ class Competition:
             raise ValueError(f"not a competition slug: {self.slug!r}")
         if self.kind not in KINDS:
             raise ValueError(f"not a competition kind: {self.kind!r}")
+        if self.kind == TORCHLEAN and self.slug != TORCHLEAN:
+            raise ValueError("TorchLean is served as 'torchlean'")
         if self.kind == FLOATLIB and self.slug != FLOATLIB_SLUG:
             # Its practice boards' slugs are derived from this one, and miners sign them.
             raise ValueError(f"FloatLib is served as {FLOATLIB_SLUG!r}, not {self.slug!r}")

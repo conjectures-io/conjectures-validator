@@ -53,7 +53,10 @@ CLAIM = text(
               s.problem_id,
               s.proof_digest,
               s.verification_attempts,
-              s.verification_lease_until
+              s.verification_lease_until,
+              -- How long the submission has existed, on the database's clock rather than the
+              -- worker's, so host clock skew cannot make a wait look shorter than it was.
+              EXTRACT(EPOCH FROM (now() - s.created_at))::float8 * 1000 AS queued_ms
     """
 )
 
@@ -138,6 +141,9 @@ class ClaimedSubmission:
     lease_until: dt.datetime
     # Commits to the source snapshot that accepted the submission; routes it to its environment.
     problem_id: str = ""
+    # Milliseconds from intake to this claim, earlier attempts included: the wait the miner who
+    # paid for it has had so far. None where the claim did not come from the database.
+    queued_ms: float | None = None
 
     @property
     def proof_digest_bytes(self) -> bytes:
@@ -216,6 +222,7 @@ async def claim_next(
         attempts=row.verification_attempts,
         lease_until=row.verification_lease_until,
         problem_id=row.problem_id,
+        queued_ms=None if row.queued_ms is None else round(float(row.queued_ms), 3),
     )
 
 

@@ -105,9 +105,13 @@ Settings → Environments → **New environment** → `dev`:
   | `DEPLOY_HOST` | the server's address |
   | `DEPLOY_KNOWN_HOSTS` | the `ssh-keyscan` line |
   | `DOTENV` | optional: the server's whole `.env` (next section) |
+  | `AXIOM_ANNOTATION_TOKEN` | optional: an Axiom token allowed to create annotations, for the deploy marker on the charts |
 
 - **Environment variables (optional):** `DEPLOY_USER` (default `deploy`), and `DEPLOY_URL`,
-  the link shown on the deployment.
+  the link shown on the deployment. `AXIOM_ANNOTATION_DATASETS`, comma-separated, names the
+  datasets that get the deploy marker (the server's `AXIOM_DATASET` and its traces dataset, `<AXIOM_DATASET>-traces`);
+  `AXIOM_URL` for the EU region. Without the token and the datasets the marker is skipped; see
+  docs/OBSERVABILITY.md, "Which release, and when it went out".
 
 Then delete `gha-validator-dev` and `gha-validator-dev.pub` from the workstation.
 

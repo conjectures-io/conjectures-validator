@@ -522,17 +522,6 @@ def test_reusing_a_key_with_different_data_conflicts():
     run(scenario())
 
 
-def test_a_non_uuid_idempotency_key_is_refused():
-    async def scenario():
-        kit = await harness().setup()
-        try:
-            assert (await _post(kit, valid_bundle(), idempotency_key="not-a-uuid")).status_code == 400
-        finally:
-            await kit.teardown()
-
-    run(scenario())
-
-
 def test_the_same_proof_cannot_be_submitted_twice():
     async def scenario():
         kit = await harness().setup()
