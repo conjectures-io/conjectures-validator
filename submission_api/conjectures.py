@@ -33,6 +33,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from submission_api.naming import ProblemName, problem_name
+from submission_api.problem_context import problem_summary
 from submission_api.retired import RetiredConjecture, RetiredIndex
 from submission_api.slugs import legacy_theorem_slug, matches_legacy_slug, slug_for
 from submission_api.taskpool import TaskCatalog, TaskEntry
@@ -549,7 +550,7 @@ def searchable(conjecture: Conjecture) -> str:
         conjecture.source.theorem,
         conjecture.source.module,
         conjecture.source.type_pretty,
-        conjecture.source.docstring or "",
+        problem_summary(conjecture.source.theorem, conjecture.source.docstring) or "",
     )
     return " ".join(parts).casefold()
 

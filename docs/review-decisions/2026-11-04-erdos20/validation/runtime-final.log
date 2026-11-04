@@ -1,0 +1,11 @@
+{"case": "positive-counterexample", "passed": true, "reason": "VERIFIED"}
+{"case": "Erdos12-erdos_12-parts-iii-counterexample-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "Erdos12-erdos_12-parts-iii-counterexample-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "Erdos12-erdos_12-parts-iii-counterexample-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "Erdos12-erdos_12-parts-iii-formalized-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "Erdos12-erdos_12-parts-iii-formalized-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "Erdos12-erdos_12-parts-iii-formalized-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "Erdos12-erdos_12-parts-iii-formalized-source-placeholder", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "Erdos5-erdos_5-formalized-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "Erdos5-erdos_5-counterexample-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{'passed': True, 'cases': 10, 'new_bundles_exercised': 4, 'positive_control_verified': True, 'insecure_development': False, 'uid': 10001, 'open_problems_proved': False, 'processes': 4}

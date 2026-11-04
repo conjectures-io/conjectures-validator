@@ -1,0 +1,28 @@
+{
+  "adapter_required": 497,
+  "automatically_taskable": 5555,
+  "by_category": {
+    "API": 389,
+    "research open": 1715,
+    "research solved": 1957,
+    "test": 1798,
+    "textbook": 203
+  },
+  "by_classification": {
+    "BOOL_ANSWER": 0,
+    "DEFINITION_HOLE": 0,
+    "DIRECT_PROP": 5531,
+    "FINITE_ANSWER": 0,
+    "GENERAL_VALUE_ANSWER": 199,
+    "INT_ANSWER": 0,
+    "MULTIPLE_ANSWER_HOLES": 0,
+    "NAT_ANSWER": 24,
+    "POINTER_DECLARATION": 0,
+    "PROP_ANSWER_WRAPPER": 298,
+    "UNSUPPORTED": 10
+  },
+  "catalog": "/output/catalog.json",
+  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "total_declarations": 6062,
+  "unsupported": 10
+}

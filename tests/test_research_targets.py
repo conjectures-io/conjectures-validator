@@ -86,7 +86,8 @@ def test_this_candidate_activates_only_the_reviewed_ready_subset():
     assert not activated & NEVER_ACTIVATED
     # Retiring Erdos 456(iii) leaves 257 targets in the original 258-target base.
     # Wilf e4 (source22) is held; the historical targets are a separate admitted family.
-    assert DEFAULT_TIER_SIZE == 257 + len(activated) - 1 + len(HISTORICAL_OPEN_TARGETS)
+    # November 4 adds twenty Erdős reward targets, including reinstated 12(iii).
+    assert DEFAULT_TIER_SIZE == 257 + len(activated) - 1 + len(HISTORICAL_OPEN_TARGETS) + 20
     assert task_pool.staged_research_target(THEOREM, MATH30)
     assert not task_pool.staged_research_target(ACTIVE, MATH30)
     # The gate concerns this family only; an Erdős source is unaffected by it.
