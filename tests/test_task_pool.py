@@ -55,6 +55,23 @@ TIER_METADATA = TASKS_ROOT / "tiers/tier-1"
 
 
 @pytest.mark.needs_checkouts
+def test_twenty_problem_batch_reinstates_only_the_open_part_of_erdos12():
+    review = json.loads((TIER_METADATA / "erdos-admission-audit.json").read_text())
+    additions = review["targets"]
+    assert len(additions) == 20
+    assert {row["number"] for row in additions} == {
+        5, 7, 12, 13, 19, 21, 49, 59, 60, 65, 70, 78, 80, 86, 87, 94,
+        102, 103, 104, 111,
+    }
+    targets = load_task_targets(TIER_METADATA / "task-targets.json").theorems
+    assert {name for name in targets if name.startswith("Erdos12.")} == {
+        "Erdos12.erdos_12.parts.iii"
+    }
+    assert "Erdos456.erdos_456.parts.iii" not in targets
+    assert all(row["decision"] == "eligible" for row in additions)
+
+
+@pytest.mark.needs_checkouts
 def test_classical_admissions_match_review_and_exclude_held_or_resolved_targets():
     review = json.loads((TIER_METADATA / "classical-status-audit.json").read_text())
     admitted = {row["theorem"] for row in review["candidates"]}
@@ -130,7 +147,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(ERDOS_SOURCE_PREFIX)
         for item in selected
-    ) == MINIMUM_ERDOS_TASKS
+    ) == 238
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
@@ -142,7 +159,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 242
+    assert len({item.source_path for item in selected}) == 261
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -477,9 +494,12 @@ def test_retired_conjectures_are_readable_but_never_admissible():
         assert entry["source"]["theorem"] == entry["theorem"]
         # Historical statements retain their actual source pin across later repins.
         if "repository_commit" not in entry["source"]:
-            assert entry["theorem"] == "Math30Catalog.source22"
+            expected_state = {
+                "Math30Catalog.source22": "held",
+                "Erdos456.erdos_456.parts.iii": "retired",
+            }[entry["theorem"]]
             versions = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
-            assert all(versions.versions[item["task_id"]].state == "held" for item in entry["tasks"])
+            assert all(versions.versions[item["task_id"]].state == expected_state for item in entry["tasks"])
             continue
         source_commit = entry["source"]["repository_commit"]
         assert len(source_commit) == 40

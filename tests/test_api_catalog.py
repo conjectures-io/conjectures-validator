@@ -470,6 +470,41 @@ def test_the_detail_serves_the_audited_challenge_and_the_machine_contract():
     run(scenario())
 
 
+def test_erdos12_lists_and_rewards_only_the_open_part():
+    async def scenario():
+        theorem = "Erdos12.erdos_12.parts.iii"
+        entry = task_entry(
+            task_id="erdos12-open-part",
+            reward_target_id=f"fc-target:{theorem}",
+            classification=Classification.DIRECT_PROP,
+            source=declaration(theorem=theorem, classification=Classification.DIRECT_PROP,
+                               category="research open"),
+        )
+        kit = await harness(entries=(entry,)).setup()
+        try:
+            listing = await _get(kit, "/v1/catalog/conjectures")
+            assert listing.status_code == 200
+            row = listing.json()["items"][0]
+            detail = await _get(kit, f"/v1/catalog/conjectures/{row['slug']}")
+            assert detail.status_code == 200
+            body = detail.json()
+            assert row["summary"] == body["summary"]
+            assert "12(iii)" in body["summary"]
+            assert "Open." in body["summary"]
+            assert "Solved:" not in body["summary"]
+            assert body["reward_target_id"] == f"fc-target:{theorem}"
+            assert body["source_theorem"] == theorem
+            assert body["statement"] == entry.source.type_pretty
+            assert len(body["tasks"]) == 1
+            assert body["tasks"][0]["challenge_lean"] == CHALLENGE_LEAN
+            search = await _get(kit, "/v1/catalog/conjectures?q=converge")
+            assert [item["slug"] for item in search.json()["items"]] == [row["slug"]]
+        finally:
+            await kit.teardown()
+
+    run(scenario())
+
+
 def test_a_markdown_reference_is_split_into_a_label_and_a_url():
     async def scenario():
         source = declaration(theorem="Erdos11.erdos_11")

@@ -1,0 +1,209 @@
+[
+  {
+    "decision_url": null,
+    "pool_status": "held",
+    "reason": "HOLD_UNVERIFIED_RESOLUTION_CLAIM (a primary-forum comment claims the full result, but the inspected literature supplies the needed saving for odd shifts only and no verified exact solution was located. Admission is suspended pending review; the target is not solved and not retired. See HOLDS-2026-10-06.md.)",
+    "reason_code": "HOLD_UNVERIFIED_RESOLUTION_CLAIM",
+    "recovered_from_commit": "0b8bf749b349f94f016876686bdfc43c7fc459f2",
+    "retired_on": "2026-10-06",
+    "reward_target_id": "fc-target:Erdos1004.erdos_1004",
+    "source": {
+      "adapter_version": 1,
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "For any fixed c > 0, if x is sufficiently large then there exists n ≤ x such that\nthe values of φ(n+k) are all distinct for 1 ≤ k ≤ (log x)^c.\nThis is an open problem.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ErdosProblems.«1004»",
+      "pointer_target": null,
+      "references": [
+        "[erdosproblems.com/1004](https://www.erdosproblems.com/1004)"
+      ],
+      "repository_commit": "6a786f997e18e8f095762a2830d191b7e25e505e",
+      "source_path": "FormalConjectures/ErdosProblems/1004.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Erdos1004.erdos_1004",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:c5ce7570c520daced747e3045c85bdd574afe40897cce40d5a5f7d7c67d90664",
+      "type_pretty": "True ↔ ∀ c > 0, ∀ᶠ (x : ℕ) in Filter.atTop, ∃ n ≤ x, Erdos1004.IsDistinctTotientRun n ⌊Real.log ↑x ^ c⌋₊"
+    },
+    "tasks": [
+      {
+        "challenge_lean": "import FormalConjectures.ErdosProblems.«1004»\nimport TaskSupport\n\nnamespace Bounty\n\ntheorem target : ¬ (fcTypeOfName% \"Erdos1004.erdos_1004\") := by\n  sorry\n\nend Bounty\n",
+        "problem_id": "fc-6a786f99-erdos1004-erdos-1004-b3fd66819b7927e62d15badfae9eb03b-problem",
+        "target_type_sha256": "sha256:4d5d37a6e9594dbd3df1dbe4cc7a8aaf72cc882d47dbd82c53283f7cd554d8da",
+        "task_bundle_sha256": "sha256:8c6d865f171db1901a55c15cc7b2f5aebbad76b22d53e3230dc3376d38131fa4",
+        "task_id": "fc-6a786f99-erdos1004-erdos-1004-f1852255fb-counterexample-v1",
+        "task_mode": "counterexample"
+      },
+      {
+        "challenge_lean": "import FormalConjectures.ErdosProblems.«1004»\nimport TaskSupport\n\nnamespace Bounty\n\ntheorem target : fcTypeOfName% \"Erdos1004.erdos_1004\" := by\n  sorry\n\nend Bounty\n",
+        "problem_id": "fc-6a786f99-erdos1004-erdos-1004-b3fd66819b7927e62d15badfae9eb03b-problem",
+        "target_type_sha256": "sha256:c5ce7570c520daced747e3045c85bdd574afe40897cce40d5a5f7d7c67d90664",
+        "task_bundle_sha256": "sha256:1c1b5373bcd457f86633fd5280f24bc0ae27b24b325f278de9be5af7c6e0a49f",
+        "task_id": "fc-6a786f99-erdos1004-erdos-1004-7a92e7c063-formalized-v1",
+        "task_mode": "formalized"
+      }
+    ],
+    "theorem": "Erdos1004.erdos_1004",
+    "tier": "tier-1"
+  },
+  {
+    "decision_url": null,
+    "pool_status": "held",
+    "reason": "HOLD_STATEMENT_SOURCE_DISCREPANCY (the pinned greedy algorithm may reuse odd denominators, while upstream PR 5806 uses distinct denominators. Admission is suspended pending statement-correspondence review; the target is not solved and not retired. See HOLDS-2026-10-06.md.)",
+    "reason_code": "HOLD_STATEMENT_SOURCE_DISCREPANCY",
+    "recovered_from_commit": "0b8bf749b349f94f016876686bdfc43c7fc459f2",
+    "retired_on": "2026-10-06",
+    "reward_target_id": "fc-target:Erdos282.erdos_282",
+    "source": {
+      "adapter_version": 1,
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Let $A\\subseteq \\mathbb{N}$ be an infinite set and consider the following\ngreedy algorithm for a rational $x\\in (0,1)$: choose the minimal $n\\in A$ such\nthat $n\\geq 1/x$ and repeat with $x$ replaced by $x-\\frac{1}{n}$. If this\nterminates after finitely many steps then this produces a representation of\n$x$ as the sum of distinct unit fractions with denominators from $A$.\n\nDoes this process always terminate if $x$ has odd denominator and $A$ is the\nset of odd numbers? ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.ErdosProblems.«282»",
+      "pointer_target": null,
+      "references": [
+        "[erdosproblems.com/282](https://www.erdosproblems.com/282)"
+      ],
+      "repository_commit": "6a786f997e18e8f095762a2830d191b7e25e505e",
+      "source_path": "FormalConjectures/ErdosProblems/282.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Erdos282.erdos_282",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:cd135cd026b706b808d2bc82d9a0c68331f01bdd960c495dcf9d7b8c84e5fc3d",
+      "type_pretty": "∀ {x : ℚ}, x ∈ Set.Ioo 0 1 → Odd x.den → Erdos282.greedyUnitFractionRem {n | Odd n} x =ᶠ[Filter.atTop] 0"
+    },
+    "tasks": [
+      {
+        "challenge_lean": "import FormalConjectures.ErdosProblems.«282»\nimport TaskSupport\n\nnamespace Bounty\n\ntheorem target : ¬ (fcTypeOfName% \"Erdos282.erdos_282\") := by\n  sorry\n\nend Bounty\n",
+        "problem_id": "fc-6a786f99-erdos282-erdos-282-1bdae61d149a13421deea89398975b5c-problem",
+        "target_type_sha256": "sha256:659efb4ddab5ab8bdc89ffef77e54bf455e97d1efbe43aa223a20563a365776f",
+        "task_bundle_sha256": "sha256:f6a20e3e80aa8f7dfec4f084e000294fc5994bb8b7b098829f2db72c069006e2",
+        "task_id": "fc-6a786f99-erdos282-erdos-282-9abd686ee1-counterexample-v1",
+        "task_mode": "counterexample"
+      },
+      {
+        "challenge_lean": "import FormalConjectures.ErdosProblems.«282»\nimport TaskSupport\n\nnamespace Bounty\n\ntheorem target : fcTypeOfName% \"Erdos282.erdos_282\" := by\n  sorry\n\nend Bounty\n",
+        "problem_id": "fc-6a786f99-erdos282-erdos-282-1bdae61d149a13421deea89398975b5c-problem",
+        "target_type_sha256": "sha256:cd135cd026b706b808d2bc82d9a0c68331f01bdd960c495dcf9d7b8c84e5fc3d",
+        "task_bundle_sha256": "sha256:703b3732ee49cf9bb4018ba21b9a869e817f7480af322d38c3b0a83d465c3d4d",
+        "task_id": "fc-6a786f99-erdos282-erdos-282-02f097749a-formalized-v1",
+        "task_mode": "formalized"
+      }
+    ],
+    "theorem": "Erdos282.erdos_282",
+    "tier": "tier-1"
+  },
+  {
+    "decision_url": null,
+    "pool_status": "held",
+    "reason": "HOLD_STATEMENT_SOURCE_DISCREPANCY (the constant c elaborates as a natural number, not the intended positive real. Admission is suspended pending a decision between retiring the defective statement and admitting a corrected one; the target is not solved and not retired. See HOLDS-2026-10-06.md.)",
+    "reason_code": "HOLD_STATEMENT_SOURCE_DISCREPANCY",
+    "recovered_from_commit": "0b8bf749b349f94f016876686bdfc43c7fc459f2",
+    "retired_on": "2026-10-06",
+    "reward_target_id": "fc-target:Erdos564.erdos_564",
+    "source": {
+      "adapter_version": 1,
+      "ams_subjects": [
+        5
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Let $R_3(n)$ be the minimal $m$ such that if the edges of the $3$-uniform hypergraph on $m$\nvertices are $2$-coloured then there is a monochromatic copy of the complete $3$-uniform\nhypergraph on $n$ vertices.\n\nIs there some constant $c>0$ such that\n$$ R_3(n) \\geq 2^{2^{cn}}? $$\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.ErdosProblems.«564»",
+      "pointer_target": null,
+      "references": [
+        "[erdosproblems.com/564](https://www.erdosproblems.com/564)"
+      ],
+      "repository_commit": "6a786f997e18e8f095762a2830d191b7e25e505e",
+      "source_path": "FormalConjectures/ErdosProblems/564.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Erdos564.erdos_564",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:9d83ba030098650ee699b48e716cdf5f446226673c02b02f5b9e6af5c7e5b092",
+      "type_pretty": "True ↔ ∃ c > 0, ∀ᶠ (n : ℕ) in Filter.atTop, 2 ^ 2 ^ (c * n) ≤ ↑(Combinatorics.hypergraphRamsey 3 n)"
+    },
+    "tasks": [
+      {
+        "challenge_lean": "import FormalConjectures.ErdosProblems.«564»\nimport TaskSupport\n\nnamespace Bounty\n\ntheorem target : ¬ (fcTypeOfName% \"Erdos564.erdos_564\") := by\n  sorry\n\nend Bounty\n",
+        "problem_id": "fc-6a786f99-erdos564-erdos-564-32dc5d2fab51c360f797cff51a81ad0d-problem",
+        "target_type_sha256": "sha256:654c69210ff664b296c7f53a80db7bd3790f91f5d4b76501fef2fab9df6cf611",
+        "task_bundle_sha256": "sha256:0336dfd35d54f8838fff455c7804ae40fac0a61a7216c9f77315956c1ecf2bac",
+        "task_id": "fc-6a786f99-erdos564-erdos-564-09d0314cd9-counterexample-v1",
+        "task_mode": "counterexample"
+      },
+      {
+        "challenge_lean": "import FormalConjectures.ErdosProblems.«564»\nimport TaskSupport\n\nnamespace Bounty\n\ntheorem target : fcTypeOfName% \"Erdos564.erdos_564\" := by\n  sorry\n\nend Bounty\n",
+        "problem_id": "fc-6a786f99-erdos564-erdos-564-32dc5d2fab51c360f797cff51a81ad0d-problem",
+        "target_type_sha256": "sha256:9d83ba030098650ee699b48e716cdf5f446226673c02b02f5b9e6af5c7e5b092",
+        "task_bundle_sha256": "sha256:5ef1d5a6fd6c1eb380584db655cae42658846d5b07116b6a09e2f772dc5b3bf7",
+        "task_id": "fc-6a786f99-erdos564-erdos-564-40c2a6ce1e-formalized-v1",
+        "task_mode": "formalized"
+      }
+    ],
+    "theorem": "Erdos564.erdos_564",
+    "tier": "tier-1"
+  }
+]

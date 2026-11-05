@@ -1,0 +1,12 @@
+{
+  "bundles": 1108,
+  "deployment_allowed": false,
+  "new_problem_numbers": 199,
+  "new_targets": 264,
+  "reinstated": [
+    "Erdos1004.erdos_1004",
+    "Erdos282.erdos_282",
+    "Erdos564.erdos_564"
+  ],
+  "total_targets": 554
+}

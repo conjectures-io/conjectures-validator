@@ -46,6 +46,7 @@ from conjectures_subnet.db import public as public_store
 from submission_api import conditional, conjectures, credits as credit_config, tmc_pay
 from submission_api import schemas_account as account_schemas, schemas_public as public
 from submission_api.conjectures import Conjecture, ConjectureIndex
+from submission_api.problem_context import problem_summary
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound, ServiceUnavailable
 from submission_api.pagination import SnapshotLimit, SnapshotOffset, window
@@ -327,7 +328,7 @@ def _summary(
         title_parts=public.TitleParts.of(name),
         title=conjectures.title(item),
         statement=item.source.type_pretty,
-        summary=item.source.docstring,
+        summary=problem_summary(item.source.theorem, item.source.docstring),
         category=item.source.category,
         classification=item.classification,
         task_modes=item.task_modes,
@@ -655,7 +656,7 @@ async def read_conjecture(
         title_parts=public.TitleParts.of(name),
         title=conjectures.title(item),
         statement=item.source.type_pretty,
-        summary=item.source.docstring,
+        summary=problem_summary(item.source.theorem, item.source.docstring),
         category=item.source.category,
         classification=item.classification,
         task_modes=item.task_modes,

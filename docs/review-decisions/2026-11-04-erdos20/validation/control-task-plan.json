@@ -1,0 +1,33 @@
+{
+  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "tasks": [
+    {
+      "task_id": "fc-v2-parts-iii-49f22ba83b357fef758bdcbd-formalized",
+      "theorem": "Erdos12.erdos_12.parts.iii",
+      "mode": "formalized",
+      "location": "versions/fc-v2-parts-iii-49f22ba83b357fef758bdcbd-formalized",
+      "build_provenance_sha256": "sha256:cc5704d506cf49660506dc5d7fdbd5a9a2e4d050c48c51a24d39a1ddab5912ea"
+    },
+    {
+      "task_id": "fc-v2-parts-iii-028188bd9c57a2ebbdd7f1bd-counterexample",
+      "theorem": "Erdos12.erdos_12.parts.iii",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-parts-iii-028188bd9c57a2ebbdd7f1bd-counterexample",
+      "build_provenance_sha256": "sha256:cc5704d506cf49660506dc5d7fdbd5a9a2e4d050c48c51a24d39a1ddab5912ea"
+    },
+    {
+      "task_id": "fc-v2-erdos5-erdos-5-ca7506f55b2e3fe2c78a19c8-formalized",
+      "theorem": "Erdos5.erdos_5",
+      "mode": "formalized",
+      "location": "versions/fc-v2-erdos5-erdos-5-ca7506f55b2e3fe2c78a19c8-formalized",
+      "build_provenance_sha256": "sha256:9207090bd125ef6c1d473ff7b43ba67021f1ded6327741eb352543ca5224ec5b"
+    },
+    {
+      "task_id": "fc-v2-erdos5-erdos-5-c46ab1db55d0618675fc31c5-counterexample",
+      "theorem": "Erdos5.erdos_5",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-erdos5-erdos-5-c46ab1db55d0618675fc31c5-counterexample",
+      "build_provenance_sha256": "sha256:9207090bd125ef6c1d473ff7b43ba67021f1ded6327741eb352543ca5224ec5b"
+    }
+  ]
+}

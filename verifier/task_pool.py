@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -22,14 +22,14 @@ from verifier.task_policy import (
 
 # Version 9 adds `held_source_theorems_sha256` to every tier policy.
 TASK_POOL_SCHEMA_VERSION = 9
-SELECTION_AUDIT_SCHEMA_VERSION = 2
+SELECTION_AUDIT_SCHEMA_VERSION = 3
 TASK_GROUP_SCHEMA_VERSION = 1
 TASK_TARGET_SCHEMA_VERSION = 3
 RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 289
+DEFAULT_TIER_SIZE = 309
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = 218
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
@@ -321,6 +321,7 @@ class SelectionAudit:
     github_open_pr_count: int
     entries: tuple[AuditedSelectionEntry, ...]
     sha256: str
+    reviewed_type_hashes: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def theorems(self) -> tuple[str, ...]:
@@ -462,10 +463,13 @@ def _valid_source_status_sources(value: object, required_families: set[str] | No
 
 
 def load_selection_audit(path: Path) -> SelectionAudit:
+    reviewed_type_hashes: dict[str, str] = {}
     try:
         content = path.read_bytes()
         value = json.loads(content.decode("utf-8", errors="strict"))
-        if not isinstance(value, dict) or set(value) != {
+        if not isinstance(value, dict):
+            raise ValueError("selection audit must be an object")
+        expected_fields = {
             "audit_date_utc",
             "github_open_pr_count",
             "repository_commit",
@@ -475,13 +479,16 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             "source_main_commit",
             "source_repository",
             "source_status_sources",
-        }:
+        }
+        if value.get("schema_version") == 3:
+            expected_fields.add("target_status_audit_sha256")
+        if set(value) != expected_fields:
             raise ValueError("selection audit field set is not exact")
         audit_date_utc = value["audit_date_utc"]
         selected = value["selected"]
         if (
             type(value["schema_version"]) is not int
-            or value["schema_version"] != SELECTION_AUDIT_SCHEMA_VERSION
+            or value["schema_version"] not in {2, SELECTION_AUDIT_SCHEMA_VERSION}
             or not _is_commit(value["repository_commit"])
             or not _is_commit(value["source_main_commit"])
             or value["source_repository"] != "google-deepmind/formal-conjectures"
@@ -561,6 +568,47 @@ def load_selection_audit(path: Path) -> SelectionAudit:
             raise ValueError("selection audit entries are invalid")
         if any(staged_research_target(entry.theorem, entry.source_path) for entry in entries):
             raise ValueError("selection audit names a staged research target without activation")
+        if value["schema_version"] == 3:
+            # Parent problem status may be closed while a specific part remains open.
+            # Bind that distinction to the reviewed target, not merely its problem number.
+            evidence_bytes = path.with_name("erdos-admission-audit.json").read_bytes()
+            if sha256_bytes(evidence_bytes) != value["target_status_audit_sha256"]:
+                raise ValueError("target status evidence digest does not match")
+            evidence = json.loads(evidence_bytes)
+            retained = evidence["retained_selection"]
+            reviewed = evidence["targets"]
+            if (type(evidence["schema_version"]) is not int or evidence["schema_version"] != 1
+                or evidence["repository_commit"] != value["repository_commit"]
+                or evidence["upstream_commit"] != value["source_main_commit"]
+                or not isinstance(retained, list) or not isinstance(reviewed, list)):
+                raise ValueError("invalid target status evidence")
+            if (not all(isinstance(row, dict) for row in retained + reviewed)
+                or len({row["theorem"] for row in reviewed}) != len(reviewed)):
+                raise ValueError("target reviews must be unique objects")
+            admitted = [row for row in reviewed if row["decision"] == "eligible"]
+            retained_by_name = {row["theorem"]: row for row in retained}
+            admitted_by_name = {row["theorem"]: row for row in admitted}
+            if (len(retained_by_name) != len(retained) or len(admitted_by_name) != len(admitted)
+                or retained_by_name.keys() & admitted_by_name.keys()
+                or {entry.theorem for entry in entries} != retained_by_name.keys() | admitted_by_name.keys()):
+                raise ValueError("selection differs from reviewed target set")
+            for row in selected:
+                name = row["theorem"]
+                if name in retained_by_name:
+                    if row != retained_by_name[name]:
+                        raise ValueError("retained selection changed without a new target review")
+                else:
+                    target = admitted_by_name[name]
+                    if (row["source_family"] != ERDOS_SOURCE_FAMILY
+                        or row["source_path"] != target["source_path"]
+                        or row["source_problem_number"] != target["number"]
+                        or row["source_status"] != target["target_source_status"]
+                        or not target["review_note"] or not target["references"]):
+                        raise ValueError("selection differs from target-specific status evidence")
+                    digest = target["production_type_sha256"]
+                    if not isinstance(digest, str) or re.fullmatch(r"sha256:[0-9a-f]{64}", digest) is None:
+                        raise ValueError("invalid reviewed production type hash")
+                    reviewed_type_hashes[name] = digest
         named_entries = tuple(
             entry for entry in entries if entry.source_family in CLASSICAL_SOURCE_FAMILIES
         )
@@ -650,7 +698,7 @@ def load_selection_audit(path: Path) -> SelectionAudit:
                 raise ValueError(
                     "selection audit names a research target the matrix does not activate"
                 )
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError, TypeError) as exc:
         raise VerifierError(
             ReasonCode.INVALID_ARGUMENT,
             f"cannot load task-pool selection audit: {exc}",
@@ -662,6 +710,7 @@ def load_selection_audit(path: Path) -> SelectionAudit:
         github_open_pr_count=value["github_open_pr_count"],
         entries=entries,
         sha256=sha256_bytes(content),
+        reviewed_type_hashes=reviewed_type_hashes,
     )
 
 
@@ -1118,6 +1167,10 @@ def select_task_declarations(
                 ReasonCode.THEOREM_NOT_FOUND,
                 f"audited task theorem is missing from the pinned catalog: {entry.theorem}",
             )
+        reviewed_hash = selection_audit.reviewed_type_hashes.get(target.theorem)
+        if reviewed_hash is not None and reviewed_hash != declaration.type_hash:
+            raise VerifierError(ReasonCode.SOURCE_TYPE_CHANGED,
+                                f"reviewed target type differs from catalog: {target.theorem}")
         eligible, violations, _collisions = production_eligibility(
             catalog,
             declaration,

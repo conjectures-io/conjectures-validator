@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-17acb876-parts-iii-1d0f949c3e8fbf666132541304886268-problem",
+  "task_id": "fc-v2-parts-iii-49f22ba83b357fef758bdcbd-formalized",
+  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "source_theorem": "Erdos12.erdos_12.parts.iii",
+  "task_mode": "formalized",
+  "task_bundle_sha256": "sha256:181aa02ffebf86cc3f19a77168a6f998d1a0aff042582f805c16c19d82c5ad11",
+  "submission_sha256": "sha256:aac896c61dc324a227ed7d02fc74a78505dd7bd77cfe0f190f25196f2cc2bdc1",
+  "accepted": false,
+  "stage": "STATIC_POLICY_CHECK",
+  "reason_code": "SUBMISSION_POLICY_VIOLATION",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": false,
+    "source_type_hash_valid": false,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": false,
+    "challenge_built": false,
+    "solution_built": false,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 428,
+  "comparator_exit_code": null,
+  "stdout_tail": "",
+  "stderr_tail": "source declaration dependency is prohibited: Erdos12.erdos_12.parts.iii",
+  "workspace_retained": false,
+  "sandbox_mode": "not-started",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "Erdos12-erdos_12-parts-iii-formalized-source-placeholder",
+  "passed": true,
+  "seconds": 0.43
+}

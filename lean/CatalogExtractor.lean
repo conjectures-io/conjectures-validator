@@ -193,9 +193,19 @@ unsafe def extractCatalog (modules : Array Name) : CoreM Json := do
         | .recInfo _ => "recursor"
       let pointer := if declarationKind == "theorem" then pointerTarget? environment name info.value? else none
       let (initialClassification, constructors) ← MetaM.run' (classify declarationKind info.type info.value?)
-      let classification := if pointer.isSome then "POINTER_DECLARATION" else initialClassification
+      let questionKind ← getQuestionKind? name
+      let valueQuestion := questionKind == some .value
+      let classification := if valueQuestion then "GENERAL_VALUE_ANSWER"
+        else if pointer.isSome then "POINTER_DECLARATION" else initialClassification
       let answerExpressions := findAnswerExprs info.type
       let axioms ← collectAxioms name
+      -- New upstream value questions use named `.answer` definitions. Looking
+      -- only for a literal sorry in the type misses those and other transitive
+      -- placeholders, so inspect every constant referenced by the type.
+      let mut typeDependsOnSorry := info.type.hasSorry
+      for dependency in info.type.getUsedConstants do
+        if (← collectAxioms dependency).contains ``sorryAx then
+          typeDependsOnSorry := true
       let dependsOnSorry := axioms.contains ``sorryAx
       let answerJson ← MetaM.run' <| answerExpressions.mapM answerDescription
       let formalProof := formalProofs.get? name
@@ -214,9 +224,9 @@ unsafe def extractCatalog (modules : Array Name) : CoreM Json := do
         ("declaration_kind", toJson declarationKind),
         ("type_pretty", toJson typePretty),
         ("type_canonical", toJson typeCanonical),
-        ("contains_answer_annotation", toJson (!answerExpressions.isEmpty)),
+        ("contains_answer_annotation", toJson (valueQuestion || !answerExpressions.isEmpty)),
         ("answer_occurrences", toJson answerJson),
-        ("contains_sorry_in_type", toJson info.type.hasSorry),
+        ("contains_sorry_in_type", toJson typeDependsOnSorry),
         ("contains_sorry_in_value", toJson (info.value?.any (·.hasSorry))),
         ("depends_on_sorry", toJson dependsOnSorry),
         ("transitive_axioms", toJson (axioms.qsort Name.lt |>.toList.map (·.toString))),

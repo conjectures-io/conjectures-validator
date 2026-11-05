@@ -1,0 +1,41 @@
+{
+  "adapter_version": 2,
+  "answer_policy": {},
+  "challenge_module": "Challenge",
+  "classification": "DIRECT_PROP",
+  "definition_names": [],
+  "enable_nanoda": false,
+  "forbidden_dependencies": [
+    "VerifierCounterexampleFixtures.falseUniversal"
+  ],
+  "generated_target_type_hash": "sha256:bf8e1e5e7278334f5bc8d573f259f6942b3b699eaba0de940bfbedcc839fedc9",
+  "known_proof_collisions": [],
+  "max_submission_bytes": 31457280,
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "production_eligible": true,
+  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "schema_version": 1,
+  "solution_module": "Solution",
+  "source_module": "TestFixtures.Counterexample",
+  "source_path": "lean/TestFixtures/Counterexample.lean",
+  "source_theorem": "VerifierCounterexampleFixtures.falseUniversal",
+  "source_type_hash": "sha256:9adda9f2b759ae4098623222265d5d832790ddbc381900885eb494ca0a947620",
+  "target_theorem": "Bounty.target",
+  "task_id": "fc-17acb876-verifiercounterexamplefixtures-falseuniversal-4a9cd209af-counterexample-v2",
+  "task_mode": "counterexample",
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "timeout_seconds": 14400,
+  "trusted_file_hashes": {
+    "Challenge.lean": "sha256:643dced801fdbe73eae35569cd3627091f69adda0f898991c17d6f4b44a59a8e",
+    "SolutionFooter.lean.txt": "sha256:0eed8ce76c1cdb94613104059cf4e58d4d7860cc95bd85c234db2d73534a5fb9",
+    "SolutionHeader.lean.txt": "sha256:47eb8851fee24f2b4e4861e7c89138f53276c41cfc9c2ad38643328d20144f99",
+    "comparator-config.json": "sha256:7415f4e04c714829831824c8f31215983d0eafa25064418d4833de03e850bbf6",
+    "source-metadata.json": "sha256:d8181d5a9af77b4cd49e137c42999e2032c885f3e9665eacf54c3db24915c492"
+  }
+}

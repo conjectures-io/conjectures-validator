@@ -1,0 +1,22 @@
+{
+  "prepared_only": true,
+  "deployment_performed": false,
+  "pushed": false,
+  "tasks_commit": "a3210433479c94a9c87fca136d435cb6495abfca",
+  "validator_base_commit": "f1e877f187004fd8d058c1c33aeb8f55a699ecf0",
+  "formal_conjectures": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+    "base_commit": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
+    "commit": "6cd829f0ab173b10c8d375642f7564729ee29bc9",
+    "patch_sha256": "d8b976c3a914cc605fa1d4786477556b51d740ac822ce91aa39bebdc38ad56b6"
+  },
+  "lean": {
+    "toolchain": "leanprover/lean4:v4.35.0-rc2",
+    "commit": "11acb17ec6b07a8f9e9173e6845197929540936b"
+  },
+  "mathlib": {
+    "repository": "https://github.com/leanprover-community/mathlib4.git",
+    "commit": "065356127b1dc0016f66b7283ce0ce2c4055aa55"
+  },
+  "environment_identity_sha256": "sha256:99d8786c19a5df8bd927a0735e11c39cd40849596933134f685ed74f0b43b3f2"
+}
