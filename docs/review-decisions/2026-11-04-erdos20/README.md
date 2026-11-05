@@ -1,4 +1,4 @@
-# Twenty Erdős problems, including the full context for #12
+# Twenty Erdős problems, including #12(iii)
 
 Prepared batch: 5, 7, 12, 13, 19, 21, 49, 59, 60, 65, 70, 78, 80, 86, 87,
 94, 102, 103, 104, and 111. One reviewed reward target per number is selected.
@@ -10,8 +10,8 @@ retained and 20 additions. This document alone is not evidence of deployment.
 
 Parts (i) and (ii) are already solved, with answers yes and no respectively.
 The current upstream Formal Conjectures file still marks part (iii) open.
-The public listing includes all three questions and their statuses; only the
-remaining reciprocal-summability question is the active reward target.
+The public listing shows only part (iii), the remaining reciprocal-summability
+question and active reward target.
 
 The July 30 Libertas claim is not a valid unconditional proof of part (iii).
 The currently published `lemma_block_decomposition.lean` declares

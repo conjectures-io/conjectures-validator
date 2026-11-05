@@ -470,7 +470,7 @@ def test_the_detail_serves_the_audited_challenge_and_the_machine_contract():
     run(scenario())
 
 
-def test_erdos12_lists_all_questions_but_rewards_only_the_open_part():
+def test_erdos12_lists_and_rewards_only_the_open_part():
     async def scenario():
         theorem = "Erdos12.erdos_12.parts.iii"
         entry = task_entry(
@@ -489,14 +489,15 @@ def test_erdos12_lists_all_questions_but_rewards_only_the_open_part():
             assert detail.status_code == 200
             body = detail.json()
             assert row["summary"] == body["summary"]
-            for status in ("Solved: yes.", "Solved: no.", "Open."):
-                assert status in body["summary"]
+            assert "12(iii)" in body["summary"]
+            assert "Open." in body["summary"]
+            assert "Solved:" not in body["summary"]
             assert body["reward_target_id"] == f"fc-target:{theorem}"
             assert body["source_theorem"] == theorem
             assert body["statement"] == entry.source.type_pretty
             assert len(body["tasks"]) == 1
             assert body["tasks"][0]["challenge_lean"] == CHALLENGE_LEAN
-            search = await _get(kit, "/v1/catalog/conjectures?q=DeepMind")
+            search = await _get(kit, "/v1/catalog/conjectures?q=converge")
             assert [item["slug"] for item in search.json()["items"]] == [row["slug"]]
         finally:
             await kit.teardown()
