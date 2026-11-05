@@ -1,0 +1,10 @@
+✔ [4483/4802] Built TestFixtures.CatalogSafety (1.5s)
+✔ [6056/6316] Built TaskInspector (1.9s)
+✔ [6609/6861] Built CatalogExtractor (2.1s)
+✔ [7805/8024] Built TaskInspector:c.o (707ms)
+✔ [8248/8475] Built FormalConjecturesUtil.Attributes.Basic:c.o (2.8s)
+✔ [8965/8969] Built CatalogExtractor:c.o (1.3s)
+✔ [8967/8969] Built task_inspector:exe (2.3s)
+✔ [8968/8969] Built catalog_extractor:exe (1.7s)
+✔ [8969/8969] Built TestFixtures.Counterexample (5.6s)
+Build completed successfully (8969 jobs).

@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-6cd829f0-verifiercounterexamplefixtures-falseuniversal-19518a3137374755b18326057d95c708-problem",
+  "task_id": "fc-6cd829f0-verifiercounterexamplefixtures-falseuniversal-f0b5c2337a-counterexample-v2",
+  "repository_commit": "6cd829f0ab173b10c8d375642f7564729ee29bc9",
+  "source_theorem": "VerifierCounterexampleFixtures.falseUniversal",
+  "task_mode": "counterexample",
+  "task_bundle_sha256": "sha256:144c3af87ae01edd197df0d7016b3d20b451bebb1918b6c4272cb2f1122cf3f5",
+  "submission_sha256": "sha256:8142e34add60ee18332b5e6ccac1c1a74ff72d8d1946df2accbbbc688e0ffba4",
+  "accepted": true,
+  "stage": "COMPLETED",
+  "reason_code": "VERIFIED",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": true,
+    "source_type_hash_valid": true,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": true,
+    "challenge_built": true,
+    "solution_built": true,
+    "same_statement": true,
+    "axioms_permitted": true,
+    "lean_kernel_passed": true,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 97833,
+  "comparator_exit_code": 0,
+  "stdout_tail": "Building Challenge\n\u26a0 [8939/8940] Replayed Challenge\nwarning: Challenge.lean:7:8: declaration uses `sorry`\nBuild completed successfully (8940 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Challenge\nBuilding Solution\n\u2714 [8939/8940] Built Solution (8.6s)\nBuild completed successfully (8940 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Solution\nRunning Lean default kernel on solution.\nLean default kernel accepts the solution\nYour solution is okay!\n",
+  "stderr_tail": "",
+  "workspace_retained": false,
+  "sandbox_mode": "landrun+seccomp",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "positive-counterexample",
+  "passed": true,
+  "seconds": 97.843
+}

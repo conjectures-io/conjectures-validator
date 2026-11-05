@@ -1,0 +1,53 @@
+{
+  "passed": true,
+  "new_targets": 264,
+  "new_numbered_problems": 199,
+  "active_targets": 554,
+  "active_bundles": 1108,
+  "new_bundle_versions": 1044,
+  "preserved_historical_versions": 1681,
+  "historical_bundle_bytes_unchanged": true,
+  "old_admissions_preserved": true,
+  "existing_target_types_and_rewards_preserved": true,
+  "production_environment_unchanged": true,
+  "duplicate_active_type_hashes": 0,
+  "rejected_targets_not_admitted": 218,
+  "routing": [
+    {
+      "instance": {
+        "environment_identity_sha256": null,
+        "repository_commit": "8432eac998110a563e03df65a28c117e97c8c142"
+      },
+      "served": 1
+    },
+    {
+      "instance": {
+        "environment_identity_sha256": "sha256:8e1c89cfb88c234df0b44d1a844fbafbcdc154d3a8b679eedb39dec15f2373e0",
+        "repository_commit": "4b69a7dca3e731dd1f28cb523b9ebd2ea32527f4"
+      },
+      "served": 550
+    },
+    {
+      "instance": {
+        "environment_identity_sha256": "sha256:99d8786c19a5df8bd927a0735e11c39cd40849596933134f685ed74f0b43b3f2",
+        "repository_commit": "4b69a7dca3e731dd1f28cb523b9ebd2ea32527f4"
+      },
+      "served": 1098
+    },
+    {
+      "instance": {
+        "environment_identity_sha256": "sha256:99d8786c19a5df8bd927a0735e11c39cd40849596933134f685ed74f0b43b3f2",
+        "repository_commit": "1ccfff4d629fe099ad8102f1ce0a97566f342edc"
+      },
+      "served": 580
+    },
+    {
+      "instance": {
+        "environment_identity_sha256": "sha256:99d8786c19a5df8bd927a0735e11c39cd40849596933134f685ed74f0b43b3f2",
+        "repository_commit": "6cd829f0ab173b10c8d375642f7564729ee29bc9"
+      },
+      "served": 1108
+    }
+  ],
+  "deployment_performed": false
+}

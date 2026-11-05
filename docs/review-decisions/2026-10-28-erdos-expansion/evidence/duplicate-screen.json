@@ -1,0 +1,79 @@
+{
+  "new_targets": 264,
+  "baseline_catalog_declarations": 5247,
+  "production_catalog_declarations": 2300,
+  "exact_type_hash_collisions": [],
+  "semantic_duplicates_excluded": [
+    {
+      "theorem": "Erdos5.erdos_5.variants.dense",
+      "duplicate_of": "Erdos5.erdos_5",
+      "reason": "The dense and limit-point formulations describe the same limit-point question."
+    },
+    {
+      "theorem": "Erdos5.erdos_5.variants.limit_point_set",
+      "duplicate_of": "Erdos5.erdos_5",
+      "reason": "The limit-point set formulation is equivalent to the retained main question."
+    },
+    {
+      "theorem": "Erdos125.erdos_125.variants.zero_density",
+      "duplicate_of": "Erdos125.erdos_125.variants.positive_upper_density",
+      "reason": "Zero density is the negation of existence of a positive-upper-density example; counterexample mode already covers the opposite answer."
+    },
+    {
+      "theorem": "Erdos125.erdos_125.variants.zero_lower_positive_upper_density",
+      "duplicate_of": "Erdos125.erdos_125.variants.positive_upper_density",
+      "reason": "The lower density is already known to be zero; the conjunction adds only the same positive-upper-density question."
+    },
+    {
+      "theorem": "Erdos162.erdos_162",
+      "duplicate_of": "Erdos563.erdos_563",
+      "reason": "Both ask the balanced-colouring threshold asymptotic. The 162 source corrects largest to smallest; retain the clearer threshold encoding in 563."
+    },
+    {
+      "theorem": "Erdos252.erdos_252.variants.k_ge_five",
+      "duplicate_of": "Erdos252.erdos_252",
+      "reason": "The remaining k>=5 cases are the entire open content of the already retired all-k target, since k=1..4 are known. The September 8 claim explicitly covers every k>=1. Do not reopen the retired problem through this variant."
+    },
+    {
+      "theorem": "Erdos596.erdos_596.variants.K4_K3_exceptional_iff",
+      "duplicate_of": "Erdos595.erdos_595",
+      "reason": "Source explicitly identifies this as the exceptional-pair reformulation of 595. Preserve the earlier retirement instead of reopening it through an alias."
+    },
+    {
+      "theorem": "Erdos694.erdos_694.variants.carmichael",
+      "duplicate_of": "CarmichaelTotient.charmichaelTotient",
+      "reason": "A uniquely represented positive totient is precisely a counterexample to the existing Carmichael target."
+    },
+    {
+      "theorem": "Erdos813.erdos_813",
+      "duplicate_of": "Erdos813.erdos_813.variants.upper",
+      "reason": "The lower half is a known result; the remaining open content is exactly the separately retained upper bound."
+    },
+    {
+      "theorem": "Erdos918.erdos_918.variants.all_subgraphs.parts.i",
+      "duplicate_of": "Erdos918.erdos_918.parts.i",
+      "reason": "A colouring of an induced graph restricts to every subgraph on the same vertices, and induced graphs are subgraphs."
+    },
+    {
+      "theorem": "Erdos918.erdos_918.variants.all_subgraphs.parts.ii",
+      "duplicate_of": "Erdos918.erdos_918.parts.ii",
+      "reason": "Induced versus arbitrary subgraph formulations are equivalent by chromatic monotonicity."
+    },
+    {
+      "theorem": "Erdos1087.erdos_1087",
+      "duplicate_of": "FullOldProblemsCatalog.ErdosPurdyDegenerateQuadruples.conjecture",
+      "reason": "Already admitted as the full Erdos-Purdy degenerate-quadruple question; big-O constants are absorbed into epsilon."
+    },
+    {
+      "theorem": "Erdos1169.erdos_1169.variants.finite_blue_target",
+      "duplicate_of": "Erdos1169.erdos_1169",
+      "reason": "The k=3 negative arrow implies every k>=3, and the quantified variant includes k=3."
+    },
+    {
+      "theorem": "Erdos1174.erdos_1174.parts.i",
+      "duplicate_of": "Erdos595.erdos_595",
+      "reason": "A graph not a countable union of triangle-free graphs is equivalently a graph whose every countable edge-colouring has a monochromatic triangle. Do not reopen the retired 595 target through an alias."
+    }
+  ],
+  "limitations": "Different expressions can denote equivalent questions; exact hashes supplement the documented manual semantic review and do not prove absence of all equivalences."
+}

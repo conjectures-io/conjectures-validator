@@ -1,0 +1,46 @@
+bringing up nodes...
+bringing up nodes...
+
+sssss..ss.sssssssssss.....ssssssssssssssssssssssssssssssssssssssssssssss [  3%]
+sssssssssssssssssssssssssssss........sssssssssssssssssssssssssssssssssss [  6%]
+sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss... [  9%]
+..............ssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 12%]
+ssssssssssssssssssssssssssssssssssssss....sss........................... [ 15%]
+sssss...............sssssssssssssssssssssss.............ssss............ [ 18%]
+..............ssssssssssssssssssssssssssssssssssssssssssssssssssssss.... [ 21%]
+...........sssssssssssssssssssssssssss..................ssssssssssss.... [ 24%]
+......sssss............ssssssss......sss....sssssssssssssssssssssss.ssss [ 27%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 30%]
+sssssssssssssssss...........................ssssssssssssssssssssssssssss [ 33%]
+ssssss..............ssssssssssssssssssssssssssssss....s................. [ 36%]
+..............ssss..ssssssssssssssssssssssssssssssssssssssssssssssssssss [ 39%]
+s.sss................................................................... [ 42%]
+..................s.sssssssss.............ssssssssssss.sssssssss........ [ 45%]
+........................................................................ [ 48%]
+...........ssss.s....................................................... [ 51%]
+.......................................................................s [ 54%]
+.............sss..................................ssss.s..ssss.sss...... [ 57%]
+.............ssssss.s.s.s..................................ssssssssssss. [ 60%]
+.ssssss.ssssss.........................ssss.ssssss...................... [ 63%]
+.......................................................sssssss.......... [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+..sssssssss............................................................. [ 75%]
+........................................................................ [ 78%]
+..............................................................ssssssss.. [ 81%]
+........................................................................ [ 85%]
+...................sssssssssssssssssssssssssssssss.....sssssssssssssssss [ 88%]
+sssssssssssssssssss..................ss.ss.............................. [ 91%]
+sss..................................................................... [ 94%]
+...............sssssssss................................................ [ 97%]
+..................................................................s      [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/starlette/testclient.py:53
+.venv/lib/python3.11/site-packages/starlette/testclient.py:53
+.venv/lib/python3.11/site-packages/starlette/testclient.py:53
+.venv/lib/python3.11/site-packages/starlette/testclient.py:53
+  /root/.codex/worktrees/erdos-20-with-12/conjectures-validator/.venv/lib/python3.11/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1490 passed, 882 skipped, 4 warnings in 46.41s

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "elan": {
+    "repository": "https://github.com/leanprover/elan.git",
+    "commit": "b6cec7e10fe4965a605aaf60d1cb4a5837f0462b",
+    "version": "4.2.3",
+    "assets": {
+      "aarch64-apple-darwin": "7cae4c03b2f0de4053fb04a91359d5804551e6e37a6ddd1b2e0097dc561ae4a9",
+      "aarch64-unknown-linux-gnu": "cb69af0803b04157bc30201c29c12fca882bb3ad8b43476b8d2d3064810bc3ac",
+      "x86_64-apple-darwin": "10d037a69731c0593723e018130c5f54afde175796b4af8ba1317e561e55598c",
+      "x86_64-unknown-linux-gnu": "df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2"
+    }
+  },
+  "formal_conjectures": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+    "base_commit": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
+    "commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+    "patch_sha256": "37bde332c8a0951fd954b0317aee440b88940fa82cf01c65bcbd073af3b0f881"
+  },
+  "tasks": {
+    "repository": "https://github.com/conjectures-io/conjectures-tasks.git",
+    "commit": "c175c9dea1a3348adeb16ee6cbc29f11e8541e2b"
+  },
+  "lean": {
+    "toolchain": "leanprover/lean4:v4.35.0-rc2",
+    "commit": "11acb17ec6b07a8f9e9173e6845197929540936b"
+  },
+  "mathlib": {
+    "repository": "https://github.com/leanprover-community/mathlib4.git",
+    "commit": "065356127b1dc0016f66b7283ce0ce2c4055aa55"
+  },
+  "comparator": {
+    "repository": "https://github.com/leanprover/comparator.git",
+    "commit": "32bd61da1d68fbaa310234964e9b820b03a0f82f"
+  },
+  "lean4export": {
+    "repository": "https://github.com/leanprover/lean4export.git",
+    "commit": "6cea97789dc088ea47fcea15692db85685aedac5"
+  },
+  "landrun": {
+    "repository": "https://github.com/Zouuup/landrun.git",
+    "commit": "5ed4a3db3a4ad930d577215c6b9abaa19df7f99f"
+  },
+  "nanoda": {
+    "repository": "https://github.com/ammkrn/nanoda_lib.git",
+    "commit": "f58f2f6d535e189a40fcb02ede8eb95f97a92d37",
+    "enabled": false
+  }
+}
