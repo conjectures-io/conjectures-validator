@@ -126,6 +126,24 @@ def cell_times(rows):
     return {name: s.TorchLeanCellTime(ns=row[0], checksum=row[1]) for name, row in rows.items()}
 
 
+def stopped_round(value):
+    """The stopped round's cells, as (`round_in_progress`, `round_in_progress_samples`).
+
+    A worker that runs each side once per round keeps `{side: {cell: [ns, checksum]}}`. One that
+    times every input separately keeps `{side: [{cell: [ns, checksum]}, ...]}`, one entry per
+    input the side had finished. Both are read; neither shape may fail the whole report.
+    """
+    if not isinstance(value, dict):
+        return None, None
+    whole = {side: cell_times(rows) for side, rows in value.items() if isinstance(rows, dict)}
+    samples = {
+        side: [cell_times(sample) for sample in rows if isinstance(sample, dict)]
+        for side, rows in value.items()
+        if isinstance(rows, list)
+    }
+    return (whole if whole or not samples else None), (samples or None)
+
+
 def evaluation(row):
     return s.TorchLeanEvaluation(
         **{k: row[k] for k in s.TorchLeanEvaluation.model_fields if k not in ("decision", "jobs")},
@@ -410,6 +428,7 @@ async def report(session, sid):
             partial = j["partial"] if isinstance(j["partial"], dict) else {}
             measured = value or partial
             stopped = j["timeout"] if isinstance(j["timeout"], dict) else {}
+            in_progress, in_progress_samples = stopped_round(partial.get("round_in_progress"))
             # A stale payload on a failed job remains diagnostic evidence, never a fresh score.
             diagnostic = next(
                 (
@@ -459,12 +478,8 @@ async def report(session, sid):
                     guards=diagnostic.get("guards"),
                     timeout=timeout(j["timeout"]),
                     calibration=partial.get("calibration"),
-                    round_in_progress={
-                        side: cell_times(rows)
-                        for side, rows in partial["round_in_progress"].items()
-                    }
-                    if isinstance(partial.get("round_in_progress"), dict)
-                    else None,
+                    round_in_progress=in_progress,
+                    round_in_progress_samples=in_progress_samples,
                     finished=cell_times(stopped.get("finished")),
                     evidence_truncated=j["truncated"],
                 )
