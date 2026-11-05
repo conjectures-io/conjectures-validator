@@ -577,8 +577,51 @@ def test_a_timed_out_entry_reports_its_timeout_and_what_it_measured(database):
     assert measured["round_in_progress"] == {
         "candidate": {"mlp:b1:normal": {"ns": 300, "checksum": 7}}
     }
+    assert measured["round_in_progress_samples"] is None
     assert measured["finished"] == {}
     assert measured["evidence_truncated"] is False
+
+
+def test_a_timed_out_entry_timed_per_input_reports_each_finished_input(database):
+    # A worker that times every input separately keeps a list of inputs per side for the stopped
+    # round. The report must read it, not fail with a 500.
+    configure(database)
+    sid, sha = submit(database, "too-slow-per-input")
+    eid = evaluate(database, sid)
+    decide(
+        database,
+        eid,
+        outcome="timed-out",
+        reason="benchmark-timeout: …",
+        score=None,
+        timeout=TIMEOUT,
+    )
+    error = {
+        "kind": "candidate",
+        "timeout": TIMEOUT | {"finished": {"mlp:b1:normal": [310, 9]}},
+        "partial": {
+            "repetitions": {"mlp:b1:normal": 10},
+            "rounds": [],
+            "input_seed_keys_in_progress": ["0000002a", "0000002b"],
+            "round_in_progress": {
+                "reference": [{"mlp:b1:normal": [100, 7]}, {"mlp:b1:normal": [101, 9]}],
+                "candidate": [{"mlp:b1:normal": [300, 7]}],
+            },
+        },
+    }
+    job(database, eid, sha, state="failed", error=error)
+    response = get(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    measured = response.json()["evaluations"][0]["measurements"][0]
+    assert measured["round_in_progress"] is None
+    assert measured["round_in_progress_samples"] == {
+        "reference": [
+            {"mlp:b1:normal": {"ns": 100, "checksum": 7}},
+            {"mlp:b1:normal": {"ns": 101, "checksum": 9}},
+        ],
+        "candidate": [{"mlp:b1:normal": {"ns": 300, "checksum": 7}}],
+    }
+    assert measured["finished"] == {"mlp:b1:normal": {"ns": 310, "checksum": 9}}
 
 
 def test_a_failure_without_evidence_reports_none(database):

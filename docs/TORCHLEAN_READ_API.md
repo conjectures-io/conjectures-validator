@@ -48,6 +48,8 @@ competition migration `tensor_0003` know only the phase, limit, allowance, envir
 In the report, a failed job's measurement shows what the worker had measured before it stopped:
 `repetitions` and the completed `rounds`, plus `calibration`, `round_in_progress` and the stopped
 run's `finished` cells; `evidence_truncated` says the worker's evidence was too large to keep.
+A benchmark that times every input separately (float-kernels since 2026-11-04) reports the stopped
+round in `round_in_progress_samples` instead: per side, the cells of each input it had finished.
 
 Reward ranks/shares come from the current coordinator publication. `competition_fraction` is
 board allocation × rank share, or zero when that board is paused with treasury policy. It is
