@@ -10729,6 +10729,27 @@
             "description": "Per side, the cells of the round that was stopped",
             "title": "Round In Progress"
           },
+          "round_in_progress_samples": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/TorchLeanCellTime"
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per side, the cells of each input of the stopped round that the side had finished, in order. A benchmark that times every input separately reports the stopped round here instead of in `round_in_progress`",
+            "title": "Round In Progress Samples"
+          },
           "rounds": {
             "anyOf": [
               {

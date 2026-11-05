@@ -242,6 +242,12 @@ class TorchLeanMeasurement(BaseModel):
     round_in_progress: dict[str, dict[str, TorchLeanCellTime]] | None = Field(
         None, description="Per side, the cells of the round that was stopped"
     )
+    round_in_progress_samples: dict[str, list[dict[str, TorchLeanCellTime]]] | None = Field(
+        None,
+        description="Per side, the cells of each input of the stopped round that the side had "
+        "finished, in order. A benchmark that times every input separately reports the stopped "
+        "round here instead of in `round_in_progress`",
+    )
     finished: dict[str, TorchLeanCellTime] | None = Field(
         None, description="The cells the stopped run had finished"
     )
