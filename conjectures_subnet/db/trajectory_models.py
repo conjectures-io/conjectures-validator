@@ -2,7 +2,7 @@
 import datetime as dt
 import uuid
 
-from sqlalchemy import DDL, event, BigInteger, CheckConstraint, DateTime, Identity, ForeignKey, Index, Integer, LargeBinary, SmallInteger, Text, text
+from sqlalchemy import Boolean, DDL, event, BigInteger, CheckConstraint, DateTime, Identity, ForeignKey, Index, Integer, LargeBinary, SmallInteger, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,6 +23,7 @@ class TrajectoryClaim(Base):
     amount_usd_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     terms_version: Mapped[str] = mapped_column(Text, nullable=False)
     package: Mapped[bytes | None] = mapped_column(LargeBinary)
+    package_chunked: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     package_digest: Mapped[bytes] = mapped_column(SHA256, nullable=False)
     state_version: Mapped[int] = mapped_column(Integer, nullable=False)
     offer_start_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -49,6 +50,7 @@ class TrajectoryClaim(Base):
         CheckConstraint("amount_usd_cents = 0 OR proof_review_decision_id IS NOT NULL", name="trajectory_historical_decision"),
         CheckConstraint("state_version > 0", name="trajectory_state_version"),
         CheckConstraint("revision BETWEEN 1 AND 3", name="trajectory_revision_bound"),
+        CheckConstraint("NOT package_chunked OR package IS NULL", name="trajectory_package_storage"),
         CheckConstraint("package IS NULL OR octet_length(package) <= 268435456", name="trajectory_package_bound"),
         CheckConstraint("package IS NULL OR pg_catalog.sha256(package) = package_digest", name="trajectory_package_hash"),
         CheckConstraint("terms_version LIKE 'chat-log-terms-%'", name="trajectory_terms"),
@@ -64,11 +66,11 @@ class TrajectoryUpload(Base):
     __tablename__ = "trajectory_uploads"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), unique=True, nullable=False)
-    byte_length: Mapped[int] = mapped_column(Integer, nullable=False)
-    received_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    byte_length: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    received_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     __table_args__ = (
-        CheckConstraint("byte_length BETWEEN 1 AND 268435456", name="trajectory_upload_size"),
+        CheckConstraint("byte_length BETWEEN 1 AND 10737418240", name="trajectory_upload_size"),
         CheckConstraint("received_bytes BETWEEN 0 AND byte_length", name="trajectory_upload_received"),
     )
 
@@ -76,11 +78,22 @@ class TrajectoryUpload(Base):
 class TrajectoryUploadChunk(Base):
     __tablename__ = "trajectory_upload_chunks"
     upload_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("trajectory_uploads.id", ondelete="CASCADE"), primary_key=True)
-    byte_offset: Mapped[int] = mapped_column(Integer, primary_key=True)
+    byte_offset: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     __table_args__ = (
         CheckConstraint("byte_offset >= 0 AND byte_offset % 8388608 = 0", name="trajectory_chunk_offset"),
         CheckConstraint("octet_length(data) BETWEEN 1 AND 8388608", name="trajectory_chunk_size"),
+    )
+
+
+class TrajectoryPackageChunk(Base):
+    __tablename__ = "trajectory_package_chunks"
+    claim_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("trajectory_claims.id", ondelete="CASCADE"), primary_key=True)
+    byte_offset: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    __table_args__ = (
+        CheckConstraint("byte_offset >= 0 AND byte_offset < 10737418240 AND byte_offset % 8388608 = 0", name="trajectory_package_chunk_offset"),
+        CheckConstraint("octet_length(data) BETWEEN 1 AND 8388608", name="trajectory_package_chunk_size"),
     )
 
 

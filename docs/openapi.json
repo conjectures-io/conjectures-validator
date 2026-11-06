@@ -18996,7 +18996,7 @@
             "name": "byte_length",
             "required": true,
             "schema": {
-              "maximum": 268435456,
+              "maximum": 10737418240,
               "minimum": 1,
               "title": "Byte Length",
               "type": "integer"
@@ -19138,7 +19138,7 @@
             "name": "offset",
             "required": true,
             "schema": {
-              "exclusiveMaximum": 268435456,
+              "exclusiveMaximum": 10737418240,
               "minimum": 0,
               "title": "Offset",
               "type": "integer"

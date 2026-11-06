@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request
 from pydantic import Field, StringConstraints, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -13,9 +13,9 @@ from conjectures_subnet.bounty import BOUNTY_RESERVATION_ADVISORY_LOCK
 from conjectures_subnet.db.models import ADMIN_ROLE, Account, TreasuryPayout
 from conjectures_subnet.db.payout_instructions import validate_chain_evidence
 from conjectures_subnet.db.errors import RecordConflict
-from conjectures_subnet.db.trajectory_models import TrajectoryClaim
 from conjectures_subnet.db.trajectory_fulfillment import TrajectoryPayment, TrajectoryDelivery, TrajectoryExport
 from submission_api import trajectory_fulfillment as fulfillment
+from submission_api import trajectory_storage as storage
 from submission_api.dependencies import CookieWriterDep, PrincipalDep, ServicesDep, SessionDep, require_role, require_role_writer
 from submission_api.errors import BadRequest, Conflict, NotFound
 from submission_api.routers.trajectories import bounded_json
@@ -245,11 +245,10 @@ async def buyer_download(delivery_id: uuid.UUID, principal: PrincipalDep, sessio
     delivery, claim = await owned_delivery(session, delivery_id, principal.account.id)
     if delivery.accepted_at is None:
         raise Conflict("Accept the private delivery agreement before downloading.")
-    content = await session.scalar(select(TrajectoryClaim.package).where(TrajectoryClaim.id == claim.id))
     session.add(TrajectoryExport(id=uuid.uuid4(), delivery_id=delivery.id, exported_at=dt.datetime.now(dt.UTC),
         proof_review_decision_id=claim.proof_review_decision_id, claim_state_version=claim.state_version))
     await session.commit()
-    return Response(content, media_type="application/zip", headers={
+    return await storage.download_response(session, claim, {
         "Cache-Control": "no-store", "Vary": "Authorization, Cookie", "X-Content-Type-Options": "nosniff",
         "Content-Disposition": f'attachment; filename="chat-logs-{claim.id}.zip"',
         "Content-Security-Policy": "default-src 'none'; sandbox"})
