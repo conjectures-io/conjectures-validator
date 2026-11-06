@@ -224,3 +224,31 @@ def test_concurrent_storage_admission_cannot_overbook_global_quota(monkeypatch):
         finally:
             await kit.teardown()
     asyncio.run(scenario())
+
+
+def test_direct_upload_quota_rejects_before_any_package_insert(monkeypatch):
+    from sqlalchemy import event
+    from submission_api import trajectory_quota as quota
+    from test_api_trajectories import as_upload
+    async def scenario():
+        kit = await kit_config().setup()
+        statements = []
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+        try:
+            async with await client(kit) as owner:
+                _, sid, document = await accepted(kit, owner)
+                monkeypatch.setattr(quota, "ACCOUNT_BYTES", 1)
+                async with kit.session() as session:
+                    engine = session.bind.sync_engine
+                event.listen(engine, "before_cursor_execute", capture)
+                try:
+                    result = await owner.post(f"/v1/me/submissions/{sid}/trajectory", **as_upload(document))
+                    assert result.status_code == 429, result.text
+                    assert not any("INSERT INTO trajectory_claims" in sql or "INSERT INTO trajectory_package_chunks" in sql
+                                   for sql in statements)
+                finally:
+                    event.remove(engine, "before_cursor_execute", capture)
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
