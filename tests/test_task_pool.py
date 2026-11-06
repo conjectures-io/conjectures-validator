@@ -68,7 +68,10 @@ def test_twenty_problem_batch_reinstates_only_the_open_part_of_erdos12():
         "Erdos12.erdos_12.parts.iii"
     }
     assert "Erdos456.erdos_456.parts.iii" not in targets
-    assert all(row["decision"] == "eligible" for row in additions)
+    assert "Erdos21.erdos_21.variants.three_n" not in targets
+    assert "Erdos111.erdos_111" not in targets
+    assert {row["number"] for row in additions if row["decision"] == "withdrawn"} == {21, 111}
+    assert sum(row["decision"] == "eligible" for row in additions) == 18
 
 
 @pytest.mark.needs_checkouts
@@ -147,7 +150,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(ERDOS_SOURCE_PREFIX)
         for item in selected
-    ) == 238
+    ) == 236
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
@@ -159,7 +162,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 261
+    assert len({item.source_path for item in selected}) == 259
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -496,6 +499,8 @@ def test_retired_conjectures_are_readable_but_never_admissible():
         if "repository_commit" not in entry["source"]:
             expected_state = {
                 "Math30Catalog.source22": "held",
+                "Erdos111.erdos_111": "retired",
+                "Erdos21.erdos_21.variants.three_n": "retired",
                 "Erdos456.erdos_456.parts.iii": "retired",
             }[entry["theorem"]]
             versions = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
