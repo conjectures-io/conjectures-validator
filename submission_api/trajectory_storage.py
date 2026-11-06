@@ -1,5 +1,6 @@
 """Bounded-memory storage for private packages larger than PostgreSQL's field limit."""
 import hashlib
+import shutil
 import tempfile
 
 import anyio
@@ -7,14 +8,20 @@ from sqlalchemy import delete, insert, select
 from starlette.responses import StreamingResponse
 
 from conjectures_subnet.db.trajectory_models import TrajectoryClaim, TrajectoryPackageChunk
-from submission_api.errors import Conflict, NotFound
+from submission_api.errors import Conflict, NotFound, TooManyRequests
 
 CHUNK_BYTES = 8 * 1024 * 1024
 INLINE_BYTES = 256 * 1024 * 1024
 
 
+def require_scratch_space(size_hint=0):
+    if shutil.disk_usage(tempfile.gettempdir()).free < size_hint + 6 * 1024 ** 3:
+        raise TooManyRequests("Chat-log scratch storage is busy; retry later.", reason_code="TRAJECTORY_BUSY")
+
+
 class FilePackage:
-    def __init__(self):
+    def __init__(self, size_hint=0):
+        require_scratch_space(size_hint)
         self.file = tempfile.TemporaryFile()
         self.size = 0
 
@@ -51,6 +58,9 @@ async def clear(session, claim):
 
 
 async def save(session, claim, raw):
+    from submission_api.trajectory_quota import check_capacity
+    await check_capacity(session, claim.account_id, len(raw), claim_id=claim.id,
+                         upload_id=getattr(raw, "upload_id", None))
     await session.execute(delete(TrajectoryPackageChunk).where(TrajectoryPackageChunk.claim_id == claim.id))
     claim.package = inline(raw)
     claim.package_chunked = isinstance(raw, FilePackage)
@@ -101,8 +111,10 @@ class EventIndex:
         import sqlite3
         # SQLite temporary databases use TMPDIR and are removed even if the process exits.
         self.connection = sqlite3.connect("")
+        self.connection.execute("PRAGMA page_size=4096")
         self.connection.execute("PRAGMA journal_mode=OFF")
         self.connection.execute("PRAGMA cache_size=-2048")
+        self.connection.execute("PRAGMA max_page_count=65536")
         self.connection.execute("CREATE TABLE events (id TEXT PRIMARY KEY, timestamp TEXT) WITHOUT ROWID")
 
     def __contains__(self, key):

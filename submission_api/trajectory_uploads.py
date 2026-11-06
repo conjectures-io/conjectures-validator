@@ -9,10 +9,11 @@ import uuid
 
 import anyio
 
-from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy import delete, func, or_, select
 
 from conjectures_subnet.db.trajectory_models import TrajectoryUpload, TrajectoryUploadChunk
-from submission_api.trajectory_storage import FilePackage, INLINE_BYTES
+from submission_api.trajectory_storage import FilePackage, INLINE_BYTES, require_scratch_space
+from submission_api import trajectory_quota as quota
 from submission_api.errors import BadRequest, Conflict, NotFound, TooManyRequests
 
 CHUNK_BYTES = 8 * 1024 * 1024
@@ -25,11 +26,12 @@ async def purge_expired(session):
 
 async def start(session, account_id, byte_length):
     # Serialize admission across workers; every transfer reserves its entire declared size.
-    await session.execute(text("SELECT pg_advisory_xact_lock(715302226)"))
+    await quota.lock(session)
     await session.execute(delete(TrajectoryUpload).where(or_(
         TrajectoryUpload.expires_at <= dt.datetime.now(dt.UTC), TrajectoryUpload.account_id == account_id)))
     if await session.scalar(select(func.count()).select_from(TrajectoryUpload)) >= MAX_PENDING_UPLOADS:
         raise TooManyRequests("Chat-log uploads are busy; retry shortly.", reason_code="TRAJECTORY_BUSY")
+    await quota.check_capacity(session, account_id, byte_length)
     upload = TrajectoryUpload(id=uuid.uuid4(), account_id=account_id, byte_length=byte_length,
                               received_bytes=0, expires_at=dt.datetime.now(dt.UTC) + dt.timedelta(hours=24))
     session.add(upload)
@@ -48,6 +50,7 @@ async def owned(session, upload_id, account_id, *, lock=False):
 
 async def append(session, upload_id, account_id, offset, raw):
     upload = await owned(session, upload_id, account_id, lock=True)
+    require_scratch_space(len(raw))
     if offset % CHUNK_BYTES or offset >= upload.byte_length or len(raw) != min(CHUNK_BYTES, upload.byte_length - offset):
         raise BadRequest("Upload part has an invalid offset or length.")
     if offset < upload.received_bytes:
@@ -68,7 +71,8 @@ async def read(session, upload_id, account_id):
     upload = await owned(session, upload_id, account_id, lock=True)
     if upload.received_bytes != upload.byte_length:
         raise Conflict("Chat-log upload is incomplete.")
-    raw = FilePackage()
+    raw = FilePackage(size_hint=upload.byte_length)
+    raw.upload_id = upload_id
     try:
         offset = 0
         while offset < upload.byte_length:

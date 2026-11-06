@@ -36,9 +36,10 @@ from submission_api.trajectory_schema import (
 from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256
 from verifier.task_registry import TaskNotAllowed as RegistryTaskNotAllowed
 from submission_api.trajectory_intake import (
-    MAX_UPLOAD_BYTES, PACKAGE_MEDIA_TYPES, Consent, UploadBudget, check_consent, package_errors, prepare_upload,
+    MAX_UPLOAD_BYTES, PACKAGE_MEDIA_TYPES, Consent, UploadBudget, check_consent, package_errors,
 )
 from submission_api.trajectory_schema import PackageError
+from submission_api.trajectory_validation import prepare_upload_isolated
 
 router = APIRouter(prefix="/v1", tags=["trajectories"])
 Reviewer = Annotated[Principal, Depends(require_role(REVIEWER_ROLE))]
@@ -197,7 +198,7 @@ async def received_package(request, consent, expected_state_version=None, *, ses
                 await bounded_json(request, 0, PACKAGE_MEDIA_TYPES)
                 raw = await uploads.read(session, upload_id, account_id)
                 await session.rollback()  # No connection held while parsing the assembled ZIP.
-        prepared = await anyio.to_thread.run_sync(prepare_upload, raw, consent, expected_state_version)
+        prepared = await prepare_upload_isolated(raw, consent, expected_state_version)
     except TimeoutError:
         if isinstance(raw, storage.FilePackage):
             raw.close()
@@ -258,8 +259,6 @@ async def upload_part(upload_id: uuid.UUID, request: Request, principal: WriterD
         await session.commit()
         return result
     except TimeoutError:
-        if isinstance(raw, storage.FilePackage):
-            raw.close()
         raise ApiError("Upload part timed out; retry this part.", status_code=408,
                        reason_code="TRAJECTORY_TIMEOUT") from None
     finally:

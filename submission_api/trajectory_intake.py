@@ -1,16 +1,15 @@
 """Bounded zip package upload and separately attested, pinned consent."""
-import hashlib
 import time
 from contextlib import asynccontextmanager
 
 import anyio
 from pydantic import BaseModel, Field
 
-from submission_api.trajectory_storage import FilePackage, INLINE_BYTES
+from submission_api.trajectory_storage import INLINE_BYTES
 from submission_api.errors import BadRequest, TooManyRequests
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.trajectory_schema import (
-    PackageError, StrictModel, parse_package, SAFE_SEMANTIC_ERRORS,
+    PackageError, StrictModel, SAFE_SEMANTIC_ERRORS,
 )
 from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256, TERMS_VERSION
 
@@ -34,15 +33,6 @@ def check_consent(consent: Consent) -> dict:
         raise BadRequest("Review and accept the exact chat-log terms shown, then retry.",
                          reason_code="TRAJECTORY_TERMS_CHANGED")
     return consent.model_dump()
-
-
-def prepare_upload(raw: bytes, consent: dict, expected_state_version=None):
-    """Validate the zip (in a worker thread); the stored package is the uploaded bytes unchanged."""
-    summary = parse_package(raw)
-    digest = raw.digest() if isinstance(raw, FilePackage) else hashlib.sha256(raw).digest()
-    return summary, raw, digest, summary.fingerprint, {
-        **consent, "source_file_sha256": "sha256:" + digest.hex(),
-    }, expected_state_version
 
 
 class UploadBudget:

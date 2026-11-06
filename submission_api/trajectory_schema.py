@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
 from submission_api.trajectory_storage import EventIndex, FilePackage
+from submission_api.trajectory_zip_directory import check_directory
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
@@ -183,7 +184,9 @@ def parse_package(raw: bytes | FilePackage) -> PackageSummary:
     event_times = EventIndex()
     archive = None
     try:
-        archive = zipfile.ZipFile(io.BytesIO(raw) if isinstance(raw, bytes) else raw.file)
+        source = io.BytesIO(raw) if isinstance(raw, bytes) else raw.file
+        check_directory(source, MAX_FILES)
+        archive = zipfile.ZipFile(source)
         names = _entries(archive)
         root = _root(names)
         for required in REQUIRED_FILES:
@@ -225,6 +228,7 @@ def parse_package(raw: bytes | FilePackage) -> PackageSummary:
         if not isinstance(index, list):
             raise PackageError("artifact-index.json must be a JSON array", file="artifact-index.json")
         artifacts, proofs = set(), []
+        checked = {root + name for name in ("manifest.json", "events.jsonl", "episodes.jsonl", "validation.json", "artifact-index.json")}
         for position, item in enumerate(index, 1):
             try:
                 entry = ArtifactEntry.model_validate(item)
@@ -245,6 +249,7 @@ def parse_package(raw: bytes | FilePackage) -> PackageSummary:
                 with archive.open(names[root + path]) as source:
                     while chunk := source.read(1024 * 1024):
                         hashed.update(chunk)
+                checked.add(root + path)
                 if "sha256:" + hashed.hexdigest() != entry.sha256:
                     raise PackageError("artifact SHA-256 does not match the file", file="artifact-index.json", line=position)
         if len(proofs) != 1 or proofs[0].sha256 != manifest.final_proof_sha256:
@@ -252,6 +257,12 @@ def parse_package(raw: bytes | FilePackage) -> PackageSummary:
         times = [event_times[event_id] for event_id in proofs[0].event_ids if event_times[event_id] is not None]
         if not times:
             raise PackageError("a timestamped event must show the final proof", file="artifact-index.json")
+        # Unreferenced supporting files must also fit the worker budget and pass ZIP CRC checks.
+        for name, info in names.items():
+            if name not in checked:
+                with archive.open(info) as source:
+                    while source.read(1024 * 1024):
+                        pass
     except zipfile.BadZipFile:
         raise PackageError("upload a .zip package") from None
     except (zipfile.LargeZipFile, NotImplementedError, EOFError, OSError):
@@ -319,6 +330,7 @@ SAFE_SEMANTIC_ERRORS = frozenset((
     'links are not allowed in the package',
     'nonfinite JSON',
     'package exceeds 10 GiB',
+    'zip directory exceeds validation limits',
     'the package is missing a required file',
     'the zip could not be read',
     'too many files in the package',

@@ -220,3 +220,5 @@ Don't upload the package anywhere.
 Finish by giving the zip's location, the counts kept, the recorded outcome, and the specific
 evidence that is missing. Include its SHA-256, size, readable-text/summary omission counts and
 checks not performed. Keep structural validity and completeness separate in this final reply.
+
+Server validation also enforces time, memory, ZIP-directory, scratch-space and account storage budgets. Report any budget rejection without silently trimming the original record.

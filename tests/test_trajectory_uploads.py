@@ -164,3 +164,63 @@ def test_staged_deposit_still_checks_the_package_and_creates_no_claim_until_fina
         finally:
             await kit.teardown()
     asyncio.run(scenario())
+
+
+def test_storage_quotas_include_completed_packages_and_pending_reservations(monkeypatch):
+    from submission_api import trajectory_quota as quota, trajectory_storage as storage
+    from submission_api.errors import TooManyRequests
+    from test_api_trajectories import as_upload
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner, await client(kit) as other, await client(kit) as third:
+                _, sid, document = await accepted(kit, owner)
+                raw = build_package(document)
+                done = await owner.post(f"/v1/me/submissions/{sid}/trajectory", **as_upload(document))
+                assert done.status_code == 200, done.text
+                await sign_in_by_email(kit, other, email="quota-other@example.com")
+                await sign_in_by_email(kit, third, email="quota-third@example.com")
+                monkeypatch.setattr(quota, "ACCOUNT_BYTES", len(raw) + 16)
+                monkeypatch.setattr(quota, "GLOBAL_BYTES", len(raw) + 32)
+                reserved = await start(owner, 16)
+                assert reserved.status_code == 200
+                assert (await start(owner, 17)).status_code == 429
+                assert (await start(other, 16)).status_code == 200
+                assert (await start(third, 1)).status_code == 429
+                async with kit.session() as session:
+                    assert await session.get(TrajectoryUpload, uuid.UUID(reserved.json()["id"])) is not None
+                # Final persistence has its own quota gate, including direct uploads.
+                monkeypatch.setattr(quota, "ACCOUNT_BYTES", len(raw) - 1)
+                async with kit.session() as session:
+                    claim = await session.get(TrajectoryClaim, uuid.UUID(done.json()["id"]))
+                    with pytest.raises(TooManyRequests):
+                        await storage.save(session, claim, raw)
+                    await session.rollback()
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+def test_concurrent_storage_admission_cannot_overbook_global_quota(monkeypatch):
+    from submission_api import trajectory_quota as quota
+    from submission_api.errors import TooManyRequests
+    monkeypatch.setattr(quota, "ACCOUNT_BYTES", 8)
+    monkeypatch.setattr(quota, "GLOBAL_BYTES", 8)
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as first, await client(kit) as second:
+                a = await sign_in_by_email(kit, first, email="quota-first@example.com")
+                b = await sign_in_by_email(kit, second, email="quota-second@example.com")
+            async with kit.session() as one, kit.session() as two:
+                await staging.start(one, uuid.UUID(a["id"]), 8)
+                with pytest.raises(TooManyRequests):
+                    await staging.start(two, uuid.UUID(b["id"]), 1)
+                await two.rollback()
+                await one.commit()
+                with pytest.raises(TooManyRequests):
+                    await staging.start(two, uuid.UUID(b["id"]), 1)
+                await two.rollback()
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
