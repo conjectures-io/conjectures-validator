@@ -167,3 +167,17 @@ def test_unreferenced_supporting_files_are_decompressed_and_crc_checked():
     assert len(corrupted) == len(raw.getvalue())
     with pytest.raises(PackageError):
         parse_package(corrupted)
+
+
+def test_scratch_headroom_is_rechecked_during_assembly(monkeypatch):
+    from types import SimpleNamespace
+    from submission_api import trajectory_storage as storage
+    from submission_api.errors import TooManyRequests
+    package = storage.FilePackage()
+    try:
+        monkeypatch.setattr(storage.shutil, "disk_usage", lambda _: SimpleNamespace(free=6 * 1024 ** 3))
+        with pytest.raises(TooManyRequests):
+            package.write(b"next part")
+        assert len(package) == 0 and package.file.tell() == 0
+    finally:
+        package.close()

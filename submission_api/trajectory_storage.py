@@ -29,6 +29,7 @@ class FilePackage:
         return self.size
 
     def write(self, data):
+        require_scratch_space(len(data))
         self.file.write(data)
         self.size += len(data)
 
