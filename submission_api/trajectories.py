@@ -27,6 +27,7 @@ from conjectures_subnet.db.submissions import (
     correct_human_decision, latest_binding_decision, record_human_decision,
 )
 from conjectures_subnet.db.trajectory_models import ChatLogProgram, TrajectoryClaim, TrajectoryFingerprint
+from submission_api import trajectory_storage as storage
 from submission_api.errors import Conflict, NotFound
 from submission_api.trajectory_schema import (
     DEPOSIT_HOURS, MAX_PACKAGE_BYTES, RETENTION_DAYS, TERMS_VERSION,
@@ -140,7 +141,7 @@ def check_package(summary, raw, *, task_id, task_bundle_sha256, proof_digest, su
     if package.exported_at > now + dt.timedelta(minutes=5):
         raise Conflict("Export time is in the future.", reason_code="TRAJECTORY_TIME_INVALID")
     if len(raw) > MAX_PACKAGE_BYTES:
-        raise Conflict("The package exceeds 256 MiB.", reason_code="TRAJECTORY_SIZE")
+        raise Conflict("The package exceeds 10 GiB.", reason_code="TRAJECTORY_SIZE")
 
 
 async def store_fingerprint(session, claim, fingerprint, seen):
@@ -192,7 +193,8 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     previous_terms_version = existing.terms_version if existing else None
     if existing:
         claim = existing
-        claim.package = raw
+        claim.package_chunked = False
+        claim.package = storage.inline(raw)
         claim.package_digest = package_hash
         claim.revision += 1
         claim.status = "UNDER_REVIEW"
@@ -210,7 +212,7 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
             proof_digest=submission.proof_digest, reward_target_id=submission.reward_target_id,
             task_bundle_sha256=submission.task_bundle_sha256,
             status="UNDER_REVIEW", amount_usd_cents=amount_usd_cents, terms_version=TERMS_VERSION,
-            package=raw, package_digest=package_hash, revision=1, state_version=0, offer_start_at=offer_start_at,
+            package=storage.inline(raw), package_digest=package_hash, revision=1, state_version=0, offer_start_at=offer_start_at,
             proof_review_decision_id=decision.id, history=[], created_at=now, updated_at=now,
             expires_at=now + dt.timedelta(days=RETENTION_DAYS),
             audit_expires_at=now + dt.timedelta(days=AUDIT_RETENTION_DAYS),
@@ -223,6 +225,7 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
     audit(claim, action="UPLOADED", actor=account_id, now=now,
           extra={"previous_terms_version": previous_terms_version, "terms_version": TERMS_VERSION})
     await store_fingerprint(session, claim, fingerprint, seen)
+    await storage.save(session, claim, raw)
     return claim
 
 
@@ -253,7 +256,7 @@ async def deposit_package(session, *, entry, prepared, account_id, now, review_p
     claim = TrajectoryClaim(
         id=uuid.uuid4(), submission_id=None, account_id=account_id, proof_digest=proof_digest,
         reward_target_id=entry.reward_target_id, task_bundle_sha256=task_bundle, status="DEPOSITED",
-        amount_usd_cents=0, terms_version=TERMS_VERSION, package=raw, package_digest=package_hash,
+        amount_usd_cents=0, terms_version=TERMS_VERSION, package=storage.inline(raw), package_digest=package_hash,
         revision=1, state_version=0, offer_start_at=now, proof_review_decision_id=None, history=[],
         consent={**consent, "account_id": str(account_id), "accepted_at": now.isoformat()},
         proof_policy_snapshot={"review_policy_version": review_policy_version,
@@ -264,6 +267,7 @@ async def deposit_package(session, *, entry, prepared, account_id, now, review_p
     session.add(claim)
     audit(claim, action="DEPOSITED", actor=account_id, now=now, extra={"terms_version": TERMS_VERSION})
     await store_fingerprint(session, claim, fingerprint, seen)
+    await storage.save(session, claim, raw)
     return claim
 
 
@@ -350,7 +354,7 @@ def license_status(claim):
 async def content_available(session, claim):
     # Accepted logs are kept for sale; everything else expires on schedule.
     return (claim.status in APPROVED or claim.expires_at > dt.datetime.now(dt.UTC)) and bool(await session.scalar(
-        select(TrajectoryClaim.package.is_not(None)).where(TrajectoryClaim.id == claim.id)))
+        select(TrajectoryClaim.package.is_not(None) | TrajectoryClaim.package_chunked).where(TrajectoryClaim.id == claim.id)))
 
 
 def deletion_after_revocation(claim, now):

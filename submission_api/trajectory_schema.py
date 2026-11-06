@@ -1,6 +1,6 @@
 """Chat-log packages: one zip holding the observable record of an AI research session.
 
-The zip is read in memory and never extracted. Only what links the record to a proof is checked:
+The zip is read without extraction; large uploads use a temporary file. Only what links the record to a proof is checked:
 the manifest, the events, the artifact index, the proof link and the hashes of included files.
 README.md, episodes.jsonl and sample.html travel as they are; the site never renders them.
 Validation establishes structure and linkage, not truth or rights.
@@ -18,11 +18,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
+from submission_api.trajectory_storage import EventIndex, FilePackage
+
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
 FORMAT = "conjectures-chat-log/v2"
-MAX_PACKAGE_BYTES = 256 * 1024 * 1024
-MAX_UNPACKED_BYTES = 2 * 1024 * 1024 * 1024
+MAX_PACKAGE_BYTES = 10 * 1024 * 1024 * 1024
 MAX_FILES = 20_000
 MAX_JSON_FILE_BYTES = 32 * 1024 * 1024
 MAX_EVENT_LINE_BYTES = 64 * 1024 * 1024
@@ -124,7 +125,7 @@ def _entries(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
     infos = archive.infolist()
     if len(infos) > MAX_FILES:
         raise PackageError("too many files in the package")
-    names, unpacked = {}, 0
+    names = {}
     for info in infos:
         if info.flag_bits & 0x1:
             raise PackageError("encrypted zip entries are not accepted")
@@ -134,9 +135,6 @@ def _entries(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
             raise PackageError("unsafe path in the package")
         if info.filename in names:
             raise PackageError("duplicate path in the package")
-        unpacked += info.file_size
-        if unpacked > MAX_UNPACKED_BYTES:
-            raise PackageError("the package unpacks to more than 2 GiB")
         if not info.is_dir():
             names[info.filename] = info
     return names
@@ -164,7 +162,7 @@ def _json_file(archive, info, file):
 def _lines(archive, info, file):
     with archive.open(info) as source:
         number = 0
-        # A malformed single line can otherwise inflate the entire 2 GiB archive into RAM
+        # A malformed single line can otherwise inflate an entire archive into RAM
         # before the line limit runs. Allow the content limit plus CRLF, then one sentinel byte.
         while raw := source.readline(MAX_EVENT_LINE_BYTES + 3):
             number += 1
@@ -178,12 +176,14 @@ def _lines(archive, info, file):
             yield number, raw
 
 
-def parse_package(raw: bytes) -> PackageSummary:
-    """Check a zip package held in memory; memory beyond the zip is bounded by one line or file."""
+def parse_package(raw: bytes | FilePackage) -> PackageSummary:
+    """Check bytes or a file-backed package without extracting archive entries."""
     if len(raw) > MAX_PACKAGE_BYTES:
-        raise PackageError("package exceeds 256 MiB")
+        raise PackageError("package exceeds 10 GiB")
+    event_times = EventIndex()
+    archive = None
     try:
-        archive = zipfile.ZipFile(io.BytesIO(raw))
+        archive = zipfile.ZipFile(io.BytesIO(raw) if isinstance(raw, bytes) else raw.file)
         names = _entries(archive)
         root = _root(names)
         for required in REQUIRED_FILES:
@@ -195,7 +195,7 @@ def parse_package(raw: bytes) -> PackageSummary:
             raise PackageError(file="manifest.json", validation=error) from None
 
         fingerprint = hashlib.sha256()
-        event_times, roles, events = {}, set(), 0
+        roles, events = set(), 0
         for number, line in _lines(archive, names[root + "events.jsonl"], "events.jsonl"):
             try:
                 event = EventRecord.model_validate(_decode(line))
@@ -256,6 +256,10 @@ def parse_package(raw: bytes) -> PackageSummary:
         raise PackageError("upload a .zip package") from None
     except (zipfile.LargeZipFile, NotImplementedError, EOFError, OSError):
         raise PackageError("the zip could not be read") from None
+    finally:
+        if archive is not None:
+            archive.close()
+        event_times.close()
     return PackageSummary(manifest=manifest, fingerprint=fingerprint.digest(), proof_first_seen=min(times),
                           events=events, artifacts=len(artifacts))
 
@@ -314,9 +318,8 @@ SAFE_SEMANTIC_ERRORS = frozenset((
     'invalid JSON',
     'links are not allowed in the package',
     'nonfinite JSON',
-    'package exceeds 256 MiB',
+    'package exceeds 10 GiB',
     'the package is missing a required file',
-    'the package unpacks to more than 2 GiB',
     'the zip could not be read',
     'too many files in the package',
     'unsafe path in the package',

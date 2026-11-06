@@ -116,6 +116,7 @@ def test_bonus_reservation_duplicate_guard_and_finalized_reconciliation():
 
 
 @pytest.mark.skipif(postgres_dsn() is None, reason="requires verified private fixture")
+@pytest.mark.usefixtures("chunked_chat_logs")
 def test_private_delivery_needs_buyer_assent_and_stops_after_proof_correction():
     async def scenario():
         kit = await kit_config().setup()

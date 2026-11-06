@@ -34,7 +34,7 @@ to the frontend's `data/trajectory/` and verify the hashes together.
 | License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
 | Buyers | May use, including for training and evaluation, but may not publish the logs openly |
 | Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
-| Format | One .zip package up to 256 MiB (2 GiB unpacked, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
+| Format | One .zip package up to 10 GiB (no total unpacked-size limit, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
 
 ## Contributor instructions
 
@@ -53,7 +53,7 @@ to the frontend's `data/trajectory/` and verify the hashes together.
    chat produced the proof.
 
 The server reads the zip in memory and never extracts it. It refuses unsafe paths, links,
-encrypted entries, more than 20,000 files or 2 GiB unpacked, and checks: the required files
+encrypted entries, more than 20,000 files, and checks: the required files
 are present; `manifest.json` has the format and the four linkage values; `events.jsonl` parses
 with unique ids, known roles, and timestamps no later than export; `artifact-index.json` entries
 link real events and included files match their hashes; exactly one final proof matches the
@@ -65,7 +65,14 @@ export digest or share link) and duplicate review remain human work.
 
 The website sends files larger than 8 MiB in parts automatically. The uploader still selects
 one ZIP. V053 raises the stored-package bound to 256 MiB and adds private temporary upload
-and part tables. The expanded archive is capped at 2 GiB; the 20,000-entry limit still applies.
+and part tables. V055 raises the ZIP limit to 10 GiB, widens offsets to bigint and stores large completed
+packages in private chunks. Validation reads a temporary disk file without extracting entries;
+there is no total unpacked-size limit. The 20,000-entry and individual JSON limits still apply.
+Uploads expire after 24 hours. Direct requests remain limited to 256 MiB; larger ZIPs use
+the existing 8 MiB multipart upload API. The API scratch volume must have space for a full ZIP
+and its event index. Set `proxy_read_timeout 24h` on chat-log finalization routes before
+releasing the larger uploader; expanded logs may take longer than the previous five-minute
+edge timeout. Keep the per-request proxy body limit at 256 MiB: large files use 8 MiB parts.
 
 API clients can POST `/v1/me/chat-log-uploads?byte_length=N` with the usual consent query
 parameters. The response supplies `id`, `chunk_bytes` (8 MiB) and `expires_at`. PUT consecutive

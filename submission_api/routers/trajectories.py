@@ -1,6 +1,8 @@
 """Session-owned chat-log intake and reviewer-only access to private, untrusted exports."""
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import datetime as dt
 import time
 import uuid
@@ -19,6 +21,7 @@ from conjectures_subnet.db.submissions import latest_binding_decision
 from conjectures_subnet.db.trajectory_models import TrajectoryAccess, TrajectoryClaim
 from submission_api import trajectories as store
 from submission_api import trajectory_uploads as uploads
+from submission_api import trajectory_storage as storage
 from submission_api.dependencies import (
     REASON_BROWSER_SESSION_REQUIRED, CookieWriterDep, PrincipalDep, ServicesDep, SessionDep, WriterDep,
     require_role, require_role_writer,
@@ -182,8 +185,10 @@ def consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted
                                  assent_statements_sha256=assent_statements_sha256, accepted=accepted))
 
 
+@asynccontextmanager
 async def received_package(request, consent, expected_state_version=None, *, session=None, account_id=None, upload_id=None):
     """Bounded receipt of the zip and its checks, inside the caller's upload budget, with no open transaction."""
+    raw = None
     try:
         with anyio.fail_after(600):
             if upload_id is None:
@@ -192,13 +197,26 @@ async def received_package(request, consent, expected_state_version=None, *, ses
                 await bounded_json(request, 0, PACKAGE_MEDIA_TYPES)
                 raw = await uploads.read(session, upload_id, account_id)
                 await session.rollback()  # No connection held while parsing the assembled ZIP.
-        return await anyio.to_thread.run_sync(prepare_upload, raw, consent, expected_state_version)
+        prepared = await anyio.to_thread.run_sync(prepare_upload, raw, consent, expected_state_version)
     except TimeoutError:
+        if isinstance(raw, storage.FilePackage):
+            raw.close()
         raise ApiError("Upload timed out; retry with a complete file.", status_code=408,
                        reason_code="TRAJECTORY_TIMEOUT") from None
     except PackageError as error:
+        if isinstance(raw, storage.FilePackage):
+            raw.close()
         raise BadRequest("Invalid chat-log package; check the indicated files and lines against the instructions.",
                          reason_code="TRAJECTORY_INVALID", extra={"validation_errors": package_errors(error)}) from None
+    except BaseException:
+        if isinstance(raw, storage.FilePackage):
+            raw.close()
+        raise
+    try:
+        yield prepared
+    finally:
+        if isinstance(raw, storage.FilePackage):
+            raw.close()
 
 
 @router.post("/me/chat-log-uploads")
@@ -240,6 +258,8 @@ async def upload_part(upload_id: uuid.UUID, request: Request, principal: WriterD
         await session.commit()
         return result
     except TimeoutError:
+        if isinstance(raw, storage.FilePackage):
+            raw.close()
         raise ApiError("Upload part timed out; retry this part.", status_code=408,
                        reason_code="TRAJECTORY_TIMEOUT") from None
     finally:
@@ -273,27 +293,27 @@ async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
     async with request.app.state.trajectory_upload_budget.hold(account_id):
-        prepared = await received_package(request, consent, session=session, account_id=account_id, upload_id=upload_id)
-        package = prepared[0].manifest
-        try:
-            entry = services.catalog.resolve(package.task_id, package.task_bundle_sha256)
-        except (TaskNotAllowed, RegistryTaskNotAllowed, ValueError):
-            raise Conflict("The package names a task that is not open for submissions.",
-                           reason_code="TRAJECTORY_LINK_MISMATCH") from None
-        quote = await services.pricing.quote(session, reward_target_id=entry.reward_target_id)
-        if quote.policy_version != store.TREASURY_CHAT_POLICY:
-            raise Conflict("This bounty does not take logs with the proof; earlier proofs use the bonus upload.",
-                           reason_code="TRAJECTORY_INELIGIBLE")
-        if not quote.available:
-            raise Conflict("This bounty is not accepting submissions.", reason_code="TRAJECTORY_INELIGIBLE",
-                           extra={"bounty_reason": quote.reason})
-        claim = await store.deposit_package(session, entry=entry, prepared=prepared, account_id=account_id,
-                                            now=dt.datetime.now(dt.UTC),
-                                            review_policy_version=services.settings.review_policy_version)
-        if upload_id is not None:
-            await uploads.discard(session, upload_id, account_id)
-        await session.commit()
-        return await store.view(session, claim)
+        async with received_package(request, consent, session=session, account_id=account_id, upload_id=upload_id) as prepared:
+            package = prepared[0].manifest
+            try:
+                entry = services.catalog.resolve(package.task_id, package.task_bundle_sha256)
+            except (TaskNotAllowed, RegistryTaskNotAllowed, ValueError):
+                raise Conflict("The package names a task that is not open for submissions.",
+                               reason_code="TRAJECTORY_LINK_MISMATCH") from None
+            quote = await services.pricing.quote(session, reward_target_id=entry.reward_target_id)
+            if quote.policy_version != store.TREASURY_CHAT_POLICY:
+                raise Conflict("This bounty does not take logs with the proof; earlier proofs use the bonus upload.",
+                               reason_code="TRAJECTORY_INELIGIBLE")
+            if not quote.available:
+                raise Conflict("This bounty is not accepting submissions.", reason_code="TRAJECTORY_INELIGIBLE",
+                               extra={"bounty_reason": quote.reason})
+            claim = await store.deposit_package(session, entry=entry, prepared=prepared, account_id=account_id,
+                                                now=dt.datetime.now(dt.UTC),
+                                                review_policy_version=services.settings.review_policy_version)
+            if upload_id is not None:
+                await uploads.discard(session, upload_id, account_id)
+            await session.commit()
+            return await store.view(session, claim)
 
 
 async def logs_writer(submission_id: uuid.UUID, principal: WriterDep, session: SessionDep) -> Principal:
@@ -335,24 +355,24 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: Annotate
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
     async with request.app.state.trajectory_upload_budget.hold(account_id):
-        prepared = await received_package(request, consent, expected_state_version,
-                                           session=session, account_id=account_id, upload_id=upload_id)
-        # Recheck under the proof correction lock after all untrusted parsing and hashing.
-        submission = await store.owned_submission(session, submission_id, account_id, lock=True, logs_owner=True)
-        decision = await latest_binding_decision(session, submission_id)
-        now = dt.datetime.now(dt.UTC)
-        existing = await store.claim_for(session, submission_id)
-        offer_start_at = existing.offer_start_at if existing else start_at
-        await revisable(session, submission, start_at)
-        claim = await store.accept_package(session, submission=submission, decision=decision,
-                                           prepared=prepared, account_id=account_id, now=now,
-                                           amount_usd_cents=(existing.amount_usd_cents if existing else
-                                               await anyio.to_thread.run_sync(store.amount_for, services, submission)),
-                                           offer_start_at=offer_start_at)
-        if upload_id is not None:
-            await uploads.discard(session, upload_id, account_id)
-        await session.commit()
-        return await store.view(session, claim)
+        async with received_package(request, consent, expected_state_version,
+                                           session=session, account_id=account_id, upload_id=upload_id) as prepared:
+            # Recheck under the proof correction lock after all untrusted parsing and hashing.
+            submission = await store.owned_submission(session, submission_id, account_id, lock=True, logs_owner=True)
+            decision = await latest_binding_decision(session, submission_id)
+            now = dt.datetime.now(dt.UTC)
+            existing = await store.claim_for(session, submission_id)
+            offer_start_at = existing.offer_start_at if existing else start_at
+            await revisable(session, submission, start_at)
+            claim = await store.accept_package(session, submission=submission, decision=decision,
+                                               prepared=prepared, account_id=account_id, now=now,
+                                               amount_usd_cents=(existing.amount_usd_cents if existing else
+                                                   await anyio.to_thread.run_sync(store.amount_for, services, submission)),
+                                               offer_start_at=offer_start_at)
+            if upload_id is not None:
+                await uploads.discard(session, upload_id, account_id)
+            await session.commit()
+            return await store.view(session, claim)
 
 
 async def revisable(session, submission, start_at):
@@ -413,7 +433,7 @@ async def withdraw(submission_id: uuid.UUID, request: Request, principal: Cookie
             forfeited = await store.forfeit_bounty(session, submission, reviewer=f"chat-log-withdrawal:{principal.account.id}",
                                                    notes="Contributor withdrew the chat logs this bounty requires.")
         claim.status = "WITHDRAWN"
-        claim.package = None
+        await storage.clear(session, claim)
         store.audit(claim, action="WITHDRAWN", actor=principal.account.id, now=now,
                     extra={"bounty_forfeited": True, "forfeit_decision_id": forfeited.id if forfeited else None}
                     if claim.amount_usd_cents == 0 else None)
@@ -446,14 +466,13 @@ async def metadata_view(session, claim):
 
 @router.get("/admin/trajectories/{claim_id}/package")
 async def download(claim_id: uuid.UUID, principal: Reviewer, session: SessionDep):
-    claim = await session.get(TrajectoryClaim, claim_id)
+    claim = await session.get(TrajectoryClaim, claim_id, options=[defer(TrajectoryClaim.package)])
     if claim is None or claim.submission_id is None or not await store.content_available(session, claim):
         raise NotFound("Chat-log content is unavailable or expired")
-    content = claim.package
     session.add(TrajectoryAccess(id=uuid.uuid4(), claim_id=claim.id, actor_id=principal.account.id,
                                  accessed_at=dt.datetime.now(dt.UTC)))
     await session.commit()  # Do not release content unless the access record is durable.
-    return Response(content, media_type="application/zip", headers={
+    return await storage.download_response(session, claim, {
         "Cache-Control": "no-store", "Vary": "Authorization, Cookie",
         "X-Content-Type-Options": "nosniff",
         "Content-Disposition": f'attachment; filename="chat-logs-{claim.id}.zip"',

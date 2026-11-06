@@ -119,6 +119,8 @@ COPY --from=builder /opt/venv /opt/venv
 # rather than copied in, so a pin rotation is a restart against new bytes and not a rebuild.
 WORKDIR /opt/conjectures
 
+RUN mkdir -p /var/lib/conjectures/chat-log-scratch && chown 10002:10002 /var/lib/conjectures/chat-log-scratch && chmod 700 /var/lib/conjectures/chat-log-scratch
+
 USER 10002:10002
 
 EXPOSE 8000

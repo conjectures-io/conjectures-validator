@@ -6,15 +6,16 @@ from contextlib import asynccontextmanager
 import anyio
 from pydantic import BaseModel, Field
 
+from submission_api.trajectory_storage import FilePackage, INLINE_BYTES
 from submission_api.errors import BadRequest, TooManyRequests
 from submission_api.ratelimit import SlidingWindowLimiter
 from submission_api.trajectory_schema import (
-    MAX_PACKAGE_BYTES, PackageError, StrictModel, parse_package, SAFE_SEMANTIC_ERRORS,
+    PackageError, StrictModel, parse_package, SAFE_SEMANTIC_ERRORS,
 )
 from submission_api.trajectory_terms import ASSENT_STATEMENTS_SHA256, TERMS_SHA256, TERMS_VERSION
 
 # The request body is the zip itself; consent rides in the query.
-MAX_UPLOAD_BYTES = MAX_PACKAGE_BYTES
+MAX_UPLOAD_BYTES = INLINE_BYTES
 PACKAGE_MEDIA_TYPES = ("application/zip", "application/x-zip-compressed", "application/octet-stream")
 
 
@@ -38,13 +39,14 @@ def check_consent(consent: Consent) -> dict:
 def prepare_upload(raw: bytes, consent: dict, expected_state_version=None):
     """Validate the zip (in a worker thread); the stored package is the uploaded bytes unchanged."""
     summary = parse_package(raw)
-    return summary, raw, hashlib.sha256(raw).digest(), summary.fingerprint, {
-        **consent, "source_file_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+    digest = raw.digest() if isinstance(raw, FilePackage) else hashlib.sha256(raw).digest()
+    return summary, raw, digest, summary.fingerprint, {
+        **consent, "source_file_sha256": "sha256:" + digest.hex(),
     }, expected_state_version
 
 
 class UploadBudget:
-    """One 256-MiB package check at a time per worker; no waiting requests hold a DB connection.
+    """One package check at a time per worker; no waiting requests hold a DB connection.
 
     Process-local limits complement the deployment's IP limiter. Replicas need a shared edge
     limit for a global quota. Failed attempts, including invalid exports, spend a separate budget.

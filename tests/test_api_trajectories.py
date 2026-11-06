@@ -211,6 +211,7 @@ def test_owner_intake_replay_review_and_no_automatic_payout():
     asyncio.run(scenario())
 
 
+@pytest.mark.usefixtures("chunked_chat_logs")
 def test_revisions_withdrawal_expiry_and_self_review_refusal():
     async def scenario():
         kit = await kit_config().setup()

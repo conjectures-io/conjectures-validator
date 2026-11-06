@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+
+import pytest
 from pathlib import Path
 
 # Database tests are destructive, so the suite never discovers a server: there is no default DSN
@@ -180,3 +182,22 @@ def relabel_adapter_version(task: Path, version: int) -> None:
             source["adapter_version"] = version
         path.write_text(pretty_json(metadata), encoding="utf-8")
     recommit_trusted_files(task)
+
+
+@pytest.fixture
+def chunked_chat_logs(monkeypatch):
+    """Exercise retention and buyer delivery using the large-package representation."""
+    from submission_api import trajectory_storage as storage
+    original = storage.save
+
+    async def save(session, claim, raw):
+        if not isinstance(raw, bytes):
+            return await original(session, claim, raw)
+        package = storage.FilePackage()
+        try:
+            package.write(raw)
+            return await original(session, claim, package)
+        finally:
+            package.close()
+
+    monkeypatch.setattr(storage, "save", save)

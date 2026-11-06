@@ -19,6 +19,7 @@ import datetime as dt
 from sqlalchemy import delete, exists, func, or_, select
 from sqlalchemy.orm import defer
 from submission_api import trajectories as store
+from submission_api import trajectory_storage as storage
 from submission_api.trajectory_uploads import purge_expired
 from conjectures_subnet.db import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.trajectory_models import TrajectoryClaim
@@ -43,7 +44,7 @@ async def purge(session):
     removed = unsubmitted
     expiring = (
         TrajectoryClaim.expires_at <= func.now(),
-        TrajectoryClaim.package.is_not(None),
+        (TrajectoryClaim.package.is_not(None) | TrajectoryClaim.package_chunked),
         TrajectoryClaim.submission_id.is_not(None),
         TrajectoryClaim.status.not_in(store.APPROVED),
     )
@@ -76,7 +77,7 @@ async def purge(session):
             )
             if claim is None:
                 continue
-            claim.package = None
+            await storage.clear(session, claim)
             if claim.status in ("UNDER_REVIEW", "NEEDS_CHANGES"):
                 claim.status = "EXPIRED"
             claim.state_version += 1

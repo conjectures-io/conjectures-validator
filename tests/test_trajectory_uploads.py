@@ -9,10 +9,10 @@ from sqlalchemy import func, select
 
 from conftest_api import postgres_dsn
 from test_api_accounts import client, same_origin, sign_in_by_email
-from test_api_trajectories import accepted, kit_config
+from test_api_trajectories import accepted, kit_config, _grant_reviewer
 from test_trajectory_schema import _with, consent_params
 from scripts.trajectory_assets import build_package
-from conjectures_subnet.db.trajectory_models import TrajectoryClaim, TrajectoryUpload, TrajectoryUploadChunk
+from conjectures_subnet.db.trajectory_models import TrajectoryClaim, TrajectoryUpload, TrajectoryUploadChunk, TrajectoryPackageChunk
 from submission_api import trajectory_uploads as staging
 from submission_api.trajectory_schema import MAX_PACKAGE_BYTES
 
@@ -25,13 +25,16 @@ async def start(http, size, **consent):
     return await http.post(START, params={**consent_params(**consent), "byte_length": size}, headers=same_origin())
 
 
-def test_parts_are_owned_ordered_retryable_and_stored_unchanged():
+@pytest.mark.parametrize("file_backed", [False, True])
+def test_parts_are_owned_ordered_retryable_and_stored_unchanged(monkeypatch, file_backed):
+    if file_backed:
+        monkeypatch.setattr(staging, "INLINE_BYTES", 1)
     async def scenario():
         kit = await kit_config().setup()
         try:
             async with await client(kit) as owner, await client(kit) as other:
                 _, sid, package = await accepted(kit, owner)
-                await sign_in_by_email(kit, other, email="other-parts@example.com")
+                other_account = await sign_in_by_email(kit, other, email="other-parts@example.com")
                 # Stored ZIP entry makes this larger than one transport part.
                 raw = _with(build_package(package), "chat-log-package/artifacts/padding.bin", b"x" * staging.CHUNK_BYTES)
                 begun = await start(owner, len(raw))
@@ -64,9 +67,22 @@ def test_parts_are_owned_ordered_retryable_and_stored_unchanged():
                 assert done.json()["package_sha256"] == "sha256:" + hashlib.sha256(raw).hexdigest()
                 async with kit.session() as session:
                     claim = await session.get(TrajectoryClaim, uuid.UUID(done.json()["id"]))
-                    assert claim.package == raw
+                    assert claim.package_chunked is file_backed
+                    if file_backed:
+                        stored = await session.scalars(select(TrajectoryPackageChunk.data).where(TrajectoryPackageChunk.claim_id == claim.id).order_by(TrajectoryPackageChunk.byte_offset))
+                        assert b"".join(stored) == raw
+                    else:
+                        assert claim.package == raw
                     assert await session.scalar(select(func.count()).select_from(TrajectoryUpload)) == 0
                     assert await session.scalar(select(func.count()).select_from(TrajectoryUploadChunk)) == 0
+                await _grant_reviewer(kit, other_account["id"])
+                downloaded = await other.get(f"/v1/admin/trajectories/{done.json()['id']}/package")
+                assert downloaded.status_code == 200, downloaded.text[:100]
+                assert downloaded.content == raw
+                withdrawn = await owner.post(final + "/withdraw", json={"expected_state_version": done.json()["state_version"]}, headers=same_origin())
+                assert withdrawn.status_code == 200, withdrawn.text
+                async with kit.session() as session:
+                    assert await session.scalar(select(func.count()).select_from(TrajectoryPackageChunk)) == 0
                 assert (await owner.delete(path, headers=same_origin())).status_code == 204
         finally:
             await kit.teardown()
