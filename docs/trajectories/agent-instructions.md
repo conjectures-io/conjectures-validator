@@ -156,8 +156,8 @@ cached input is part of input, and parallel runtimes do not sum to elapsed wall-
 
 ## 5. Deliver
 
-One folder, zipped as `chat-log-package.zip` (at most 256 MiB zipped,
-2 GiB unpacked and 20,000 ZIP entries), containing:
+One folder, zipped as `chat-log-package.zip` (at most 10 GiB zipped,
+no total unpacked-size limit, and 20,000 ZIP entries), containing:
 
 - `README.md`: problem, outcome, contents, key episodes and evidence limits.
 - `events.jsonl`: the full observable record.
@@ -220,3 +220,5 @@ Don't upload the package anywhere.
 Finish by giving the zip's location, the counts kept, the recorded outcome, and the specific
 evidence that is missing. Include its SHA-256, size, readable-text/summary omission counts and
 checks not performed. Keep structural validity and completeness separate in this final reply.
+
+Server validation also enforces time, memory, ZIP-directory, scratch-space and account storage budgets. Report any budget rejection without silently trimming the original record.

@@ -34,7 +34,7 @@ to the frontend's `data/trajectory/` and verify the hashes together.
 | License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
 | Buyers | May use, including for training and evaluation, but may not publish the logs openly |
 | Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
-| Format | One .zip package up to 256 MiB (2 GiB unpacked, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
+| Format | One .zip package up to 10 GiB (no total unpacked-size limit, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
 
 ## Contributor instructions
 
@@ -53,7 +53,7 @@ to the frontend's `data/trajectory/` and verify the hashes together.
    chat produced the proof.
 
 The server reads the zip in memory and never extracts it. It refuses unsafe paths, links,
-encrypted entries, more than 20,000 files or 2 GiB unpacked, and checks: the required files
+encrypted entries, more than 20,000 files, and checks: the required files
 are present; `manifest.json` has the format and the four linkage values; `events.jsonl` parses
 with unique ids, known roles, and timestamps no later than export; `artifact-index.json` entries
 link real events and included files match their hashes; exactly one final proof matches the
@@ -65,7 +65,29 @@ export digest or share link) and duplicate review remain human work.
 
 The website sends files larger than 8 MiB in parts automatically. The uploader still selects
 one ZIP. V053 raises the stored-package bound to 256 MiB and adds private temporary upload
-and part tables. The expanded archive is capped at 2 GiB; the 20,000-entry limit still applies.
+and part tables. V055 raises the ZIP limit to 10 GiB, widens offsets to bigint and stores large completed
+packages in private chunks. Validation reads a temporary disk file without extracting entries;
+there is no total unpacked-size limit. The 20,000-entry and individual JSON limits still apply.
+Uploads expire after 24 hours. Direct requests remain limited to 256 MiB; larger ZIPs use
+the existing 8 MiB multipart upload API. The API scratch volume must have space for a full ZIP
+and its event index. Set `proxy_read_timeout 1800s` on chat-log finalization routes before
+releasing the larger uploader; receipt, bounded validation and storage can exceed the previous
+five-minute edge timeout. Keep the per-request proxy body limit at 256 MiB: large files use 8 MiB parts.
+
+Archive validation runs in a killable subprocess with a 600-second wall deadline, 300 CPU
+seconds, a 1536 MiB address-space limit and a 256 MiB event-index/file limit; cancellation
+kills and reaps that process. Every file is streamed for validation, including unreferenced
+supporting files. Before ZipFile loads entries, a bounded preflight limits the central directory
+to 32 MiB and counts actual entries (including ZIP64), rather than trusting the advertised count.
+These processing budgets apply even though total expanded bytes have no fixed cap.
+
+Admission serializes quotas across workers: 20 GiB per account and 100 GiB globally, counting
+retained packages plus pending reservations. Final storage rechecks the quotas, including direct
+uploads; replacing a package releases its old logical allocation in the same transaction.
+Temporary staging/final-storage overlap, database WAL, backups and table bloat need additional
+operator disk capacity beyond these logical byte quotas. Scratch allocation additionally reserves
+the ZIP's declared size plus 6 GiB of free disk headroom; there is one validator per API worker.
+
 
 API clients can POST `/v1/me/chat-log-uploads?byte_length=N` with the usual consent query
 parameters. The response supplies `id`, `chunk_bytes` (8 MiB) and `expires_at`. PUT consecutive
@@ -76,13 +98,13 @@ Finish by POSTing to the usual deposit or submission trajectory endpoint with th
 DELETE `/v1/me/chat-log-uploads/{id}` cancels a transfer. Ownership and normal submission
 eligibility are checked again at finalization; staging never creates a claim or spends a credit.
 
-There are at most eight staged uploads across workers, one per account, expiring after 30
-minutes. Starting again replaces that account's previous staging. Each worker permits six
+There are at most eight staged uploads across workers, one per account, expiring after 24
+hours. Starting again replaces that account's previous staging. Each worker permits six
 starts per account per 15 minutes, four incoming parts at once, a 120-second deadline per part,
 and one final package validation at once. The existing intake quotas apply at finalization.
-Apply V053 and deploy the API before rebuilding the website. The API container has a 4 GiB
+Apply migrations through V055 and deploy the API before rebuilding the website. The API container has a 4 GiB
 memory limit for the loaded catalog, package validation and PostgreSQL transfer buffers. The API role must own or have
-SELECT/INSERT/UPDATE/DELETE on the two new private tables; payout roles need no new grants.
+SELECT/INSERT/UPDATE/DELETE on the staging and completed-package chunk tables; payout roles need no new grants.
 
 At the origin proxy, put this block before the general `/v1/` location (the server's proxy
 headers are inherited). The website's 8 MiB parts also fit the public edge's smaller body cap:
@@ -91,7 +113,7 @@ headers are inherited). The website's 8 MiB parts also fit the public edge's sma
 location ~ ^/v1/me/(chat-log-uploads(?:/[^/]+)?|chat-log-deposits|submissions/[^/]+/trajectory)$ {
     client_max_body_size 256m;
     proxy_request_buffering off;
-    proxy_read_timeout 300s;
+    proxy_read_timeout 1800s;
     proxy_send_timeout 600s;
     proxy_pass http://127.0.0.1:8000;
 }

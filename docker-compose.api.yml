@@ -44,6 +44,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      TMPDIR: /var/lib/conjectures/chat-log-scratch
       # --- Required ---------------------------------------------------------
       APP_MODE: ${APP_MODE:-DEV}
       # Use this stack's unique container name: other attached stacks also publish `db`.
@@ -158,7 +159,8 @@ services:
       - "${API_BIND_HOST:-127.0.0.1}:${API_PORT:-8000}:8000"
 
     volumes:
-      # Read-only, all of it. The API needs to read the audited pool and the pin
+      - chat-log-scratch:/var/lib/conjectures/chat-log-scratch
+      # Read-only task inputs. The API needs to read the audited pool and the pin
       # lock; it has no reason to write either, and a writable mount here would
       # be a path from a network-facing process to the bytes the verifier trusts.
       - ../conjectures-tasks:/opt/conjectures/tasks:ro
@@ -186,7 +188,7 @@ services:
     # refuses a project that sets both forms and the cpu/memory limits below are already in the
     # deploy form.
     tmpfs:
-      # The only writable path. `noexec` so nothing dropped there can be run.
+      # Small general scratch; large chat-log validation uses the disk-backed volume.
       - /tmp:rw,nosuid,nodev,noexec,size=64m
     ulimits:
       nofile:
@@ -220,3 +222,6 @@ services:
         reservations:
           cpus: "0.5"
           memory: 256M
+
+volumes:
+  chat-log-scratch:
