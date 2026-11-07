@@ -40,6 +40,7 @@ from submission_api.trajectory_intake import (
 )
 from submission_api.trajectory_schema import PackageError
 from submission_api.trajectory_validation import prepare_upload_isolated
+from submission_api.trajectory_response import upload_response
 
 router = APIRouter(prefix="/v1", tags=["trajectories"])
 Reviewer = Annotated[Principal, Depends(require_role(REVIEWER_ROLE))]
@@ -61,9 +62,11 @@ class PrivateHeadersMiddleware:
 
         async def private_send(message):
             if message["type"] == "http.response.start":
+                no_transform = any(k.lower() == b"cache-control" and b"no-transform" in v
+                                   for k, v in message.get("headers", []))
                 headers = [(k, v) for k, v in message.get("headers", [])
                            if k.lower() not in (b"cache-control", b"vary")]
-                message = {**message, "headers": [*headers, (b"cache-control", b"no-store"),
+                message = {**message, "headers": [*headers, (b"cache-control", b"no-store, no-transform" if no_transform else b"no-store"),
                                                   (b"vary", b"Authorization, Cookie, Origin")]}
             await send(message)
         await self.app(scope, receive, private_send)
@@ -195,7 +198,6 @@ async def received_package(request, consent, expected_state_version=None, *, ses
             if upload_id is None:
                 raw = await bounded_json(request, MAX_UPLOAD_BYTES, PACKAGE_MEDIA_TYPES)
             else:
-                await bounded_json(request, 0, PACKAGE_MEDIA_TYPES)
                 raw = await uploads.read(session, upload_id, account_id)
                 await session.rollback()  # No connection held while parsing the assembled ZIP.
         prepared = await prepare_upload_isolated(raw, consent, expected_state_version)
@@ -224,7 +226,7 @@ async def received_package(request, consent, expected_state_version=None, *, ses
 async def start_upload(request: Request, principal: WriterDep, services: ServicesDep, session: SessionDep,
                        response: Response, byte_length: Annotated[int, Query(ge=1, le=MAX_PACKAGE_BYTES)],
                        terms_version: TermsVersion, terms_sha256: TermsDigest,
-                       assent_statements_sha256: TermsDigest, accepted: bool = False):
+                       assent_statements_sha256: TermsDigest, accepted: bool = False, keepalive: bool = False):
     private(response)
     await opened(services, session)
     consent_from(terms_version, terms_sha256, assent_statements_sha256, accepted)
@@ -232,9 +234,15 @@ async def start_upload(request: Request, principal: WriterDep, services: Service
         request.app.state.trajectory_start_budget = SlidingWindowLimiter(limit=6, window_seconds=900, max_clients=10000)
     if not request.app.state.trajectory_start_budget.check(str(principal.account.id), time.monotonic()).allowed:
         raise TooManyRequests("Chat-log upload budget exhausted; retry later.", reason_code="TRAJECTORY_RATE_LIMIT")
-    result = await uploads.start(session, principal.account.id, byte_length)
-    await session.commit()
-    return result
+    account_id = principal.account.id
+    await session.rollback()
+
+    async def process():
+        result = await uploads.start(session, account_id, byte_length)
+        await session.commit()
+        return result
+
+    return await upload_response(request, keepalive, process)
 
 
 @router.put("/me/chat-log-uploads/{upload_id}")
@@ -276,7 +284,7 @@ async def discard_upload(upload_id: uuid.UUID, principal: WriterDep, session: Se
 async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
                   session: SessionDep, response: Response, terms_version: TermsVersion,
                   terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False,
-                  upload_id: uuid.UUID | None = None):
+                  upload_id: uuid.UUID | None = None, keepalive: bool = False):
     """Logs for a bounty that requires them, uploaded before the proof, which must follow
     within 24 hours. The request body is the .zip package; consent rides in the query.
 
@@ -291,28 +299,36 @@ async def deposit(request: Request, principal: WriterDep, services: ServicesDep,
     await session.rollback()
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
-    async with request.app.state.trajectory_upload_budget.hold(account_id):
-        async with received_package(request, consent, session=session, account_id=account_id, upload_id=upload_id) as prepared:
-            package = prepared[0].manifest
-            try:
-                entry = services.catalog.resolve(package.task_id, package.task_bundle_sha256)
-            except (TaskNotAllowed, RegistryTaskNotAllowed, ValueError):
-                raise Conflict("The package names a task that is not open for submissions.",
-                               reason_code="TRAJECTORY_LINK_MISMATCH") from None
-            quote = await services.pricing.quote(session, reward_target_id=entry.reward_target_id)
-            if quote.policy_version != store.TREASURY_CHAT_POLICY:
-                raise Conflict("This bounty does not take logs with the proof; earlier proofs use the bonus upload.",
-                               reason_code="TRAJECTORY_INELIGIBLE")
-            if not quote.available:
-                raise Conflict("This bounty is not accepting submissions.", reason_code="TRAJECTORY_INELIGIBLE",
-                               extra={"bounty_reason": quote.reason})
-            claim = await store.deposit_package(session, entry=entry, prepared=prepared, account_id=account_id,
-                                                now=dt.datetime.now(dt.UTC),
-                                                review_policy_version=services.settings.review_policy_version)
-            if upload_id is not None:
-                await uploads.discard(session, upload_id, account_id)
-            await session.commit()
-            return await store.view(session, claim)
+    if upload_id is not None:
+        await bounded_json(request, 0, PACKAGE_MEDIA_TYPES)
+    elif keepalive:
+        raise BadRequest("Keepalive requires a staged upload.")
+
+    async def process():
+        async with request.app.state.trajectory_upload_budget.hold(account_id):
+            async with received_package(request, consent, session=session, account_id=account_id, upload_id=upload_id) as prepared:
+                package = prepared[0].manifest
+                try:
+                    entry = services.catalog.resolve(package.task_id, package.task_bundle_sha256)
+                except (TaskNotAllowed, RegistryTaskNotAllowed, ValueError):
+                    raise Conflict("The package names a task that is not open for submissions.",
+                                   reason_code="TRAJECTORY_LINK_MISMATCH") from None
+                quote = await services.pricing.quote(session, reward_target_id=entry.reward_target_id)
+                if quote.policy_version != store.TREASURY_CHAT_POLICY:
+                    raise Conflict("This bounty does not take logs with the proof; earlier proofs use the bonus upload.",
+                                   reason_code="TRAJECTORY_INELIGIBLE")
+                if not quote.available:
+                    raise Conflict("This bounty is not accepting submissions.", reason_code="TRAJECTORY_INELIGIBLE",
+                                   extra={"bounty_reason": quote.reason})
+                claim = await store.deposit_package(session, entry=entry, prepared=prepared, account_id=account_id,
+                                                    now=dt.datetime.now(dt.UTC),
+                                                    review_policy_version=services.settings.review_policy_version)
+                if upload_id is not None:
+                    await uploads.discard(session, upload_id, account_id)
+                await session.commit()
+                return await store.view(session, claim)
+
+    return await upload_response(request, keepalive, process)
 
 
 async def logs_writer(submission_id: uuid.UUID, principal: WriterDep, session: SessionDep) -> Principal:
@@ -336,7 +352,7 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: Annotate
                  services: ServicesDep, session: SessionDep, response: Response, terms_version: TermsVersion,
                  terms_sha256: TermsDigest, assent_statements_sha256: TermsDigest, accepted: bool = False,
                  expected_state_version: Annotated[int | None, Query(ge=1, le=2147483647)] = None,
-                 upload_id: uuid.UUID | None = None):
+                 upload_id: uuid.UUID | None = None, keepalive: bool = False):
     """Logs uploaded after the proof, as a .zip body: bonus logs for a proof submitted before the
     program began, or a new version of a bounty's required logs that a reviewer asked for.
 
@@ -353,25 +369,33 @@ async def upload(submission_id: uuid.UUID, request: Request, principal: Annotate
     await session.rollback()
     if not hasattr(request.app.state, "trajectory_upload_budget"):
         request.app.state.trajectory_upload_budget = UploadBudget()
-    async with request.app.state.trajectory_upload_budget.hold(account_id):
-        async with received_package(request, consent, expected_state_version,
-                                           session=session, account_id=account_id, upload_id=upload_id) as prepared:
-            # Recheck under the proof correction lock after all untrusted parsing and hashing.
-            submission = await store.owned_submission(session, submission_id, account_id, lock=True, logs_owner=True)
-            decision = await latest_binding_decision(session, submission_id)
-            now = dt.datetime.now(dt.UTC)
-            existing = await store.claim_for(session, submission_id)
-            offer_start_at = existing.offer_start_at if existing else start_at
-            await revisable(session, submission, start_at)
-            claim = await store.accept_package(session, submission=submission, decision=decision,
-                                               prepared=prepared, account_id=account_id, now=now,
-                                               amount_usd_cents=(existing.amount_usd_cents if existing else
-                                                   await anyio.to_thread.run_sync(store.amount_for, services, submission)),
-                                               offer_start_at=offer_start_at)
-            if upload_id is not None:
-                await uploads.discard(session, upload_id, account_id)
-            await session.commit()
-            return await store.view(session, claim)
+    if upload_id is not None:
+        await bounded_json(request, 0, PACKAGE_MEDIA_TYPES)
+    elif keepalive:
+        raise BadRequest("Keepalive requires a staged upload.")
+
+    async def process():
+        async with request.app.state.trajectory_upload_budget.hold(account_id):
+            async with received_package(request, consent, expected_state_version,
+                                               session=session, account_id=account_id, upload_id=upload_id) as prepared:
+                # Recheck under the proof correction lock after all untrusted parsing and hashing.
+                submission = await store.owned_submission(session, submission_id, account_id, lock=True, logs_owner=True)
+                decision = await latest_binding_decision(session, submission_id)
+                now = dt.datetime.now(dt.UTC)
+                existing = await store.claim_for(session, submission_id)
+                offer_start_at = existing.offer_start_at if existing else start_at
+                await revisable(session, submission, start_at)
+                claim = await store.accept_package(session, submission=submission, decision=decision,
+                                                   prepared=prepared, account_id=account_id, now=now,
+                                                   amount_usd_cents=(existing.amount_usd_cents if existing else
+                                                       await anyio.to_thread.run_sync(store.amount_for, services, submission)),
+                                                   offer_start_at=offer_start_at)
+                if upload_id is not None:
+                    await uploads.discard(session, upload_id, account_id)
+                await session.commit()
+                return await store.view(session, claim)
+
+    return await upload_response(request, keepalive, process)
 
 
 async def revisable(session, submission, start_at):
