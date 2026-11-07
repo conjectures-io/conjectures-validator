@@ -5,7 +5,8 @@ import hashlib
 import uuid
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, text
+from sqlalchemy.exc import OperationalError
 
 from conftest_api import postgres_dsn
 from test_api_accounts import client, same_origin, sign_in_by_email
@@ -249,6 +250,110 @@ def test_direct_upload_quota_rejects_before_any_package_insert(monkeypatch):
                                    for sql in statements)
                 finally:
                     event.remove(engine, "before_cursor_execute", capture)
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("operation", ["discard", "start", "purge"])
+def test_cleanup_survives_a_cascade_larger_than_the_statement_budget(monkeypatch, operation):
+    monkeypatch.setattr(staging, "DELETE_CHUNKS", 2)
+
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner:
+                account = await sign_in_by_email(kit, owner)
+                begun = await start(owner, 6 * staging.CHUNK_BYTES)
+                uid, aid = uuid.UUID(begun.json()["id"]), uuid.UUID(account["id"])
+            async with kit.session() as session:
+                session.add_all(TrajectoryUploadChunk(upload_id=uid, byte_offset=i * staging.CHUNK_BYTES,
+                                                     data=b"x") for i in range(6))
+                if operation == "purge":
+                    row = await session.get(TrajectoryUpload, uid)
+                    row.expires_at = dt.datetime.now(dt.UTC) - dt.timedelta(seconds=1)
+                # Simulate slow TOAST deletion without putting gigabytes in every CI run.
+                await session.execute(text("""CREATE OR REPLACE FUNCTION slow_upload_delete() RETURNS trigger
+                    LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(0.08); RETURN OLD; END $$"""))
+                await session.execute(text("""CREATE TRIGGER slow_upload_delete BEFORE DELETE ON trajectory_upload_chunks
+                    FOR EACH ROW EXECUTE FUNCTION slow_upload_delete()"""))
+                await session.commit()
+                await session.execute(text("SET LOCAL statement_timeout = '400ms'"))
+                with pytest.raises(OperationalError) as caught:
+                    await session.execute(delete(TrajectoryUpload).where(TrajectoryUpload.id == uid))
+                assert caught.value.orig.sqlstate == "57014"
+                await session.rollback()
+                await session.execute(text("SET LOCAL statement_timeout = '400ms'"))
+                if operation == "discard":
+                    await staging.discard(session, uid, aid)
+                elif operation == "start":
+                    await staging.start(session, aid, 10)
+                else:
+                    await staging.purge_expired(session)
+                await session.commit()
+                assert await session.get(TrajectoryUpload, uid) is None
+                assert await session.scalar(select(func.count()).select_from(TrajectoryUploadChunk)) == 0
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+def test_busy_upload_returns_retryable_errors_and_preserves_parts():
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner:
+                await sign_in_by_email(kit, owner)
+                uid = (await start(owner, 3)).json()["id"]
+                path = f"{START}/{uid}"
+                part = {"params": {"offset": 0}, "content": b"zip", "headers": ZIP}
+                async with kit.session() as holder:
+                    await holder.scalar(select(TrajectoryUpload).where(
+                        TrajectoryUpload.id == uuid.UUID(uid)).with_for_update())
+                    for response in [await owner.put(path, **part),
+                                     await owner.delete(path, headers=same_origin()),
+                                     await start(owner, 4)]:
+                        assert response.status_code == 429, response.text
+                        assert response.json()["reason_code"] == "TRAJECTORY_BUSY"
+                        assert response.json()["retry_after_seconds"] == 2
+                    await holder.rollback()
+                assert (await owner.put(path, **part)).status_code == 200
+                assert (await owner.put(path, **part)).json()["received_bytes"] == 3
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+def test_keepalive_upload_commits_and_reports_validation_errors(monkeypatch):
+    monkeypatch.setattr(staging, "INLINE_BYTES", 1)
+
+    async def scenario():
+        kit = await kit_config().setup()
+        try:
+            async with await client(kit) as owner:
+                _, sid, document = await accepted(kit, owner)
+                raw = build_package(document)
+                params = {**consent_params(), "keepalive": "true"}
+                begun = await owner.post(START, params={**params, "byte_length": len(raw)}, headers=same_origin())
+                uid = begun.json()["result"]["id"]
+                assert begun.headers["x-accel-buffering"] == "no"
+                assert begun.headers["cache-control"] == "no-store, no-transform"
+                assert (await owner.put(f"{START}/{uid}", params={"offset": 0}, content=raw, headers=ZIP)).status_code == 200
+                final = f"/v1/me/submissions/{sid}/trajectory"
+                done = await owner.post(final, params={**params, "upload_id": uid}, content=b"", headers=ZIP)
+                assert done.status_code == 200, done.text
+                assert done.json()["result"]["package_sha256"] == "sha256:" + hashlib.sha256(raw).hexdigest()
+                async with kit.session() as session:
+                    assert await session.get(TrajectoryUpload, uuid.UUID(uid)) is None
+                    assert await session.scalar(select(func.count()).select_from(TrajectoryClaim)) == 1
+                uid = (await start(owner, 3)).json()["id"]
+                assert (await owner.put(f"{START}/{uid}", params={"offset": 0}, content=b"bad", headers=ZIP)).status_code == 200
+                failed = await owner.post("/v1/me/chat-log-deposits", params={**params, "upload_id": uid}, content=b"", headers=ZIP)
+                assert failed.status_code == 200
+                assert failed.json()["error"]["status"] == 400
+                assert failed.json()["error"]["reason_code"] == "TRAJECTORY_INVALID"
+                async with kit.session() as session:
+                    assert await session.scalar(select(func.count()).select_from(TrajectoryClaim)) == 1
         finally:
             await kit.teardown()
     asyncio.run(scenario())

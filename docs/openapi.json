@@ -18951,6 +18951,16 @@
               ],
               "title": "Upload Id"
             }
+          },
+          {
+            "in": "query",
+            "name": "keepalive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Keepalive",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -19039,6 +19049,16 @@
             "schema": {
               "default": false,
               "title": "Accepted",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "keepalive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Keepalive",
               "type": "boolean"
             }
           }
@@ -20610,6 +20630,16 @@
                 }
               ],
               "title": "Upload Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "keepalive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Keepalive",
+              "type": "boolean"
             }
           }
         ],

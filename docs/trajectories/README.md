@@ -98,6 +98,20 @@ Finish by POSTing to the usual deposit or submission trajectory endpoint with th
 DELETE `/v1/me/chat-log-uploads/{id}` cancels a transfer. Ownership and normal submission
 eligibility are checked again at finalization; staging never creates a claim or spends a credit.
 
+Browsers use `keepalive=true` on upload creation and staged finalization. After the initial
+checks pass, these requests return HTTP 200 with JSON whitespace every ten seconds, followed
+by `{"result": <normal response>}` or `{"error": <problem document>}`. Clients must check the
+envelope's error, including its `status`, even when the HTTP status is 200. Precheck errors
+still use normal HTTP error responses. The stream disables proxy buffering and transformations
+so slow validation, storage and replacement cleanup do not leave the connection silent.
+Without `keepalive`, the existing response format and HTTP statuses are unchanged.
+
+Retry interrupted or temporarily unavailable PUT parts with exactly the same offset and
+bytes; never restart the whole ZIP for a transient part failure. Busy staging rows return
+`TRAJECTORY_BUSY` with a retry delay instead of waiting for a database lock timeout. Cleanup
+deletes at most sixteen chunks per statement, with the parent locked until the transaction
+commits, so replacing or completing a large upload stays atomic under the database timeout.
+
 There are at most eight staged uploads across workers, one per account, expiring after 24
 hours. Starting again replaces that account's previous staging. Each worker permits six
 starts per account per 15 minutes, four incoming parts at once, a 120-second deadline per part,
