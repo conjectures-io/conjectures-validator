@@ -10,6 +10,7 @@ import uuid
 import anyio
 
 from sqlalchemy import delete, func, or_, select
+from sqlalchemy.exc import OperationalError
 
 from conjectures_subnet.db.trajectory_models import TrajectoryUpload, TrajectoryUploadChunk
 from submission_api.trajectory_storage import FilePackage, INLINE_BYTES, require_scratch_space
@@ -18,17 +19,46 @@ from submission_api.errors import BadRequest, Conflict, NotFound, TooManyRequest
 
 CHUNK_BYTES = 8 * 1024 * 1024
 MAX_PENDING_UPLOADS = 8
+DELETE_CHUNKS = 16
+
+
+async def locked(session, query):
+    try:
+        return await session.scalars(query.with_for_update(nowait=True))
+    except OperationalError as error:
+        if getattr(error.orig, "sqlstate", None) != "55P03":
+            raise
+        raise TooManyRequests("Chat-log upload is busy; retry shortly.", reason_code="TRAJECTORY_BUSY",
+                              extra={"retry_after_seconds": 2}) from None
+
+
+async def remove(session, *conditions):
+    # Lock the parent first so an append cannot race cleanup between batches.
+    ids = list(await locked(session, select(TrajectoryUpload.id).where(*conditions)))
+    for upload_id in ids:
+        while True:
+            offsets = select(TrajectoryUploadChunk.byte_offset).where(
+                TrajectoryUploadChunk.upload_id == upload_id).order_by(
+                    TrajectoryUploadChunk.byte_offset).limit(DELETE_CHUNKS)
+            result = await session.execute(delete(TrajectoryUploadChunk).where(
+                TrajectoryUploadChunk.upload_id == upload_id,
+                TrajectoryUploadChunk.byte_offset.in_(offsets)))
+            if not result.rowcount:
+                break
+        # The cascade is now empty; deleting a multi-GiB TOAST value set in one statement
+        # exceeded the production statement timeout and rolled back every retry.
+        await session.execute(delete(TrajectoryUpload).where(TrajectoryUpload.id == upload_id))
 
 
 async def purge_expired(session):
-    await session.execute(delete(TrajectoryUpload).where(TrajectoryUpload.expires_at <= dt.datetime.now(dt.UTC)))
+    await remove(session, TrajectoryUpload.expires_at <= dt.datetime.now(dt.UTC))
 
 
 async def start(session, account_id, byte_length):
     # Serialize admission across workers; every transfer reserves its entire declared size.
     await quota.lock(session)
-    await session.execute(delete(TrajectoryUpload).where(or_(
-        TrajectoryUpload.expires_at <= dt.datetime.now(dt.UTC), TrajectoryUpload.account_id == account_id)))
+    await remove(session, or_(TrajectoryUpload.expires_at <= dt.datetime.now(dt.UTC),
+                             TrajectoryUpload.account_id == account_id))
     if await session.scalar(select(func.count()).select_from(TrajectoryUpload)) >= MAX_PENDING_UPLOADS:
         raise TooManyRequests("Chat-log uploads are busy; retry shortly.", reason_code="TRAJECTORY_BUSY")
     await quota.check_capacity(session, account_id, byte_length)
@@ -42,7 +72,7 @@ async def start(session, account_id, byte_length):
 async def owned(session, upload_id, account_id, *, lock=False):
     query = select(TrajectoryUpload).where(TrajectoryUpload.id == upload_id,
         TrajectoryUpload.account_id == account_id, TrajectoryUpload.expires_at > dt.datetime.now(dt.UTC))
-    upload = await session.scalar(query.with_for_update() if lock else query)
+    upload = (await locked(session, query)).one_or_none() if lock else await session.scalar(query)
     if upload is None:
         raise NotFound("Chat-log upload not found or expired; select the file again.")
     return upload
@@ -94,5 +124,4 @@ async def read(session, upload_id, account_id):
 
 
 async def discard(session, upload_id, account_id):
-    await session.execute(delete(TrajectoryUpload).where(
-        TrajectoryUpload.id == upload_id, TrajectoryUpload.account_id == account_id))
+    await remove(session, TrajectoryUpload.id == upload_id, TrajectoryUpload.account_id == account_id)
