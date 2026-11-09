@@ -52,7 +52,8 @@ to the frontend's `data/trajectory/` and verify the hashes together.
 3. The final proof is one `artifact-index.json` entry linked to a dated event: that is when the
    chat produced the proof.
 
-The server reads the zip in memory and never extracts it. It refuses unsafe paths, links,
+The server reads the zip without extracting it, using a temporary file for large packages.
+It refuses unsafe paths, links,
 encrypted entries, more than 20,000 files, and checks: the required files
 are present; `manifest.json` has the format and the four linkage values; `events.jsonl` parses
 with unique ids, known roles, and timestamps no later than export; `artifact-index.json` entries
@@ -67,7 +68,9 @@ The website sends files larger than 8 MiB in parts automatically. The uploader s
 one ZIP. V053 raises the stored-package bound to 256 MiB and adds private temporary upload
 and part tables. V055 raises the ZIP limit to 10 GiB, widens offsets to bigint and stores large completed
 packages in private chunks. Validation reads a temporary disk file without extracting entries;
-there is no total unpacked-size limit. The 20,000-entry and individual JSON limits still apply.
+there is no total unpacked-size limit or per-file JSON byte limit. The artifact index is
+validated one entry at a time. The 20,000 ZIP-entry limit, 64 MiB JSONL line limit and
+24-level JSON nesting limit still apply, along with the validation resource budgets below.
 Uploads expire after 24 hours. Direct requests remain limited to 256 MiB; larger ZIPs use
 the existing 8 MiB multipart upload API. The API scratch volume must have space for a full ZIP
 and its event index. Set `proxy_read_timeout 1800s` on chat-log finalization routes before
