@@ -118,12 +118,22 @@ def session_scope(factory: sessionmaker[Session]) -> Iterator[Session]:
 
 
 def create_async_db_engine(
-    url: str | None = None, *, echo: bool = False
+    url: str | None = None, *, echo: bool = False, pool_timeout: float = 30.0
 ) -> AsyncEngine:
-    """An async Engine with a pre-ping pool, for the submission API."""
+    """An async Engine with a pre-ping pool, for the submission API.
+
+    `pool_timeout` is how long a request waits for a pooled connection before
+    `sqlalchemy.exc.TimeoutError`; 30 s is SQLAlchemy's own default.
+    """
     # SQL exceptions must never print bound private trajectory bytes (or other credentials).
     # Through the module, as in `create_db_engine`, so a traced API records every statement.
-    return sqlalchemy.ext.asyncio.create_async_engine(url or database_url(), pool_pre_ping=True, echo=echo, hide_parameters=True)
+    return sqlalchemy.ext.asyncio.create_async_engine(
+        url or database_url(),
+        pool_pre_ping=True,
+        echo=echo,
+        hide_parameters=True,
+        pool_timeout=pool_timeout,
+    )
 
 
 def async_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

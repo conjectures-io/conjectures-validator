@@ -62,6 +62,9 @@ REASON_INTERNAL = "INTERNAL_ERROR"
 # routes and the competition ones alike. Defined here rather than in either router so that
 # neither has to import the other to agree on the string a client switches on.
 REASON_SUBMISSIONS_PAUSED = "SUBMISSIONS_PAUSED"
+# Every pooled connection to a database was in use for the whole pool timeout.
+REASON_DATABASE_BUSY = "DATABASE_BUSY"
+DATABASE_BUSY_RETRY_SECONDS = 5
 
 # The two request-scoped facts these handlers and `AxiomRequestMiddleware` pass to each other. The
 # scope is the one object both hold a reference to, and both keys are namespaced so they cannot
@@ -282,6 +285,25 @@ async def database_error_handler(request: Request, exc: Exception) -> JSONRespon
             **_request_fields(request),
         )
     return problem_response(note_reason(request, error))
+
+
+async def pool_timeout_handler(request: Request, _exc: Exception) -> JSONResponse:
+    """`sqlalchemy.exc.TimeoutError`: no pooled connection came free in time.
+
+    Overload, not a defect, so a `503` with `Retry-After` and no `unexpected_error` traceback:
+    the request's own event carries `DATABASE_BUSY`, the 5xx monitors count it, and the trace's
+    `connect` span says which database. It used to fall through to the catch-all as a `500`.
+    """
+    response = problem_response(
+        note_reason(
+            request,
+            ServiceUnavailable(
+                "the service is busy; retry shortly", reason_code=REASON_DATABASE_BUSY
+            ),
+        )
+    )
+    response.headers["Retry-After"] = str(DATABASE_BUSY_RETRY_SECONDS)
+    return response
 
 
 async def validation_error_handler(request: Request, exc: Exception) -> JSONResponse:

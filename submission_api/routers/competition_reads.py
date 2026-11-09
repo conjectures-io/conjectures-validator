@@ -574,12 +574,24 @@ async def weights(
     )
 
 
-async def load_submission(slug, sid, services, session, snapshot_id=None):
+async def existing_submission(slug, sid, services, session):
+    """The submission row, or 404 -- before anything loads a scoring pass for it.
+
+    An unknown id used to pay for the whole snapshot first, so a crawler walking ids cost as
+    much as real readers. `compatible` still goes first: `get_submission` reads columns an old
+    schema lacks, which must be a 503 and not a SQL error.
+    """
     resolve_competition(services, slug)
-    snap = await selected_snapshot(session, snapshot_id)
+    await store.compatible(session)
     sub = await store.get_submission(session, sid)
     if sub is None:
         raise NotFound("No such submission")
+    return sub
+
+
+async def load_submission(slug, sid, services, session, snapshot_id=None):
+    sub = await existing_submission(slug, sid, services, session)
+    snap = await selected_snapshot(session, snapshot_id)
     chosen = next(
         ((i, score) for i, score in items(snap) if str(i["submission"]["id"]) == str(sid)), None
     )
@@ -648,7 +660,8 @@ async def report(
     session: CompetitionSessionDep,
     submission_id: int = Path(ge=1),
 ):
-    await load_submission(slug, submission_id, services, session)
+    # Only existence matters here: the report is the submission's own, not a scoring pass's.
+    await existing_submission(slug, submission_id, services, session)
     report = (
         await session.execute(
             text("SELECT report FROM submissions WHERE id=:id"), {"id": submission_id}
