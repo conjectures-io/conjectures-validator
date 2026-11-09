@@ -20,13 +20,13 @@ from typing import Annotated, Literal
 
 from submission_api.trajectory_storage import EventIndex, FilePackage
 from submission_api.trajectory_zip_directory import check_directory
+from submission_api.trajectory_json import MAX_JSON_DEPTH, array_items
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
 FORMAT = "conjectures-chat-log/v2"
 MAX_PACKAGE_BYTES = 10 * 1024 * 1024 * 1024
 MAX_FILES = 20_000
-MAX_JSON_FILE_BYTES = 32 * 1024 * 1024
 MAX_EVENT_LINE_BYTES = 64 * 1024 * 1024
 RETENTION_DAYS = 90
 TERMS_VERSION = "chat-log-terms-v5"
@@ -152,12 +152,18 @@ def _root(names) -> str:
 
 
 def _json_file(archive, info, file):
-    if info.file_size > MAX_JSON_FILE_BYTES:
-        raise PackageError("a JSON file in the package is too large", file=file)
     try:
         return _decode(archive.read(info))
     except (ValueError, UnicodeError, RecursionError) as error:
         raise PackageError(_safe(error) or "invalid JSON", file=file) from None
+
+
+def _artifact_entries(archive, info):
+    try:
+        with archive.open(info) as source:
+            yield from array_items(source, _decode)
+    except (ValueError, UnicodeError, RecursionError) as error:
+        raise PackageError(_safe(error) or "invalid JSON", file="artifact-index.json") from None
 
 
 def _lines(archive, info, file):
@@ -224,9 +230,7 @@ def parse_package(raw: bytes | FilePackage) -> PackageSummary:
                 raise PackageError(_safe(error) or "invalid JSON", file="episodes.jsonl", line=number) from None
         _json_file(archive, names[root + "validation.json"], "validation.json")
 
-        index = _json_file(archive, names[root + "artifact-index.json"], "artifact-index.json")
-        if not isinstance(index, list):
-            raise PackageError("artifact-index.json must be a JSON array", file="artifact-index.json")
+        index = _artifact_entries(archive, names[root + "artifact-index.json"])
         artifacts, proofs = set(), []
         checked = {root + name for name in ("manifest.json", "events.jsonl", "episodes.jsonl", "validation.json", "artifact-index.json")}
         for position, item in enumerate(index, 1):
@@ -302,15 +306,14 @@ def check_json_depth(raw: bytes):
             quoted = True
         elif ch in (91, 123):
             depth += 1
-            if depth > 24:
-                raise ValueError("JSON nesting exceeds 24 levels")
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError(f"JSON nesting exceeds {MAX_JSON_DEPTH} levels")
         elif ch in (93, 125):
             depth -= 1
 
 
 SAFE_SEMANTIC_ERRORS = frozenset((
     'JSON nesting exceeds 24 levels',
-    'a JSON file in the package is too large',
     'a line is too large',
     'a timestamped event must show the final proof',
     'an artifact links an unknown event',
