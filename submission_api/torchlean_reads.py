@@ -144,6 +144,75 @@ def stopped_round(value):
     return (whole if whole or not samples else None), (samples or None)
 
 
+def pick(model, value):
+    """`model` from the named fields of a worker payload; never the payload's other keys."""
+    return model(**{k: value.get(k) for k in model.model_fields if k in value})
+
+
+def for_board(board, result, partial):
+    """A job's result and failure evidence for one board, and whether the job was shared.
+
+    A comparison bundle times the entry once for several boards. Its result keeps each board's
+    observations under `comparisons`; a failed bundle keeps the boards that finished under
+    `completed_comparisons` and the stopped one's evidence under `comparison_partial`.
+    """
+    bundled = isinstance(result.get("comparisons"), dict)
+    stopped = "failed_comparison" in partial or "completed_comparisons" in partial
+    if not bundled and not stopped:
+        return result, partial, False
+    if bundled:
+        selected = result["comparisons"].get(board)
+        return (selected if isinstance(selected, dict) else {}), {}, True
+    completed = partial.get("completed_comparisons")
+    if isinstance(completed, dict) and isinstance(completed.get(board), dict):
+        return completed[board], {}, True
+    if partial.get("failed_comparison") == board and isinstance(
+        partial.get("comparison_partial"), dict
+    ):
+        return {}, partial["comparison_partial"], True
+    # A board the bundle had not reached when it stopped.
+    return {}, {}, True
+
+
+def baseline(value):
+    if not isinstance(value, dict):
+        return None
+    summary = value.get("summary")
+    return s.TorchLeanBaseline(
+        source_sha256=value.get("source_hash"),
+        cells={
+            cell: pick(s.TorchLeanBaselineCell, row)
+            for cell, row in (summary.items() if isinstance(summary, dict) else ())
+            if isinstance(row, dict)
+        },
+    )
+
+
+def real_suite(value):
+    if not isinstance(value, dict):
+        return None
+    summary = value.get("summary") if isinstance(value.get("summary"), dict) else {}
+    families = value.get("families") if isinstance(value.get("families"), dict) else {}
+    if not summary and not families:
+        return None
+    return s.TorchLeanRealSuite(
+        workloads={
+            name: pick(s.TorchLeanRealWorkloadResult, row)
+            for name, row in summary.items()
+            if isinstance(row, dict)
+        },
+        families={
+            name: s.TorchLeanRealFamily(
+                candidate_to_reference=row.get("equal_weight_candidate_to_reference_geomean"),
+                candidate_to_baseline=row.get("equal_weight_candidate_to_baseline_geomean"),
+                workloads=sorted(row.get("workloads") or ()),
+            )
+            for name, row in families.items()
+            if isinstance(row, dict)
+        },
+    )
+
+
 def evaluation(row):
     return s.TorchLeanEvaluation(
         **{k: row[k] for k in s.TorchLeanEvaluation.model_fields if k not in ("decision", "jobs")},
@@ -193,7 +262,7 @@ async def submissions(session, *, sid=None, processing=None, before=None, limit=
         limit=limit,
     )
     if sid is not None and not data:
-        raise NotFound("No such TorchLean submission")
+        raise NotFound("No such submission")
     evidence = await evaluations(session, [r["id"] for r in data])
     visible = await visible_sources(session, {r["source_sha256"] for r in data})
     grouped = {}
@@ -213,7 +282,7 @@ def board_data(snapshot, board):
     config = snapshot["config_evidence"] or {}
     defined = config.get("boards", {}).get(board)
     if defined is None:
-        raise NotFound("No such active TorchLean board")
+        raise NotFound("No such active board")
     published = (snapshot["publication"] or {}).get("boards", {}).get(board, {})
     return config, defined, published
 
@@ -274,7 +343,7 @@ async def leaderboard(session, snapshot, board, promotion_id=None, config_hash=N
             raise NotFound("No such champion on this board")
     active = board in (snapshot["config_evidence"] or {}).get("boards", {})
     if promotion_id is None and not active:
-        raise NotFound("No such active TorchLean board")
+        raise NotFound("No such active board")
     config = None
     defined = None
     if active:
@@ -345,7 +414,7 @@ async def champions(session, snapshot, board):
     hist = await history(session, board)
     active = board in (snapshot["config_evidence"] or {}).get("boards", {})
     if not hist and not active:
-        raise NotFound("No such TorchLean board")
+        raise NotFound("No such board")
     live = current(hist)
     publication = snapshot["publication"] or {}
     policy = publication.get("rewards", {})
@@ -423,11 +492,16 @@ async def report(session, sid):
         for j in data:
             if j["evaluation_id"] != e.id:
                 continue
-            value = j["result"] or {}
             # A failed job keeps what the worker had measured before it stopped.
-            partial = j["partial"] if isinstance(j["partial"], dict) else {}
+            value, partial, shared = for_board(
+                e.board,
+                j["result"] if isinstance(j["result"], dict) else {},
+                j["partial"] if isinstance(j["partial"], dict) else {},
+            )
             measured = value or partial
-            stopped = j["timeout"] if isinstance(j["timeout"], dict) else {}
+            # A shared job's timeout is the stopped board's, not one that had finished.
+            timed_out = j["timeout"] if not shared or partial else None
+            stopped = timed_out if isinstance(timed_out, dict) else {}
             in_progress, in_progress_samples = stopped_round(partial.get("round_in_progress"))
             # A stale payload on a failed job remains diagnostic evidence, never a fresh score.
             diagnostic = next(
@@ -476,12 +550,17 @@ async def report(session, sid):
                     else None,
                     score=diagnostic.get("score"),
                     guards=diagnostic.get("guards"),
-                    timeout=timeout(j["timeout"]),
+                    timeout=timeout(timed_out),
                     calibration=partial.get("calibration"),
                     round_in_progress=in_progress,
                     round_in_progress_samples=in_progress_samples,
                     finished=cell_times(stopped.get("finished")),
                     evidence_truncated=j["truncated"],
+                    shared=shared,
+                    suite_scores=diagnostic.get("suite_scores"),
+                    real_family_scores=diagnostic.get("real_family_scores"),
+                    baseline=baseline(measured.get("baseline")),
+                    real=real_suite(measured.get("real")),
                 )
             )
         result.append(
@@ -491,6 +570,16 @@ async def report(session, sid):
                 timing=plan.get("timing", {}),
                 admission_policy=plan.get("admission", {}),
                 measurements=measurements,
+                suites=plan.get("suites"),
+                suite_weights=plan.get("suite_weights"),
+                real_workloads=[
+                    pick(s.TorchLeanRealWorkload, w)
+                    for w in plan["real_workloads"]
+                    if isinstance(w, dict)
+                ]
+                if isinstance(plan.get("real_workloads"), list)
+                else None,
+                baseline_sha256=plan.get("baseline_hash"),
             )
         )
     return s.TorchLeanReport(submission=sub, evaluations=result)

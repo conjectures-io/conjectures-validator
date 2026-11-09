@@ -62,6 +62,12 @@ class TorchLeanAdmission(BaseModel):
     reason: str | None = None
     # Decisions recorded before timeouts were kept say only what the reason did.
     timeout: TorchLeanTimeout | None = None
+    suite_scores: dict[str, float] | None = Field(
+        None,
+        description="Per benchmark suite (`synthetic`, `real`), the weighted time ratio against the "
+        "reference; `score` combines them by the plan's `suite_weights`. Null where the "
+        "competition times one synthetic suite only",
+    )
 
 
 class TorchLeanEvaluation(BaseModel):
@@ -220,6 +226,67 @@ class TorchLeanWorkload(BaseModel):
     weight: float
 
 
+class TorchLeanBaselineCell(BaseModel):
+    """One cell timed with the shipped baseline kernels: a fixed yardstick, never a score input."""
+
+    baseline_median_ns: float | None = None
+    baseline_repetitions: int | None = None
+    baseline_ns_per_request: float | None = None
+    candidate_median_ns_per_request: float | None = None
+    reference_median_ns_per_request: float | None = None
+    candidate_to_baseline: float | None = None
+    reference_to_baseline: float | None = None
+
+
+class TorchLeanBaseline(BaseModel):
+    source_sha256: str | None = Field(None, description="The baseline `Kernel.lean` timed")
+    cells: dict[str, TorchLeanBaselineCell] = Field(
+        default_factory=dict, description="Per `<workload>|<cell>`, unpaired medians"
+    )
+
+
+class TorchLeanRealWorkloadResult(BaseModel):
+    """Medians over the paired rounds of one real model on its real samples."""
+
+    family: str | None = None
+    model: str | None = None
+    dataset: str | None = None
+    samples_per_run: int | None = None
+    candidate_median_ns: float | None = None
+    reference_median_ns: float | None = None
+    candidate_to_reference: float | None = None
+    baseline_median_ns: float | None = None
+    candidate_to_baseline: float | None = None
+
+
+class TorchLeanRealFamily(BaseModel):
+    candidate_to_reference: float | None = Field(
+        None, description="Equal-weight geometric mean over the family's real workloads"
+    )
+    candidate_to_baseline: float | None = None
+    workloads: list[str] = Field(default_factory=list)
+
+
+class TorchLeanRealSuite(BaseModel):
+    workloads: dict[str, TorchLeanRealWorkloadResult]
+    families: dict[str, TorchLeanRealFamily]
+
+
+class TorchLeanRealWorkload(BaseModel):
+    """A real model and dataset the plan times besides the synthetic cells."""
+
+    id: str
+    family: str
+    model: str
+    dataset: str
+    adapter: str | None = None
+    asset_revision: str | None = None
+    weights_sha256: str | None = None
+    samples_sha256: str | None = None
+    sample_count: int | None = None
+    samples_per_run: int | None = None
+
+
 class TorchLeanMeasurement(BaseModel):
     environment: str
     seed: int
@@ -254,6 +321,15 @@ class TorchLeanMeasurement(BaseModel):
     evidence_truncated: bool = Field(
         False, description="The worker's evidence was too large to keep"
     )
+    shared: bool = Field(
+        False,
+        description="The job timed this entry once for several boards (a comparison bundle); "
+        "these are the observations against this board's reference",
+    )
+    suite_scores: dict[str, float] | None = None
+    real_family_scores: dict[str, float] | None = None
+    baseline: TorchLeanBaseline | None = None
+    real: TorchLeanRealSuite | None = None
 
 
 class TorchLeanEvaluationReport(TorchLeanEvaluation):
@@ -261,6 +337,14 @@ class TorchLeanEvaluationReport(TorchLeanEvaluation):
     timing: dict[str, float]
     admission_policy: dict[str, float]
     measurements: list[TorchLeanMeasurement]
+    suites: list[str] | None = Field(
+        None, description="The benchmark suites scored, e.g. `synthetic` and `real`"
+    )
+    suite_weights: dict[str, float] | None = None
+    real_workloads: list[TorchLeanRealWorkload] | None = None
+    baseline_sha256: str | None = Field(
+        None, description="The baseline `Kernel.lean` each job also times, for reference only"
+    )
 
 
 class TorchLeanReport(BaseModel):

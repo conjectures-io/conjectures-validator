@@ -32,7 +32,7 @@ async def compatible(session):
     )
     if not REQUIRED_COLUMNS <= columns:
         raise ServiceUnavailable(
-            "TorchLean schema or API grants are unavailable; apply tensor_0002 and platform grants.",
+            "Competition schema or API grants are unavailable; apply tensor_0002 and platform grants.",
             reason_code="COMPETITION_SCHEMA_UNAVAILABLE",
         )
 
