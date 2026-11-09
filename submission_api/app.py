@@ -43,6 +43,7 @@ from datetime import date
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from conjectures_subnet.axiom import attach_axiom_handler, get_axiom
@@ -145,6 +146,12 @@ conjecture statements, the Lean challenge each solver compiles against, and veri
 attributed to conjectures.io — never a miner identity, proof bytes, or verifier output.
 """.strip()
 
+# How long a competition read waits for one of its database's pooled connections. SQLAlchemy's
+# 30 s default turned a burst on 2026-11-08 into 338 requests that hung half a minute and then
+# failed anyway; past a few seconds the pool is exhausted, and a prompt 503 with Retry-After
+# (`errors.pool_timeout_handler`) serves the caller, the website's renderer and the pool better.
+COMPETITION_POOL_TIMEOUT_SECONDS = 5.0
+
 
 def competition_url(settings: Settings, slug: str | None = None) -> str:
     """A competition database's URL, refusing to be the proofs database's.
@@ -196,7 +203,7 @@ def build_competitions(settings: Settings) -> CompetitionRegistry:
         urls[url] = slug
     entries = []
     for url, slug in urls.items():
-        engine = create_async_db_engine(url)
+        engine = create_async_db_engine(url, pool_timeout=COMPETITION_POOL_TIMEOUT_SECONDS)
         floatlib = slug == FLOATLIB_SLUG
         entries.append(
             Competition(
@@ -459,6 +466,7 @@ def create_app(
     application.add_exception_handler(errors.ApiError, errors.api_error_handler)
     application.add_exception_handler(VerifierError, errors.verifier_error_handler)
     application.add_exception_handler(DatabaseError, errors.database_error_handler)
+    application.add_exception_handler(PoolTimeout, errors.pool_timeout_handler)
     application.add_exception_handler(
         RequestValidationError, errors.validation_error_handler
     )

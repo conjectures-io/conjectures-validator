@@ -5,7 +5,10 @@ No copied ORM, migrations, verifier or scoring implementation is imported here.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import time
+import weakref
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -19,7 +22,27 @@ claimed_at, finished_at, account_id"""
 PUBLIC = "(hotkey IS NOT NULL OR baseline_key IS NOT NULL)"
 
 
+def _engine(session):
+    """The Engine behind `session`, as a key for per-database memos; None if it has no bind.
+
+    Keyed by the engine object rather than its URL: an engine lives as long as the database it
+    points at, so a test's throwaway database (or a schema behind `search_path`) never shares an
+    entry with another, and a dropped engine takes its entries with it.
+    """
+    bind = getattr(session, "bind", None)
+    return getattr(bind, "sync_engine", bind)
+
+
+# Engines whose schema has passed `compatible`. Competition migrations only add, so a pass stays
+# a pass for the life of the engine; a refusal is not remembered, so a migration is picked up on
+# the next request. Every competition read used to ask information_schema again.
+_COMPATIBLE: weakref.WeakSet = weakref.WeakSet()
+
+
 async def compatible(session):
+    engine = _engine(session)
+    if engine is not None and engine in _COMPATIBLE:
+        return
     columns = set(
         (
             await session.execute(
@@ -44,6 +67,8 @@ async def compatible(session):
             "Compression schema requires its owner migration 0011 or later.",
             reason_code="COMPETITION_SCHEMA_UNAVAILABLE",
         )
+    if engine is not None:
+        _COMPATIBLE.add(engine)
 
 
 async def lock_hotkey(session, hotkey):
@@ -232,8 +257,25 @@ async def _load_snapshot(session, sid):
 _SNAPSHOTS: dict[tuple, dict] = {}
 _SNAPSHOTS_KEPT = 8
 
+# Which pass is current, and its version: the head query `snapshot` checks the cache above with.
+# It cannot use the competition's partial index -- `PUBLISHED` has to look inside the JSONB to
+# tell a skip from a pass, which detoasts every retained snapshot -- and on production it took
+# ~550 ms at the median (by id, ~100 ms). It ran on every read, so a burst of ~450 page loads
+# from the website's server held all 15 pooled connections in it and the rest timed out after
+# 30 s (2026-11-08). Remembering the answer for a few seconds bounds that query to one run per
+# head per engine per TTL. A pass that changes is seen within HEAD_TTL_SECONDS: the weight setter
+# polls every 12 s, and a pass is replaced every few minutes.
+HEAD_TTL_SECONDS = 5.0
+_HEADS_KEPT = 64
+_clock = time.monotonic
+# engine -> {sid: (taken_at, head row or None)}
+_HEADS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+# engine -> {sid: future of the query in flight}. Present only while a query runs, so requests
+# naming arbitrary snapshot ids cannot grow it.
+_HEADS_INFLIGHT: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
-async def snapshot(session, sid=None):
+
+async def _query_head(session, sid):
     head = f"""SELECT w.id, w.xmin::text AS version,
         (SELECT count(*) FROM score_snapshots s WHERE s.weight_set_id = w.id) AS scored,
         current_database() AS db, current_schema() AS schema, inet_server_addr()::text AS host
@@ -243,6 +285,60 @@ async def snapshot(session, sid=None):
     else:
         sql, params = head + " AND w.id=:id", {"id": sid}
     found = (await session.execute(text(sql), params)).mappings().first()
+    return dict(found) if found is not None else None
+
+
+async def _head(session, sid):
+    """`_query_head`, remembered per engine for HEAD_TTL_SECONDS, one query at a time per head.
+
+    Concurrent requests for the same head share the one query in flight instead of each running
+    it: a follower awaits the leader's future and never touches its own connection. If the
+    leader is cancelled (its client went away), a follower takes over; if the query fails, every
+    request waiting on it fails the same way, as each would have on its own.
+    """
+    engine = _engine(session)
+    if engine is None or HEAD_TTL_SECONDS <= 0:
+        return await _query_head(session, sid)
+    heads = _HEADS.setdefault(engine, {})
+    inflight = _HEADS_INFLIGHT.setdefault(engine, {})
+    while True:
+        hit = heads.get(sid)
+        if hit is not None and _clock() - hit[0] < HEAD_TTL_SECONDS:
+            return hit[1]
+        pending = inflight.get(sid)
+        if pending is None:
+            break
+        try:
+            return await asyncio.shield(pending)
+        except asyncio.CancelledError:
+            if pending.cancelled():
+                continue  # the leader was cancelled, not this request: try again
+            raise
+
+    pending = asyncio.get_running_loop().create_future()
+    inflight[sid] = pending
+    try:
+        found = await _query_head(session, sid)
+    except Exception as exc:
+        pending.set_exception(exc)
+        pending.exception()  # retrieved: nobody may be waiting, and that is not an error
+        raise
+    except BaseException:
+        pending.cancel()
+        raise
+    finally:
+        if inflight.get(sid) is pending:
+            del inflight[sid]
+    heads.pop(sid, None)
+    while len(heads) >= _HEADS_KEPT:
+        heads.pop(next(iter(heads)))
+    heads[sid] = (_clock(), found)
+    pending.set_result(found)
+    return found
+
+
+async def snapshot(session, sid=None):
+    found = await _head(session, sid)
     if found is None:
         return None
     key = tuple(found[name] for name in ("host", "db", "schema", "id", "version", "scored"))
