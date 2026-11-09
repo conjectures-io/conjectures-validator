@@ -35,6 +35,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from submission_api.competitions import KERNEL_COMPETITIONS, kernel_settings_prefix
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -601,7 +602,7 @@ def _competition_slugs(environ: Mapping[str, str], competition_slug: str) -> tup
     slugs = tuple(s.strip() for s in raw.split(",") if s.strip()) or (competition_slug,)
     if len(set(slugs)) != len(slugs):
         raise SettingsError(f"COMPETITIONS lists a competition twice: {raw!r}")
-    known = (competition_slug, "floatlib", "torchlean")
+    known = (competition_slug, "floatlib", *KERNEL_COMPETITIONS)
     for slug in slugs:
         if slug not in known:
             raise SettingsError(
@@ -989,6 +990,12 @@ class Settings:
     torchlean_submissions_enabled: bool = False
     torchlean_registration_cutoff: datetime | None = None
     torchlean_dev_skip_registration: bool = False
+    # The same four for Tensor kernels, TorchLean's successor on the same code; see
+    # `competitions.KERNEL_COMPETITIONS` and `kernel_settings_prefix`.
+    tensor_kernels_max_source_bytes: int = DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES
+    tensor_kernels_submissions_enabled: bool = False
+    tensor_kernels_registration_cutoff: datetime | None = None
+    tensor_kernels_dev_skip_registration: bool = False
     competition_slugs: tuple[str, ...] = ()
     # Each competition's own database URL, from `COMPETITION_<SLUG>_DATABASE_URL`, as
     # (slug, url) pairs. A slug missing here is `competition_slug` falling back to
@@ -1027,8 +1034,10 @@ class Settings:
         env = os.environ if environ is None else environ
         app_mode = _choice(env, "APP_MODE", APP_MODES, DEVELOPMENT_MODE)
         production = app_mode == PRODUCTION_MODE
-        if production and _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False):
-            raise SettingsError("TORCHLEAN_DEV_SKIP_REGISTRATION is forbidden in production")
+        for slug in KERNEL_COMPETITIONS:
+            key = kernel_settings_prefix(slug).upper() + "_DEV_SKIP_REGISTRATION"
+            if production and _flag(env, key, False):
+                raise SettingsError(f"{key} is forbidden in production")
         trajectory_bonus_enabled = _flag(env, "TRAJECTORY_BONUS_ENABLED", False)
         # The bonus cutoff is not configuration: scripts/open_chat_log_intake.py stamps it once.
         if production and trajectory_bonus_enabled:
@@ -1635,38 +1644,44 @@ class Settings:
                     "FLOATLIB_CHECK_DEFLATE_USAGE requires DEFLATE configured with uploads disabled"
                 )
 
-        torchlean_uploads = _flag(env, "TORCHLEAN_SUBMISSIONS_ENABLED", False)
-        torchlean_dev = _flag(env, "TORCHLEAN_DEV_SKIP_REGISTRATION", False)
-        torchlean_cutoff = None
-        if raw := env.get("TORCHLEAN_REGISTRATION_CUTOFF", "").strip():
-            try:
-                torchlean_cutoff = datetime.fromisoformat(raw)
-                if torchlean_cutoff.tzinfo is None:
-                    raise ValueError("timezone required")
-                torchlean_cutoff = torchlean_cutoff.astimezone(UTC)
-            except ValueError as exc:
-                raise SettingsError(
-                    "TORCHLEAN_REGISTRATION_CUTOFF must be an ISO-8601 timestamp with timezone"
-                ) from exc
-        if torchlean_uploads:
-            if not competitions_enabled or "torchlean" not in competition_slugs:
-                raise SettingsError("TORCHLEAN_SUBMISSIONS_ENABLED requires TorchLean configured")
-            if torchlean_cutoff is None and not torchlean_dev:
-                raise SettingsError(
-                    "TORCHLEAN_REGISTRATION_CUTOFF is required for TorchLean uploads"
-                )
+        # Each kernel competition's intake, under its own prefix: TORCHLEAN_*, TENSOR_KERNELS_*.
+        kernel_intake: dict[str, object] = {}
+        for slug, name in KERNEL_COMPETITIONS.items():
+            prefix = kernel_settings_prefix(slug)
+            var = prefix.upper()
+            uploads = _flag(env, f"{var}_SUBMISSIONS_ENABLED", False)
+            dev = _flag(env, f"{var}_DEV_SKIP_REGISTRATION", False)
+            kernel_cutoff = None
+            if raw := env.get(f"{var}_REGISTRATION_CUTOFF", "").strip():
+                try:
+                    kernel_cutoff = datetime.fromisoformat(raw)
+                    if kernel_cutoff.tzinfo is None:
+                        raise ValueError("timezone required")
+                    kernel_cutoff = kernel_cutoff.astimezone(UTC)
+                except ValueError as exc:
+                    raise SettingsError(
+                        f"{var}_REGISTRATION_CUTOFF must be an ISO-8601 timestamp with timezone"
+                    ) from exc
+            if uploads:
+                if not competitions_enabled or slug not in competition_slugs:
+                    raise SettingsError(f"{var}_SUBMISSIONS_ENABLED requires {name} configured")
+                if kernel_cutoff is None and not dev:
+                    raise SettingsError(f"{var}_REGISTRATION_CUTOFF is required for {name} uploads")
+            kernel_intake |= {
+                f"{prefix}_max_source_bytes": _bounded_int(
+                    env,
+                    f"{var}_MAX_SOURCE_BYTES",
+                    DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES,
+                    minimum=1,
+                    maximum=MAX_TORCHLEAN_SOURCE_BYTES,
+                ),
+                f"{prefix}_submissions_enabled": uploads,
+                f"{prefix}_registration_cutoff": kernel_cutoff,
+                f"{prefix}_dev_skip_registration": dev,
+            }
 
         return cls(
-            torchlean_max_source_bytes=_bounded_int(
-                env,
-                "TORCHLEAN_MAX_SOURCE_BYTES",
-                DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES,
-                minimum=1,
-                maximum=MAX_TORCHLEAN_SOURCE_BYTES,
-            ),
-            torchlean_submissions_enabled=torchlean_uploads,
-            torchlean_registration_cutoff=torchlean_cutoff,
-            torchlean_dev_skip_registration=torchlean_dev,
+            **kernel_intake,
             deflate_submissions_enabled=deflate_uploads,
             floatlib_submissions_enabled=floatlib_uploads,
             floatlib_registration_cutoff=cutoff,

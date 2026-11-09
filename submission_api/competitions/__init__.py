@@ -18,6 +18,10 @@ records on one side, a king-of-the-hill board per slot on the other -- and the w
 each in its own shape. A slug of one kind is a 404 on the other kind's routes
 (`routers.competitions.resolve_competition`).
 
+TorchLean and Tensor kernels are one kind, `torchlean`, served under two slugs: they run the
+same competition code, so `routers/torchlean.py` builds the same routes for each, every one
+reading its own competition's database and intake settings (`kernel_settings_prefix`).
+
 FloatLib is one competition with eight boards: its own slug is the paid full entry, and each
 single-kernel practice board is `floatlib-<slot>`, all in the one FloatLib database. The registry
 resolves every one of those slugs to the FloatLib entry, and `board` says which slot.
@@ -25,9 +29,11 @@ resolves every one of those slugs to the FloatLib entry, and `board` says which 
 Configuration (see `Settings.from_env`):
 
     COMPETITIONS_ENABLED=1
-    COMPETITIONS=deflate,floatlib
+    COMPETITIONS=deflate,floatlib,torchlean,tensor-kernels
     COMPETITION_DEFLATE_DATABASE_URL=postgresql+psycopg://...
     COMPETITION_FLOATLIB_DATABASE_URL=postgresql+psycopg://...
+    COMPETITION_TORCHLEAN_DATABASE_URL=postgresql+psycopg://...
+    COMPETITION_TENSOR_KERNELS_DATABASE_URL=postgresql+psycopg://...
 
 Without `COMPETITIONS`, the deployment serves `COMPETITION_SLUG` alone from
 `COMPETITION_DATABASE_URL`, exactly as it did when only one competition existed.
@@ -59,6 +65,25 @@ FLOATLIB: Final = "floatlib"
 TORCHLEAN: Final = "torchlean"
 TORCHLEAN_NAME: Final = "TorchLean kernels"
 KINDS: Final = (DEFLATE, FLOATLIB, TORCHLEAN)
+
+# Tensor kernels is the next proved-kernel competition, run from a fork of TorchLean's code
+# (`conjectures-optimisation-float-kernels-new-competition`): the same schema, workers and
+# signed intake, its own database, boards and slug. It is the `torchlean` kind served under a
+# second slug, so both answer the same routes (`routers/torchlean.py`) each from its own
+# database. A miner signs the slug, so these are wire format.
+TENSOR_KERNELS: Final = "tensor-kernels"
+TENSOR_KERNELS_NAME: Final = "Tensor kernels"
+KERNEL_COMPETITIONS: Final = {TORCHLEAN: TORCHLEAN_NAME, TENSOR_KERNELS: TENSOR_KERNELS_NAME}
+
+
+def kernel_settings_prefix(slug: str) -> str:
+    """The `Settings` attribute prefix of a kernel competition: `tensor-kernels` -> `tensor_kernels`.
+
+    Its environment variables are the same, upper-cased: `TENSOR_KERNELS_SUBMISSIONS_ENABLED`.
+    """
+    if slug not in KERNEL_COMPETITIONS:
+        raise ValueError(f"not a kernel competition: {slug!r}")
+    return slug.replace("-", "_")
 
 # FloatLib's slug and boards, as `conjectures-optimisation-float-kernels` names them
 # (`validator/service/sig.py`): the competition's own slug is the paid full entry, each
@@ -99,8 +124,12 @@ class Competition:
             raise ValueError(f"not a competition slug: {self.slug!r}")
         if self.kind not in KINDS:
             raise ValueError(f"not a competition kind: {self.kind!r}")
-        if self.kind == TORCHLEAN and self.slug != TORCHLEAN:
-            raise ValueError("TorchLean is served as 'torchlean'")
+        if self.kind == TORCHLEAN and self.slug not in KERNEL_COMPETITIONS:
+            # Each slug has its own routes and intake settings; see `KERNEL_COMPETITIONS`.
+            raise ValueError(
+                f"a kernel competition is served as one of {', '.join(KERNEL_COMPETITIONS)}, "
+                f"not {self.slug!r}"
+            )
         if self.kind == FLOATLIB and self.slug != FLOATLIB_SLUG:
             # Its practice boards' slugs are derived from this one, and miners sign them.
             raise ValueError(f"FloatLib is served as {FLOATLIB_SLUG!r}, not {self.slug!r}")

@@ -18,7 +18,12 @@ from conftest import competition_dsn, postgres_dsn
 from conftest_api import build_settings
 from submission_api import competition_sig
 from submission_api.app import build_competitions
-from submission_api.competitions import Competition, CompetitionRegistry, TORCHLEAN
+from submission_api.competitions import (
+    TENSOR_KERNELS,
+    TORCHLEAN,
+    Competition,
+    CompetitionRegistry,
+)
 from submission_api.dependencies import get_services
 from submission_api.errors import ApiError, api_error_handler
 from submission_api.routers import torchlean
@@ -133,7 +138,7 @@ def headers(kernel=KERNEL, slug="torchlean", timestamp=None, key=ALICE):
     }
 
 
-def service(database, **settings):
+def service(database, slug=TORCHLEAN, **settings):
     c = create_async_engine(database.comp)
     a = create_async_engine(database.central)
     config = SimpleNamespace(
@@ -141,6 +146,10 @@ def service(database, **settings):
         torchlean_submissions_enabled=True,
         torchlean_dev_skip_registration=False,
         torchlean_registration_cutoff=T0 - timedelta(seconds=1),
+        tensor_kernels_max_source_bytes=1024 * 1024,
+        tensor_kernels_submissions_enabled=True,
+        tensor_kernels_dev_skip_registration=False,
+        tensor_kernels_registration_cutoff=T0 - timedelta(seconds=1),
         submissions_paused=False,
         production=False,
         competition_signature_window_seconds=300,
@@ -157,8 +166,8 @@ def service(database, **settings):
         sessions=async_sessionmaker(a),
         competitions=CompetitionRegistry.of(
             Competition(
-                "torchlean",
-                "TorchLean",
+                slug,
+                "TorchLean" if slug == TORCHLEAN else "Tensor kernels",
                 8,
                 kind=TORCHLEAN,
                 engine=c,
@@ -181,16 +190,17 @@ async def request(
     files=None,
     path="/submissions",
     method="post",
+    slug=TORCHLEAN,
     **settings,
 ):
-    app, engines = service(database, **settings)
+    app, engines = service(database, slug, **settings)
     try:
         async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
             if method == "get":
-                return await client.get("/v1/competitions/torchlean" + path)
+                return await client.get(f"/v1/competitions/{slug}" + path)
             return await client.post(
-                "/v1/competitions/torchlean" + path,
-                headers=headers(kernel) if provided is None else provided,
+                f"/v1/competitions/{slug}" + path,
+                headers=headers(kernel, slug=slug) if provided is None else provided,
                 files=files if files is not None else {"Kernel.lean": ("Kernel.lean", kernel)},
             )
     finally:
@@ -590,3 +600,113 @@ def test_unmigrated_size_constraint_returns_actionable_unavailable(database):
             database,
             "ALTER TABLE sources DROP CONSTRAINT ck_sources_size, ADD CONSTRAINT ck_sources_size CHECK (octet_length(content) BETWEEN 1 AND 4194304)",
         )
+
+
+# Tensor kernels: the same competition code under its own slug, database and intake settings.
+
+
+def test_tensor_kernels_upload_is_signed_for_its_own_slug(database):
+    register(database)
+    r = post(database, slug=TENSOR_KERNELS)
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["competition"] == TENSOR_KERNELS
+    assert body["status_url"] == f"/v1/competitions/tensor-kernels/submissions/{body['submission']}"
+    status = post(database, path=f"/submissions/{body['submission']}", method="get", slug=TENSOR_KERNELS)
+    assert status.status_code == 200, status.text
+    detail = post(database, path="", method="get", slug=TENSOR_KERNELS)
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["slug"] == TENSOR_KERNELS
+    assert detail.json()["name"] == "Tensor kernels"
+
+
+def test_a_signature_for_one_kernel_competition_is_refused_by_the_other(database):
+    register(database)
+    signed_for_torchlean = headers(KERNEL, slug=TORCHLEAN)
+    r = post(database, provided=signed_for_torchlean, slug=TENSOR_KERNELS)
+    assert r.status_code == 401, r.text
+    assert execute(database, "SELECT count(*) FROM submissions").scalar_one() == 0
+
+
+def test_tensor_kernels_intake_has_its_own_switch(database):
+    register(database)
+    closed = post(database, slug=TENSOR_KERNELS, tensor_kernels_submissions_enabled=False)
+    assert closed.status_code == 403 and closed.json()["reason_code"] == "SUBMISSIONS_CLOSED"
+    # TorchLean's switch does not open or close it.
+    assert post(database, slug=TENSOR_KERNELS, torchlean_submissions_enabled=False).status_code == 201
+
+
+def test_tensor_kernels_spends_its_own_request_budget(database):
+    register(database)
+    assert post(database, slug=TENSOR_KERNELS).status_code == 201
+    with database.api.begin() as c:
+        subjects = set(c.exec_driver_sql("SELECT subject FROM competition_intake_limits").scalars())
+    assert subjects and all(s.startswith("tensor-kernels:") for s in subjects)
+
+
+def test_a_kernel_route_answers_404_for_a_slug_this_deployment_does_not_serve(database):
+    # Served: torchlean only. Tensor kernels' routes exist but name nothing here.
+    app, engines = service(database, TORCHLEAN)
+
+    async def go():
+        try:
+            async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
+                return await client.get("/v1/competitions/tensor-kernels/boards")
+        finally:
+            for engine in engines:
+                await engine.dispose()
+
+    assert asyncio.run(go()).status_code == 404
+
+
+def test_settings_and_registry_serve_tensor_kernels_beside_torchlean():
+    settings = build_settings(
+        COMPETITIONS_ENABLED="1",
+        COMPETITIONS="torchlean,tensor-kernels",
+        COMPETITION_TORCHLEAN_DATABASE_URL="postgresql+psycopg://u:p@db:5432/torchlean",
+        COMPETITION_TENSOR_KERNELS_DATABASE_URL="postgresql+psycopg://u:p@db:5432/tensor_kernels",
+        TENSOR_KERNELS_SUBMISSIONS_ENABLED="1",
+        TENSOR_KERNELS_REGISTRATION_CUTOFF="2026-11-09T00:00:00+01:00",
+        TENSOR_KERNELS_MAX_SOURCE_BYTES="2097152",
+    )
+    assert settings.tensor_kernels_submissions_enabled
+    assert not settings.torchlean_submissions_enabled
+    assert settings.tensor_kernels_registration_cutoff == datetime(2026, 11, 8, 23, tzinfo=UTC)
+    assert settings.tensor_kernels_max_source_bytes == 2 * 1024 * 1024
+    registry = build_competitions(settings)
+    tensor = registry.get(TENSOR_KERNELS)
+    assert tensor.kind == TORCHLEAN and tensor.name == "Tensor kernels"
+    assert registry.get(TORCHLEAN).engine is not tensor.engine
+    for engine in registry.engines():
+        asyncio.run(engine.dispose())
+
+
+@pytest.mark.parametrize(
+    "options,pattern",
+    [
+        ({"TENSOR_KERNELS_SUBMISSIONS_ENABLED": "1"}, "requires Tensor kernels"),
+        ({"TENSOR_KERNELS_REGISTRATION_CUTOFF": "2026-11-09"}, "TENSOR_KERNELS_REGISTRATION_CUTOFF"),
+        (
+            {
+                "TENSOR_KERNELS_SUBMISSIONS_ENABLED": "1",
+                "COMPETITIONS_ENABLED": "1",
+                "COMPETITIONS": "tensor-kernels",
+                "COMPETITION_TENSOR_KERNELS_DATABASE_URL": "postgresql+psycopg://u:p@db/tk",
+            },
+            "TENSOR_KERNELS_REGISTRATION_CUTOFF is required",
+        ),
+        (
+            {"COMPETITIONS_ENABLED": "1", "COMPETITIONS": "tensor-kernels"},
+            "COMPETITION_TENSOR_KERNELS_DATABASE_URL is required",
+        ),
+        ({"APP_MODE": "PROD", "TENSOR_KERNELS_DEV_SKIP_REGISTRATION": "1"}, "forbidden in production"),
+    ],
+)
+def test_invalid_tensor_kernels_settings(options, pattern):
+    with pytest.raises(SettingsError, match=pattern):
+        build_settings(**options)
+
+
+def test_kernel_competitions_are_served_only_under_their_own_slugs():
+    with pytest.raises(ValueError, match="kernel competition"):
+        Competition("tensorkernels", "x", 8, kind=TORCHLEAN)

@@ -69,7 +69,7 @@ from submission_api.competitions import (
     FLOATLIB_NAME,
     FLOATLIB_SLUG,
     TORCHLEAN,
-    TORCHLEAN_NAME,
+    KERNEL_COMPETITIONS,
     Competition,
     CompetitionRegistry,
 )
@@ -205,16 +205,17 @@ def build_competitions(settings: Settings) -> CompetitionRegistry:
     for url, slug in urls.items():
         engine = create_async_db_engine(url, pool_timeout=COMPETITION_POOL_TIMEOUT_SECONDS)
         floatlib = slug == FLOATLIB_SLUG
+        kernels = slug in KERNEL_COMPETITIONS
         entries.append(
             Competition(
                 slug=slug,
                 name=FLOATLIB_NAME
                 if floatlib
-                else TORCHLEAN_NAME
-                if slug == TORCHLEAN
+                else KERNEL_COMPETITIONS[slug]
+                if kernels
                 else settings.competition_name,
                 speed_floor=settings.competition_speed_floor,
-                kind=FLOATLIB if floatlib else TORCHLEAN if slug == TORCHLEAN else DEFLATE,
+                kind=FLOATLIB if floatlib else TORCHLEAN if kernels else DEFLATE,
                 engine=engine,
                 sessions=async_session_factory(engine),
             )
