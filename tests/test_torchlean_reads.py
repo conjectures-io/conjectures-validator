@@ -948,3 +948,73 @@ def test_tensor_kernels_serves_its_own_boards_including_recurrent(database):
     assert set(overview.json()["boards"]) == {"mlp", "recurrent", "overall"}
     assert tensor(database, "/leaderboard?board=recurrent").status_code == 200
     assert tensor(database, "/champions?board=recurrent").json()["champions"] == []
+
+
+# A failed bundle's stopped round, as the Tensor kernels worker keeps it (dev job 1, trimmed): each
+# side mixes `[ns, checksum]` cells with `__...` bookkeeping, and input plans sit beside the sides.
+STOPPED_ROUND = {
+    "reference": {
+        "s0|mlp:b1:wide": [3081288, 98147538],
+        "uci-har-mlp|mlp": [2892329, 17],
+        "__raw_ns__": {"s0|mlp:b1:wide": [3081288]},
+        "__child_ns__": {"s0|mlp:b1:wide": 1},
+        "__warmup_ns__": {"s0|mlp:b1:wide": [12]},
+        "__process_wall_ns__": [123456789],
+        "__peak_memory_bytes__": [21770240],
+        "__real_preparation_ns__": {"uci-har-mlp": {"model_load_ns": 5, "input_preparation_ns": 6}},
+    },
+    "input_plan": {"real": {"uci-har-mlp": [[2941]]}, "synthetic": {"s0|mlp:b1:wide": [[1]]}},
+    "warmup_plan": {"real": {"uci-har-mlp": [[1903]]}, "synthetic": {}},
+    "baseline_input_plan": {"real": {}, "synthetic": {}},
+    "baseline_warmup_plan": {"real": {}, "synthetic": {}},
+}
+
+
+def test_a_stopped_round_keeps_only_its_cells():
+    from submission_api.torchlean_reads import stopped_round
+
+    whole, samples = stopped_round(STOPPED_ROUND)
+    assert samples is None
+    assert set(whole) == {"reference"}
+    assert {k: (v.ns, v.checksum) for k, v in whole["reference"].items()} == {
+        "s0|mlp:b1:wide": (3081288, 98147538),
+        "uci-har-mlp|mlp": (2892329, 17),
+    }
+    # Malformed pairs are skipped too, never raised: too short, a bool, a string.
+    whole, _ = stopped_round({"candidate": {"a": [1], "b": [True, 1], "c": ["x", 1], "d": [5, 6]}})
+    assert list(whole["candidate"]) == ["d"]
+    assert stopped_round({"input_plan": {"real": {}}}) == (None, None)
+
+
+def test_a_bundle_stopped_with_bookkeeping_in_its_round_still_reports(database):
+    configure(database, boards=["mlp", "overall"])
+    sid, sha = submit(database, "stopped-with-bookkeeping")
+    evaluations = {board: evaluate(database, sid, board, state="pending") for board in ("mlp", "overall")}
+    finished = {"s0|mlp:b1:wide": [422858504, 98147538], "__raw_ns__": {"s0|mlp:b1:wide": [1]}}
+    error = {
+        "kind": "candidate",
+        "reason": "benchmark-timeout: shared budget",
+        "timeout": TIMEOUT | {"finished": finished, "side": "candidate", "peak_memory_bytes": 21770240},
+        "partial": {
+            "completed_comparisons": {},
+            "failed_comparison": "overall",
+            "comparison_partial": {
+                "rounds": board_result(300)["rounds"],
+                "real_rounds": [],
+                "repetitions": {"mlp:b1:normal": 10},
+                "round_in_progress": STOPPED_ROUND,
+                "measurement_policy": "x",
+            },
+        },
+    }
+    shared_job(database, evaluations, sha, state="failed", error=error)
+    response = tensor(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    reports = {e["board"]: e["measurements"][0] for e in response.json()["evaluations"]}
+    stopped = reports["overall"]
+    assert set(stopped["round_in_progress"]) == {"reference"}
+    assert stopped["round_in_progress"]["reference"]["uci-har-mlp|mlp"] == {"ns": 2892329, "checksum": 17}
+    assert stopped["finished"] == {"s0|mlp:b1:wide": {"ns": 422858504, "checksum": 98147538}}
+    assert stopped["timeout"]["limit"] == "budget"
+    # The board the bundle never reached reports nothing, not an error.
+    assert reports["mlp"]["rounds"] is None and reports["mlp"]["timeout"] is None

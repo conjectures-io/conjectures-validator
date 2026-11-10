@@ -119,11 +119,29 @@ def timeout(value):
     return s.TorchLeanTimeout(**{k: value.get(k) for k in s.TorchLeanTimeout.model_fields}) if isinstance(value, dict) else None
 
 
+def number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def cell_times(rows):
-    # The worker's `[ns, checksum]` pairs, named.
+    """The worker's `[ns, checksum]` pairs, named; anything else beside them is skipped.
+
+    A side also carries the worker's bookkeeping (`__raw_ns__`, `__warmup_ns__`,
+    `__process_wall_ns__`, ...), and a round carries its input plans beside the sides. Neither is
+    a cell, and neither may fail the report.
+    """
     if not isinstance(rows, dict):
         return None
-    return {name: s.TorchLeanCellTime(ns=row[0], checksum=row[1]) for name, row in rows.items()}
+    return {
+        name: s.TorchLeanCellTime(ns=row[0], checksum=row[1])
+        for name, row in rows.items()
+        if not name.startswith("__")
+        and isinstance(row, (list, tuple))
+        and len(row) == 2
+        and number(row[0])
+        and isinstance(row[1], int)
+        and not isinstance(row[1], bool)
+    }
 
 
 def stopped_round(value):
@@ -135,13 +153,19 @@ def stopped_round(value):
     """
     if not isinstance(value, dict):
         return None, None
-    whole = {side: cell_times(rows) for side, rows in value.items() if isinstance(rows, dict)}
+    # A side with no cells is not a side: `input_plan` and its kin sit beside them in the round.
+    whole = {
+        side: cells
+        for side, rows in value.items()
+        if isinstance(rows, dict) and (cells := cell_times(rows))
+    }
     samples = {
-        side: [cell_times(sample) for sample in rows if isinstance(sample, dict)]
+        side: picked
         for side, rows in value.items()
         if isinstance(rows, list)
+        and (picked := [cell_times(sample) for sample in rows if isinstance(sample, dict)])
     }
-    return (whole if whole or not samples else None), (samples or None)
+    return (whole or None), (samples or None)
 
 
 def pick(model, value):
