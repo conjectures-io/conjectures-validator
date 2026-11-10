@@ -85,9 +85,9 @@ def test_this_candidate_activates_only_the_reviewed_ready_subset():
     assert CORE <= activated <= CORE | FIRST_BATCH_READY
     assert not activated & NEVER_ACTIVATED
     # Retiring Erdos 456(iii) leaves 257 targets in the original 258-target base.
-    # Wilf e4 (source22) is held; the historical targets are a separate admitted family.
+    # Wilf e4 (source22) is held and convex planar Pólya (source27) is retired.
     # November 4 added twenty Erdős targets; the owner subsequently withdrew 21 and 111.
-    assert DEFAULT_TIER_SIZE == 257 + len(activated) - 1 + len(HISTORICAL_OPEN_TARGETS) + 18
+    assert DEFAULT_TIER_SIZE == 257 + len(activated) - 2 + len(HISTORICAL_OPEN_TARGETS) + 18
     assert task_pool.staged_research_target(THEOREM, MATH30)
     assert not task_pool.staged_research_target(ACTIVE, MATH30)
     # The gate concerns this family only; an Erdős source is unaffected by it.
@@ -668,7 +668,9 @@ def test_checked_in_matrix_activates_exactly_the_pool_research_targets():
         if row["source_path"].startswith("FormalConjectures/ResearchTargets/")
     }
     held = task_pool.load_held_sources(tasks_root / "tiers/tier-1/held-source-theorems.json")
-    assert set(research_rows) == ACTIVATED_RESEARCH_TARGETS - held.theorems
+    retired = task_pool.load_retired_sources(tasks_root / "tiers/tier-1/retired-source-theorems.json")
+    assert "Math30Catalog.source27" in retired.theorems
+    assert set(research_rows) == ACTIVATED_RESEARCH_TARGETS - held.theorems - retired.theorems
     by_theorem = {target.theorem: target for target in decisions.targets}
     assert all(
         row["source_type_sha256"] == by_theorem[theorem].source_type_sha256

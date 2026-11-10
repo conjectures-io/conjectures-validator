@@ -499,6 +499,7 @@ def test_retired_conjectures_are_readable_but_never_admissible():
         if "repository_commit" not in entry["source"]:
             expected_state = {
                 "Math30Catalog.source22": "held",
+                "Math30Catalog.source27": "retired",
                 "Erdos111.erdos_111": "retired",
                 "Erdos21.erdos_21.variants.three_n": "retired",
                 "Erdos456.erdos_456.parts.iii": "retired",
