@@ -11,6 +11,8 @@ from test_torchlean_intake import database as database, engines as engines
 from test_torchlean_intake import roles_lock as roles_lock
 from test_torchlean_intake import execute, post, service
 
+from submission_api.competitions import TENSOR_KERNELS
+
 CONFIG = "c" * 64
 OLD_CONFIG = "d" * 64
 ROOT = hashlib.sha256(b"shipped").hexdigest()
@@ -691,3 +693,328 @@ def test_operator_exclusion_is_not_reported_as_waiting_for_workers(database):
     assert response.json()["proof_state"] == "proved"
     assert response.json()["processing_state"] == "disqualified"
     assert get(database, "/submissions?state=disqualified").json()["submissions"][0]["id"] == sid
+
+
+# Tensor kernels: the same reads, plus a season's new evidence. One job may time an entry once
+# for several boards (a comparison bundle), and each evaluation reads its own board's part.
+
+REAL_WORKLOAD = {
+    "id": "har-mlp",
+    "family": "mlp",
+    "model": "har-mlp-v1",
+    "dataset": "uci-har",
+    "adapter": "uci-har-v1",
+    "weights_path": "data/PRIVATE_HOST_PATH/weights.bin",
+    "weights_sha256": "e" * 64,
+    "samples_path": "data/PRIVATE_HOST_PATH/samples.bin",
+    "samples_sha256": "f" * 64,
+    "asset_revision": "r1",
+    "sample_count": 64,
+    "sample_words": 561,
+    "samples_per_run": 8,
+}
+
+
+def board_result(candidate_ns):
+    """One board's result as the season's worker writes it, with keys the API must not echo."""
+    observation = {
+        "reference_ns": 100,
+        "candidate_ns": candidate_ns,
+        "reference_checksum": 7,
+        "candidate_checksum": 7,
+        "reference_inner_ns": [100],
+        "candidate_inner_ns": [candidate_ns],
+    }
+    return {
+        "request_hash": "SECRET",
+        "provenance": {"identity": "a" * 64, "machine": "PRIVATE_HOST_PATH"},
+        "repetitions": {"mlp:b1:normal": 10},
+        "rounds": [
+            {
+                "reference_first": True,
+                "cells": {"mlp:b1:normal": observation},
+                "input_plan": {"x": "SECRET"},
+                "process_wall_ns": {"reference": [1], "candidate": [1]},
+            }
+        ],
+        "baseline": {
+            "source_hash": "b" * 64,
+            "sentinel_rows": "SECRET",
+            "rounds": [{"cells": {"mlp:b1:normal": {"baseline_ns": 200}}}],
+            "summary": {
+                "mlp:b1:normal": {
+                    "baseline_median_ns": 200,
+                    "baseline_repetitions": 10,
+                    "baseline_ns_per_request": 20.0,
+                    "candidate_median_ns_per_request": candidate_ns / 10,
+                    "reference_median_ns_per_request": 10.0,
+                    "candidate_to_baseline": candidate_ns / 200,
+                    "reference_to_baseline": 0.5,
+                    "interpretation": "unpaired diagnostic; admission remains candidate/reference",
+                }
+            },
+        },
+        "real": {
+            "workloads": [REAL_WORKLOAD],
+            "rounds": [{"paired_round": 0, "workloads": {"har-mlp": {"x": "SECRET"}}}],
+            "summary": {
+                "har-mlp": {
+                    "family": "mlp",
+                    "model": "har-mlp-v1",
+                    "dataset": "uci-har",
+                    "samples_per_run": 8,
+                    "candidate_median_ns": 900,
+                    "reference_median_ns": 1000,
+                    "candidate_to_reference": 0.9,
+                    "baseline_median_ns": 2000,
+                    "candidate_to_baseline": 0.45,
+                    "candidate_model_load_median_ns": 5,
+                }
+            },
+            "families": {
+                "mlp": {
+                    "workloads": {"har-mlp": {}},
+                    "equal_weight_candidate_to_reference_geomean": 0.9,
+                    "equal_weight_candidate_to_baseline_geomean": 0.45,
+                }
+            },
+        },
+        "stage_seconds": {"build": 1.0},
+    }
+
+
+def season_plan(db, eid):
+    execute(
+        db,
+        """UPDATE evaluations SET plan = plan || CAST(:extra AS jsonb) WHERE id=:id""",
+        id=eid,
+        extra=json.dumps(
+            {
+                "baseline_hash": "b" * 64,
+                "suites": ["synthetic", "real"],
+                "suite_weights": {"synthetic": 0.5, "real": 0.5},
+                "real_workloads": [REAL_WORKLOAD],
+                "warmup_policy": "independent-unscored-input-v1",
+            }
+        ),
+    )
+
+
+def shared_job(db, evaluations, sha, *, state="completed", result=None, error=None):
+    request = {"workloads": None, "comparisons": {board: {} for board in evaluations}}
+    jid = execute(
+        db,
+        """INSERT INTO benchmark_jobs(request_hash,request,candidate_hash,reference_hash,
+                 environment,lease_seconds,retry_seconds,state,result,error)
+                 VALUES (:hash,CAST(:request AS jsonb),:hash,:ref,'amd64',120,60,:state,
+                 CAST(:result AS jsonb),CAST(:error AS jsonb)) RETURNING id""",
+        hash=sha,
+        ref=ROOT,
+        state=state,
+        request=json.dumps(request),
+        result=json.dumps(result) if result is not None else None,
+        error=json.dumps(error) if error is not None else None,
+    ).scalar_one()
+    for eid in evaluations.values():
+        execute(
+            db,
+            "INSERT INTO evaluation_jobs(evaluation_id,job_id,environment,seed) "
+            "VALUES (:e,:j,'amd64',42)",
+            e=eid,
+            j=jid,
+        )
+
+
+def tensor(db, path):
+    return get(db, path, slug=TENSOR_KERNELS)
+
+
+def test_tensor_kernels_report_reads_each_board_of_a_shared_job(database):
+    configure(database, boards=["mlp", "overall"])
+    sid, sha = submit(database, "bundled")
+    evaluations = {board: evaluate(database, sid, board) for board in ("mlp", "overall")}
+    for board, eid in evaluations.items():
+        season_plan(database, eid)
+        decide(
+            database,
+            eid,
+            outcome="qualifies",
+            score=0.92,
+            suite_scores={"synthetic": 0.94, "real": 0.9},
+            strata=[
+                {
+                    "environment": "amd64",
+                    "seed": 42,
+                    "score": 0.92,
+                    "suite_scores": {"synthetic": 0.94, "real": 0.9},
+                    "real_family_scores": {"mlp": 0.9},
+                    "guards": {"mlp:b1:normal": 0.94, "real:har-mlp": 0.9},
+                }
+            ],
+        )
+    result = {
+        "bundle_hash": "SECRET",
+        "comparisons": {"mlp": board_result(94), "overall": board_result(80)},
+        "shared_candidate_process_wall_ns": [1],
+    }
+    shared_job(database, evaluations, sha, result=result)
+
+    detail = tensor(database, f"/submissions/{sid}")
+    assert detail.status_code == 200, detail.text
+    decision = detail.json()["evaluations"][0]["decision"]
+    assert decision["suite_scores"] == {"synthetic": 0.94, "real": 0.9}
+
+    response = tensor(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    assert "SECRET" not in response.text and "PRIVATE_HOST_PATH" not in response.text
+    reports = {e["board"]: e for e in response.json()["evaluations"]}
+    for board, candidate_ns in (("mlp", 94), ("overall", 80)):
+        report = reports[board]
+        assert report["suites"] == ["synthetic", "real"]
+        assert report["suite_weights"] == {"synthetic": 0.5, "real": 0.5}
+        assert report["baseline_sha256"] == "b" * 64
+        assert report["real_workloads"][0]["id"] == "har-mlp"
+        assert "weights_path" not in report["real_workloads"][0]
+        (measured,) = report["measurements"]
+        assert measured["shared"] is True
+        assert measured["rounds"][0]["cells"]["mlp:b1:normal"]["candidate_ns"] == candidate_ns
+        assert measured["identity"] == "a" * 64
+        assert measured["suite_scores"] == {"synthetic": 0.94, "real": 0.9}
+        assert measured["real_family_scores"] == {"mlp": 0.9}
+        assert measured["guards"]["real:har-mlp"] == 0.9
+        cell = measured["baseline"]["cells"]["mlp:b1:normal"]
+        assert measured["baseline"]["source_sha256"] == "b" * 64
+        assert cell["candidate_to_baseline"] == candidate_ns / 200
+        real = measured["real"]
+        assert real["workloads"]["har-mlp"]["candidate_to_reference"] == 0.9
+        assert real["families"] == {
+            "mlp": {"candidate_to_reference": 0.9, "candidate_to_baseline": 0.45, "workloads": ["har-mlp"]}
+        }
+
+
+def test_a_failed_shared_job_keeps_finished_boards_and_blames_the_stopped_one(database):
+    configure(database, boards=["mlp", "overall"])
+    sid, sha = submit(database, "stopped")
+    evaluations = {board: evaluate(database, sid, board, state="pending") for board in ("mlp", "overall")}
+    error = {
+        "kind": "candidate",
+        "reason": "benchmark-timeout: PRIVATE_HOST_PATH",
+        "timeout": TIMEOUT | {"private": "SECRET"},
+        "partial": {
+            "completed_comparisons": {"mlp": board_result(94)},
+            "failed_comparison": "overall",
+            "comparison_partial": {
+                "repetitions": {"mlp:b1:normal": 10},
+                "rounds": board_result(300)["rounds"],
+                "round_in_progress": {"candidate": {"mlp:b1:normal": [300, 7]}},
+            },
+            "bundle_elapsed_seconds": 1200.0,
+        },
+    }
+    shared_job(database, evaluations, sha, state="failed", error=error)
+    response = tensor(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    assert "SECRET" not in response.text and "PRIVATE_HOST_PATH" not in response.text
+    reports = {e["board"]: e["measurements"][0] for e in response.json()["evaluations"]}
+    finished, stopped = reports["mlp"], reports["overall"]
+    assert finished["shared"] and stopped["shared"]
+    assert finished["rounds"][0]["cells"]["mlp:b1:normal"]["candidate_ns"] == 94
+    assert finished["timeout"] is None and finished["baseline"] is not None
+    assert stopped["rounds"][0]["cells"]["mlp:b1:normal"]["candidate_ns"] == 300
+    assert stopped["timeout"]["limit"] == "budget"
+    assert stopped["round_in_progress"] == {"candidate": {"mlp:b1:normal": {"ns": 300, "checksum": 7}}}
+
+
+def test_a_single_board_torchlean_job_reports_as_before(database):
+    configure(database)
+    sid, sha = submit(database, "single")
+    eid = evaluate(database, sid)
+    job(database, eid, sha)
+    measured = get(database, f"/submissions/{sid}/report").json()["evaluations"][0]
+    assert measured["suites"] is None and measured["real_workloads"] is None
+    (row,) = measured["measurements"]
+    assert row["shared"] is False and row["baseline"] is None and row["real"] is None
+    assert row["rounds"][0]["cells"]["mlp:b1:normal"]["candidate_ns"] == 94
+
+
+def test_tensor_kernels_serves_its_own_boards_including_recurrent(database):
+    configure(database, boards=["mlp", "recurrent", "overall"])
+    boards = tensor(database, "/boards")
+    assert boards.status_code == 200, boards.text
+    # JSONB does not keep key order.
+    assert {b["id"] for b in boards.json()["boards"]} == {"mlp", "recurrent", "overall"}
+    overview = tensor(database, "")
+    assert overview.json()["slug"] == TENSOR_KERNELS
+    assert set(overview.json()["boards"]) == {"mlp", "recurrent", "overall"}
+    assert tensor(database, "/leaderboard?board=recurrent").status_code == 200
+    assert tensor(database, "/champions?board=recurrent").json()["champions"] == []
+
+
+# A failed bundle's stopped round, as the Tensor kernels worker keeps it (dev job 1, trimmed): each
+# side mixes `[ns, checksum]` cells with `__...` bookkeeping, and input plans sit beside the sides.
+STOPPED_ROUND = {
+    "reference": {
+        "s0|mlp:b1:wide": [3081288, 98147538],
+        "uci-har-mlp|mlp": [2892329, 17],
+        "__raw_ns__": {"s0|mlp:b1:wide": [3081288]},
+        "__child_ns__": {"s0|mlp:b1:wide": 1},
+        "__warmup_ns__": {"s0|mlp:b1:wide": [12]},
+        "__process_wall_ns__": [123456789],
+        "__peak_memory_bytes__": [21770240],
+        "__real_preparation_ns__": {"uci-har-mlp": {"model_load_ns": 5, "input_preparation_ns": 6}},
+    },
+    "input_plan": {"real": {"uci-har-mlp": [[2941]]}, "synthetic": {"s0|mlp:b1:wide": [[1]]}},
+    "warmup_plan": {"real": {"uci-har-mlp": [[1903]]}, "synthetic": {}},
+    "baseline_input_plan": {"real": {}, "synthetic": {}},
+    "baseline_warmup_plan": {"real": {}, "synthetic": {}},
+}
+
+
+def test_a_stopped_round_keeps_only_its_cells():
+    from submission_api.torchlean_reads import stopped_round
+
+    whole, samples = stopped_round(STOPPED_ROUND)
+    assert samples is None
+    assert set(whole) == {"reference"}
+    assert {k: (v.ns, v.checksum) for k, v in whole["reference"].items()} == {
+        "s0|mlp:b1:wide": (3081288, 98147538),
+        "uci-har-mlp|mlp": (2892329, 17),
+    }
+    # Malformed pairs are skipped too, never raised: too short, a bool, a string.
+    whole, _ = stopped_round({"candidate": {"a": [1], "b": [True, 1], "c": ["x", 1], "d": [5, 6]}})
+    assert list(whole["candidate"]) == ["d"]
+    assert stopped_round({"input_plan": {"real": {}}}) == (None, None)
+
+
+def test_a_bundle_stopped_with_bookkeeping_in_its_round_still_reports(database):
+    configure(database, boards=["mlp", "overall"])
+    sid, sha = submit(database, "stopped-with-bookkeeping")
+    evaluations = {board: evaluate(database, sid, board, state="pending") for board in ("mlp", "overall")}
+    finished = {"s0|mlp:b1:wide": [422858504, 98147538], "__raw_ns__": {"s0|mlp:b1:wide": [1]}}
+    error = {
+        "kind": "candidate",
+        "reason": "benchmark-timeout: shared budget",
+        "timeout": TIMEOUT | {"finished": finished, "side": "candidate", "peak_memory_bytes": 21770240},
+        "partial": {
+            "completed_comparisons": {},
+            "failed_comparison": "overall",
+            "comparison_partial": {
+                "rounds": board_result(300)["rounds"],
+                "real_rounds": [],
+                "repetitions": {"mlp:b1:normal": 10},
+                "round_in_progress": STOPPED_ROUND,
+                "measurement_policy": "x",
+            },
+        },
+    }
+    shared_job(database, evaluations, sha, state="failed", error=error)
+    response = tensor(database, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    reports = {e["board"]: e["measurements"][0] for e in response.json()["evaluations"]}
+    stopped = reports["overall"]
+    assert set(stopped["round_in_progress"]) == {"reference"}
+    assert stopped["round_in_progress"]["reference"]["uci-har-mlp|mlp"] == {"ns": 2892329, "checksum": 17}
+    assert stopped["finished"] == {"s0|mlp:b1:wide": {"ns": 422858504, "checksum": 98147538}}
+    assert stopped["timeout"]["limit"] == "budget"
+    # The board the bundle never reached reports nothing, not an error.
+    assert reports["mlp"]["rounds"] is None and reports["mlp"]["timeout"] is None

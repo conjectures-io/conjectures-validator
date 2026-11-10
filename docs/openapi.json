@@ -9764,6 +9764,21 @@
             ],
             "title": "Score"
           },
+          "suite_scores": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per benchmark suite (`synthetic`, `real`), the weighted time ratio against the reference; `score` combines them by the plan's `suite_weights`. Null where the competition times one synthetic suite only",
+            "title": "Suite Scores"
+          },
           "timeout": {
             "anyOf": [
               {
@@ -9776,6 +9791,116 @@
           }
         },
         "title": "TorchLeanAdmission",
+        "type": "object"
+      },
+      "TorchLeanBaseline": {
+        "properties": {
+          "cells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TorchLeanBaselineCell"
+            },
+            "description": "Per `<workload>|<cell>`, unpaired medians",
+            "title": "Cells",
+            "type": "object"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The baseline `Kernel.lean` timed",
+            "title": "Source Sha256"
+          }
+        },
+        "title": "TorchLeanBaseline",
+        "type": "object"
+      },
+      "TorchLeanBaselineCell": {
+        "description": "One cell timed with the shipped baseline kernels: a fixed yardstick, never a score input.",
+        "properties": {
+          "baseline_median_ns": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Median Ns"
+          },
+          "baseline_ns_per_request": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Ns Per Request"
+          },
+          "baseline_repetitions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Repetitions"
+          },
+          "candidate_median_ns_per_request": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Median Ns Per Request"
+          },
+          "candidate_to_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate To Baseline"
+          },
+          "reference_median_ns_per_request": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Median Ns Per Request"
+          },
+          "reference_to_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference To Baseline"
+          }
+        },
+        "title": "TorchLeanBaselineCell",
         "type": "object"
       },
       "TorchLeanBoard": {
@@ -10322,6 +10447,18 @@
             "title": "Admission Policy",
             "type": "object"
           },
+          "baseline_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The baseline `Kernel.lean` each job also times, for reference only",
+            "title": "Baseline Sha256"
+          },
           "board": {
             "title": "Board",
             "type": "string"
@@ -10383,6 +10520,20 @@
             "title": "Measurements",
             "type": "array"
           },
+          "real_workloads": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TorchLeanRealWorkload"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real Workloads"
+          },
           "reference_hash": {
             "title": "Reference Hash",
             "type": "string"
@@ -10406,6 +10557,35 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "suite_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suite Weights"
+          },
+          "suites": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The benchmark suites scored, e.g. `synthetic` and `real`",
+            "title": "Suites"
           },
           "timing": {
             "additionalProperties": {
@@ -10610,6 +10790,16 @@
             "title": "Attempts",
             "type": "integer"
           },
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TorchLeanBaseline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "calibration": {
             "anyOf": [
               {
@@ -10697,6 +10887,30 @@
             ],
             "title": "Identity"
           },
+          "real": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TorchLeanRealSuite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "real_family_scores": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real Family Scores"
+          },
           "repetitions": {
             "anyOf": [
               {
@@ -10779,6 +10993,12 @@
             "title": "Seed",
             "type": "integer"
           },
+          "shared": {
+            "default": false,
+            "description": "The job timed this entry once for several boards (a comparison bundle); these are the observations against this board's reference",
+            "title": "Shared",
+            "type": "boolean"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -10794,6 +11014,20 @@
           "state": {
             "title": "State",
             "type": "string"
+          },
+          "suite_scores": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suite Scores"
           },
           "timeout": {
             "anyOf": [
@@ -10967,6 +11201,267 @@
           "boards"
         ],
         "title": "TorchLeanOverview",
+        "type": "object"
+      },
+      "TorchLeanRealFamily": {
+        "properties": {
+          "candidate_to_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate To Baseline"
+          },
+          "candidate_to_reference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Equal-weight geometric mean over the family's real workloads",
+            "title": "Candidate To Reference"
+          },
+          "workloads": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Workloads",
+            "type": "array"
+          }
+        },
+        "title": "TorchLeanRealFamily",
+        "type": "object"
+      },
+      "TorchLeanRealSuite": {
+        "properties": {
+          "families": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TorchLeanRealFamily"
+            },
+            "title": "Families",
+            "type": "object"
+          },
+          "workloads": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TorchLeanRealWorkloadResult"
+            },
+            "title": "Workloads",
+            "type": "object"
+          }
+        },
+        "required": [
+          "workloads",
+          "families"
+        ],
+        "title": "TorchLeanRealSuite",
+        "type": "object"
+      },
+      "TorchLeanRealWorkload": {
+        "description": "A real model and dataset the plan times besides the synthetic cells.",
+        "properties": {
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter"
+          },
+          "asset_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Revision"
+          },
+          "dataset": {
+            "title": "Dataset",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "sample_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Count"
+          },
+          "samples_per_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Samples Per Run"
+          },
+          "samples_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Samples Sha256"
+          },
+          "weights_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weights Sha256"
+          }
+        },
+        "required": [
+          "id",
+          "family",
+          "model",
+          "dataset"
+        ],
+        "title": "TorchLeanRealWorkload",
+        "type": "object"
+      },
+      "TorchLeanRealWorkloadResult": {
+        "description": "Medians over the paired rounds of one real model on its real samples.",
+        "properties": {
+          "baseline_median_ns": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Median Ns"
+          },
+          "candidate_median_ns": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Median Ns"
+          },
+          "candidate_to_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate To Baseline"
+          },
+          "candidate_to_reference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate To Reference"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "reference_median_ns": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Median Ns"
+          },
+          "samples_per_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Samples Per Run"
+          }
+        },
+        "title": "TorchLeanRealWorkloadResult",
         "type": "object"
       },
       "TorchLeanReference": {
@@ -15420,6 +15915,490 @@
         "summary": "Submit",
         "tags": [
           "competitions"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels": {
+      "get": {
+        "operationId": "detail_v1_competitions_tensor_kernels_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Detail",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/boards": {
+      "get": {
+        "operationId": "boards_v1_competitions_tensor_kernels_boards_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanBoards"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Boards",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/champions": {
+      "get": {
+        "operationId": "champions_v1_competitions_tensor_kernels_champions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "board",
+            "required": false,
+            "schema": {
+              "default": "overall",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Board",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanChampions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Champions",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/health": {
+      "get": {
+        "operationId": "health_v1_competitions_tensor_kernels_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanHealth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/leaderboard": {
+      "get": {
+        "description": "One reference/configuration only. Older groups can be selected by their config hash.",
+        "operationId": "leaderboard_v1_competitions_tensor_kernels_leaderboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "board",
+            "required": false,
+            "schema": {
+              "default": "overall",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Board",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "promotion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Promotion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "config_hash",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Config Hash"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanLeaderboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leaderboard",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/submissions": {
+      "get": {
+        "description": "One page, newest first; pass `next_cursor` back as `cursor` with the same `state`.",
+        "operationId": "submissions_v1_competitions_tensor_kernels_submissions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "proving",
+                    "waiting",
+                    "benchmarking",
+                    "completed",
+                    "rejected",
+                    "disqualified"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanSubmissionPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submissions",
+        "tags": [
+          "tensor-kernels"
+        ]
+      },
+      "post": {
+        "operationId": "submit_v1_competitions_tensor_kernels_submissions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Conjectures-Hotkey",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Hotkey",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Timestamp",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Timestamp",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Signature",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Signature",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "Kernel.lean": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "Kernel.lean"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/submissions/{submission_id}": {
+      "get": {
+        "operationId": "submission_v1_competitions_tensor_kernels_submissions__submission_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanSubmission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submission",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/submissions/{submission_id}/report": {
+      "get": {
+        "operationId": "report_v1_competitions_tensor_kernels_submissions__submission_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report",
+        "tags": [
+          "tensor-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/tensor-kernels/submissions/{submission_id}/source": {
+      "get": {
+        "description": "Only former champions whose source is no longer current on any board are public.",
+        "operationId": "source_v1_competitions_tensor_kernels_submissions__submission_id__source_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source",
+        "tags": [
+          "tensor-kernels"
         ]
       }
     },
