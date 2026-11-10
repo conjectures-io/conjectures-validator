@@ -33,6 +33,19 @@ no weights, so this needs no API change. At the switch, close TorchLean's intake
 (`TORCHLEAN_SUBMISSIONS_ENABLED=0`) and keep `torchlean` in `COMPETITIONS`. Its routes keep
 serving its history from its own database, read-only, until the operators retire it.
 
+## Databases
+
+Tensor kernels starts on a **new, empty database**, `tensor_kernels`, in the same Postgres
+cluster as TorchLean (`conjectures_tensor_db`). TorchLean's database, `tensor`, stays as it is:
+the archive behind `/v1/competitions/torchlean`, queried read-only once its intake is closed.
+Nothing is copied between them and neither is dropped. On dev, the earlier test database of the
+new competition, `torchlean_dev`, is also left in place, unserved.
+
+| Environment | `tensor-kernels` reads | `torchlean` archive |
+|---|---|---|
+| Dev (s66) | `tensor_kernels` | `tensor` |
+| Production | `tensor_kernels` (to create) | `tensor` |
+
 ## Configuration
 
 ```dotenv
@@ -74,9 +87,16 @@ Every addition is optional. TorchLean's responses carry them as null (or `shared
 
 ## Rollout prerequisites
 
-- **Competition repository**: the miner client and the gate must sign the slug `tensor-kernels`.
-  Today `COMPETITION` in `miner/sig.py` and `validator/service/sig.py` is still `torchlean`.
-- **Competition database**: a new database, not TorchLean's. Apply migrations through
-  `tensor_0007` and run that repository's `deploy/platform/grant.sh` for `platform_api`.
+- **Competition repository**: the miner client and the gate sign the slug `tensor-kernels`
+  (its `main` since 2026-11-10).
+- **Competition database**: create `tensor_kernels` in `conjectures_tensor_db` and migrate it
+  to the competition's head (`tensor_0007` or later). On dev, ansible-torchlean's dev deploy does
+  this (`competition_database_name`). Then apply the competition's
+  `deploy/platform/platform_api.sql` to it as the database owner. Do not run `grant.sh` with
+  `PLATFORM_API_PASSWORD` set: it rotates the password of the cluster-wide `platform_api` role,
+  which TorchLean's archive URL also uses.
+- **API configuration**: point `COMPETITION_TENSOR_KERNELS_DATABASE_URL` at `tensor_kernels`.
+  Grants come first, because `/readyz` checks every configured competition database and a
+  deploy that fails it rolls back.
 - **Not served yet**: live benchmark progress (`benchmark_job_progress`, `tensor_0005`).
   `platform_api` has no grant on it.
