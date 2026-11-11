@@ -1,0 +1,672 @@
+[
+  {
+    "number": 151,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/151.lean",
+    "fetched_at": "2026-11-11T20:06:49.506412+00:00",
+    "status": 200,
+    "sha256": "0a4ab4edfe859fa1b344cb23bd15a4d17a72cc837b032497e0948b61d0a9c108",
+    "file": "evidence/151-upstream.lean"
+  },
+  {
+    "number": 151,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/151",
+    "fetched_at": "2026-11-11T20:06:49.507940+00:00",
+    "status": 200,
+    "file": "evidence/151-primary.html.gz",
+    "uncompressed_sha256": "bd2e07fba710457f20c40cfa5f9c8bce8bf875713352212921fc8c86d1aa1123",
+    "sha256": "c8f24fc65ff783e19deb236390a8df487c61701694283a8dc2ad372fd258cff5"
+  },
+  {
+    "number": 151,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/151/proof-claims",
+    "fetched_at": "2026-11-11T20:06:49.508821+00:00",
+    "status": 200,
+    "file": "evidence/151-claims.html.gz",
+    "uncompressed_sha256": "2d3a3bc3c4ed6a63c56326cf586b13bbdb33776611171535fb4db04b9c8a38d3",
+    "sha256": "86263ca46d7cbf02423b07827cf0dba8886750bb5a7c10a9754e9374045fb910"
+  },
+  {
+    "number": 159,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/159.lean",
+    "fetched_at": "2026-11-11T20:06:49.509518+00:00",
+    "status": 200,
+    "sha256": "018e98f4edd654babed4bd492ad619d0c96cb5f519d2f13e146df6bc2b7e566e",
+    "file": "evidence/159-upstream.lean"
+  },
+  {
+    "number": 159,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/159",
+    "fetched_at": "2026-11-11T20:06:49.510206+00:00",
+    "status": 200,
+    "file": "evidence/159-primary.html.gz",
+    "uncompressed_sha256": "85306a4a64f05c01c84f3845dd22412afcf4bc3488ddc79fbc0baf2ede744f0c",
+    "sha256": "2aece3e8ff38666201ec6e5950fb7560c06e90d72f3f0fcbdcd3a08b51d58757"
+  },
+  {
+    "number": 159,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/159/proof-claims",
+    "fetched_at": "2026-11-11T20:06:49.510712+00:00",
+    "status": 200,
+    "file": "evidence/159-claims.html.gz",
+    "uncompressed_sha256": "5fbc098976dbf7cffad4dd0e638ea9440c0bb1dbc6cbaf80946f6f3760067a83",
+    "sha256": "6dd7eec6f6639b6e10f841f35e4216158a5e788d7980246b4e993212270fdcd8"
+  },
+  {
+    "number": 173,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/173.lean",
+    "fetched_at": "2026-11-11T20:06:49.511333+00:00",
+    "status": 200,
+    "sha256": "87b9142de2081f1488828ed32be8f13a4f523fdb033806081698f60ebd28c036",
+    "file": "evidence/173-upstream.lean"
+  },
+  {
+    "number": 173,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/173",
+    "fetched_at": "2026-11-11T20:06:49.511877+00:00",
+    "status": 200,
+    "file": "evidence/173-primary.html.gz",
+    "uncompressed_sha256": "b46f3f2f34443db67db2bdc9e8380aced8f467b6e108b563f199c23204b36cf6",
+    "sha256": "8718bdbbc623ee10fe55bc0c3fcf52b963f4950526f5cadad6a11d3248e430a1"
+  },
+  {
+    "number": 173,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/173/proof-claims",
+    "fetched_at": "2026-11-11T20:06:49.757088+00:00",
+    "status": 200,
+    "file": "evidence/173-claims.html.gz",
+    "uncompressed_sha256": "d211fe14e6121055c917774bb5812c1274927faba47c4966ed58d0fcaee4486f",
+    "sha256": "5c2bf7eafdc62fcffae54bed2cbd05c6fe017c15a10288b2491bb14724debf79"
+  },
+  {
+    "number": 295,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/295.lean",
+    "fetched_at": "2026-11-11T20:06:49.845803+00:00",
+    "status": 200,
+    "sha256": "8919409c6c2a1941562ced1ce082958fae30cc88f5b4f14b3924ce6c383c154f",
+    "file": "evidence/295-upstream.lean"
+  },
+  {
+    "number": 295,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/295",
+    "fetched_at": "2026-11-11T20:06:49.905709+00:00",
+    "status": 200,
+    "file": "evidence/295-primary.html.gz",
+    "uncompressed_sha256": "1adf999d6f5eee5add4d722356910cf4a4b6f64bf0bc9d4c5d37b6f585e4ede4",
+    "sha256": "1e453cd5f8f8930cea45f1c796b147cda9a6428835666f0a3e80745a7f734d7d"
+  },
+  {
+    "number": 295,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/295/proof-claims",
+    "fetched_at": "2026-11-11T20:06:49.943101+00:00",
+    "status": 200,
+    "file": "evidence/295-claims.html.gz",
+    "uncompressed_sha256": "43da69437d972c5bb49663938429cecd5239b6890e38379b135cb7e33b0c896f",
+    "sha256": "d50d33e68a0613a31ab03fd1188d9751925c15373b346285acfcddd97eae61e5"
+  },
+  {
+    "number": 311,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/311.lean",
+    "fetched_at": "2026-11-11T20:06:49.968249+00:00",
+    "status": 200,
+    "sha256": "2ba8c0fc6348061614d96e5dea7eeb3e4d60bac3f0000109e9c9cd35f1d7e6ee",
+    "file": "evidence/311-upstream.lean"
+  },
+  {
+    "number": 311,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/311",
+    "fetched_at": "2026-11-11T20:06:49.968474+00:00",
+    "status": 200,
+    "file": "evidence/311-primary.html.gz",
+    "uncompressed_sha256": "19954da38deed86e516ac11002516b951e2fd0100b56e80d766341bf363fad4a",
+    "sha256": "cb37113715c6fa1c519910ff725ad000e096b359960b881d51f13776f0819089"
+  },
+  {
+    "number": 311,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/311/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.055873+00:00",
+    "status": 200,
+    "file": "evidence/311-claims.html.gz",
+    "uncompressed_sha256": "5d40aabd5531b81b43056afea88f9763dfea6769fb9e2f1f7642d143b8e687a9",
+    "sha256": "5e51bd1915c4801c6d8527f46f6602140ef9dedc07fea342058ba10bf33bcac3"
+  },
+  {
+    "number": 322,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/322.lean",
+    "fetched_at": "2026-11-11T20:06:50.073619+00:00",
+    "status": 200,
+    "sha256": "eb7acc4eb5880cea555518c143ce4e7a687b70d6c380f17b11912baab17dd989",
+    "file": "evidence/322-upstream.lean"
+  },
+  {
+    "number": 322,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/322",
+    "fetched_at": "2026-11-11T20:06:50.098219+00:00",
+    "status": 200,
+    "file": "evidence/322-primary.html.gz",
+    "uncompressed_sha256": "259f017375cfa8df70382072fac55054fb241c8be8b0bb68b58ef6071336d2a4",
+    "sha256": "5f32ddc105ed1aa5a5d87e839560e410fd581c479e115b2488013b71b203f355"
+  },
+  {
+    "number": 322,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/322/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.099445+00:00",
+    "status": 200,
+    "file": "evidence/322-claims.html.gz",
+    "uncompressed_sha256": "e9190a6350131162b51d6789cac173f3449c674624232121384eb0c8ff4a0301",
+    "sha256": "572906b09b99d4b42a33efd42f3fbafaa169b150df378a32a56aa718b4576464"
+  },
+  {
+    "number": 326,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/326.lean",
+    "fetched_at": "2026-11-11T20:06:50.103761+00:00",
+    "status": 200,
+    "sha256": "3efc9019683223d55396b20ed06a9ada45fe4fd1cceed650ff11b188a4c7d88a",
+    "file": "evidence/326-upstream.lean"
+  },
+  {
+    "number": 326,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/326",
+    "fetched_at": "2026-11-11T20:06:50.130841+00:00",
+    "status": 200,
+    "file": "evidence/326-primary.html.gz",
+    "uncompressed_sha256": "99ff4e5b667f0728541ed4b6e6ac18c01f1600acfb6512c9e8b312980440cad4",
+    "sha256": "f188a3d7cd0a32dc6b0d5b001fe3b698ceb4a35cf746c9e5e2ade6242ab48410"
+  },
+  {
+    "number": 326,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/326/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.163844+00:00",
+    "status": 200,
+    "file": "evidence/326-claims.html.gz",
+    "uncompressed_sha256": "22feed551774e859dcefe748d3c63a8ec105c04576629afde36ad2713b82ac64",
+    "sha256": "3c90ac32c5fd360e2ef2ebc97c66e18e31930778b7b0edcaed4d2f26956e2cdb"
+  },
+  {
+    "number": 345,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/345.lean",
+    "fetched_at": "2026-11-11T20:06:50.166339+00:00",
+    "status": 200,
+    "sha256": "fa06e03f8843c7754aca807bf32396e87689a9b1c498bf0e9205e405e9ee5d38",
+    "file": "evidence/345-upstream.lean"
+  },
+  {
+    "number": 345,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/345",
+    "fetched_at": "2026-11-11T20:06:50.250940+00:00",
+    "status": 200,
+    "file": "evidence/345-primary.html.gz",
+    "uncompressed_sha256": "515be832dddefac3a8c8606c2825b10176e8f958336ac26520a949590d24360d",
+    "sha256": "f88c8088076c946faa448e3638f8182e484e3e4b19ab92adc0cd3e6e9111df8d"
+  },
+  {
+    "number": 345,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/345/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.259133+00:00",
+    "status": 200,
+    "file": "evidence/345-claims.html.gz",
+    "uncompressed_sha256": "a894bf7b88c56f189cc5e5f8b29123a7a7b5d9dafe583ca4e86b90c4ec7c1118",
+    "sha256": "4a98cafe12066762697c541f3edfcb335d15f6d189cb740c02c296dd62a061d5"
+  },
+  {
+    "number": 388,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/388.lean",
+    "fetched_at": "2026-11-11T20:06:50.267661+00:00",
+    "status": 200,
+    "sha256": "6308bd49d53bd3b40f84ab34c27679762be709b5d28a1ce97b2b62b408d8978e",
+    "file": "evidence/388-upstream.lean"
+  },
+  {
+    "number": 388,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/388",
+    "fetched_at": "2026-11-11T20:06:50.284830+00:00",
+    "status": 200,
+    "file": "evidence/388-primary.html.gz",
+    "uncompressed_sha256": "53ec088611a524aabe7d0cf2fde7e52c09717541f528feec62319e7117549703",
+    "sha256": "8c288c6fa57fcacd213783c6b65e18155c78ca98548181230a2b94892425430c"
+  },
+  {
+    "number": 388,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/388/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.298261+00:00",
+    "status": 200,
+    "file": "evidence/388-claims.html.gz",
+    "uncompressed_sha256": "04be0f980dfa88d1e5242d0f206e49f4ebbadf6dbff30536913793509d0d00d4",
+    "sha256": "03e331ba3e725e37cd764f8cc3eecba1778c051b737e381a5a53b36e2f7f41a8"
+  },
+  {
+    "number": 389,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/389.lean",
+    "fetched_at": "2026-11-11T20:06:50.306908+00:00",
+    "status": 200,
+    "sha256": "7992dec94ddef6ecbbecb7127b4255ecac12e15c3a20589fb62e1848a5733bb9",
+    "file": "evidence/389-upstream.lean"
+  },
+  {
+    "number": 389,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/389",
+    "fetched_at": "2026-11-11T20:06:50.368538+00:00",
+    "status": 200,
+    "file": "evidence/389-primary.html.gz",
+    "uncompressed_sha256": "2ff8875d78f625fb928c72adae8351e7a0ba2a00b8a77cc493d09da59ba153fd",
+    "sha256": "eda8cfb85582d3d1590c93cee61222097e788484e28e23b0776aba317ade8211"
+  },
+  {
+    "number": 389,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/389/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.379345+00:00",
+    "status": 200,
+    "file": "evidence/389-claims.html.gz",
+    "uncompressed_sha256": "3d1a93119395f5fb3407fad9885828e993848a6a882c3583f5bd735a7c663a08",
+    "sha256": "d987e23e3811f847d21e499faafc3a37eb4b99594ca08252baad01ddb47b2ffa"
+  },
+  {
+    "number": 393,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/393.lean",
+    "fetched_at": "2026-11-11T20:06:50.422266+00:00",
+    "status": 200,
+    "sha256": "cd0eb39372dda001eb232d950bea35dd2cbde490c6b2e0ac72001fbe5bf65a1d",
+    "file": "evidence/393-upstream.lean"
+  },
+  {
+    "number": 393,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/393",
+    "fetched_at": "2026-11-11T20:06:50.426227+00:00",
+    "status": 200,
+    "file": "evidence/393-primary.html.gz",
+    "uncompressed_sha256": "e86a1ea4fb21186dc1856cfd0f4743fb32be28810302c33d662917561ae29fc8",
+    "sha256": "945b5ac0f70f5be3fea15ce6cd7665cc8def2a624e12ccf16d4042aee76962f4"
+  },
+  {
+    "number": 393,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/393/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.434957+00:00",
+    "status": 200,
+    "file": "evidence/393-claims.html.gz",
+    "uncompressed_sha256": "a410339e865abda375504dc17fb2572227dea5a6f7e0b31cc512bbb4958d2fd9",
+    "sha256": "47a806a0be9f3fbf5ef60451ef28ee2093d3afcaf5b6ab87793a21d8e92811a6"
+  },
+  {
+    "number": 422,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/422.lean",
+    "fetched_at": "2026-11-11T20:06:50.489346+00:00",
+    "status": 200,
+    "sha256": "d6d426493f28fed460017655716c8dbad59333693452cb53cf6a345cf6a2e682",
+    "file": "evidence/422-upstream.lean"
+  },
+  {
+    "number": 422,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/422",
+    "fetched_at": "2026-11-11T20:06:50.503948+00:00",
+    "status": 200,
+    "file": "evidence/422-primary.html.gz",
+    "uncompressed_sha256": "c3fc4c70152a6495b3c22374fa5b4a1bcc241f99642bdb6cc61fd92e7bc408dd",
+    "sha256": "57dd647226ecb7d4289da5167e34658cf6a3e2b83b31ddc78284de77ab17a480"
+  },
+  {
+    "number": 422,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/422/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.518399+00:00",
+    "status": 200,
+    "file": "evidence/422-claims.html.gz",
+    "uncompressed_sha256": "6b47f67dbf29710d72e559f901ebab1874e5b68f4b0e6c8e2a3073b5bfc0effd",
+    "sha256": "8333927659e692447ee24f660d0d3011e2cd8d939a9affe6696987b8e95a3e90"
+  },
+  {
+    "number": 423,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/423.lean",
+    "fetched_at": "2026-11-11T20:06:50.539445+00:00",
+    "status": 200,
+    "sha256": "de759a5ecce6be862d9e22869cad78217f004ebd5d81af177206dfda242e4231",
+    "file": "evidence/423-upstream.lean"
+  },
+  {
+    "number": 423,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/423",
+    "fetched_at": "2026-11-11T20:06:50.564592+00:00",
+    "status": 200,
+    "file": "evidence/423-primary.html.gz",
+    "uncompressed_sha256": "20683f83fcec74472bb6fcf41258e0ff8dcaf9758760ecce76596945c172e29a",
+    "sha256": "5579f9c57faa094d352cc8d27db0c91a4d2c9228ebcc2024bd394a35e025352d"
+  },
+  {
+    "number": 423,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/423/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.570413+00:00",
+    "status": 200,
+    "file": "evidence/423-claims.html.gz",
+    "uncompressed_sha256": "61594864f99aec4627ced114fa350968c3148d47e0549a6388cacb8f68743233",
+    "sha256": "b5a52337d65a252e3361ae324e1a117892fc43962a901b24be3ce7a313d2a326"
+  },
+  {
+    "number": 430,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/430.lean",
+    "fetched_at": "2026-11-11T20:06:50.640571+00:00",
+    "status": 200,
+    "sha256": "b0e587b98409bfe49218846b7914e23976ad719daaf2860db20f878c78f91985",
+    "file": "evidence/430-upstream.lean"
+  },
+  {
+    "number": 430,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/430",
+    "fetched_at": "2026-11-11T20:06:50.651571+00:00",
+    "status": 200,
+    "file": "evidence/430-primary.html.gz",
+    "uncompressed_sha256": "94c1f37c7351c248ab1acd339c92b0c0e8fbe485038037f425f0585472de7900",
+    "sha256": "cdf27da6bed211214be1d1aecf0983cddae96297ce5c5e0ea3a134bad0227891"
+  },
+  {
+    "number": 430,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/430/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.652092+00:00",
+    "status": 200,
+    "file": "evidence/430-claims.html.gz",
+    "uncompressed_sha256": "652c5743fdaa05aca9eb9afb3be06e58c1950ef199016eab64cd1fe3b54dae16",
+    "sha256": "95135ce55edb1b229faf4169e9fcc989a4c2df2bb63553767754399d7df68ad3"
+  },
+  {
+    "number": 461,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/461.lean",
+    "fetched_at": "2026-11-11T20:06:50.681694+00:00",
+    "status": 200,
+    "sha256": "cb8b8e4f119bca982a3a39085e75479ebd7f03adc658d1c36fffe502c3da9405",
+    "file": "evidence/461-upstream.lean"
+  },
+  {
+    "number": 461,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/461",
+    "fetched_at": "2026-11-11T20:06:50.734682+00:00",
+    "status": 200,
+    "file": "evidence/461-primary.html.gz",
+    "uncompressed_sha256": "f9fcc405c41002692cca5cc7f5df6c1de928e1215e11953c6cb5a8c1ba3c1aaa",
+    "sha256": "946b3bfa763b46006323b346f6b375dd3d7207b71808da3e016dd9374eeec493"
+  },
+  {
+    "number": 461,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/461/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.740256+00:00",
+    "status": 200,
+    "file": "evidence/461-claims.html.gz",
+    "uncompressed_sha256": "e60822ea65c0a79f7fe4d869eac410788c34544c3f4f4ea119a7df0d1ad6273e",
+    "sha256": "d9d416835e966ca766acde6d57ef00a78c162db5d8b85696deefbbba58919990"
+  },
+  {
+    "number": 462,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/462.lean",
+    "fetched_at": "2026-11-11T20:06:50.788805+00:00",
+    "status": 200,
+    "sha256": "85215953962a3b6f5e568546cd48fb129065a26962331719c4f4ab6646de82d1",
+    "file": "evidence/462-upstream.lean"
+  },
+  {
+    "number": 462,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/462",
+    "fetched_at": "2026-11-11T20:06:50.794681+00:00",
+    "status": 200,
+    "file": "evidence/462-primary.html.gz",
+    "uncompressed_sha256": "a70a420fb7201339c0ea6a7f6eef0aba20d542e1e3bb106a97f9acbb7ce5b5fe",
+    "sha256": "d91a3620520aeaf353ac6f06de689fa7c629dd4680f4083c936f58f8f6257ec5"
+  },
+  {
+    "number": 462,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/462/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.813052+00:00",
+    "status": 200,
+    "file": "evidence/462-claims.html.gz",
+    "uncompressed_sha256": "012986f84d19b92b4bb319746877aa1d198299d2080f7b43ffe25a255bb066e2",
+    "sha256": "f15f1808d6aee8c615af895cf0cad5ea474aa819ca2c36729e2aaf3f409cc1c4"
+  },
+  {
+    "number": 467,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/467.lean",
+    "fetched_at": "2026-11-11T20:06:50.834349+00:00",
+    "status": 200,
+    "sha256": "4459085e4456715e35a5dad9efba25ae79edbf0ffd0821434f26854da6084c03",
+    "file": "evidence/467-upstream.lean"
+  },
+  {
+    "number": 467,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/467",
+    "fetched_at": "2026-11-11T20:06:50.835625+00:00",
+    "status": 200,
+    "file": "evidence/467-primary.html.gz",
+    "uncompressed_sha256": "9f4db4b2b9f3a22d38a6246013ea681ac47fe48dc66e22737f0c4064d00fde90",
+    "sha256": "57dd244fdae3701937bda580392a28c110ec8ee1221a5ca9c6f02ab90c7cc555"
+  },
+  {
+    "number": 467,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/467/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.853331+00:00",
+    "status": 200,
+    "file": "evidence/467-claims.html.gz",
+    "uncompressed_sha256": "ddb04314335df9aa9cc61532a42d663b2d238450dde539ccd18fe63d7dc5a916",
+    "sha256": "480b414d946f1edb653f300e655e906777abd22a4d63fc1ea08726f819a5b98e"
+  },
+  {
+    "number": 472,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/472.lean",
+    "fetched_at": "2026-11-11T20:06:50.868584+00:00",
+    "status": 200,
+    "sha256": "5efd3df6db7b98ba7ee4d47c1ab4294c67b316cc17f9f449d87044aa24ccd8e7",
+    "file": "evidence/472-upstream.lean"
+  },
+  {
+    "number": 472,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/472",
+    "fetched_at": "2026-11-11T20:06:50.911843+00:00",
+    "status": 200,
+    "file": "evidence/472-primary.html.gz",
+    "uncompressed_sha256": "8796306021b4a22a60813bc8b9b50bb6e492a6506ab60160fbd249ef2b1db1b1",
+    "sha256": "cf0935a46504af3258116eb215dde6e41c3924f2489b554a9114800f6323f644"
+  },
+  {
+    "number": 472,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/472/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.923983+00:00",
+    "status": 200,
+    "file": "evidence/472-claims.html.gz",
+    "uncompressed_sha256": "42fc661d381872b08976560b7dcffe0e4a23ca76593e9191c36d0ceacf294f7c",
+    "sha256": "5a64dc466a2412438684c643cabedca8e48786656c501c8cae62361ae0907d4f"
+  },
+  {
+    "number": 478,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/478.lean",
+    "fetched_at": "2026-11-11T20:06:50.946034+00:00",
+    "status": 200,
+    "sha256": "89fa1fb0e623594f85aa63bfdfed4b8402a92ed0361b54f744ebb2a13f76528b",
+    "file": "evidence/478-upstream.lean"
+  },
+  {
+    "number": 478,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/478",
+    "fetched_at": "2026-11-11T20:06:50.965046+00:00",
+    "status": 200,
+    "file": "evidence/478-primary.html.gz",
+    "uncompressed_sha256": "90aa9ed01ccfa3818e5e13414b7e102cac6fe672643aaea5ccb4871812fed544",
+    "sha256": "4b86d323bf38cf6b61d2c9320430cc4e5f8efba36d640e85cf33a8af56084af9"
+  },
+  {
+    "number": 478,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/478/proof-claims",
+    "fetched_at": "2026-11-11T20:06:50.965457+00:00",
+    "status": 200,
+    "file": "evidence/478-claims.html.gz",
+    "uncompressed_sha256": "1505cd05368813e6b2a581abd9a9a05a0db101e6f8e15081ba2b320ad0114bc4",
+    "sha256": "83e7e04756b8048385392fdf94a7e7b6c789424023dc96bfdb8e6f605c17f499"
+  },
+  {
+    "number": 483,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/483.lean",
+    "fetched_at": "2026-11-11T20:06:50.975273+00:00",
+    "status": 200,
+    "sha256": "bf63fbe05f7e543353a29567e9709b7cad827d2f975e9a1905b0580068a59644",
+    "file": "evidence/483-upstream.lean"
+  },
+  {
+    "number": 483,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/483",
+    "fetched_at": "2026-11-11T20:06:50.986811+00:00",
+    "status": 200,
+    "file": "evidence/483-primary.html.gz",
+    "uncompressed_sha256": "082473955255455b085d543a97467c5c2a1d213e644664075966ea62248e839e",
+    "sha256": "3a92977d5e46c97c0a5fc33c47efc08715ed41168e81906b550ebeafb957cd05"
+  },
+  {
+    "number": 483,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/483/proof-claims",
+    "fetched_at": "2026-11-11T20:06:51.024204+00:00",
+    "status": 200,
+    "file": "evidence/483-claims.html.gz",
+    "uncompressed_sha256": "5f353fec6a13a004edd1a6f2233e5d4985127ed655a277d8b6b9bde11cb6ce2c",
+    "sha256": "fbdcddb3b86c32091d3b9fc34d82ada32229d7326783d493ba90d35a12156c76"
+  },
+  {
+    "number": 509,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/509.lean",
+    "fetched_at": "2026-11-11T20:06:51.037397+00:00",
+    "status": 200,
+    "sha256": "acb8ffc8abd19fd68919e4905c04dfcce293c1ddd551db5932770de37ca4836e",
+    "file": "evidence/509-upstream.lean"
+  },
+  {
+    "number": 545,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/545.lean",
+    "fetched_at": "2026-11-11T20:06:51.040642+00:00",
+    "status": 200,
+    "sha256": "6e068c9193fdfc4c07597508ab6f7bc03999fb5c318d12e819f8da889ff79b7c",
+    "file": "evidence/545-upstream.lean"
+  },
+  {
+    "number": 554,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/554.lean",
+    "fetched_at": "2026-11-11T20:06:51.089532+00:00",
+    "status": 200,
+    "sha256": "b7f1df9f59960b7f07ef4544bab5f0c267991e4a06eb01a9d7dc457db36876f2",
+    "file": "evidence/554-upstream.lean"
+  },
+  {
+    "number": 561,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/561.lean",
+    "fetched_at": "2026-11-11T20:06:51.111787+00:00",
+    "status": 200,
+    "sha256": "d1571606ead510db6d111674a723c6f64287e9a641b5298b9e85b7949ef66ca3",
+    "file": "evidence/561-upstream.lean"
+  },
+  {
+    "number": 562,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/562.lean",
+    "fetched_at": "2026-11-11T20:06:51.131468+00:00",
+    "status": 200,
+    "sha256": "70382d960d181327c82a6b8698e2f435ffa0a944a49d15b54c0edde89924d1cf",
+    "file": "evidence/562-upstream.lean"
+  },
+  {
+    "number": 563,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/563.lean",
+    "fetched_at": "2026-11-11T20:06:51.142814+00:00",
+    "status": 200,
+    "sha256": "55c7079ddffc9d5349aa5aa2d9d73ae2890422fd8ad79aee4e6b0ad9f3d028e3",
+    "file": "evidence/563-upstream.lean"
+  },
+  {
+    "number": 566,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/566.lean",
+    "fetched_at": "2026-11-11T20:06:51.201838+00:00",
+    "status": 200,
+    "sha256": "e98ef2f9a0830502e0727270620ee7ddc7344b468ea5e1cb81e5d15573c8baa4",
+    "file": "evidence/566-upstream.lean"
+  },
+  {
+    "number": 568,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/568.lean",
+    "fetched_at": "2026-11-11T20:06:51.225695+00:00",
+    "status": 200,
+    "sha256": "d2d179c4e7a7e343483c79039c4812840c379bf868d8811f76f97fabba9cf80a",
+    "file": "evidence/568-upstream.lean"
+  },
+  {
+    "number": 572,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/572.lean",
+    "fetched_at": "2026-11-11T20:06:51.226203+00:00",
+    "status": 200,
+    "sha256": "25806dee6b9594e2f1bf416df6e693a09293a22f770fe372bc0f387c32f3b09a",
+    "file": "evidence/572-upstream.lean"
+  },
+  {
+    "number": 573,
+    "kind": "upstream",
+    "url": "https://raw.githubusercontent.com/google-deepmind/formal-conjectures/main/FormalConjectures/ErdosProblems/573.lean",
+    "fetched_at": "2026-11-11T20:06:51.256719+00:00",
+    "status": 200,
+    "sha256": "17c638971a7c1f20e0988d52ecb9984ab2076f62d832606360d80a2ea636af47",
+    "file": "evidence/573-upstream.lean"
+  }
+]

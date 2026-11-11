@@ -1,0 +1,72 @@
+{
+  "source_pin_unchanged": true,
+  "publication": {
+    "planned_versions": 652,
+    "reused": 612,
+    "built": 40,
+    "superseded": 0,
+    "retired": 0,
+    "held": 0,
+    "retained_admissions": 0
+  },
+  "integrity": {
+    "passed": true,
+    "active_targets": 326,
+    "active_bundles": 652,
+    "new_targets": 20,
+    "retained_targets_unchanged": 306,
+    "historical_versions_preserved": 2235,
+    "new_versions": 40
+  },
+  "standard_validator": {
+    "passed": true,
+    "bundles": [
+      {
+        "theorem": "Erdos151.erdos_151",
+        "mode": "formalized",
+        "type_hash": "sha256:8fe6fe1f34c475941fec16b696012279f56c5dbff94a1c1349a21048a017e61a",
+        "passed": true,
+        "seconds": 36.07938098534942
+      },
+      {
+        "theorem": "Erdos151.erdos_151",
+        "mode": "counterexample",
+        "type_hash": "sha256:8fe4bb1cbdb76f950cad11c0ae15a6e64b471fdeb51c8df5385189da1e2ef984",
+        "passed": true,
+        "seconds": 34.01264246366918
+      },
+      {
+        "theorem": "Erdos159.erdos_159",
+        "mode": "formalized",
+        "type_hash": "sha256:60360e852c591068857b32f45153f70b35b17971268b92cc2b0bed5fbda12ac1",
+        "passed": true,
+        "seconds": 34.40387267805636
+      },
+      {
+        "theorem": "Erdos159.erdos_159",
+        "mode": "counterexample",
+        "type_hash": "sha256:4f216f8a6dfda2d861d1a82edc00b90e6bdd0f7d9c60bf467a5e98ade8729bc4",
+        "passed": true,
+        "seconds": 32.87737392447889
+      }
+    ]
+  },
+  "sandbox_controls": {
+    "passed": true,
+    "cases": 10,
+    "new_bundles_exercised": 4,
+    "positive_control_verified": true,
+    "insecure_development": false,
+    "uid": 10001,
+    "open_problems_proved": false,
+    "processes": 4
+  },
+  "sandbox_image_note": "Controls used the existing production image for the unchanged source/environment instance; a new release image has not been built by these checks.",
+  "tests": {
+    "unit_passed": 109,
+    "task_pool_passed": 20,
+    "api_passed": 80,
+    "api_fixture": "Dedicated disposable Postgres container erdos-next20-pg-20261111"
+  },
+  "deployed": false
+}

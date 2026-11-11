@@ -417,10 +417,10 @@ python -m verifier catalog build \
 python -m verifier catalog stats --catalog data/catalog.json
 ```
 
-The checked-in catalog covers the full Formal Conjectures source snapshot. The November 4
-batch selects 20 additions from the October intake, including Erdős 12(iii), for 309 targets
-and 618 bundles. The #12 listing includes all three questions and their statuses, with only
-part (iii) active for rewards. See the [batch review](docs/review-decisions/2026-11-04-erdos20/README.md)
+The checked-in catalog covers the full Formal Conjectures source snapshot. The November 11
+batch adds 20 reviewed Erdős main statements to the 306 retained targets, for 326 targets
+and 652 proof/counterexample bundles. It preserves the existing source pin, prior withdrawals,
+and immutable task history. See the [batch review](docs/review-decisions/2026-11-11-erdos20/README.md)
 and the [source admission review](docs/review-decisions/2026-10-28-erdos-expansion/README.md).
 The candidate changes require the normal release workflow before deployment.
 
