@@ -42,6 +42,11 @@ its exact statement hash, references and scope note. The previous audit remains
 in Git history. Prior held and retired targets remain excluded; all immutable
 historical bundle bytes and admissions must be preserved by publication.
 
-Validation outcomes are recorded in `validation.json` once the build and checks
-finish. The full source catalog is retained. No open-problem solution is claimed
-by the compiler or sandbox controls.
+Validation outcomes are recorded in `validation.json`: compilation and integrity
+checks pass, as do 209 Python tests, four standard-validator checks, all ten
+sandbox controls, and the complete Ruff check. The staged worker passes its
+production preflight without claiming work. Its existing immutable image is reused
+with its original version identity; comparison with the proposed host code finds
+only the default pool-size change in verifier/worker/build paths. Deployment and
+worker activation remain separate. The full source catalog is retained. No
+open-problem solution is claimed by the compiler or sandbox controls.

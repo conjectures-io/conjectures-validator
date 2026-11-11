@@ -68,5 +68,27 @@
     "api_passed": 80,
     "api_fixture": "Dedicated disposable Postgres container erdos-next20-pg-20261111"
   },
-  "deployed": false
+  "deployed": false,
+  "lint": {
+    "passed": true,
+    "ruff_version": "0.16.4",
+    "scope": "entire validator checkout"
+  },
+  "worker_preflight": {
+    "passed": true,
+    "activated": false,
+    "host_validator_commit": "8db7eec981cb0ef4cfbf5c74b68318293bf9d91a",
+    "tasks_commit": "213d487288fc3d7b6d5535125be55f99d37cf8da",
+    "production_settings": true,
+    "database_connection_checked": true,
+    "proof_jobs_claimed": false
+  },
+  "worker_image": {
+    "host_validator_commit": "8db7eec981cb0ef4cfbf5c74b68318293bf9d91a",
+    "tasks_commit": "213d487288fc3d7b6d5535125be55f99d37cf8da",
+    "verification_image_reused": true,
+    "verification_image_commit": "e3c89705118e269de6eea2f0c5414ef89409d0a3",
+    "verification_code_diff": "Only DEFAULT_TIER_SIZE changes from 309 to 326; proof verification, worker code, trusted source, and build scripts are unchanged. Runtime verification identity remains the existing image identity.",
+    "image_id": "sha256:4da29ed9e4448435a979baeda82e934b091abde3754bd9976d8b1df93708fa90"
+  }
 }
