@@ -1,0 +1,1031 @@
+{
+  "review_date_eastern": "2026-11-11",
+  "completed_at_utc": "2026-11-12T00:11:19.924741+00:00",
+  "scope": "Literature status of 20 selected exact main theorems; not a proof audit or binding reward decision.",
+  "source_pin": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "selected_task_commit": "213d487288fc3d7b6d5535125be55f99d37cf8da",
+  "reviewed_validator_commit": "b04515b21da6141f4982185ff5ffdf137dd86f9e",
+  "release_hold": true,
+  "excluded_numbers": [
+    173
+  ],
+  "remaining_candidate_count": 19,
+  "ai_corpus_capture_commit": "17c86a0d4ebe1487a087ceb8c14952a10ec2f2bd",
+  "ai_corpus_capture_time_utc": "2026-10-28T17:15:37Z",
+  "independent_lean_replay_performed": false,
+  "erdos173_declaration_text_matches_selected_source": true,
+  "erdos173_formalization_commit": "4a368a652753fab53272f7a747755876f04bc2cc",
+  "raw_evidence_local_path": "/root/.codex/worktrees/erdos-next-20/current/output/erdos20-literature-20261111",
+  "rows": [
+    {
+      "number": 151,
+      "title": "Clique transversals",
+      "finding": "No full solution found; solved graph classes and a finite-order claim.",
+      "target": "The exact inequality \\(\\tau(G)\\le n-H(n)\\) for every finite graph.",
+      "review": "Erdős–Gallai–Tuza bounds and the clique-coloring estimate of Joret–Micek–Reed–Smid give weaker general bounds. The latter yields a transversal bound of the form \\(n-c\\sqrt{n\\log n}\\), by taking the complement of a largest color class; this deduction does not recover the exact \\(H(n)\\). Tuza covers chordal graphs. Veljjanoski's September 2026 submission covers at most 39 vertices and remains a partial claim in the AI catalog.",
+      "sources": [
+        [
+          "Joret et al., abstract",
+          "https://arxiv.org/abs/2006.11353"
+        ],
+        [
+          "Veljjanoski, claim manuscript",
+          "https://github.com/veljjanoski/erdos151/blob/b648f36b34c7ad348a813d14a29e5b521b04c06e/PROOF.md"
+        ]
+      ],
+      "read_depth": "Catalog, discussion and claim scopes; Joret et al. abstract. No independent validation of Veljjanoski's proof.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos151.erdos_151",
+      "production_type_pretty": "∀ (n : ℕ) (G : SimpleGraph (Fin n)), Erdos151.cliqueTransversalNumber G ≤ n - Erdos151.H n",
+      "production_type_sha256": "sha256:8fe6fe1f34c475941fec16b696012279f56c5dbff94a1c1349a21048a017e61a",
+      "source_path": "FormalConjectures/ErdosProblems/151.lean",
+      "original_scope_note": "The recorded claim proves only n <= 39; the target quantifies over all finite graphs.",
+      "catalog_url": "https://erdosproblems.ai/problems/151",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/extremal_graph_theory/E0151",
+      "bloom_url": "https://www.erdosproblems.com/151",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/151",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/151/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "partial",
+          "status": "claimed",
+          "title": "Veljjanoski's proof of the inequality for at most 39 vertices",
+          "name": "problems/extremal_graph_theory/E0151/claims/2026_09_28_veljjanoski",
+          "links": [
+            {
+              "date": "2026-09-28",
+              "kind": "preprint",
+              "url": "https://github.com/veljjanoski/erdos151/blob/b648f36b34c7ad348a813d14a29e5b521b04c06e/PROOF.md"
+            },
+            {
+              "date": "2026-09-28",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/151/proof-claims#proof-claim-369"
+            },
+            {
+              "date": null,
+              "kind": "code",
+              "url": "https://github.com/veljjanoski/erdos151/tree/b648f36b34c7ad348a813d14a29e5b521b04c06e"
+            },
+            {
+              "date": "2026-09-23",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/151#post-9162"
+            },
+            {
+              "date": "2026-09-28",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/151#post-9214"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "accepted",
+          "title": "Tuza's half bound for chordal graphs",
+          "name": "problems/extremal_graph_theory/E0151/claims/1990_12_01_tuza",
+          "links": [
+            {
+              "date": "1990-12",
+              "kind": "paper",
+              "url": "https://doi.org/10.1016/0012-365X(90)90354-K"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 159,
+      "title": "Four-cycle versus clique Ramsey numbers",
+      "finding": "No full solution found; the fixed power saving is still missing.",
+      "target": "Some fixed \\(c>0\\) gives \\(R(C_4,K_n)=O(n^{2-c})\\).",
+      "review": "Logarithmic improvements on quadratic growth do not give a fixed power saving. Cambie–Freschi's June 2026 paper on cycle-versus-graph Ramsey numbers explicitly retains this question in its concluding remarks. Its general bound, specialized to a complete graph, is quadratic and does not settle our target.",
+      "sources": [
+        [
+          "Cambie–Freschi, §3",
+          "https://arxiv.org/html/2606.11174v1"
+        ]
+      ],
+      "read_depth": "Primary theorem statements and concluding remarks, alongside both catalogs.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos159.erdos_159",
+      "production_type_pretty": "∃ c,\n  ∃ (_ : 0 < c),\n    ∃ C,\n      ∀ (n : ℕ),\n        1 ≤ n → ↑((SimpleGraph.cycleGraph 4).graphRamsey (SimpleGraph.completeGraph (Fin n))) ≤ C * ↑n ^ (2 - c)",
+      "production_type_sha256": "sha256:60360e852c591068857b32f45153f70b35b17971268b92cc2b0bed5fbda12ac1",
+      "source_path": "FormalConjectures/ErdosProblems/159.lean",
+      "original_scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+      "catalog_url": "https://erdosproblems.ai/problems/159",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/ramsey_theory/E0159",
+      "bloom_url": "https://www.erdosproblems.com/159",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/159",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/159/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 173,
+      "title": "Monochromatic triangles in the plane",
+      "finding": "EXCLUDE: full matching formal solution accepted by erdosproblems.ai.",
+      "target": "In every arbitrary two-coloring of the plane, any two triangles without monochromatic congruent copies are congruent.",
+      "review": "The AI catalog accepts Plasma AI's October 19, 2026 claim as full and marks the problem solved. The pinned repository proves Erdos173.erdos_173 with the same arbitrary-coloring and triangle quantifiers as our selected target. I inspected Solution.lean, its definitions, README and comparator configuration, and read the project's replay and statement-fidelity records. Those records report successful compilation, statement comparison and kernel replay with only propext, Classical.choice and Quot.sound. I did not independently rebuild or replay it. The project reports no external referee examination. Bloom's OPEN label is therefore insufficient for eligibility. A stronger one-color-class historical formulation remaining open does not preserve eligibility of this selected theorem.",
+      "sources": [
+        [
+          "Accepted full claim",
+          "https://erdosproblems.ai/wiki/problems/discrete_geometry/E0173/claims/2026_10_19_plasma_ai"
+        ],
+        [
+          "Pinned Solution.lean",
+          "https://github.com/plasma-ai/erdos-173/blob/4a368a652753fab53272f7a747755876f04bc2cc/Solution.lean"
+        ],
+        [
+          "Project replay receipt",
+          "https://erdosproblems.ai/wiki/library/discrete_geometry/plasma_ai_2026_monochromatic_triangles_two_colorings_plane/evidence/verify/replay_receipt"
+        ],
+        [
+          "Project statement-fidelity review",
+          "https://erdosproblems.ai/wiki/library/discrete_geometry/plasma_ai_2026_monochromatic_triangles_two_colorings_plane/evidence/verify/statement_fidelity"
+        ]
+      ],
+      "read_depth": "Pinned source-level statement comparison and third-party verification records; no local Lean rebuild.",
+      "decision": "exclude_matching_full_solution",
+      "erdosproblems_ai_status": "solved",
+      "theorem": "Erdos173.erdos_173",
+      "production_type_pretty": "∀ (c : EuclideanSpace ℝ (Fin 2) → Fin 2) (T₁ T₂ : Affine.Triangle ℝ (EuclideanSpace ℝ (Fin 2))),\n  ¬Erdos173.HasMonochromaticCopy c T₁ → ¬Erdos173.HasMonochromaticCopy c T₂ → ∃ σ, Congruent (T₁.points ∘ ⇑σ) T₂.points",
+      "production_type_sha256": "sha256:75ddc5b9c6f7dc7f6ac56f6ac092bf51ef3a9f29c787bd166e4133467c8e3777",
+      "source_path": "FormalConjectures/ErdosProblems/173.lean",
+      "original_scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+      "catalog_url": "https://erdosproblems.ai/problems/173",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/discrete_geometry/E0173",
+      "bloom_url": "https://www.erdosproblems.com/173",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/173",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/173/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "full",
+          "status": "accepted",
+          "title": "Every two-coloring of the plane misses at most one triangle",
+          "name": "problems/discrete_geometry/E0173/claims/2026_10_19_plasma_ai",
+          "links": [
+            {
+              "date": "2026-10-19",
+              "kind": "preprint",
+              "url": "https://github.com/plasma-ai/erdos-173/blob/4a368a652753fab53272f7a747755876f04bc2cc/blueprint/proof.md"
+            },
+            {
+              "date": "2026-10-19",
+              "kind": "formalization",
+              "url": "https://github.com/plasma-ai/erdos-173/tree/4a368a652753fab53272f7a747755876f04bc2cc"
+            },
+            {
+              "date": "2026-10-19",
+              "kind": "record",
+              "url": "https://palomar-registry.org/entry?id=PALOMAR-2026-10-19-000008&version=1"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "accepted",
+          "title": "Currier, Moore and Yip's monochromatic three-term progressions",
+          "name": "problems/discrete_geometry/E0173/claims/2024_02_22_currier_moore_yip",
+          "links": [
+            {
+              "date": null,
+              "kind": "paper",
+              "url": "https://doi.org/10.1007/s00493-024-00122-2"
+            },
+            {
+              "date": "2024-02-22",
+              "kind": "preprint",
+              "url": "https://arxiv.org/abs/2402.14197"
+            },
+            {
+              "date": null,
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/173"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "accepted",
+          "title": "Shader's right triangles and two algebraic triangle families",
+          "name": "problems/discrete_geometry/E0173/claims/1976_05_01_shader",
+          "links": [
+            {
+              "date": null,
+              "kind": "paper",
+              "url": "https://doi.org/10.1016/0097-3165(76)90036-4"
+            },
+            {
+              "date": null,
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/173"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "claimed",
+          "title": "The triangle families of Euclidean Ramsey Theorems III",
+          "name": "problems/discrete_geometry/E0173/claims/1975_01_01_erdos_graham_montgomery_rothschild_spencer_straus",
+          "links": [
+            {
+              "date": null,
+              "kind": "paper",
+              "url": "https://combinatorica.hu/~p_erdos/1975-12.pdf"
+            },
+            {
+              "date": null,
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/173"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 295,
+      "title": "Shortest Egyptian-fraction representations",
+      "finding": "No full solution found; denominator-restricted claims only.",
+      "target": "The excess \\(k(N)-(e-1)N\\) tends to positive infinity for unrestricted distinct denominators at least \\(N\\).",
+      "review": "The Erdős–Straus bounds leave the excess between a constant lower bound and an upper bound of order \\(N/\\log N\\). They do not establish divergence. The September 2026 tienxion claim adds polynomial upper bounds on denominators, so it does not settle the unrestricted minimum. Finite computations of small values also do not decide the limit. The linked claimant PDF returned 404 during this review, so its scope is taken from the author's proof-claim submission, without validating its argument.",
+      "sources": [
+        [
+          "Erdős–Straus 1971",
+          "https://doi.org/10.2307/2317539"
+        ],
+        [
+          "Author's partial proof claim",
+          "https://www.erdosproblems.com/forum/thread/295/proof-claims"
+        ],
+        [
+          "Unavailable linked manuscript",
+          "https://github.com/tienxion/erdos/blob/main/erdos295/erdos295_reviewed_lower_bounds.pdf"
+        ]
+      ],
+      "read_depth": "Catalog bibliography and author claim scope; historical paper not independently audited and claimant PDF unavailable.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos295.erdos_295",
+      "production_type_pretty": "Filter.Tendsto (fun N => ↑(Erdos295.k N) - (Real.exp 1 - 1) * ↑N) Filter.atTop Filter.atTop",
+      "production_type_sha256": "sha256:d8d4e129cb6cece2173d61a65add51de71fa0fc8eacde24a65303bbc565d4dc1",
+      "source_path": "FormalConjectures/ErdosProblems/295.lean",
+      "original_scope_note": "The recorded claim assumes denominator restrictions; the target is unrestricted.",
+      "catalog_url": "https://erdosproblems.ai/problems/295",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/unit_fractions/E0295",
+      "bloom_url": "https://www.erdosproblems.com/295",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/295",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/295/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 311,
+      "title": "Approximation to one by unit fractions",
+      "finding": "No full solution found; improved bounds do not give the exponential rate.",
+      "target": "For the least nonzero error \\(\\delta(N)\\), the limit \\(-\\log\\delta(N)/N\\) exists in \\((0,1)\\).",
+      "review": "Tang's January 15, 2026 note states an upper bound \\(\\exp[-c_0N/((\\log N)^3(\\log\\log N)^3)]\\). This does not give a fixed positive limiting exponential rate. I read the downloaded note's formulation and bound. It uses the older restriction excluding a subset summing to one; the selected source records Kovač's equivalence with the minimum-nonzero-error formulation. Neither the bound nor that reformulation resolves the target.",
+      "sources": [
+        [
+          "Tang's v2 note",
+          "https://github.com/QuanyuTang/erdos-problem-311-note/blob/main/On_Erd%C5%91s_Problem_311_v2.pdf"
+        ],
+        [
+          "Formulation discussion",
+          "https://www.erdosproblems.com/forum/thread/311"
+        ]
+      ],
+      "read_depth": "Downloaded primary note, introduction and theorem scope; discussion and selected Lean definition.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos311.erdos_311",
+      "production_type_pretty": "∃ c ∈ Set.Ioo 0 1, Filter.Tendsto (fun N => -Real.log (Erdos311.delta N) / ↑N) Filter.atTop (nhds c)",
+      "production_type_sha256": "sha256:abe6fdd0e3a7c30017ef0d318fa03fc47d6292023b2f55706483812dd7555e81",
+      "source_path": "FormalConjectures/ErdosProblems/311.lean",
+      "original_scope_note": "Discussion contains bounds, heuristics, and a reformulation, not the requested exponential asymptotic.",
+      "catalog_url": "https://erdosproblems.ai/problems/311",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/unit_fractions/E0311",
+      "bloom_url": "https://www.erdosproblems.com/311",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/311",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/311/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 322,
+      "title": "Many representations by kth powers",
+      "finding": "No full solution found; the cubic case is already solved.",
+      "target": "For every \\(k\\ge3\\), some \\(c>0\\) gives more than \\(n^c\\) representations as a sum of \\(k\\) kth powers for infinitely many \\(n\\).",
+      "review": "Mahler's 1936 construction gives polynomially many representations for cubes, including a bound of order \\(n^{1/12}\\) on twelfth powers. Bloom's exposition derives the construction and explains the unresolved higher-power cases. The selected theorem quantifies over every \\(k\\ge3\\); a solution at \\(k=3\\) does not resolve it. This is a concrete reason to avoid saying that the candidates have no solved cases.",
+      "sources": [
+        [
+          "Mahler, Note on Hypothesis K",
+          "https://doi.org/10.1112/jlms/s1-11.2.136"
+        ],
+        [
+          "Bloom's derivation of Mahler's construction",
+          "https://www.thomasbloom.org/notes/hypothesisk.html"
+        ]
+      ],
+      "read_depth": "Author's mathematical exposition with explicit construction; catalog claim scope.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos322.erdos_322",
+      "production_type_pretty": "∀ (k : ℕ), 3 ≤ k → ∃ c > 0, {n | ↑n ^ c < ↑(Erdos322.representationCount k n)}.Infinite",
+      "production_type_sha256": "sha256:56cc42f7c8336a2c7026adc3213cbe5ae061869c2e96473e799cb9270e990fef",
+      "source_path": "FormalConjectures/ErdosProblems/322.lean",
+      "original_scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+      "catalog_url": "https://erdosproblems.ai/problems/322",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/diophantine_problems/E0322",
+      "bloom_url": "https://www.erdosproblems.com/322",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/322",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/322/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "partial",
+          "status": "accepted",
+          "title": "Mahler's disproof of Hypothesis K for cubes",
+          "name": "problems/diophantine_problems/E0322/claims/1936_04_01_mahler",
+          "links": [
+            {
+              "date": "1936-04",
+              "kind": "paper",
+              "url": "https://doi.org/10.1112/jlms/s1-11.2.136"
+            },
+            {
+              "date": null,
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/322"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 345,
+      "title": "Descents of completeness thresholds",
+      "finding": "No full solution found; individual thresholds and bounds are known.",
+      "target": "There are infinitely many exponents at which the least completeness threshold for distinct kth powers decreases.",
+      "review": "Wiener (2023) determines the threshold for eighth powers and provides lower bounds for exponents 9–16. General upper bounds and congruence lower bounds do not establish infinitely many adjacent descents. Numerical threshold conventions need care: the largest nonrepresentable integer is one less than the least threshold used in our target; this shift does not affect comparisons between adjacent exponents.",
+      "sources": [
+        [
+          "Wiener, JIS 26 (2023), introduction and Table 1",
+          "https://cs.uwaterloo.ca/journals/JIS/VOL26/Wiener/wiener3.pdf"
+        ],
+        [
+          "Current discussion",
+          "https://www.erdosproblems.com/forum/thread/345"
+        ]
+      ],
+      "read_depth": "Primary abstract, definitions and threshold table; discussion scope.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos345.erdos_345",
+      "production_type_pretty": "{k |\n    0 < k ∧\n      ∃ a b,\n        IsLeast (IsAddComplete.thresholds (Erdos345.kthPowers k)) a ∧\n          IsLeast (IsAddComplete.thresholds (Erdos345.kthPowers (k + 1))) b ∧ b < a}.Infinite",
+      "production_type_sha256": "sha256:0f1f06543ce32c9d4ef75a9e9beda83a5b7bf9af61cb2cb88e495252edf74a7d",
+      "source_path": "FormalConjectures/ErdosProblems/345.lean",
+      "original_scope_note": "Discussion contains upper and lower bounds on completeness thresholds, not infinitely many descents.",
+      "catalog_url": "https://erdosproblems.ai/problems/345",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/additive_bases/E0345",
+      "bloom_url": "https://www.erdosproblems.com/345",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/345",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/345/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 388,
+      "title": "Equal products of disjoint consecutive blocks",
+      "finding": "No full solution found; fixed-length results do not give global finiteness.",
+      "target": "Only finitely many quadruples of starting points and block lengths greater than three have equal products.",
+      "review": "The literature distinguishes finiteness for each fixed pair of lengths from finiteness when both lengths vary. MacLeod–Barrodale and later Beukers–Shorey–Tijdeman results cover restricted or fixed-length settings. The 2026 forum claim likewise addresses fixed lengths; discussion identifies problems with its argument and notes the existing result. Even a correct proof at each fixed pair would not establish finiteness of the union over all lengths.",
+      "sources": [
+        [
+          "MacLeod–Barrodale, On equal products of consecutive integers",
+          "https://doi.org/10.4153/CMB-1970-052-8"
+        ],
+        [
+          "Claim and mathematical responses",
+          "https://www.erdosproblems.com/forum/thread/388"
+        ]
+      ],
+      "read_depth": "Primary abstract and current author/reviewer discussion; fixed-versus-variable quantifier comparison.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos388.erdos_388",
+      "production_type_pretty": "{(m₁, k₁, m₂, k₂) |\n    3 < k₁ ∧ 3 < k₂ ∧ m₁ + k₁ ≤ m₂ ∧ ∏ i ∈ Finset.Icc 1 k₁, (m₁ + i) = ∏ j ∈ Finset.Icc 1 k₂, (m₂ + j)}.Finite",
+      "production_type_sha256": "sha256:05bbb36e72b535fdf8bd5220b1c06b3b7edcb2823d5e61fdbdf0025ff6b3b39a",
+      "source_path": "FormalConjectures/ErdosProblems/388.lean",
+      "original_scope_note": "Discussion concerns finiteness for each fixed pair of block lengths; this target asks global finiteness across all lengths.",
+      "catalog_url": "https://erdosproblems.ai/problems/388",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/diophantine_problems/E0388",
+      "bloom_url": "https://www.erdosproblems.com/388",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/388",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/388/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 389,
+      "title": "Divisibility of adjacent products",
+      "finding": "No full solution found; particular starting values are settled.",
+      "target": "For every \\(n\\ge1\\), some positive block length makes the first block product divide the next.",
+      "review": "Ulas (2013), with Schinzel's appendix, gives a digit-sum criterion, infinitely many witnesses at particular small starting values, and computational witnesses for further values. The paper explicitly does not solve the all-starting-values problem. Its starting-point convention is shifted by one relative to ours. More recent forum computations extend finite ranges, which cannot establish the universal quantifier.",
+      "sources": [
+        [
+          "Ulas's paper, author-hosted text",
+          "https://www.academia.edu/48555588/A_Note_on_Erd%C5%91s_Straus_and_Erd%C5%91s_Graham_Divisibility_Problems_With_an_Appendix_by_Andrzej_Schinzel_"
+        ],
+        [
+          "Publication record",
+          "https://ruj.uj.edu.pl/entities/publication/f86b128d-6237-42f6-9175-82e1a877766b"
+        ],
+        [
+          "Current computations",
+          "https://www.erdosproblems.com/forum/thread/389"
+        ]
+      ],
+      "read_depth": "Primary introduction and Theorem 2.2; forum computations. Publisher endpoint returned 403; author-hosted text was accessible.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos389.erdos_389",
+      "production_type_pretty": "∀ n ≥ 1, ∃ k ≥ 1, ∏ i ∈ Finset.range k, (n + i) ∣ ∏ i ∈ Finset.range k, (n + k + i)",
+      "production_type_sha256": "sha256:78b18b4d5320ca25a82c1c986a77eea8ef5236d3a7dd8c87781767d8d86548ad",
+      "source_path": "FormalConjectures/ErdosProblems/389.lean",
+      "original_scope_note": "Computed witnesses settle finitely many starting values, not the universal assertion.",
+      "catalog_url": "https://erdosproblems.ai/problems/389",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/diophantine_problems/E0389",
+      "bloom_url": "https://www.erdosproblems.com/389",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/389",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/389/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 393,
+      "title": "Factorizations of factorials in short intervals",
+      "finding": "No unconditional full solution found; abc gives a conditional answer.",
+      "target": "The least span of a factorization of \\(n!\\) into at least two distinct positive integers tends to infinity.",
+      "review": "Luca (2002) proves finiteness for polynomial-factorial equations assuming abc, which implies the selected conclusion under that conjecture. Bui–Pratt–Zaharescu give unconditional power savings in counting solutions, not the required eventual absence for every bounded span. The 2026 Turturean claim also assumes abc. None removes the hypothesis from our theorem.",
+      "sources": [
+        [
+          "Luca, published abstract",
+          "https://web.math.pmf.unizg.hr/glasnik/vol_37/no2_04.html"
+        ],
+        [
+          "Bui–Pratt–Zaharescu",
+          "https://arxiv.org/abs/2204.08423"
+        ],
+        [
+          "Conditional claims",
+          "https://www.erdosproblems.com/forum/thread/393/proof-claims"
+        ]
+      ],
+      "read_depth": "Primary abstracts and conditional claim scopes; selected definition of the minimum span.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos393.erdos_393",
+      "production_type_pretty": "Filter.Tendsto Erdos393.f Filter.atTop Filter.atTop",
+      "production_type_sha256": "sha256:3d9205a8df3dd343b5022ee9201b88577e9d5df7d970aa9ac4ce73f6c41a925b",
+      "source_path": "FormalConjectures/ErdosProblems/393.lean",
+      "original_scope_note": "The Luca theorem and PR 7762 require abc. The selected target is unconditional.",
+      "catalog_url": "https://erdosproblems.ai/problems/393",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/factorials_binomials/E0393",
+      "bloom_url": "https://www.erdosproblems.com/393",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/393",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/393/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "conditional",
+          "status": "claimed",
+          "title": "Turturean's abc-conditional bounds for f(n)",
+          "name": "problems/factorials_binomials/E0393/claims/2026_05_03_turturean",
+          "links": [
+            {
+              "date": "2026-05-03",
+              "kind": "preprint",
+              "url": "https://www.overleaf.com/read/rsncpywwwbqf"
+            },
+            {
+              "date": "2026-05-03",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/393#post-6226"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "accepted",
+          "title": "Bui, Pratt and Zaharescu's power saving for P(x) = n!",
+          "name": "problems/factorials_binomials/E0393/claims/2022_04_18_bui_pratt_zaharescu",
+          "links": [
+            {
+              "date": "2023-06-01",
+              "kind": "paper",
+              "url": "https://doi.org/10.1016/j.aim.2023.109021"
+            },
+            {
+              "date": "2022-04-18",
+              "kind": "preprint",
+              "url": "https://arxiv.org/abs/2204.08423"
+            }
+          ]
+        },
+        {
+          "scope": "conditional",
+          "status": "accepted",
+          "title": "Luca's abc-conditional finiteness for P(x) = n!",
+          "name": "problems/factorials_binomials/E0393/claims/2002_01_01_luca",
+          "links": [
+            {
+              "date": null,
+              "kind": "paper",
+              "url": "https://web.math.pmf.unizg.hr/glasnik/vol_37/no2_04.html"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "accepted",
+          "title": "Berend and Osgood's density-zero theorem for P(x) = n!",
+          "name": "problems/factorials_binomials/E0393/claims/1992_10_01_berend_osgood",
+          "links": [
+            {
+              "date": "1992-10",
+              "kind": "paper",
+              "url": "https://doi.org/10.1016/0022-314X(92)90020-P"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 422,
+      "title": "Values omitted by Hofstadter Q",
+      "finding": "No full solution found; recent solved recurrences are different.",
+      "target": "Every positive-valued sequence satisfying the selected original Hofstadter-Q predicate omits infinitely many integers.",
+      "review": "Cloitre's July 2026 revision proves totality and asymptotics for the Mantovanelli perturbation, which adds \\((-1)^n\\) to the recurrence. Related 2026 papers also study perturbed or changed initial conditions. They do not settle the original Q recurrence's omitted-value question. The selected theorem is an implication for a sequence satisfying its predicate; it should not be advertised as separately proving existence or totality of the original recurrence.",
+      "sources": [
+        [
+          "Cloitre, v3 abstract",
+          "https://arxiv.org/abs/2604.06237v3"
+        ],
+        [
+          "Original problem and discussion",
+          "https://www.erdosproblems.com/forum/thread/422"
+        ]
+      ],
+      "read_depth": "Primary latest abstract compared with selected recurrence and catalog discussion.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos422.erdos_422",
+      "production_type_pretty": "∀ (f : ℕ+ → ℕ+), Erdos422.IsHofstadterQ f → {n | ∀ (x : ℕ+), f x ≠ n}.Infinite",
+      "production_type_sha256": "sha256:b9a8f308580e89d8fe02ffb3cc3ed52487d46cd258b95fd3b43588489913c2bf",
+      "source_path": "FormalConjectures/ErdosProblems/422.lean",
+      "original_scope_note": "Finite computations do not settle the infinite complement question. The target uses the pinned Hofstadter-Q recurrence predicate.",
+      "catalog_url": "https://erdosproblems.ai/problems/422",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/integer_sequences/E0422",
+      "bloom_url": "https://www.erdosproblems.com/422",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/422",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/422/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 423,
+      "title": "Growth of the Hofstadter consecutive-sum sequence",
+      "finding": "No full solution found; infinite omissions are proved for a different target.",
+      "target": "The greedy sequence satisfies \\(a_n=n+o(n)\\).",
+      "review": "Tang's March 2026 paper proves infinitely many omitted integers and gives \\(n+\\Omega(\\log\\log n)\\le a_n\\ll n^{4175/2506+o(1)}\\). These statements do not determine \\(a_n/n\\to1\\). Bolan's independent qualitative result and the associated solved formal variants also concern omissions, not the selected asymptotic. The distinct Hofstadter Q problem is #422.",
+      "sources": [
+        [
+          "Tang, v2 abstract",
+          "https://arxiv.org/abs/2603.09939v2"
+        ],
+        [
+          "Claims and independent result",
+          "https://www.erdosproblems.com/forum/thread/423/proof-claims"
+        ]
+      ],
+      "read_depth": "Primary latest abstract and scope of both recorded claims.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos423.erdos_423",
+      "production_type_pretty": "∀ (a : ℕ → ℕ), Erdos423.IsHofstadterSeq a → (fun n => ↑(a n) - ↑n) =o[Filter.atTop] fun n => ↑n",
+      "production_type_sha256": "sha256:e99ba372a74d97fd65d3302b3cbe3ff679b643749adb0a3b51bf533db63f7323",
+      "source_path": "FormalConjectures/ErdosProblems/423.lean",
+      "original_scope_note": "PRs 7622 and 7668 concern solved qualitative variants. This target asks a(n)=n+o(n). WOWII 423 is a different problem.",
+      "catalog_url": "https://erdosproblems.ai/problems/423",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/integer_sequences/E0423",
+      "bloom_url": "https://www.erdosproblems.com/423",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/423",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/423/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "partial",
+          "status": "claimed",
+          "title": "Bolan's proof that the sequence omits infinitely many integers",
+          "name": "problems/integer_sequences/E0423/claims/2026_01_15_bolan",
+          "links": [
+            {
+              "date": "2026-01-15",
+              "kind": "preprint",
+              "url": "https://github.com/mjtb49/HofstaderUlam/blob/6673ca127983c2e51dafbd5f4adcbc4249408ee6/HofstaderUlamSequence.pdf"
+            },
+            {
+              "date": "2026-01-15",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/423#post-3236"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "claimed",
+          "title": "Tang's bounds on the Hofstadter consecutive-sum sequence",
+          "name": "problems/integer_sequences/E0423/claims/2026_01_15_tang",
+          "links": [
+            {
+              "date": "2026-01-15",
+              "kind": "preprint",
+              "url": "https://github.com/QuanyuTang/erdos-problem-423/blob/0e7963c0470a5d391e3e7571077dd4767c837592/On_Erd%C5%91s_Problem_423.pdf"
+            },
+            {
+              "date": "2026-03-10",
+              "kind": "preprint",
+              "url": "https://arxiv.org/abs/2603.09939v1"
+            },
+            {
+              "date": "2026-03-13",
+              "kind": "preprint",
+              "url": "https://github.com/QuanyuTang/erdos-problem-423/blob/54559a12b89ac2bebc2c988c92e7ff264b42e161/423_quant_lower_v1.pdf"
+            },
+            {
+              "date": "2026-03-23",
+              "kind": "preprint",
+              "url": "https://arxiv.org/abs/2603.09939v2"
+            },
+            {
+              "date": "2026-01-15",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/423"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 430,
+      "title": "A composite in the prime-factor sequence",
+      "finding": "No full solution found; also checked equivalent problem #385.",
+      "target": "For all sufficiently large inputs, the selected prime-factor-defined sequence has a composite term.",
+      "review": "The selected terms explicitly exceed one; including one would trivialize a literal reading of the problem. With that correction, the question is equivalent to the first part of #385. Tao's 2024 analysis identifies a sufficient bound on gaps between balanced semiprimes and the parity obstruction; it supplies no unconditional solution. Current #385 and #430 records and indexed searches yielded no matching full proof. Finite checks cannot establish the eventual assertion.",
+      "sources": [
+        [
+          "Tao's original analysis",
+          "https://terrytao.wordpress.com/2024/08/19/erdos-problem-385-the-parity-problem-and-siegel-zeroes/"
+        ],
+        [
+          "Equivalent question #385",
+          "https://erdosproblems.ai/wiki/problems/arithmetic_functions/E0385"
+        ],
+        [
+          "Current #430 discussion",
+          "https://www.erdosproblems.com/forum/thread/430"
+        ]
+      ],
+      "read_depth": "Primary mathematical analysis, both equivalent catalog formulations, and selected terms definition.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos430.erdos_430",
+      "production_type_pretty": "∀ᶠ (n : ℕ) in Filter.atTop, ¬∀ m ∈ Erdos430.terms n, Nat.Prime m",
+      "production_type_sha256": "sha256:aa47510c3b5f15838d5f75e24e85bcb268e6374fc2f2bde1c546ad2ad5e4f799",
+      "source_path": "FormalConjectures/ErdosProblems/430.lean",
+      "original_scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+      "catalog_url": "https://erdosproblems.ai/problems/430",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/integer_sequences/E0430",
+      "bloom_url": "https://www.erdosproblems.com/430",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/430",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/430/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 461,
+      "title": "Distinct smooth parts in intervals",
+      "finding": "No full solution found; restricted-height bounds and stronger-constant counterexamples.",
+      "target": "A single positive constant \\(c\\) gives \\(f(n,t)\\ge ct\\) for all shifts and lengths.",
+      "review": "The classical logarithmically weaker estimate and the forum's bounds with restricted interval height do not supply a uniform positive proportion. The construction challenging the constant one-half does not rule out every positive constant. The AI page's finite-period reduction allows a finite computation at each fixed length but provides no bound uniform in all lengths. No full claim was present in the checked claim feeds.",
+      "sources": [
+        [
+          "Authors' discussion and partial arguments",
+          "https://www.erdosproblems.com/forum/thread/461"
+        ],
+        [
+          "Erdős–Graham source bibliography",
+          "https://www.erdosproblems.com/461"
+        ]
+      ],
+      "read_depth": "Current primary forum arguments and catalog source account; no independently audited new paper found.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos461.erdos_461",
+      "production_type_pretty": "∃ c, 0 < c ∧ ∀ (n t : ℕ), c * ↑t ≤ ↑(Erdos461.f n t)",
+      "production_type_sha256": "sha256:0b960bbb0b57641a804c11e503a46d3c84e2e270f56b55c155db1ddc0c3415ba",
+      "source_path": "FormalConjectures/ErdosProblems/461.lean",
+      "original_scope_note": "Discussion disproves proposed stronger constants and gives restricted-height bounds; it does not settle the existence of any uniform positive constant.",
+      "catalog_url": "https://erdosproblems.ai/problems/461",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/primes/E0461",
+      "bloom_url": "https://www.erdosproblems.com/461",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/461",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/461/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 462,
+      "title": "Least prime factors in short intervals",
+      "finding": "No unconditional full solution found; current preprint remains conditional.",
+      "target": "An eventual positive lower bound for the selected interval sum, which includes primes.",
+      "review": "Zhang's arXiv v2, revised October 21, 2026, treats composite-only sums. Its Theorem 1.7 assumes a bounded-fluctuation prime-distribution hypothesis; its abstract explicitly leaves uniformity open unconditionally. A valid composite-only lower bound would imply our inclusive target, but an unproved hypothesis remains. The AI review discusses an older version: its criticism of a stronger, Maier-incompatible hypothesis must not be copied onto v2 as though the statement were unchanged. I have not independently verified the preprint's arguments.",
+      "sources": [
+        [
+          "Zhang v2, abstract and Theorem 1.7",
+          "https://arxiv.org/html/2608.24930v2"
+        ],
+        [
+          "Source interpretation discussion",
+          "https://www.erdosproblems.com/forum/thread/462"
+        ]
+      ],
+      "read_depth": "Latest primary version, hypothesis and theorem statements; compared against older AI assessment and selected inclusive sum.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos462.erdos_462",
+      "production_type_pretty": "∃ C c,\n  0 < C ∧ 0 < c ∧ ∀ᶠ (x : ℕ) in Filter.atTop, c ≤ ∑ n ∈ Finset.Icc x ⌊↑x + C * √↑x * Real.log ↑x ^ 2⌋₊, ↑n.minFac / ↑n",
+      "production_type_sha256": "sha256:192631b03cd4b86cc2bf7f320ccb697179d6ca2373fec3f03925cfe68fdcf2e1",
+      "source_path": "FormalConjectures/ErdosProblems/462.lean",
+      "original_scope_note": "The pinned target includes primes in the interval sum, matching the displayed website formulation. The forum records ambiguity in the historical source; the composite-only variant is outside this target.",
+      "catalog_url": "https://erdosproblems.ai/problems/462",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/primes/E0462",
+      "bloom_url": "https://www.erdosproblems.com/462",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/462",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/462/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 467,
+      "title": "Two prime-residue coverings",
+      "finding": "No full solution found for the selected explicit interpretation.",
+      "target": "For every sufficiently large bound, choose residues and partition the primes into two groups, each covering every smaller positive integer.",
+      "review": "The historical source is ambiguous about quantifiers. Our selected theorem uses the displayed existential choice of residues and prime partition, followed by coverage of all integers in range. The checked records contained no full proof or counterexample for that interpretation. Finite obstructions do not refute a statement allowing all small bounds to be exceptional. Related one-cover and multiple-cover problems do not automatically provide the required partition.",
+      "sources": [
+        [
+          "Source ambiguity and chosen formulation",
+          "https://www.erdosproblems.com/467"
+        ],
+        [
+          "Finite-obstruction working report",
+          "https://www.erdosproblemaday.com/report/467"
+        ]
+      ],
+      "read_depth": "Selected formal quantifiers, original-source account, current discussion and author-reported finite obstruction scope.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos467.erdos_467",
+      "production_type_pretty": "∀ᶠ (x : ℕ) in Filter.atTop, ∃ residue A B, Erdos467.PrimePartitionUpTo x A B ∧ Erdos467.CongruenceCover x residue A B",
+      "production_type_sha256": "sha256:9a5afb980d7966d9f601f59490df31bb4cc72ab09df07889e575011016cfe1c4",
+      "source_path": "FormalConjectures/ErdosProblems/467.lean",
+      "original_scope_note": "The pinned target follows the website explicit existential choice of residue classes and a partition. The historical source omits quantifiers; this is the displayed interpretation.",
+      "catalog_url": "https://erdosproblems.ai/problems/467",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/integer_sequences/E0467",
+      "bloom_url": "https://www.erdosproblems.com/467",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/467",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/467/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 472,
+      "title": "An infinite greedy prime extension",
+      "finding": "No full solution found; long finite trajectories do not prove infinitude.",
+      "target": "Some finite prime seed produces an infinite trajectory under the least-prime extension rule.",
+      "review": "Syn's July 2026 research brief explicitly claims no solution. It reports a million steps from seed 7 and arbitrary finite survival with the seed depending on the requested length. The quantifiers differ: a seed for every finite length does not establish a single finite seed surviving forever. Its Lean development also leaves its analytic input explicit. No matching full claim appeared in the checked records or searches.",
+      "sources": [
+        [
+          "Author's technical research brief",
+          "https://maths.syn.gl/research-brief.html"
+        ],
+        [
+          "Current discussion",
+          "https://www.erdosproblems.com/forum/thread/472"
+        ]
+      ],
+      "read_depth": "Primary project status and mathematical quantifiers; no recomputation of the million-step claim.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos472.erdos_472",
+      "production_type_pretty": "∃ m q, Erdos472.UlamPrimeExtension m q",
+      "production_type_sha256": "sha256:017e7aec7d11484ca73173cea388b2dbb2f8604642b29c14d940fa7bc8bee896",
+      "source_path": "FormalConjectures/ErdosProblems/472.lean",
+      "original_scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+      "catalog_url": "https://erdosproblems.ai/problems/472",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/integer_sequences/E0472",
+      "bloom_url": "https://www.erdosproblems.com/472",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/472",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/472/proof-claims",
+      "ai_recorded_claims": []
+    },
+    {
+      "number": 478,
+      "title": "Distinct factorial residues",
+      "finding": "No full solution found; lower-bound improvements are partial.",
+      "target": "The number of factorial residues modulo prime \\(p\\) is asymptotic to \\((1-1/e)p\\).",
+      "review": "Grebennikov–Sagdeev–Semchankau–Vasilevskii prove a square-root lower bound with constant tending to \\(\\sqrt2\\). Hu's July 2026 manuscript claims \\(\\gg p^{8/15}\\), still far below the required linear asymptotic; I read its abstract and main theorem in the pinned PDF. Abramov's September 2026 revision, despite its 'Solution' title, addresses whether all residues from 2! through (p−1)! can be distinct, a different question. Its 2025 predecessor was withdrawn. Neither assertion would imply this asymptotic.",
+      "sources": [
+        [
+          "Grebennikov et al.",
+          "https://arxiv.org/abs/2204.01153"
+        ],
+        [
+          "Hu, pinned manuscript",
+          "https://github.com/hxypqr/factorial-residues-mod-prime/blob/48bd9059408858b01097e3cf43774193d3151298/paper/hu_factorial_residues.pdf"
+        ],
+        [
+          "Abramov's distinctness claim, v7",
+          "https://arxiv.org/abs/2604.26429v7"
+        ],
+        [
+          "Withdrawn 2025 predecessor",
+          "https://arxiv.org/abs/2504.19392"
+        ]
+      ],
+      "read_depth": "Primary abstracts and Hu's main theorem; no independent proof check of Hu or Abramov.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos478.erdos_478",
+      "production_type_pretty": "Filter.Tendsto (fun p => ↑(Finset.image (fun k => k.factorial % p) (Finset.Ico 1 p)).card / ↑p)\n  (Filter.atTop ⊓ Filter.principal {p | Nat.Prime p}) (nhds (1 - 1 / Real.exp 1))",
+      "production_type_sha256": "sha256:33f7d8edb009f6455adccc836caf71c98814c5f34b9fb1fb6353e82cffb2dfd2",
+      "source_path": "FormalConjectures/ErdosProblems/478.lean",
+      "original_scope_note": "The recorded p^(8/15) lower-bound claim does not establish the requested linear asymptotic.",
+      "catalog_url": "https://erdosproblems.ai/problems/478",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/factorials_binomials/E0478",
+      "bloom_url": "https://www.erdosproblems.com/478",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/478",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/478/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "partial",
+          "status": "claimed",
+          "title": "Hu's lower bound p to the 8/15 for distinct factorial residues",
+          "name": "problems/factorials_binomials/E0478/claims/2026_07_23_hu",
+          "links": [
+            {
+              "date": "2026-07-23",
+              "kind": "preprint",
+              "url": "https://github.com/hxypqr/factorial-residues-mod-prime/blob/48bd9059408858b01097e3cf43774193d3151298/paper/hu_factorial_residues.pdf"
+            },
+            {
+              "date": "2026-07-23",
+              "kind": "formalization",
+              "url": "https://github.com/hxypqr/factorial-residues-mod-prime/tree/48bd9059408858b01097e3cf43774193d3151298/lean"
+            },
+            {
+              "date": "2026-07-23",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/478/proof-claims#proof-claim-118"
+            }
+          ]
+        },
+        {
+          "scope": "partial",
+          "status": "accepted",
+          "title": "A square-root lower bound with constant root two for factorial residues",
+          "name": "problems/factorials_binomials/E0478/claims/2022_04_03_grebennikov_sagdeev_semchankau_vasilevskii",
+          "links": [
+            {
+              "date": null,
+              "kind": "paper",
+              "url": "https://doi.org/10.4171/rmi/1422"
+            },
+            {
+              "date": "2022-04-03",
+              "kind": "preprint",
+              "url": "https://arxiv.org/abs/2204.01153v1"
+            },
+            {
+              "date": null,
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/478"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 483,
+      "title": "An exponential upper bound for Schur numbers",
+      "finding": "No full solution found; a recent AI claim covers restricted colorings.",
+      "target": "A fixed exponential bound in the number of colors forces a monochromatic solution to \\(a+b=c\\), with equal summands allowed.",
+      "review": "The October 2026 Plasma AI claim gives an exponential bound only when each color class lies in a single sum-free Bohr arc; it is cataloged as partial and unreviewed. Hegde–Lott–Petridis–Ponagandla's August 2026 bound specializes at the Schur parameter to \\(3^r r!\\), which is not a fixed exponential. Recent lower bounds and fixed-color computations likewise do not settle the target. Bounds for multicolor Ramsey numbers in regimes of growing clique size cannot be substituted for a fixed triangle or Schur problem.",
+      "sources": [
+        [
+          "Plasma AI's restricted-coloring claim",
+          "https://erdosproblems.ai/wiki/problems/ramsey_theory/E0483/claims/2026_10_19_plasma_ai"
+        ],
+        [
+          "Hegde et al., abstract",
+          "https://arxiv.org/abs/2608.03661"
+        ],
+        [
+          "Yang–Mao, latest version",
+          "https://arxiv.org/abs/2608.01962"
+        ]
+      ],
+      "read_depth": "Exact AI claim restrictions and primary 2026 abstract/theorem parameter ranges.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos483.erdos_483",
+      "production_type_pretty": "∃ C, 0 < C ∧ ∀ (k : ℕ), 0 < k → ∃ N, ↑N < C ^ k ∧ Erdos483.Forces k N",
+      "production_type_sha256": "sha256:eaadb479fa1d84f73f93699c85e8b4353a0fddb0d8dfa9a33d358215e2a79912",
+      "source_path": "FormalConjectures/ErdosProblems/483.lean",
+      "original_scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+      "catalog_url": "https://erdosproblems.ai/problems/483",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/ramsey_theory/E0483",
+      "bloom_url": "https://www.erdosproblems.com/483",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/483",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/483/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "partial",
+          "status": "claimed",
+          "title": "An exponential bound for colorings by sum-free Bohr arcs",
+          "name": "problems/ramsey_theory/E0483/claims/2026_10_19_plasma_ai",
+          "links": [
+            {
+              "date": "2026-10-19",
+              "kind": "record",
+              "url": "https://github.com/plasma-ai/erdos/blob/main/wiki/problems/ramsey_theory/E0483/claims/2026_10_19_plasma_ai.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 545,
+      "title": "Ramsey maximizers for a fixed edge count",
+      "finding": "No full solution found for the eventual version; literal all-size version has counterexamples.",
+      "target": "For every sufficiently large edge count, the clique-plus-extra-vertex graph maximizes the diagonal Ramsey number among graphs without isolated vertices.",
+      "review": "Small-edge counterexamples defeat an all-edge-count reading but not our eventual quantifier. The 1989 Burr–Erdős–Faudree–Schelp theorem evaluates certain clique-plus-extra-vertex Ramsey numbers; it does not compare them with every graph of equal size. Sudakov's general bound in terms of the square root of the edge count also does not identify the exact maximizer. The AI catalog rejects the small-counterexample submission as a resolution of the amended eventual statement, not as invalidating the counterexamples themselves.",
+      "sources": [
+        [
+          "Burr et al., Theorem 4",
+          "https://users.renyi.hu/~p_erdos/1989-21.pdf"
+        ],
+        [
+          "Sudakov",
+          "https://arxiv.org/abs/1002.0095"
+        ],
+        [
+          "Small counterexample claim",
+          "https://www.erdosproblems.com/forum/thread/545/proof-claims"
+        ]
+      ],
+      "read_depth": "Primary theorem statement and abstract, submitted counterexample scope, and selected eventual quantifier.",
+      "decision": "no_full_unconditional_solution_found",
+      "erdosproblems_ai_status": "open",
+      "theorem": "Erdos545.erdos_545",
+      "production_type_pretty": "∀ᶠ (m : ℕ) in Filter.atTop,\n  ∀ (n t : ℕ),\n    t < n →\n      m = n.choose 2 + t →\n        ∀ (V : Type) [inst : Fintype V] (G : SimpleGraph V) [inst_1 : DecidableRel G.Adj],\n          (∀ (v : V), 0 < G.degree v) →\n            G.edgeSet.ncard = m → G.diagonalGraphRamsey ≤ (Erdos545.knPlusTEdges n t).diagonalGraphRamsey",
+      "production_type_sha256": "sha256:f4668f45e27b8fc8ca56dd5cf7a8c05a66a5a00f9420f7a3d2f66d27e5d0f04f",
+      "source_path": "FormalConjectures/ErdosProblems/545.lean",
+      "original_scope_note": "The target quantifies over sufficiently large edge counts, so the known small-edge counterexamples do not refute it.",
+      "catalog_url": "https://erdosproblems.ai/problems/545",
+      "wiki_url": "https://erdosproblems.ai/wiki/problems/ramsey_theory/E0545",
+      "bloom_url": "https://www.erdosproblems.com/545",
+      "discussion_url": "https://www.erdosproblems.com/forum/thread/545",
+      "proof_claims_url": "https://www.erdosproblems.com/forum/thread/545/proof-claims",
+      "ai_recorded_claims": [
+        {
+          "scope": "full",
+          "status": "rejected",
+          "title": "LouisD's small-m counterexamples from matchings",
+          "name": "problems/ramsey_theory/E0545/claims/2025_10_28_louisd",
+          "links": [
+            {
+              "date": "2025-10-28",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/545#post-1545"
+            },
+            {
+              "date": "2025-10-28",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/545#post-1549"
+            },
+            {
+              "date": "2025-10-28",
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/forum/thread/545#post-1551"
+            },
+            {
+              "date": null,
+              "kind": "discussion",
+              "url": "https://www.erdosproblems.com/545"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
