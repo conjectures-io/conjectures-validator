@@ -36,8 +36,8 @@ reserved or confirmed payment for a claim. Retrying preparation returns a confli
 the claim/payment record instead of creating another transfer.
 
 GET `/admin/trajectory-payments/{payment_id}/instruction` immediately before signing externally.
-It returns the transfer fields, `unsigned: true`, and `valid_until`. It refuses stale quotes,
-changed account destinations, changed/revoked approvals, or completed instructions. Sign and
+Preparation fixes the Alpha amount. The instruction has no time limit (`valid_until: null`).
+It refuses changed destinations, changed or revoked approvals, and payments no longer prepared. Sign and
 send only after the ordinary treasury authorization; this API never signs or submits funds.
 
 After the existing payout watcher records the finalized transfer, POST
@@ -50,7 +50,7 @@ GET `/admin/trajectory-payments/{payment_id}` returns the immutable instructions
 GET `/admin/trajectory-payments` lists the ledger (100 per page, `after`/`next_cursor`); the
 private claim response also carries `payment_id` to recover an interrupted preparation.
 
-For an unsigned stale instruction, POST `/admin/trajectory-payments/{payment_id}/cancel` with
+To cancel an unused unsigned instruction, POST `/admin/trajectory-payments/{payment_id}/cancel` with
 `note` and `chain_evidence`. Evidence uses the existing payout-cancellation format:
 
 ```json

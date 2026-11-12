@@ -596,6 +596,8 @@ async def record_human_decision(
     also write this table have their own codes — `PROBLEM_ALREADY_AWARDED` is not a code any human
     may pick, and it is written by the function above.
     """
+    if decision == ReviewOutcome.UNREVIEWED:
+        raise RecordConflict("Use an audited correction to reopen a decided review.")
     submission = await session.get(Submission, submission_id, with_for_update=True)
     if submission is None:
         raise RecordNotFound("no such submission")
@@ -633,6 +635,7 @@ async def record_human_decision(
                 held_by=str(holder),
             )
 
+    previous = await latest_binding_decision(session, submission.id)
     recorded = ReviewDecision(
         submission_id=submission.id,
         decision=decision,
@@ -645,6 +648,7 @@ async def record_human_decision(
         reason_code=reason_code,
         notes=notes,
         notes_public=notes_public,
+        supersedes_id=previous.id if previous and previous.decision == ReviewOutcome.UNREVIEWED else None,
     )
     session.add(recorded)
     await session.flush()
@@ -791,6 +795,14 @@ async def correct_human_decision(
 
     was_approved = current.decision == ReviewOutcome.APPROVED
     now_approved = decision == ReviewOutcome.APPROVED
+    reopening = decision == ReviewOutcome.UNREVIEWED
+    if reopening and (current.decision != ReviewOutcome.REJECTED
+                      or current.reason_code != "CHAT_LOGS_NOT_ACCEPTED"
+                      or reason_code != "CHAT_LOG_DEADLINE_REMOVED"):
+        raise RecordConflict("Only a deadline-forfeited log review can be reopened this way.")
+    if reopening and (submission.reward_status != RewardState.INELIGIBLE
+                      or await _reward_event_exists(session, submission_id)):
+        raise RecordConflict("A submission with a payout cannot be reopened.", reason_code=REWARD_ALREADY_PAID)
 
     if was_approved and not now_approved:
         paid = submission.reward_status in (RewardState.REWARDED, RewardState.FAILED)
@@ -801,7 +813,7 @@ async def correct_human_decision(
                 reason_code=REWARD_ALREADY_PAID,
                 reward_status=str(submission.reward_status),
             )
-    if not was_approved and now_approved:
+    if not was_approved and (now_approved or reopening):
         holder = await reward_target_holder(session, submission)
         if holder is not None:
             raise RecordConflict(
@@ -846,7 +858,10 @@ async def correct_human_decision(
             review_decision_id=current.id,
         ) from exc
 
-    if now_approved:
+    if reopening:
+        submission.manual_review_status = ManualReviewState.UNREVIEWED
+        submission.reward_status = RewardState.INELIGIBLE
+    elif now_approved:
         submission.manual_review_status = ManualReviewState.APPROVED
         submission.reward_status = RewardState.ELIGIBLE
     else:

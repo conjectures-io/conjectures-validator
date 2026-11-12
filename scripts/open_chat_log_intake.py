@@ -3,7 +3,7 @@
 
 Run once at go-live, after the staging run passes and immediately before setting
 TRAJECTORY_BONUS_ENABLED=true and NEXT_PUBLIC_TRAJECTORY_BONUS=1. Proofs submitted before
-this moment qualify for the $500/$250 bonus for one year. The terms take effect at the same
+this moment qualify for the $500/$250 bonus with no claim deadline. The terms take effect at the same
 moment. A second run changes nothing.
 
     DATABASE_URL=... python scripts/open_chat_log_intake.py --opened-by "Name" --confirm
@@ -28,7 +28,6 @@ from sqlalchemy.dialects.postgresql import insert
 from conjectures_subnet.db import async_session_factory, create_async_db_engine
 from conjectures_subnet.db.trajectory_models import ChatLogProgram, ChatLogProgramCorrection
 from submission_api.trajectory_terms import TERMS_SHA256, TERMS_VERSION
-from submission_api.trajectories import CLAIM_WINDOW_DAYS
 
 
 async def open_intake(session, *, opened_by):
@@ -87,9 +86,8 @@ async def main():
                                                  corrected_by=by, reason=reason)
         finally:
             await engine.dispose()
-        closes = args.correct_to + dt.timedelta(days=CLAIM_WINDOW_DAYS)
         print(f"Corrected the opening from {previous.isoformat()} to {args.correct_to.isoformat()}."
-              f" Earlier proofs submitted before then may claim the bonus until {closes.isoformat()};"
+              " Earlier proofs submitted before then may claim the bonus at any time;"
               " claims already made keep their cutoff.")
         return
     if not args.confirm or not 1 <= len((args.opened_by or "").strip()) <= 255:
@@ -100,10 +98,9 @@ async def main():
             opened_at, new = await open_intake(session, opened_by=args.opened_by.strip())
     finally:
         await engine.dispose()
-    closes = opened_at + dt.timedelta(days=CLAIM_WINDOW_DAYS)
     print(("Opened" if new else "Already opened; nothing changed. Opened") +
           f" at {opened_at.isoformat()} under {TERMS_VERSION}. Earlier proofs submitted before then"
-          f" may claim the bonus until {closes.isoformat()}.")
+          " may claim the bonus at any time.")
 
 
 if __name__ == "__main__":
