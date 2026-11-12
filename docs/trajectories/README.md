@@ -11,7 +11,7 @@ For qualifying proofs submitted before launch, accepted logs earn an additional
 their terms. Every accepted log is licensed to Conjectures for sale to buyers; logs are never
 published openly. The owner approved these rules on October 12, 2026.
 
-Contributor terms are one plain-language page, [chat-log-terms-v5.md](chat-log-terms-v5.md)
+Contributor terms are one plain-language page, [chat-log-terms-v6.md](chat-log-terms-v6.md)
 (v1 owner-reviewed October 13, 2026; v2 extends the requirement to every open bounty; v3 lets a
 reviewer ask for more required logs instead of rejecting them; v4 keeps the model's reasoning
 wherever the tool saved it as readable text, never decrypting what it withheld; v5 removes the
@@ -27,13 +27,13 @@ to the frontend's `data/trajectory/` and verify the hashes together.
 | Decision | Rule |
 | --- | --- |
 | Acceptance standard | The original chat logs that produced the proof, not a recreation of them |
-| New bounties | Logs are deposited before the proof; the proof is refused without them (no credit spent); the deposit lasts 24 hours; no later addition or replacement |
-| Missing or failed logs | Rejected or withdrawn logs forfeit the bounty and reopen the target; there is no grace period |
-| Earlier proofs | $500 Erdős, $250 every other problem (Green's included), by the original task bundle, paid in Subnet 66 Alpha worth that USD amount at payment time; only proofs submitted before intake opened and approved for the full bounty; the chat must show the proof before its submission time; up to three versions; claims close 365 days after opening |
+| New bounties | Logs are deposited before the proof; the proof is refused without them (no credit spent); the deposit lasts 24 hours; reviewer-requested corrections have no deadline, up to three versions |
+| Missing or failed logs | Rejected or withdrawn logs forfeit the bounty and reopen the target; elapsed review or correction time is never a rejection reason |
+| Earlier proofs | $500 Erdős, $250 every other problem (Green's included), by the original task bundle, paid in Subnet 66 Alpha worth that USD amount at payment time; only proofs submitted before intake opened and approved for the full bounty; the chat must show the proof before its submission time; up to three versions; no claim deadline |
 | Cutoff | The moment intake opens, stamped by `scripts/open_chat_log_intake.py` in `chat_log_program`. If something goes wrong it can be corrected (`--correct-to`); the database accepts a change only with a permanent `chat_log_program_corrections` record (previous moment, who, why) and refuses deletion. Claims keep the cutoff they were made under |
 | License | Required for every paid log: permanent, worldwide, non-exclusive right to use, copy, sell and license to buyers (including AI training/evaluation), effective on acceptance; ends if acceptance is withdrawn because the proof is disqualified |
 | Buyers | May use, including for training and evaluation, but may not publish the logs openly |
-| Retention | Accepted logs kept for sale; others deleted after 90 days; unsubmitted deposits after 24 hours; minimal records seven years, or longer while they back a payout or accepted logs |
+| Retention | Open reviews and requested corrections kept without a deadline; accepted logs kept for sale; rejected or withdrawn logs deleted within 90 days after closure; unsubmitted deposits after 24 hours; minimal records seven years after closure, or longer while they back an open review, payout or accepted logs |
 | Format | One .zip package up to 10 GiB (no total unpacked-size limit, 20,000 files): README.md, events.jsonl, episodes.jsonl, sample.html, artifact-index.json, artifacts/, manifest.json, validation.json, as described in agent-instructions.md; the proof itself may be referenced rather than included |
 
 ## Contributor instructions
@@ -143,7 +143,8 @@ these are the original chat logs that produced the proof, not a recreation; and 
 contributor owns the proof, is allowed to share the logs, and the logs contain no live credentials. Accepting also requires a current human `REVIEW_APPROVED`
 decision on the proof, which the claim binds.
 
-- New-bounty logs can be accepted or rejected, never sent back for changes. Rejection waits
+- New-bounty logs can be accepted, rejected for substantive deficiencies, or sent back for
+  corrections with no deadline (at most three versions). Rejection waits
   until automatic verification finishes. If the proof is approved for the full bounty, or not
   yet decided, rejection records a binding `CHAT_LOGS_NOT_ACCEPTED` rejection of the proof
   through the ordinary decision functions, so the reward hold, treasury reservation and payout
@@ -152,7 +153,9 @@ decision on the proof, which the claim binds.
 - Appeal: an independent reviewer may reopen rejected logs while their content exists, unless
   another proof for the target has since qualified (`TRAJECTORY_TARGET_REASSIGNED`). Restoring
   the bounty also needs the proof decision corrected back to approval through review
-  corrections, which re-checks the target holder.
+  corrections, which re-checks the target holder. A deadline-only rejection can instead be
+  corrected to `UNREVIEWED` with `CHAT_LOG_DEADLINE_REMOVED`: the old decision remains in
+  history, the proof stays private, and payment stays held pending accepted logs.
 - A changed proof decision blocks an acceptance (`BLOCKED_PROOF_CHANGED`). Same-outcome
   corrections can be rebound; otherwise the reviewer revokes, which ends the license and
   restarts the 90-day deletion clock.
@@ -183,9 +186,9 @@ decision on the proof, which the claim binds.
 Schedule `python scripts/purge_trajectories.py` daily with an explicit `DATABASE_URL` and alert
 on failures. It also deletes expired temporary upload parts; starting an upload sweeps those
 parts immediately, and successful intake or explicit cancellation removes them. It deletes unsubmitted deposits after 24 hours, removes package bytes of
-non-accepted claims after 90 days (pending ones become `EXPIRED`), and deletes minimal records
-of non-accepted claims after seven years unless a required-evidence record backs a reward
-event. Accepted logs are never purged: they are the licensed sale inventory. Backups need the
+closed claims 90 days after closure, and deletes minimal closed records after seven years
+unless a required-evidence record backs a reward event. Open reviews and requested corrections
+are never purged because of elapsed time. Accepted logs are kept as licensed sale inventory. Backups need the
 same schedule, with a restore-time purge before serving traffic.
 
 ## Go-live (when the staging run passes)

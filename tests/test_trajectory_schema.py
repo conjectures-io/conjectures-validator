@@ -44,7 +44,7 @@ def test_published_schema_example_and_pinned_terms():
     schema = json.loads((ROOT / "docs/trajectories/chat-log-package.schema.json").read_text())
     assert {k: v for k, v in schema.items() if k not in ("$schema", "$id")} == package_schema()
     assert TERMS_SHA256 == "sha256:" + hashlib.sha256(
-        (ROOT / "docs/trajectories/chat-log-terms-v5.md").read_bytes()).hexdigest()
+        (ROOT / "docs/trajectories/chat-log-terms-v6.md").read_bytes()).hexdigest()
 
 
 @pytest.mark.parametrize("change", [
@@ -184,15 +184,15 @@ def test_feature_is_off_by_default_and_the_cutoff_is_not_configuration():
 
 def test_terms_assent_and_example_are_plain_and_pinned():
     assert "sha256:" + hashlib.sha256((ROOT / "docs/trajectories/assent-statements-v2.json").read_bytes()).hexdigest() == ASSENT_STATEMENTS_SHA256
-    terms = (ROOT / "docs/trajectories/chat-log-terms-v5.md").read_text()
+    terms = (ROOT / "docs/trajectories/chat-log-terms-v6.md").read_text()
     assert "You have removed" not in terms
     assert "Anything from other people is included with\ntheir permission." in terms
     for promise in ("Every open problem requires logs", "before you submit the\nproof",
-                    "up to three versions in all", "within 14 days of the request",
+                    "up to three versions in all", "no deadline to supply a requested correction",
                     "reasoning wherever\nyour tool saved it as readable text", "do not try to decrypt or recreate it",
                     "`conjectures logs upload`", "original chat logs that produced the proof",
                     "not a\nrecreation", "sell and license the logs to buyers",
-                    "publish the logs openly, and buyers may not either", "within one year of that moment",
+                    "publish the logs openly, and buyers may not either", "there is no claim deadline",
                     "earlier problems keep the schedule they opened with",
                     "approved for its full bounty", "paid in Subnet 66 Alpha", "this right ends"):
         assert promise in terms, promise
@@ -267,6 +267,9 @@ def test_chat_log_launch_must_publish_the_terms_version_it_names():
     v12 = {**v11, "SUBMISSION_TERMS_VERSION": "v12", "SUBMISSION_TERMS_EFFECTIVE_FROM": "2026-10-21"}
     path = str(root / "docs/policies/submission-terms-v12.md")
     assert Settings.from_env(production_env(**v12, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
+    v13 = {**v12, "SUBMISSION_TERMS_VERSION": "v13", "SUBMISSION_TERMS_EFFECTIVE_FROM": "2026-11-11"}
+    path = str(root / "docs/policies/submission-terms-v13.md")
+    assert Settings.from_env(production_env(**v13, SUBMISSION_TERMS_PATH=path)).trajectory_bonus_enabled
     assert f"../trajectories/{TERMS_VERSION}.md" in Path(path).read_text()
     # The v7 file labelled v8 is refused rather than published under the wrong version.
     with pytest.raises(SettingsError, match="must state the configured"):
@@ -318,3 +321,16 @@ def test_success_budget_bounds_exact_retries_and_timeout_does_not_spend_failure_
 
 def test_published_v7_bytes_remain_identical_to_the_archived_contract():
     assert (ROOT / 'docs/SUBMISSION_TERMS.md').read_bytes() == (ROOT / 'docs/policies/submission-terms-v7.md').read_bytes()
+
+
+def test_earlier_proof_bonus_has_no_claim_deadline():
+    from types import SimpleNamespace
+    from submission_api.trajectories import eligibility_reason
+    now = dt.datetime.now(dt.UTC)
+    cutoff = now - dt.timedelta(days=3000)
+    submission = SimpleNamespace(created_at=cutoff - dt.timedelta(days=1), verification_status="VERIFIED",
+                                 manual_review_status="APPROVED", reward_status="REWARDED")
+    decision = SimpleNamespace(kind="HUMAN", decision="APPROVED", reason_code="REVIEW_APPROVED")
+    assert eligibility_reason(submission, decision, cutoff=cutoff, now=now) is None
+    submission.created_at = cutoff
+    assert eligibility_reason(submission, decision, cutoff=cutoff, now=now) is not None

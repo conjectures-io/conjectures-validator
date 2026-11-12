@@ -242,14 +242,15 @@ def test_revisions_withdrawal_expiry_and_self_review_refusal():
                     claim.created_at = dt.datetime.now(dt.UTC) - dt.timedelta(days=100)
                     claim.expires_at = dt.datetime.now(dt.UTC) - dt.timedelta(days=1)
                     await session.commit()
-                assert (await admin.get(f"/v1/admin/trajectories/{cid}/package")).status_code == 404
-                assert (await admin.post(decision_path, json=review_body(revision=3), headers=same_origin())).status_code == 409
+                assert (await admin.get(f"/v1/admin/trajectories/{cid}/package")).status_code == 200
+                assert (await owner.get(path)).json()["claim"]["expires_at"] is None
                 from scripts.purge_trajectories import purge
                 async with kit.session() as session:
-                    assert (await purge(session))[0] == 1
+                    assert (await purge(session)) == (0, 0)
                     record = await session.get(TrajectoryClaim, uuid.UUID(cid))
-                    assert record.status == "EXPIRED" and record.package is None
-                rejected = await admin.post(decision_path, json=review_body(revision=3, decision="REJECTED", state_version=6), headers=same_origin())
+                    assert record.status == "UNDER_REVIEW"
+                    assert record.package is not None or record.package_chunked
+                rejected = await admin.post(decision_path, json=review_body(revision=3, decision="REJECTED", state_version=5), headers=same_origin())
                 assert rejected.status_code == 200
         finally:
             await kit.teardown()
@@ -903,6 +904,103 @@ def test_confirmed_proof_closes_reward_intake_without_approving_documentation():
                     assert facts.documentation_pending == 0
                     quote = await kit.services.pricing.quote(session, reward_target_id=target)
                     assert quote.reason != "SOLVED_DOCUMENTATION_PENDING"
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("required_logs", [False, True])
+@pytest.mark.usefixtures("chunked_chat_logs")
+def test_open_correction_survives_all_former_expiry_windows(required_logs):
+    from scripts.purge_trajectories import purge
+    async def scenario():
+        kit = await kit_config().setup()
+        if required_logs:
+            with_new_bounties(kit)
+        try:
+            async with await client(kit) as owner, await client(kit) as admin:
+                _, sid, p = await accepted(kit, owner, required=required_logs)
+                path = f"/v1/me/submissions/{sid}/trajectory"
+                if not required_logs:
+                    await owner.post(path, **as_upload(p))
+                first = (await owner.get(path)).json()["claim"]
+                cid = first["id"]
+                await reviewer(kit, admin)
+                response = await admin.post(f"/v1/admin/trajectories/{cid}/decision",
+                    json=review_body(decision="NEEDS_CHANGES", state_version=first["state_version"]), headers=same_origin())
+                assert response.status_code == 200, response.text
+                version = response.json()["state_version"]
+                async with kit.session() as session:
+                    row = await session.get(TrajectoryClaim, uuid.UUID(cid))
+                    row.created_at = dt.datetime.now(dt.UTC) - dt.timedelta(days=3000)
+                    row.expires_at = row.created_at + dt.timedelta(days=90)
+                    row.audit_expires_at = row.created_at + dt.timedelta(days=2555)
+                    await session.commit()
+                    assert await purge(session) == (0, 0)
+                current = (await owner.get(path)).json()
+                assert current["eligible"]
+                assert current["claim"]["status"] == "NEEDS_CHANGES"
+                assert current["claim"]["content_available"]
+                assert current["claim"]["expires_at"] is None
+                assert current["claim"]["audit_expires_at"] is None
+                p["events"][0]["content"] += " recovered original record"
+                changed = await owner.post(path, **as_upload(p, version))
+                assert changed.status_code == 200, changed.text
+                assert changed.json()["revision"] == 2
+                rejected = await admin.post(f"/v1/admin/trajectories/{cid}/decision",
+                    json=review_body(decision="REJECTED", revision=2, state_version=changed.json()["state_version"]), headers=same_origin())
+                assert rejected.status_code == 200, rejected.text
+                assert dt.datetime.fromisoformat(rejected.json()["expires_at"]) > dt.datetime.now(dt.UTC) + dt.timedelta(days=89)
+                async with kit.session() as session:
+                    assert await purge(session) == (0, 0)
+        finally:
+            await kit.teardown()
+    asyncio.run(scenario())
+
+
+def test_deadline_rejection_can_reopen_without_publication_or_payout():
+    from conjectures_subnet.db.models import ManualReviewState, ReviewDecision, RewardState
+    from submission_api import trajectories as store
+    async def scenario():
+        kit = await kit_config().setup()
+        with_new_bounties(kit)
+        try:
+            async with await client(kit) as owner, await client(kit) as admin:
+                _, sid, _ = await accepted(kit, owner, required=True)
+                path = f"/v1/me/submissions/{sid}/trajectory"
+                claim = (await owner.get(path)).json()["claim"]
+                await reviewer(kit, admin)
+                rejected = await admin.post(f"/v1/admin/trajectories/{claim['id']}/decision",
+                    json=review_body(decision="REJECTED", state_version=claim["state_version"]), headers=same_origin())
+                assert rejected.status_code == 200, rejected.text
+                async with kit.session() as session:
+                    current = await proof_store.latest_binding_decision(session, uuid.UUID(sid))
+                    original_id = current.id
+                    reopened = await proof_store.correct_human_decision(session, uuid.UUID(sid),
+                        supersedes_id=current.id, decision=ReviewOutcome.UNREVIEWED,
+                        reason_code="CHAT_LOG_DEADLINE_REMOVED", reviewer="fixture-operator",
+                        notes="Operator waived correction deadlines; original evidence still needs correction.",
+                        notes_public="Deadline rejection withdrawn; awaiting corrected logs with no deadline.")
+                    row = await session.get(TrajectoryClaim, uuid.UUID(claim["id"]))
+                    row.status = "NEEDS_CHANGES"
+                    store.audit(row, action="DEADLINES_REMOVED", actor="fixture-operator", now=dt.datetime.now(dt.UTC))
+                    await session.commit()
+                    sub = await session.get(Submission, uuid.UUID(sid))
+                    assert sub.manual_review_status == ManualReviewState.UNREVIEWED
+                    assert sub.reward_status == RewardState.INELIGIBLE
+                    assert (await session.get(ReviewDecision, original_id)).decision == ReviewOutcome.REJECTED
+                    assert reopened.supersedes_id == original_id
+                    assert await session.scalar(select(func.count()).select_from(RewardEvent)) == 0
+                assert (await owner.get(path)).json()["eligible"]
+                result = await owner.get(f"/v1/results/{sid}")
+                assert result.status_code == 200, result.text
+                assert result.json()["review"]["decision"] == "UNREVIEWED"
+                assert (await owner.get(f"/v1/results/{sid}/solution")).status_code == 404
+                async with kit.session() as session:
+                    final = await proof_store.record_human_decision(session, uuid.UUID(sid),
+                        decision=ReviewOutcome.APPROVED, reason_code="REVIEW_APPROVED", reviewer="fixture-reviewer")
+                    assert final.supersedes_id == reopened.id
+                    await session.rollback()
         finally:
             await kit.teardown()
     asyncio.run(scenario())

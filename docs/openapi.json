@@ -7003,7 +7003,8 @@
           "decision": {
             "enum": [
               "APPROVED",
-              "REJECTED"
+              "REJECTED",
+              "UNREVIEWED"
             ],
             "title": "Decision",
             "type": "string"

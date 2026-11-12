@@ -117,6 +117,7 @@ class PayoutState(enum.StrEnum):
 class ReviewOutcome(enum.StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+    UNREVIEWED = "UNREVIEWED"  # an operator reopened a deadline-only rejection
 
 
 class ReviewerKind(enum.StrEnum):

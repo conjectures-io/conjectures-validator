@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Daily chat-log retention job. Does not inspect, print or transmit package data.
 
-Accepted logs are licensed for sale and kept. Unsubmitted deposits are deleted after 24 hours;
-other packages after 90 days; minimal records after seven years unless they back a payout.
+Accepted logs and open reviews are kept. Unsubmitted deposits are deleted after 24 hours;
+closed packages after 90 days; minimal closed records after seven years unless they back a payout.
 
 Use the deployment's explicit DATABASE_URL and normal application DB credential. Scheduling,
 backup expiry and at-rest encryption must be configured and tested before enabling intake.
@@ -39,14 +39,13 @@ async def purge(session):
         )
     ).rowcount
     await session.commit()
-    # Bounded batches; never load bytea contents merely to discard them. Accepted logs are
-    # licensed for sale and kept; every other package expires on schedule.
+    # Bounded batches; open reviews and accepted logs have no expiry.
     removed = unsubmitted
     expiring = (
         TrajectoryClaim.expires_at <= func.now(),
         (TrajectoryClaim.package.is_not(None) | TrajectoryClaim.package_chunked),
         TrajectoryClaim.submission_id.is_not(None),
-        TrajectoryClaim.status.not_in(store.APPROVED),
+        TrajectoryClaim.status.not_in(store.PRESERVED),
     )
     while True:
         candidate_ids = (
@@ -78,8 +77,6 @@ async def purge(session):
             if claim is None:
                 continue
             await storage.clear(session, claim)
-            if claim.status in ("UNDER_REVIEW", "NEEDS_CHANGES"):
-                claim.status = "EXPIRED"
             claim.state_version += 1
             removed += 1
             processed += 1
@@ -103,7 +100,7 @@ async def purge(session):
             select(TrajectoryClaim.id)
             .where(
                 TrajectoryClaim.audit_expires_at < func.now(),
-                TrajectoryClaim.status.not_in(store.APPROVED),
+                TrajectoryClaim.status.not_in(store.PRESERVED),
                 or_(
                     exists(
                         select(TrajectoryPayment.id).where(
@@ -144,7 +141,7 @@ async def purge(session):
                 .options(defer(TrajectoryClaim.package))
                 .where(
                     TrajectoryClaim.id == claim_id,
-                    TrajectoryClaim.status.not_in(store.APPROVED),
+                    TrajectoryClaim.status.not_in(store.PRESERVED),
                     TrajectoryClaim.audit_expires_at < func.now(),
                 )
                 .with_for_update(skip_locked=True)
@@ -190,7 +187,7 @@ async def purge(session):
             select(TrajectoryDelivery.id).where(TrajectoryDelivery.claim_id == TrajectoryClaim.id)
         ),
         TrajectoryClaim.audit_expires_at <= func.now(),
-        TrajectoryClaim.status.not_in(store.APPROVED),
+        TrajectoryClaim.status.not_in(store.PRESERVED),
         or_(
             TrajectoryClaim.amount_usd_cents > 0,
             ~exists(

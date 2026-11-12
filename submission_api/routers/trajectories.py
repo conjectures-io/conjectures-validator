@@ -130,7 +130,8 @@ async def offer(services: ServicesDep, session: SessionDep, response: Response):
         "new_bounties_require_chat_logs": True, "logs_due": "BEFORE_PROOF_SUBMISSION",
         "deposit_hours": DEPOSIT_HOURS, "license": "REQUIRED_SALE_LICENSE_ON_ACCEPTANCE",
         "start_at": start_at,
-        "claim_window_days": store.CLAIM_WINDOW_DAYS, "max_package_bytes": MAX_PACKAGE_BYTES,
+        "claim_window_days": store.CLAIM_WINDOW_DAYS, "correction_window_days": None,
+        "max_package_bytes": MAX_PACKAGE_BYTES,
         "retention_days": RETENTION_DAYS, "audit_retention_days": store.AUDIT_RETENTION_DAYS,
         "terms_version": TERMS_VERSION, "terms_sha256": TERMS_SHA256,
         "assent_statements_sha256": ASSENT_STATEMENTS_SHA256,
@@ -147,8 +148,7 @@ FIXED_AT_SUBMISSION = ("Logs for this bounty were submitted with the proof. A ne
 
 def revision_reason(claim, now):
     """Why the required logs cannot take a new version now, or None when a reviewer asked for one."""
-    if (claim is None or claim.status != "NEEDS_CHANGES" or claim.revision >= store.MAX_REVISIONS
-            or claim.expires_at <= now):
+    if claim is None or claim.status != "NEEDS_CHANGES" or claim.revision >= store.MAX_REVISIONS:
         return FIXED_AT_SUBMISSION
     return None
 
@@ -456,6 +456,7 @@ async def withdraw(submission_id: uuid.UUID, request: Request, principal: Cookie
             forfeited = await store.forfeit_bounty(session, submission, reviewer=f"chat-log-withdrawal:{principal.account.id}",
                                                    notes="Contributor withdrew the chat logs this bounty requires.")
         claim.status = "WITHDRAWN"
+        store.close_retention(claim, now)
         await storage.clear(session, claim)
         store.audit(claim, action="WITHDRAWN", actor=principal.account.id, now=now,
                     extra={"bounty_forfeited": True, "forfeit_decision_id": forfeited.id if forfeited else None}
@@ -482,7 +483,8 @@ async def metadata_view(session, claim):
             "status": await store.effective_status(session, claim), "revision": claim.revision, "state_version": claim.state_version,
             "amount_usd_cents": claim.amount_usd_cents,
             "chat_logs_required": claim.amount_usd_cents == 0,
-            "review_note": claim.review_note, "created_at": claim.created_at, "expires_at": claim.expires_at,
+            "review_note": claim.review_note, "created_at": claim.created_at,
+            "expires_at": store.content_expires_at(claim),
             "license_status": store.license_status(claim),
             "package_sha256": "sha256:" + claim.package_digest.hex()}
 
@@ -606,6 +608,8 @@ async def decide(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
         extra = {"bounty_forfeited": True, "forfeit_decision_id": forfeited.id if forfeited else None}
     claim.status = ("APPROVED_BOUNTY_EVIDENCE" if body.decision == "APPROVED_MANUAL_PAYMENT"
                     and claim.amount_usd_cents == 0 else body.decision)
+    if claim.status == "REJECTED":
+        store.close_retention(claim, now)
     claim.reviewer_id = principal.account.id
     claim.review_note = body.note.strip()
     claim.checklist = body.checklist.model_dump() if body.checklist else None
@@ -678,7 +682,7 @@ async def reopen(claim_id: uuid.UUID, request: Request, principal: ReviewerWrite
         if await store.effective_status(session, claim) != "BLOCKED_PROOF_CHANGED":
             raise Conflict("Only accepted logs blocked by a changed proof decision can be revoked here.")
         claim.status = "REVOKED_PROOF_CHANGED"  # Releases the target reservation and the sale license.
-        claim.expires_at = store.deletion_after_revocation(claim, now)
+        store.close_retention(claim, now)
     else:
         if claim.status not in ("REVOKED_PROOF_CHANGED", "REJECTED"):
             raise Conflict("Only a rejected or revoked claim can be reopened.")
