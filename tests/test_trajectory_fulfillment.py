@@ -3,6 +3,7 @@ import asyncio
 import datetime as dt
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import func, select, text
@@ -65,7 +66,13 @@ def test_bonus_reservation_duplicate_guard_and_finalized_reconciliation():
                 assert response.headers["cache-control"] == "no-store"
                 assert (await admin.post(path, json=body, headers=same_origin())).status_code == 409
                 pid = payment["id"]
-                assert (await admin.get(f"/v1/admin/trajectory-payments/{pid}/instruction")).status_code == 200
+                # A later signing session reads the amount already reserved, without repricing.
+                with patch("submission_api.trajectory_fulfillment.dt", wraps=dt) as clock:
+                    clock.datetime.now.return_value = dt.datetime.now(dt.UTC) + dt.timedelta(days=7)
+                    instruction = await admin.get(f"/v1/admin/trajectory-payments/{pid}/instruction")
+                assert instruction.status_code == 200, instruction.text
+                assert instruction.json()["amount_rao"] == payment["amount_rao"]
+                assert instruction.json()["valid_until"] is None
                 async with kit.session() as session:
                     quote = await kit.services.pricing.quote(session, reward_target_id=kit.services.pricing.reward_target_ids[0])
                     assert int(quote.inputs["committed_bounty_rao"]) >= int(payment["amount_rao"])

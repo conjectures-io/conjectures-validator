@@ -87,8 +87,7 @@ async def instruction(payment_id: uuid.UUID, principal: Admin, session: SessionD
     claim = await fulfillment.lock_claim(session, payment.claim_id)
     payment = await session.get(TrajectoryPayment, payment_id, populate_existing=True)
     await fulfillment.require_sendable(session, payment, claim)
-    return {**fulfillment.payment_view(payment), "unsigned": True,
-            "valid_until": payment.price_observed_at + dt.timedelta(minutes=10)}
+    return {**fulfillment.payment_view(payment), "unsigned": True, "valid_until": None}
 
 
 class Confirmation(StrictModel):
