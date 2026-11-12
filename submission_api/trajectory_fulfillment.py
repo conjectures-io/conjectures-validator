@@ -97,9 +97,8 @@ async def require_sendable(session, payment, claim):
     await require_accepted(session, claim)
     account = await session.get(Account, claim.account_id, populate_existing=True)
     if (payment.status != "PREPARED" or payment.claim_state_version != claim.state_version
-            or account.payout_coldkey != payment.destination_coldkey
-            or dt.datetime.now(dt.UTC) - payment.price_observed_at > dt.timedelta(minutes=10)):
-        raise Conflict("Payment is stale, completed, or its approval/destination changed. Do not sign it.",
+            or account.payout_coldkey != payment.destination_coldkey):
+        raise Conflict("Payment is no longer prepared or its approval or destination changed. Do not sign it.",
                        reason_code="TRAJECTORY_PAYMENT_BLOCKED")
 
 
