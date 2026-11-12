@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-17acb876-grh-generalized-riemann-hypothesis-49f6cc468d2ac7c921508e87fddae1c9-problem",
+  "task_id": "fc-v2-grh-generalized-riemann-hypothesis-24fd67a56cc7721f2c963305-formalized",
+  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "source_theorem": "GRH.generalized_riemann_hypothesis",
+  "task_mode": "formalized",
+  "task_bundle_sha256": "sha256:1086b9a356a4c4064f243f601ec8d77391f22729fa5f2e42b8f3da8a57ac1701",
+  "submission_sha256": "sha256:2af753dab594df0fa1eb3c43aad163232ad6407e15a1f2c25281df7c86256a61",
+  "accepted": false,
+  "stage": "STATIC_POLICY_CHECK",
+  "reason_code": "SUBMISSION_POLICY_VIOLATION",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": false,
+    "source_type_hash_valid": false,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": false,
+    "challenge_built": false,
+    "solution_built": false,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 1579,
+  "comparator_exit_code": null,
+  "stdout_tail": "",
+  "stderr_tail": "sorry is prohibited at 1:75",
+  "workspace_retained": false,
+  "sandbox_mode": "not-started",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "GRH-generalized_riemann_hypothesis-formalized-sorry",
+  "passed": true,
+  "seconds": 1.58
+}

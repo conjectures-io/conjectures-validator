@@ -1,0 +1,7 @@
+{
+  "source_url": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/lean/docs/143.md",
+  "github_blob_sha": "c5bd183a050b32edf8c9c59f585de18e73a352bd",
+  "source_utf8_sha256": "eba1a207ef82be58eaf4ad9f6f1bfa1f49fda20099a2145f43144188c8344161",
+  "checked_date_utc": "2026-11-12",
+  "review_note": "The author documents Lean coverage of the sharp two-limit-cycle bound for quintic Lienard systems, including attainment. That scope is narrower than the general uniform degree-dependent bound claimed in the accompanying Hilbert 16 manuscript."
+}

@@ -42,6 +42,16 @@ def test_named_family_does_not_admit_arbitrary_or_noncanonical_paths(path):
     assert source_family_from_path(path) is None
 
 
+def test_grh_admits_only_the_reviewed_theorem_in_its_canonical_source():
+    path = "FormalConjectures/Millennium/RiemannHypothesis.lean"
+    name = "GRH.generalized_riemann_hypothesis"
+    assert _valid_source_identity("millennium", "RiemannHypothesis", path, name)
+    assert not _valid_source_identity("millennium", "RiemannHypothesis", path, name + ".variant")
+    assert not _valid_source_identity("millennium", "RiemannHypothesis", path, "GRH.trivialZeros")
+    assert not _valid_source_identity("wikipedia", "TwinPrimes",
+                                      "FormalConjectures/Wikipedia/TwinPrimes.lean", name)
+
+
 def test_named_status_cannot_borrow_an_erdos_tracker_revision():
     erdos = {"family": "erdos", "locator": "teorth/erdosproblems", "revision": "a" * 40}
     classical = {"family": "wikipedia", "locator": CLASSICAL_STATUS_LOCATOR, "revision": "b" * 64}

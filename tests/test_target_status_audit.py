@@ -4,7 +4,7 @@ import pytest
 
 from verifier.errors import VerifierError
 from verifier.hashing import sha256_bytes
-from verifier.task_pool import SCREENING_STATEMENT, load_selection_audit
+from verifier.task_pool import CLASSICAL_STATUS_LOCATOR, SCREENING_STATEMENT, load_selection_audit
 
 
 def evidence_pair(tmp_path):
@@ -50,6 +50,41 @@ def test_open_variant_has_a_separate_bound_status(tmp_path):
     audit, evidence = evidence_pair(tmp_path)
     loaded = load_selection_audit(write_pair(tmp_path, audit, evidence))
     assert len(loaded.entries) == 2
+
+
+@pytest.mark.parametrize("mutation", [None, "wrong_family", "bad_hash", "held", "missing_classical"])
+def test_new_named_target_requires_both_type_and_classical_status_review(tmp_path, mutation):
+    audit, evidence = evidence_pair(tmp_path)
+    row = audit["selected"][1]
+    row.update(theorem="GRH.generalized_riemann_hypothesis", source_family="millennium",
+               source_path="FormalConjectures/Millennium/RiemannHypothesis.lean",
+               source_problem_number="RiemannHypothesis")
+    target = evidence["targets"][0]
+    target.update(theorem=row["theorem"], source_family="millennium",
+                  source_path=row["source_path"], number=row["source_problem_number"])
+    classical = {"schema_version": 1, "candidates": [{
+        "theorem": row["theorem"], "source_path": row["source_path"],
+        "disposition": "retain_provisionally_open",
+    }]}
+    if mutation == "wrong_family":
+        target["source_family"] = "wikipedia"
+    elif mutation == "bad_hash":
+        target["production_type_sha256"] = "unbound"
+    elif mutation == "held":
+        classical["candidates"][0]["disposition"] = "hold_recent_claim"
+    elif mutation == "missing_classical":
+        classical["candidates"] = []
+    content = json.dumps(classical).encode()
+    (tmp_path / "classical-status-audit.json").write_bytes(content)
+    audit["source_status_sources"].append({"family": "millennium",
+        "locator": CLASSICAL_STATUS_LOCATOR, "revision": sha256_bytes(content).removeprefix("sha256:")})
+    path = write_pair(tmp_path, audit, evidence)
+    if mutation:
+        with pytest.raises(VerifierError):
+            load_selection_audit(path)
+    else:
+        loaded = load_selection_audit(path)
+        assert loaded.reviewed_type_hashes[row["theorem"]] == target["production_type_sha256"]
 
 
 @pytest.mark.parametrize("mutation", ["held", "missing", "renamed", "wrong_path", "retained_changed", "bad_hash", "duplicate_review", "source_revision", "upstream_revision"])
