@@ -29,7 +29,7 @@ MAX_PACKAGE_BYTES = 10 * 1024 * 1024 * 1024
 MAX_FILES = 20_000
 MAX_EVENT_LINE_BYTES = 64 * 1024 * 1024
 RETENTION_DAYS = 90
-TERMS_VERSION = "chat-log-terms-v5"
+TERMS_VERSION = "chat-log-terms-v6"
 DEPOSIT_HOURS = 24
 REQUIRED_FILES = ("README.md", "events.jsonl", "episodes.jsonl", "sample.html", "artifact-index.json",
                   "manifest.json", "validation.json")

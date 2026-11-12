@@ -33,9 +33,11 @@ from submission_api.trajectory_schema import (
     DEPOSIT_HOURS, MAX_PACKAGE_BYTES, RETENTION_DAYS, TERMS_VERSION,
 )
 
-CLAIM_WINDOW_DAYS = 365
+CLAIM_WINDOW_DAYS = None
 AUDIT_RETENTION_DAYS = 7 * 365
 APPROVED = ("APPROVED_MANUAL_PAYMENT", "APPROVED_BOUNTY_EVIDENCE")
+OPEN = ("UNDER_REVIEW", "NEEDS_CHANGES")
+PRESERVED = (*APPROVED, *OPEN)
 # A claim's package can be revised at a reviewer's request, up to this many versions in all.
 MAX_REVISIONS = 3
 # Final required-log outcomes that give up the bounty and reopen the target to other solvers.
@@ -52,8 +54,6 @@ def eligibility_reason(submission, decision, *, cutoff, now, enforce_window=True
     if enforce_window and not required:
         if submission.created_at >= cutoff:
             return "The retrospective bonus covers proofs submitted before the program cutoff."
-        if now > cutoff + dt.timedelta(days=CLAIM_WINDOW_DAYS):
-            return "The one-year retrospective claim window has closed."
     if str(submission.verification_status) != "VERIFIED":
         return "Proof has not passed verification."
     if str(submission.manual_review_status) != "APPROVED" or str(submission.reward_status) not in (
@@ -193,6 +193,8 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
         raise Conflict("Evidence has already been submitted.", reason_code="TRAJECTORY_DUPLICATE")
     previous_terms_version = existing.terms_version if existing else None
     if existing:
+        if existing.status not in OPEN and existing.expires_at <= now:
+            raise Conflict("Review storage has expired.", reason_code="TRAJECTORY_EXPIRED")
         claim = existing
         claim.package_digest = package_hash
         claim.revision += 1
@@ -202,9 +204,6 @@ async def accept_package(session, *, submission, decision, prepared, account_id,
         claim.reviewer_id = None
         claim.review_note = None
         claim.checklist = None
-        # Revisions do not extend the original retention deadline.
-        if claim.expires_at <= now:
-            raise Conflict("Review storage has expired.", reason_code="TRAJECTORY_EXPIRED")
     else:
         claim = TrajectoryClaim(
             id=uuid.uuid4(), submission_id=submission.id, account_id=account_id,
@@ -305,7 +304,7 @@ async def bind_deposit(session, claim, submission, now):
 
 
 async def effective_status(session, claim):
-    if claim.status in ("DEPOSITED", "UNDER_REVIEW", "NEEDS_CHANGES") and claim.expires_at <= dt.datetime.now(dt.UTC):
+    if claim.status == "DEPOSITED" and claim.expires_at <= dt.datetime.now(dt.UTC):
         return "EXPIRED"
     if claim.status not in APPROVED:
         return claim.status
@@ -337,7 +336,8 @@ async def view(session, claim):
         "state_version": claim.state_version, "offer_start_at": claim.offer_start_at,
         "package_sha256": "sha256:" + claim.package_digest.hex(), "terms_version": claim.terms_version,
         "review_note": claim.review_note, "created_at": claim.created_at,
-        "expires_at": claim.expires_at, "audit_expires_at": claim.audit_expires_at,
+        "expires_at": content_expires_at(claim),
+        "audit_expires_at": None if claim.status in PRESERVED else claim.audit_expires_at,
         "content_available": await content_available(session, claim),
         "license_status": "LICENSED_FOR_SALE" if effective in APPROVED else "NOT_LICENSED",
     }
@@ -349,15 +349,19 @@ def license_status(claim):
 
 
 async def content_available(session, claim):
-    # Accepted logs are kept for sale; everything else expires on schedule.
-    return (claim.status in APPROVED or claim.expires_at > dt.datetime.now(dt.UTC)) and bool(await session.scalar(
+    # Review time and correction time never expire the evidence.
+    return (claim.status in PRESERVED or claim.expires_at > dt.datetime.now(dt.UTC)) and bool(await session.scalar(
         select(TrajectoryClaim.package.is_not(None) | TrajectoryClaim.package_chunked).where(TrajectoryClaim.id == claim.id)))
 
 
-def deletion_after_revocation(claim, now):
-    """A revoked acceptance is no longer licensed; its content follows the normal deletion window."""
-    return min(max(claim.expires_at, now + dt.timedelta(days=RETENTION_DAYS)),
-               claim.audit_expires_at - dt.timedelta(seconds=1))
+def content_expires_at(claim):
+    return None if claim.status in PRESERVED else claim.expires_at
+
+
+def close_retention(claim, now):
+    # Retention starts at closure, even after a review lasting more than seven years.
+    claim.expires_at = now + dt.timedelta(days=RETENTION_DAYS)
+    claim.audit_expires_at = max(claim.audit_expires_at, now + dt.timedelta(days=AUDIT_RETENTION_DAYS))
 
 
 async def lock_payouts(session, submission_id):

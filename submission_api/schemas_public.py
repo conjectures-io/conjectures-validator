@@ -68,7 +68,7 @@ VerificationStatus = Literal["UNVERIFIED", "VERIFIED", "REJECTED"]
 ManualReviewStatus = Literal["UNREVIEWED", "APPROVED", "REJECTED"]
 # FAILED is in the database enum and is read, but no production path writes it today.
 RewardStatus = Literal["INELIGIBLE", "ELIGIBLE", "REWARDED", "FAILED"]
-ReviewDecisionOutcome = Literal["APPROVED", "REJECTED"]
+ReviewDecisionOutcome = Literal["APPROVED", "REJECTED", "UNREVIEWED"]
 TaskMode = Literal["formalized", "counterexample"]
 ActivityEvent = Literal["attempt", "verified", "rejected", "certified"]
 SystemState = Literal["ok", "degraded", "paused"]
