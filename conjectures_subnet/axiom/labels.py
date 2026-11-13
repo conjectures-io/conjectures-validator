@@ -220,6 +220,10 @@ EventType: TypeAlias = Literal[
     "payout_confirmed",
     "payout_reorged",
     "payout_unmatched",
+    # A finalized transfer that pays a prepared historical (chat-log) bonus. Accounted for, but an
+    # operator still confirms it against the bonus ledger; kept apart from `payout_unmatched` so
+    # the money alert pages only for transfers nobody can explain.
+    "payout_bonus_awaiting_confirmation",
     # --- TMC PAY credit purchases -----------------------------------------------------------
     # The processor-settled funding path. Separate from the deposit watcher's `transfer_*` types
     # because the evidence is different in kind — a signed webhook rather than finalized chain
